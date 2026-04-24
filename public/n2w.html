@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numbers to Words Converter — ILovePDF</title>
+  <meta name="description" content="Free Numbers to Words Converter. Convert large numbers, scientific notation, currency, and check-writing format with multiple letter cases. By ILovePDF.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { DEFAULT: '#E5322E', dark: '#b81f1c', light: '#fde2e1' } },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .ad-placeholder {
+      background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #eef2f7 10px, #eef2f7 20px);
+      border: 1px dashed #cbd5e1;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+      <button id="open-sidebar" class="p-2 rounded-md hover:bg-slate-100" aria-label="Open menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+
+      <a href="/" class="font-extrabold text-xl tracking-tight no-underline">
+        <span class="text-slate-800">ILove</span><span class="text-brand">PDF</span>
+      </a>
+
+      <!-- All Tools dropdown -->
+      <div class="relative ml-4 hidden md:block" id="tools-dropdown-wrap">
+        <button id="tools-dropdown-btn"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-slate-700 hover:bg-brand-light hover:text-brand-dark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          All Tools
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="tools-dropdown" class="hidden absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 max-h-96 overflow-y-auto">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <a href="/" class="hidden sm:inline-flex text-sm font-medium text-slate-600 hover:text-brand">Home</a>
+        <button id="open-sidebar-2" class="rounded-full overflow-hidden w-9 h-9 border border-slate-200 hover:ring-2 hover:ring-brand">
+          <img id="header-avatar" src="https://api.dicebear.com/7.x/initials/svg?seed=Guest" alt="Profile" class="w-full h-full">
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-6">
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Numbers to Words Converter</h1>
+      <p class="text-slate-500 mt-1 text-sm">Convert large numbers, scientific notation, currency or check-writing format into words.</p>
+    </div>
+
+    <!-- Converter (left) + Ads (right) — equal-height row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+
+      <!-- Converter section -->
+      <section id="converter-card" class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 flex flex-col">
+        <div class="flex flex-col gap-5">
+
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Enter a number</label>
+            <textarea id="num-input" rows="3"
+              class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none font-mono text-sm"
+              placeholder="e.g. 1234567890.45 or 1.23e25 or a 300-digit number"></textarea>
+            <p class="text-xs text-slate-400 mt-1">Supports up to 300+ digit integers, decimals and scientific notation.</p>
+          </div>
+
+          <fieldset>
+            <legend class="block text-sm font-semibold text-slate-700 mb-2">Conversion type</legend>
+            <div class="flex flex-wrap gap-2">
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 cursor-pointer hover:border-brand has-[:checked]:bg-brand-light has-[:checked]:border-brand text-sm">
+                <input type="radio" name="mode" value="words" checked class="accent-brand"> Words
+              </label>
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 cursor-pointer hover:border-brand has-[:checked]:bg-brand-light has-[:checked]:border-brand text-sm">
+                <input type="radio" name="mode" value="currency" class="accent-brand"> Currency
+              </label>
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 cursor-pointer hover:border-brand has-[:checked]:bg-brand-light has-[:checked]:border-brand text-sm">
+                <input type="radio" name="mode" value="check" class="accent-brand"> Check Writing
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-1.5">Currency</label>
+              <select id="currency" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-sm">
+                <option value="USD">Dollars (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+                <option value="GBP">Pounds (GBP)</option>
+                <option value="INR">Rupees (INR)</option>
+                <option value="JPY">Yen (JPY)</option>
+                <option value="CNY">Yuan (CNY)</option>
+                <option value="AUD">Australian Dollars (AUD)</option>
+                <option value="CAD">Canadian Dollars (CAD)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-1.5">Suffix</label>
+              <select id="suffix" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-sm">
+                <option value="exactly">Exactly</option>
+                <option value="only">Only</option>
+                <option value="none">— None —</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-1.5">Letter Case</label>
+              <select id="letterCase" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-sm">
+                <option value="lowercase">lowercase</option>
+                <option value="UPPERCASE">UPPERCASE</option>
+                <option value="Title Case">Title Case</option>
+                <option value="Sentence Case">Sentence Case</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <button id="convert-btn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand text-white font-semibold shadow-sm hover:bg-brand-dark transition">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+              Convert
+            </button>
+            <button id="clear-btn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition">
+              Clear
+            </button>
+          </div>
+
+          <!-- Result -->
+          <div id="result-wrap" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Result</span>
+              <button id="copy-btn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-dark">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+            </div>
+            <div id="result-text" class="text-sm sm:text-base text-slate-800 leading-relaxed break-words font-medium"></div>
+          </div>
+
+          <div id="result-err" class="hidden rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+
+        </div>
+      </section>
+
+      <!-- Ad column (matches converter height) -->
+      <aside id="ads-col" class="lg:col-span-1 flex flex-col gap-4">
+        <div class="ad-placeholder rounded-2xl flex-1 flex items-center justify-center text-xs text-slate-400 uppercase tracking-widest">Advertisement 1</div>
+        <div class="ad-placeholder rounded-2xl flex-1 flex items-center justify-center text-xs text-slate-400 uppercase tracking-widest">Advertisement 2</div>
+      </aside>
+
+    </div>
+
+    <!-- Examples -->
+    <section class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+      <button class="example-btn text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-brand" data-val="1234567">1,234,567</button>
+      <button class="example-btn text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-brand" data-val="1234.56">1,234.56 (currency demo)</button>
+      <button class="example-btn text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-brand" data-val="1.23e15">1.23 × 10¹⁵</button>
+      <button class="example-btn text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-brand" data-val="999999999999999999999999">24-digit number</button>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 text-slate-400 py-6 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center text-xs">
+      &copy; 2026 ILovePDF — Numbers to Words Converter. Free, fast and secure.
+    </div>
+  </footer>
+
+  <!-- ============ SIDEBAR (overlay) ============ -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-50 hidden" aria-hidden="true"></div>
+  <aside id="sidebar" class="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="px-5 py-4 flex items-center justify-between border-b border-slate-200">
+      <span class="font-extrabold text-lg"><span class="text-slate-800">ILove</span><span class="text-brand">PDF</span></span>
+      <button id="close-sidebar" class="p-2 rounded-md hover:bg-slate-100" aria-label="Close sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Profile -->
+    <div id="profile-section" class="px-5 py-5 border-b border-slate-200">
+      <div class="flex items-center gap-3">
+        <img id="sb-avatar" src="https://api.dicebear.com/7.x/initials/svg?seed=Guest" alt="Profile" class="w-14 h-14 rounded-full border border-slate-200">
+        <div class="flex-1 min-w-0">
+          <div id="sb-name" class="font-semibold truncate">Guest</div>
+          <div id="sb-email" class="text-xs text-slate-500 truncate">Not signed in</div>
+        </div>
+      </div>
+
+      <!-- Storage indicator -->
+      <div class="mt-4">
+        <div class="flex justify-between text-xs text-slate-500 mb-1">
+          <span>Storage Used</span>
+          <span id="storage-text">0 GB / 2 GB</span>
+        </div>
+        <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
+          <div id="storage-bar" class="h-full bg-brand transition-all duration-500" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Auth controls -->
+      <div id="auth-buttons" class="mt-4 grid grid-cols-2 gap-2">
+        <button id="show-login" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-50">Log In</button>
+        <button id="show-signup" class="px-3 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark">Sign Up</button>
+      </div>
+      <button id="logout-btn" class="hidden mt-4 w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold hover:bg-slate-50">Log Out</button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 overflow-y-auto py-2">
+      <a href="#" class="sidebar-link"><span>⚙️</span> Settings</a>
+      <a href="#" class="sidebar-link"><span>📄</span> Documents</a>
+      <a href="#" class="sidebar-link"><span>💳</span> Subscription Details</a>
+      <a href="#" class="sidebar-link"><span>ℹ️</span> About Us</a>
+      <hr class="my-2 border-slate-200">
+      <a href="/" class="sidebar-link"><span>🛠️</span> All ILovePDF Tools</a>
+    </nav>
+    <style>
+      .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: .9rem; color: #334155; transition: background .15s; }
+      .sidebar-link:hover { background: #fde2e1; color: #b81f1c; }
+    </style>
+  </aside>
+
+  <!-- ============ AUTH MODAL ============ -->
+  <div id="auth-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative">
+      <button id="close-auth" class="absolute top-3 right-3 p-2 rounded-md hover:bg-slate-100" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h3 id="auth-title" class="text-xl font-extrabold mb-1">Sign Up</h3>
+      <p id="auth-sub" class="text-sm text-slate-500 mb-5">Create a free account to unlock 2 GB of cloud storage.</p>
+      <form id="auth-form" class="flex flex-col gap-3">
+        <div id="name-row">
+          <label class="text-xs font-semibold text-slate-600">Name</label>
+          <input id="auth-name" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-brand outline-none text-sm" type="text" autocomplete="name">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Email</label>
+          <input id="auth-email" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-brand outline-none text-sm" type="email" autocomplete="email" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Password</label>
+          <input id="auth-pass" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-brand outline-none text-sm" type="password" autocomplete="new-password" required>
+        </div>
+        <div id="auth-err" class="hidden text-sm text-red-600"></div>
+        <button id="auth-submit" type="submit" class="mt-2 w-full px-4 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-brand-dark transition">Create Account</button>
+      </form>
+      <p class="text-xs text-slate-500 mt-4 text-center">
+        <span id="auth-toggle-text">Already have an account?</span>
+        <button id="auth-toggle" class="text-brand font-semibold hover:underline">Log in</button>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/n2w-converter.js"></script>
+  <script src="js/n2w-app.js"></script>
+</body>
+</html>

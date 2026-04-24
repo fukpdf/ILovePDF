@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /uploads/
+Disallow: /api/
+
+Sitemap: https://fukpdf.com/sitemap.xml

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ILovePDF — All-in-One PDF, Image &amp; AI Tools</title>
+  <meta name="description" content="ILovePDF offers free online PDF tools: Merge, Split, Compress, Convert (PDF↔Word/PPT/Excel/JPG/HTML), Edit, Watermark, Sign, Protect, OCR, AI Summarizer, Translate, Background Remover and more.">
+  <meta name="keywords" content="merge pdf, split pdf, compress pdf, pdf to word, word to pdf, jpg to pdf, html to pdf, ocr pdf, ai summarizer, background remover, ilovepdf">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://ilovepdf.cyou/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="ILovePDF home">
+        <span class="brand-mark"><i data-lucide="file-text"></i></span>
+        <span class="brand-name">ILove<span>PDF</span></span>
+      </a>
+
+      <nav class="nav" id="nav" aria-label="Main"></nav>
+
+      <div class="header-cta">
+        <a href="#" class="btn btn-ghost" data-auth="login">Login</a>
+        <a href="#" class="btn btn-primary" data-auth="signup">Sign Up</a>
+        <button class="hamburger" id="hamburger" aria-label="Open menu">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-back"></div>
+    <div class="drawer-panel"></div>
+  </div>
+
+  <div class="page">
+
+    <aside class="rail" aria-label="Sidebar">
+      <div class="rail-sticky">
+        <!-- Numbers to Words Calculator -->
+        <div class="calc-card">
+          <div class="calc-head">
+            <span class="ico"><i data-lucide="calculator"></i></span>
+            <div>
+              <h3>Numbers to Words</h3>
+              <p>Convert numbers to text or currency</p>
+            </div>
+          </div>
+          <div class="calc-body">
+            <label class="calc-label" for="calc-input">Enter a number</label>
+            <input id="calc-input" class="calc-input" type="text" placeholder="e.g. 12345.67" autocomplete="off">
+            <div class="calc-modes" role="radiogroup" aria-label="Output mode">
+              <label class="calc-mode active" data-mode="words">
+                <input type="radio" name="calc-mode" value="words" checked>
+                Words
+              </label>
+              <label class="calc-mode" data-mode="currency">
+                <input type="radio" name="calc-mode" value="currency">
+                Currency
+              </label>
+            </div>
+            <select id="calc-currency" class="calc-currency" aria-label="Currency">
+              <option value="USD">USD — Dollars</option>
+              <option value="EUR">EUR — Euros</option>
+              <option value="GBP">GBP — Pounds</option>
+              <option value="INR">INR — Rupees</option>
+              <option value="JPY">JPY — Yen</option>
+            </select>
+
+            <label class="calc-label" style="margin-top:10px;" for="calc-case">Case</label>
+            <select id="calc-case" class="calc-currency show" aria-label="Letter case">
+              <option value="lowercase">lowercase</option>
+              <option value="UPPERCASE">UPPERCASE</option>
+              <option value="Title Case">Title Case</option>
+            </select>
+
+            <button id="calc-go" class="calc-btn">Convert</button>
+            <div class="calc-out-wrap" id="calc-out-wrap" hidden>
+              <div id="calc-out" class="calc-out show" aria-live="polite"></div>
+              <button type="button" id="calc-copy" class="calc-copy" aria-label="Copy to clipboard">
+                <i data-lucide="copy"></i><span>Copy</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Currency Converter -->
+        <div class="calc-card">
+          <div class="calc-head alt">
+            <span class="ico"><i data-lucide="dollar-sign"></i></span>
+            <div>
+              <h3>Currency Converter</h3>
+              <p>Live rates · 160+ currencies</p>
+            </div>
+          </div>
+          <div class="calc-body">
+            <label class="calc-label" for="fx-amount">Amount</label>
+            <input id="fx-amount" class="calc-input" type="number" inputmode="decimal" value="1" min="0" step="any">
+            <div class="fx-row">
+              <div>
+                <label class="calc-label" for="fx-from">From</label>
+                <select id="fx-from" class="calc-input"></select>
+              </div>
+              <button id="fx-swap" class="fx-swap" aria-label="Swap currencies" title="Swap">
+                <i data-lucide="arrow-left-right"></i>
+              </button>
+              <div>
+                <label class="calc-label" for="fx-to">To</label>
+                <select id="fx-to" class="calc-input"></select>
+              </div>
+            </div>
+            <button id="fx-go" class="calc-btn" type="button">Convert</button>
+            <div id="fx-out" class="calc-out show fx-out">
+              <div class="fx-result" id="fx-result">—</div>
+              <div class="fx-rate" id="fx-rate">Loading rates…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ad">Advertisement</div>
+      <div class="ad">Advertisement</div>
+      <div class="ad">Advertisement</div>
+      <div class="ad">Advertisement</div>
+    </aside>
+
+    <main class="content">
+      <section class="hero" id="hero">
+        <div class="hero-text">
+          <span class="hero-eyebrow"><i data-lucide="sparkles"></i> 33+ Free Tools</span>
+          <h1>Every PDF &amp; Image Tool You'll Ever Need</h1>
+          <p>Merge, split, compress, convert, edit, sign and protect — plus AI summarizer, OCR and a full image suite.</p>
+          <div class="hero-actions">
+            <a href="#tools-root" class="hero-btn"><i data-lucide="rocket"></i> Explore Tools</a>
+            <a href="/merge-pdf" class="hero-btn outline"><i data-lucide="layers"></i> Merge PDF</a>
+          </div>
+        </div>
+      </section>
+
+      <button class="calc-toggle" id="calc-toggle" type="button" aria-expanded="false" aria-controls="calc-mobile-slot">
+        <span class="ct-left">
+          <span class="ct-ico"><i data-lucide="calculator"></i></span>
+          <span>Open Calculators <span style="display:block;font-size:.75rem;font-weight:500;color:var(--text-mute);margin-top:1px;">Numbers &amp; live currency converter</span></span>
+        </span>
+        <i data-lucide="chevron-down" class="chev"></i>
+      </button>
+      <div id="calc-mobile-slot"></div>
+
+      <div>
+        <div class="section-head">
+          <div>
+            <h2>All Tools</h2>
+            <p>Pick a tool to get started — every file is processed securely and deleted automatically.</p>
+          </div>
+        </div>
+        <div id="tools-root"></div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-col footer-brand">
+        <a href="/" class="brand" aria-label="ILovePDF home">
+          <span class="brand-mark"><i data-lucide="file-text"></i></span>
+          <span class="brand-name">ILove<span>PDF</span></span>
+        </a>
+        <p>Free PDF &amp; Image tools online. Files are deleted automatically after processing — your privacy comes first.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#tools-root">All Tools</a>
+        <a href="/merge-pdf">Merge PDF</a>
+        <a href="/compress-pdf">Compress</a>
+        <a href="/pdf-to-word">PDF to Word</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+        <a href="/blog.html">Blog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/disclaimer.html">Disclaimer</a>
+      </div>
+      <div class="footer-col">
+        <h4>Connect</h4>
+        <a href="#">Twitter</a>
+        <a href="#">LinkedIn</a>
+        <a href="#">Support</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 ILovePDF — All rights reserved.</span>
+      <span>Files are deleted automatically within seconds.</span>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module" src="/js/firebase-init.js"></script>
+  <script src="js/n2w-converter.js"></script>
+  <script src="js/chrome.js"></script>
+  <script src="js/home.js"></script>
+  <script src="/js/auth-ui.js" defer></script>
+</body>
+</html>
