@@ -1,0 +1,206 @@
+Build and upgrade a complete production-ready SaaS web application called "fukpdf.com".
+
+IMPORTANT:
+- Do NOT break existing working features
+- Extend and optimize the current system
+- Keep design original (do NOT copy any existing website)
+- Ensure everything is scalable and clean
+
+====================================================
+
+1. CORE SYSTEM (FULLY WORKING TOOLS)
+
+Implement real working logic for:
+
+PDF TOOLS:
+- Merge PDF
+- Split PDF (range + single page)
+- Compress PDF (basic + optimized)
+- Rotate PDF
+- Add Page Numbers
+- Watermark PDF
+- JPG to PDF
+- PDF to JPG
+
+IMAGE TOOLS:
+- Resize Image (multiple presets)
+- Crop Image
+- Apply Filters (grayscale, blur, brightness)
+
+Use:
+- pdf-lib
+- sharp
+
+====================================================
+
+2. ADVANCED TOOLS (API INTEGRATION)
+
+Integrate APIs where required:
+
+Use:
+- CloudConvert → PDF conversions (PDF↔Word/Excel/PPT)
+- Remove.bg → Background remover
+- OCR API (Tesseract or external)
+
+Implement proper API handling:
+- Secure API key usage
+- Error handling
+- Loading states
+
+====================================================
+
+3. FULL SAAS UI (PRO LEVEL)
+
+Create modern SaaS dashboard:
+
+- Sidebar navigation (PDF Tools, Image Tools, Blog, Legal)
+- Header with search bar
+- Tool cards grid (icons + hover effects)
+- Tool pages with upload UI
+- Responsive design (mobile + desktop)
+- Clean modern colors
+
+====================================================
+
+4. BRANDING (IMPORTANT)
+
+Apply branding everywhere:
+
+Brand name: "fukpdf.com"
+
+- Header logo
+- Footer
+- Page titles
+- Meta tags
+- API responses
+
+Download file naming:
+fukpdf-[toolname].[ext]
+
+====================================================
+
+5. LEGAL SYSTEM
+
+Create pages:
+
+- Privacy Policy
+- Terms & Conditions
+- Disclaimer
+
+Add:
+- Consent popup (cookies + file processing)
+- Mention temporary file processing
+- Mention third-party APIs
+
+====================================================
+
+6. SEO (ADVANCED SYSTEM)
+
+Apply full SEO optimization:
+
+ON-PAGE:
+- Unique titles for each page
+- Meta descriptions
+- H1, H2 structured headings
+
+KEYWORDS:
+- Short, medium, long-tail, rare keywords
+- Example:
+  merge pdf online free
+  compress pdf under 1mb
+  secure pdf converter no signup
+
+PROGRAMMATIC SEO:
+Generate dynamic pages like:
+- merge pdf online fast
+- merge pdf without losing quality
+- compress pdf for mobile
+
+CONTENT:
+- Each tool page: 500–800 words SEO content
+
+BLOG SYSTEM:
+Create articles:
+- Best free PDF tools in 2026
+- How to merge PDF step by step
+- Compress PDF without losing quality
+
+Each article:
+- 1000–2000 words
+- SEO optimized
+
+TECHNICAL SEO:
+- sitemap.xml
+- robots.txt
+- schema markup (FAQ + WebApplication)
+- clean URLs
+
+====================================================
+
+7. PERFORMANCE OPTIMIZATION
+
+- Lazy load images
+- Minify CSS/JS
+- Fast API responses
+- Delete uploaded files after processing
+- File size limit (e.g. 10MB)
+
+====================================================
+
+8. SECURITY
+
+- Validate file types
+- Prevent malicious uploads
+- Basic rate limiting
+- Secure API keys
+
+====================================================
+
+9. MONETIZATION SYSTEM
+
+Prepare for earning:
+
+- AdSense ad placement areas:
+  header, sidebar, between tools
+
+- Add free vs premium logic:
+  free users → limited usage
+  premium → unlimited
+
+====================================================
+
+10. USER EXPERIENCE
+
+- Loading animations
+- Success messages
+- Error handling UI
+- Smooth navigation
+
+====================================================
+
+11. PROJECT STRUCTURE
+
+Organize code:
+
+/routes
+/controllers
+/public
+/uploads
+
+Keep:
+server.js as entry point
+
+====================================================
+
+FINAL OUTPUT:
+
+- Complete updated full project code
+- All tools functional (core real, advanced API-based)
+- Full SaaS UI
+- SEO optimized system
+- Legal pages included
+- Monetization ready
+- Clean and scalable structure
+
+Ensure project runs with:
+node server.js

@@ -1,0 +1,141 @@
+Upgrade my existing SaaS project and make it production-ready under the brand "fukpdf.com".
+
+IMPORTANT:
+- Do NOT break existing functionality
+- Extend and optimize system
+- Keep UI original and clean
+
+----------------------------------
+
+CORE FEATURES (FULLY WORKING):
+Implement and optimize:
+- Merge PDF
+- Split PDF (range + single)
+- Compress PDF
+- Rotate PDF
+- Add Page Numbers
+- Watermark PDF
+- JPG to PDF
+- PDF to JPG
+
+IMAGE TOOLS:
+- Resize
+- Crop
+- Filters (grayscale, brightness, blur)
+
+Use:
+pdf-lib, sharp
+
+----------------------------------
+
+ADVANCED TOOLS (API):
+Integrate:
+- CloudConvert (PDF conversions)
+- Remove.bg (background remover)
+- OCR API
+
+Add:
+- API key handling
+- Error handling
+- Loading UI
+
+----------------------------------
+
+UI (SAAS DASHBOARD):
+- Sidebar navigation
+- Header with search
+- Tool cards grid
+- Dedicated tool pages
+- Responsive design
+
+----------------------------------
+
+BRANDING:
+Use name: fukpdf.com everywhere
+
+- Titles, header, footer
+- Meta tags
+- Download files:
+  fukpdf-[tool].[ext]
+
+Add:
+"Powered by fukpdf.com"
+
+----------------------------------
+
+LEGAL:
+Add pages:
+- Privacy Policy
+- Terms & Conditions
+- Disclaimer
+
+Add consent popup:
+- cookies + file processing
+
+Mention:
+- temporary file handling
+- third-party APIs
+
+----------------------------------
+
+SEO:
+- Unique titles per page
+- Meta descriptions
+- Keywords:
+  merge pdf online free
+  compress pdf without losing quality
+  pdf to word converter
+
+Add:
+- 500–800 words content per tool page
+- sitemap.xml
+- robots.txt
+- schema markup
+
+----------------------------------
+
+BLOG:
+Create blog with:
+- merge pdf guide
+- compress pdf guide
+- best pdf tools
+
+Each:
+1000+ words + SEO optimized
+
+----------------------------------
+
+PERFORMANCE + SECURITY:
+- file size limit (10MB)
+- delete files after processing
+- validate uploads
+- rate limiting
+- optimize CSS/JS/images
+
+----------------------------------
+
+MONETIZATION:
+- AdSense placements
+- free vs premium system
+
+----------------------------------
+
+STRUCTURE:
+/routes
+/controllers
+/public
+/uploads
+
+Keep server.js as entry
+
+----------------------------------
+
+OUTPUT:
+- full updated code
+- all tools working (core real, advanced API)
+- SEO ready
+- monetization ready
+- clean SaaS structure
+
+Run with:
+node server.js

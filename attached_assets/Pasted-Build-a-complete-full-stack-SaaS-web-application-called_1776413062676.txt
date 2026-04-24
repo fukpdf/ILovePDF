@@ -1,0 +1,106 @@
+Build a complete full-stack SaaS web application called “PDF Tools Pro”.
+
+The platform is a multi-tool PDF processing website similar in functionality to modern PDF SaaS platforms, but must be fully original in design, UI, and code.
+
+DO NOT COPY any existing website design or code. Create a unique, modern SaaS interface.
+
+TECH STACK:
+- Node.js + Express backend
+- multer for file uploads
+- pdf-lib for PDF manipulation
+- optional libraries for conversion simulation
+- HTML, CSS, JavaScript frontend (no frameworks required for MVP)
+
+ARCHITECTURE:
+- server.js (main backend)
+- /public folder for frontend UI
+- /uploads for temporary files
+- modular routes for each tool
+
+CORE REQUIREMENT:
+Create a multi-tool dashboard system where each tool is accessible from a homepage.
+
+TOOLS TO IMPLEMENT (MUST CREATE ALL AS ROUTES OR LOGIC READY STRUCTURE):
+
+1. Merge PDF
+- Combine multiple PDFs into one
+
+2. Split PDF
+- Split PDF by pages or ranges
+
+3. Compress PDF
+- Reduce file size (simulate optimization if needed)
+
+4. PDF to Word (DOCX simulation or placeholder API structure)
+5. PDF to PowerPoint (PPTX structure)
+6. PDF to Excel (XLSX structure)
+7. Word to PDF
+8. PowerPoint to PDF
+9. Excel to PDF
+
+10. Edit PDF
+- Add text overlay system (basic implementation)
+
+11. PDF to JPG
+12. JPG to PDF
+
+13. Sign PDF (image/text signature overlay)
+
+14. Watermark PDF
+
+15. Rotate PDF pages
+
+16. HTML to PDF (basic URL to PDF placeholder)
+
+17. Unlock PDF (remove password placeholder logic)
+
+18. Protect PDF (add password encryption placeholder)
+
+19. Organize PDF (reorder pages)
+
+20. PDF Repair (basic placeholder feature)
+
+21. Add Page Numbers
+
+22. Scan to PDF (upload simulation)
+
+23. OCR PDF (placeholder structure only)
+
+24. Compare PDF (UI structure only)
+
+25. Redact PDF (blackout text simulation)
+
+26. Crop PDF
+
+27. AI Summarizer (placeholder API endpoint)
+
+28. Translate PDF (placeholder AI endpoint)
+
+29. Workflow Builder (UI only, drag-drop structure placeholder)
+
+FRONTEND REQUIREMENTS:
+- Modern SaaS dashboard UI
+- Sidebar with all tools listed
+- Tool cards on homepage
+- Responsive design (mobile + desktop)
+- Clean colors and professional layout
+- Each tool opens a separate page or modal
+
+BACKEND REQUIREMENTS:
+- Each tool must have a route structure (even if placeholder)
+- Fully working Merge PDF as MVP
+- Clean modular code structure
+- Error handling for uploads
+- File cleanup after processing
+
+IMPORTANT:
+- Make design original and not copied from any website
+- Prioritize clean code and scalability
+- MVP must fully work for at least Merge PDF
+- Other tools can be scaffold/placeholder but must exist in system structure
+- Ensure project runs using: node server.js
+
+FINAL OUTPUT:
+- Full project code
+- Folder structure
+- Instructions to run locally

@@ -1,0 +1,109 @@
+Upgrade the existing “PDF Tools Pro” SaaS web application into a fully expandable multi-tool platform.
+
+IMPORTANT:
+- Do NOT recreate the project from scratch.
+- ONLY extend existing structure.
+- Keep all current working features intact (especially Merge PDF).
+- Maintain original UI (do not copy any website design).
+
+GOAL:
+Convert this into a scalable PDF + Image tools SaaS dashboard like modern productivity platforms.
+
+---
+
+FEATURE IMPROVEMENTS:
+
+1. Add “Coming Soon” tool system:
+- OCR PDF (Coming Soon badge)
+- Repair PDF (Coming Soon badge)
+- Unlock PDF (Coming Soon badge)
+- Protect PDF (Coming Soon badge)
+- Compare PDF (Coming Soon badge)
+- AI Summarizer (Coming Soon badge)
+- Translate PDF (Coming Soon badge)
+- Workflow Builder (Coming Soon badge)
+
+These should appear in UI as disabled cards with:
+- “Coming Soon” label
+- Greyed out style
+- Click shows popup: “This feature will be available soon”
+
+---
+
+2. ADD NEW IMAGE TOOLS SECTION:
+
+Create a new section called:
+“Image Tools”
+
+Include these tools:
+
+A. Background Remover (UI + backend placeholder)
+B. Crop Image (functional basic cropping logic or UI placeholder)
+C. Image Resize (multiple size presets: 1:1, 16:9, A4, custom)
+D. Image Filters (basic filters like grayscale, brightness, blur UI simulation)
+
+---
+
+3. UI IMPROVEMENTS:
+
+- Add sidebar navigation:
+  - PDF Tools
+  - Image Tools
+  - Coming Soon
+- Add tool cards grid layout
+- Add hover animations
+- Add tool icons
+- Add responsive mobile layout
+
+---
+
+4. BACKEND REQUIREMENTS:
+
+- Maintain existing /merge working API
+- Add placeholder routes for:
+  /ocr
+  /repair
+  /background-remove
+  /crop-image
+  /resize-image
+  /filters
+
+Each should return:
+{
+  success: true,
+  message: "Coming soon feature"
+}
+
+---
+
+5. ARCHITECTURE REQUIREMENT:
+
+Organize code into:
+
+/routes/pdf.js
+/routes/image.js
+/controllers/pdfController.js
+/controllers/imageController.js
+/public (frontend)
+/uploads
+
+But keep server.js entry point working.
+
+---
+
+6. UX REQUIREMENTS:
+
+- Add “Coming Soon” modal popup
+- Add tool search bar (UI only if needed)
+- Add category badges (PDF / Image / AI / Utility)
+- Make design modern SaaS style (original design only)
+
+---
+
+FINAL OUTPUT:
+
+- Updated full project code
+- Updated folder structure
+- All working and non-working (coming soon) tools integrated
+- Maintain Merge PDF fully functional
+- Ensure server runs with: node server.js
