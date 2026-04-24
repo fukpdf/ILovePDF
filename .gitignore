@@ -1,0 +1,5 @@
+project.zip
+node_modules/
+.next/
+out/
+build/
