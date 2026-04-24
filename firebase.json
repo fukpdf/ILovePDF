@@ -1,1 +1,18 @@
-{"hosting": {"public": "public", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"], "rewrites": [{"source": "**", "destination": "/index.html"}]}}
+{
+  "hosting": {
+    "public": "public",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/tool.html"
+      }
+    ],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
