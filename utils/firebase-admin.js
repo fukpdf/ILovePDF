@@ -38,8 +38,23 @@ export async function verifyIdToken(idToken) {
   return a.auth().verifyIdToken(idToken);
 }
 
+// FIREBASE_API_KEY may also be supplied via GOOGLE_API_KEY (the secret name
+// Replit uses for Google API keys). Web-SDK config alone (api key + project)
+// is enough to power client-side login; the Admin SDK (service account JSON)
+// is only required for server-side ID-token verification.
+export function firebaseWebApiKey() {
+  return process.env.FIREBASE_API_KEY || process.env.GOOGLE_API_KEY || '';
+}
+export function isFirebaseWebConfigured() {
+  return !!(firebaseWebApiKey() && process.env.FIREBASE_PROJECT_ID);
+}
+export function isFirebaseAdminConfigured() {
+  return !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+}
+// Back-compat: existing call-sites use this as the umbrella check. Keep it
+// truthy as soon as the web config is present so the /api/config/firebase
+// endpoint stops returning 503; admin verification still no-ops cleanly when
+// the service account JSON is missing.
 export function isFirebaseConfigured() {
-  return !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-         && process.env.FIREBASE_API_KEY
-         && process.env.FIREBASE_PROJECT_ID);
+  return isFirebaseWebConfigured();
 }

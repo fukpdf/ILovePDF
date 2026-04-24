@@ -18,7 +18,7 @@ import { SLUG_MAP, buildHtml, getRedirect } from './utils/seo.js';
 import { UPLOAD_DIR, sweepUploads } from './utils/upload.js';
 import { checkUsage, enforcePerFile } from './utils/usage.js';
 import { isR2Configured, startR2Sweeper } from './utils/r2.js';
-import { isFirebaseConfigured } from './utils/firebase-admin.js';
+import { isFirebaseConfigured, firebaseWebApiKey } from './utils/firebase-admin.js';
 import { isHfConfigured } from './utils/ai.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -94,10 +94,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/config/firebase', (_req, res) => {
   if (!isFirebaseConfigured()) return res.status(503).json({ error: 'firebase not configured' });
   res.json({
-    apiKey:        process.env.FIREBASE_API_KEY,
+    apiKey:        firebaseWebApiKey(),
     authDomain:    process.env.FIREBASE_AUTH_DOMAIN,
     projectId:     process.env.FIREBASE_PROJECT_ID,
     appId:         process.env.FIREBASE_APP_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
   });
 });
 

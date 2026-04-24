@@ -1,5 +1,47 @@
-project.zip
+# --- Dependencies ---
 node_modules/
+
+# --- Build output ---
 .next/
 out/
 build/
+dist/
+
+# --- Local stores / runtime ---
+uploads/
+storage/
+data/
+.data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# --- Logs / OS ---
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- Large user payloads (prevents the GitHub 100MB file-size error) ---
+*.pdf
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.mp4
+*.mov
+*.psd
+
+# --- Misc archives accidentally placed in the repo ---
+project.zip
+attached_assets/
+.local/

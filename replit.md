@@ -84,13 +84,58 @@ on accidental client-side API misroutes; real API calls go directly to the backe
 |--------------------------------|--------------------------------------------------|
 | `JWT_SECRET`                   | Signs the `ilovepdf_token` auth cookie           |
 | `ALLOWED_ORIGINS`              | Extra CORS origins (comma-separated). Defaults already include `ilovepdf.cyou`, `www.ilovepdf.cyou`, `ilovepdf-web.web.app`, `ilovepdf-web.firebaseapp.com`. Use `*` to allow any. |
+| `MAX_UPLOAD_MB`                | Hard ceiling on per-file upload size (default 200) |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | Cloudflare R2 storage (uploads + saved files) |
-| `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | Public Firebase Web SDK config (returned by `/api/config/firebase`) |
+| `FIREBASE_API_KEY` *or* `GOOGLE_API_KEY` | Public Firebase Web SDK API key (either env var works) |
+| `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` / `FIREBASE_STORAGE_BUCKET` | Public Firebase Web SDK config (returned by `/api/config/firebase`) |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin SDK credentials for verifying Firebase ID tokens |
-| `HF_API_KEY`                   | Optional Hugging Face token for AI tools          |
+| `HF_API_TOKEN` (or legacy `HUGGINGFACE_API_TOKEN`) | Hugging Face inference token for AI tools |
+| `HF_SPACE_URL`                 | Optional self-hosted HF Space fallback URL |
 
 The backend logs which services are enabled at startup. Until R2/Firebase env vars
 are set, those endpoints respond with `503 not configured` instead of crashing.
+
+### User tier system
+
+`utils/usage.js` enforces three tiers, all in one middleware (`checkUsage`):
+
+| Tier    | Detection                                | Daily files | Per-file cap |
+|---------|------------------------------------------|-------------|--------------|
+| guest   | No auth cookie                           | 10          | 60 MB        |
+| free    | Logged in, `users.plan='free'` (default) | 30          | 200 MB       |
+| premium | Logged in, `users.plan='premium'`        | unlimited   | `MAX_UPLOAD_MB` |
+
+To upgrade a user manually:
+```sql
+UPDATE users SET plan='premium' WHERE email='someone@example.com';
+```
+
+### Auto-cleanup
+
+- Local uploads (`UPLOAD_DIR`): swept every 15 min by `utils/upload.js`.
+- R2 `tmp/` prefix: swept every 5 min, objects older than 10 min deleted
+  (`utils/r2.js → startR2Sweeper`).
+- R2 `users/<uid>/` prefix: kept until the user deletes from /dashboard.html.
+
+## Frontend tool dispatcher
+
+`public/js/app-router.js` exposes a single `window.runTool(toolId, files, opts)`
+plus a `TOOL_MAP` describing how each of the 33 tools is handled:
+
+```js
+TOOL_MAP['merge']    // { type: 'browser', id: 'merge' }       -> pdf-lib
+TOOL_MAP['compress'] // { type: 'api', endpoint: '/api/compress', field: 'pdf' }
+```
+
+Browser tools (8) run entirely client-side via `browser-tools.js`
+(merge, split, rotate, crop, organize, page-numbers, watermark, jpg-to-pdf).
+The remaining 25 dispatch to the backend through `apiUrl()` from `config.js`
+(which auto-prefixes with the production backend URL when the page is served
+from Firebase Hosting).
+
+`tool-page.js` already integrates this fast path internally — `runTool` is
+the standalone API for any future entry points (quick-action cards, CLI,
+external embeds).
 
 ### Cross-origin auth cookie
 

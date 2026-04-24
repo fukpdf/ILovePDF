@@ -25,8 +25,22 @@ db.exec(`
     storage_quota INTEGER NOT NULL DEFAULT 2147483648, -- 2 GB
     storage_used  INTEGER NOT NULL DEFAULT 0,
     avatar_url    TEXT,
+    plan          TEXT NOT NULL DEFAULT 'free',
     created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
   );
 `);
+
+// Idempotent migration — adds the `plan` column to legacy databases that
+// were created before the tier system existed. SQLite's ADD COLUMN can't
+// be wrapped in IF NOT EXISTS, so we probe pragma_table_info first.
+try {
+  const cols = db.prepare("SELECT name FROM pragma_table_info('users')").all().map(r => r.name);
+  if (!cols.includes('plan')) {
+    db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+    console.log("[db] migrated: added users.plan column");
+  }
+} catch (e) {
+  console.error('[db] migration check failed:', e.message);
+}
 
 export default db;

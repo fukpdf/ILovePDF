@@ -38,7 +38,7 @@ export async function backgroundRemove(req, res) {
     }).png().toBuffer();
 
     cleanupFiles(req.file);
-    sendImage(res, result, 'image/png', 'fukpdf-bg-removed.png');
+    sendImage(res, result, 'image/png', 'ilovepdf-bg-removed.png');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -78,7 +78,7 @@ export async function cropImage(req, res) {
     const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
 
     cleanupFiles(req.file);
-    sendImage(res, result, mime, `fukpdf-crop.${ext}`);
+    sendImage(res, result, mime, `ilovepdf-crop.${ext}`);
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -118,7 +118,7 @@ export async function resizeImage(req, res) {
     const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
 
     cleanupFiles(req.file);
-    sendImage(res, result, mime, `fukpdf-resize.${ext}`);
+    sendImage(res, result, mime, `ilovepdf-resize.${ext}`);
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -172,7 +172,7 @@ export async function applyFilters(req, res) {
     const mime   = ext === 'jpg' ? 'image/jpeg' : 'image/png';
 
     cleanupFiles(req.file);
-    sendImage(res, result, mime, `fukpdf-filter-${filter}.${ext}`);
+    sendImage(res, result, mime, `ilovepdf-filter-${filter}.${ext}`);
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });

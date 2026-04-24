@@ -1,7 +1,13 @@
 // Hugging Face Inference API helpers — used ONLY for AI tools (summarize / translate).
 // All other tools continue to use existing in-process logic.
-const HF_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
+// Accept any of the historical names — keeps the env config flexible.
+const HF_TOKEN = process.env.HF_API_TOKEN
+              || process.env.HUGGINGFACE_API_TOKEN
+              || process.env.HUGGING_FACE_TOKEN;
 const HF_BASE  = 'https://api-inference.huggingface.co/models';
+// Optional self-hosted Space (HF_SPACE_URL) — used as a fallback if the public
+// inference API is rate-limited or unavailable.
+const HF_SPACE_URL = (process.env.HF_SPACE_URL || '').replace(/\/+$/, '');
 
 export function isHfConfigured() { return !!HF_TOKEN; }
 

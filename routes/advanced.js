@@ -29,7 +29,7 @@ router.post('/repair', upload.single('pdf'), async (req, res) => {
     const outBytes = await pdfDoc.save({ useObjectStreams: false });
 
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-repair.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-repair.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });

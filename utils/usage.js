@@ -9,12 +9,20 @@ import db from './db.js';
 const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const COOKIE = 'ilovepdf_token';
 
+// Tiered usage limits.
+//   guest    — anonymous visitor, by IP address
+//   free     — logged-in user (default plan)
+//   premium  — logged-in user with users.plan = 'premium' (no daily caps)
+const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || '200', 10) || 200;
+const MB = 1024 * 1024;
 export const LIMITS = {
-  // anonymous: 10 files / day, 200 MB / day
-  anon: { files: 10, bytes: 200 * 1024 * 1024, perFile: 100 * 1024 * 1024 },
-  // logged-in: 1 GB / day, 50 MB / file
-  user: { files: 1000, bytes: 1024 * 1024 * 1024, perFile: 50 * 1024 * 1024 },
+  guest:   { files: 10,        bytes: 600 * MB,  perFile: 60  * MB }, // 10/day · 60 MB per file
+  free:    { files: 30,        bytes: 6  * 1024 * MB, perFile: Math.min(200, MAX_UPLOAD_MB) * MB }, // 30/day · 200 MB per file
+  premium: { files: Infinity,  bytes: Infinity,  perFile: MAX_UPLOAD_MB * MB }, // unlimited
 };
+// Aliases for backwards compatibility with older code paths.
+LIMITS.anon = LIMITS.guest;
+LIMITS.user = LIMITS.free;
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS usage_log (
@@ -85,7 +93,18 @@ export function checkUsage(req, res, next) {
   const user = readUserFromCookie(req);
   const ip   = clientIp(req);
   const row  = fetchOrCreateRow(user?.id || null, ip);
-  const limits = user ? LIMITS.user : LIMITS.anon;
+  // Pick the tier. Premium users (users.plan='premium') bypass daily caps;
+  // logged-in users get the free tier; everyone else is a guest.
+  let limits = LIMITS.guest;
+  if (user) {
+    let plan = 'free';
+    try {
+      const dbRow = db.prepare('SELECT plan FROM users WHERE id=?').get(user.id);
+      if (dbRow?.plan === 'premium') plan = 'premium';
+    } catch (_) {}
+    limits = LIMITS[plan] || LIMITS.free;
+    if (limits.files === Infinity) return next(); // premium short-circuit
+  }
 
   // (1) Already over the daily quotas?
   if (row.file_count >= limits.files) {

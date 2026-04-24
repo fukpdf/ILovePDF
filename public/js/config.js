@@ -11,13 +11,16 @@
 */
 (function () {
   // ── Production frontend hosts → backend URL ─────────────────────────────
-  // Add your backend URL here once it's deployed (Replit / Railway / Render / etc).
-  // Example: 'https://ilovepdf-api.up.railway.app'
+  // Replace this with your production backend URL once you publish the
+  // Express server (e.g. https://ilovepdf-api.<your-name>.repl.co or a
+  // Railway/Render/Fly URL). The current value points at the Replit dev
+  // domain so you can test the deployed Firebase frontend right away.
+  const PROD_BACKEND = 'https://b937f7de-fc5b-41b1-9d1f-328f94d47152-00-2zzk5nctdcm15.kirk.replit.dev';
   const HOST_TO_BACKEND = {
-    'ilovepdf.cyou':                 '', // ← set to your backend URL when known
-    'www.ilovepdf.cyou':             '',
-    'ilovepdf-web.web.app':          '',
-    'ilovepdf-web.firebaseapp.com':  '',
+    'ilovepdf.cyou':                 PROD_BACKEND,
+    'www.ilovepdf.cyou':             PROD_BACKEND,
+    'ilovepdf-web.web.app':          PROD_BACKEND,
+    'ilovepdf-web.firebaseapp.com':  PROD_BACKEND,
   };
 
   function resolveBase() {
