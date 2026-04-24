@@ -39,17 +39,33 @@ setInterval(sweepUploads, 15 * 60 * 1000);
 sweepUploads();
 startR2Sweeper(); // 10-min TTL for tmp/* objects
 
-// CORS — comma-separated ALLOWED_ORIGINS (e.g. https://www.yourdomain.com,https://app.yourdomain.com)
-const ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// CORS — comma-separated ALLOWED_ORIGINS env (e.g. https://app.example.com,https://www.example.com)
+// Plus a built-in allowlist of the production frontend domains so the deployed
+// site works out of the box. Use ALLOWED_ORIGINS=* to allow any origin.
+const DEFAULT_ALLOWED = [
+  'https://ilovepdf.cyou',
+  'https://www.ilovepdf.cyou',
+  'https://ilovepdf-web.web.app',
+  'https://ilovepdf-web.firebaseapp.com',
+];
+const ENV_ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const ALLOWED = Array.from(new Set([...DEFAULT_ALLOWED, ...ENV_ALLOWED]));
+const ALLOW_ANY = ALLOWED.includes('*');
+console.log(`[ilovepdf] cors:     allowing ${ALLOW_ANY ? 'ANY origin' : ALLOWED.length + ' origin(s)'}`);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && (ALLOWED.includes(origin) || ALLOWED.includes('*'))) {
+  // Same-origin requests have no Origin header; nothing to do for CORS.
+  if (origin && (ALLOW_ANY || ALLOWED.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
+  } else if (origin && req.method === 'OPTIONS') {
+    // Reject unknown-origin pre-flights cleanly so the browser shows a useful error.
+    return res.status(403).json({ error: 'origin not allowed', origin });
   }
   next();
 });

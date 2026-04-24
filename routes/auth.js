@@ -15,6 +15,28 @@ function sign(user) {
   return jwt.sign({ id: user.id, email: user.email, name: user.name }, SECRET, { expiresIn: '30d' });
 }
 
+// Cross-origin cookies (frontend on Firebase + backend elsewhere) require
+// SameSite=None; Secure. Same-origin can keep SameSite=lax. We detect the
+// situation by comparing the request's Origin header to its Host.
+function cookieOpts(req) {
+  const origin = req.headers.origin || '';
+  const host   = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const isCrossOrigin = !!origin && origin.replace(/^https?:\/\//, '').split('/')[0] !== host;
+  const isSecure = req.secure
+    || (req.headers['x-forwarded-proto'] || '').toLowerCase() === 'https'
+    || isCrossOrigin; // cross-origin always needs Secure
+  return {
+    httpOnly: true,
+    sameSite: isCrossOrigin ? 'none' : 'lax',
+    secure:   isSecure,
+    maxAge:   30 * 24 * 3600 * 1000,
+    path:     '/',
+  };
+}
+function setAuthCookie(req, res, user) {
+  res.cookie(COOKIE, sign(user), cookieOpts(req));
+}
+
 function authMiddleware(req, res, next) {
   const token = req.cookies?.[COOKIE];
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
@@ -48,7 +70,7 @@ router.post('/auth/signup', (req, res) => {
     VALUES (?, ?, ?, ?, 0)
   `).run(email.toLowerCase(), name.trim(), hash, QUOTA);
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(info.lastInsertRowid);
-  res.cookie(COOKIE, sign(user), { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 3600 * 1000 });
+  setAuthCookie(req, res, user);
   res.json({ user: publicUser(user) });
 });
 
@@ -59,12 +81,12 @@ router.post('/auth/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
-  res.cookie(COOKIE, sign(user), { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 3600 * 1000 });
+  setAuthCookie(req, res, user);
   res.json({ user: publicUser(user) });
 });
 
 router.post('/auth/logout', (req, res) => {
-  res.clearCookie(COOKIE);
+  res.clearCookie(COOKIE, { path: '/', sameSite: cookieOpts(req).sameSite, secure: cookieOpts(req).secure });
   res.json({ ok: true });
 });
 
@@ -134,7 +156,7 @@ router.post('/auth/complete-signup', (req, res) => {
 
   db.prepare('DELETE FROM pending_signups WHERE token=?').run(token);
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(info.lastInsertRowid);
-  res.cookie(COOKIE, sign(user), { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 3600 * 1000 });
+  setAuthCookie(req, res, user);
   res.json({ user: publicUser(user) });
 });
 
@@ -172,7 +194,7 @@ router.post('/auth/firebase', async (req, res) => {
     db.prepare('UPDATE users SET avatar_url=? WHERE id=?').run(decoded.picture, user.id);
     user.avatar_url = decoded.picture;
   }
-  res.cookie(COOKIE, sign(user), { httpOnly: true, sameSite: 'lax', secure: req.secure, maxAge: 30 * 24 * 3600 * 1000 });
+  setAuthCookie(req, res, user);
   res.json({ user: publicUser(user) });
 });
 

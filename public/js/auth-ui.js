@@ -92,7 +92,7 @@
   async function exchangeFirebaseToken() {
     const idToken = await window.FB.getIdToken(true);
     if (!idToken) throw new Error('No Firebase ID token');
-    const r = await fetch('/api/auth/firebase', {
+    const r = await (window.apiFetch || fetch)('/api/auth/firebase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
@@ -154,7 +154,7 @@
         // Fallback: legacy server-side auth
         const url = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
         const body = mode === 'signup' ? { email, password, name } : { email, password };
-        const res = await fetch(url, {
+        const res = await (window.apiFetch || fetch)(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -203,7 +203,7 @@
             <div class="pm-email">${u.email}</div>
           </div>
           <a class="pm-item" href="/n2w.html#profile" role="menuitem">Profile</a>
-          <a class="pm-item" href="/dashboard" role="menuitem">My Files</a>
+          <a class="pm-item" href="/dashboard.html" role="menuitem">My Files</a>
           <a class="pm-item pm-danger" href="#" data-act="logout" role="menuitem">Log Out</a>
         </div>
       </div>`;
@@ -222,7 +222,7 @@
       e.preventDefault();
       if (a.dataset.act === 'logout') {
         try { if (firebaseReady) await window.FB.logout(); } catch {}
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        await (window.apiFetch || fetch)('/api/auth/logout', { method: 'POST', credentials: 'include' });
         currentUser = null;
         renderProfile();
       }
@@ -241,7 +241,7 @@
       firebaseReady = !!(window.FB && !window.FB.disabled);
     }
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      const res = await (window.apiFetch || fetch)('/api/auth/me', { credentials: 'include' });
       if (res.ok) currentUser = (await res.json()).user;
     } catch {}
     renderProfile();

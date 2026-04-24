@@ -1,3 +1,61 @@
+// URL slug → tool-id (mirrors utils/seo.js SLUG_MAP). Lets the client
+// resolve clean URLs like /merge-pdf without needing the server-side
+// SEO middleware (essential when the frontend is on Firebase Hosting).
+// `special` is a redirect target (only for /n2w.html today).
+window.SLUG_MAP = {
+  'merge-pdf':         { id:'merge'         },
+  'split-pdf':         { id:'split'         },
+  'rotate-pdf':        { id:'rotate'        },
+  'crop-pdf':          { id:'crop'          },
+  'organize-pdf':      { id:'organize'      },
+  'compress-pdf':      { id:'compress'      },
+  'pdf-to-word':       { id:'pdf-to-word'   },
+  'pdf-to-powerpoint': { id:'pdf-to-powerpoint' },
+  'pdf-to-excel':      { id:'pdf-to-excel'  },
+  'pdf-to-jpg':        { id:'pdf-to-jpg'    },
+  'word-to-pdf':       { id:'word-to-pdf'   },
+  'powerpoint-to-pdf': { id:'powerpoint-to-pdf' },
+  'excel-to-pdf':      { id:'excel-to-pdf'  },
+  'jpg-to-pdf':        { id:'jpg-to-pdf'    },
+  'html-to-pdf':       { id:'html-to-pdf'   },
+  'edit-pdf':          { id:'edit'          },
+  'watermark-pdf':     { id:'watermark'     },
+  'sign-pdf':          { id:'sign'          },
+  'add-page-numbers':  { id:'page-numbers'  },
+  'redact-pdf':        { id:'redact'        },
+  'protect-pdf':       { id:'protect'       },
+  'unlock-pdf':        { id:'unlock'        },
+  'repair-pdf':        { id:'repair'        },
+  'scan-pdf':          { id:'scan-to-pdf'   },
+  'ocr-pdf':           { id:'ocr'           },
+  'compare-pdf':       { id:'compare'       },
+  'ai-summarizer':     { id:'ai-summarize'  },
+  'translate-pdf':     { id:'translate'     },
+  'workflow-builder':  { id:'workflow'      },
+  'numbers-to-words':  { id:'numbers-to-words', special:'/n2w.html' },
+  'background-remover':{ id:'background-remover' },
+  'crop-image':        { id:'crop-image'    },
+  'resize-image':      { id:'resize-image'  },
+  'image-filters':     { id:'image-filters' },
+};
+
+// Resolve current page URL → tool-id. Falls back through:
+//   1. window.__TOOL_ID (injected by Express SEO middleware)
+//   2. ?id= query param (legacy /tool.html?id=merge URLs)
+//   3. Pathname slug → SLUG_MAP lookup (works on Firebase static)
+window.resolveToolIdFromUrl = function () {
+  if (typeof window.__TOOL_ID === 'string' && window.__TOOL_ID) return window.__TOOL_ID;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get('id');
+  if (fromQuery) return fromQuery;
+  const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (!slug) return null;
+  // Direct slug match
+  if (window.SLUG_MAP[slug]) return window.SLUG_MAP[slug].id;
+  // Tool-id used directly as path (e.g. /merge)
+  return slug;
+};
+
 const CATEGORIES = [
   { name: 'Organize PDFs',       color: '#E5322E', icon: 'layers',             group: 'pdf'   },
   { name: 'Compress & Optimize', color: '#10b981', icon: 'zap',                group: 'pdf'   },

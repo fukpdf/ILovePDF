@@ -3,16 +3,64 @@ let selectedFiles = [];   // array of { file, rotation, id }
 let dragSrcIndex = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // SEO route injects window.__TOOL_ID; fall back to ?id=… for the legacy URL
-  const params = new URLSearchParams(window.location.search);
-  const toolId = window.__TOOL_ID || params.get('id');
+  // Resolution order:
+  //   1. window.__TOOL_ID (Express SEO middleware injection — Node-served only)
+  //   2. ?id=… legacy query param
+  //   3. URL pathname slug → SLUG_MAP lookup (works on Firebase static hosting)
+  const toolId = (typeof window.resolveToolIdFromUrl === 'function')
+    ? window.resolveToolIdFromUrl()
+    : (window.__TOOL_ID || new URLSearchParams(window.location.search).get('id'));
+
+  // Honour SLUG_MAP "special" redirects (e.g. numbers-to-words → /n2w.html).
+  // On Node this is handled server-side; on Firebase static we have to do it here.
+  const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+  const slugMeta = window.SLUG_MAP && window.SLUG_MAP[slug];
+  if (slugMeta && slugMeta.special && window.location.pathname !== slugMeta.special) {
+    window.location.replace(slugMeta.special);
+    return;
+  }
 
   currentTool = TOOLS.find(t => t.id === toolId);
-  if (!currentTool) { window.location.href = '/'; return; }
+
+  // Tool has a dedicated standalone page (e.g. numbers-to-words → /n2w.html)
+  if (currentTool && currentTool.url && window.location.pathname !== currentTool.url) {
+    window.location.replace(currentTool.url);
+    return;
+  }
+
+  if (!currentTool) {
+    // Show a friendly 404 instead of silently bouncing to home (which looked
+    // like the page was "refreshing" itself when SEO injection wasn't present).
+    renderNotFound(toolId, slug);
+    return;
+  }
 
   buildSidebar(currentTool.id);
   renderToolPage(currentTool);
 });
+
+function renderNotFound(toolId, slug) {
+  const c = document.getElementById('tool-content');
+  if (!c) return;
+  c.innerHTML = `
+    <div class="tool-page">
+      <div class="tool-header">
+        <a href="/" class="back-link"><i data-lucide="arrow-left"></i> All Tools</a>
+      </div>
+      <div class="status-card status-error" style="margin-top:24px">
+        <i data-lucide="alert-circle"></i>
+        <div>
+          <div class="status-card-title">Tool not found</div>
+          <div class="status-card-msg">
+            We couldn't find a tool for
+            <code>${escapeHtml('/' + (slug || ''))}</code>${toolId ? ` (id: <code>${escapeHtml(toolId)}</code>)` : ''}.
+            <br><a href="/" style="color:#E5322E;font-weight:600">Browse all tools →</a>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+}
 
 // ── RENDER TOOL PAGE ───────────────────────────────────────────────────────
 
@@ -94,10 +142,10 @@ function renderToolPage(tool) {
       ${optionsHtml}
 
       <div class="process-btn-wrap">
-        <button class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
+        <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
           <i data-lucide="zap"></i> Process File
         </button>
-        <button class="btn btn-outline" id="clear-btn" onclick="clearAll()" style="display:none">
+        <button type="button" class="btn btn-outline" id="clear-btn" onclick="clearAll()" style="display:none">
           <i data-lucide="x"></i> Clear
         </button>
       </div>
@@ -340,7 +388,14 @@ async function processFile() {
   }
 
   try {
-    const response = await fetch(currentTool.apiEndpoint, { method: 'POST', body: formData });
+    const endpoint = (typeof window.apiUrl === 'function')
+      ? window.apiUrl(currentTool.apiEndpoint)
+      : currentTool.apiEndpoint;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
     if (response.status === 429 || response.status === 413) {
       const data = await response.json().catch(() => ({}));
       if (data.error === 'LIMIT_REACHED') {
@@ -395,7 +450,12 @@ async function processFile() {
     showStatus('success', 'Done!', json.message || 'Processing complete.');
   } catch (err) {
     hideProcessing();
-    showStatus('error', 'Connection error', 'Could not connect to the server. Please try again.');
+    const apiBase = (window.API_BASE || '').trim();
+    const hint = apiBase
+      ? `Could not reach the API at <code>${escapeHtml(apiBase)}</code>. Please try again in a moment.`
+      : `Could not connect to the processing API. If you're on a static deploy, set the backend URL in <code>js/config.js</code>.`;
+    showStatus('error', 'Connection error', hint);
+    console.error('[process] network error:', err);
   } finally {
     if (processBtn) processBtn.disabled = false;
   }

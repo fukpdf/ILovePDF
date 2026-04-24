@@ -219,9 +219,10 @@ function ensureAuthModal(){
     const fd = new FormData(e.target);
     const msg = wrap.querySelector('#login-msg'); msg.className = 'auth-msg'; msg.textContent = '';
     try {
-      const r = await fetch('/api/auth/login', {
+      const r = await (window.apiFetch || fetch)('/api/auth/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') })
+        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
+        credentials: 'include',
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Login failed.');
@@ -238,9 +239,10 @@ function ensureAuthModal(){
     const msg = wrap.querySelector('#signup-msg'); msg.className = 'auth-msg'; msg.textContent = '';
     const sent = wrap.querySelector('#signup-sent'); sent.hidden = true;
     try {
-      const r = await fetch('/api/auth/start-signup', {
+      const r = await (window.apiFetch || fetch)('/api/auth/start-signup', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
+        credentials: 'include',
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not send confirmation email.');

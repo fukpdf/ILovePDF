@@ -120,7 +120,7 @@ $('auth-form').addEventListener('submit', async e => {
   };
   if (authMode === 'signup') body.name = $('auth-name').value.trim();
   const url = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
-  const res = await fetch(url, {
+  const res = await (window.apiFetch || fetch)(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -137,7 +137,7 @@ $('auth-form').addEventListener('submit', async e => {
 });
 
 $('logout-btn').addEventListener('click', async () => {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  await (window.apiFetch || fetch)('/api/auth/logout', { method: 'POST', credentials: 'include' });
   applyUser(null);
 });
 
@@ -178,7 +178,7 @@ function applyUser(user) {
 
 (async function loadMe() {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const res = await (window.apiFetch || fetch)('/api/auth/me', { credentials: 'include' });
     if (res.ok) {
       const j = await res.json();
       applyUser(j.user);

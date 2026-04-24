@@ -92,6 +92,7 @@
     </div>
   </footer>
 
+  <script src="/js/config.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/js/chrome.js"></script>
   <script>
@@ -113,7 +114,7 @@
 
     if (!token) { showError('No confirmation token in the URL.'); return; }
 
-    fetch('/api/auth/verify-token?token=' + encodeURIComponent(token))
+    (window.apiFetch || fetch)('/api/auth/verify-token?token=' + encodeURIComponent(token))
       .then(r => r.json().then(d => ({ ok: r.ok, d })))
       .then(({ ok, d }) => ok ? showForm(d.email) : showError(d.error || 'Invalid link.'))
       .catch(() => showError('Network error — please try again.'));
@@ -153,9 +154,10 @@
       const msg = $('vf-msg'); msg.className = 'auth-msg'; msg.textContent = '';
       submit.disabled = true; submit.textContent = 'Creating account…';
       try {
-        const r = await fetch('/api/auth/complete-signup', {
+        const r = await (window.apiFetch || fetch)('/api/auth/complete-signup', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
+          credentials:'include',
           body: JSON.stringify({
             token,
             firstName: $('vf-first').value.trim(),

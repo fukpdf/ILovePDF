@@ -63,3 +63,61 @@ A production-ready PDF + image processing platform with 33 tools, branded as **I
 ```bash
 node server.js   # listens on port 5000
 ```
+
+## Deployment
+
+Frontend is hosted on **Firebase Hosting** (`ilovepdf.cyou`, project `ilovepdf-web`).
+Backend (Node/Express) is intended to run on a separate host (e.g. Replit Deployments,
+Railway, Fly, Render). The frontend reaches the backend via `public/js/config.js`,
+which maps each frontend host to a backend URL through `HOST_TO_BACKEND` and exposes:
+
+- `window.API_BASE` — root URL for API calls
+- `apiUrl(path)` — prefixes API paths with the backend
+- `apiFetch(path, opts)` — fetch wrapper that adds `credentials: 'include'`
+
+`firebase.json` rewrites `/api/**` to `/index.html` so static hosting doesn't 404
+on accidental client-side API misroutes; real API calls go directly to the backend.
+
+### Server-side configuration (env vars)
+
+| Variable                       | Purpose                                          |
+|--------------------------------|--------------------------------------------------|
+| `JWT_SECRET`                   | Signs the `ilovepdf_token` auth cookie           |
+| `ALLOWED_ORIGINS`              | Extra CORS origins (comma-separated). Defaults already include `ilovepdf.cyou`, `www.ilovepdf.cyou`, `ilovepdf-web.web.app`, `ilovepdf-web.firebaseapp.com`. Use `*` to allow any. |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | Cloudflare R2 storage (uploads + saved files) |
+| `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | Public Firebase Web SDK config (returned by `/api/config/firebase`) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin SDK credentials for verifying Firebase ID tokens |
+| `HF_API_KEY`                   | Optional Hugging Face token for AI tools          |
+
+The backend logs which services are enabled at startup. Until R2/Firebase env vars
+are set, those endpoints respond with `503 not configured` instead of crashing.
+
+### Cross-origin auth cookie
+
+Because the frontend (Firebase) and backend (Replit/Railway) live on different
+origins, `routes/auth.js` automatically sets the auth cookie with
+`SameSite=None; Secure` for cross-origin requests, and `SameSite=Lax` for
+same-origin (local dev / single-host deploy).
+
+## Frontend pages
+
+- `/` — Dashboard (tool grid)
+- `/tool.html?id=...` — Per-tool page (also reachable via SEO slugs like `/merge-pdf.html`)
+- `/n2w.html` — Numbers-to-words converter (special tool)
+- `/dashboard.html` — "My Files" — lists the signed-in user's R2-saved files
+- `/verify-signup.html` — Email-confirmation step of signup
+- `/blog.html`, `/privacy.html`, `/terms.html`, `/disclaimer.html` — Static pages
+
+## Tool-page routing
+
+`utils/seo.js` (server) and `public/js/tools-config.js` (client) share the same
+`SLUG_MAP` (34 entries). On Firebase static hosting, `tool-page.js` calls
+`window.resolveToolIdFromUrl()` which checks (in order):
+
+1. `window.__TOOL_ID` (server-injected, when serving from Express)
+2. The current pathname against `SLUG_MAP`
+3. The `?id=` query param
+4. The first path segment
+
+If nothing matches, a friendly **Tool not found** screen is rendered instead of
+silently redirecting to `/` (the original "page reload" bug).

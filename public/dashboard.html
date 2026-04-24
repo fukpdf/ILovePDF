@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Files — ILovePDF</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .dash-wrap { max-width: 960px; margin: 32px auto; padding: 0 20px; }
+    .dash-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+    .dash-head h1 { margin: 0; font-size: 28px; }
+    .dash-quota { background:#f4f6fb; border-radius:10px; padding:10px 14px; font-size:14px; color:#333; }
+    .dash-quota b { color:#111; }
+    .dash-empty { text-align:center; padding:60px 20px; color:#666; background:#fafbfc; border:1px dashed #d8dbe2; border-radius:12px; }
+    .dash-empty a { color:#e5322d; text-decoration:none; font-weight:600; }
+    .file-list { list-style:none; padding:0; margin:0; border:1px solid #eaecef; border-radius:12px; overflow:hidden; background:#fff; }
+    .file-row { display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid #eaecef; }
+    .file-row:last-child { border-bottom: none; }
+    .file-row .fname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:#111; }
+    .file-row .fmeta { color:#777; font-size:13px; white-space:nowrap; }
+    .file-row .fdl { background:#e5322d; color:#fff; border:none; padding:7px 14px; border-radius:8px; cursor:pointer; font-weight:600; text-decoration:none; font-size:14px; }
+    .file-row .fdl:hover { background:#c4271f; }
+    .dash-error { background:#fff5f5; border:1px solid #f3c2c0; color:#a8201d; padding:14px 18px; border-radius:10px; }
+    .dash-loading { text-align:center; padding:40px; color:#888; }
+  </style>
+</head>
+<body>
+  <div id="chrome-mount"></div>
+
+  <main class="dash-wrap">
+    <div class="dash-head">
+      <h1>My Files</h1>
+      <div class="dash-quota" id="dash-quota">Loading…</div>
+    </div>
+    <div id="dash-body">
+      <div class="dash-loading">Loading your files…</div>
+    </div>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/firebase-init.js"></script>
+  <script type="module" src="/js/auth-ui.js"></script>
+  <script type="module" src="/js/chrome.js"></script>
+  <script type="module">
+    import { apiFetch } from '/js/config.js';
+
+    function fmtBytes(n) {
+      if (!n && n !== 0) return '—';
+      const u = ['B','KB','MB','GB'];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${u[i]}`;
+    }
+    function fmtDate(s) {
+      if (!s) return '';
+      try { return new Date(s).toLocaleString(); } catch { return ''; }
+    }
+
+    async function loadMe() {
+      const r = await apiFetch('/api/auth/me', { credentials: 'include' });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return j.user;
+    }
+
+    async function loadFiles() {
+      const r = await apiFetch('/api/user/files', { credentials: 'include' });
+      if (r.status === 401) return { needLogin: true };
+      if (r.status === 503) return { error: 'File storage is not configured on the server yet.' };
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        return { error: j.error || 'Could not load your files.' };
+      }
+      return await r.json();
+    }
+
+    async function downloadKey(key, name) {
+      const r = await apiFetch('/api/r2/download?key=' + encodeURIComponent(key), { credentials: 'include' });
+      if (!r.ok) {
+        alert('Download link could not be generated. The file may have expired.');
+        return;
+      }
+      const { url } = await r.json();
+      const a = document.createElement('a');
+      a.href = url; a.download = name || ''; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    function renderEmpty() {
+      document.getElementById('dash-body').innerHTML = `
+        <div class="dash-empty">
+          <p>You haven't saved any files yet.</p>
+          <p>Process a document and choose <b>Save to my files</b> to keep it here.</p>
+          <p><a href="/">Browse the tools →</a></p>
+        </div>`;
+    }
+
+    function renderError(msg) {
+      document.getElementById('dash-body').innerHTML = `<div class="dash-error">${msg}</div>`;
+    }
+
+    function renderList(files) {
+      if (!files.length) return renderEmpty();
+      const rows = files.map(f => `
+        <li class="file-row">
+          <div class="fname" title="${(f.name || f.key).replace(/"/g,'&quot;')}">${f.name || f.key.split('/').pop()}</div>
+          <div class="fmeta">${fmtBytes(f.size)} · ${fmtDate(f.lastModified)}</div>
+          <button class="fdl" type="button" data-key="${f.key}" data-name="${(f.name || '').replace(/"/g,'&quot;')}">Download</button>
+        </li>`).join('');
+      document.getElementById('dash-body').innerHTML = `<ul class="file-list">${rows}</ul>`;
+      document.querySelectorAll('.fdl').forEach(b => {
+        b.addEventListener('click', () => downloadKey(b.dataset.key, b.dataset.name));
+      });
+    }
+
+    function renderQuota(u) {
+      const used = fmtBytes(u.storage_used || 0);
+      const quota = fmtBytes(u.storage_quota || 0);
+      const pct = u.storage_quota ? Math.min(100, Math.round((u.storage_used / u.storage_quota) * 100)) : 0;
+      document.getElementById('dash-quota').innerHTML = `<b>${used}</b> of <b>${quota}</b> used (${pct}%)`;
+    }
+
+    (async function init() {
+      const user = await loadMe();
+      if (!user) {
+        document.getElementById('dash-quota').textContent = '';
+        renderError('You need to be signed in to see your files. <a href="/">Go to the homepage</a> and click <b>Login</b>.');
+        return;
+      }
+      renderQuota(user);
+      const result = await loadFiles();
+      if (result.needLogin) return renderError('Your session has expired. Please log in again.');
+      if (result.error)     return renderError(result.error);
+      renderList(result.files || []);
+    })();
+  </script>
+</body>
+</html>

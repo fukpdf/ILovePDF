@@ -13,7 +13,8 @@
 
   async function init() {
     try {
-      const cfgRes = await fetch('/api/config/firebase');
+      const cfgUrl = (typeof window.apiUrl === 'function') ? window.apiUrl('/api/config/firebase') : '/api/config/firebase';
+      const cfgRes = await fetch(cfgUrl, { credentials: 'include' });
       if (!cfgRes.ok) throw new Error('config unavailable');
       const cfg = await cfgRes.json();
       if (!cfg.apiKey) throw new Error('Firebase not configured on server');

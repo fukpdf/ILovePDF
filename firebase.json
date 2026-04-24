@@ -3,9 +3,27 @@
     "public": "public",
     "cleanUrls": true,
     "trailingSlash": false,
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+        ]
+      },
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
+    ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "/api/**",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/!(index.html|css/**|js/**|blog/**|api/**|robots.txt|sitemap.xml|favicon.ico)",
         "destination": "/tool.html"
       }
     ],
