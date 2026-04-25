@@ -202,7 +202,7 @@ router.post('/translate', upload.single('pdf'), async (req, res) => {
     const outBytes = await textToPdf(translatedText, PDFDocument, StandardFonts, rgb);
 
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, `fukpdf-translated-${targetLang}.pdf`);
+    sendPdf(res, outBytes, `ilovepdf-translated-${targetLang}.pdf`);
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -295,7 +295,7 @@ router.post('/workflow', upload.single('pdf'), async (req, res) => {
     }
 
     cleanupFiles(req.file);
-    sendPdf(res, bytes, 'fukpdf-workflow.pdf');
+    sendPdf(res, bytes, 'ilovepdf-workflow.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -318,4 +318,3 @@ function chunkText(text, size) {
 }
 
 export default router;
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}

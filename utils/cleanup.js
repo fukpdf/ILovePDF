@@ -26,4 +26,3 @@ export function placeholder(res, toolName) {
     message: `${toolName} is coming soon and is currently in development.`
   });
 }
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}

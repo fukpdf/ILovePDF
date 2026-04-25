@@ -18,7 +18,7 @@ router.post('/protect', upload.single('pdf'), async (req, res) => {
     try {
       const buf = await qpdfProtect(req.file.path, password);
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-protected.pdf');
+      return sendPdf(res, buf, 'ilovepdf-protected.pdf');
     } catch (qErr) {
       console.warn('[protect] qpdf failed, falling back to metadata mark:', qErr.message);
       const inputPath = req.file.path;
@@ -43,7 +43,7 @@ router.post('/protect', upload.single('pdf'), async (req, res) => {
       cleanupFiles(req.file);
       res.setHeader('X-Protection-Note',
         'Metadata-based protection applied. For strong encryption install qpdf on the server.');
-      return sendPdf(res, outBytes, 'fukpdf-protected.pdf');
+      return sendPdf(res, outBytes, 'ilovepdf-protected.pdf');
     }
   } catch (err) {
     cleanupFiles(req.file);
@@ -58,7 +58,7 @@ router.post('/unlock', upload.single('pdf'), async (req, res) => {
     try {
       const buf = await qpdfUnlock(req.file.path, password);
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-unlocked.pdf');
+      return sendPdf(res, buf, 'ilovepdf-unlocked.pdf');
     } catch (qErr) {
       console.warn('[unlock] qpdf failed, falling back to pdf-lib:', qErr.message);
     }
@@ -66,7 +66,7 @@ router.post('/unlock', upload.single('pdf'), async (req, res) => {
     const pdfDoc = await PDFDocument.load(bytes, { password, ignoreEncryption: true });
     const outBytes = await pdfDoc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-unlocked.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-unlocked.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({

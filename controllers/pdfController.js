@@ -22,4 +22,3 @@ export async function mergePdf(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}

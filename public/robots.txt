@@ -3,4 +3,4 @@ Allow: /
 Disallow: /uploads/
 Disallow: /api/
 
-Sitemap: https://fukpdf.com/sitemap.xml
+Sitemap: https://ilovepdf.cyou/sitemap.xml

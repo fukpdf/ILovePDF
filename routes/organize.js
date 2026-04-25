@@ -17,7 +17,7 @@ router.post('/merge', upload.array('pdfs'), async (req, res) => {
     try {
       const buf = await qpdfMerge(req.files.map(f => f.path));
       cleanupFiles(req.files);
-      return sendPdf(res, buf, 'fukpdf-merge.pdf');
+      return sendPdf(res, buf, 'ilovepdf-merge.pdf');
     } catch (qErr) {
       console.warn('[merge] qpdf failed, falling back to pdf-lib:', qErr.message);
     }
@@ -30,7 +30,7 @@ router.post('/merge', upload.array('pdfs'), async (req, res) => {
     }
     const outBytes = await merged.save();
     cleanupFiles(req.files);
-    sendPdf(res, outBytes, 'fukpdf-merge.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-merge.pdf');
   } catch (err) {
     cleanupFiles(req.files);
     res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.post('/split', upload.single('pdf'), async (req, res) => {
     try {
       const buf = await qpdfSplit(req.file.path, rangeStr.replace(/\s+/g, ''));
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-split.pdf');
+      return sendPdf(res, buf, 'ilovepdf-split.pdf');
     } catch (qErr) {
       console.warn('[split] qpdf failed, falling back to pdf-lib:', qErr.message);
     }
@@ -64,7 +64,7 @@ router.post('/split', upload.single('pdf'), async (req, res) => {
     pages.forEach(page => newDoc.addPage(page));
     const outBytes = await newDoc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-split.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-split.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -82,7 +82,7 @@ router.post('/rotate', upload.single('pdf'), async (req, res) => {
       const scope = pagesParam.toLowerCase() === 'all' ? 'all' : pagesParam.replace(/\s+/g, '');
       const buf = await qpdfRotate(req.file.path, rotDegrees, scope);
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-rotate.pdf');
+      return sendPdf(res, buf, 'ilovepdf-rotate.pdf');
     } catch (qErr) {
       console.warn('[rotate] qpdf failed, falling back to pdf-lib:', qErr.message);
     }
@@ -102,7 +102,7 @@ router.post('/rotate', upload.single('pdf'), async (req, res) => {
     });
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-rotate.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-rotate.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -129,7 +129,7 @@ router.post('/organize', upload.single('pdf'), async (req, res) => {
     try {
       const buf = await qpdfReorder(req.file.path, order);
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-organize.pdf');
+      return sendPdf(res, buf, 'ilovepdf-organize.pdf');
     } catch (qErr) {
       console.warn('[organize] qpdf failed, falling back to pdf-lib:', qErr.message);
     }
@@ -139,7 +139,7 @@ router.post('/organize', upload.single('pdf'), async (req, res) => {
     pages.forEach(page => newDoc.addPage(page));
     const outBytes = await newDoc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-organize.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-organize.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -167,7 +167,7 @@ router.post('/crop', upload.single('pdf'), async (req, res) => {
     });
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-crop.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-crop.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });

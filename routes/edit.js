@@ -17,7 +17,7 @@ router.post('/compress', upload.single('pdf'), async (req, res) => {
     try {
       const buf = await gsCompress(req.file.path, quality);
       cleanupFiles(req.file);
-      return sendPdf(res, buf, 'fukpdf-compress.pdf');
+      return sendPdf(res, buf, 'ilovepdf-compress.pdf');
     } catch (gErr) {
       console.warn('[compress] ghostscript failed, falling back to pdf-lib:', gErr.message);
     }
@@ -25,7 +25,7 @@ router.post('/compress', upload.single('pdf'), async (req, res) => {
     const doc = await PDFDocument.load(bytes, { updateMetadata: false });
     const outBytes = await doc.save({ useObjectStreams: true, addDefaultPage: false });
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-compress.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-compress.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -58,7 +58,7 @@ router.post('/edit', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-edit.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-edit.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -98,7 +98,7 @@ router.post('/watermark', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-watermark.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-watermark.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -135,7 +135,7 @@ router.post('/sign', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-sign.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-sign.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -172,7 +172,7 @@ router.post('/page-numbers', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-page-numbers.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-page-numbers.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -204,7 +204,7 @@ router.post('/redact', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await doc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-redact.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-redact.pdf');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: err.message });
@@ -216,4 +216,3 @@ function clamp(val, min, max) {
 }
 
 export default router;
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}

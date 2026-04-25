@@ -72,11 +72,11 @@ router.post('/jpg-to-pdf', imgUpload.array('images'), async (req, res) => {
     try {
       const buf = await magickImagesToPdf(req.files.map(f => f.path));
       cleanupFiles(req.files);
-      return sendPdf(res, buf, 'fukpdf-jpg-to-pdf.pdf');
+      return sendPdf(res, buf, 'ilovepdf-jpg-to-pdf.pdf');
     } catch (mErr) {
       console.warn('[jpg-to-pdf] ImageMagick failed, falling back to pdf-lib:', mErr.message);
     }
-    await imagesToPdf(req.files, res, 'fukpdf-jpg-to-pdf.pdf');
+    await imagesToPdf(req.files, res, 'ilovepdf-jpg-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.files); res.status(500).json({ error: err.message }); }
 });
 
@@ -87,11 +87,11 @@ router.post('/scan-to-pdf', imgUpload.array('images'), async (req, res) => {
     try {
       const buf = await magickImagesToPdf(req.files.map(f => f.path));
       cleanupFiles(req.files);
-      return sendPdf(res, buf, 'fukpdf-scan-to-pdf.pdf');
+      return sendPdf(res, buf, 'ilovepdf-scan-to-pdf.pdf');
     } catch (mErr) {
       console.warn('[scan-to-pdf] ImageMagick failed, falling back to pdf-lib:', mErr.message);
     }
-    await imagesToPdf(req.files, res, 'fukpdf-scan-to-pdf.pdf');
+    await imagesToPdf(req.files, res, 'ilovepdf-scan-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.files); res.status(500).json({ error: err.message }); }
 });
 
@@ -117,7 +117,7 @@ router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
     cleanupFiles(req.file);
     sendFile(res, buf,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'fukpdf-pdf-to-word.docx');
+      'ilovepdf-pdf-to-word.docx');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -159,7 +159,7 @@ router.post('/pdf-to-powerpoint', upload.single('pdf'), async (req, res) => {
     cleanupFiles(req.file);
     sendFile(res, buf,
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'fukpdf-pdf-to-ppt.pptx');
+      'ilovepdf-pdf-to-ppt.pptx');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -190,7 +190,7 @@ router.post('/pdf-to-excel', upload.single('pdf'), async (req, res) => {
     cleanupFiles(req.file);
     sendFile(res, buf,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'fukpdf-pdf-to-excel.xlsx');
+      'ilovepdf-pdf-to-excel.xlsx');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -218,7 +218,7 @@ router.post('/pdf-to-jpg', upload.single('pdf'), async (req, res) => {
       const imgBuf = fs.readFileSync(path.join(outputDir, files[0]));
       fs.rmSync(outputDir, { recursive: true, force: true });
       cleanupFiles(req.file);
-      return sendFile(res, imgBuf, 'image/jpeg', 'fukpdf-pdf-to-jpg.jpg');
+      return sendFile(res, imgBuf, 'image/jpeg', 'ilovepdf-pdf-to-jpg.jpg');
     }
 
     const zip = new JSZip();
@@ -227,7 +227,7 @@ router.post('/pdf-to-jpg', upload.single('pdf'), async (req, res) => {
 
     fs.rmSync(outputDir, { recursive: true, force: true });
     cleanupFiles(req.file);
-    sendFile(res, zipBuf, 'application/zip', 'fukpdf-pdf-to-jpg.zip');
+    sendFile(res, zipBuf, 'application/zip', 'ilovepdf-pdf-to-jpg.zip');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(500).json({ error: `PDF to JPG failed: ${err.message}. Ensure the PDF is not corrupted.` });
@@ -247,7 +247,7 @@ router.post('/word-to-pdf', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await textToPdf(text, PDFDocument, StandardFonts, rgb);
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-word-to-pdf.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-word-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -279,7 +279,7 @@ router.post('/powerpoint-to-pdf', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await textToPdf(allText, PDFDocument, StandardFonts, rgb);
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-ppt-to-pdf.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-ppt-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -331,7 +331,7 @@ router.post('/excel-to-pdf', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await pdfDoc.save();
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-excel-to-pdf.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-excel-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
@@ -352,9 +352,8 @@ router.post('/html-to-pdf', upload.single('pdf'), async (req, res) => {
 
     const outBytes = await textToPdf(text, PDFDocument, StandardFonts, rgb);
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, 'fukpdf-html-to-pdf.pdf');
+    sendPdf(res, outBytes, 'ilovepdf-html-to-pdf.pdf');
   } catch (err) { cleanupFiles(req.file); res.status(500).json({ error: err.message }); }
 });
 
 export default router;
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}
