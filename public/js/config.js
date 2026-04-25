@@ -51,7 +51,7 @@
     } catch (_) {}
     // Default: same Worker URL across all production hosts. Replace once
     // you've run `wrangler deploy`.
-    return 'https://ilovepdf-queue.workers.dev';
+    return 'https://ilovepdf-queue.safderkhan318.workers.dev';
   }
   window.QUEUE_API_BASE = resolveQueueBase().replace(/\/+$/, '');
   window.queueUrl = function (path) {
