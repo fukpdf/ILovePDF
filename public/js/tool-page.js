@@ -1,6 +1,7 @@
 let currentTool = null;
 let selectedFiles = [];   // array of { file, rotation, id }
 let dragSrcIndex = null;
+let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-level UI)
 
 document.addEventListener('DOMContentLoaded', () => {
   // Resolution order:
@@ -233,6 +234,48 @@ function handleFiles(fileList) {
     selectedFiles = [wrapped[0]];
   }
   renderFileList();
+  maybeOpenPageOrganizer();
+}
+
+// ── PAGE ORGANIZER (high-res preview + per-page reorder/rotate/delete) ────
+// When the current tool operates on a single PDF and PageOrganizer wants it,
+// we hide the plain file row and mount the thumbnail grid.
+function maybeOpenPageOrganizer() {
+  if (!window.PageOrganizer) return;
+  const files = selectedFiles.map(e => e.file);
+  if (!window.PageOrganizer.shouldHandle(currentTool.id, files)) {
+    closePageOrganizer();
+    return;
+  }
+  const list = document.getElementById('files-list');
+  if (!list) return;
+  // Hide the plain row and mount the organizer right above it.
+  let host = document.getElementById('page-organizer');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'page-organizer';
+    host.className = 'page-organizer';
+    list.parentNode.insertBefore(host, list);
+  }
+  list.style.display = 'none';
+
+  if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
+  window.PageOrganizer.open(host, files[0], { onChange: () => {} })
+    .then(ctrl => { pageOrganizer = ctrl; })
+    .catch(err => {
+      console.warn('[page-organizer] open failed:', err);
+      // Fall back to the plain file row so the user is never stuck.
+      list.style.display = '';
+      host.remove();
+    });
+}
+
+function closePageOrganizer() {
+  if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
+  const host = document.getElementById('page-organizer');
+  if (host) host.remove();
+  const list = document.getElementById('files-list');
+  if (list) list.style.display = '';
 }
 
 function cryptoId() {
@@ -329,11 +372,16 @@ function rotateFile(index) {
   renderFileList();
 }
 
-function removeFile(index) { selectedFiles.splice(index, 1); renderFileList(); }
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  renderFileList();
+  if (selectedFiles.length === 0) closePageOrganizer();
+}
 
 function clearAll() {
   selectedFiles = [];
   renderFileList();
+  closePageOrganizer();
   const r = document.getElementById('result-area');
   if (r) r.innerHTML = '';
   const input = document.getElementById('file-input');
@@ -359,6 +407,30 @@ async function processFile() {
   // Re-check 100MB limit defensively
   for (const e of selectedFiles) {
     if (e.file.size > MAX_FILE_BYTES) { showSignupModal(e.file); return; }
+  }
+
+  // ── Page-organizer integration ──────────────────────────────────────────
+  // If the user reordered, rotated, or deleted pages in the preview grid,
+  // assemble the edited PDF here and substitute it for the original file.
+  // Server-side and client-side flows both see the edited PDF transparently.
+  if (pageOrganizer && selectedFiles.length === 1) {
+    try {
+      if (pageOrganizer.getPageCount() === 0) {
+        showStatus('error', 'No pages selected', 'Please keep at least one page before processing.');
+        return;
+      }
+      showProcessing('Preparing your edits…', 'Applying page order, rotations, and deletions before processing.');
+      const { file: editedFile } = await pageOrganizer.getEditedPdf();
+      if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
+      selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
+      hideProcessing();
+    } catch (err) {
+      hideProcessing();
+      console.error('[page-organizer] edit-build failed:', err);
+      showStatus('error', 'Couldn\'t apply your edits',
+        'We couldn\'t rebuild the PDF with your changes. Please try again or remove a page edit.');
+      return;
+    }
   }
 
   const formData = new FormData();

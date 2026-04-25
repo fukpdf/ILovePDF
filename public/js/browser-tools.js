@@ -203,5 +203,5 @@
     return { blob, filename };
   }
 
-  window.BrowserTools = { supports, process, brandedFilename };
+  window.BrowserTools = { supports, process, brandedFilename, _loadPdfLib: loadPdfLib };
 })();
