@@ -7,7 +7,7 @@ const sanitize = (n) =>
 export async function putTempObject(env, body, originalName, contentType) {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const key = `tmp/${Date.now()}_${id}_${sanitize(originalName)}`;
-  await env.PDF_BUCKET.put(key, body, {
+  await env.R2.put(key, body, {
     httpMetadata: { contentType: contentType || 'application/octet-stream' },
   });
   return key;
@@ -17,7 +17,7 @@ export async function putResultObject(env, body, originalName, ext, contentType)
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const base = sanitize(originalName).replace(/\.[^.]+$/, '');
   const key = `results/${Date.now()}_${id}_${base}${ext}`;
-  await env.PDF_BUCKET.put(key, body, {
+  await env.R2.put(key, body, {
     httpMetadata: {
       contentType: contentType || 'application/octet-stream',
       contentDisposition: `attachment; filename="ILovePDF-${base}${ext}"`,
@@ -27,7 +27,7 @@ export async function putResultObject(env, body, originalName, ext, contentType)
 }
 
 export async function getObjectBytes(env, key) {
-  const obj = await env.PDF_BUCKET.get(key);
+  const obj = await env.R2.get(key);
   if (!obj) throw new Error(`R2 object not found: ${key}`);
   return new Uint8Array(await obj.arrayBuffer());
 }

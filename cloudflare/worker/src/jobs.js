@@ -23,14 +23,14 @@ export async function createJob(env, job) {
     created_at: Date.now(),
     updated_at: Date.now(),
   };
-  await env.PDF_JOBS_KV.put(PREFIX + job.job_id, JSON.stringify(record), {
+  await env.PDF_STATUS.put(PREFIX + job.job_id, JSON.stringify(record), {
     expirationTtl: ttl,
   });
   return record;
 }
 
 export async function getJob(env, jobId) {
-  const raw = await env.PDF_JOBS_KV.get(PREFIX + jobId);
+  const raw = await env.PDF_STATUS.get(PREFIX + jobId);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
@@ -39,7 +39,7 @@ export async function updateJob(env, jobId, patch) {
   const cur = (await getJob(env, jobId)) || { job_id: jobId };
   const next = isObj(patch) ? { ...cur, ...patch, updated_at: Date.now() } : cur;
   const ttl = Number(env.RESULT_TTL_SECONDS || 86400);
-  await env.PDF_JOBS_KV.put(PREFIX + jobId, JSON.stringify(next), {
+  await env.PDF_STATUS.put(PREFIX + jobId, JSON.stringify(next), {
     expirationTtl: ttl,
   });
   return next;

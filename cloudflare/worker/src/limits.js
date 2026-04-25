@@ -34,7 +34,7 @@ export async function checkAndConsume(env, identity, fileSize) {
   if (cap.files === Infinity) return { ok: true, tier, used: 0, cap: cap.files };
 
   const key = counterKey(identity);
-  const cur = Number((await env.PDF_JOBS_KV.get(key)) || 0);
+  const cur = Number((await env.PDF_STATUS.get(key)) || 0);
   if (cur >= cap.files) {
     return {
       ok: false,
@@ -45,6 +45,6 @@ export async function checkAndConsume(env, identity, fileSize) {
   }
   // Increment with a fresh 25 h TTL — KV is eventually consistent so this
   // is best-effort; that's acceptable for daily quotas.
-  await env.PDF_JOBS_KV.put(key, String(cur + 1), { expirationTtl: 25 * 3600 });
+  await env.PDF_STATUS.put(key, String(cur + 1), { expirationTtl: 25 * 3600 });
   return { ok: true, tier, used: cur + 1, cap: cap.files };
 }

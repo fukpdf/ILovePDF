@@ -1,44 +1,41 @@
-name = "ilovepdf-queue"
-main = "src/index.js"
-compatibility_date = "2025-09-23"
+name              = "ilovepdf-queue"
+main              = "src/index.js"
+compatibility_date  = "2025-09-23"
 compatibility_flags = ["nodejs_compat"]
+account_id        = "a1fbd4659b273ef75414f02cc29acaf5"
 
 # ─── KV: job status store ─────────────────────────────────────────────────────
-# Create with:  npx wrangler kv namespace create PDF_JOBS_KV
-# then paste the returned id below.
 [[kv_namespaces]]
-binding = "PDF_JOBS_KV"
-id      = "REPLACE_WITH_KV_NAMESPACE_ID"
+binding = "PDF_STATUS"
+id      = "2737f11930d841a782ae421b8dd9175a"
 
-# ─── R2: file + result storage (re-uses your existing bucket) ─────────────────
+# ─── R2: file + result storage ────────────────────────────────────────────────
 [[r2_buckets]]
-binding     = "PDF_BUCKET"
+binding     = "R2"
 bucket_name = "ilovepdf"
 
 # ─── Queue: producer binding (Worker → Queue) ─────────────────────────────────
-# Create with:  npx wrangler queues create pdf-jobs
 [[queues.producers]]
 queue   = "pdf-jobs"
 binding = "PDF_QUEUE"
 
 # ─── Queue: consumer (Queue → Worker) ─────────────────────────────────────────
-# Same Worker handles both produce and consume. Tune batching for throughput.
 [[queues.consumers]]
-queue                 = "pdf-jobs"
-max_batch_size        = 5
-max_batch_timeout     = 5
-max_concurrency       = 10
-max_retries           = 2
-dead_letter_queue     = "pdf-jobs-dlq"
+queue              = "pdf-jobs"
+max_batch_size     = 5
+max_batch_timeout  = 5
+max_concurrency    = 10
+max_retries        = 2
+dead_letter_queue  = "pdf-jobs-dlq"
 
 # ─── Public env (non-secret) ──────────────────────────────────────────────────
 [vars]
-HF_SPACE_URL          = "https://ilovepdf-ilovepdf.hf.space"
-RESULT_TTL_SECONDS    = "86400"          # 24 h pre-signed result URLs / KV TTL
-SKIP_QUEUE_BYTES      = "2097152"        # < 2 MB → producer hints client to use direct route
-ALLOWED_ORIGINS       = "*"              # comma-separated, or * for any
-FIREBASE_PROJECT_ID   = "ilovepdf-web"
+HF_SPACE_URL        = "https://ilovepdf-ilovepdf.hf.space"
+RESULT_TTL_SECONDS  = "86400"
+SKIP_QUEUE_BYTES    = "2097152"
+ALLOWED_ORIGINS     = "*"
+FIREBASE_PROJECT_ID = "ilovepdf-web"
 
 # Secrets (set with `npx wrangler secret put <NAME>`):
 #   HF_API_TOKEN
-#   R2_PUBLIC_BASE_URL  (optional — if you've fronted the bucket with a public domain)
+#   R2_PUBLIC_BASE_URL  (optional)

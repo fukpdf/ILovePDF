@@ -130,7 +130,7 @@ async function handleJobStatus(request, env, jobId) {
 
 // ── Producer: GET /api/job-file/:key — streams R2 result if no public URL ───
 async function handleJobFile(request, env, key) {
-  const obj = await env.PDF_BUCKET.get(key);
+  const obj = await env.R2.get(key);
   if (!obj) return json(env, request, { error: 'not found' }, 404);
   const headers = new Headers(corsHeaders(env, request));
   obj.writeHttpMetadata(headers);
