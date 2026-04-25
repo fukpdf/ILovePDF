@@ -11,22 +11,52 @@ document.addEventListener('DOMContentLoaded', () => {
     ? window.resolveToolIdFromUrl()
     : (window.__TOOL_ID || new URLSearchParams(window.location.search).get('id'));
 
+  // ── Loop-safe redirect helper ────────────────────────────────────────────
+  // Firebase Hosting's catch-all rewrite (** → /index.html) plus pathname-only
+  // comparisons made it possible for a redirect to fire on every page load.
+  // We now (a) compare just the pathname (stripping query/hash/trailing slash)
+  // and (b) guard with sessionStorage so the same target URL can never be
+  // jumped to twice in a row from this script.
+  function pathOnly(u) {
+    try {
+      const x = new URL(u, window.location.origin);
+      return x.pathname.replace(/\/+$/, '') || '/';
+    } catch { return String(u || '').split(/[?#]/)[0].replace(/\/+$/, '') || '/'; }
+  }
+  function safeRedirect(target) {
+    const here = pathOnly(window.location.pathname);
+    const dest = pathOnly(target);
+    if (!dest || here === dest) return false;             // already there
+    const guardKey = '__tp_redir__';
+    const last = sessionStorage.getItem(guardKey);
+    if (last === dest) {                                   // already bounced once
+      try { sessionStorage.removeItem(guardKey); } catch {}
+      console.warn('[tool-page] redirect to', dest, 'suppressed (loop guard)');
+      return false;
+    }
+    try { sessionStorage.setItem(guardKey, dest); } catch {}
+    window.location.replace(target);
+    return true;
+  }
+
   // Honour SLUG_MAP "special" redirects (e.g. numbers-to-words → /n2w.html).
   // On Node this is handled server-side; on Firebase static we have to do it here.
   const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
   const slugMeta = window.SLUG_MAP && window.SLUG_MAP[slug];
-  if (slugMeta && slugMeta.special && window.location.pathname !== slugMeta.special) {
-    window.location.replace(slugMeta.special);
-    return;
+  if (slugMeta && slugMeta.special) {
+    if (safeRedirect(slugMeta.special)) return;
   }
 
   currentTool = TOOLS.find(t => t.id === toolId);
 
   // Tool has a dedicated standalone page (e.g. numbers-to-words → /n2w.html)
-  if (currentTool && currentTool.url && window.location.pathname !== currentTool.url) {
-    window.location.replace(currentTool.url);
-    return;
+  if (currentTool && currentTool.url) {
+    if (safeRedirect(currentTool.url)) return;
   }
+
+  // Made it to the right page — clear the loop guard so a future legit
+  // navigation (e.g. user clicks back, then forward to a redirecting tool) works.
+  try { sessionStorage.removeItem('__tp_redir__'); } catch {}
 
   if (!currentTool) {
     // Show a friendly 404 instead of silently bouncing to home (which looked
