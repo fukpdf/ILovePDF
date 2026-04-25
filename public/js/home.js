@@ -1,7 +1,9 @@
 /* Homepage-only logic — tools grid, calculators, mobile toggle, currency converter.
    Header + drawer + auth modal live in chrome.js (loaded on every page). */
 
-const homeToolUrl = id => `/${id}`;
+// All in-app navigation uses /tool.html?id=<internal-id>. This works both on
+// the Node backend and on Firebase Hosting (which serves tool.html directly).
+const homeToolUrl = t => `/tool.html?id=${t.tid}`;
 
 /* ----------------------- render tools grid ----------------------- */
 function renderTools(){
@@ -12,7 +14,7 @@ function renderTools(){
       <div class="cat-title">${g.title}</div>
       <div class="tools-grid">
         ${g.items.map(t => `
-          <a class="tool" data-cat="${g.key}" href="${homeToolUrl(t.id)}">
+          <a class="tool" data-cat="${g.key}" href="${homeToolUrl(t)}">
             <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
             <h4>${t.name}</h4>
             <p>${t.desc}</p>

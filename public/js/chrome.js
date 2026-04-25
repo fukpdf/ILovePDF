@@ -1,74 +1,81 @@
 /* Shared chrome — header, mobile drawer, auth modal.
    Loaded on every page (homepage + tool pages). */
 
+// Each item: `tid` is the internal tool id (matches TOOLS[].id in tools-config.js
+// and what tool-page.js looks up). `slug` is the SEO clean-URL slug (kept for
+// backward compatibility with /merge-pdf style links). All navigation links
+// emit `tool.html?id=<tid>` so they work both on the Replit backend and on
+// Firebase Hosting (which has no SEO middleware).
 window.TOOL_GROUPS = [
   {
     key:'organize', title:'Organize',
     items:[
-      { id:'merge-pdf',    name:'Merge PDF',    icon:'layers',       desc:'Combine multiple PDFs into one' },
-      { id:'split-pdf',    name:'Split PDF',    icon:'scissors',     desc:'Extract pages or ranges' },
-      { id:'rotate-pdf',   name:'Rotate PDF',   icon:'rotate-cw',    desc:'Fix page orientation' },
-      { id:'crop-pdf',     name:'Crop PDF',     icon:'crop',         desc:'Trim margins from pages' },
-      { id:'organize-pdf', name:'Organize PDF', icon:'list-ordered', desc:'Reorder, delete, duplicate pages' },
-      { id:'compress-pdf', name:'Compress PDF', icon:'archive',      desc:'Reduce PDF file size' },
+      { tid:'merge',    slug:'merge-pdf',    name:'Merge PDF',    icon:'layers',       desc:'Combine multiple PDFs into one' },
+      { tid:'split',    slug:'split-pdf',    name:'Split PDF',    icon:'scissors',     desc:'Extract pages or ranges' },
+      { tid:'rotate',   slug:'rotate-pdf',   name:'Rotate PDF',   icon:'rotate-cw',    desc:'Fix page orientation' },
+      { tid:'crop',     slug:'crop-pdf',     name:'Crop PDF',     icon:'crop',         desc:'Trim margins from pages' },
+      { tid:'organize', slug:'organize-pdf', name:'Organize PDF', icon:'list-ordered', desc:'Reorder, delete, duplicate pages' },
+      { tid:'compress', slug:'compress-pdf', name:'Compress PDF', icon:'archive',      desc:'Reduce PDF file size' },
     ]
   },
   {
     key:'convert', title:'Convert',
     items:[
-      { id:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx' },
-      { id:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx' },
-      { id:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides' },
-      { id:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images' },
-      { id:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF' },
-      { id:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF' },
-      { id:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF' },
-      { id:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF' },
-      { id:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF' },
+      { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx' },
+      { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx' },
+      { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides' },
+      { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images' },
+      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF' },
+      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF' },
+      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF' },
+      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF' },
+      { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF' },
     ]
   },
   {
     key:'edit', title:'Edit',
     items:[
-      { id:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes' },
-      { id:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks' },
-      { id:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures' },
-      { id:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers' },
-      { id:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content' },
+      { tid:'edit',         slug:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes' },
+      { tid:'watermark',    slug:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks' },
+      { tid:'sign',         slug:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures' },
+      { tid:'page-numbers', slug:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers' },
+      { tid:'redact',       slug:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content' },
     ]
   },
   {
     key:'security', title:'Security',
     items:[
-      { id:'protect-pdf', name:'Protect PDF', icon:'lock',   desc:'Add password protection' },
-      { id:'unlock-pdf',  name:'Unlock PDF',  icon:'unlock', desc:'Remove PDF password' },
+      { tid:'protect', slug:'protect-pdf', name:'Protect PDF', icon:'lock',   desc:'Add password protection' },
+      { tid:'unlock',  slug:'unlock-pdf',  name:'Unlock PDF',  icon:'unlock', desc:'Remove PDF password' },
     ]
   },
   {
     key:'advanced', title:'Advanced',
     items:[
-      { id:'repair-pdf',       name:'Repair PDF',       icon:'wrench',      desc:'Fix corrupted PDF files' },
-      { id:'scan-pdf',         name:'Scan PDF',         icon:'scan-line',   desc:'Create searchable scans' },
-      { id:'ocr-pdf',          name:'OCR PDF',          icon:'type',        desc:'Recognize text in scans' },
-      { id:'compare-pdf',      name:'Compare PDF',      icon:'git-compare', desc:'Diff two PDF documents' },
-      { id:'ai-summarizer',    name:'AI Summarizer',    icon:'sparkles',    desc:'Generate AI summaries' },
-      { id:'translate-pdf',    name:'Translate PDF',    icon:'languages',   desc:'Translate PDFs to any language' },
-      { id:'workflow-builder', name:'Workflow Builder', icon:'workflow',    desc:'Chain multiple PDF tools' },
+      { tid:'repair',       slug:'repair-pdf',       name:'Repair PDF',       icon:'wrench',      desc:'Fix corrupted PDF files' },
+      { tid:'scan-to-pdf',  slug:'scan-pdf',         name:'Scan PDF',         icon:'scan-line',   desc:'Create searchable scans' },
+      { tid:'ocr',          slug:'ocr-pdf',          name:'OCR PDF',          icon:'type',        desc:'Recognize text in scans' },
+      { tid:'compare',      slug:'compare-pdf',      name:'Compare PDF',      icon:'git-compare', desc:'Diff two PDF documents' },
+      { tid:'ai-summarize', slug:'ai-summarizer',    name:'AI Summarizer',    icon:'sparkles',    desc:'Generate AI summaries' },
+      { tid:'translate',    slug:'translate-pdf',    name:'Translate PDF',    icon:'languages',   desc:'Translate PDFs to any language' },
+      { tid:'workflow',     slug:'workflow-builder', name:'Workflow Builder', icon:'workflow',    desc:'Chain multiple PDF tools' },
     ]
   },
   {
     key:'image', title:'Image',
     items:[
-      { id:'background-remover', name:'Background Remover', icon:'image-off', desc:'Erase image backgrounds' },
-      { id:'crop-image',         name:'Crop Image',         icon:'crop',      desc:'Trim images precisely' },
-      { id:'resize-image',       name:'Resize Image',       icon:'maximize',  desc:'Change image dimensions' },
-      { id:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters' },
+      { tid:'background-remover', slug:'background-remover', name:'Background Remover', icon:'image-off', desc:'Erase image backgrounds' },
+      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',      desc:'Trim images precisely' },
+      { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',  desc:'Change image dimensions' },
+      { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters' },
     ]
   },
 ];
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
-const toolUrl = id => `/${id}`;
+// All in-app navigation uses /tool.html?id=<internal-id>. This works both on
+// the Node backend and on Firebase Hosting (which serves tool.html directly).
+const toolUrl = t => `/tool.html?id=${t.tid}`;
 
 function renderHeader(){
   const nav = document.getElementById('nav');
@@ -81,7 +88,7 @@ function renderHeader(){
         <button class="nav-btn" type="button">${g.title} <i data-lucide="chevron-down"></i></button>
         <div class="dd">
           ${g.items.map(t => `
-            <a class="dd-link" href="${toolUrl(t.id)}">
+            <a class="dd-link" href="${toolUrl(t)}">
               <span class="mi"><i data-lucide="${t.icon}"></i></span>
               <span>${t.name}</span>
             </a>`).join('')}
@@ -95,7 +102,7 @@ function renderHeader(){
       <div class="mega-col">
         <h5>${g.title}</h5>
         ${g.items.map(t => `
-          <a class="mega-link" href="${toolUrl(t.id)}" title="${t.desc||''}">
+          <a class="mega-link" href="${toolUrl(t)}" title="${t.desc||''}">
             <span class="mi"><i data-lucide="${t.icon}"></i></span>
             <span>${t.name}</span>
           </a>`).join('')}
@@ -103,8 +110,8 @@ function renderHeader(){
   }).join('');
 
   nav.innerHTML = `
-    <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
-    <a class="nav-direct" href="/split-pdf">Split PDF</a>
+    <a class="nav-direct" href="/tool.html?id=merge">Merge PDF</a>
+    <a class="nav-direct" href="/tool.html?id=split">Split PDF</a>
     ${drop('organize')}
     ${drop('convert')}
     ${drop('edit')}
@@ -126,13 +133,13 @@ function renderDrawer(){
     return `
       <div class="drawer-sec">
         <div class="drawer-sec-title">${g.title}</div>
-        ${g.items.map(t => `<a href="${toolUrl(t.id)}">${t.name}</a>`).join('')}
+        ${g.items.map(t => `<a href="${toolUrl(t)}">${t.name}</a>`).join('')}
       </div>`;
   };
   panel.innerHTML = `
     <button class="drawer-close" id="drawer-close" aria-label="Close menu"><i data-lucide="x"></i></button>
-    <a class="drawer-top" href="/merge-pdf">Merge PDF</a>
-    <a class="drawer-top" href="/split-pdf">Split PDF</a>
+    <a class="drawer-top" href="/tool.html?id=merge">Merge PDF</a>
+    <a class="drawer-top" href="/tool.html?id=split">Split PDF</a>
     ${sectionLinks('organize')}
     ${sectionLinks('convert')}
     ${sectionLinks('edit')}
