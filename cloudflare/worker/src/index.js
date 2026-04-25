@@ -14,6 +14,7 @@ import { putTempObject, putResultObject, buildResultUrl, getObjectBytes } from '
 import { identify } from './auth.js';
 import { checkAndConsume, LIMITS } from './limits.js';
 import { process as processJob, QUEUED_TOOLS } from './processors.js';
+import { handleAdmin } from './admin.js';
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 function corsHeaders(env, request) {
@@ -171,6 +172,11 @@ export default {
       }
       if (p === '/api/limits' && request.method === 'GET') {
         return await handleLimits(request, env);
+      }
+      if (p.startsWith('/api/admin/')) {
+        const jsonOut = (body, status = 200) => json(env, request, body, status);
+        const adminResp = await handleAdmin(request, env, p, jsonOut);
+        if (adminResp) return adminResp;
       }
       if (p === '/' || p === '/api/health') {
         return json(env, request, { ok: true, service: 'ilovepdf-queue', tools: [...QUEUED_TOOLS] });

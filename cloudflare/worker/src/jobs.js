@@ -11,6 +11,20 @@ const PREFIX = 'job:';
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
+// We attach a small metadata blob to every KV write so the admin dashboard
+// can render stats and the recent-jobs list with a single list() call,
+// avoiding 1 + N round-trips for a 1,000-job index.
+function jobMetadata(record) {
+  return {
+    ts:     record.updated_at || record.created_at || Date.now(),
+    cts:    record.created_at || Date.now(),
+    status: record.status || 'pending',
+    tool:   record.tool || '',
+    size:   Number(record.file_size || 0),
+    name:   String(record.file_name || '').slice(0, 80),
+  };
+}
+
 export async function createJob(env, job) {
   const ttl = Number(env.RESULT_TTL_SECONDS || 86400);
   const record = {
@@ -25,6 +39,7 @@ export async function createJob(env, job) {
   };
   await env.PDF_STATUS.put(PREFIX + job.job_id, JSON.stringify(record), {
     expirationTtl: ttl,
+    metadata: jobMetadata(record),
   });
   return record;
 }
@@ -41,6 +56,7 @@ export async function updateJob(env, jobId, patch) {
   const ttl = Number(env.RESULT_TTL_SECONDS || 86400);
   await env.PDF_STATUS.put(PREFIX + jobId, JSON.stringify(next), {
     expirationTtl: ttl,
+    metadata: jobMetadata(next),
   });
   return next;
 }
