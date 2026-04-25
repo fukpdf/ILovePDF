@@ -18,21 +18,44 @@ A production-ready PDF + image processing platform with 33 tools, branded as **I
 │   ├── security.js              — Protect / Unlock PDF
 │   ├── advanced.js              — Repair, OCR, Compare, AI Summarizer, Translate, Workflow
 │   └── image.js                 — Background Remover, Crop, Resize, Filters
-└── public/
-    ├── index.html               — Dashboard (mega-menu header, 5-col footer, signup modal, processing overlay)
-    ├── tool.html                — Tool page (same persistent layout)
-    ├── blog.html, blog/         — Blog
-    ├── privacy.html, terms.html, disclaimer.html
-    ├── robots.txt, sitemap.xml
-    ├── css/styles.css           — Full design system (red theme, mega-menu, footer, processing UI)
-    └── js/
-        ├── tools-config.js      — All tool definitions + 8 categories (matches header hierarchy)
-        ├── sidebar.js           — Sidebar nav with category groupings
-        ├── mega-menu.js         — Topbar mega-menu (8 categories with hover/click dropdowns)
-        ├── dashboard.js         — Card rendering for the home page
-        ├── tool-page.js         — Per-tool UI, drag-drop reorder, rotation, branded download, signup check
-        └── shared.js            — Modals, sidebar toggle, cookies, signup-required, processing overlay
+├── public/
+│   ├── index.html               — Dashboard (mega-menu header, 5-col footer, signup modal, processing overlay)
+│   ├── tool.html                — Tool page (same persistent layout)
+│   ├── blog.html, blog/         — Blog
+│   ├── privacy.html, terms.html, disclaimer.html
+│   ├── robots.txt, sitemap.xml
+│   ├── css/styles.css           — Full design system (red theme, mega-menu, footer, processing UI)
+│   └── js/
+│       ├── tools-config.js      — All tool definitions + 8 categories (matches header hierarchy)
+│       ├── config.js            — API base + queue API base resolution
+│       ├── queue-client.js      — Queue submit + 3 s polling for heavy tools (Cloudflare Worker)
+│       ├── sidebar.js           — Sidebar nav with category groupings
+│       ├── mega-menu.js         — Topbar mega-menu (8 categories with hover/click dropdowns)
+│       ├── dashboard.js         — Card rendering for the home page
+│       ├── tool-page.js         — Per-tool UI, drag-drop reorder, rotation, branded download, signup check
+│       └── shared.js            — Modals, sidebar toggle, cookies, signup-required, processing overlay
+└── cloudflare/worker/           — Scalable queue layer (deployed to Cloudflare, NOT to this Repl)
+    ├── wrangler.toml            — KV / R2 / Queue bindings + env vars
+    ├── README.md                — One-time setup + deploy guide
+    └── src/
+        ├── index.js             — Producer (HTTP) + queue consumer in one Worker
+        ├── jobs.js              — KV job-record CRUD
+        ├── r2.js                — R2 helpers (input upload, result save, signed URLs)
+        ├── auth.js              — Firebase ID-token verifier (RS256, no SDK)
+        ├── limits.js            — Tier caps mirroring utils/usage.js
+        └── processors.js        — HF Space delegation + pdf-lib light fallback
 ```
+
+## Tool routing
+
+| Path                                           | Tools                                                                                                       |
+|------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| Direct → Express backend (unchanged)           | Merge, Split, Rotate, Crop, Organize, JPG↔PDF, Page Numbers, Watermark                                       |
+| Queue → Cloudflare Worker (`pdf-jobs`)         | Compress, OCR, PDF↔Word/Excel/PowerPoint, AI Summarizer, Translate, Background Remover, Image Resize/Filters, Compare |
+
+The frontend's `queue-client.js` decides per tool. Routing only kicks in
+when `window.QUEUE_API_BASE` resolves to a real Worker URL, so dev/staging
+keep working against the Express backend out of the box.
 
 ## Brand & UI
 

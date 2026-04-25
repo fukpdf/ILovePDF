@@ -39,6 +39,27 @@
   const base = resolveBase().replace(/\/+$/, ''); // strip trailing slashes
   window.API_BASE = base;
 
+  // ── Queue API base — Cloudflare Worker URL ──────────────────────────────
+  // Set this to your deployed Worker (e.g. https://ilovepdf-queue.<acct>.workers.dev
+  // or a custom route like https://queue.ilovepdf.cyou). Resolution order
+  // mirrors API_BASE: window override → localStorage → hardcoded map.
+  function resolveQueueBase() {
+    if (typeof window.QUEUE_API_BASE_OVERRIDE === 'string') return window.QUEUE_API_BASE_OVERRIDE;
+    try {
+      const ls = localStorage.getItem('ilovepdf:queue_api_base');
+      if (ls !== null) return ls;
+    } catch (_) {}
+    // Default: same Worker URL across all production hosts. Replace once
+    // you've run `wrangler deploy`.
+    return 'https://ilovepdf-queue.workers.dev';
+  }
+  window.QUEUE_API_BASE = resolveQueueBase().replace(/\/+$/, '');
+  window.queueUrl = function (path) {
+    if (!window.QUEUE_API_BASE) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    return window.QUEUE_API_BASE + (path.startsWith('/') ? path : '/' + path);
+  };
+
   // Build an absolute API URL. Always pass paths starting with '/api/...'.
   window.apiUrl = function (path) {
     if (!path) return base;

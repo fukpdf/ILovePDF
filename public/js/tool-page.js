@@ -386,8 +386,36 @@ async function processFile() {
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
 
-  // ── Client-side fast path: tools flagged clientSide:true run entirely in
-  // the browser using pdf-lib. Zero upload, instant download.
+  // ── Queue path: tools listed in QueueClient.QUEUED_TOOL_IDS go through the
+  // Cloudflare Worker (queue + KV + R2) instead of the Express backend.
+  // UI helpers are passed in so the visual flow stays identical.
+  if (window.QueueClient && window.QueueClient.isQueued(currentTool.id)) {
+    const opts = {};
+    currentTool.options.forEach(o => {
+      const el = document.getElementById(`opt-${o.id}`);
+      if (el && el.value !== '') opts[o.id] = el.value;
+    });
+    try {
+      const handled = await window.QueueClient.tryProcess(
+        currentTool,
+        selectedFiles.map(e => e.file),
+        opts,
+        {
+          showProcessing,
+          hideProcessing,
+          triggerDownload,
+          showStatus,
+        },
+      );
+      if (handled) {
+        if (processBtn) processBtn.disabled = false;
+        return;
+      }
+    } catch (err) {
+      console.error('[queue] unexpected error, falling back to direct route:', err);
+    }
+  }
+
   if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
     try {
       const opts = {};
