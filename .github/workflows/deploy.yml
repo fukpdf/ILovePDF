@@ -16,16 +16,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy Firebase
-        uses: w9jds/firebase-action@v2.2.0
+      # Firebase Hosting — direct static deploy from /public.
+      # Using @master bypasses framework auto-detection so it never tries
+      # to install or build the project (avoids exit code 2 on Actions).
+      - name: Deploy Firebase Hosting
+        uses: w9jds/firebase-action@master
         with:
           args: deploy --only hosting --project ilovepdf-web
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
+      # Cloudflare Worker (queue producer + consumer) — preserved.
       - name: Deploy Cloudflare Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: publish
+          workingDirectory: cloudflare/worker
+          command: deploy
+
+      # Hugging Face Space is deployed/maintained out-of-band (the Worker
+      # calls it via HF_SPACE_URL configured in wrangler.toml). No build
+      # step is needed here — preserved as part of the runtime stack.
