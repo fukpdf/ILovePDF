@@ -14,7 +14,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Step 1: Firebase Deployment (Pure Static - No Build)
+      # Step 1: Firebase Deployment (Direct Hosting, No Build)
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -22,8 +22,6 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
           projectId: ilovepdf-cyou
-        env:
-          FIREBASE_CLI_PREVIEWS: hostingchannels
 
       # Step 2: Cloudflare Worker Deployment
       - name: Deploy to Cloudflare Worker
@@ -40,3 +38,4 @@ jobs:
         run: |
           git remote add hf https://fukpdf:$HF_TOKEN@huggingface.co/spaces/fukpdf/ILovePDF || true
           git push --force hf main
+          
