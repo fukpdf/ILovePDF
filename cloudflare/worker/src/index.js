@@ -17,18 +17,38 @@ import { process as processJob, QUEUED_TOOLS } from './processors.js';
 import { handleAdmin } from './admin.js';
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
+// Always permissive: ILovePDF is a public tool surface — same-origin and
+// cross-origin browsers (incl. Firebase Hosting + Replit dev preview) all
+// need to talk to the queue. ALLOWED_ORIGINS may pin one origin in prod;
+// otherwise we mirror the request origin (or `*` when none was sent).
 function corsHeaders(env, request) {
-  const origin = request.headers.get('origin') || '*';
-  const allowList = (env.ALLOWED_ORIGINS || '*').split(',').map((s) => s.trim());
-  const allow = allowList.includes('*') || allowList.includes(origin) ? origin : allowList[0] || '*';
+  const origin = request.headers.get('origin') || '';
+  const list   = (env.ALLOWED_ORIGINS || '*').split(',').map((s) => s.trim()).filter(Boolean);
+  const wildcard = list.includes('*') || list.length === 0;
+  let allow;
+  if (wildcard) {
+    allow = origin || '*';
+  } else if (origin && list.includes(origin)) {
+    allow = origin;
+  } else {
+    allow = list[0];
+  }
   return {
     'access-control-allow-origin': allow,
     'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'authorization,content-type',
-    'access-control-allow-credentials': 'true',
+    'access-control-allow-headers': 'authorization,content-type,x-requested-with',
+    'access-control-expose-headers': 'content-disposition,content-type',
+    'access-control-allow-credentials': allow === '*' ? 'false' : 'true',
     'access-control-max-age': '86400',
     'vary': 'origin',
   };
+}
+
+// Read the HF token under any of the common naming variants we might have
+// configured the secret as. Centralised so we can't accidentally read the
+// wrong one in different code paths.
+export function readHfToken(env) {
+  return (env && (env.HF_API_TOKEN || env.HF_TOKEN || env.HUGGINGFACE_API_TOKEN || env.HUGGING_FACE_TOKEN)) || '';
 }
 
 const json = (env, request, body, status = 200) =>
@@ -145,7 +165,7 @@ async function handleHealth(request, env) {
   const kv_bound  = !!env.PDF_STATUS;
   const q_bound   = !!env.PDF_QUEUE;
   const hf_url    = env.HF_SPACE_URL || null;
-  const hf_token  = !!env.HF_API_TOKEN;
+  const hf_token  = !!readHfToken(env);
   const fb_proj   = env.FIREBASE_PROJECT_ID || null;
 
   // Best-effort R2 reachability check (HEAD on a bogus key is enough — R2

@@ -96,7 +96,11 @@ function renderHeader(){
       </div>`;
   };
 
-  const megaCols = ['organize','convert','edit','security','advanced','image'].map(k => {
+  // The main header already exposes Merge, Split, and the Organize / Convert /
+  // Edit / Security dropdowns. The "All Tools" mega-menu therefore should
+  // surface ONLY the tools that aren't reachable from the main header — i.e.
+  // the Advanced and Image groups.
+  const megaCols = ['advanced','image'].map(k => {
     const g = groupBy(k); if (!g) return '';
     return `
       <div class="mega-col">

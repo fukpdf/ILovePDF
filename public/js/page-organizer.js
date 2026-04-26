@@ -21,9 +21,11 @@
 //   Controller.destroy()
 (function () {
   // Single-PDF tools that benefit from page-level organize UI.
+  // NOTE: 'compress' is intentionally excluded — it gets a dedicated
+  // single-page preview rendered by tool-page.js, NOT the full page grid.
   const PAGE_LEVEL_TOOLS = new Set([
     'split', 'rotate', 'organize', 'crop', 'page-numbers',
-    'watermark', 'sign', 'redact', 'compress', 'ocr',
+    'watermark', 'sign', 'redact', 'ocr',
     'ai-summarize', 'translate', 'repair', 'edit',
   ]);
 

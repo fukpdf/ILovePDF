@@ -465,7 +465,9 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 
   .nav{display:none}
   .hamburger{display:inline-flex}
-  .header-cta .btn-ghost{display:none}
+  /* Mobile header: Logo + Brand + Login + Signup + Hamburger only.
+     Login (.btn-ghost) MUST stay visible — only the dropdown nav is hidden. */
+  .header-cta .btn-ghost{display:inline-flex}
 
   .hero{padding:36px 28px}
 
@@ -699,9 +701,8 @@ body:has(#tool-content) .app-layout{display:block !important}
 .auth-msg{font-size:.82rem;color:var(--text-soft);min-height:1.1em}
 .auth-msg.success{color:#059669}
 
-/* Header right cluster — Sign In hidden on narrow */
+/* Header right cluster — Login (Sign In) is ALWAYS visible (incl. mobile). */
 .btn-signin{display:inline-flex}
-@media (max-width:1280px){.btn-signin{display:none}}
 
 /* ============================================================
    PASS 2 — Hover bridge fix, letter-case row, auth-flow polish
@@ -835,3 +836,178 @@ body:has(#tool-content) .app-layout{display:block !important}
   border-radius:8px;cursor:pointer;color:var(--text-mute);display:grid;place-items:center;
 }
 .limit-close:hover{background:#f1f5f9;color:var(--text)}
+
+/* ============================================================
+   PASS 4 — Responsive hardening + Download Swell/Burst
+   ============================================================ */
+
+/* Kill horizontal scroll site-wide */
+html, body { overflow-x: hidden; max-width: 100vw; }
+.page, .header, .footer, .tool-page { max-width: 100%; box-sizing: border-box; }
+img, canvas, video, iframe { max-width: 100%; }
+* { min-width: 0; }
+
+/* Mobile header tightening so 5 items (Logo + Brand + Login + Signup + Hamburger) fit */
+@media (max-width: 1024px) {
+  .header-cta { display: flex; align-items: center; gap: 6px; }
+  .header-cta .btn-ghost,
+  .header-cta .btn-primary { padding: 7px 11px; font-size: .8rem; }
+  .header-cta .btn-ghost svg,
+  .header-cta .btn-primary svg { width: 13px; height: 13px; }
+}
+@media (max-width: 480px) {
+  .header-inner { padding: 0 12px; gap: 6px; }
+  .brand-name { font-size: .95rem; }
+  .header-cta .btn-ghost,
+  .header-cta .btn-primary { padding: 6px 9px; font-size: .74rem; }
+  .header-cta .btn-ghost span,
+  .header-cta .btn-primary span { display: none; }
+  .hamburger { width: 36px; height: 36px; }
+}
+
+/* ── Download "Swell" pulsing button ──────────────────────────────────────
+   Wrap any download CTA with .dl-pulse to make it gently swell so the
+   user's eye lands on it the moment processing finishes. */
+.dl-pulse {
+  position: relative;
+  display: inline-flex;
+  isolation: isolate;
+  overflow: visible;
+}
+.dl-pulse::before,
+.dl-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: var(--grad, linear-gradient(135deg,#E5322E 0%, #ff6a5b 100%));
+  filter: blur(12px);
+  opacity: .55;
+  z-index: -1;
+  animation: dl-swell 1.6s ease-in-out infinite;
+}
+.dl-pulse::after {
+  animation-delay: .8s;
+  filter: blur(22px);
+  opacity: .35;
+}
+@keyframes dl-swell {
+  0%,100% { transform: scale(1);   opacity: .35; }
+  50%     { transform: scale(1.18); opacity: .65; }
+}
+.dl-pulse > .btn,
+.dl-pulse > a.btn {
+  position: relative;
+  z-index: 1;
+  animation: dl-bob 1.6s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes dl-bob {
+  0%,100% { transform: translateY(0)    scale(1); }
+  50%     { transform: translateY(-2px) scale(1.04); }
+}
+/* Stop the swell once the user has clicked (added by JS). */
+.dl-pulse.dl-fired::before,
+.dl-pulse.dl-fired::after { animation: none; opacity: 0; transition: opacity .25s; }
+.dl-pulse.dl-fired > .btn,
+.dl-pulse.dl-fired > a.btn { animation: none; }
+
+/* Burst container — JS injects .burst-particle children on click */
+.burst-host {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  width: 0; height: 0;
+}
+.burst-particle {
+  position: absolute;
+  left: 0; top: 0;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+  will-change: transform, opacity;
+  animation: burst-fly var(--dur, 700ms) cubic-bezier(.22,.9,.34,1) forwards;
+}
+@keyframes burst-fly {
+  0%   { transform: translate(-50%,-50%) scale(.4); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx,0px)), calc(-50% + var(--dy,0px))) scale(var(--end-scale,.6)); opacity: 0; }
+}
+/* Reduce motion: keep the animation but kill the swell pulsing */
+@media (prefers-reduced-motion: reduce) {
+  .dl-pulse::before, .dl-pulse::after,
+  .dl-pulse > .btn, .dl-pulse > a.btn { animation: none !important; }
+}
+
+/* ── Compress single-page preview ─────────────────────────────────────── */
+.compress-preview {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.compress-preview-canvas {
+  max-width: 280px;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15,23,42,.12);
+  background: #fff;
+}
+.compress-preview-meta {
+  font-size: .82rem;
+  color: var(--text-soft);
+  text-align: center;
+  line-height: 1.5;
+}
+.compress-preview-meta strong { color: var(--text); }
+
+/* Compression options card */
+.compress-options { margin-top: 14px; }
+.compress-tier-note {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: .82rem;
+  line-height: 1.45;
+  margin-top: 10px;
+}
+.compress-tier-note svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
+.compress-tier-note a {
+  color: #9a3412; font-weight: 700; text-decoration: underline;
+}
+
+.compress-slider-wrap { display: flex; flex-direction: column; gap: 8px; }
+.compress-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 999px;
+  background: linear-gradient(to right, #10b981 0%, #f59e0b 50%, #dc2626 100%);
+  outline: none;
+}
+.compress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  cursor: pointer;
+}
+.compress-slider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--primary);
+  cursor: pointer;
+}
+.compress-slider-labels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  font-size: .74rem;
+  color: var(--text-mute);
+  font-weight: 600;
+  text-align: center;
+}
+.compress-slider-labels .active { color: var(--primary); }

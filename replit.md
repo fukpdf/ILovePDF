@@ -189,3 +189,13 @@ same-origin (local dev / single-host deploy).
 
 If nothing matches, a friendly **Tool not found** screen is rendered instead of
 silently redirecting to `/` (the original "page reload" bug).
+
+## Recent Changes (April 2026)
+
+- **Cloudflare Worker — CORS hardened**: `corsHeaders()` now mirrors the request origin when `ALLOWED_ORIGINS=*` (avoids the "Access-Control-Allow-Credentials with wildcard" pitfall) and exposes `content-disposition`. Added `readHfToken(env)` which accepts `HF_API_TOKEN`, `HF_TOKEN`, `HUGGINGFACE_API_TOKEN`, or `HUGGING_FACE_TOKEN`. `processors.js` uses the same fallback chain.
+- **Header (chrome.js)** — "All Tools" mega-menu now lists ONLY the tools NOT already exposed in the main header (Advanced + Image groups). The Organize / Convert / Edit / Security tools remain in the inline dropdowns.
+- **Mobile header (home.css)** — keeps Logo + Brand + Login + Signup + Hamburger visible at every breakpoint. Removed the rule that previously hid `.btn-signin` below 1280 px. `html, body { overflow-x:hidden }` to kill any horizontal scroll.
+- **Compress PDF (tool-page.js + page-organizer.js + home.css)** — `compress` is removed from `PAGE_LEVEL_TOOLS`; tool-page.js renders a custom **single-page thumbnail preview** for the uploaded PDF. Tier-aware compression options:
+  - Free / anonymous: locked at "High" (~30 % reduction) with a Sign-up CTA.
+  - Logged-in / paid: full Low / Medium / High slider mapped to the `level` form field forwarded to the worker / HF Space.
+- **Download Swell + Burst (home.css + tool-page.js)** — the "Download Again" CTA is wrapped in `.dl-pulse` so it gently swells when ready. Click triggers `explodeAt()` which spawns a particle burst before the download fires; respects `prefers-reduced-motion`.

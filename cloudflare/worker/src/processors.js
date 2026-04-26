@@ -101,7 +101,10 @@ async function callHuggingFace(env, job, fileBytes) {
       method: 'POST',
       body: fd,
       signal: ctrl.signal,
-      headers: env.HF_API_TOKEN ? { Authorization: `Bearer ${env.HF_API_TOKEN}` } : {},
+      headers: (() => {
+        const tok = env.HF_API_TOKEN || env.HF_TOKEN || env.HUGGINGFACE_API_TOKEN || env.HUGGING_FACE_TOKEN;
+        return tok ? { Authorization: `Bearer ${tok}` } : {};
+      })(),
     });
     if (!r.ok) {
       const body = await r.text().catch(() => '');

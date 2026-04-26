@@ -111,8 +111,13 @@ function renderToolPage(tool) {
     ? `<span class="tool-status status-live"><span class="status-dot"></span>Live &amp; Ready</span>`
     : `<span class="tool-status status-soon"><span class="status-dot"></span>Coming Soon</span>`;
 
+  // Compress: tier-aware, custom-rendered options (free = locked at "hard"
+  // ~30% reduction; paid/logged-in = Low / Medium / High slider).
+  // Generated dynamically below — skip the generic options builder.
   let optionsHtml = '';
-  if (tool.options && tool.options.length > 0) {
+  if (tool.id === 'compress') {
+    optionsHtml = renderCompressOptionsHtml();
+  } else if (tool.options && tool.options.length > 0) {
     const fields = tool.options.map(opt => {
       if (opt.type === 'select') {
         const opts = opt.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
@@ -241,6 +246,13 @@ function handleFiles(fileList) {
 // When the current tool operates on a single PDF and PageOrganizer wants it,
 // we hide the plain file row and mount the thumbnail grid.
 function maybeOpenPageOrganizer() {
+  // Compress gets its own dedicated single-page preview — bypass the
+  // multi-page organizer grid entirely.
+  if (currentTool && currentTool.id === 'compress') {
+    closePageOrganizer();
+    renderCompressPreview();
+    return;
+  }
   if (!window.PageOrganizer) return;
   const files = selectedFiles.map(e => e.file);
   if (!window.PageOrganizer.shouldHandle(currentTool.id, files)) {
@@ -274,6 +286,8 @@ function closePageOrganizer() {
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   const host = document.getElementById('page-organizer');
   if (host) host.remove();
+  const cmpHost = document.getElementById('compress-preview-host');
+  if (cmpHost) cmpHost.remove();
   const list = document.getElementById('files-list');
   if (list) list.style.display = '';
 }
@@ -452,10 +466,15 @@ async function processFile() {
   // Per-file rotations (server may use; safe to ignore otherwise)
   formData.append('rotations', JSON.stringify(selectedFiles.map(e => e.rotation)));
 
-  currentTool.options.forEach(opt => {
+  (currentTool.options || []).forEach(opt => {
     const el = document.getElementById(`opt-${opt.id}`);
     if (el && el.value.trim() !== '') formData.append(opt.id, el.value.trim());
   });
+  // Compress: inject the tier-aware level value (slider → 'low'|'medium'|'high').
+  if (currentTool.id === 'compress') {
+    const lvl = readCompressLevel();
+    if (lvl) formData.append('level', lvl);
+  }
 
   showProcessing(`Processing ${currentTool.name}…`, 'Your file is being processed securely. This usually takes only a few seconds.');
   const processBtn = document.getElementById('process-btn');
@@ -466,10 +485,14 @@ async function processFile() {
   // UI helpers are passed in so the visual flow stays identical.
   if (window.QueueClient && window.QueueClient.isQueued(currentTool.id)) {
     const opts = {};
-    currentTool.options.forEach(o => {
+    (currentTool.options || []).forEach(o => {
       const el = document.getElementById(`opt-${o.id}`);
       if (el && el.value !== '') opts[o.id] = el.value;
     });
+    if (currentTool.id === 'compress') {
+      const lvl = readCompressLevel();
+      if (lvl) opts.level = lvl;
+    }
     try {
       const handled = await window.QueueClient.tryProcess(
         currentTool,
@@ -638,8 +661,18 @@ function showStatus(type, title, message, downloadUrl, filename) {
   if (!area) return;
   const icons = { loading: `<div class="spinner"></div>`, success: `<i data-lucide="check-circle-2"></i>`, error: `<i data-lucide="alert-circle"></i>` };
   const classes = { loading: 'status-loading', success: 'status-success', error: 'status-error' };
+  // The "Download Again" CTA is wrapped in .dl-pulse so the download button
+  // visibly *swells* once the file is ready, drawing the eye. On click we
+  // fire a short particle burst + stop the pulse (see attachDownloadBurst).
   const downloadBtn = (downloadUrl && filename)
-    ? `<div class="download-btn-wrap"><a href="${downloadUrl}" download="${filename}" class="btn btn-primary"><i data-lucide="download"></i> Download Again</a></div>`
+    ? `<div class="download-btn-wrap">
+         <span class="dl-pulse">
+           <a href="${downloadUrl}" download="${filename}"
+              class="btn btn-primary dl-burst-trigger">
+             <i data-lucide="download"></i> Download Again
+           </a>
+         </span>
+       </div>`
     : '';
   area.innerHTML = `
     <div class="status-card ${classes[type]}">
@@ -651,7 +684,64 @@ function showStatus(type, title, message, downloadUrl, filename) {
       </div>
     </div>`;
   if (window.lucide) lucide.createIcons();
+  attachDownloadBurst(area);
 }
+
+// ── DOWNLOAD BURST ─────────────────────────────────────────────────────────
+// Wires the visual "explosion" of particles around the Download Again button
+// the first time the user clicks it. Idempotent — safe to call repeatedly.
+function attachDownloadBurst(scope) {
+  const root = scope || document;
+  root.querySelectorAll('.dl-burst-trigger:not([data-burst-bound])').forEach((btn) => {
+    btn.dataset.burstBound = '1';
+    btn.addEventListener('click', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top  + rect.height / 2;
+      explodeAt(cx, cy);
+      const wrap = btn.closest('.dl-pulse');
+      if (wrap) wrap.classList.add('dl-fired');
+      // Don't preventDefault — the actual download must still fire.
+    });
+  });
+}
+
+// Fires N coloured particles flying outward from (x, y) and removes them
+// from the DOM once their CSS animation completes.
+function explodeAt(x, y) {
+  const N = 28;
+  const colors = ['#E5322E', '#ff6a5b', '#ffb84a', '#10b981', '#3b82f6', '#a855f7', '#f59e0b'];
+  const host = document.createElement('div');
+  host.className = 'burst-host';
+  host.style.left = x + 'px';
+  host.style.top  = y + 'px';
+  document.body.appendChild(host);
+
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement('span');
+    p.className = 'burst-particle';
+    const angle    = (Math.PI * 2 * i) / N + Math.random() * 0.3;
+    const distance = 60 + Math.random() * 90;
+    const size     = 6 + Math.random() * 8;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance + 30; // slight downward gravity
+    const dur = 600 + Math.random() * 350;
+    p.style.width  = size + 'px';
+    p.style.height = size + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.setProperty('--dx', dx + 'px');
+    p.style.setProperty('--dy', dy + 'px');
+    p.style.setProperty('--dur', dur + 'ms');
+    p.style.setProperty('--end-scale', (0.3 + Math.random() * 0.5).toFixed(2));
+    host.appendChild(p);
+  }
+  setTimeout(() => host.remove(), 1200);
+}
+
+// Expose globally so queue-client.js (or any future caller) can re-trigger
+// after dynamically appending its own download CTA.
+window.attachDownloadBurst = attachDownloadBurst;
+window.explodeAt = explodeAt;
 
 function showTextResult(text, label = 'Result') {
   const area = document.getElementById('result-area');
@@ -750,4 +840,138 @@ function renderSeoContent(tool) {
 
 function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── COMPRESS — single-page preview + tier-aware options ───────────────────
+// Free users get the strongest compression (~30% reduction, hard-coded).
+// Paid / logged-in users get a Low / Medium / High slider that maps to the
+// `level` option the worker (and Express compress route) already understand.
+function isPaidUser() {
+  // Logged-in (any auth provider) is treated as "paid" for the compress
+  // slider gate. If a real billing tier exists later, swap this for a
+  // window.AuthUI.current().plan === 'pro' check.
+  try {
+    if (window.AuthUI && window.AuthUI.current) return !!window.AuthUI.current();
+    if (window.firebase?.auth) return !!window.firebase.auth().currentUser;
+  } catch (_) {}
+  return false;
+}
+
+function renderCompressOptionsHtml() {
+  if (isPaidUser()) {
+    return `
+      <div class="options-section compress-options" data-compress-options="paid">
+        <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Level</div>
+        <div class="compress-slider-wrap">
+          <input type="range" min="0" max="2" step="1" value="1"
+                 class="compress-slider" id="opt-level" />
+          <div class="compress-slider-labels">
+            <span data-lvl="0">Low<br><small>Best quality</small></span>
+            <span data-lvl="1" class="active">Medium<br><small>Recommended</small></span>
+            <span data-lvl="2">High<br><small>Smallest file</small></span>
+          </div>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="options-section compress-options" data-compress-options="free">
+      <div class="options-title">
+        <i data-lucide="sliders-horizontal"></i> Compression Level
+      </div>
+      <div class="compress-slider-wrap">
+        <input type="range" min="0" max="2" step="1" value="2" disabled
+               class="compress-slider" id="opt-level" />
+        <div class="compress-slider-labels">
+          <span data-lvl="0" style="opacity:.45">Low</span>
+          <span data-lvl="1" style="opacity:.45">Medium</span>
+          <span data-lvl="2" class="active">High <small>(free)</small></span>
+        </div>
+      </div>
+      <div class="compress-tier-note">
+        <i data-lucide="lock"></i>
+        <div>
+          Free plan compresses every PDF at the strongest setting (~30% smaller).
+          <a href="#" data-auth="signup">Sign up free</a> to unlock the Low / Medium / High slider.
+        </div>
+      </div>
+    </div>`;
+}
+
+// Wire the slider's active-label tracking once the options HTML is in DOM.
+function wireCompressSlider() {
+  const slider = document.getElementById('opt-level');
+  if (!slider) return;
+  const labels = document.querySelectorAll('.compress-slider-labels [data-lvl]');
+  function paint() {
+    const v = String(slider.value);
+    labels.forEach((s) => s.classList.toggle('active', s.dataset.lvl === v));
+  }
+  slider.addEventListener('input', paint);
+  paint();
+}
+
+// Render a single-page thumbnail preview for the uploaded compress PDF.
+async function renderCompressPreview() {
+  const list = document.getElementById('files-list');
+  if (!list) return;
+  const entry = selectedFiles[0];
+  if (!entry) return;
+
+  // Mount/reuse the host element above the plain file row.
+  let host = document.getElementById('compress-preview-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'compress-preview-host';
+    list.parentNode.insertBefore(host, list);
+  }
+  host.innerHTML = `
+    <div class="compress-preview">
+      <div class="po-spinner" style="width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#E5322E;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <div class="compress-preview-meta">Reading <strong>${escapeHtml(entry.file.name)}</strong>…</div>
+    </div>`;
+
+  // Wire the slider regardless of preview success.
+  wireCompressSlider();
+
+  if (!window.PdfPreview) return;
+  let pdfDoc;
+  try {
+    pdfDoc = await window.PdfPreview.loadDocument(entry.file);
+    const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 280, 0);
+    canvas.classList.add('compress-preview-canvas');
+    host.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'compress-preview';
+    wrap.appendChild(canvas);
+    const meta = document.createElement('div');
+    meta.className = 'compress-preview-meta';
+    meta.innerHTML = `
+      <strong>${escapeHtml(entry.file.name)}</strong><br>
+      ${formatBytes(entry.file.size)} · ${pdfDoc.pageCount} page${pdfDoc.pageCount === 1 ? '' : 's'} · Showing page 1
+    `;
+    wrap.appendChild(meta);
+    host.appendChild(wrap);
+  } catch (err) {
+    host.innerHTML = `
+      <div class="compress-preview">
+        <div class="compress-preview-meta" style="color:#b91c1c">
+          Couldn't render a preview. Your file will still be compressed.
+        </div>
+      </div>`;
+  } finally {
+    try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
+  }
+}
+
+// Convert the slider value (0/1/2) into the level string the Express
+// /api/compress route + the Cloudflare worker forward to the HF Space.
+function readCompressLevel() {
+  // Free users: hardcoded "high" (~30%) regardless of slider state.
+  if (!isPaidUser()) return 'high';
+  const slider = document.getElementById('opt-level');
+  if (!slider) return 'medium';
+  const v = parseInt(slider.value, 10);
+  if (v === 0) return 'low';
+  if (v === 2) return 'high';
+  return 'medium';
 }
