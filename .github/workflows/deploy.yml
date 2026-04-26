@@ -1,4 +1,4 @@
-name: Deploy Full Stack
+name: Deploy Project
 
 on:
   push:
@@ -13,41 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ✅ Checkout latest code
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔥 Firebase Hosting Deploy
-      - name: Deploy to Firebase Hosting
-        uses: w9jds/firebase-action@v13.35.1
+      - name: Deploy Firebase
+        uses: w9jds/firebase-action@v2.2.0
         with:
           args: deploy --only hosting --project ilovepdf-web
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      # ☁️ Cloudflare Workers Deploy
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy Cloudflare Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
-
-      # 🤗 Hugging Face Space Deploy
-      - name: Deploy to Hugging Face Space
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "github-actions"
-
-          git clone https://user:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ilovepdf/ilovepdf hf
-
-          rsync -av --delete \
-            --exclude ".git" \
-            --exclude ".github" \
-            ./ hf/
-
-          cd hf
-
-          git add .
-          git commit -m "Auto deploy from GitHub Actions" || echo "No changes to commit"
-          git push
+          command: publish
