@@ -139,6 +139,50 @@ async function handleJobFile(request, env, key) {
   return new Response(obj.body, { headers });
 }
 
+// ── GET /api/health — service diagnostics (R2 + HF + queue + KV) ────────────
+async function handleHealth(request, env) {
+  const r2_bound  = !!env.R2;
+  const kv_bound  = !!env.PDF_STATUS;
+  const q_bound   = !!env.PDF_QUEUE;
+  const hf_url    = env.HF_SPACE_URL || null;
+  const hf_token  = !!env.HF_API_TOKEN;
+  const fb_proj   = env.FIREBASE_PROJECT_ID || null;
+
+  // Best-effort R2 reachability check (HEAD on a bogus key is enough — R2
+  // returns null without throwing, which proves the binding works).
+  let r2_reachable = null;
+  if (r2_bound) {
+    try { await env.R2.head('__healthcheck__'); r2_reachable = true; }
+    catch (e) { r2_reachable = false; }
+  }
+
+  // Best-effort HF Space ping (quick HEAD; treat any non-5xx as "up").
+  let hf_reachable = null;
+  if (hf_url) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 4000);
+      const r = await fetch(hf_url, { method: 'HEAD', signal: ctrl.signal });
+      clearTimeout(t);
+      hf_reachable = r.status < 500;
+    } catch { hf_reachable = false; }
+  }
+
+  const ok = r2_bound && kv_bound && q_bound && !!hf_url;
+  return json(env, request, {
+    ok,
+    service: 'ilovepdf-queue',
+    services: {
+      r2:        { bound: r2_bound, reachable: r2_reachable },
+      kv:        { bound: kv_bound },
+      queue:     { bound: q_bound },
+      hf:        { configured: !!hf_url, token: hf_token, reachable: hf_reachable, url: hf_url },
+      firebase:  { project_id: fb_proj },
+    },
+    tools: [...QUEUED_TOOLS],
+  });
+}
+
 // ── Producer: GET /api/limits — surface tier caps to the UI (read-only) ─────
 async function handleLimits(request, env) {
   const id = await identify(request, env);
@@ -179,7 +223,7 @@ export default {
         if (adminResp) return adminResp;
       }
       if (p === '/' || p === '/api/health') {
-        return json(env, request, { ok: true, service: 'ilovepdf-queue', tools: [...QUEUED_TOOLS] });
+        return await handleHealth(request, env);
       }
       return json(env, request, { error: 'not found' }, 404);
     } catch (e) {

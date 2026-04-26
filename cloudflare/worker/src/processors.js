@@ -16,27 +16,41 @@ import { getObjectBytes } from './r2.js';
 
 const HF_TIMEOUT_MS = 110_000; // HF Spaces can be slow on cold start
 
-function endpointFor(tool) {
-  // Maps queued tool ids → HF Space POST routes. Adjust to match the
-  // Space you've deployed; defaults follow the same naming as the
-  // existing Express routes so the Space can mirror them 1:1.
-  return {
-    'compress':           '/compress',
-    'ocr':                '/ocr',
-    'pdf-to-word':        '/pdf-to-word',
-    'pdf-to-excel':       '/pdf-to-excel',
-    'pdf-to-powerpoint':  '/pdf-to-powerpoint',
-    'word-to-pdf':        '/word-to-pdf',
-    'excel-to-pdf':       '/excel-to-pdf',
-    'powerpoint-to-pdf':  '/powerpoint-to-pdf',
-    'ai-summarize':       '/ai-summarize',
-    'translate':          '/translate',
-    'background-remover': '/background-remove',
-    'resize-image':       '/resize-image',
-    'image-filters':      '/filters',
-    'compare':            '/compare',
-  }[tool];
-}
+// Maps queued tool ids → HF Space POST routes. The Space mirrors the
+// existing Express route names 1:1, so adding a new tool here only
+// requires the HF Space to expose the matching path.
+const HF_ENDPOINTS = {
+  // Compress & convert (existing)
+  'compress':           '/compress',
+  'ocr':                '/ocr',
+  'pdf-to-word':        '/pdf-to-word',
+  'pdf-to-excel':       '/pdf-to-excel',
+  'pdf-to-powerpoint':  '/pdf-to-powerpoint',
+  'pdf-to-jpg':         '/pdf-to-jpg',
+  'word-to-pdf':        '/word-to-pdf',
+  'excel-to-pdf':       '/excel-to-pdf',
+  'powerpoint-to-pdf':  '/powerpoint-to-pdf',
+  'html-to-pdf':        '/html-to-pdf',
+  // Edit & annotate
+  'edit':               '/edit',
+  'sign':               '/sign',
+  'redact':             '/redact',
+  // Security
+  'protect':            '/protect',
+  'unlock':             '/unlock',
+  // Advanced
+  'repair':             '/repair',
+  'scan-to-pdf':        '/scan-to-pdf',
+  'compare':            '/compare',
+  'workflow':           '/workflow',
+  'ai-summarize':       '/ai-summarize',
+  'translate':          '/translate',
+  // Image
+  'background-remover': '/background-remove',
+  'crop-image':         '/crop-image',
+  'resize-image':       '/resize-image',
+  'image-filters':      '/filters',
+};
 
 const EXT_BY_TOOL = {
   'compress':           { ext: '.pdf',  mime: 'application/pdf' },
@@ -44,16 +58,29 @@ const EXT_BY_TOOL = {
   'pdf-to-word':        { ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
   'pdf-to-excel':       { ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
   'pdf-to-powerpoint':  { ext: '.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' },
+  'pdf-to-jpg':         { ext: '.zip',  mime: 'application/zip' },
   'word-to-pdf':        { ext: '.pdf',  mime: 'application/pdf' },
   'excel-to-pdf':       { ext: '.pdf',  mime: 'application/pdf' },
   'powerpoint-to-pdf':  { ext: '.pdf',  mime: 'application/pdf' },
+  'html-to-pdf':        { ext: '.pdf',  mime: 'application/pdf' },
+  'edit':               { ext: '.pdf',  mime: 'application/pdf' },
+  'sign':               { ext: '.pdf',  mime: 'application/pdf' },
+  'redact':             { ext: '.pdf',  mime: 'application/pdf' },
+  'protect':            { ext: '.pdf',  mime: 'application/pdf' },
+  'unlock':             { ext: '.pdf',  mime: 'application/pdf' },
+  'repair':             { ext: '.pdf',  mime: 'application/pdf' },
+  'scan-to-pdf':        { ext: '.pdf',  mime: 'application/pdf' },
+  'workflow':           { ext: '.pdf',  mime: 'application/pdf' },
   'ai-summarize':       { ext: '.txt',  mime: 'text/plain; charset=utf-8' },
   'translate':          { ext: '.txt',  mime: 'text/plain; charset=utf-8' },
+  'compare':            { ext: '.json', mime: 'application/json' },
   'background-remover': { ext: '.png',  mime: 'image/png' },
+  'crop-image':         { ext: '.png',  mime: 'image/png' },
   'resize-image':       { ext: '.png',  mime: 'image/png' },
   'image-filters':      { ext: '.png',  mime: 'image/png' },
-  'compare':            { ext: '.json', mime: 'application/json' },
 };
+
+function endpointFor(tool) { return HF_ENDPOINTS[tool]; }
 
 // ── HF Space pass-through ────────────────────────────────────────────────────
 async function callHuggingFace(env, job, fileBytes) {
@@ -117,21 +144,7 @@ export async function process(env, job) {
   return callHuggingFace(env, job, fileBytes);
 }
 
-// Set of tools this worker accepts. Direct tools (merge/split/rotate/etc.)
-// are NOT in this list — they keep going to your existing Express backend.
-export const QUEUED_TOOLS = new Set([
-  'compress',
-  'ocr',
-  'pdf-to-word',
-  'pdf-to-excel',
-  'pdf-to-powerpoint',
-  'word-to-pdf',
-  'excel-to-pdf',
-  'powerpoint-to-pdf',
-  'ai-summarize',
-  'translate',
-  'background-remover',
-  'resize-image',
-  'image-filters',
-  'compare',
-]);
+// All tool ids the queue accepts. Anything in TOOLS but NOT here is a
+// browser-only / client-side tool (merge, split, rotate, crop, organize,
+// jpg-to-pdf, watermark, page-numbers, numbers-to-words).
+export const QUEUED_TOOLS = new Set(Object.keys(HF_ENDPOINTS));

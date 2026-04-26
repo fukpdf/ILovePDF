@@ -4,22 +4,23 @@
 // are reused as-is so the visual experience is unchanged.
 (function () {
   // Tools that go through the Cloudflare queue. MUST stay in sync with
-  // cloudflare/worker/src/processors.js → QUEUED_TOOLS.
+  // cloudflare/worker/src/processors.js → QUEUED_TOOLS. Anything not here
+  // and not handled by browser-tools.js will fail on a fully-serverless
+  // deploy (no Express backend present).
   const QUEUED_TOOL_IDS = new Set([
-    'compress',
-    'ocr',
-    'pdf-to-word',
-    'pdf-to-excel',
-    'pdf-to-powerpoint',
-    'word-to-pdf',
-    'excel-to-pdf',
-    'powerpoint-to-pdf',
-    'ai-summarize',
-    'translate',
-    'background-remover',
-    'resize-image',
-    'image-filters',
-    'compare',
+    // Compress & convert
+    'compress', 'ocr',
+    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'pdf-to-jpg',
+    'word-to-pdf', 'excel-to-pdf', 'powerpoint-to-pdf', 'html-to-pdf',
+    // Edit & annotate
+    'edit', 'sign', 'redact',
+    // Security
+    'protect', 'unlock',
+    // Advanced
+    'repair', 'scan-to-pdf', 'compare', 'workflow',
+    'ai-summarize', 'translate',
+    // Image
+    'background-remover', 'crop-image', 'resize-image', 'image-filters',
   ]);
 
   const POLL_MS    = 3000;

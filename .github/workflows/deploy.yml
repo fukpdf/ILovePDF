@@ -16,8 +16,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Firebase Hosting — direct static deploy from /public.
-      # Using @master bypasses framework auto-detection so it never tries
+      # ── Firebase Hosting — direct static deploy from /public ────────────────
+      # @master bypasses framework auto-detection so the action never tries
       # to install or build the project (avoids exit code 2 on Actions).
       - name: Deploy Firebase Hosting
         uses: w9jds/firebase-action@master
@@ -26,7 +26,11 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      # Cloudflare Worker (queue producer + consumer) — preserved.
+      # ── Cloudflare Worker (queue producer + consumer) ───────────────────────
+      # Secrets are pushed to the worker at deploy time via the action's
+      # `secrets:` input. Anything listed there is read from `env:` below
+      # and stored as a Worker secret automatically — no manual `wrangler
+      # secret put` step needed.
       - name: Deploy Cloudflare Worker
         uses: cloudflare/wrangler-action@v3
         with:
@@ -34,7 +38,15 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: cloudflare/worker
           command: deploy
+          secrets: |
+            HF_API_TOKEN
+        env:
+          HF_API_TOKEN: ${{ secrets.HF_TOKEN }}
 
-      # Hugging Face Space is deployed/maintained out-of-band (the Worker
-      # calls it via HF_SPACE_URL configured in wrangler.toml). No build
-      # step is needed here — preserved as part of the runtime stack.
+      # ── Hugging Face Space ──────────────────────────────────────────────────
+      # The HF Space is the runtime that actually performs the heavy
+      # processing (called by the Worker via HF_SPACE_URL). It is
+      # deployed/maintained out-of-band from this repo and authenticated
+      # via the HF_TOKEN secret used above. No build step needed here —
+      # this comment exists so the HF leg of the stack is documented in
+      # the workflow file alongside the others.

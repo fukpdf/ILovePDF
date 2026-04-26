@@ -1,6 +1,11 @@
-// Firebase web SDK bootstrap. Loads runtime config from the server (so the
-// values live in env, not in source), then exposes window.FB with a tiny
-// auth-helper API used by auth-ui.js.
+// Firebase web SDK bootstrap. Hardcoded config (these values are public
+// by design — Firebase web API keys identify the project, they are not
+// secrets — and locking them in here means Login/Signup keeps working
+// without any server endpoint, fully serverless on Firebase Hosting).
+//
+// Override at runtime if needed: window.FIREBASE_CONFIG = { ... } before
+// this script loads, or set localStorage 'ilovepdf:firebase_config' to
+// a JSON blob.
 (function () {
   const SDK = 'https://www.gstatic.com/firebasejs/10.13.0';
   let app = null;
@@ -9,15 +14,32 @@
   let readyResolve;
   const ready = new Promise(r => { readyResolve = r; });
 
+  // ── Public Firebase web config (project: ilovepdf-web) ───────────────────
+  const DEFAULT_CONFIG = {
+    apiKey:        'AIzaSyB6TpoTdUp_f3HxJHn7I0sV1FV4llJjybQ',
+    authDomain:    'ilovepdf-web.firebaseapp.com',
+    projectId:     'ilovepdf-web',
+    storageBucket: 'ilovepdf-web.firebasestorage.app',
+    appId:         '1:220495273530:web:68068202e588705e989f03',
+  };
+
+  function resolveConfig() {
+    if (window.FIREBASE_CONFIG && typeof window.FIREBASE_CONFIG === 'object') {
+      return window.FIREBASE_CONFIG;
+    }
+    try {
+      const ls = localStorage.getItem('ilovepdf:firebase_config');
+      if (ls) return JSON.parse(ls);
+    } catch (_) {}
+    return DEFAULT_CONFIG;
+  }
+
   async function loadModule(path) { return import(`${SDK}/${path}`); }
 
   async function init() {
     try {
-      const cfgUrl = (typeof window.apiUrl === 'function') ? window.apiUrl('/api/config/firebase') : '/api/config/firebase';
-      const cfgRes = await fetch(cfgUrl, { credentials: 'include' });
-      if (!cfgRes.ok) throw new Error('config unavailable');
-      const cfg = await cfgRes.json();
-      if (!cfg.apiKey) throw new Error('Firebase not configured on server');
+      const cfg = resolveConfig();
+      if (!cfg.apiKey) throw new Error('Firebase config missing apiKey');
 
       const { initializeApp } = await loadModule('firebase-app.js');
       const authMod = await loadModule('firebase-auth.js');
