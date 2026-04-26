@@ -24,7 +24,7 @@ jobs:
         with:
           args: deploy --only hosting --project ilovepdf-web
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       # ── Cloudflare Worker (queue producer + consumer) ───────────────────────
       # Secrets are pushed to the worker at deploy time via the action's
