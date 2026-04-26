@@ -11,17 +11,14 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Step 1: Firebase Deployment (Direct Hosting, No Build)
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      # Step 1: Firebase Deploy (Build steps ko bypass karne ke liye)
+      - name: Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@master
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: ilovepdf-cyou
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
       # Step 2: Cloudflare Worker Deployment
       - name: Deploy to Cloudflare Worker
