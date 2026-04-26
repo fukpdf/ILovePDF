@@ -5,33 +5,35 @@ on:
     branches:
       - main
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 📥 Code fetch
+      # ✅ Checkout (latest)
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 🔥 Firebase Hosting (Frontend)
+      # 🔥 Firebase Hosting
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@v2.2.0
         with:
-          args: deploy --only hosting
+          args: deploy --only hosting --project ilovepdf-web
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PROJECT_ID: ilovepdf-web
 
-      # ☁️ Cloudflare Workers (Backend + R2)
-      - name: Deploy to Cloudflare
+      # ☁️ Cloudflare Workers (correct)
+      - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: publish
 
-      # 🤗 Hugging Face (Optional mirror)
+      # 🤗 Hugging Face
       - name: Deploy to Hugging Face
         run: |
           git config --global user.email "actions@github.com"
@@ -40,5 +42,5 @@ jobs:
           rsync -av --delete ./ hf/
           cd hf
           git add .
-          git commit -m "Auto deploy"
+          git commit -m "Auto deploy" || echo "No changes"
           git push
