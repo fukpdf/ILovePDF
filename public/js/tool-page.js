@@ -392,6 +392,9 @@ function clearAll() {
 
 async function processFile() {
   if (!currentTool) return;
+  console.log('[click] Process File →', currentTool.id, '| files:', selectedFiles.length,
+              '| queued?', !!(window.QueueClient && window.QueueClient.isQueued(currentTool.id)),
+              '| endpoint:', currentTool.apiEndpoint || '(client-side)');
   if (selectedFiles.length === 0) {
     showStatus('error', 'No file selected', 'Please upload a file before processing.');
     return;
@@ -521,11 +524,14 @@ async function processFile() {
     const endpoint = (typeof window.apiUrl === 'function')
       ? window.apiUrl(currentTool.apiEndpoint)
       : currentTool.apiEndpoint;
+    const t0 = performance.now();
+    console.log('[direct] POST', endpoint, '| tool=', currentTool.id);
     const response = await fetch(endpoint, {
       method: 'POST',
       body: formData,
       credentials: 'include',
     });
+    console.log('[direct] response', response.status, '(', Math.round(performance.now() - t0), 'ms ) ct=', response.headers.get('content-type'));
     if (response.status === 429 || response.status === 413) {
       const data = await response.json().catch(() => ({}));
       if (data.error === 'LIMIT_REACHED') {

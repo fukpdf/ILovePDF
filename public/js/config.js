@@ -11,11 +11,16 @@
 */
 (function () {
   // ── Production frontend hosts → backend URL ─────────────────────────────
-  // Replace this with your production backend URL once you publish the
-  // Express server (e.g. https://ilovepdf-api.<your-name>.repl.co or a
-  // Railway/Render/Fly URL). The current value points at the Replit dev
-  // domain so you can test the deployed Firebase frontend right away.
-  const PROD_BACKEND = 'https://b937f7de-fc5b-41b1-9d1f-328f94d47152-00-2zzk5nctdcm15.kirk.replit.dev';
+  // IMPORTANT: Replit *dev* domains rotate every time the repl is recreated.
+  // For a stable production backend, publish this repl (Replit Deployments)
+  // and replace PROD_BACKEND with the resulting `.replit.app` URL — that one
+  // does not change. Until then, this points at the *current* dev domain so
+  // the deployed Firebase frontend can reach the running backend.
+  //
+  // Quick override (no redeploy needed): in DevTools console run
+  //   localStorage.setItem('ilovepdf:api_base', 'https://your-backend.example')
+  // and reload. Use '' for same-origin.
+  const PROD_BACKEND = 'https://0d5bd5df-7f07-4f86-8880-3cb6e70f08c0-00-23sfw4xi4di1y.kirk.replit.dev';
   const HOST_TO_BACKEND = {
     'ilovepdf.cyou':                 PROD_BACKEND,
     'www.ilovepdf.cyou':             PROD_BACKEND,
@@ -38,6 +43,7 @@
 
   const base = resolveBase().replace(/\/+$/, ''); // strip trailing slashes
   window.API_BASE = base;
+  console.log('[ilovepdf:config] API_BASE =', base || '(same-origin)');
 
   // ── Queue API base — Cloudflare Worker URL ──────────────────────────────
   // Set this to your deployed Worker (e.g. https://ilovepdf-queue.<acct>.workers.dev
@@ -54,6 +60,7 @@
     return 'https://ilovepdf-queue.safderkhan318.workers.dev';
   }
   window.QUEUE_API_BASE = resolveQueueBase().replace(/\/+$/, '');
+  console.log('[ilovepdf:config] QUEUE_API_BASE =', window.QUEUE_API_BASE || '(disabled)');
   window.queueUrl = function (path) {
     if (!window.QUEUE_API_BASE) return null;
     if (/^https?:\/\//i.test(path)) return path;

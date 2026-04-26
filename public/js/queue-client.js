@@ -55,7 +55,10 @@
       if (v !== '' && v !== null && v !== undefined) fd.append(k, v);
     });
     const headers = await getAuthHeader();
+    const t0 = performance.now();
+    console.log('[queue] POST', url, '| tool=', tool.id, '| size=', file.size, '| auth=', !!headers.Authorization);
     const r = await fetch(url, { method: 'POST', body: fd, headers });
+    console.log('[queue] response', r.status, '(', Math.round(performance.now() - t0), 'ms )');
     if (r.status === 413 || r.status === 429) {
       const data = await r.json().catch(() => ({}));
       const err = new Error(data.message || 'Limit reached');
@@ -74,19 +77,27 @@
     const start = Date.now();
     const url = window.queueUrl('/api/job-status/' + encodeURIComponent(jobId));
     let consecutiveErrors = 0;
+    let lastStatus = null;
+    console.log('[queue] polling', jobId, 'every', POLL_MS, 'ms');
     while (Date.now() - start < MAX_WAIT_MS) {
       try {
         const r = await fetch(url, { headers: await getAuthHeader() });
         if (r.ok) {
           consecutiveErrors = 0;
           const j = await r.json();
+          if (j.status !== lastStatus) {
+            console.log('[queue]', jobId, 'status →', j.status, '(', Math.round((Date.now() - start) / 1000), 's )');
+            lastStatus = j.status;
+          }
           if (typeof onTick === 'function') onTick(j);
-          if (j.status === 'done')   return j;
+          if (j.status === 'done')   { console.log('[queue]', jobId, 'done. result_url=', j.result_url); return j; }
           if (j.status === 'failed') throw new Error(j.error || 'processing failed');
         } else {
+          console.warn('[queue] poll', jobId, '→', r.status);
           consecutiveErrors++;
         }
       } catch (e) {
+        console.warn('[queue] poll error', jobId, e?.message || e);
         consecutiveErrors++;
         if (consecutiveErrors > 5) throw e;
       }
