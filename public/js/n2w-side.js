@@ -21,7 +21,7 @@
       $('n2w-err').classList.remove('hidden');
       return;
     }
-    $('n2w-out').textContent = out.text;
+    $('n2w-out').textContent = out.text.replace(/\s+$/, '') + ' Only';
     $('n2w-out-wrap').classList.remove('hidden');
   }
 

@@ -22,7 +22,9 @@ function runConvert() {
     $('result-err').classList.remove('hidden');
     return;
   }
-  $('result-text').textContent = out.text;
+  // Always append the word "Only" — included verbatim in copy + display.
+  const finalText = out.text.replace(/\s+$/,'') + ' Only';
+  $('result-text').textContent = finalText;
   $('result-wrap').classList.remove('hidden');
 }
 

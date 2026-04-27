@@ -1,19 +1,6 @@
-/* Runtime config — loaded on every page BEFORE any other script.
-   Decoupled / serverless setup: both API_BASE and QUEUE_API_BASE point
-   at the Cloudflare Worker. There is no Replit / Express backend in
-   this configuration.
-
-   Override priority (both bases):
-     1. window.{API_BASE_OVERRIDE | QUEUE_API_BASE_OVERRIDE}  (inline in HTML for testing)
-     2. localStorage 'ilovepdf:api_base' / 'ilovepdf:queue_api_base'  (developer override)
-     3. Hard-coded production URL below
-*/
+/* Runtime config — loaded on every page BEFORE any other script. */
 (function () {
-  // ── Single backend for everything: Cloudflare Worker ────────────────────
-  // The Worker handles the queue producer (POST /api/queue-job),
-  // status polling, result download, and limits. Frontend talks to it
-  // directly from Firebase Hosting — no intermediate server.
-  const CLOUDFLARE_WORKER = 'https://ilovepdf-queue.safderkhan318.workers.dev';
+  const REMOTE_API = 'https://ilovepdf-queue.safderkhan318.workers.dev';
 
   function resolveBase() {
     if (typeof window.API_BASE_OVERRIDE === 'string') return window.API_BASE_OVERRIDE;
@@ -21,12 +8,11 @@
       const ls = localStorage.getItem('ilovepdf:api_base');
       if (ls !== null) return ls;
     } catch (_) {}
-    return CLOUDFLARE_WORKER;
+    return REMOTE_API;
   }
 
-  const base = resolveBase().replace(/\/+$/, ''); // strip trailing slashes
+  const base = resolveBase().replace(/\/+$/, '');
   window.API_BASE = base;
-  console.log('[ilovepdf:config] API_BASE =', base || '(same-origin)');
 
   function resolveQueueBase() {
     if (typeof window.QUEUE_API_BASE_OVERRIDE === 'string') return window.QUEUE_API_BASE_OVERRIDE;
@@ -34,10 +20,28 @@
       const ls = localStorage.getItem('ilovepdf:queue_api_base');
       if (ls !== null) return ls;
     } catch (_) {}
-    return CLOUDFLARE_WORKER;
+    return REMOTE_API;
   }
   window.QUEUE_API_BASE = resolveQueueBase().replace(/\/+$/, '');
-  console.log('[ilovepdf:config] QUEUE_API_BASE =', window.QUEUE_API_BASE || '(disabled)');
+
+  // ── Silent keep-alive ──────────────────────────────────────────────────
+  // Pings the API every 3 minutes so the upstream processing service does
+  // not idle/sleep between user requests. Errors are swallowed silently.
+  (function startKeepAlive() {
+    const url = window.QUEUE_API_BASE
+      ? window.QUEUE_API_BASE + '/api/health'
+      : null;
+    if (!url) return;
+    const ping = () => {
+      try {
+        fetch(url, { method: 'GET', cache: 'no-store', credentials: 'omit' })
+          .catch(() => {});
+      } catch (_) {}
+    };
+    // Fire one shortly after load, then every 3 minutes.
+    setTimeout(ping, 5000);
+    setInterval(ping, 3 * 60 * 1000);
+  })();
 
   window.queueUrl = function (path) {
     if (!window.QUEUE_API_BASE) return null;

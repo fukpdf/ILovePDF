@@ -79,7 +79,8 @@ function wireCalc(){
       letterCase: caseSel ? caseSel.value : 'lowercase',
     });
     if (res.error) { out.textContent = res.error; out.classList.add('err'); return; }
-    out.textContent = res.text;
+    // Always append " Only" so it's part of both display and copy.
+    out.textContent = res.text.replace(/\s+$/, '') + ' Only';
   };
 
   btn.addEventListener('click', run);

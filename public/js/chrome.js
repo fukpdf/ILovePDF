@@ -351,8 +351,34 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDrawer();
   wireDrawer();
   wireAuth();
+  startAuthStateObserver();
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
 });
+
+// ── Smart header: hide Login/Sign-up + center the logo when signed in ────
+// AuthUI doesn't currently emit events, so we lightweight-poll its
+// `current()` value and toggle a class on the header. Cheap, no flicker.
+function startAuthStateObserver() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  let lastSignedIn = null;
+  function tick() {
+    let signedIn = false;
+    try {
+      if (window.AuthUI && typeof window.AuthUI.current === 'function') {
+        signedIn = !!window.AuthUI.current();
+      } else if (window.firebase?.auth) {
+        signedIn = !!window.firebase.auth().currentUser;
+      }
+    } catch (_) { signedIn = false; }
+    if (signedIn !== lastSignedIn) {
+      lastSignedIn = signedIn;
+      header.classList.toggle('is-signed-in', signedIn);
+    }
+  }
+  tick();
+  setInterval(tick, 600);
+}

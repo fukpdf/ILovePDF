@@ -311,9 +311,16 @@ function renderFileList() {
   list.innerHTML = selectedFiles.map((entry, i) => {
     const f = entry.file;
     const isImage = /^image\//.test(f.type);
-    const thumb = isImage
-      ? `<div class="file-thumb-wrap"><img src="${URL.createObjectURL(f)}" alt="" style="transform:rotate(${entry.rotation}deg)"></div>`
-      : `<div class="file-thumb-wrap"><i data-lucide="file-text"></i></div>`;
+    const isPdf   = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    let thumb;
+    if (isImage) {
+      thumb = `<div class="file-thumb-wrap"><img src="${URL.createObjectURL(f)}" alt="" style="transform:rotate(${entry.rotation}deg)"></div>`;
+    } else if (isPdf) {
+      // PDF first-page preview (rendered async right after this innerHTML).
+      thumb = `<div class="file-thumb-wrap pdf-thumb" data-pdf-thumb="${entry.id}"><i data-lucide="file-text"></i></div>`;
+    } else {
+      thumb = `<div class="file-thumb-wrap"><i data-lucide="file-text"></i></div>`;
+    }
     return `
       <div class="upload-file-item" draggable="true" data-index="${i}">
         <i data-lucide="grip-vertical" class="file-drag-handle"></i>
@@ -331,6 +338,33 @@ function renderFileList() {
 
   if (window.lucide) lucide.createIcons();
   attachDragHandlers();
+  renderPdfThumbnails();
+}
+
+// Render the first page of every PDF in the file list as an inline thumbnail.
+// Speeds up the UI for tools like Merge by giving each row a real preview.
+async function renderPdfThumbnails() {
+  if (!window.PdfPreview) return;
+  for (const entry of selectedFiles) {
+    const host = document.querySelector(`[data-pdf-thumb="${entry.id}"]`);
+    if (!host || host.dataset.rendered === '1') continue;
+    host.dataset.rendered = '1';
+    let pdfDoc;
+    try {
+      pdfDoc = await window.PdfPreview.loadDocument(entry.file);
+      const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 64, 0);
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.objectFit = 'cover';
+      canvas.style.borderRadius = '6px';
+      host.innerHTML = '';
+      host.appendChild(canvas);
+    } catch (_) {
+      // Leave the fallback file-text icon in place.
+    } finally {
+      try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
+    }
+  }
 }
 
 function attachDragHandlers() {
@@ -389,7 +423,10 @@ function rotateFile(index) {
 function removeFile(index) {
   selectedFiles.splice(index, 1);
   renderFileList();
-  if (selectedFiles.length === 0) closePageOrganizer();
+  if (selectedFiles.length === 0) {
+    closePageOrganizer();
+    if (typeof clearAllBursts === 'function') clearAllBursts();
+  }
 }
 
 function clearAll() {
@@ -400,15 +437,13 @@ function clearAll() {
   if (r) r.innerHTML = '';
   const input = document.getElementById('file-input');
   if (input) input.value = '';
+  if (typeof clearAllBursts === 'function') clearAllBursts();
 }
 
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
   if (!currentTool) return;
-  console.log('[click] Process File →', currentTool.id, '| files:', selectedFiles.length,
-              '| queued?', !!(window.QueueClient && window.QueueClient.isQueued(currentTool.id)),
-              '| endpoint:', currentTool.apiEndpoint || '(client-side)');
   if (selectedFiles.length === 0) {
     showStatus('error', 'No file selected', 'Please upload a file before processing.');
     return;
@@ -443,9 +478,8 @@ async function processFile() {
       hideProcessing();
     } catch (err) {
       hideProcessing();
-      console.error('[page-organizer] edit-build failed:', err);
-      showStatus('error', 'Couldn\'t apply your edits',
-        'We couldn\'t rebuild the PDF with your changes. Please try again or remove a page edit.');
+      showStatus('error', 'Please try again',
+        'Processing is taking longer than usual. Please wait or try again later.');
       return;
     }
   }
@@ -481,8 +515,7 @@ async function processFile() {
   if (processBtn) processBtn.disabled = true;
 
   // ── Queue path: tools listed in QueueClient.QUEUED_TOOL_IDS go through the
-  // Cloudflare Worker (queue + KV + R2) instead of the Express backend.
-  // UI helpers are passed in so the visual flow stays identical.
+  // queued processing API. UI helpers are passed in so the flow is identical.
   if (window.QueueClient && window.QueueClient.isQueued(currentTool.id)) {
     const opts = {};
     (currentTool.options || []).forEach(o => {
@@ -510,7 +543,7 @@ async function processFile() {
         return;
       }
     } catch (err) {
-      console.error('[queue] unexpected error, falling back to direct route:', err);
+      // Silently fall through to the direct route.
     }
   }
 
@@ -534,27 +567,23 @@ async function processFile() {
         URL.createObjectURL(blob), filename);
       return;
     } catch (err) {
-      console.error('[client-side] failed, falling back to server:', err);
-      // fall through to the network path
+      // Silently fall through to the network path.
     } finally {
       if (processBtn) processBtn.disabled = false;
     }
     if (processBtn) processBtn.disabled = true;
-    showProcessing(`Processing ${currentTool.name}…`, 'Continuing on the server…');
+    showProcessing(`Processing ${currentTool.name}…`, 'Continuing online…');
   }
 
   try {
     const endpoint = (typeof window.apiUrl === 'function')
       ? window.apiUrl(currentTool.apiEndpoint)
       : currentTool.apiEndpoint;
-    const t0 = performance.now();
-    console.log('[direct] POST', endpoint, '| tool=', currentTool.id);
     const response = await fetch(endpoint, {
       method: 'POST',
       body: formData,
       credentials: 'include',
     });
-    console.log('[direct] response', response.status, '(', Math.round(performance.now() - t0), 'ms ) ct=', response.headers.get('content-type'));
     if (response.status === 429 || response.status === 413) {
       const data = await response.json().catch(() => ({}));
       if (data.error === 'LIMIT_REACHED') {
@@ -578,9 +607,9 @@ async function processFile() {
     if (response.status === 501) { hideProcessing(); showComingSoon(currentTool.name); return; }
 
     if (!response.ok) {
-      const json = await response.json().catch(() => ({ error: 'Unknown error occurred.' }));
       hideProcessing();
-      showStatus('error', 'Processing failed', json.error || 'An unexpected error occurred.');
+      showStatus('error', 'Please try again',
+        'Processing is taking longer than usual. Please wait or try again later.');
       return;
     }
 
@@ -595,8 +624,8 @@ async function processFile() {
       const filename = brandedFilename(selectedFiles[0].file.name, ext);
       hideProcessing();
       triggerDownload(blob, filename);
-      showStatus('success', 'File ready!',
-        `Your ${ext.replace('.', '').toUpperCase()} file has downloaded as <code>${escapeHtml(filename)}</code>.`,
+      showStatus('success', 'File ready for download!',
+        `Press the button if download does not start automatically. <code>${escapeHtml(filename)}</code>`,
         URL.createObjectURL(blob), filename);
       return;
     }
@@ -609,12 +638,8 @@ async function processFile() {
     showStatus('success', 'Done!', json.message || 'Processing complete.');
   } catch (err) {
     hideProcessing();
-    const apiBase = (window.API_BASE || '').trim();
-    const hint = apiBase
-      ? `Could not reach the API at <code>${escapeHtml(apiBase)}</code>. Please try again in a moment.`
-      : `Could not connect to the processing API. If you're on a static deploy, set the backend URL in <code>js/config.js</code>.`;
-    showStatus('error', 'Connection error', hint);
-    console.error('[process] network error:', err);
+    showStatus('error', 'Please try again',
+      'Processing is taking longer than usual. Please wait or try again later.');
   } finally {
     if (processBtn) processBtn.disabled = false;
   }
@@ -661,15 +686,15 @@ function showStatus(type, title, message, downloadUrl, filename) {
   if (!area) return;
   const icons = { loading: `<div class="spinner"></div>`, success: `<i data-lucide="check-circle-2"></i>`, error: `<i data-lucide="alert-circle"></i>` };
   const classes = { loading: 'status-loading', success: 'status-success', error: 'status-error' };
-  // The "Download Again" CTA is wrapped in .dl-pulse so the download button
-  // visibly *swells* once the file is ready, drawing the eye. On click we
-  // fire a short particle burst + stop the pulse (see attachDownloadBurst).
+  // The download CTA is wrapped in .dl-pulse so the button visibly *swells*
+  // once the file is ready, drawing the eye. On click we fire a heavy,
+  // persistent particle burst + stop the pulse (see attachDownloadBurst).
   const downloadBtn = (downloadUrl && filename)
     ? `<div class="download-btn-wrap">
          <span class="dl-pulse">
            <a href="${downloadUrl}" download="${filename}"
               class="btn btn-primary dl-burst-trigger">
-             <i data-lucide="download"></i> Download Again
+             <i data-lucide="download"></i> Download File
            </a>
          </span>
        </div>`
@@ -706,42 +731,58 @@ function attachDownloadBurst(scope) {
   });
 }
 
-// Fires N coloured particles flying outward from (x, y) and removes them
-// from the DOM once their CSS animation completes.
+// Fires a heavy burst of coloured particles across the viewport from (x, y).
+// Particles are PERSISTENT — they remain on screen until clearAllBursts() is
+// called (on Clear / new upload / page refresh).
 function explodeAt(x, y) {
-  const N = 28;
-  const colors = ['#E5322E', '#ff6a5b', '#ffb84a', '#10b981', '#3b82f6', '#a855f7', '#f59e0b'];
+  const N = 90;
+  const colors = ['#E5322E', '#ff6a5b', '#ffb84a', '#10b981', '#3b82f6',
+                  '#a855f7', '#f59e0b', '#06b6d4', '#ec4899', '#22c55e'];
   const host = document.createElement('div');
-  host.className = 'burst-host';
+  host.className = 'burst-host burst-persist';
   host.style.left = x + 'px';
   host.style.top  = y + 'px';
   document.body.appendChild(host);
 
+  // Maximum reach: a generous fraction of the smaller viewport dimension so
+  // the burst really feels like it covers the container.
+  const reach = Math.max(window.innerWidth, window.innerHeight) * 0.6;
+
   for (let i = 0; i < N; i++) {
     const p = document.createElement('span');
     p.className = 'burst-particle';
-    const angle    = (Math.PI * 2 * i) / N + Math.random() * 0.3;
-    const distance = 60 + Math.random() * 90;
-    const size     = 6 + Math.random() * 8;
+    const angle    = (Math.PI * 2 * i) / N + Math.random() * 0.5;
+    const distance = 120 + Math.random() * reach;
+    const size     = 8 + Math.random() * 14;
     const dx = Math.cos(angle) * distance;
-    const dy = Math.sin(angle) * distance + 30; // slight downward gravity
-    const dur = 600 + Math.random() * 350;
+    const dy = Math.sin(angle) * distance + 80; // slight downward gravity
+    const dur = 900 + Math.random() * 600;
+    const rot = (Math.random() * 720 - 360).toFixed(0);
+    const shape = Math.random() < 0.35 ? '4px' : '50%'; // mix of squares/dots
     p.style.width  = size + 'px';
     p.style.height = size + 'px';
+    p.style.borderRadius = shape;
     p.style.background = colors[Math.floor(Math.random() * colors.length)];
     p.style.setProperty('--dx', dx + 'px');
     p.style.setProperty('--dy', dy + 'px');
     p.style.setProperty('--dur', dur + 'ms');
-    p.style.setProperty('--end-scale', (0.3 + Math.random() * 0.5).toFixed(2));
+    p.style.setProperty('--rot', rot + 'deg');
     host.appendChild(p);
   }
-  setTimeout(() => host.remove(), 1200);
+  // NOTE: no setTimeout removal — host persists until cleared.
+}
+
+// Removes any persistent burst hosts from the DOM. Called on Clear All / on
+// removing the last file / on starting a new upload.
+function clearAllBursts() {
+  document.querySelectorAll('.burst-host.burst-persist').forEach((el) => el.remove());
 }
 
 // Expose globally so queue-client.js (or any future caller) can re-trigger
 // after dynamically appending its own download CTA.
 window.attachDownloadBurst = attachDownloadBurst;
 window.explodeAt = explodeAt;
+window.clearAllBursts = clearAllBursts;
 
 function showTextResult(text, label = 'Result') {
   const area = document.getElementById('result-area');
@@ -845,7 +886,7 @@ function escapeHtml(str) {
 // ── COMPRESS — single-page preview + tier-aware options ───────────────────
 // Free users get the strongest compression (~30% reduction, hard-coded).
 // Paid / logged-in users get a Low / Medium / High slider that maps to the
-// `level` option the worker (and Express compress route) already understand.
+// `level` option the backend route already understands.
 function isPaidUser() {
   // Logged-in (any auth provider) is treated as "paid" for the compress
   // slider gate. If a real billing tier exists later, swap this for a
@@ -964,7 +1005,7 @@ async function renderCompressPreview() {
 }
 
 // Convert the slider value (0/1/2) into the level string the Express
-// /api/compress route + the Cloudflare worker forward to the HF Space.
+// /api/compress route forwards to the upstream processor.
 function readCompressLevel() {
   // Free users: hardcoded "high" (~30%) regardless of slider state.
   if (!isPaidUser()) return 'high';
