@@ -4,6 +4,43 @@
 
 import { getToolSeo, getHomeSeo } from './seo-keywords.js';
 
+// ── Breadcrumb + ad-slot helpers (used by tool & category pages) ─────────────
+// Visible breadcrumb nav + matching BreadcrumbList JSON-LD.
+function buildBreadcrumb(crumbs){
+  // crumbs: [{name, url|null}] — last item has url:null and is current page.
+  const visible = crumbs.map((c, i) => {
+    const sep = i === 0 ? '' : `<span class="bc-sep" aria-hidden="true">/</span>`;
+    const node = c.url
+      ? `<a class="bc-link" href="${escAttr(c.url)}">${escAttr(c.name)}</a>`
+      : `<span class="bc-current" aria-current="page">${escAttr(c.name)}</span>`;
+    return sep + node;
+  }).join('');
+
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      ...(c.url ? { item: c.url.startsWith('http') ? c.url : `https://ilovepdf.cyou${c.url}` } : {}),
+    })),
+  };
+
+  return {
+    html: `<nav class="breadcrumbs" aria-label="Breadcrumb"><ol>${visible}</ol></nav>`,
+    jsonLd: `<script type="application/ld+json">${escJsonLd(JSON.stringify(ld))}</script>`,
+  };
+}
+
+// Reusable, non-intrusive ad placeholder. Renders an empty container that ad
+// scripts (AdSense, Ezoic, etc.) can later target by class. Visible label is
+// shown only in dev so designers know it's there.
+function adSlot(name, opts = {}){
+  const cls = ['ad-slot', `ad-slot--${name}`, opts.desktopOnly ? 'ad-slot--desktop' : ''].filter(Boolean).join(' ');
+  return `<aside class="${cls}" data-ad-slot="${escAttr(name)}" aria-hidden="true"></aside>`;
+}
+
 // Escapes user-derived strings before embedding in JSON-LD or HTML attributes.
 function escAttr(str){
   return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -233,15 +270,30 @@ export function buildHtml(slug, baseHtml){
     </a>`;
   }).join('');
 
+  // ── Breadcrumb (visible nav + JSON-LD) ──────────────────────────────────
+  // We import categoryForSlug lazily inside the function to avoid a top-level
+  // circular import (seo-categories.js itself imports SLUG_MAP from this file).
+  const cat = (loadCategoryForSlug())(slug);
+  const crumbs = [
+    { name: 'Home', url: '/' },
+    ...(cat ? [{ name: cat.name, url: `/${cat.catSlug}` }] : []),
+    { name: meta.name, url: null },
+  ];
+  const bc = buildBreadcrumb(crumbs);
+
   const seoBlock = `
-    <section class="seo-block" aria-label="About ${meta.name}">
+    ${bc.html}
+    ${adSlot('below-tool')}
+    <section class="seo-block" aria-label="About ${escAttr(meta.name)}">
       <div class="seo-inner">
-        <h1 class="seo-h1">${meta.name} — free online tool</h1>
+        <h1 class="seo-h1">${escAttr(meta.name)} — free online tool</h1>
         ${buildLong(slug, meta)}
+        ${adSlot('mid-content')}
 
         <h2>Related tools</h2>
         <div class="related-grid">${related}</div>
       </div>
+      ${adSlot('sidebar', { desktopOnly: true })}
     </section>`;
 
   const { headExtras, hiddenBlock } = buildSeoExtras(slug, meta.name, canon, title, desc);
@@ -254,12 +306,117 @@ export function buildHtml(slug, baseHtml){
     .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
     .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
-    .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}</head>`)
+    .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}${bc.jsonLd}</head>`)
     .replace(/<\/main>/, `${seoBlock}${hiddenBlock}</main>`)
     // Inject the tool-id so tool-page.js renders the correct tool
     .replace('</body>', `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};</script></body>`);
 
   return html;
+}
+
+// Lazy loader to dodge circular import with seo-categories.js (which imports
+// SLUG_MAP from here). Cached after first call.
+let _categoryForSlug = null;
+function loadCategoryForSlug(){
+  if (_categoryForSlug) return _categoryForSlug;
+  // Synchronous require-style dynamic load using a top-level promise is awkward
+  // in ESM; instead we expose a setter that the categories module can call.
+  // Default is a no-op until the categories module registers itself.
+  return _categoryForSlug || (() => null);
+}
+export function _registerCategoryForSlug(fn){
+  _categoryForSlug = fn;
+}
+
+// ── Category page builder ────────────────────────────────────────────────────
+// Renders a hub page for a category (intro + tool grid + breadcrumbs + JSON-LD).
+// Uses the existing tool.html shell so it inherits header/footer/styles.
+export function buildCategoryHtml(catSlug, baseHtml, category){
+  const canon = `https://ilovepdf.cyou/${catSlug}`;
+  const title = category.title;
+  const desc  = category.desc;
+
+  const cards = category.slugs.map(s => {
+    const m = SLUG_MAP[s]; if (!m) return '';
+    return `<a class="cat-card" href="/${s}">
+      <span class="cat-card-name">${escAttr(m.name)}</span>
+      <span class="cat-card-arrow">→</span>
+    </a>`;
+  }).join('');
+
+  const bc = buildBreadcrumb([
+    { name: 'Home', url: '/' },
+    { name: category.name, url: null },
+  ]);
+
+  // ItemList JSON-LD lets Google render rich category results.
+  const itemListLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: category.name,
+    itemListElement: category.slugs.map((s, i) => {
+      const m = SLUG_MAP[s];
+      return m ? {
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `https://ilovepdf.cyou/${s}`,
+        name: m.name,
+      } : null;
+    }).filter(Boolean),
+  };
+
+  const headExtras = [
+    `<meta name="keywords" content="${escAttr([
+      category.name.toLowerCase(),
+      `${category.name.toLowerCase()} online`,
+      `free ${category.name.toLowerCase()}`,
+      `online ${category.name.toLowerCase()} no signup`,
+      ...category.slugs.flatMap(s => SLUG_MAP[s] ? [SLUG_MAP[s].name.toLowerCase(), `${SLUG_MAP[s].name.toLowerCase()} online`] : []),
+    ].join(', '))}">`,
+    `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${escAttr(canon)}">`,
+    `<meta property="og:site_name" content="ILovePDF">`,
+    `<meta property="og:title" content="${escAttr(title)}">`,
+    `<meta property="og:description" content="${escAttr(desc)}">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escAttr(title)}">`,
+    `<meta name="twitter:description" content="${escAttr(desc)}">`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(itemListLd))}</script>`,
+    bc.jsonLd,
+  ].join('');
+
+  const body = `
+    ${bc.html}
+    ${adSlot('below-tool')}
+    <section class="seo-block" aria-label="${escAttr(category.name)}">
+      <div class="seo-inner">
+        <h1 class="seo-h1">${escAttr(category.name)} — free online tools</h1>
+        <p>${category.intro}</p>
+
+        <h2>All ${escAttr(category.name)} tools</h2>
+        <div class="related-grid cat-grid">${cards}</div>
+
+        ${adSlot('mid-content')}
+
+        <p>Every tool above is <strong>100% free</strong>, requires no signup,
+        runs in your browser, and deletes your files automatically a few minutes
+        after processing. Files up to 100&nbsp;MB are accepted.</p>
+      </div>
+      ${adSlot('sidebar', { desktopOnly: true })}
+    </section>`;
+
+  return baseHtml
+    .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
+    .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${escAttr(desc)}">`)
+    .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
+    .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
+    .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
+    .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}">${headExtras}</head>`)
+    .replace(/<\/main>/, `${body}</main>`)
+    // Don't set window.__TOOL_ID — the JS in tool.html will then leave the
+    // empty <main id="tool-content"> alone and only the SEO body renders.
+    .replace('</body>', `<script>window.__CATEGORY_PAGE=true;</script></body>`);
 }
 
 export function getRedirect(slug){

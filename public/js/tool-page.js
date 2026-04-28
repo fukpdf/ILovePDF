@@ -4,6 +4,10 @@ let dragSrcIndex = null;
 let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-level UI)
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
+  // have no tool to render — bail out so we don't show a "Tool not found" card.
+  if (window.__CATEGORY_PAGE === true) return;
+
   // Resolution order:
   //   1. window.__TOOL_ID (Express SEO middleware injection — Node-served only)
   //   2. ?id=… legacy query param

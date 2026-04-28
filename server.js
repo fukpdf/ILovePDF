@@ -15,6 +15,8 @@ import imageRouter from './routes/image.js';
 import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
 import { SLUG_MAP, buildHtml, getRedirect, buildHomeHtml } from './utils/seo.js';
+import './utils/seo-categories.js'; // registers categoryForSlug callback
+import seoRouter from './routes/seo-routes.js';
 import { UPLOAD_DIR, sweepUploads } from './utils/upload.js';
 import { checkUsage, enforcePerFile } from './utils/usage.js';
 import { isR2Configured, startR2Sweeper } from './utils/r2.js';
@@ -45,6 +47,10 @@ app.get('/', (_req, res, next) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('html').send(__HOME_HTML);
 });
+
+// Phase-3 SEO: /sitemap.xml, /robots.txt, /pdf-tools etc., /submit-urls,
+// /ping-index. Mounted before static so it can override sitemap/robots files.
+app.use(seoRouter);
 
 app.use(express.static('public'));
 

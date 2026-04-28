@@ -1763,3 +1763,57 @@ a{ color:var(--brand-text); }
   overflow: hidden !important;
   clip: rect(0 0 0 0) !important;
 }
+
+/* ── Phase 3 SEO: Breadcrumbs ───────────────────────────────────────────── */
+.breadcrumbs{
+  max-width: 1100px; margin: 12px auto 0; padding: 0 16px;
+  font-size: 13px; color: #64748b;
+}
+.breadcrumbs ol{
+  list-style: none; display: flex; flex-wrap: wrap;
+  gap: 6px; padding: 0; margin: 0; align-items: center;
+}
+.breadcrumbs .bc-link{
+  color: #64748b; text-decoration: none; transition: color .15s ease;
+}
+.breadcrumbs .bc-link:hover{ color: #E5322E; text-decoration: underline; }
+.breadcrumbs .bc-sep{ color: #cbd5e1; user-select: none; }
+.breadcrumbs .bc-current{ color: #0f172a; font-weight: 600; }
+
+/* ── Phase 3 SEO: Ad slots (placeholders only — no actual ads) ──────────── */
+.ad-slot{
+  display: block; max-width: 1100px; margin: 16px auto;
+  min-height: 0; padding: 0; background: transparent;
+  border: 0; box-sizing: border-box;
+}
+/* Reserve a minimal visual area only when an ad script later adds children.
+   Empty placeholders take ZERO layout space so the page is unaffected. */
+.ad-slot:not(:empty){
+  min-height: 90px; padding: 8px;
+  background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 8px;
+}
+.ad-slot--desktop{ display: none; }
+@media (min-width: 1100px){
+  .ad-slot--desktop{ display: block; }
+}
+
+/* ── Phase 3 SEO: Category grid (reuses .related-grid sizing) ───────────── */
+.cat-grid{
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px; margin-top: 12px;
+}
+.cat-card{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 10px;
+  text-decoration: none; color: #0f172a; background: #fff;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.cat-card:hover{
+  border-color: #E5322E; transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(229, 50, 46, 0.08);
+}
+.cat-card-name{ font-weight: 600; font-size: 14px; }
+.cat-card-arrow{ color: #94a3b8; font-size: 16px; }
+@media (max-width: 720px){
+  .cat-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
