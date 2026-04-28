@@ -89,23 +89,7 @@ function renderHeader(){
   const nav = document.getElementById('nav');
   if (!nav) return;
 
-  const drop = (key) => {
-    const g = groupBy(key); if (!g) return '';
-    return `
-      <div class="nav-item has-dd">
-        <button class="nav-btn" type="button">${g.title} <i data-lucide="chevron-down"></i></button>
-        <div class="dd">
-          ${g.items.map(t => `
-            <a class="dd-link" href="${toolUrl(t)}">
-              <span class="mi"><i data-lucide="${t.icon}"></i></span>
-              <span>${t.name}</span>
-            </a>`).join('')}
-        </div>
-      </div>`;
-  };
-
-  // "All Tools" mega-menu: row-wise grid surfacing EVERY category so users get
-  // a single complete index of the platform from the header.
+  // "All Tools" mega-menu: surfaces every category as a single complete index.
   const MEGA_KEYS = ['organize','convert','edit','security','advanced','image','utilities'];
   const megaCols = MEGA_KEYS.map(k => {
     const g = groupBy(k); if (!g) return '';
@@ -120,22 +104,141 @@ function renderHeader(){
       </div>`;
   }).join('');
 
+  // Minimal header: search bar + All Tools dropdown only.
   nav.innerHTML = `
-    <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
-    <a class="nav-direct" href="/split-pdf">Split PDF</a>
-    <a class="nav-direct" href="/compress-pdf">Compress PDF</a>
-    ${drop('organize')}
-    ${drop('convert')}
-    ${drop('edit')}
-    ${drop('security')}
+    <div class="header-search" id="header-search" role="search">
+      <span class="hs-icon"><i data-lucide="search"></i></span>
+      <input
+        type="search"
+        id="hs-input"
+        class="hs-input"
+        placeholder="Search 33+ tools…"
+        autocomplete="off"
+        aria-label="Search tools"
+        aria-expanded="false"
+        aria-controls="hs-results"
+      >
+      <div class="hs-results" id="hs-results" role="listbox" hidden></div>
+    </div>
     <div class="nav-item has-dd has-mega" id="all-tools-item">
       <button class="nav-btn all-tools" id="all-tools-btn" type="button" aria-expanded="false" aria-haspopup="true">All Tools <i data-lucide="chevron-down"></i></button>
       <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
     </div>
   `;
 
+  // Defensive: the All Tools dropdown must NEVER be open on initial render.
+  const allItem = document.getElementById('all-tools-item');
+  if (allItem) allItem.classList.remove('is-open');
+
   wireAllToolsToggle();
   wireHoverPrefetch(nav);
+  wireHeaderSearch();
+}
+
+/* Header search — live, fuzzy filter over every tool in TOOL_GROUPS.
+   Click / Enter on a result navigates to the tool URL. Up/Down arrows move
+   selection; Escape clears the input and closes the panel. */
+function wireHeaderSearch(){
+  const wrap    = document.getElementById('header-search');
+  const input   = document.getElementById('hs-input');
+  const results = document.getElementById('hs-results');
+  if (!wrap || !input || !results) return;
+
+  // Flatten all tools across groups into one searchable index.
+  const INDEX = [];
+  (window.TOOL_GROUPS || []).forEach(g => {
+    (g.items || []).forEach(t => {
+      INDEX.push({
+        name: t.name,
+        desc: t.desc || '',
+        icon: t.icon || 'wrench',
+        url:  toolUrl(t),
+        cat:  g.title,
+        hay:  (t.name + ' ' + (t.desc || '') + ' ' + g.title).toLowerCase(),
+      });
+    });
+  });
+
+  let selected = -1;
+  let visible  = [];
+
+  const close = () => {
+    results.hidden = true;
+    input.setAttribute('aria-expanded','false');
+    selected = -1;
+  };
+
+  const render = (q) => {
+    const query = (q || '').trim().toLowerCase();
+    if (!query) { close(); return; }
+
+    visible = INDEX.filter(t => {
+      // tokenize so multi-word queries ("merge pdf") still match
+      return query.split(/\s+/).every(tok => t.hay.includes(tok));
+    }).slice(0, 8);
+
+    if (!visible.length) {
+      results.innerHTML = `<div class="hs-empty">No tools match &ldquo;${escapeHtml(query)}&rdquo;.</div>`;
+    } else {
+      results.innerHTML = visible.map((t, i) => `
+        <a class="hs-item${i === selected ? ' is-active' : ''}" href="${t.url}" data-i="${i}" role="option">
+          <span class="hs-mi"><i data-lucide="${t.icon}"></i></span>
+          <span class="hs-text">
+            <span class="hs-name">${escapeHtml(t.name)}</span>
+            <span class="hs-cat">${escapeHtml(t.cat)}</span>
+          </span>
+        </a>`).join('');
+    }
+    results.hidden = false;
+    input.setAttribute('aria-expanded','true');
+    if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+  };
+
+  const updateActive = () => {
+    [...results.querySelectorAll('.hs-item')].forEach((el, i) => {
+      el.classList.toggle('is-active', i === selected);
+    });
+  };
+
+  input.addEventListener('input', () => render(input.value));
+  input.addEventListener('focus', () => { if (input.value.trim()) render(input.value); });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!visible.length) return;
+      selected = (selected + 1) % visible.length;
+      updateActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!visible.length) return;
+      selected = (selected - 1 + visible.length) % visible.length;
+      updateActive();
+    } else if (e.key === 'Enter') {
+      if (selected >= 0 && visible[selected]) {
+        e.preventDefault();
+        location.href = visible[selected].url;
+      } else if (visible[0]) {
+        e.preventDefault();
+        location.href = visible[0].url;
+      }
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      close();
+      input.blur();
+    }
+  });
+
+  // Click-outside closes the dropdown.
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) close();
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
 }
 
 /* Prefetch tool pages on hover so the navigation feels instant.
@@ -208,48 +311,9 @@ function wireAllToolsToggle(){
   });
 }
 
-function renderDrawer(){
-  const drawer = document.getElementById('drawer');
-  if (!drawer) return;
-  const panel = drawer.querySelector('.drawer-panel');
-  if (!panel) return;
-  const sectionLinks = (key) => {
-    const g = groupBy(key); if (!g) return '';
-    return `
-      <div class="drawer-sec">
-        <div class="drawer-sec-title">${g.title}</div>
-        ${g.items.map(t => `<a href="${toolUrl(t)}">${t.name}</a>`).join('')}
-      </div>`;
-  };
-  panel.innerHTML = `
-    <button class="drawer-close" id="drawer-close" aria-label="Close menu"><i data-lucide="x"></i></button>
-    <a class="drawer-top" href="/merge-pdf">Merge PDF</a>
-    <a class="drawer-top" href="/split-pdf">Split PDF</a>
-    ${sectionLinks('organize')}
-    ${sectionLinks('convert')}
-    ${sectionLinks('edit')}
-    ${sectionLinks('security')}
-    ${sectionLinks('advanced')}
-    ${sectionLinks('image')}
-    <div class="drawer-auth">
-      <a href="#" class="btn btn-ghost" data-auth="login">Login</a>
-      <a href="#" class="btn btn-primary" data-auth="signup">Sign Up</a>
-    </div>
-  `;
-}
-
-function wireDrawer(){
-  const drawer = document.getElementById('drawer');
-  const open  = document.getElementById('hamburger');
-  if (!drawer || !open) return;
-  const set = v => drawer.classList.toggle('open', v);
-  open.addEventListener('click', () => set(true));
-  drawer.addEventListener('click', e => {
-    if (e.target.closest('.drawer-back') || e.target.closest('#drawer-close') || e.target.closest('a')) {
-      set(false);
-    }
-  });
-}
+/* Drawer / hamburger removed — header is logo + search + All Tools only.
+   Auth modal helpers below stay because the limit popup and tool-page
+   inline links still trigger them via [data-auth]. */
 
 /* Auth modal */
 function ensureAuthModal(){
@@ -429,8 +493,6 @@ function wireAuth(){
 
 document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
-  renderDrawer();
-  wireDrawer();
   wireAuth();
   startAuthStateObserver();
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();

@@ -1260,3 +1260,105 @@ img, canvas, video, iframe { max-width: 100%; }
 }
 .blog-card-v2 .blog-read svg{width:15px;height:15px;transition:transform .2s ease}
 .blog-card-v2:hover .blog-read svg{transform:translateX(3px)}
+
+/* ============================================================
+   PASS 6 — Minimal header: logo + search + All Tools only
+   Removes overflow caused by the old multi-link nav, and adds
+   a live search bar with autocomplete dropdown.
+   ============================================================ */
+
+/* Header layout: logo · nav (search + all-tools) — no CTA column anymore */
+.site-header .header-inner{
+  display:flex;align-items:center;gap:18px;
+  padding:10px clamp(12px,2vw,20px);
+}
+.site-header .nav{
+  flex:1;display:flex;align-items:center;justify-content:flex-end;
+  gap:14px;min-width:0;
+}
+
+/* Hide every old element that the new minimal header doesn't use.
+   Keeps backward compat if some legacy partial still ships them. */
+.site-header .header-cta,
+.site-header .hamburger,
+.drawer,
+.drawer-back,
+.drawer-panel,
+.nav-direct,
+.nav-item.has-dd:not(.has-mega){
+  display:none !important;
+}
+
+/* Header search — input + dropdown panel */
+.header-search{
+  position:relative;flex:1;max-width:480px;min-width:0;
+}
+.header-search .hs-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--text-soft);pointer-events:none;display:grid;place-items:center;
+}
+.header-search .hs-icon svg{width:16px;height:16px}
+.header-search .hs-input{
+  width:100%;height:40px;
+  padding:0 14px 0 38px;
+  border:1.5px solid var(--border);border-radius:10px;
+  background:#fff;color:var(--text);
+  font:600 .9rem/1 Inter,system-ui,sans-serif;
+  outline:none;transition:border-color .15s ease, box-shadow .15s ease;
+}
+.header-search .hs-input::placeholder{color:var(--text-soft);font-weight:500}
+.header-search .hs-input:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(99,102,241,.18);
+}
+.hs-results{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:#fff;border:1px solid var(--border);
+  border-radius:12px;box-shadow:var(--shadow-lg);
+  max-height:380px;overflow:auto;padding:6px;z-index:120;
+}
+.hs-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:8px;
+  text-decoration:none;color:inherit;
+  transition:background .12s ease;
+}
+.hs-item:hover, .hs-item.is-active{ background:var(--surface-2) }
+.hs-mi{
+  width:32px;height:32px;border-radius:8px;flex:none;
+  background:var(--grad-soft);color:var(--primary);
+  display:grid;place-items:center;
+}
+.hs-mi svg{width:16px;height:16px}
+.hs-text{display:flex;flex-direction:column;min-width:0;flex:1}
+.hs-name{font-size:.88rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hs-cat{font-size:.72rem;color:var(--text-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.hs-empty{padding:14px;text-align:center;font-size:.85rem;color:var(--text-soft)}
+
+/* All Tools dropdown — make sure it never opens itself on initial render */
+.nav-item.has-mega .mega{ display:none; z-index:120 }
+.nav-item.has-mega.is-open .mega,
+.nav-item.has-mega:hover .mega,
+.nav-item.has-mega:focus-within .mega{ display:block }
+
+/* Hero spacing — guarantee no overlap with the now-fixed header.
+   The old header used a hamburger + CTA buttons that pushed height up;
+   this gives the hero room and prevents any dropdown from sitting on top. */
+.hero{ margin-top:clamp(8px,1.2vw,18px) }
+.tool-page{ padding-top:clamp(8px,1.2vw,18px) }
+
+/* Mobile: stack search above All Tools so neither overflows */
+@media (max-width:768px){
+  .site-header .header-inner{ flex-wrap:wrap; gap:10px; padding:8px 12px }
+  .site-header .nav{ width:100%; flex:1 1 100%; gap:10px; justify-content:space-between }
+  .header-search{ flex:1 1 auto; max-width:none; min-width:0 }
+  .header-search .hs-input{ height:38px; font-size:.85rem }
+  .nav-item.has-mega .mega{ left:auto; right:0; min-width:280px }
+}
+
+/* Even smaller phones: stack search row above All Tools */
+@media (max-width:420px){
+  .site-header .nav{ flex-direction:column; align-items:stretch }
+  .nav-item.has-mega{ width:100% }
+  .nav-item.has-mega .nav-btn{ width:100%; justify-content:center }
+}
