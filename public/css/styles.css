@@ -1747,3 +1747,19 @@ a{ color:var(--brand-text); }
   font-size:13px;
 }
 .po-hint i{ width:16px; height:16px; flex-shrink:0; }
+
+/* ── SEO hidden keyword block ───────────────────────────────────────────────
+   Rendered by utils/seo.js as a <div hidden aria-hidden="true">. The `hidden`
+   attribute already removes it from layout/paint; these rules are a defence in
+   depth against any custom CSS that might re-show [hidden]. */
+.seo-keywords,
+.seo-keywords[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+}

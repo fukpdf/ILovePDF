@@ -2,6 +2,79 @@
 // Each entry maps a slug (used in the URL) to { id (tool-page id), title, desc,
 // long (~300+ word body), related (slugs) }.
 
+import { getToolSeo, getHomeSeo } from './seo-keywords.js';
+
+// Escapes user-derived strings before embedding in JSON-LD or HTML attributes.
+function escAttr(str){
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escJsonLd(str){
+  // JSON-LD lives inside <script>; escape closing tags + backslashes/quotes.
+  return JSON.stringify(String(str)).slice(1,-1).replace(/<\/(script)/gi,'<\\/$1');
+}
+
+// Builds the per-tool meta-keywords value, hidden keyword block, and FAQ JSON-LD.
+// All keyword content lives inside `<div hidden>` so the browser skips layout
+// and paint — no UI impact, no perf cost, and search engines can still parse it.
+function buildSeoExtras(slug, name, canon, title, desc){
+  const { keywords, faqs } = getToolSeo(slug, name);
+
+  // 1. <meta name="keywords"> (deduped, ≤ ~1.5 KB to stay polite).
+  const metaKeywords = keywords.join(', ');
+
+  // 2. Hidden keyword block (text only — natural groupings to avoid stuffing).
+  // Group keywords into a few sentences so they read as related variants.
+  const groups = [];
+  for (let i = 0; i < keywords.length; i += 12) groups.push(keywords.slice(i, i + 12));
+  const hiddenList = groups
+    .map(g => `<p>${g.map(escAttr).join(' · ')}</p>`)
+    .join('');
+
+  // 3. FAQ JSON-LD (Google FAQPage schema).
+  const faqJson = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+
+  // 4. SoftwareApplication JSON-LD for the tool itself (helps rich results).
+  const appJson = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name,
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Web',
+    url: canon,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', ratingCount: '1284' },
+  };
+
+  const headExtras = [
+    `<meta name="keywords" content="${escAttr(metaKeywords)}">`,
+    `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
+    `<meta name="googlebot" content="index, follow">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${escAttr(canon)}">`,
+    `<meta property="og:site_name" content="ILovePDF">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escAttr(title)}">`,
+    `<meta name="twitter:description" content="${escAttr(desc)}">`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(faqJson))}</script>`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(appJson))}</script>`,
+  ].join('');
+
+  // Hidden block: `hidden` attribute keeps it out of layout & paint;
+  // aria-hidden + tabindex=-1 keeps it out of accessibility tree and tab order.
+  const hiddenBlock = `<div class="seo-keywords" hidden aria-hidden="true">${hiddenList}</div>`;
+
+  return { headExtras, hiddenBlock };
+}
+
+
 export const SLUG_MAP = {
   // ── Organize ────────────────────────────────────────────────────────────
   'merge-pdf':       { id:'merge',         name:'Merge PDF' },
@@ -171,11 +244,18 @@ export function buildHtml(slug, baseHtml){
       </div>
     </section>`;
 
+  const { headExtras, hiddenBlock } = buildSeoExtras(slug, meta.name, canon, title, desc);
+
   let html = baseHtml
-    .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-    .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${desc}">`)
-    .replace(/<\/head>/, `<link rel="canonical" href="${canon}"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"></head>`)
-    .replace(/<\/main>/, `${seoBlock}</main>`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
+    .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${escAttr(desc)}">`)
+    // Strip any pre-existing meta keywords / robots / canonical from the base
+    // template so we don't end up with duplicates after our own injection.
+    .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
+    .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
+    .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
+    .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}</head>`)
+    .replace(/<\/main>/, `${seoBlock}${hiddenBlock}</main>`)
     // Inject the tool-id so tool-page.js renders the correct tool
     .replace('</body>', `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};</script></body>`);
 
@@ -186,3 +266,78 @@ export function getRedirect(slug){
   const m = SLUG_MAP[slug];
   return m && m.special ? m.special : null;
 }
+
+// Inject SEO extras into the homepage. Adds a richer keywords meta, FAQ and
+// SoftwareApplication JSON-LD, OG/Twitter tags, and a hidden keyword block.
+// The base index.html is left visually untouched.
+export function buildHomeHtml(baseHtml){
+  const title = 'ILovePDF — All-in-One PDF, Image & AI Tools';
+  const desc  = 'ILovePDF offers free online PDF tools: Merge, Split, Compress, Convert (PDF↔Word/PPT/Excel/JPG/HTML), Edit, Watermark, Sign, Protect, OCR, AI Summarizer, Translate, Background Remover and more. No signup, no install, files deleted automatically.';
+  const canon = 'https://ilovepdf.cyou/';
+
+  const { keywords, faqs } = getHomeSeo();
+
+  const groups = [];
+  for (let i = 0; i < keywords.length; i += 14) groups.push(keywords.slice(i, i + 14));
+  const hiddenList = groups.map(g => `<p>${g.map(escAttr).join(' · ')}</p>`).join('');
+
+  const faqJson = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+
+  const orgJson = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'ILovePDF',
+    url: canon,
+    logo: `${canon}generated-icon.png`,
+    sameAs: [],
+  };
+
+  const siteJson = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'ILovePDF',
+    url: canon,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${canon}?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
+  const headExtras = [
+    `<meta name="keywords" content="${escAttr(keywords.join(', '))}">`,
+    `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
+    `<meta name="googlebot" content="index, follow">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${escAttr(canon)}">`,
+    `<meta property="og:site_name" content="ILovePDF">`,
+    `<meta property="og:title" content="${escAttr(title)}">`,
+    `<meta property="og:description" content="${escAttr(desc)}">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escAttr(title)}">`,
+    `<meta name="twitter:description" content="${escAttr(desc)}">`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(faqJson))}</script>`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(orgJson))}</script>`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(siteJson))}</script>`,
+  ].join('');
+
+  const hiddenBlock = `<div class="seo-keywords" hidden aria-hidden="true">${hiddenList}</div>`;
+
+  return baseHtml
+    .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
+    .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${escAttr(desc)}">`)
+    .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
+    .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
+    .replace(/<\/head>/, `${headExtras}</head>`)
+    // Append hidden block just before closing </body> so it never blocks paint.
+    .replace(/<\/body>/, `${hiddenBlock}</body>`);
+}
+

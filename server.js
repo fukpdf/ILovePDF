@@ -14,7 +14,7 @@ import advancedRouter from './routes/advanced.js';
 import imageRouter from './routes/image.js';
 import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
-import { SLUG_MAP, buildHtml, getRedirect } from './utils/seo.js';
+import { SLUG_MAP, buildHtml, getRedirect, buildHomeHtml } from './utils/seo.js';
 import { UPLOAD_DIR, sweepUploads } from './utils/upload.js';
 import { checkUsage, enforcePerFile } from './utils/usage.js';
 import { isR2Configured, startR2Sweeper } from './utils/r2.js';
@@ -28,6 +28,24 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 app.set('trust proxy', 1); // we are behind Replit / Railway proxies
 app.use(compression());
+
+// Homepage SEO injection — must run BEFORE static so we can rewrite index.html.
+// Cached at boot so per-request cost is just a string send.
+const __HOME_HTML = (() => {
+  try {
+    const base = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    return buildHomeHtml(base);
+  } catch (e) {
+    console.warn('[seo] could not pre-build home HTML:', e.message);
+    return null;
+  }
+})();
+app.get('/', (_req, res, next) => {
+  if (!__HOME_HTML) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(__HOME_HTML);
+});
+
 app.use(express.static('public'));
 
 console.log(`[ilovepdf] uploads dir: ${UPLOAD_DIR}`);
