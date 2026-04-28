@@ -552,12 +552,16 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   width:min(1080px,92vw);padding:22px;
 }
 .nav-item:hover .dd, .nav-item:hover .mega,
-.nav-item:focus-within .dd, .nav-item:focus-within .mega{
+.nav-item:focus-within .dd, .nav-item:focus-within .mega,
+.nav-item.is-open .dd, .nav-item.is-open .mega{
   opacity:1;visibility:visible;transform:translateY(0);
 }
-.nav-item.has-mega:hover .mega, .nav-item.has-mega:focus-within .mega{
+.nav-item.has-mega:hover .mega,
+.nav-item.has-mega:focus-within .mega,
+.nav-item.has-mega.is-open .mega{
   transform:translateX(-50%) translateY(0);
 }
+.nav-item.has-mega.is-open > .nav-btn svg{transform:rotate(180deg)}
 .dd-link{
   display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;
   color:var(--text);font-size:.88rem;font-weight:500;text-decoration:none;
@@ -571,7 +575,9 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 .dd-link .mi svg, .mega-link .mi svg{width:14px;height:14px}
 .nav-item.has-dd::after{content:"";position:absolute;left:0;right:0;top:100%;height:10px}
 
-.mega-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
+.mega-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:16px}
+@media (max-width:1280px){.mega-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:900px){.mega-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mega-col h5{
   margin:0 0 10px;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
   color:var(--text-mute);font-weight:700;
@@ -583,7 +589,6 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   transition:.15s background;
 }
 .mega-link:hover{background:var(--grad-soft);color:var(--primary)}
-@media (max-width:1180px){.mega-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:1100px){
   .nav-item.has-dd:not(.has-mega){display:none}
 }
@@ -604,17 +609,24 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   font-weight:800;letter-spacing:-.01em;line-height:1.18;
 }
 .hero p{margin:0 0 8px !important;font-size:.82rem !important;opacity:.92;max-width:680px;line-height:1.4}
-.hero-actions{display:inline-flex;flex-wrap:wrap;gap:8px}
+.hero-actions{display:flex;flex-wrap:wrap;gap:8px}
 .hero-btn{
   padding:7px 14px !important;border-radius:8px;
   background:#fff;color:var(--primary);font-weight:700;font-size:.8rem !important;
   display:inline-flex;align-items:center;gap:6px;text-decoration:none;
-  transition:.2s transform,.2s box-shadow;
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+  white-space:nowrap;
 }
 .hero-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
-.hero-btn.outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
-.hero-btn.outline:hover{background:rgba(255,255,255,.12)}
+.hero-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.hero-btn.outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.55)}
+.hero-btn.outline:hover{background:rgba(255,255,255,.14);border-color:#fff}
 .hero-btn svg{width:14px;height:14px}
+@media (max-width:768px){
+  .hero-actions{gap:6px}
+  .hero-btn{padding:6px 11px !important;font-size:.75rem !important}
+  .hero-btn svg{width:12px;height:12px}
+}
 
 /* Sticky rail — calculator + currency converter */
 .rail-sticky{display:flex;flex-direction:column;gap:14px}

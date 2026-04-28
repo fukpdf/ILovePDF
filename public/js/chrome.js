@@ -70,12 +70,20 @@ window.TOOL_GROUPS = [
       { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters' },
     ]
   },
+  {
+    key:'utilities', title:'Utilities',
+    items:[
+      { url:'/n2w.html#fx',  name:'Currency Converter', icon:'dollar-sign',  desc:'Live exchange rates for 160+ currencies' },
+      { url:'/n2w.html',     name:'Numbers to Words',   icon:'calculator',   desc:'Convert numbers and currency to words' },
+    ]
+  },
 ];
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // All in-app navigation uses /tool.html?id=<internal-id>. This works both on
 // the Node backend and on Firebase Hosting (which serves tool.html directly).
-const toolUrl = t => `/tool.html?id=${t.tid}`;
+// Items can also provide an absolute `url` (e.g. utility pages like /n2w.html).
+const toolUrl = t => t.url || `/tool.html?id=${t.tid}`;
 
 function renderHeader(){
   const nav = document.getElementById('nav');
@@ -96,11 +104,10 @@ function renderHeader(){
       </div>`;
   };
 
-  // The main header already exposes Merge, Split, and the Organize / Convert /
-  // Edit / Security dropdowns. The "All Tools" mega-menu therefore should
-  // surface ONLY the tools that aren't reachable from the main header — i.e.
-  // the Advanced and Image groups.
-  const megaCols = ['advanced','image'].map(k => {
+  // "All Tools" mega-menu: row-wise grid surfacing EVERY category so users get
+  // a single complete index of the platform from the header.
+  const MEGA_KEYS = ['organize','convert','edit','security','advanced','image','utilities'];
+  const megaCols = MEGA_KEYS.map(k => {
     const g = groupBy(k); if (!g) return '';
     return `
       <div class="mega-col">
@@ -120,11 +127,51 @@ function renderHeader(){
     ${drop('convert')}
     ${drop('edit')}
     ${drop('security')}
-    <div class="nav-item has-dd has-mega">
-      <button class="nav-btn all-tools" type="button">All Tools <i data-lucide="chevron-down"></i></button>
-      <div class="mega"><div class="mega-grid">${megaCols}</div></div>
+    <div class="nav-item has-dd has-mega" id="all-tools-item">
+      <button class="nav-btn all-tools" id="all-tools-btn" type="button" aria-expanded="false" aria-haspopup="true">All Tools <i data-lucide="chevron-down"></i></button>
+      <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
     </div>
   `;
+
+  wireAllToolsToggle();
+}
+
+/* "All Tools" — opens on hover (CSS) on desktop. On touch / keyboard
+   activation, toggle an .is-open class so it works without a hover state. */
+function wireAllToolsToggle(){
+  const item = document.getElementById('all-tools-item');
+  const btn  = document.getElementById('all-tools-btn');
+  if (!item || !btn) return;
+
+  const close = () => {
+    item.classList.remove('is-open');
+    btn.setAttribute('aria-expanded','false');
+  };
+  const open = () => {
+    item.classList.add('is-open');
+    btn.setAttribute('aria-expanded','true');
+  };
+
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    item.classList.contains('is-open') ? close() : open();
+  });
+
+  // Click anywhere outside the mega closes it.
+  document.addEventListener('click', e => {
+    if (!item.classList.contains('is-open')) return;
+    if (item.contains(e.target)) return;
+    close();
+  });
+
+  // Mouse leaving the menu area also closes it (matches hover-open UX).
+  item.addEventListener('mouseleave', close);
+
+  // ESC closes.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+  });
 }
 
 function renderDrawer(){
