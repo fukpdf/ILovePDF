@@ -73,17 +73,17 @@ window.TOOL_GROUPS = [
   {
     key:'utilities', title:'Utilities',
     items:[
-      { url:'/n2w.html#fx',  name:'Currency Converter', icon:'dollar-sign',  desc:'Live exchange rates for 160+ currencies' },
-      { url:'/n2w.html',     name:'Numbers to Words',   icon:'calculator',   desc:'Convert numbers and currency to words' },
+      { url:'/currency-converter', name:'Currency Converter', icon:'dollar-sign', desc:'Live exchange rates for 160+ currencies' },
+      { url:'/numbers-to-words',   name:'Numbers to Words',   icon:'calculator',  desc:'Convert numbers and currency to words' },
     ]
   },
 ];
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
-// All in-app navigation uses /tool.html?id=<internal-id>. This works both on
-// the Node backend and on Firebase Hosting (which serves tool.html directly).
-// Items can also provide an absolute `url` (e.g. utility pages like /n2w.html).
-const toolUrl = t => t.url || `/tool.html?id=${t.tid}`;
+// In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present so
+// users land on the indexable URL. Falls back to /tool.html?id=<id> for items
+// without a slug (e.g. legacy entries) and to an explicit `url` when set.
+const toolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
 function renderHeader(){
   const nav = document.getElementById('nav');
@@ -121,8 +121,8 @@ function renderHeader(){
   }).join('');
 
   nav.innerHTML = `
-    <a class="nav-direct" href="/tool.html?id=merge">Merge PDF</a>
-    <a class="nav-direct" href="/tool.html?id=split">Split PDF</a>
+    <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
+    <a class="nav-direct" href="/split-pdf">Split PDF</a>
     ${drop('organize')}
     ${drop('convert')}
     ${drop('edit')}
@@ -189,8 +189,8 @@ function renderDrawer(){
   };
   panel.innerHTML = `
     <button class="drawer-close" id="drawer-close" aria-label="Close menu"><i data-lucide="x"></i></button>
-    <a class="drawer-top" href="/tool.html?id=merge">Merge PDF</a>
-    <a class="drawer-top" href="/tool.html?id=split">Split PDF</a>
+    <a class="drawer-top" href="/merge-pdf">Merge PDF</a>
+    <a class="drawer-top" href="/split-pdf">Split PDF</a>
     ${sectionLinks('organize')}
     ${sectionLinks('convert')}
     ${sectionLinks('edit')}

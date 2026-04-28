@@ -1,6 +1,19 @@
+# robots.txt — ILovePDF (static fallback; the app serves a dynamic /robots.txt)
 User-agent: *
 Allow: /
-Disallow: /uploads/
-Disallow: /api/
+
+# Block private / non-public surfaces
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard/private
+Disallow: /api/temp
+Disallow: /api/temp/
+Disallow: /uploads/tmp
+Disallow: /uploads/tmp/
+Disallow: /api/auth/
+Disallow: /api/r2/
+
+# Crawl politeness
+Crawl-delay: 1
 
 Sitemap: https://ilovepdf.cyou/sitemap.xml

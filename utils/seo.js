@@ -50,24 +50,14 @@ function escJsonLd(str){
   return JSON.stringify(String(str)).slice(1,-1).replace(/<\/(script)/gi,'<\\/$1');
 }
 
-// Builds the per-tool meta-keywords value, hidden keyword block, and FAQ JSON-LD.
-// All keyword content lives inside `<div hidden>` so the browser skips layout
-// and paint — no UI impact, no perf cost, and search engines can still parse it.
+// Builds per-tool head extras (FAQ + SoftwareApplication JSON-LD, OG/Twitter).
+// We deliberately do NOT emit a `<meta name="keywords">` tag or a hidden
+// keyword block — both are considered low-quality signals (or outright spam)
+// by modern search engines. SEO is driven by visible H1/H2/intro/FAQ/JSON-LD.
 function buildSeoExtras(slug, name, canon, title, desc){
-  const { keywords, faqs } = getToolSeo(slug, name);
+  const { faqs } = getToolSeo(slug, name);
 
-  // 1. <meta name="keywords"> (deduped, ≤ ~1.5 KB to stay polite).
-  const metaKeywords = keywords.join(', ');
-
-  // 2. Hidden keyword block (text only — natural groupings to avoid stuffing).
-  // Group keywords into a few sentences so they read as related variants.
-  const groups = [];
-  for (let i = 0; i < keywords.length; i += 12) groups.push(keywords.slice(i, i + 12));
-  const hiddenList = groups
-    .map(g => `<p>${g.map(escAttr).join(' · ')}</p>`)
-    .join('');
-
-  // 3. FAQ JSON-LD (Google FAQPage schema).
+  // FAQ JSON-LD (Google FAQPage schema).
   const faqJson = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -91,7 +81,6 @@ function buildSeoExtras(slug, name, canon, title, desc){
   };
 
   const headExtras = [
-    `<meta name="keywords" content="${escAttr(metaKeywords)}">`,
     `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
     `<meta name="googlebot" content="index, follow">`,
     `<meta property="og:type" content="website">`,
@@ -104,11 +93,7 @@ function buildSeoExtras(slug, name, canon, title, desc){
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(appJson))}</script>`,
   ].join('');
 
-  // Hidden block: `hidden` attribute keeps it out of layout & paint;
-  // aria-hidden + tabindex=-1 keeps it out of accessibility tree and tab order.
-  const hiddenBlock = `<div class="seo-keywords" hidden aria-hidden="true">${hiddenList}</div>`;
-
-  return { headExtras, hiddenBlock };
+  return { headExtras, hiddenBlock: '' };
 }
 
 
@@ -149,7 +134,8 @@ export const SLUG_MAP = {
   'ai-summarizer':  { id:'ai-summarize', name:'AI Summarizer' },
   'translate-pdf':  { id:'translate',    name:'Translate PDF' },
   'workflow-builder': { id:'workflow',   name:'Workflow Builder' },
-  'numbers-to-words': { id:'numbers-to-words', name:'Numbers to Words', special:'/n2w.html' },
+  'numbers-to-words':   { id:'numbers-to-words',   name:'Numbers to Words',   direct:'/numbers-to-words.html' },
+  'currency-converter': { id:'currency-converter', name:'Currency Converter', direct:'/currency-converter.html' },
   // ── Image Tools ─────────────────────────────────────────────────────────
   'background-remover': { id:'background-remover', name:'Background Remover' },
   'crop-image':     { id:'crop-image',   name:'Crop Image' },
@@ -187,7 +173,8 @@ const RELATED = {
   'ai-summarizer':   ['translate-pdf','ocr-pdf','pdf-to-word','compare-pdf'],
   'translate-pdf':   ['ai-summarizer','ocr-pdf','pdf-to-word','pdf-to-powerpoint'],
   'workflow-builder':['merge-pdf','compress-pdf','watermark-pdf','protect-pdf'],
-  'numbers-to-words':['ai-summarizer','translate-pdf','ocr-pdf','workflow-builder'],
+  'numbers-to-words':  ['currency-converter','ai-summarizer','translate-pdf','ocr-pdf'],
+  'currency-converter':['numbers-to-words','ai-summarizer','translate-pdf','ocr-pdf'],
   'background-remover':['crop-image','resize-image','image-filters','jpg-to-pdf'],
   'crop-image':      ['resize-image','background-remover','image-filters','jpg-to-pdf'],
   'resize-image':    ['crop-image','background-remover','image-filters','pdf-to-jpg'],
@@ -296,7 +283,7 @@ export function buildHtml(slug, baseHtml){
       ${adSlot('sidebar', { desktopOnly: true })}
     </section>`;
 
-  const { headExtras, hiddenBlock } = buildSeoExtras(slug, meta.name, canon, title, desc);
+  const { headExtras } = buildSeoExtras(slug, meta.name, canon, title, desc);
 
   let html = baseHtml
     .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
@@ -307,7 +294,7 @@ export function buildHtml(slug, baseHtml){
     .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
     .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}${bc.jsonLd}</head>`)
-    .replace(/<\/main>/, `${seoBlock}${hiddenBlock}</main>`)
+    .replace(/<\/main>/, `${seoBlock}</main>`)
     // Inject the tool-id so tool-page.js renders the correct tool
     .replace('</body>', `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};</script></body>`);
 
@@ -366,13 +353,6 @@ export function buildCategoryHtml(catSlug, baseHtml, category){
   };
 
   const headExtras = [
-    `<meta name="keywords" content="${escAttr([
-      category.name.toLowerCase(),
-      `${category.name.toLowerCase()} online`,
-      `free ${category.name.toLowerCase()}`,
-      `online ${category.name.toLowerCase()} no signup`,
-      ...category.slugs.flatMap(s => SLUG_MAP[s] ? [SLUG_MAP[s].name.toLowerCase(), `${SLUG_MAP[s].name.toLowerCase()} online`] : []),
-    ].join(', '))}">`,
     `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:url" content="${escAttr(canon)}">`,
@@ -424,6 +404,13 @@ export function getRedirect(slug){
   return m && m.special ? m.special : null;
 }
 
+// For tools that have their own standalone HTML page (not the tool.html shell).
+// The /:slug handler streams this file directly so the URL stays clean.
+export function getDirectFile(slug){
+  const m = SLUG_MAP[slug];
+  return m && m.direct ? m.direct : null;
+}
+
 // Inject SEO extras into the homepage. Adds a richer keywords meta, FAQ and
 // SoftwareApplication JSON-LD, OG/Twitter tags, and a hidden keyword block.
 // The base index.html is left visually untouched.
@@ -432,11 +419,7 @@ export function buildHomeHtml(baseHtml){
   const desc  = 'ILovePDF offers free online PDF tools: Merge, Split, Compress, Convert (PDF↔Word/PPT/Excel/JPG/HTML), Edit, Watermark, Sign, Protect, OCR, AI Summarizer, Translate, Background Remover and more. No signup, no install, files deleted automatically.';
   const canon = 'https://ilovepdf.cyou/';
 
-  const { keywords, faqs } = getHomeSeo();
-
-  const groups = [];
-  for (let i = 0; i < keywords.length; i += 14) groups.push(keywords.slice(i, i + 14));
-  const hiddenList = groups.map(g => `<p>${g.map(escAttr).join(' · ')}</p>`).join('');
+  const { faqs } = getHomeSeo();
 
   const faqJson = {
     '@context': 'https://schema.org',
@@ -470,7 +453,6 @@ export function buildHomeHtml(baseHtml){
   };
 
   const headExtras = [
-    `<meta name="keywords" content="${escAttr(keywords.join(', '))}">`,
     `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
     `<meta name="googlebot" content="index, follow">`,
     `<meta property="og:type" content="website">`,
@@ -486,15 +468,11 @@ export function buildHomeHtml(baseHtml){
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(siteJson))}</script>`,
   ].join('');
 
-  const hiddenBlock = `<div class="seo-keywords" hidden aria-hidden="true">${hiddenList}</div>`;
-
   return baseHtml
     .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
     .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${escAttr(desc)}">`)
     .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
     .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
-    .replace(/<\/head>/, `${headExtras}</head>`)
-    // Append hidden block just before closing </body> so it never blocks paint.
-    .replace(/<\/body>/, `${hiddenBlock}</body>`);
+    .replace(/<\/head>/, `${headExtras}</head>`);
 }
 

@@ -32,6 +32,7 @@ const TOOL_TIPS = {
   'translate':'Translate the text in a PDF',
   'workflow':'Chain multiple PDF tools together',
   'numbers-to-words':'Convert numbers, currency, or check amounts into words',
+  'currency-converter':'Live exchange rates for 160+ world currencies',
   'background-remover':'Remove the background from any image',
   'crop-image':'Crop an image to a custom size',
   'resize-image':'Resize images for web or print',
@@ -57,7 +58,7 @@ const CAT_DOTS = {
   'Image Tools': '#a855f7',
 };
 
-function toolHref(t){ return t.url || `/tool.html?id=${t.id}`; }
+function toolHref(t){ return t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.id}`); }
 function tip(t){ return TOOL_TIPS[t.id] || t.description || ''; }
 
 function buildHeaderNav() {

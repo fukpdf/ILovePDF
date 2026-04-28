@@ -14,7 +14,7 @@ import advancedRouter from './routes/advanced.js';
 import imageRouter from './routes/image.js';
 import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
-import { SLUG_MAP, buildHtml, getRedirect, buildHomeHtml } from './utils/seo.js';
+import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
 import { UPLOAD_DIR, sweepUploads } from './utils/upload.js';
@@ -180,6 +180,13 @@ const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), '
 app.get('/:slug', (req, res, next) => {
   const slug = req.params.slug;
   if (!Object.prototype.hasOwnProperty.call(SLUG_MAP, slug)) return next();
+  // Tools that have a hand-built standalone HTML page (e.g. utilities with a
+  // custom UI) — stream the file at the clean URL so we keep one canonical URL.
+  const direct = getDirectFile(slug);
+  if (direct) {
+    res.set('Cache-Control', 'public, max-age=300');
+    return res.sendFile(path.join(__dirname, 'public', direct.replace(/^\/+/, '')));
+  }
   const redir = getRedirect(slug);
   if (redir) return res.redirect(302, redir);
   const html = buildHtml(slug, TOOL_HTML);

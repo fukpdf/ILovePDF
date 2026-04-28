@@ -194,6 +194,12 @@ const ROOTS = {
     'numbers to words', 'number to word converter', 'spell numbers', 'amount to words',
     'currency in words', 'number spelling', 'digit to text', 'cheque amount in words',
   ],
+  'currency-converter': [
+    'currency converter', 'live currency converter', 'exchange rate calculator',
+    'currency exchange', 'forex calculator', 'foreign exchange', 'money converter',
+    'USD to EUR', 'currency converter online', 'real time exchange rates',
+    '160 currencies converter', 'travel currency calculator',
+  ],
   'background-remover': [
     'background remover', 'remove image background', 'transparent background',
     'background eraser', 'AI background remover', 'remove bg', 'cut out background',
@@ -260,6 +266,18 @@ const FAQS = {
     { q: `Does ${n} work on scanned PDFs?`, a: `For scanned documents, run them through OCR PDF first, then ${n} to get an editable Word file.` },
     { q: `Can I open the result in Google Docs?`, a: `Yes. The .docx output is fully compatible with Microsoft Word, Google Docs, LibreOffice, and Pages.` },
     { q: `Is ${n} free?`, a: `Yes — ${n} is completely free with no signup, watermark, or page limits up to 100 MB.` },
+  ]),
+  'currency-converter': (n) => ([
+    { q: `How accurate is ${n}?`, a: `${n} pulls live mid-market exchange rates from public providers and refreshes them several times per day. Rates are accurate to four decimal places.` },
+    { q: `Which currencies does ${n} support?`, a: `${n} supports 160+ world currencies — every major fiat including USD, EUR, GBP, INR, JPY, CNY, AUD, CAD plus regional currencies across Africa, Asia, Latin America and the Middle East.` },
+    { q: `Is ${n} free to use?`, a: `Yes. ${n} is 100% free with unlimited conversions, no signup, no rate limits, and no ads inside the converter.` },
+    { q: `Can I use ${n} for travel and shopping?`, a: `Absolutely. ${n} is ideal for trip budgets, online purchases, freelance invoices and quick price comparisons across countries.` },
+  ]),
+  'numbers-to-words': (n) => ([
+    { q: `What number formats does ${n} accept?`, a: `${n} accepts plain integers, decimals, scientific notation, and very large numbers up to 10^102 (centillion). Commas, spaces and underscores in your input are ignored.` },
+    { q: `Can ${n} write cheque amounts?`, a: `Yes. Switch to "Currency" or "Cheque" mode and ${n} produces bank-ready text like "One Thousand Two Hundred Fifty Dollars and Seventy-Five Cents Only".` },
+    { q: `Which currencies does ${n} support?`, a: `${n} writes amounts in USD, EUR, GBP, INR, JPY, CNY, AUD and CAD with the correct major and minor unit names (dollars/cents, pounds/pence, rupees/paise, etc.).` },
+    { q: `Is ${n} free?`, a: `Yes — ${n} is completely free, runs in your browser, and has no usage limits or signup.` },
   ]),
   'background-remover': (n) => ([
     { q: `What image formats does ${n} support?`, a: `${n} accepts JPG, PNG, and WebP and returns a transparent PNG.` },

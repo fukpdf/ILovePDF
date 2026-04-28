@@ -95,7 +95,8 @@ export const CATEGORIES = {
     priority: 0.75,
     slugs: [
       'ocr-pdf','ai-summarizer','translate-pdf','compare-pdf',
-      'repair-pdf','scan-pdf','workflow-builder','numbers-to-words',
+      'repair-pdf','scan-pdf','workflow-builder',
+      'numbers-to-words','currency-converter',
     ],
   },
 };

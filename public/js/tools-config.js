@@ -32,7 +32,8 @@ window.SLUG_MAP = {
   'ai-summarizer':     { id:'ai-summarize'  },
   'translate-pdf':     { id:'translate'     },
   'workflow-builder':  { id:'workflow'      },
-  'numbers-to-words':  { id:'numbers-to-words', special:'/n2w.html' },
+  'numbers-to-words':  { id:'numbers-to-words',  special:'/numbers-to-words.html' },
+  'currency-converter':{ id:'currency-converter', special:'/currency-converter.html' },
   'background-remover':{ id:'background-remover' },
   'crop-image':        { id:'crop-image'    },
   'resize-image':      { id:'resize-image'  },
@@ -68,11 +69,18 @@ const CATEGORIES = [
 ];
 
 const TOOLS = [
-  // ── ADVANCED TOOLS — N2W ──────────────────────────────────────────────────
+  // ── ADVANCED TOOLS — Utilities ────────────────────────────────────────────
   {
     id: 'numbers-to-words', name: 'Numbers to Words',
-    icon: 'hash', url: '/n2w.html',
+    icon: 'hash', url: '/numbers-to-words',
     description: 'Convert numbers, currency, or check amounts into words',
+    category: 'Advanced Tools', group: 'pdf', badge: 'NEW',
+    working: true, options: []
+  },
+  {
+    id: 'currency-converter', name: 'Currency Converter',
+    icon: 'dollar-sign', url: '/currency-converter',
+    description: 'Live exchange rates for 160+ world currencies',
     category: 'Advanced Tools', group: 'pdf', badge: 'NEW',
     working: true, options: []
   },

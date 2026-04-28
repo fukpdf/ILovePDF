@@ -1,9 +1,9 @@
 /* Homepage-only logic — tools grid, calculators, mobile toggle, currency converter.
    Header + drawer + auth modal live in chrome.js (loaded on every page). */
 
-// All in-app navigation uses /tool.html?id=<internal-id>. This works both on
-// the Node backend and on Firebase Hosting (which serves tool.html directly).
-const homeToolUrl = t => `/tool.html?id=${t.tid}`;
+// In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present.
+// Items can also override with an explicit `url` (e.g. utility pages).
+const homeToolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
 /* ----------------------- render tools grid ----------------------- */
 function renderTools(){
