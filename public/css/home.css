@@ -1059,3 +1059,159 @@ img, canvas, video, iframe { max-width: 100%; }
   text-align: center;
 }
 .compress-slider-labels .active { color: var(--primary); }
+
+/* ============================================================
+   PASS 5 — Quick Access strip + About page + dropdown polish
+   ============================================================ */
+
+/* Bump dropdown stacking so it always sits above content/ads */
+.nav-item .dd, .nav-item .mega { z-index: 80; }
+.nav-item.has-mega .mega { z-index: 90; }
+
+/* Quick Access cards — three CTA tiles linking to the major tool families */
+.quick-access{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin-top:4px;
+}
+.qa-card{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 18px;border-radius:14px;
+  background:#fff;border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  text-decoration:none;color:inherit;
+  position:relative;overflow:hidden;
+}
+.qa-card:hover{
+  transform:translateY(-3px);
+  box-shadow:var(--shadow-md);
+  border-color:rgba(79,70,229,.3);
+}
+.qa-card .qa-ico{
+  width:46px;height:46px;border-radius:12px;
+  display:grid;place-items:center;flex:none;color:#fff;
+  background:var(--grad);
+}
+.qa-card .qa-ico svg{width:22px;height:22px}
+.qa-card.qa-image .qa-ico{background:linear-gradient(135deg,#a855f7,#7c3aed)}
+.qa-card.qa-utils .qa-ico{background:linear-gradient(135deg,#0ea5e9,#6366f1)}
+.qa-card h3{margin:0;font-size:.98rem;font-weight:800;color:var(--text);letter-spacing:-.01em}
+.qa-card p{margin:2px 0 0;font-size:.78rem;color:var(--text-soft);line-height:1.35}
+.qa-card .qa-arrow{
+  margin-left:auto;width:30px;height:30px;border-radius:8px;
+  background:var(--surface-2);color:var(--text-soft);
+  display:grid;place-items:center;flex:none;
+  transition:.18s background,.18s transform,.18s color;
+}
+.qa-card .qa-arrow svg{width:15px;height:15px}
+.qa-card:hover .qa-arrow{background:var(--grad);color:#fff;transform:translateX(2px)}
+
+@media (max-width:900px){
+  .quick-access{grid-template-columns:1fr}
+}
+
+/* About page */
+.about-page{
+  width:100%;max-width:1100px;margin:0 auto;
+  padding:32px clamp(16px,3vw,40px) 56px;
+  display:flex;flex-direction:column;gap:36px;
+}
+.about-hero{
+  background:var(--grad);color:#fff;
+  border-radius:var(--radius-lg);
+  padding:40px clamp(20px,3vw,40px);
+  box-shadow:var(--shadow-lg);
+  position:relative;overflow:hidden;
+}
+.about-hero::before{
+  content:"";position:absolute;width:280px;height:280px;border-radius:50%;
+  background:rgba(255,255,255,.10);top:-120px;right:-80px;
+}
+.about-hero h1{
+  margin:6px 0 10px;font-size:clamp(1.6rem,3vw,2.3rem);font-weight:800;
+  letter-spacing:-.02em;line-height:1.15;
+}
+.about-hero p{margin:0;max-width:680px;font-size:1rem;opacity:.94;line-height:1.55}
+
+.about-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+.about-card{
+  background:#fff;border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow-sm);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+.about-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.about-card .ac-ico{
+  width:44px;height:44px;border-radius:11px;
+  background:var(--grad-soft);color:var(--primary);
+  display:grid;place-items:center;margin-bottom:10px;
+}
+.about-card .ac-ico svg{width:22px;height:22px}
+.about-card h3{margin:0 0 6px;font-size:1.02rem;font-weight:800;color:var(--text)}
+.about-card p{margin:0;font-size:.88rem;color:var(--text-soft);line-height:1.55}
+
+.about-stats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;
+  background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:20px;box-shadow:var(--shadow-sm);
+}
+.about-stats .stat{text-align:center}
+.about-stats .stat strong{
+  display:block;font-size:1.6rem;font-weight:800;letter-spacing:-.02em;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.about-stats .stat span{display:block;font-size:.78rem;color:var(--text-soft);font-weight:600;margin-top:4px}
+
+.about-cta{
+  background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:24px;box-shadow:var(--shadow-sm);
+}
+.about-cta h2{margin:0 0 4px;font-size:1.3rem;font-weight:800;letter-spacing:-.01em}
+.about-cta p{margin:0 0 14px;color:var(--text-soft);font-size:.92rem}
+.about-cta .hero-btn{background:var(--grad) !important;color:#fff !important;border:0 !important}
+.about-cta .hero-btn.outline{
+  background:#fff !important;color:var(--primary) !important;
+  border:1.5px solid var(--border) !important;
+}
+.about-cta .hero-btn.outline:hover{border-color:var(--primary) !important;background:var(--grad-soft) !important}
+
+.about-contact{
+  background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:24px;box-shadow:var(--shadow-sm);
+}
+.about-contact h2{margin:0 0 6px;font-size:1.25rem;font-weight:800;letter-spacing:-.01em}
+.about-contact p{margin:0 0 12px;color:var(--text-soft);font-size:.9rem}
+.contact-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.contact-list li{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--surface-2);
+  border-radius:10px;font-size:.88rem;color:var(--text);
+}
+.contact-list li svg{width:16px;height:16px;color:var(--primary);flex:none}
+.contact-list a{color:var(--primary);font-weight:600;text-decoration:none}
+.contact-list a:hover{text-decoration:underline}
+
+@media (max-width:768px){
+  .about-grid{grid-template-columns:1fr}
+  .about-stats{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Mobile drawer — bigger tap targets per WCAG (min 44px) */
+@media (max-width:1024px){
+  .drawer a{min-height:44px;display:flex;align-items:center;font-size:.95rem}
+  .drawer-sec a{min-height:42px;padding:8px 12px}
+  .drawer .btn{min-height:46px;padding:12px 16px;font-size:.92rem}
+}
+
+/* Slightly smoother nav-item dropdown bridge — keeps menu open while
+   crossing the small gap between trigger and panel. */
+.nav-item.has-dd::before{
+  content:"";position:absolute;left:0;right:0;top:100%;height:14px;background:transparent;
+}

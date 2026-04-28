@@ -123,6 +123,7 @@ function renderHeader(){
   nav.innerHTML = `
     <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
     <a class="nav-direct" href="/split-pdf">Split PDF</a>
+    <a class="nav-direct" href="/compress-pdf">Compress PDF</a>
     ${drop('organize')}
     ${drop('convert')}
     ${drop('edit')}
@@ -134,6 +135,31 @@ function renderHeader(){
   `;
 
   wireAllToolsToggle();
+  wireHoverPrefetch(nav);
+}
+
+/* Prefetch tool pages on hover so the navigation feels instant.
+   Adds a single <link rel="prefetch"> per URL — browsers natively dedupe and
+   the request is low-priority so it never competes with critical resources. */
+function wireHoverPrefetch(scope){
+  const seen = new Set();
+  const prefetch = (href) => {
+    if (!href || seen.has(href)) return;
+    if (!/^\/[a-z]/.test(href)) return; // only same-origin tool slugs
+    seen.add(href);
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = href;
+    document.head.appendChild(link);
+  };
+  scope.addEventListener('mouseover', (e) => {
+    const a = e.target.closest('a[href]');
+    if (a) prefetch(a.getAttribute('href'));
+  });
+  scope.addEventListener('focusin', (e) => {
+    const a = e.target.closest('a[href]');
+    if (a) prefetch(a.getAttribute('href'));
+  });
 }
 
 /* "All Tools" — opens on hover (CSS) on desktop. On touch / keyboard
@@ -166,7 +192,15 @@ function wireAllToolsToggle(){
   });
 
   // Mouse leaving the menu area also closes it (matches hover-open UX).
-  item.addEventListener('mouseleave', close);
+  // Small delay so quick reentries (e.g. crossing the gap) don't flicker.
+  let leaveTimer = null;
+  item.addEventListener('mouseleave', () => {
+    clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(close, 180);
+  });
+  item.addEventListener('mouseenter', () => {
+    clearTimeout(leaveTimer);
+  });
 
   // ESC closes.
   document.addEventListener('keydown', e => {

@@ -175,6 +175,12 @@ app.get('/verify-signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify-signup.html'));
 });
 
+// Static About page (clean URL — no .html extension)
+app.get('/about', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'about.html'));
+});
+
 // SEO routes
 const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), 'utf8');
 app.get('/:slug', (req, res, next) => {
