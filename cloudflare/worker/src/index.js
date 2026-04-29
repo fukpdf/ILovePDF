@@ -242,10 +242,12 @@ export default {
         const adminResp = await handleAdmin(request, env, p, jsonOut);
         if (adminResp) return adminResp;
       }
-      if (p === '/' || p === '/api/health') {
+      if (p === '/api/health') {
         return await handleHealth(request, env);
       }
-      return json(env, request, { error: 'not found' }, 404);
+      // Not an API route — pass through to Firebase Hosting so its SPA
+      // rewrites serve the correct index.html / tool.html shell.
+      return fetch(request);
     } catch (e) {
       console.error('[fetch] unhandled:', e?.stack || e?.message || e);
       return json(env, request, { error: 'internal error' }, 500);
