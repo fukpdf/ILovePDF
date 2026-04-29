@@ -491,10 +491,22 @@ function wireAuth(){
   });
 }
 
+// Auto-load the mobile bottom navbar across every page that loads chrome.js.
+// Using a single dynamic include avoids needing a <script> tag in each HTML.
+function loadMobileNav() {
+  if (document.getElementById('mobile-nav-script')) return;
+  const s = document.createElement('script');
+  s.id  = 'mobile-nav-script';
+  s.src = '/js/mobile-nav.js';
+  s.defer = true;
+  document.head.appendChild(s);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
   wireAuth();
   startAuthStateObserver();
+  loadMobileNav();
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);

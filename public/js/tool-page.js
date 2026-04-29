@@ -46,14 +46,102 @@ const Flow = {
     const html = area.innerHTML;
     if (!html || !html.trim()) return;
     this.result = { html, ts: Date.now() };
+
+    // Persist for refresh-survival: store HTML in sessionStorage; if the
+    // download anchor uses a blob: URL (client-side tools), also stash the
+    // blob in IndexedDB so we can hand the user a fresh URL after reload.
+    persistFlowState();
+    captureResultBlob(area);
     this.navTo('download');
   },
 
   reset() {
     this.result = null;
     this.step = 'upload';
+    if (window.ToolState) ToolState.clear(this.baseSlug());
   },
 };
+
+// ── PERSISTENCE BRIDGE ────────────────────────────────────────────────────
+// Mirror the in-memory Flow state to sessionStorage + IndexedDB after every
+// meaningful change so a refresh / direct nav doesn't lose work.
+
+function persistFlowState() {
+  if (!window.ToolState || !currentTool) return;
+  const slug = Flow.baseSlug();
+  ToolState.save(slug, {
+    step: Flow.step,
+    files: selectedFiles.map(w => ({
+      id: w.id,
+      name: w.file && w.file.name,
+      size: w.file && w.file.size,
+      type: w.file && w.file.type,
+      rotation: w.rotation || 0,
+    })),
+    result: Flow.result ? {
+      html: Flow.result.html,
+      ts: Flow.result.ts,
+    } : null,
+  });
+  // Also persist the actual file blobs (idempotent put, keyed by file.id).
+  selectedFiles.forEach(w => {
+    if (w.file && w.id) ToolState.putBlob(slug, 'file:' + w.id, w.file);
+  });
+}
+
+// Find a download anchor with a blob: href in the result area, fetch the
+// blob, and store it in IDB so we can re-issue a working URL after refresh.
+async function captureResultBlob(scope) {
+  if (!window.ToolState || !currentTool) return;
+  const slug = Flow.baseSlug();
+  const a = scope.querySelector('a[download][href^="blob:"]');
+  if (!a) return;
+  try {
+    const res  = await fetch(a.getAttribute('href'));
+    const blob = await res.blob();
+    await ToolState.putBlob(slug, 'result', blob);
+    // Also stash the original filename so we can rebuild the anchor on hydrate.
+    const fname = a.getAttribute('download') || 'download';
+    ToolState.save(slug, {
+      ...(ToolState.load(slug) || {}),
+      resultFilename: fname,
+    });
+  } catch (_) { /* non-fatal — user can re-process */ }
+}
+
+// Rebuild selectedFiles from saved state. Returns a promise that resolves
+// once IndexedDB lookups complete (or fails fast if no blob is recoverable).
+async function hydrateFlowState() {
+  if (!window.ToolState || !currentTool) return false;
+  const slug  = Flow.baseSlug();
+  const state = ToolState.load(slug);
+  if (!state) return false;
+
+  // Re-attach files from IDB blobs.
+  if (Array.isArray(state.files) && state.files.length) {
+    const rebuilt = [];
+    for (const meta of state.files) {
+      const blob = await ToolState.getBlob(slug, 'file:' + meta.id);
+      if (!blob) { rebuilt.length = 0; break; }            // can't recover → start over
+      const f = new File([blob], meta.name || 'file', { type: meta.type || blob.type });
+      rebuilt.push({ file: f, rotation: meta.rotation || 0, id: meta.id });
+    }
+    selectedFiles = rebuilt;
+  }
+
+  // Re-attach result HTML, swapping any stale blob: hrefs for a fresh URL
+  // pointing at the IDB-stored result blob.
+  if (state.result && state.result.html) {
+    let html = state.result.html;
+    const resultBlob = await ToolState.getBlob(slug, 'result');
+    if (resultBlob) {
+      const fresh = URL.createObjectURL(resultBlob);
+      html = ToolState.rewriteBlobHrefs(html, fresh);
+    }
+    Flow.result = { html, ts: state.result.ts };
+  }
+  return true;
+}
 
 function setMetaForStep(step) {
   if (!currentTool) return;
@@ -157,7 +245,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial step from server-injected window.__STEP (or URL on Firebase static)
   Flow.step = window.__STEP || stepFromPath();
-  renderStep();
+
+  // Try to rehydrate persisted state for this tool (sessionStorage + IDB).
+  // If hydration succeeds the user can refresh on /preview or /download
+  // and keep their place; otherwise renderStep's guards send them back to
+  // the upload step automatically.
+  hydrateFlowState().finally(() => renderStep());
 });
 
 function renderNotFound(toolId, slug) {
@@ -312,6 +405,45 @@ function buildOptionsHtml(tool) {
     </div>`;
 }
 
+// Reusable: trust strip shown on upload + preview steps so visitors see
+// the safety/privacy commitments before they hand over a file. Required
+// signals for AdSense reviewers.
+function trustStripHtml() {
+  return `
+    <ul class="trust-strip" aria-label="Why you can trust this tool">
+      <li><i data-lucide="shield-check"></i> Secure processing</li>
+      <li><i data-lucide="trash-2"></i> Files auto-deleted within 1&nbsp;hour</li>
+      <li><i data-lucide="cloud-off"></i> No installation required</li>
+    </ul>`;
+}
+
+// "Popular Tools" mini-grid for internal linking. Renders 6 hand-picked
+// tools (skips whatever tool the user is currently on).
+function popularToolsHtml(currentToolId) {
+  const POPULAR = [
+    { slug: 'merge-pdf',    name: 'Merge PDF',     icon: 'layers' },
+    { slug: 'compress-pdf', name: 'Compress PDF',  icon: 'archive' },
+    { slug: 'split-pdf',    name: 'Split PDF',     icon: 'scissors' },
+    { slug: 'pdf-to-word',  name: 'PDF to Word',   icon: 'file-text' },
+    { slug: 'pdf-to-jpg',   name: 'PDF to JPG',    icon: 'image' },
+    { slug: 'word-to-pdf',  name: 'Word to PDF',   icon: 'file-text' },
+    { slug: 'rotate-pdf',   name: 'Rotate PDF',    icon: 'rotate-cw' },
+    { slug: 'organize-pdf', name: 'Organize PDF',  icon: 'list-ordered' },
+  ];
+  const list = POPULAR.filter(p => p.slug !== `${currentToolId}-pdf` && p.slug !== currentToolId).slice(0, 6);
+  return `
+    <section class="popular-tools" aria-label="Popular tools">
+      <h2 class="popular-title">Popular tools</h2>
+      <div class="popular-grid">
+        ${list.map(t => `
+          <a class="popular-card" href="/${t.slug}">
+            <span class="popular-card-icon"><i data-lucide="${t.icon}"></i></span>
+            <span class="popular-card-name">${t.name}</span>
+          </a>`).join('')}
+      </div>
+    </section>`;
+}
+
 // ── STEP 1 — UPLOAD ───────────────────────────────────────────────────────
 // Minimal hero: tool icon, name (H1), description, ONE big "Upload File"
 // primary button. Drag-and-drop is still supported on the same area for
@@ -339,9 +471,13 @@ function renderUploadStep(tool) {
           <div class="upload-step-or">or drag &amp; drop ${tool.multipleFiles ? `${fileType} files` : `your ${fileType}`} here</div>
           <div class="upload-step-meta">Accepted: ${tool.acceptedFiles} · Max 100&nbsp;MB${tool.multipleFiles ? ' · Multiple files allowed' : ''}</div>
         </div>
+
+        ${trustStripHtml()}
       </section>
 
       ${renderSeoContent(tool)}
+
+      ${popularToolsHtml(tool.id)}
     </div>`;
 
   if (window.lucide) lucide.createIcons();
@@ -394,6 +530,8 @@ function renderPreviewStep(tool) {
           <i data-lucide="x"></i> Clear &amp; restart
         </button>
       </div>
+
+      ${trustStripHtml()}
 
       <div id="result-area"></div>
     </div>`;
@@ -492,6 +630,9 @@ function handleFiles(fileList) {
   } else {
     selectedFiles = [wrapped[0]];
   }
+
+  // Persist immediately so a refresh on /preview keeps the file blobs.
+  persistFlowState();
 
   // Files chosen on the upload step → navigate to preview step. Otherwise
   // (already on preview / adding more files) just refresh the file list.
@@ -701,6 +842,8 @@ function clearAll() {
   if (typeof clearAllBursts === 'function') clearAllBursts();
   // Clear the captured download-step result so a fresh upload starts clean.
   Flow.result = null;
+  // Wipe persisted state for this slug — sessionStorage + IndexedDB blobs.
+  if (window.ToolState && currentTool) ToolState.clear(Flow.baseSlug());
 }
 
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
