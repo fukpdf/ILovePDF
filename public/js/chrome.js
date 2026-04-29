@@ -502,41 +502,38 @@ function loadMobileNav() {
   document.head.appendChild(s);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
-
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
+});
 
-  document.addEventListener("click", function(e) {
-    const link = e.target.closest("a");
-    if (!link) return;
-
-    const href = link.getAttribute("href");
-
-    if (href && href.startsWith("/") && !href.startsWith("//")) {
-      e.preventDefault(); 
-      e.stopPropagation();
-
-      console.log("Navigating to:", href);
-
-      history.pushState({}, "", href);
-
-      if (typeof loadToolPage === "function") {
-        loadToolPage(href);
-      } else {
-        window.dispatchEvent(new PopStateEvent('popstate'));
+// ── Smart header: hide Login/Sign-up + center the logo when signed in ────
+// AuthUI doesn't currently emit events, so we lightweight-poll its
+// `current()` value and toggle a class on the header. Cheap, no flicker.
+function startAuthStateObserver() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  let lastSignedIn = null;
+  function tick() {
+    let signedIn = false;
+    try {
+      if (window.AuthUI && typeof window.AuthUI.current === 'function') {
+        signedIn = !!window.AuthUI.current();
+      } else if (window.firebase?.auth) {
+        signedIn = !!window.firebase.auth().currentUser;
       }
+    } catch (_) { signedIn = false; }
+    if (signedIn !== lastSignedIn) {
+      lastSignedIn = signedIn;
+      header.classList.toggle('is-signed-in', signedIn);
     }
-  });
-});
-window.addEventListener("popstate", () => {
-  if (typeof loadToolPage === "function") {
-    loadToolPage(window.location.pathname);
   }
-});
+  tick();
+  setInterval(tick, 600);
+}
