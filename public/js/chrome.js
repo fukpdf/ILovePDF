@@ -535,4 +535,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-                            
+window.addEventListener("popstate", () => {
+  if (typeof loadToolPage === "function") {
+    loadToolPage(window.location.pathname);
+  }
+});
