@@ -273,7 +273,7 @@ export function buildHtml(slug, baseHtml){
     ${adSlot('below-tool')}
     <section class="seo-block" aria-label="About ${escAttr(meta.name)}">
       <div class="seo-inner">
-        <h1 class="seo-h1">${escAttr(meta.name)} — free online tool</h1>
+        <h2 class="seo-h1">About ${escAttr(meta.name)} — free online tool</h2>
         ${buildLong(slug, meta)}
         ${adSlot('mid-content')}
 

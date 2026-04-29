@@ -158,7 +158,7 @@ function renderToolPage(tool) {
             <i data-lucide="${tool.icon}"></i>
           </div>
           <div class="tool-header-info">
-            <div class="tool-header-name">${tool.name}</div>
+            <h1 class="tool-header-name">${tool.name}</h1>
             <div class="tool-header-desc">${tool.description}</div>
             ${statusHtml}
           </div>
@@ -936,7 +936,7 @@ function renderCompressOptionsHtml() {
         <i data-lucide="lock"></i>
         <div>
           Free plan compresses every PDF at the strongest setting (~30% smaller).
-          <a href="#" data-auth="signup">Sign up free</a> to unlock the Low / Medium / High slider.
+          <button type="button" class="link-btn" data-auth="signup">Sign up free</button> to unlock the Low / Medium / High slider.
         </div>
       </div>
     </div>`;

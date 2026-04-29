@@ -1027,8 +1027,10 @@ img, canvas, video, iframe { max-width: 100%; }
   margin-top: 10px;
 }
 .compress-tier-note svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
-.compress-tier-note a {
+.compress-tier-note a,
+.compress-tier-note .link-btn {
   color: #9a3412; font-weight: 700; text-decoration: underline;
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
 }
 
 .compress-slider-wrap { display: flex; flex-direction: column; gap: 8px; }
@@ -1289,9 +1291,15 @@ img, canvas, video, iframe { max-width: 100%; }
   display:none !important;
 }
 
+/* Header layout — search centered, All Tools right */
+.site-header .nav{
+  display:flex;align-items:center;gap:18px;flex:1;min-width:0;flex-wrap:nowrap;
+  justify-content:flex-end;
+}
+
 /* Header search — input + dropdown panel */
 .header-search{
-  position:relative;flex:1;max-width:480px;min-width:0;
+  position:relative;flex:1;max-width:520px;min-width:0;margin:0 auto;
 }
 .header-search .hs-icon{
   position:absolute;left:12px;top:50%;transform:translateY(-50%);
@@ -1335,30 +1343,56 @@ img, canvas, video, iframe { max-width: 100%; }
 .hs-cat{font-size:.72rem;color:var(--text-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .hs-empty{padding:14px;text-align:center;font-size:.85rem;color:var(--text-soft)}
 
-/* All Tools dropdown — make sure it never opens itself on initial render */
-.nav-item.has-mega .mega{ display:none; z-index:120 }
-.nav-item.has-mega.is-open .mega,
+/* "All Tools" dropdown — robust hover + click open with proper stacking.
+   Reset competing rules from earlier in this file. */
+.nav-item.has-mega{ position:relative }
+.nav-item.has-mega .mega{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;                                  /* anchor to the All Tools button */
+  left:auto;
+  transform:translateY(-6px);
+  width:min(960px, calc(100vw - 32px));
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--shadow-lg);
+  padding:22px;
+  z-index:200;                              /* above sticky rail/hero/ads */
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease, visibility .15s linear;
+  display:block;                            /* visibility, not display, drives toggle */
+}
 .nav-item.has-mega:hover .mega,
-.nav-item.has-mega:focus-within .mega{ display:block }
+.nav-item.has-mega:focus-within .mega,
+.nav-item.has-mega.is-open .mega{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+.nav-item.has-mega.is-open > .nav-btn svg{ transform:rotate(180deg) }
+/* Hover bridge so cursor can cross the gap from button to panel without closing */
+.nav-item.has-mega::after{
+  content:"";position:absolute;left:0;right:0;top:100%;height:14px;background:transparent;
+}
+/* Mega grid — adapt columns to viewport */
+.mega-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px }
+@media (max-width:1280px){ .mega-grid{ grid-template-columns:repeat(3,minmax(0,1fr)) } }
 
-/* Hero spacing — guarantee no overlap with the now-fixed header.
-   The old header used a hamburger + CTA buttons that pushed height up;
-   this gives the hero room and prevents any dropdown from sitting on top. */
+/* Hero spacing — guarantee no overlap with the now-fixed header. */
 .hero{ margin-top:clamp(8px,1.2vw,18px) }
 .tool-page{ padding-top:clamp(8px,1.2vw,18px) }
 
-/* Mobile: stack search above All Tools so neither overflows */
-@media (max-width:768px){
-  .site-header .header-inner{ flex-wrap:wrap; gap:10px; padding:8px 12px }
-  .site-header .nav{ width:100%; flex:1 1 100%; gap:10px; justify-content:space-between }
-  .header-search{ flex:1 1 auto; max-width:none; min-width:0 }
-  .header-search .hs-input{ height:38px; font-size:.85rem }
-  .nav-item.has-mega .mega{ left:auto; right:0; min-width:280px }
-}
-
-/* Even smaller phones: stack search row above All Tools */
-@media (max-width:420px){
-  .site-header .nav{ flex-direction:column; align-items:stretch }
-  .nav-item.has-mega{ width:100% }
-  .nav-item.has-mega .nav-btn{ width:100%; justify-content:center }
+/* ============================================================
+   STRICT DESKTOP-ONLY HEADER (per spec)
+   Below 1024px, the search bar AND All Tools dropdown are hidden
+   completely. Only the brand/logo remains in the header on mobile.
+   ============================================================ */
+@media (max-width:1023.98px){
+  .header-search,
+  .nav-item.has-mega,
+  .site-header .nav{ display:none !important }
 }

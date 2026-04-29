@@ -204,7 +204,7 @@
           </div>
           <a class="pm-item" href="/n2w.html#profile" role="menuitem">Profile</a>
           <a class="pm-item" href="/dashboard.html" role="menuitem">My Files</a>
-          <a class="pm-item pm-danger" href="#" data-act="logout" role="menuitem">Log Out</a>
+          <button class="pm-item pm-danger" type="button" data-act="logout" role="menuitem">Log Out</button>
         </div>
       </div>`;
     const wrap  = auth.querySelector('.profile-chip');
