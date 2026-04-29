@@ -195,7 +195,24 @@ app.get('/:slug', (req, res, next) => {
   }
   const redir = getRedirect(slug);
   if (redir) return res.redirect(302, redir);
-  const html = buildHtml(slug, TOOL_HTML);
+  const html = buildHtml(slug, TOOL_HTML, 'upload');
+  if (!html) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(html);
+});
+
+// 3-step flow sub-routes: /:slug/preview and /:slug/download.
+// Both serve the same tool.html shell — tool-page.js reads window.__STEP and
+// renders the appropriate step (Preview / Download). Direct deep-links with
+// no in-memory state are gracefully redirected back to the upload step.
+// Tools that have their own standalone HTML page (n2w, currency-converter)
+// or are pure redirects don't have a multi-step flow.
+app.get('/:slug/:step', (req, res, next) => {
+  const { slug, step } = req.params;
+  if (!Object.prototype.hasOwnProperty.call(SLUG_MAP, slug)) return next();
+  if (step !== 'preview' && step !== 'download') return next();
+  if (getDirectFile(slug) || getRedirect(slug)) return next();
+  const html = buildHtml(slug, TOOL_HTML, step);
   if (!html) return next();
   res.set('Cache-Control', 'public, max-age=300');
   res.type('html').send(html);

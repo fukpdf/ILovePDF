@@ -1396,3 +1396,132 @@ img, canvas, video, iframe { max-width: 100%; }
   .nav-item.has-mega,
   .site-header .nav{ display:none !important }
 }
+
+/* ============================================================
+   3-STEP TOOL FLOW (Upload → Preview → Download)
+   ============================================================ */
+
+/* Step indicator: 1 → 2 → 3, lives just below the tool header. */
+.step-indicator{
+  margin:18px 0 26px;
+}
+.step-indicator ol{
+  list-style:none;margin:0;padding:0;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.step-item{display:flex;align-items:center;gap:8px}
+.step-indicator .step{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:999px;
+  font:inherit;font-size:.82rem;font-weight:600;
+  color:var(--text-mute);background:var(--surface-2);
+  border:1px solid var(--border);
+  transition:.18s background,.18s color,.18s border-color,.18s transform;
+}
+.step-indicator .step-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:999px;
+  background:#fff;border:1px solid var(--border);color:var(--text-mute);
+}
+.step-indicator .step-num svg{width:13px;height:13px}
+.step-indicator .step.is-current{
+  background:var(--grad);color:#fff;border-color:transparent;
+  box-shadow:var(--shadow-sm);
+}
+.step-indicator .step.is-current .step-num{
+  background:rgba(255,255,255,.22);border-color:transparent;color:#fff;
+}
+.step-indicator .step.is-past{
+  background:#fff;color:var(--primary);border-color:rgba(229,50,46,.35);
+  cursor:pointer;
+}
+.step-indicator .step.is-past:hover{
+  transform:translateY(-1px);border-color:var(--primary);
+}
+.step-indicator .step.is-past .step-num{
+  background:var(--grad-soft);border-color:rgba(229,50,46,.25);color:var(--primary);
+}
+.step-indicator .step.is-future{opacity:.55}
+.step-sep{
+  width:28px;height:2px;background:var(--border);border-radius:2px;
+}
+.step-item.is-past .step-sep{background:var(--primary);opacity:.45}
+
+@media (max-width:560px){
+  .step-indicator .step-label{display:none}
+  .step-indicator .step{padding:8px}
+  .step-sep{width:18px}
+}
+
+/* Back-link button (Preview step's "Back to upload"). The original
+   .back-link was anchor-only; mirror its styling for buttons too. */
+button.back-link{
+  background:transparent;border:0;padding:0;cursor:pointer;
+  font:inherit;color:inherit;
+}
+
+/* ── STEP 1: Upload — single hero card with one big CTA ───────────────── */
+.upload-step{margin:8px 0 28px}
+.upload-area--hero{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:clamp(36px,7vw,72px) clamp(18px,4vw,40px);
+  border:2px dashed var(--border);border-radius:18px;
+  background:linear-gradient(180deg,#fff 0%,var(--surface-2) 100%);
+  text-align:center;cursor:pointer;
+  transition:.2s border-color,.2s background,.2s transform;
+}
+.upload-area--hero:hover,
+.upload-area--hero:focus-visible,
+.upload-area--hero.is-drag{
+  border-color:var(--primary);
+  background:linear-gradient(180deg,#fff 0%,var(--grad-soft) 100%);
+  outline:none;
+}
+.upload-area--hero input[type="file"]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+}
+.upload-area--hero .upload-icon{
+  width:64px;height:64px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--grad-soft);color:var(--primary);
+  margin-bottom:4px;
+}
+.upload-area--hero .upload-icon svg{width:32px;height:32px}
+.btn-xl{
+  padding:14px 28px;font-size:1rem;border-radius:12px;
+  font-weight:700;letter-spacing:.005em;
+}
+.upload-cta{
+  position:relative;z-index:2; /* above the hidden file input */
+}
+.upload-step-or{
+  font-size:.88rem;color:var(--text-soft);
+}
+.upload-step-meta{
+  font-size:.76rem;color:var(--text-mute);
+  margin-top:2px;
+}
+
+/* ── STEP 3: Download — clear "ready" page with primary download CTA ── */
+.download-step{margin:8px 0 32px}
+.download-result{
+  margin-bottom:22px;
+}
+.download-result .status-card{
+  /* On the dedicated download page the success card looks lighter so the
+     focus stays on the primary download button it contains. */
+  box-shadow:var(--shadow-sm);
+}
+.download-actions{
+  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+  padding-top:8px;border-top:1px dashed var(--border);
+  margin-top:18px;
+}
+.download-actions .btn{padding:11px 18px}
+.btn-outline{
+  background:#fff;color:var(--text);border-color:var(--border);
+}
+.btn-outline:hover{
+  background:var(--surface-2);border-color:var(--primary);color:var(--primary);
+}

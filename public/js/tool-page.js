@@ -3,6 +3,89 @@ let selectedFiles = [];   // array of { file, rotation, id }
 let dragSrcIndex = null;
 let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-level UI)
 
+// ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
+// Routes:
+//   /<slug>            → upload  (canonical, indexed)
+//   /<slug>/preview    → preview (noindex, requires file state)
+//   /<slug>/download   → download (noindex, requires processed result)
+//
+// State lives in memory + history.pushState navigates between steps without
+// reloading (so File objects survive). Direct deep-links to preview/download
+// without state are redirected back to upload.
+const Flow = {
+  step: 'upload',
+  result: null,            // { html, ts } — captured #result-area markup after success
+
+  baseSlug() {
+    if (window.__TOOL_SLUG) return window.__TOOL_SLUG;
+    const p = (window.location.pathname || '/').replace(/\/+$/, '').replace(/^\/+/, '');
+    return p.replace(/\/(preview|download)$/i, '');
+  },
+
+  navTo(step, opts = {}) {
+    const slug = this.baseSlug();
+    const target = step === 'upload' ? `/${slug}` : `/${slug}/${step}`;
+    this.step = step;
+    if (!opts.skipPush) {
+      try {
+        const fn = opts.replace ? 'replaceState' : 'pushState';
+        history[fn]({ step }, '', target);
+      } catch (_) {}
+    }
+    setMetaForStep(step);
+    renderStep();
+    try { window.scrollTo(0, 0); } catch (_) {}
+  },
+
+  // Capture the current #result-area HTML so it can be re-shown on the
+  // download step. Called after every success path in processFile() (and the
+  // queue path via the wrapped showStatus). Idempotent.
+  commitResult() {
+    const area = document.getElementById('result-area');
+    if (!area) return;
+    const html = area.innerHTML;
+    if (!html || !html.trim()) return;
+    this.result = { html, ts: Date.now() };
+    this.navTo('download');
+  },
+
+  reset() {
+    this.result = null;
+    this.step = 'upload';
+  },
+};
+
+function setMetaForStep(step) {
+  if (!currentTool) return;
+  const name = currentTool.name;
+  if (step === 'preview') {
+    document.title = `Preview & Process — ${name} | ILovePDF`;
+    setMeta('description', `Review your file and run ${name}. Free online tool by ILovePDF — no signup required.`);
+  } else if (step === 'download') {
+    document.title = `Download ${name} Result | ILovePDF`;
+    setMeta('description', `Your ${name} result is ready to download from ILovePDF — files are deleted automatically.`);
+  } else {
+    document.title = `${name} Online Free — ILovePDF`;
+    setMeta('description', `Free online ${name} tool. ${currentTool.description}. No signup required — fast, secure, and free on ILovePDF.`);
+  }
+}
+
+function stepFromPath() {
+  const p = (window.location.pathname || '/').toLowerCase();
+  if (/\/preview\/?$/.test(p))  return 'preview';
+  if (/\/download\/?$/.test(p)) return 'download';
+  return 'upload';
+}
+
+window.addEventListener('popstate', () => {
+  if (!currentTool) return;
+  Flow.step = stepFromPath();
+  setMetaForStep(Flow.step);
+  renderStep();
+});
+
+window.Flow = Flow; // exposed for queue-client and any future hookups
+
 document.addEventListener('DOMContentLoaded', () => {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
@@ -71,7 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   buildSidebar(currentTool.id);
-  renderToolPage(currentTool);
+
+  // Initial step from server-injected window.__STEP (or URL on Firebase static)
+  Flow.step = window.__STEP || stepFromPath();
+  renderStep();
 });
 
 function renderNotFound(toolId, slug) {
@@ -97,107 +183,271 @@ function renderNotFound(toolId, slug) {
   if (window.lucide) lucide.createIcons();
 }
 
-// ── RENDER TOOL PAGE ───────────────────────────────────────────────────────
+// ── 3-STEP RENDER ORCHESTRATOR ────────────────────────────────────────────
+// renderStep dispatches to the appropriate step renderer based on Flow.step,
+// guarding against direct deep-links that lack the required state.
 
-function renderToolPage(tool) {
+function renderStep() {
+  if (!currentTool) return;
+  setMeta('keywords', `${currentTool.name.toLowerCase()}, ${currentTool.name.toLowerCase()} online, ${currentTool.name.toLowerCase()} free, ilovepdf, pdf tools online`);
+
+  // Guard: preview needs files; download needs a captured result.
+  if (Flow.step === 'preview' && selectedFiles.length === 0) {
+    return Flow.navTo('upload', { replace: true });
+  }
+  if (Flow.step === 'download' && !Flow.result) {
+    return Flow.navTo('upload', { replace: true });
+  }
+
+  if (Flow.step === 'preview')  return renderPreviewStep(currentTool);
+  if (Flow.step === 'download') return renderDownloadStep(currentTool);
+  return renderUploadStep(currentTool);
+}
+
+// Reusable: tool icon + title + description + live/coming-soon badge.
+function toolHeaderBlock(tool, opts = {}) {
   const catMeta = CATEGORIES.find(c => c.name === tool.category);
   const color = catMeta ? catMeta.color : '#E5322E';
-
-  document.title = `${tool.name} Online Free — ILovePDF`;
-  setMeta('description', `Free online ${tool.name} tool. ${tool.description}. No signup required — fast, secure, and free on ILovePDF.`);
-  setMeta('keywords', `${tool.name.toLowerCase()}, ${tool.name.toLowerCase()} online, ${tool.name.toLowerCase()} free, ilovepdf, pdf tools online`);
-
-  const container = document.getElementById('tool-content');
-  if (!container) return;
-
   const bgAlpha = hexToRgba(color, 0.12);
-  const statusHtml = tool.working
+  const statusHtml = !opts.hideStatus && tool.working
     ? `<span class="tool-status status-live"><span class="status-dot"></span>Live &amp; Ready</span>`
-    : `<span class="tool-status status-soon"><span class="status-dot"></span>Coming Soon</span>`;
+    : (!opts.hideStatus && !tool.working
+        ? `<span class="tool-status status-soon"><span class="status-dot"></span>Coming Soon</span>`
+        : '');
+  const heading = opts.heading || tool.name;
+  const desc    = opts.desc    || tool.description;
+  const icon    = opts.icon    || tool.icon;
+  const back    = opts.back    || { href: '/', label: 'All Tools' };
+  const backHtml = back.href.startsWith('#step:')
+    ? `<button type="button" class="back-link" data-go-step="${back.href.slice(6)}"><i data-lucide="arrow-left"></i> ${back.label}</button>`
+    : `<a href="${back.href}" class="back-link"><i data-lucide="arrow-left"></i> ${back.label}</a>`;
 
-  // Compress: tier-aware, custom-rendered options (free = locked at "hard"
-  // ~30% reduction; paid/logged-in = Low / Medium / High slider).
-  // Generated dynamically below — skip the generic options builder.
-  let optionsHtml = '';
-  if (tool.id === 'compress') {
-    optionsHtml = renderCompressOptionsHtml();
-  } else if (tool.options && tool.options.length > 0) {
-    const fields = tool.options.map(opt => {
-      if (opt.type === 'select') {
-        const opts = opt.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-        return `
-          <div class="form-group">
-            <label class="form-label">${opt.label}</label>
-            <select class="form-select" name="${opt.id}" id="opt-${opt.id}">${opts}</select>
-          </div>`;
+  return `
+    <div class="tool-header">
+      ${backHtml}
+      <div class="tool-header-top">
+        <div class="tool-header-icon" style="background:${bgAlpha}; color:${color}">
+          <i data-lucide="${icon}"></i>
+        </div>
+        <div class="tool-header-info">
+          <h1 class="tool-header-name">${heading}</h1>
+          <div class="tool-header-desc">${desc}</div>
+          ${statusHtml}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Reusable: 1 → 2 → 3 step indicator. Past steps are buttons (clickable);
+// current step is highlighted; future steps are dimmed and not interactive.
+function stepIndicatorHtml(currentStep) {
+  const steps = [
+    { id: 'upload',   label: 'Upload',   icon: 'upload' },
+    { id: 'preview',  label: 'Preview',  icon: 'eye' },
+    { id: 'download', label: 'Download', icon: 'download' },
+  ];
+  const order = { upload: 0, preview: 1, download: 2 };
+  const cur = order[currentStep] ?? 0;
+  return `
+    <nav class="step-indicator" aria-label="Progress">
+      <ol>
+        ${steps.map((s, i) => {
+          const state = i < cur ? 'past' : (i === cur ? 'current' : 'future');
+          const inner = `
+            <span class="step-num"><i data-lucide="${s.icon}"></i></span>
+            <span class="step-label">${s.label}</span>`;
+          const node = state === 'past'
+            ? `<button type="button" class="step is-past" data-go-step="${s.id}" aria-label="Back to ${s.label} step">${inner}</button>`
+            : `<span class="step is-${state}"${state === 'current' ? ' aria-current="step"' : ''}>${inner}</span>`;
+          const sep = i < steps.length - 1 ? `<span class="step-sep" aria-hidden="true"></span>` : '';
+          return `<li class="step-item is-${state}">${node}${sep}</li>`;
+        }).join('')}
+      </ol>
+    </nav>`;
+}
+
+// Wire data-go-step="upload|preview|download" buttons → Flow.navTo.
+function wireStepNav() {
+  document.querySelectorAll('[data-go-step]').forEach(el => {
+    if (el.dataset.stepBound === '1') return;
+    el.dataset.stepBound = '1';
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const step = el.getAttribute('data-go-step');
+      if (!step) return;
+      if (step === 'upload') {
+        // Going back to upload from preview/download = restart the flow.
+        clearAll();
       }
+      Flow.navTo(step);
+    });
+  });
+}
+
+// Build the standard form-options section used by tools that declare
+// `tool.options`. Compress has its own custom UI handled separately.
+function buildOptionsHtml(tool) {
+  if (tool.id === 'compress') return renderCompressOptionsHtml();
+  if (!tool.options || tool.options.length === 0) return '';
+  const fields = tool.options.map(opt => {
+    if (opt.type === 'select') {
+      const opts = opt.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
       return `
         <div class="form-group">
           <label class="form-label">${opt.label}</label>
-          <input class="form-input" type="${opt.type}" name="${opt.id}" id="opt-${opt.id}"
-            placeholder="${opt.placeholder || ''}" ${opt.required ? 'required' : ''}>
+          <select class="form-select" name="${opt.id}" id="opt-${opt.id}">${opts}</select>
         </div>`;
-    }).join('');
-
-    optionsHtml = `
-      <div class="options-section">
-        <div class="options-title"><i data-lucide="sliders-horizontal"></i> Options</div>
-        <div class="options-grid">${fields}</div>
+    }
+    return `
+      <div class="form-group">
+        <label class="form-label">${opt.label}</label>
+        <input class="form-input" type="${opt.type}" name="${opt.id}" id="opt-${opt.id}"
+          placeholder="${opt.placeholder || ''}" ${opt.required ? 'required' : ''}>
       </div>`;
-  }
+  }).join('');
+  return `
+    <div class="options-section">
+      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Options</div>
+      <div class="options-grid">${fields}</div>
+    </div>`;
+}
+
+// ── STEP 1 — UPLOAD ───────────────────────────────────────────────────────
+// Minimal hero: tool icon, name (H1), description, ONE big "Upload File"
+// primary button. Drag-and-drop is still supported on the same area for
+// power users. SEO content stays here on the canonical page.
+function renderUploadStep(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
 
   const fileLabel = tool.multipleFiles ? 'Upload Files' : 'Upload File';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
+  const fileType  = tool.group === 'image' ? 'image' : 'PDF';
 
   container.innerHTML = `
     <div class="tool-page">
-      <div class="tool-header">
-        <a href="/" class="back-link"><i data-lucide="arrow-left"></i> All Tools</a>
-        <div class="tool-header-top">
-          <div class="tool-header-icon" style="background:${bgAlpha}; color:${color}">
-            <i data-lucide="${tool.icon}"></i>
-          </div>
-          <div class="tool-header-info">
-            <h1 class="tool-header-name">${tool.name}</h1>
-            <div class="tool-header-desc">${tool.description}</div>
-            ${statusHtml}
-          </div>
-        </div>
-      </div>
+      ${toolHeaderBlock(tool)}
+      ${stepIndicatorHtml('upload')}
 
-      <div class="upload-section">
-        <span class="upload-label">
-          <i data-lucide="upload-cloud" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
-          ${fileLabel}
-        </span>
-        <div class="upload-area" id="upload-area">
+      <section class="upload-step" aria-label="Upload your file">
+        <div class="upload-area upload-area--hero" id="upload-area" tabindex="0" role="button" aria-label="${fileLabel}">
           <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
           <div class="upload-icon"><i data-lucide="upload-cloud"></i></div>
-          <div class="upload-text">Drag &amp; drop or click to browse</div>
-          <div class="upload-hint">Accepted: ${tool.acceptedFiles} · Max 100&nbsp;MB ${tool.multipleFiles ? '· Multiple files allowed · Drag to reorder' : ''}</div>
+          <button type="button" class="btn btn-primary btn-xl upload-cta" id="upload-cta-btn">
+            <i data-lucide="upload"></i> ${fileLabel}
+          </button>
+          <div class="upload-step-or">or drag &amp; drop ${tool.multipleFiles ? `${fileType} files` : `your ${fileType}`} here</div>
+          <div class="upload-step-meta">Accepted: ${tool.acceptedFiles} · Max 100&nbsp;MB${tool.multipleFiles ? ' · Multiple files allowed' : ''}</div>
         </div>
+      </section>
+
+      ${renderSeoContent(tool)}
+    </div>`;
+
+  if (window.lucide) lucide.createIcons();
+  setupFileInput();
+  // The big CTA button just opens the same hidden file picker.
+  const cta = document.getElementById('upload-cta-btn');
+  if (cta) cta.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('file-input')?.click();
+  });
+  wireStepNav();
+}
+
+// ── STEP 2 — PREVIEW + PROCESS ────────────────────────────────────────────
+// Shows the selected file(s), the tool's options, and a single Process CTA.
+// Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
+// processFile) — only the surrounding chrome changes.
+function renderPreviewStep(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+
+  const optionsHtml = buildOptionsHtml(tool);
+
+  container.innerHTML = `
+    <div class="tool-page">
+      ${toolHeaderBlock(tool, {
+        heading: `Preview & Process — ${tool.name}`,
+        desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
+        icon: 'eye',
+        hideStatus: true,
+        back: { href: '#step:upload', label: 'Back to upload' },
+      })}
+      ${stepIndicatorHtml('preview')}
+
+      <section class="preview-step upload-section" aria-label="Selected files">
+        <span class="upload-label">
+          <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
+          Selected ${tool.multipleFiles ? 'files' : 'file'}
+        </span>
         <div class="upload-files-list" id="files-list"></div>
-      </div>
+      </section>
 
       ${optionsHtml}
 
       <div class="process-btn-wrap">
         <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
-          <i data-lucide="zap"></i> Process File
+          <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
         </button>
-        <button type="button" class="btn btn-outline" id="clear-btn" onclick="clearAll()" style="display:none">
-          <i data-lucide="x"></i> Clear
+        <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
+          <i data-lucide="x"></i> Clear &amp; restart
         </button>
       </div>
 
       <div id="result-area"></div>
-
-      ${renderSeoContent(tool)}
-    </div>
-  `;
+    </div>`;
 
   if (window.lucide) lucide.createIcons();
-  setupFileInput();
+  renderFileList();
+  maybeOpenPageOrganizer();
+  wireStepNav();
+}
+
+// ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────
+// Re-renders the captured success markup (status card + Download button) on
+// a dedicated page. The actual file was already auto-downloaded on Process,
+// the visible button is a fallback in case the browser blocked it.
+function renderDownloadStep(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+  const slug = Flow.baseSlug();
+
+  container.innerHTML = `
+    <div class="tool-page">
+      ${toolHeaderBlock(tool, {
+        heading: `Your ${tool.name} result is ready`,
+        desc: `Files are deleted automatically — download below or process another file.`,
+        icon: 'check-circle-2',
+        hideStatus: true,
+        back: { href: '/', label: 'All Tools' },
+      })}
+      ${stepIndicatorHtml('download')}
+
+      <section class="download-step" aria-label="Download your result">
+        <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
+
+        <div class="download-actions">
+          <a href="/${slug}" class="btn btn-outline" data-go-step="upload">
+            <i data-lucide="rotate-ccw"></i> Process another file
+          </a>
+          <a href="/" class="btn btn-outline">
+            <i data-lucide="home"></i> Back to all tools
+          </a>
+        </div>
+      </section>
+    </div>`;
+
+  if (window.lucide) lucide.createIcons();
+  // Re-attach the burst animation to the cloned download button. The captured
+  // markup still carries data-burst-bound="1", so clear it first to allow a
+  // fresh binding on this dedicated download page.
+  const area = document.getElementById('result-area');
+  if (area) {
+    area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
+    if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
+  }
+  wireStepNav();
 }
 
 // ── FILE INPUT ─────────────────────────────────────────────────────────────
@@ -242,8 +492,15 @@ function handleFiles(fileList) {
   } else {
     selectedFiles = [wrapped[0]];
   }
-  renderFileList();
-  maybeOpenPageOrganizer();
+
+  // Files chosen on the upload step → navigate to preview step. Otherwise
+  // (already on preview / adding more files) just refresh the file list.
+  if (Flow.step === 'upload') {
+    Flow.navTo('preview');
+  } else {
+    renderFileList();
+    maybeOpenPageOrganizer();
+  }
 }
 
 // ── PAGE ORGANIZER (high-res preview + per-page reorder/rotate/delete) ────
@@ -442,6 +699,8 @@ function clearAll() {
   const input = document.getElementById('file-input');
   if (input) input.value = '';
   if (typeof clearAllBursts === 'function') clearAllBursts();
+  // Clear the captured download-step result so a fresh upload starts clean.
+  Flow.result = null;
 }
 
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
@@ -714,6 +973,14 @@ function showStatus(type, title, message, downloadUrl, filename) {
     </div>`;
   if (window.lucide) lucide.createIcons();
   attachDownloadBurst(area);
+
+  // 3-step flow: success results live on the dedicated /download page so the
+  // user sees a clear "your file is ready" page with a fallback download
+  // button. Errors stay inline on the preview step. Skip if we're already
+  // on the download step (re-rendering existing result html).
+  if (type === 'success' && Flow.step !== 'download') {
+    Flow.commitResult();
+  }
 }
 
 // ── DOWNLOAD BURST ─────────────────────────────────────────────────────────
@@ -800,6 +1067,7 @@ function showTextResult(text, label = 'Result') {
       <textarea class="text-result-area" readonly>${escapeHtml(text)}</textarea>
     </div>`;
   if (window.lucide) lucide.createIcons();
+  if (Flow.step !== 'download') Flow.commitResult();
 }
 
 function showReport(report) {
@@ -818,6 +1086,7 @@ function showReport(report) {
       <div class="report-table">${rows}</div>
     </div>`;
   if (window.lucide) lucide.createIcons();
+  if (Flow.step !== 'download') Flow.commitResult();
 }
 
 function copyTextResult(btn) {

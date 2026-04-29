@@ -241,12 +241,42 @@ function buildLong(slug, meta){
   `.replace(/^\s+/gm,'');
 }
 
-export function buildHtml(slug, baseHtml){
+// Per-step (upload / preview / download) head builder.
+// The "upload" step is the canonical, indexed page that ships the full SEO
+// body. Preview & download are functional sub-pages — same canonical (so
+// search engines consolidate signals onto the upload URL), noindex, and no
+// SEO content block. Each gets its own <title> + meta description so the
+// browser tab + share previews are accurate.
+function stepMeta(meta, step){
+  if (step === 'preview'){
+    return {
+      title: `Preview & Process — ${meta.name} | ILovePDF`,
+      desc:  `Review your file and run ${meta.name}. Free online tool by ILovePDF — no signup required.`,
+    };
+  }
+  if (step === 'download'){
+    return {
+      title: `Download ${meta.name} Result | ILovePDF`,
+      desc:  `Your ${meta.name} result is ready. Download the file securely from ILovePDF — files are deleted automatically.`,
+    };
+  }
+  return {
+    title: `${meta.name} — Free Online PDF Tool | ILovePDF`,
+    desc:  `Use ${meta.name} online for free at ILovePDF. Fast, secure, no signup required. Files up to 100 MB are accepted and deleted automatically after processing.`,
+  };
+}
+
+export function buildHtml(slug, baseHtml, step = 'upload'){
   const meta = SLUG_MAP[slug];
   if (!meta) return null;
 
-  const title = `${meta.name} — Free Online PDF Tool | ILovePDF`;
-  const desc  = `Use ${meta.name} online for free at ILovePDF. Fast, secure, no signup required. Files up to 100 MB are accepted and deleted automatically after processing.`;
+  const validSteps = new Set(['upload', 'preview', 'download']);
+  if (!validSteps.has(step)) step = 'upload';
+  const isUpload = step === 'upload';
+
+  const { title, desc } = stepMeta(meta, step);
+  // Canonical always points to the base /slug URL — preview/download are
+  // functional sub-pages and should consolidate ranking signals onto upload.
   const canon = `https://ilovepdf.cyou/${slug}`;
 
   const related = (RELATED[slug] || []).map(s => {
@@ -283,7 +313,23 @@ export function buildHtml(slug, baseHtml){
       ${adSlot('sidebar', { desktopOnly: true })}
     </section>`;
 
-  const { headExtras } = buildSeoExtras(slug, meta.name, canon, title, desc);
+  // Head injection differs per step. Upload = full SEO; preview/download =
+  // minimal head + noindex (sub-pages with no value to search engines).
+  let headInject;
+  if (isUpload){
+    const { headExtras } = buildSeoExtras(slug, meta.name, canon, title, desc);
+    headInject = `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}${bc.jsonLd}`;
+  } else {
+    headInject = [
+      `<link rel="canonical" href="${escAttr(canon)}">`,
+      `<meta name="robots" content="noindex, follow">`,
+      `<meta property="og:title" content="${escAttr(title)}">`,
+      `<meta property="og:description" content="${escAttr(desc)}">`,
+      `<meta property="og:type" content="website">`,
+      `<meta property="og:url" content="${escAttr(canon)}">`,
+      `<meta property="og:site_name" content="ILovePDF">`,
+    ].join('');
+  }
 
   let html = baseHtml
     .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(title)}</title>`)
@@ -293,10 +339,17 @@ export function buildHtml(slug, baseHtml){
     .replace(/<meta\s+name="keywords"[^>]*>\s*/gi, '')
     .replace(/<meta\s+name="robots"[^>]*>\s*/gi, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
-    .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}"><meta property="og:title" content="${escAttr(title)}"><meta property="og:description" content="${escAttr(desc)}">${headExtras}${bc.jsonLd}</head>`)
-    .replace(/<\/main>/, `${seoBlock}</main>`)
-    // Inject the tool-id so tool-page.js renders the correct tool
-    .replace('</body>', `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};</script></body>`);
+    .replace(/<\/head>/, `${headInject}</head>`);
+
+  // Only the upload (canonical) page gets the SEO content body — preview &
+  // download are noindexed functional sub-pages and shouldn't dilute it.
+  if (isUpload){
+    html = html.replace(/<\/main>/, `${seoBlock}</main>`);
+  }
+
+  // Inject the tool-id, slug and step so tool-page.js renders correctly.
+  html = html.replace('</body>',
+    `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};window.__TOOL_SLUG=${JSON.stringify(slug)};window.__STEP=${JSON.stringify(step)};</script></body>`);
 
   return html;
 }
