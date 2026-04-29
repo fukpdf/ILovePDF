@@ -1279,22 +1279,19 @@ img, canvas, video, iframe { max-width: 100%; }
   gap:14px;min-width:0;
 }
 
-/* Hide every old element that the new minimal header doesn't use.
-   Keeps backward compat if some legacy partial still ships them. */
+/* Hide legacy header elements no longer used in the minimal-chrome header. */
 .site-header .header-cta,
 .site-header .hamburger,
 .drawer,
 .drawer-back,
-.drawer-panel,
-.nav-direct,
-.nav-item.has-dd:not(.has-mega){
+.drawer-panel{
   display:none !important;
 }
 
 /* Header layout — search centered, All Tools right */
 .site-header .nav{
-  display:flex;align-items:center;gap:18px;flex:1;min-width:0;flex-wrap:nowrap;
-  justify-content:flex-end;
+  display:flex;align-items:center;gap:4px;flex:1;min-width:0;flex-wrap:nowrap;
+  justify-content:flex-start;
 }
 
 /* Header search — input + dropdown panel */
@@ -1392,9 +1389,7 @@ img, canvas, video, iframe { max-width: 100%; }
    completely. Only the brand/logo remains in the header on mobile.
    ============================================================ */
 @media (max-width:1023.98px){
-  .header-search,
-  .nav-item.has-mega,
-  .site-header .nav{ display:none !important }
+  .nav-item.has-mega{ display:none !important }
 }
 
 /* ============================================================
@@ -1674,3 +1669,35 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 .popular-card-icon svg{width:18px;height:18px}
 .popular-card-name{font-size:.9rem;font-weight:600}
+
+/* ============================================================
+   HEADER — full inline nav + search bar (desktop) / icon (mobile)
+   ============================================================ */
+
+/* Search container: always pushed to the right end of the nav */
+.header-search{position:relative;flex:none;max-width:none;margin-left:auto;flex-shrink:0;display:flex;align-items:center}
+
+/* Desktop: full search bar visible; mobile search icon hidden */
+.hs-bar{display:flex;align-items:center;gap:6px}
+.hs-mob-btn{
+  display:none;width:40px;height:40px;border-radius:10px;padding:0;
+  background:var(--surface-2);color:var(--text-soft);
+  align-items:center;justify-content:center;
+  border:0;cursor:pointer;transition:.15s background;
+}
+.hs-mob-btn:hover{background:var(--border)}
+.hs-mob-btn svg{width:18px;height:18px}
+
+/* Mobile header (<1024px): center brand, search icon only on right */
+@media (max-width:1023.98px){
+  .header-inner{justify-content:center;position:relative}
+  .nav{
+    flex:0 0 auto;margin:0;
+    position:absolute;right:clamp(12px,3vw,40px);
+    top:50%;transform:translateY(-50%);
+  }
+  .nav-direct{display:none}
+  .nav-item{display:none!important}
+  .hs-bar{display:none}
+  .hs-mob-btn{display:inline-flex}
+}

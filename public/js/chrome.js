@@ -89,7 +89,7 @@ function renderHeader(){
   const nav = document.getElementById('nav');
   if (!nav) return;
 
-  // "All Tools" mega-menu: surfaces every category as a single complete index.
+  // "All Tools" mega-menu columns
   const MEGA_KEYS = ['organize','convert','edit','security','advanced','image','utilities'];
   const megaCols = MEGA_KEYS.map(k => {
     const g = groupBy(k); if (!g) return '';
@@ -104,35 +104,81 @@ function renderHeader(){
       </div>`;
   }).join('');
 
-  // Minimal header: search bar + All Tools dropdown only.
+  // Simple dropdown item lists
+  const ORGANIZE_ITEMS = [
+    { name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
+    { name:'Merge PDF',    href:'/merge-pdf',    icon:'layers'       },
+    { name:'Split PDF',    href:'/split-pdf',    icon:'scissors'     },
+    { name:'Rotate PDF',   href:'/rotate-pdf',   icon:'rotate-cw'    },
+    { name:'Crop PDF',     href:'/crop-pdf',     icon:'crop'         },
+  ];
+  const CONVERT_ITEMS = [
+    { name:'PDF to Word',       href:'/pdf-to-word',       icon:'file-text'    },
+    { name:'PDF to PowerPoint', href:'/pdf-to-powerpoint', icon:'presentation' },
+    { name:'PDF to Excel',      href:'/pdf-to-excel',      icon:'sheet'        },
+    { name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
+  ];
+  const ddLinks = arr => arr.map(i =>
+    `<a class="dd-link" href="${i.href}">
+       <span class="mi"><i data-lucide="${i.icon}"></i></span>
+       <span>${i.name}</span>
+     </a>`).join('');
+
   nav.innerHTML = `
-    <div class="header-search" id="header-search" role="search">
-      <span class="hs-icon"><i data-lucide="search"></i></span>
-      <input
-        type="search"
-        id="hs-input"
-        class="hs-input"
-        placeholder="Search 33+ tools…"
-        autocomplete="off"
-        aria-label="Search tools"
-        aria-expanded="false"
-        aria-controls="hs-results"
-      >
-      <div class="hs-results" id="hs-results" role="listbox" hidden></div>
+    <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
+    <a class="nav-direct" href="/split-pdf">Split PDF</a>
+
+    <div class="nav-item has-dd" id="nav-organize">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+        Organize <i data-lucide="chevron-down"></i>
+      </button>
+      <div class="dd" role="menu">${ddLinks(ORGANIZE_ITEMS)}</div>
     </div>
+
+    <div class="nav-item has-dd" id="nav-convert">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+        Convert <i data-lucide="chevron-down"></i>
+      </button>
+      <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
+    </div>
+
     <div class="nav-item has-dd has-mega" id="all-tools-item">
-      <button class="nav-btn all-tools" id="all-tools-btn" type="button" aria-expanded="false" aria-haspopup="true">All Tools <i data-lucide="chevron-down"></i></button>
+      <button class="nav-btn all-tools" id="all-tools-btn" type="button"
+              aria-expanded="false" aria-haspopup="true">
+        All Tools <i data-lucide="chevron-down"></i>
+      </button>
       <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
+    </div>
+
+    <div class="header-search" id="header-search" role="search">
+      <button class="hs-mob-btn" id="hs-mob-btn" type="button" aria-label="Search tools">
+        <i data-lucide="search"></i>
+      </button>
+      <div class="hs-bar">
+        <span class="hs-icon" aria-hidden="true"><i data-lucide="search"></i></span>
+        <input
+          type="search"
+          id="hs-input"
+          class="hs-input"
+          placeholder="Search 33+ tools…"
+          autocomplete="off"
+          aria-label="Search tools"
+          aria-expanded="false"
+          aria-controls="hs-results"
+        >
+      </div>
+      <div class="hs-results" id="hs-results" role="listbox" hidden></div>
     </div>
   `;
 
-  // Defensive: the All Tools dropdown must NEVER be open on initial render.
   const allItem = document.getElementById('all-tools-item');
   if (allItem) allItem.classList.remove('is-open');
 
+  wireSimpleDropdowns();
   wireAllToolsToggle();
   wireHoverPrefetch(nav);
   wireHeaderSearch();
+  wireMobileSearchBtn();
 }
 
 /* SPA navigation helper — navigates to a tool URL without a full page reload
@@ -331,6 +377,53 @@ function wireAllToolsToggle(){
   // ESC closes.
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') close();
+  });
+}
+
+/* Simple dropdowns (Organize, Convert) — open on hover + toggle on click/keyboard. */
+function wireSimpleDropdowns() {
+  ['nav-organize', 'nav-convert'].forEach(id => {
+    const item = document.getElementById(id);
+    if (!item) return;
+    const btn = item.querySelector('.nav-btn');
+    if (!btn) return;
+
+    const close = () => { item.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); };
+    const open  = () => { item.classList.add('is-open');    btn.setAttribute('aria-expanded', 'true'); };
+
+    btn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      item.classList.contains('is-open') ? close() : open();
+    });
+
+    let leaveTimer = null;
+    item.addEventListener('mouseenter', () => { clearTimeout(leaveTimer); open(); });
+    item.addEventListener('mouseleave', () => { leaveTimer = setTimeout(close, 160); });
+
+    document.addEventListener('click', e => { if (!item.contains(e.target)) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  });
+}
+
+/* Mobile search icon — opens mobile search overlay (from mobile-nav.js). */
+function wireMobileSearchBtn() {
+  const btn = document.getElementById('hs-mob-btn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const ov = document.getElementById('mobile-search-overlay');
+    if (ov) {
+      ov.classList.add('is-open');
+      ov.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('mo-lock');
+      const inp = ov.querySelector('input');
+      if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+      return;
+    }
+    const bar = document.querySelector('.hs-bar');
+    if (bar) {
+      bar.style.display = bar.style.display === 'flex' ? 'none' : 'flex';
+      document.getElementById('hs-input')?.focus();
+    }
   });
 }
 

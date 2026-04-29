@@ -156,6 +156,13 @@ function setMetaForStep(step) {
     document.title = `${name} Online Free — ILovePDF`;
     setMeta('description', `Free online ${name} tool. ${currentTool.description}. No signup required — fast, secure, and free on ILovePDF.`);
   }
+  // Canonical always points to the base tool URL (upload step) — not preview/download sub-paths.
+  const slug = currentTool.slug || currentTool.id;
+  if (slug) {
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'canonical'; document.head.appendChild(link); }
+    link.href = `${window.location.origin}/${slug}`;
+  }
 }
 
 function stepFromPath() {
@@ -427,7 +434,7 @@ function trustStripHtml() {
   return `
     <ul class="trust-strip" aria-label="Why you can trust this tool">
       <li><i data-lucide="shield-check"></i> Secure processing</li>
-      <li><i data-lucide="trash-2"></i> Files auto-deleted within 1&nbsp;hour</li>
+      <li><i data-lucide="trash-2"></i> Files auto-deleted after 10&nbsp;minutes</li>
       <li><i data-lucide="cloud-off"></i> No installation required</li>
     </ul>`;
 }

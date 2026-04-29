@@ -190,6 +190,12 @@ same-origin (local dev / single-host deploy).
 If nothing matches, a friendly **Tool not found** screen is rendered instead of
 silently redirecting to `/` (the original "page reload" bug).
 
+## Phase 1–5 Polish (April 2026)
+
+- **Header redesign (chrome.js + home.css)**: Desktop header now shows inline nav: Merge PDF | Split PDF | Organize ▼ | Convert ▼ | All Tools ▼ | Search bar. Organize/Convert are simple dropdowns (hover + click toggle, ARIA-expanded). Mobile (<1024px) centers the brand and replaces the full search bar with a search icon that opens the mobile overlay. Implemented `wireSimpleDropdowns()` and `wireMobileSearchBtn()` in chrome.js.
+- **Trust strip (tool-page.js)**: Changed "auto-deleted within 1 hour" → "auto-deleted after 10 minutes" to match R2 sweeper config.
+- **SEO canonical URL (tool-page.js)**: `setMetaForStep()` now creates/updates a `<link rel="canonical">` pointing to the base tool URL (`origin/slug`) on every step render — preview and download steps still point back to the upload page.
+
 ## Recent Changes (April 2026)
 
 - **Cloudflare Worker — CORS hardened**: `corsHeaders()` now mirrors the request origin when `ALLOWED_ORIGINS=*` (avoids the "Access-Control-Allow-Credentials with wildcard" pitfall) and exposes `content-disposition`. Added `readHfToken(env)` which accepts `HF_API_TOKEN`, `HF_TOKEN`, `HUGGINGFACE_API_TOKEN`, or `HUGGING_FACE_TOKEN`. `processors.js` uses the same fallback chain.
