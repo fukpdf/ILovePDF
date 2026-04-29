@@ -135,6 +135,27 @@ function renderHeader(){
   wireHeaderSearch();
 }
 
+/* SPA navigation helper — navigates to a tool URL without a full page reload
+   when the tool.html shell is already loaded (has #tool-content). Falls back
+   to a normal href assignment so it is always safe to call. */
+function spaNavigateTo(url) {
+  const slug = url
+    .replace(/^\//, '')
+    .replace(/\/(preview|download)\/?$/i, '')
+    .split('?')[0].split('#')[0].toLowerCase();
+  if (
+    slug &&
+    window.SLUG_MAP && window.SLUG_MAP[slug] &&
+    document.getElementById('tool-content') &&
+    typeof window.loadToolPage === 'function'
+  ) {
+    history.pushState({ toolSlug: slug }, '', url);
+    window.loadToolPage(url);
+  } else {
+    location.href = url;
+  }
+}
+
 /* Header search — live, fuzzy filter over every tool in TOOL_GROUPS.
    Click / Enter on a result navigates to the tool URL. Up/Down arrows move
    selection; Escape clears the input and closes the panel. */
@@ -217,10 +238,12 @@ function wireHeaderSearch(){
     } else if (e.key === 'Enter') {
       if (selected >= 0 && visible[selected]) {
         e.preventDefault();
-        location.href = visible[selected].url;
+        close();
+        spaNavigateTo(visible[selected].url);
       } else if (visible[0]) {
         e.preventDefault();
-        location.href = visible[0].url;
+        close();
+        spaNavigateTo(visible[0].url);
       }
     } else if (e.key === 'Escape') {
       input.value = '';
@@ -511,6 +534,31 @@ document.addEventListener('DOMContentLoaded', () => {
   tryIcons();
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
+});
+
+// Global SPA click interceptor — catches tool link clicks on tool pages
+// (any page that has #tool-content in the DOM) and navigates without reload.
+document.addEventListener('click', function (e) {
+  if (!document.getElementById('tool-content')) return; // homepage has no shell
+  if (!window.SLUG_MAP) return;
+
+  const link = e.target.closest('a[href]');
+  if (!link) return;
+
+  const href = link.getAttribute('href');
+  if (!href || !href.startsWith('/') || href.startsWith('//')) return;
+  if (href.endsWith('.html')) return; // static files navigate normally
+
+  const slug = href
+    .replace(/^\//, '')
+    .replace(/\/(preview|download)\/?$/i, '')
+    .split('?')[0].split('#')[0].toLowerCase();
+
+  if (!slug || !window.SLUG_MAP[slug]) return; // not a recognised tool slug
+
+  e.preventDefault();
+  history.pushState({ toolSlug: slug }, '', href);
+  if (typeof window.loadToolPage === 'function') window.loadToolPage(href);
 });
 
 // ── Smart header: hide Login/Sign-up + center the logo when signed in ────

@@ -166,10 +166,25 @@ function stepFromPath() {
 }
 
 window.addEventListener('popstate', () => {
-  if (!currentTool) return;
-  Flow.step = stepFromPath();
-  setMetaForStep(Flow.step);
-  renderStep();
+  const path    = window.location.pathname;
+  const rawSlug = path.replace(/^\/+/, '').replace(/\/(preview|download)\/?$/i, '').toLowerCase().split('?')[0].split('#')[0];
+  const meta    = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
+  const toolId  = (meta && meta.id) ? meta.id : rawSlug;
+
+  if (currentTool && currentTool.id === toolId) {
+    Flow.step = stepFromPath();
+    setMetaForStep(Flow.step);
+    renderStep();
+    return;
+  }
+
+  if (typeof window.loadToolPage === 'function') {
+    window.loadToolPage(path);
+  } else if (currentTool) {
+    Flow.step = stepFromPath();
+    setMetaForStep(Flow.step);
+    renderStep();
+  }
 });
 
 window.Flow = Flow; // exposed for queue-client and any future hookups
@@ -1432,3 +1447,55 @@ function readCompressLevel() {
   if (v === 2) return 'high';
   return 'medium';
 }
+
+// ── SPA NAVIGATION ─────────────────────────────────────────────────────────
+// Exposed so chrome.js (and any future code) can navigate to any tool without
+// a full page reload. Only meaningful when the tool.html shell is in the DOM.
+window.loadToolPage = function loadToolPage(path) {
+  const step = /\/preview\/?$/i.test(path)  ? 'preview'
+             : /\/download\/?$/i.test(path) ? 'download'
+             : 'upload';
+
+  const rawSlug = path
+    .replace(/^\/+/, '')
+    .replace(/\/(preview|download)\/?$/i, '')
+    .toLowerCase()
+    .split('?')[0]
+    .split('#')[0];
+
+  if (!rawSlug) { window.location.href = '/'; return; }
+
+  const slugMeta = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
+  if (slugMeta && slugMeta.special) {
+    window.location.href = slugMeta.special;
+    return;
+  }
+
+  const toolId = (slugMeta && slugMeta.id) ? slugMeta.id : rawSlug;
+  const tool   = (typeof TOOLS !== 'undefined') ? TOOLS.find(t => t.id === toolId) : null;
+
+  if (tool && tool.url && !path.startsWith(tool.url)) {
+    window.location.href = tool.url;
+    return;
+  }
+
+  // Reset in-progress state
+  selectedFiles = [];
+  if (pageOrganizer) { try { pageOrganizer.destroy(); } catch (_) {} pageOrganizer = null; }
+  Flow.result = null;
+  Flow.step   = step;
+
+  if (!tool) {
+    currentTool = null;
+    renderNotFound(toolId, rawSlug);
+    try { sessionStorage.removeItem('__tp_redir__'); } catch (_) {}
+    return;
+  }
+
+  currentTool = tool;
+  buildSidebar(currentTool.id);
+  setMetaForStep(Flow.step);
+  renderStep();
+  try { window.scrollTo(0, 0); } catch (_) {}
+  if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+};
