@@ -3,22 +3,27 @@
 // UI helpers (showProcessing / hideProcessing / triggerDownload / showStatus)
 // are reused so the visual experience is unchanged.
 (function () {
-  // Tools that go through the queued processing path. Anything not here and
-  // not handled by browser-tools.js will fall back to the direct route.
+  // Heavy tools that legitimately need the remote (Hugging Face) pipeline.
+  // Browser-capable tools are NOT listed here — they run via BrowserTools
+  // (see public/js/browser-tools.js) and never touch the queue.
+  //
+  // `compress` stays here as the optional ADVANCED fallback: BrowserTools
+  // attempts a basic in-browser compression first, and only when that
+  // doesn't help does the dispatcher fall through to this queue path.
   const QUEUED_TOOL_IDS = new Set([
-    // Compress & convert
-    'compress', 'ocr',
-    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'pdf-to-jpg',
+    // Compress (advanced fallback only — browser tries basic first)
+    'compress',
+    // Convert (heavy)
+    'ocr',
+    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
     'word-to-pdf', 'excel-to-pdf', 'powerpoint-to-pdf', 'html-to-pdf',
-    // Edit & annotate
+    // Edit & annotate (heavy / server-only)
     'edit', 'sign', 'redact',
-    // Security
-    'protect', 'unlock',
     // Advanced
     'repair', 'scan-to-pdf', 'compare', 'workflow',
     'ai-summarize', 'translate',
-    // Image
-    'background-remover', 'crop-image', 'resize-image', 'image-filters',
+    // Image (AI)
+    'background-remover',
   ]);
 
   // Neutral, user-facing message used for any processing failure.

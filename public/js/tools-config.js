@@ -147,7 +147,7 @@ const TOOLS = [
     description: 'Reduce PDF file size while preserving quality',
     category: 'Compress & Optimize', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/compress', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
 
   // ── CONVERT FROM PDF ──────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ const TOOLS = [
     multipleFiles: false, working: true, options: []
   },
   {
-    id: 'pdf-to-jpg', name: 'PDF to JPG', icon: 'image',
+    id: 'pdf-to-jpg', name: 'PDF to JPG', icon: 'image', clientSide: true,
     description: 'Convert PDF pages into high-quality JPG images',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-jpg', acceptedFiles: '.pdf',
@@ -307,12 +307,14 @@ const TOOLS = [
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/protect', acceptedFiles: '.pdf',
     multipleFiles: false, working: true,
+    /* Browser-only password encryption isn't safe to do with pdf-lib alone,
+       so this routes straight to the local Express backend (no HF queue). */
     options: [
       { id: 'password', label: 'Password', type: 'text', placeholder: 'Enter a password' }
     ]
   },
   {
-    id: 'unlock', name: 'Unlock PDF', icon: 'unlock',
+    id: 'unlock', name: 'Unlock PDF', icon: 'unlock', clientSide: true,
     description: 'Remove password protection from a PDF',
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/unlock', acceptedFiles: '.pdf',
@@ -436,7 +438,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'crop-image', name: 'Crop Image', icon: 'crop',
+    id: 'crop-image', name: 'Crop Image', icon: 'crop', clientSide: true,
     description: 'Crop and trim your images with precision controls',
     category: 'Image Tools', group: 'image', badge: 'Image',
     apiEndpoint: '/api/crop-image', acceptedFiles: '.jpg,.jpeg,.png,.webp',
@@ -449,7 +451,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'resize-image', name: 'Image Resize', icon: 'maximize-2',
+    id: 'resize-image', name: 'Image Resize', icon: 'maximize-2', clientSide: true,
     description: 'Resize images with presets: 1:1, 16:9, A4, HD, or custom',
     category: 'Image Tools', group: 'image', badge: 'Image',
     apiEndpoint: '/api/resize-image', acceptedFiles: '.jpg,.jpeg,.png,.webp',
@@ -467,7 +469,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'image-filters', name: 'Image Filters', icon: 'sliders',
+    id: 'image-filters', name: 'Image Filters', icon: 'sliders', clientSide: true,
     description: 'Apply grayscale, sepia, blur, brightness, contrast and more',
     category: 'Image Tools', group: 'image', badge: 'Image',
     apiEndpoint: '/api/filters', acceptedFiles: '.jpg,.jpeg,.png,.webp',

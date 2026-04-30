@@ -48,14 +48,28 @@ A production-ready PDF + image processing platform with 33 tools, branded as **I
 
 ## Tool routing
 
-| Path                                           | Tools                                                                                                       |
-|------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| Direct → Express backend (unchanged)           | Merge, Split, Rotate, Crop, Organize, JPG↔PDF, Page Numbers, Watermark                                       |
-| Queue → Cloudflare Worker (`pdf-jobs`)         | Compress, OCR, PDF↔Word/Excel/PowerPoint, AI Summarizer, Translate, Background Remover, Image Resize/Filters, Compare |
+Dispatch order in `public/js/tool-page.js#processFile`:
 
-The frontend's `queue-client.js` decides per tool. Routing only kicks in
-when `window.QUEUE_API_BASE` resolves to a real Worker URL, so dev/staging
-keep working against the Express backend out of the box.
+1. **Browser-side** (`BrowserTools.process`) — runs first whenever the tool is
+   marked `clientSide: true` and `BrowserTools.supports(id)` is true. Zero
+   upload, no network, instant result.
+2. **Queue → Cloudflare Worker** (`pdf-jobs`) — only for tools listed in
+   `queue-client.js#QUEUED_TOOL_IDS` AND when `window.QUEUE_API_BASE`
+   resolves to a real Worker URL. Heavy / Hugging Face-backed tools.
+3. **Direct → Express backend** — final fallback for everything else, and
+   for queue/browser failures.
+
+| Path                                | Tools                                                                                                                                          |
+|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| Browser-side (pdf-lib / pdfjs / canvas) | Merge, Split, Rotate, Crop, Organize, JPG/PNG → PDF, Page Numbers, Watermark, **Compress (basic)**, **Unlock**, **PDF → JPG**, **Crop Image**, **Resize Image**, **Image Filters** |
+| Standalone browser pages            | Currency Converter, Numbers to Words                                                                                                           |
+| Queue → Cloudflare Worker (HF)      | Compress (advanced fallback), OCR, PDF↔Word/Excel/PowerPoint, Word/Excel/PowerPoint → PDF, HTML → PDF, Edit, Sign, Redact, Repair, Scan, Compare, AI Summarizer, Translate, Workflow, Background Remover |
+| Direct → Express backend            | Protect (real password encryption — pdf-lib can't do it browser-side), plus fallback for any tool whose browser/queue path fails               |
+
+For Compress specifically: BrowserTools tries a basic in-browser re-save
+first; if the result isn't smaller (`NO_BROWSER_GAIN`), the dispatcher
+silently falls through to the Hugging Face queue (advanced) and then the
+Express route. UI/messages are identical for both paths.
 
 ## Brand & UI
 

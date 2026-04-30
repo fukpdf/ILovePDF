@@ -1006,6 +1006,37 @@ async function processFile() {
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
 
+  // ── Browser-side path FIRST: zero upload, instant result for any tool
+  // marked `clientSide: true` and supported by BrowserTools. If the
+  // browser handler succeeds we're done. If it throws (or signals
+  // NO_BROWSER_GAIN — e.g. compress couldn't shrink it), we fall through
+  // to the queue / direct paths below.
+  if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
+    try {
+      const opts = {};
+      (currentTool.options || []).forEach(o => {
+        const el = document.getElementById(`opt-${o.id}`);
+        if (el && el.value !== '') opts[o.id] = el.value;
+      });
+      const { blob, filename } = await window.BrowserTools.process(
+        currentTool.id,
+        selectedFiles.map(e => e.file),
+        opts,
+      );
+      hideProcessing();
+      triggerDownload(blob, filename);
+      if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
+      showStatus('success', 'Your file is ready',
+        `Press the button if download does not start automatically.`,
+        URL.createObjectURL(blob), filename);
+      if (processBtn) processBtn.disabled = false;
+      return;
+    } catch (err) {
+      // Silent fall-through to the queue / direct path. Keep the spinner up.
+    }
+    showProcessing(`Processing your file…`, 'Almost done — just a moment.');
+  }
+
   // ── Queue path: tools listed in QueueClient.QUEUED_TOOL_IDS go through the
   // queued processing API. UI helpers are passed in so the flow is identical.
   if (window.QueueClient && window.QueueClient.isQueued(currentTool.id)) {
@@ -1037,34 +1068,6 @@ async function processFile() {
     } catch (err) {
       // Silently fall through to the direct route.
     }
-  }
-
-  if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
-    try {
-      const opts = {};
-      currentTool.options.forEach(o => {
-        const el = document.getElementById(`opt-${o.id}`);
-        if (el && el.value !== '') opts[o.id] = el.value;
-      });
-      const { blob, filename } = await window.BrowserTools.process(
-        currentTool.id,
-        selectedFiles.map(e => e.file),
-        opts,
-      );
-      hideProcessing();
-      triggerDownload(blob, filename);
-      if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
-      showStatus('success', 'Your file is ready',
-        `Press the button if download does not start automatically.`,
-        URL.createObjectURL(blob), filename);
-      return;
-    } catch (err) {
-      // Silently fall through to the network path.
-    } finally {
-      if (processBtn) processBtn.disabled = false;
-    }
-    if (processBtn) processBtn.disabled = true;
-    showProcessing(`Processing your file…`, 'Almost done — just a moment.');
   }
 
   try {

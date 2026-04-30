@@ -1,9 +1,16 @@
 // Client-side processors for the lightweight tools — runs entirely in the
-// browser using pdf-lib (loaded from CDN). Zero upload, instant results.
+// browser using pdf-lib / pdfjs / canvas (loaded lazily from CDN). Zero
+// upload, instant results.
 //
-// Usage: window.BrowserTools.process(toolId, files, optionsObj) -> Promise<Blob | { blob, filename }>
+// Usage: window.BrowserTools.process(toolId, files, optionsObj)
+//        -> Promise<{ blob, filename }>
 (function () {
-  const PDFLIB_URL = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+  const PDFLIB_URL  = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+  const PDFJS_URL   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
+  const PDFJS_WORKER= 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  const JSZIP_URL   = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+
+  // ── lazy CDN loaders (cached) ────────────────────────────────────────────
   let pdfLibPromise = null;
   function loadPdfLib() {
     if (window.PDFLib) return Promise.resolve(window.PDFLib);
@@ -11,13 +18,42 @@
     pdfLibPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = PDFLIB_URL; s.async = true;
-      s.onload = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib failed to load'));
+      s.onload  = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib failed to load'));
       s.onerror = () => reject(new Error('pdf-lib failed to load'));
       document.head.appendChild(s);
     });
     return pdfLibPromise;
   }
 
+  let pdfJsPromise = null;
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfJsPromise) return pdfJsPromise;
+    pdfJsPromise = (async () => {
+      const mod = await import(PDFJS_URL);
+      const pdfjsLib = mod && (mod.default || mod);
+      pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      window.pdfjsLib = pdfjsLib;
+      return pdfjsLib;
+    })();
+    return pdfJsPromise;
+  }
+
+  let jsZipPromise = null;
+  function loadJsZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (jsZipPromise) return jsZipPromise;
+    jsZipPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = JSZIP_URL; s.async = true;
+      s.onload  = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip failed to load'));
+      s.onerror = () => reject(new Error('JSZip failed to load'));
+      document.head.appendChild(s);
+    });
+    return jsZipPromise;
+  }
+
+  // ── helpers ──────────────────────────────────────────────────────────────
   async function readFileBytes(file) {
     return new Uint8Array(await file.arrayBuffer());
   }
@@ -50,7 +86,24 @@
     return `ILovePDF-${safe}${newExt}`;
   }
 
-  // ── MERGE ────────────────────────────────────────────────────────────
+  // Load an HTMLImageElement from a File.
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+      img.src = url;
+    });
+  }
+
+  function canvasToBlob(canvas, mime, quality) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas encode failed')), mime, quality);
+    });
+  }
+
+  // ── MERGE ────────────────────────────────────────────────────────────────
   async function merge(files) {
     const { PDFDocument } = await loadPdfLib();
     const out = await PDFDocument.create();
@@ -62,7 +115,7 @@
     return new Blob([await out.save()], { type: 'application/pdf' });
   }
 
-  // ── SPLIT — returns single PDF if range collapses to one part, else ZIP ──
+  // ── SPLIT ────────────────────────────────────────────────────────────────
   async function split(files, opts) {
     const { PDFDocument } = await loadPdfLib();
     const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -77,7 +130,7 @@
     return new Blob([await out.save()], { type: 'application/pdf' });
   }
 
-  // ── ROTATE ────────────────────────────────────────────────────────────
+  // ── ROTATE ───────────────────────────────────────────────────────────────
   async function rotate(files, opts) {
     const { PDFDocument, degrees } = await loadPdfLib();
     const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -93,7 +146,7 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── ORGANIZE (reorder) ───────────────────────────────────────────────
+  // ── ORGANIZE (reorder) ───────────────────────────────────────────────────
   async function organize(files, opts) {
     const { PDFDocument } = await loadPdfLib();
     const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -107,7 +160,7 @@
     return new Blob([await out.save()], { type: 'application/pdf' });
   }
 
-  // ── PAGE NUMBERS ─────────────────────────────────────────────────────
+  // ── PAGE NUMBERS ─────────────────────────────────────────────────────────
   async function pageNumbers(files, opts) {
     const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
     const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -128,7 +181,7 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── WATERMARK ────────────────────────────────────────────────────────
+  // ── WATERMARK ────────────────────────────────────────────────────────────
   async function watermark(files, opts) {
     const { PDFDocument, StandardFonts, rgb, degrees } = await loadPdfLib();
     const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -148,7 +201,7 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── CROP ─────────────────────────────────────────────────────────────
+  // ── CROP ─────────────────────────────────────────────────────────────────
   async function crop(files, opts) {
     const { PDFDocument } = await loadPdfLib();
     const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
@@ -167,7 +220,7 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── JPG/PNG -> PDF ───────────────────────────────────────────────────
+  // ── JPG/PNG -> PDF ───────────────────────────────────────────────────────
   async function imagesToPdf(files) {
     const { PDFDocument } = await loadPdfLib();
     const doc = await PDFDocument.create();
@@ -181,6 +234,199 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
+  // ── COMPRESS (basic, browser-side) ───────────────────────────────────────
+  // Re-saves the PDF using object streams + dropping XFA so it's typically
+  // smaller. If the result is somehow LARGER than the original, we bubble
+  // up an error so the caller can fall back to the heavier path.
+  async function compress(files) {
+    const { PDFDocument } = await loadPdfLib();
+    const original = await readFileBytes(files[0]);
+    const doc = await PDFDocument.load(original, { ignoreEncryption: true, updateMetadata: false });
+    const out = await doc.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 200,
+    });
+    if (out.byteLength >= original.byteLength) {
+      // Browser pass made no improvement — let the caller fall back.
+      const e = new Error('No browser-side compression possible');
+      e.code = 'NO_BROWSER_GAIN';
+      throw e;
+    }
+    return new Blob([out], { type: 'application/pdf' });
+  }
+
+  // ── UNLOCK PDF (browser-side) ────────────────────────────────────────────
+  // Loads with ignoreEncryption and re-saves an unencrypted copy. Works for
+  // PDFs that don't require an owner password to open (the typical case).
+  async function unlock(files) {
+    const { PDFDocument } = await loadPdfLib();
+    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
+    const out = await doc.save({ useObjectStreams: true });
+    return new Blob([out], { type: 'application/pdf' });
+  }
+
+  // ── PDF -> JPG (basic, browser-side via pdfjs+canvas) ────────────────────
+  // Renders every page to a JPG. Single-page → JPG blob. Multi-page → ZIP.
+  async function pdfToJpg(files, opts) {
+    const pdfjsLib = await loadPdfJs();
+    const data = await readFileBytes(files[0]);
+    const loadingTask = pdfjsLib.getDocument({ data, isEvalSupported: false });
+    const pdf = await loadingTask.promise;
+    const total = pdf.numPages;
+    // Quality preset → render scale. 150 DPI ≈ scale 2.0; 200 DPI ≈ scale 2.7
+    const quality = String(opts.quality || 'standard').toLowerCase();
+    const scale   = quality === 'high' ? 2.7 : 2.0;
+    const jpegQ   = quality === 'high' ? 0.92 : 0.85;
+
+    const pages = [];
+    for (let i = 1; i <= total; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      const ctx = canvas.getContext('2d');
+      // White background so transparent PDFs don't render black.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      pages.push(await canvasToBlob(canvas, 'image/jpeg', jpegQ));
+      // Free the canvas explicitly to keep memory bounded on big PDFs.
+      canvas.width = 0; canvas.height = 0;
+    }
+
+    if (pages.length === 1) {
+      return { blob: pages[0], ext: '.jpg', mime: 'image/jpeg' };
+    }
+    const JSZip = await loadJsZip();
+    const zip = new JSZip();
+    const baseName = (files[0].name || 'document').replace(/\.[^.]+$/, '');
+    pages.forEach((b, i) => {
+      const n = String(i + 1).padStart(String(pages.length).length, '0');
+      zip.file(`${baseName}-page-${n}.jpg`, b);
+    });
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    return { blob: zipBlob, ext: '.zip', mime: 'application/zip' };
+  }
+
+  // ── IMAGE: CROP ──────────────────────────────────────────────────────────
+  async function cropImage(files, opts) {
+    const img = await loadImageFromFile(files[0]);
+    const xPct = clampPct(opts.x,      0);
+    const yPct = clampPct(opts.y,      0);
+    const wPct = clampPct(opts.width,  100);
+    const hPct = clampPct(opts.height, 100);
+    const sx = Math.floor(img.naturalWidth  * (xPct / 100));
+    const sy = Math.floor(img.naturalHeight * (yPct / 100));
+    const sw = Math.max(1, Math.floor(img.naturalWidth  * (wPct / 100)));
+    const sh = Math.max(1, Math.floor(img.naturalHeight * (hPct / 100)));
+    const canvas = document.createElement('canvas');
+    canvas.width = sw; canvas.height = sh;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const { mime, ext, q } = pickOutFormat(files[0]);
+    const blob = await canvasToBlob(canvas, mime, q);
+    return { blob, ext, mime };
+  }
+
+  // ── IMAGE: RESIZE ────────────────────────────────────────────────────────
+  async function resizeImage(files, opts) {
+    const img = await loadImageFromFile(files[0]);
+    const preset = String(opts.preset || 'custom').toLowerCase();
+    let w, h;
+    if (preset === '1:1')      { w = 1080; h = 1080; }
+    else if (preset === '16:9'){ w = 1920; h = 1080; }
+    else if (preset === 'a4')  { w = 2480; h = 3508; }
+    else if (preset === 'hd')  { w = 1920; h = 1080; }
+    else {
+      w = parseInt(opts.width  || img.naturalWidth,  10) || img.naturalWidth;
+      h = parseInt(opts.height || img.naturalHeight, 10) || img.naturalHeight;
+    }
+    w = Math.max(1, Math.min(8000, w));
+    h = Math.max(1, Math.min(8000, h));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    const { mime, ext, q } = pickOutFormat(files[0]);
+    const blob = await canvasToBlob(canvas, mime, q);
+    return { blob, ext, mime };
+  }
+
+  // ── IMAGE: FILTERS ───────────────────────────────────────────────────────
+  async function imageFilters(files, opts) {
+    const img = await loadImageFromFile(files[0]);
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // Try the fast CSS-filter path first; it covers most modes natively.
+    const filter = String(opts.filter || 'grayscale').toLowerCase();
+    const cssMap = {
+      grayscale: 'grayscale(100%)',
+      sepia:     'sepia(100%)',
+      blur:      'blur(4px)',
+      brighten:  'brightness(1.25)',
+      contrast:  'contrast(1.5)',
+      invert:    'invert(100%)',
+    };
+    if (cssMap[filter]) {
+      ctx.filter = cssMap[filter];
+      ctx.drawImage(img, 0, 0, w, h);
+      ctx.filter = 'none';
+    } else if (filter === 'sharpen') {
+      // 3x3 sharpen convolution via getImageData
+      ctx.drawImage(img, 0, 0, w, h);
+      const src  = ctx.getImageData(0, 0, w, h);
+      const dst  = ctx.createImageData(w, h);
+      const k    = [0,-1,0,-1,5,-1,0,-1,0];
+      const data = src.data, out = dst.data;
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          for (let c = 0; c < 3; c++) {
+            let sum = 0, ki = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const i = ((y + dy) * w + (x + dx)) * 4 + c;
+                sum += data[i] * k[ki++];
+              }
+            }
+            out[(y * w + x) * 4 + c] = Math.max(0, Math.min(255, sum));
+          }
+          out[(y * w + x) * 4 + 3] = data[(y * w + x) * 4 + 3];
+        }
+      }
+      ctx.putImageData(dst, 0, 0);
+    } else {
+      // unknown filter → just draw as-is
+      ctx.drawImage(img, 0, 0, w, h);
+    }
+    const { mime, ext, q } = pickOutFormat(files[0]);
+    const blob = await canvasToBlob(canvas, mime, q);
+    return { blob, ext, mime };
+  }
+
+  function clampPct(v, fallback) {
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, Math.min(100, n));
+  }
+
+  function pickOutFormat(file) {
+    const name = (file && file.name || '').toLowerCase();
+    const type = (file && file.type || '').toLowerCase();
+    if (name.endsWith('.png') || type.includes('png')) return { mime: 'image/png',  ext: '.png',  q: undefined };
+    if (name.endsWith('.webp')|| type.includes('webp'))return { mime: 'image/webp', ext: '.webp', q: 0.92 };
+    return { mime: 'image/jpeg', ext: '.jpg', q: 0.9 };
+  }
+
+  // ── DISPATCH TABLE ───────────────────────────────────────────────────────
+  // Each handler returns either a Blob (PDF, default ext) OR an object
+  // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
     'merge':         merge,
     'split':         split,
@@ -190,6 +436,12 @@
     'watermark':     watermark,
     'crop':          crop,
     'jpg-to-pdf':    imagesToPdf,
+    'compress':      compress,
+    'unlock':        unlock,
+    'pdf-to-jpg':    pdfToJpg,
+    'crop-image':    cropImage,
+    'resize-image':  resizeImage,
+    'image-filters': imageFilters,
   };
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
@@ -198,8 +450,17 @@
     const fn = HANDLERS[toolId];
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
-    const blob = await fn(files, options || {});
-    const filename = brandedFilename(files[0].name, '.pdf');
+    const result = await fn(files, options || {});
+    // Normalise: handlers may return a Blob (PDF) or { blob, ext, mime }.
+    let blob, ext;
+    if (result && result.blob) {
+      blob = result.blob;
+      ext  = result.ext || '.pdf';
+    } else {
+      blob = result;
+      ext  = '.pdf';
+    }
+    const filename = brandedFilename(files[0].name, ext);
     return { blob, filename };
   }
 
