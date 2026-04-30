@@ -126,6 +126,18 @@ export function allPublicSlugs() {
     tools: Object.keys(SLUG_MAP),
     categories: Object.keys(CATEGORIES),
     utilities: ['privacy', 'terms', 'disclaimer', 'blog'],
-    blogs: ['merge-pdf-guide', 'compress-pdf-guide', 'best-pdf-tools'],
+    blogs: [
+      'merge-pdf-guide','split-pdf-guide','rotate-pdf-guide','crop-pdf-guide','organize-pdf-guide',
+      'compress-pdf-guide',
+      'pdf-to-word-guide','pdf-to-powerpoint-guide','pdf-to-excel-guide','pdf-to-jpg-guide',
+      'word-to-pdf-guide','powerpoint-to-pdf-guide','excel-to-pdf-guide','jpg-to-pdf-guide','html-to-pdf-guide',
+      'edit-pdf-guide','watermark-pdf-guide','sign-pdf-guide','add-page-numbers-guide','redact-pdf-guide',
+      'protect-pdf-guide','unlock-pdf-guide',
+      'repair-pdf-guide','scan-pdf-guide','ocr-pdf-guide','compare-pdf-guide',
+      'ai-summarizer-guide','translate-pdf-guide','workflow-builder-guide',
+      'numbers-to-words-guide','currency-converter-guide',
+      'background-remover-guide','crop-image-guide','resize-image-guide','image-filters-guide',
+      'best-pdf-tools',
+    ],
   };
 }

@@ -1670,6 +1670,49 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 .popular-card-icon svg{width:18px;height:18px}
 .popular-card-name{font-size:.9rem;font-weight:600}
 
+/* ── Tool → Blog "Learn more" callout (above popular tools on tool pages) ── */
+.tool-learn-more{
+  display:flex;align-items:center;gap:18px;
+  margin:40px 0 8px;padding:22px 24px;
+  border-radius:16px;
+  background:var(--grad-soft);
+  border:1px solid var(--border);
+}
+.tool-learn-more-icon{
+  width:46px;height:46px;border-radius:12px;
+  display:grid;place-items:center;flex:0 0 auto;
+  background:#fff;color:var(--primary);
+  box-shadow:var(--shadow-sm);
+}
+.tool-learn-more-icon svg{width:22px;height:22px}
+.tool-learn-more-body{flex:1;min-width:0}
+.tool-learn-more-eyebrow{
+  display:inline-block;font-size:.7rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.07em;
+  color:var(--primary);margin-bottom:4px;
+}
+.tool-learn-more-body h3{
+  font-size:1.05rem;font-weight:700;margin:0 0 4px;
+  color:var(--text);letter-spacing:-.01em;
+}
+.tool-learn-more-body p{
+  font-size:.88rem;color:var(--text-soft);margin:0;line-height:1.55;
+}
+.tool-learn-more-cta{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+  padding:10px 16px;border-radius:10px;
+  background:var(--primary);color:#fff;
+  font-size:.88rem;font-weight:600;text-decoration:none;white-space:nowrap;
+  transition:.15s background-color,.15s transform;
+}
+.tool-learn-more-cta:hover{background:#3f37c9;transform:translateY(-1px)}
+.tool-learn-more-cta svg{width:15px;height:15px;transition:transform .2s ease}
+.tool-learn-more-cta:hover svg{transform:translateX(3px)}
+@media (max-width:640px){
+  .tool-learn-more{flex-direction:column;align-items:flex-start;gap:12px;padding:18px}
+  .tool-learn-more-cta{width:100%;justify-content:center}
+}
+
 /* ============================================================
    HEADER — full inline nav + search bar (desktop) / icon (mobile)
    ============================================================ */

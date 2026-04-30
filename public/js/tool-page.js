@@ -441,6 +441,65 @@ function trustStripHtml() {
 
 // "Popular Tools" mini-grid for internal linking. Renders 6 hand-picked
 // tools (skips whatever tool the user is currently on).
+// Map tool.id (internal) → URL slug used for the per-tool blog guide
+// (`/blog/<urlSlug>-guide.html`). One entry per tool, mirrors SLUG_MAP.
+const TOOL_ID_TO_BLOG_SLUG = {
+  'merge':              'merge-pdf',
+  'split':              'split-pdf',
+  'rotate':             'rotate-pdf',
+  'crop':               'crop-pdf',
+  'organize':           'organize-pdf',
+  'compress':           'compress-pdf',
+  'pdf-to-word':        'pdf-to-word',
+  'pdf-to-powerpoint':  'pdf-to-powerpoint',
+  'pdf-to-excel':       'pdf-to-excel',
+  'pdf-to-jpg':         'pdf-to-jpg',
+  'word-to-pdf':        'word-to-pdf',
+  'powerpoint-to-pdf':  'powerpoint-to-pdf',
+  'excel-to-pdf':       'excel-to-pdf',
+  'jpg-to-pdf':         'jpg-to-pdf',
+  'html-to-pdf':        'html-to-pdf',
+  'edit':               'edit-pdf',
+  'watermark':          'watermark-pdf',
+  'sign':               'sign-pdf',
+  'page-numbers':       'add-page-numbers',
+  'redact':             'redact-pdf',
+  'protect':            'protect-pdf',
+  'unlock':             'unlock-pdf',
+  'repair':             'repair-pdf',
+  'scan-to-pdf':        'scan-pdf',
+  'ocr':                'ocr-pdf',
+  'compare':            'compare-pdf',
+  'ai-summarize':       'ai-summarizer',
+  'translate':          'translate-pdf',
+  'workflow':           'workflow-builder',
+  'numbers-to-words':   'numbers-to-words',
+  'currency-converter': 'currency-converter',
+  'background-remover': 'background-remover',
+  'crop-image':         'crop-image',
+  'resize-image':       'resize-image',
+  'image-filters':      'image-filters',
+};
+
+// Renders a "Learn more" callout that links to the per-tool blog guide.
+// Sits between the SEO content and the popular-tools grid on the upload step.
+function learnMoreHtml(tool) {
+  const slug = TOOL_ID_TO_BLOG_SLUG[tool.id];
+  if (!slug) return '';
+  return `
+    <aside class="tool-learn-more" aria-label="Learn more about ${tool.name}">
+      <div class="tool-learn-more-icon"><i data-lucide="book-open"></i></div>
+      <div class="tool-learn-more-body">
+        <span class="tool-learn-more-eyebrow">Guide</span>
+        <h3>New to ${tool.name}? Read the full step-by-step guide</h3>
+        <p>Pro tips, common pitfalls, FAQs and more — everything you need to get the best results from ${tool.name}.</p>
+      </div>
+      <a href="/blog/${slug}-guide.html" class="tool-learn-more-cta">
+        Read guide <i data-lucide="arrow-right"></i>
+      </a>
+    </aside>`;
+}
+
 function popularToolsHtml(currentToolId) {
   const POPULAR = [
     { slug: 'merge-pdf',    name: 'Merge PDF',     icon: 'layers' },
@@ -498,6 +557,8 @@ function renderUploadStep(tool) {
       </section>
 
       ${renderSeoContent(tool)}
+
+      ${learnMoreHtml(tool)}
 
       ${popularToolsHtml(tool.id)}
     </div>`;
