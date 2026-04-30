@@ -16,6 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/home.css">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/blog.css">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
 </head>
@@ -111,7 +112,7 @@
         <div class="processing-icon"><i data-lucide="file-text"></i></div>
       </div>
       <div class="processing-title" id="processing-title">Processing your file…</div>
-      <div class="processing-msg" id="processing-msg">This may take a few seconds. Please don't close the window.</div>
+      <div class="processing-msg" id="processing-msg">This usually takes only a few seconds.</div>
       <div class="processing-bar"></div>
     </div>
   </div>
@@ -140,6 +141,7 @@
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
   <script>window.buildSidebar = function(){}; window.setupMegaMenu = function(){};</script>
   <script src="/js/tools-config.js" defer></script>
+  <script src="/js/tool-content.js" defer></script>
   <script src="/js/tool-state.js" defer></script>
   <script src="/js/queue-client.js" defer></script>
   <script src="/js/usage-limit.js" defer></script>

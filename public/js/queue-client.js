@@ -107,7 +107,7 @@
     const file = files[0];
     if (!file) return false;
 
-    ui.showProcessing(`Queuing ${tool.name}…`, 'Uploading your file securely…');
+    ui.showProcessing(`Processing your file…`, 'This usually takes only a few seconds.');
     let job;
     try {
       job = await submitJob(tool, file, options);
@@ -125,12 +125,12 @@
       return true;
     }
 
-    ui.showProcessing(`Processing ${tool.name}…`, 'Your file is being processed. This page will update when it\u2019s ready.');
+    ui.showProcessing(`Processing your file…`, 'Almost done — this page will update when your file is ready.');
     let final;
     try {
       final = await pollUntilDone(job.job_id, (j) => {
         if (j.status === 'processing') {
-          ui.showProcessing(`Processing ${tool.name}…`, 'Converting your file. Hang tight.');
+          ui.showProcessing(`Processing your file…`, 'Almost done — hang tight.');
         }
       });
     } catch (err) {
@@ -145,8 +145,8 @@
       ui.hideProcessing();
       ui.triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(1);
-      ui.showStatus('success', 'File ready for download!',
-        `Press the button if download does not start automatically. <code>${filename.replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</code>`,
+      ui.showStatus('success', 'Your file is ready',
+        `Press the button if download does not start automatically.`,
         URL.createObjectURL(blob), filename);
     } catch (err) {
       ui.hideProcessing();

@@ -205,3 +205,39 @@ silently redirecting to `/` (the original "page reload" bug).
   - Free / anonymous: locked at "High" (~30 % reduction) with a Sign-up CTA.
   - Logged-in / paid: full Low / Medium / High slider mapped to the `level` form field forwarded to the worker / HF Space.
 - **Download Swell + Burst (home.css + tool-page.js)** — the "Download Again" CTA is wrapped in `.dl-pulse` so it gently swells when ready. Click triggers `explodeAt()` which spawns a particle burst before the download fires; respects `prefers-reduced-motion`.
+
+## Frontend / SEO / QA Polish (April 30, 2026)
+
+### Privacy messaging
+- `public/js/queue-client.js` and `public/js/tool-page.js` — All user-facing status text (queue position, "Continuing online…", "File ready for download!", etc.) replaced with neutral copy ("Processing your file…", "Your file is ready"). Backend / worker / queue terminology no longer leaks to the UI.
+- `public/tool.html` — Default processing-overlay copy softened.
+
+### Blog system (35 articles + index)
+- `scripts/blog-data.js` — 35 long-form guides (one per tool). NOT regenerated; treated as source of truth.
+- `scripts/generate-blogs.js` — Rewritten generator. Each post now includes:
+  - Reading-progress bar, breadcrumbs (Home › Blog › Title), trust strip
+  - Sticky right sidebar (TOC + popular tools widget)
+  - Auto-generated TOC with IntersectionObserver active-section highlight
+  - Mid-content + end-of-post CTAs back to the matching tool
+  - Related tools (7) and related blogs (6) at the bottom
+  - JSON-LD: Article + BreadcrumbList + FAQPage
+  - Ad-slot placeholders (top, mid, bottom) ready for AdSense post-approval
+- `scripts/generate-blog-listing.js` — Rewritten `/blog.html`. Featured top-3 cards, live search input, 8 category tabs (All / Organize / Convert / Compress / Edit / Security / AI / Image) with client-side filter via `data-cat` + `data-search` attributes, BreadcrumbList JSON-LD.
+- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync.
+- `public/js/blog-listing.js` (new) — Search + tab filter wiring.
+- `public/css/blog.css` — Full rewrite covering all new components (progress bar, sidebar, TOC, FAQ accordion, related-cards, why-choose grid, featured cards, filter bar, tabs, ad slots, responsive).
+- `public/blog/best-pdf-tools.html` — Hand-written 36th file, preserved (NOT in BLOGS array, generator skips it).
+
+### Tool-page deep SEO content
+- `scripts/generate-tool-content.js` (new) — Builds `public/js/tool-content.js` from `blog-data.js`, exporting `window.TOOL_CONTENT[urlSlug] = { benefits, useCases, faq }` for all 35 tools (105 sections total).
+- `public/js/tool-page.js` — `renderSeoContent()` now injects per-tool **Benefits**, **Common use cases**, and **Why choose ILovePDF** lists, plus a dedicated **Frequently asked questions** accordion. FAQPage JSON-LD is appended to `<head>` per tool render (replacing any previous schema, so single-page navigation stays clean).
+- `public/tool.html` — Loads `tool-content.js` and `blog.css` (FAQ accordion shares blog styles).
+- `public/css/styles.css` — Styles added for `.seo-benefits`, `.seo-usecases`, `.seo-why`, `.tool-faq`.
+
+### Build commands
+```bash
+node scripts/generate-tool-content.js   # → public/js/tool-content.js
+node scripts/generate-blogs.js          # → public/blog/*.html (35 files)
+node scripts/generate-blog-listing.js   # → public/blog.html
+```
+A workflow restart is required after editing `public/tool.html` because `server.js` caches it in memory at startup.

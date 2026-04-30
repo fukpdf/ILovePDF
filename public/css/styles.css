@@ -786,6 +786,35 @@ input, select, textarea { font-family: inherit; }
 }
 .seo-steps li strong { color: var(--text); }
 
+.seo-benefits, .seo-usecases, .seo-why {
+  list-style: disc;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.seo-benefits li, .seo-usecases li, .seo-why li {
+  font-size: .85rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.seo-benefits li strong, .seo-usecases li strong, .seo-why li strong { color: var(--text); }
+
+/* ===== TOOL FAQ (uses .blog-faq-item, but scoped wrapper) ===== */
+.tool-faq {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  max-width: 740px;
+}
+.tool-faq h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+  color: var(--text);
+}
+
 /* ===== PREMIUM BADGE ===== */
 .badge-premium {
   background: linear-gradient(135deg, #fbbf24, #f59e0b);

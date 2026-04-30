@@ -1,6 +1,7 @@
 // scripts/generate-blog-listing.js
-// Builds public/blog.html — a listing page that groups all 35 blog cards
-// by category, using the new design system (home.css + chrome.js).
+// Builds public/blog.html — featured top-3 + live search + category tabs +
+// every blog card rendered (filtered client-side). All 35 blogs are
+// indexed once; tabs/search just toggle visibility — no SPA rebuild.
 //
 // Usage: node scripts/generate-blog-listing.js
 
@@ -14,63 +15,72 @@ const __dirname  = path.dirname(__filename);
 
 const OUT = path.join(__dirname, '..', 'public', 'blog.html');
 
-// Category display order on the listing page.
-const CATEGORY_ORDER = [
-  'Organize PDFs',
-  'Compress & Optimize',
-  'Convert From PDF',
-  'Convert To PDF',
-  'Edit & Annotate',
-  'Security',
-  'Advanced Tools',
-  'Image Tools',
+// User-facing category buckets. The first is "All" (no filter).
+// Each key maps to the blog-data.js `category` values it should show.
+const TABS = [
+  { id: 'all',       label: 'All',         match: () => true },
+  { id: 'organize',  label: 'Organize',    match: (c) => c === 'Organize PDFs' },
+  { id: 'convert',   label: 'Convert',     match: (c) => c === 'Convert From PDF' || c === 'Convert To PDF' },
+  { id: 'compress',  label: 'Compress',    match: (c) => c === 'Compress & Optimize' },
+  { id: 'edit',      label: 'Edit',        match: (c) => c === 'Edit & Annotate' },
+  { id: 'security',  label: 'Security',    match: (c) => c === 'Security' },
+  { id: 'ai',        label: 'AI Tools',    match: (c) => c === 'Advanced Tools' },
+  { id: 'image',     label: 'Image Tools', match: (c) => c === 'Image Tools' },
 ];
+
+// Featured top 3 blogs.
+const FEATURED_SLUGS = ['merge-pdf-guide', 'compress-pdf-guide', 'pdf-to-word-guide'];
 
 function escAttr(s){
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Group blogs by category preserving CATEGORY_ORDER.
-const byCategory = {};
-for (const cat of CATEGORY_ORDER) byCategory[cat] = [];
-for (const b of BLOGS) {
-  if (!byCategory[b.category]) byCategory[b.category] = [];
-  byCategory[b.category].push(b);
+function tabIdFor(category) {
+  for (const t of TABS) {
+    if (t.id === 'all') continue;
+    if (t.match(category)) return t.id;
+  }
+  return 'all';
 }
 
-// Short hook headline & blurb per blog used on the listing card.
 function listingTitle(b){
-  // Use the article H1 if it's reasonably short, else fall back to a tool-name title.
   if (b.title.length <= 75) return b.title;
   return `${b.toolName}: complete guide`;
 }
-function listingBlurb(b){
-  return b.description;
-}
 
-function renderCategorySection(cat){
-  const blogs = byCategory[cat];
-  if (!blogs || !blogs.length) return '';
-  const cards = blogs.map(b => `      <a href="/blog/${b.slug}.html" class="blog-card-v2">
-        <span class="blog-tag">${b.tag}</span>
+// All cards in one flat grid; data-* attributes power filter/search.
+function renderCard(b){
+  const tabs = TABS.filter(t => t.id !== 'all' && t.match(b.category)).map(t => t.id).join(' ');
+  const haystack = `${b.title} ${b.description} ${b.toolName} ${b.tag} ${b.category}`.toLowerCase();
+  return `      <a href="/blog/${b.slug}.html" class="blog-card-v2" data-cat="${tabs}" data-search="${escAttr(haystack)}">
+        <span class="blog-tag"><i data-lucide="${b.icon}" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>${b.tag}</span>
         <h2>${escAttr(listingTitle(b))}</h2>
-        <p>${escAttr(listingBlurb(b))}</p>
+        <p>${escAttr(b.description)}</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
-      </a>`).join('\n');
-  return `    <h3 class="blog-category-label">${cat}</h3>
-    <section class="blog-grid" aria-label="${cat} articles">
-${cards}
-    </section>`;
+      </a>`;
 }
 
-const sections = CATEGORY_ORDER.map(renderCategorySection).join('\n\n');
+const allCardsHtml = BLOGS.map(renderCard).join('\n');
+
+const featured = FEATURED_SLUGS
+  .map(s => BLOGS.find(b => b.slug === s))
+  .filter(Boolean)
+  .slice(0, 3);
+const featuredHtml = featured.map(b => `      <a href="/blog/${b.slug}.html" class="blog-feature-card">
+        <span class="blog-feature-tag"><i data-lucide="${b.icon}" style="width:12px;height:12px;vertical-align:middle;margin-right:5px;"></i>Featured · ${escAttr(b.tag)}</span>
+        <h3>${escAttr(listingTitle(b))}</h3>
+        <p>${escAttr(b.description)}</p>
+        <span class="blog-feature-read">Read article <i data-lucide="arrow-right"></i></span>
+      </a>`).join('\n');
+
+const tabsHtml = TABS.map((t, i) => `        <button type="button" class="blog-tab${i===0?' is-active':''}" data-tab="${t.id}">${t.label}</button>`).join('\n');
 
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ILovePDF Blog — PDF Tips, Guides &amp; Tutorials for 35 Tools</title>
+  <title>ILovePDF Blog — PDF Tips, Guides &amp; Tutorials for ${BLOGS.length} Tools</title>
   <meta name="description" content="The ILovePDF blog: complete tutorials and guides for every free PDF and image tool — merge, split, compress, convert, sign, OCR, AI summarise and more.">
   <meta name="keywords" content="pdf guide, pdf tutorial, merge pdf, compress pdf, convert pdf, sign pdf, ocr pdf, ai pdf summary, free pdf tools, pdf blog">
   <meta name="robots" content="index, follow">
@@ -80,10 +90,18 @@ const html = `<!DOCTYPE html>
   <link rel="apple-touch-icon" href="/favicon.svg">
   <meta name="theme-color" content="#4f46e5">
   <meta property="og:type"        content="website">
-  <meta property="og:title"       content="ILovePDF Blog — Guides for 35 PDF &amp; Image Tools">
+  <meta property="og:title"       content="ILovePDF Blog — Guides for ${BLOGS.length} PDF &amp; Image Tools">
   <meta property="og:description" content="Step-by-step tutorials for every free ILovePDF tool. No signup, no install, no watermark.">
   <meta property="og:url"         content="https://ilovepdf.cyou/blog.html">
   <meta property="og:site_name"   content="ILovePDF">
+  <script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://ilovepdf.cyou/' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://ilovepdf.cyou/blog.html' },
+    ],
+  })}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/home.css">
@@ -102,14 +120,45 @@ const html = `<!DOCTYPE html>
     </div>
   </header>
 
+  <!-- Top banner ad slot -->
+  <div class="ad-slot ad-slot-top" aria-label="Advertisement"></div>
+
   <main class="blog-listing-page">
+
     <section class="blog-listing-hero">
       <span class="blog-eyebrow"><i data-lucide="book-open" style="width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i> Blog</span>
       <h1>PDF Tips, Tutorials &amp; Tool Guides</h1>
       <p>Step-by-step guides for every free ILovePDF tool — ${BLOGS.length} articles covering merging, compressing, converting, editing, OCR, AI summarisation, image work and more.</p>
     </section>
 
-${sections}
+    <!-- Featured -->
+    <section class="blog-featured" aria-label="Featured guides">
+      <div class="blog-section-head">
+        <h2><i data-lucide="star" style="width:16px;height:16px;vertical-align:middle;margin-right:5px;"></i> Featured guides</h2>
+      </div>
+      <div class="blog-feature-grid">
+${featuredHtml}
+      </div>
+    </section>
+
+    <!-- Search + Tabs -->
+    <section class="blog-filter-bar" aria-label="Filter articles">
+      <div class="blog-search">
+        <i data-lucide="search"></i>
+        <input type="search" id="blog-search-input" placeholder="Search ${BLOGS.length} guides…" aria-label="Search guides">
+      </div>
+      <div class="blog-tabs" role="tablist" aria-label="Categories">
+${tabsHtml}
+      </div>
+    </section>
+
+    <!-- All -->
+    <section class="blog-grid" id="blog-all-grid" aria-label="All articles">
+${allCardsHtml}
+    </section>
+
+    <p class="blog-empty" id="blog-empty" hidden>No articles match your search. Try a different keyword or category.</p>
+
   </main>
 
   <footer class="footer">
@@ -154,9 +203,10 @@ ${sections}
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
+  <script src="/js/blog-listing.js" defer></script>
 </body>
 </html>
 `;
 
 fs.writeFileSync(OUT, html, 'utf8');
-console.log(`✅ Wrote ${OUT} (${BLOGS.length} blogs in ${CATEGORY_ORDER.length} categories)`);
+console.log(`✅ Wrote ${OUT} (${BLOGS.length} blogs · ${TABS.length - 1} category tabs · ${featured.length} featured)`);

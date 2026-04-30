@@ -17,6 +17,7 @@
   <meta property="og:description" content="Step-by-step tutorials for every free ILovePDF tool. No signup, no install, no watermark.">
   <meta property="og:url"         content="https://ilovepdf.cyou/blog.html">
   <meta property="og:site_name"   content="ILovePDF">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://ilovepdf.cyou/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://ilovepdf.cyou/blog.html"}]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/home.css">
@@ -35,254 +36,278 @@
     </div>
   </header>
 
+  <!-- Top banner ad slot -->
+  <div class="ad-slot ad-slot-top" aria-label="Advertisement"></div>
+
   <main class="blog-listing-page">
+
     <section class="blog-listing-hero">
       <span class="blog-eyebrow"><i data-lucide="book-open" style="width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i> Blog</span>
       <h1>PDF Tips, Tutorials &amp; Tool Guides</h1>
       <p>Step-by-step guides for every free ILovePDF tool — 35 articles covering merging, compressing, converting, editing, OCR, AI summarisation, image work and more.</p>
     </section>
 
-    <h3 class="blog-category-label">Organize PDFs</h3>
-    <section class="blog-grid" aria-label="Organize PDFs articles">
-      <a href="/blog/merge-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+    <!-- Featured -->
+    <section class="blog-featured" aria-label="Featured guides">
+      <div class="blog-section-head">
+        <h2><i data-lucide="star" style="width:16px;height:16px;vertical-align:middle;margin-right:5px;"></i> Featured guides</h2>
+      </div>
+      <div class="blog-feature-grid">
+      <a href="/blog/merge-pdf-guide.html" class="blog-feature-card">
+        <span class="blog-feature-tag"><i data-lucide="layers" style="width:12px;height:12px;vertical-align:middle;margin-right:5px;"></i>Featured · Tutorial</span>
+        <h3>How to Merge PDF Files Online for Free — Complete Guide</h3>
+        <p>Combine multiple PDF files into one document in seconds. Free, secure, no signup. Our step-by-step Merge PDF guide shows you exactly how.</p>
+        <span class="blog-feature-read">Read article <i data-lucide="arrow-right"></i></span>
+      </a>
+      <a href="/blog/compress-pdf-guide.html" class="blog-feature-card">
+        <span class="blog-feature-tag"><i data-lucide="archive" style="width:12px;height:12px;vertical-align:middle;margin-right:5px;"></i>Featured · Guide</span>
+        <h3>How to Compress PDF Without Losing Quality — Full Guide</h3>
+        <p>Reduce PDF file size by up to 80% without visible quality loss. Free online tool, no signup. Step-by-step compression guide.</p>
+        <span class="blog-feature-read">Read article <i data-lucide="arrow-right"></i></span>
+      </a>
+      <a href="/blog/pdf-to-word-guide.html" class="blog-feature-card">
+        <span class="blog-feature-tag"><i data-lucide="file-text" style="width:12px;height:12px;vertical-align:middle;margin-right:5px;"></i>Featured · Conversion</span>
+        <h3>How to Convert PDF to Word Online for Free — Full Guide</h3>
+        <p>Turn any PDF into a fully editable Microsoft Word .docx document in seconds. Free online converter, no signup, no email required.</p>
+        <span class="blog-feature-read">Read article <i data-lucide="arrow-right"></i></span>
+      </a>
+      </div>
+    </section>
+
+    <!-- Search + Tabs -->
+    <section class="blog-filter-bar" aria-label="Filter articles">
+      <div class="blog-search">
+        <i data-lucide="search"></i>
+        <input type="search" id="blog-search-input" placeholder="Search 35 guides…" aria-label="Search guides">
+      </div>
+      <div class="blog-tabs" role="tablist" aria-label="Categories">
+        <button type="button" class="blog-tab is-active" data-tab="all">All</button>
+        <button type="button" class="blog-tab" data-tab="organize">Organize</button>
+        <button type="button" class="blog-tab" data-tab="convert">Convert</button>
+        <button type="button" class="blog-tab" data-tab="compress">Compress</button>
+        <button type="button" class="blog-tab" data-tab="edit">Edit</button>
+        <button type="button" class="blog-tab" data-tab="security">Security</button>
+        <button type="button" class="blog-tab" data-tab="ai">AI Tools</button>
+        <button type="button" class="blog-tab" data-tab="image">Image Tools</button>
+      </div>
+    </section>
+
+    <!-- All -->
+    <section class="blog-grid" id="blog-all-grid" aria-label="All articles">
+      <a href="/blog/merge-pdf-guide.html" class="blog-card-v2" data-cat="organize" data-search="how to merge pdf files online for free — complete guide combine multiple pdf files into one document in seconds. free, secure, no signup. our step-by-step merge pdf guide shows you exactly how. merge pdf tutorial organize pdfs">
+        <span class="blog-tag"><i data-lucide="layers" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Merge PDF Files Online for Free — Complete Guide</h2>
         <p>Combine multiple PDF files into one document in seconds. Free, secure, no signup. Our step-by-step Merge PDF guide shows you exactly how.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/split-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/split-pdf-guide.html" class="blog-card-v2" data-cat="organize" data-search="how to split a pdf online — extract pages or ranges free split a pdf into separate files or extract specific page ranges in seconds. free, no signup, no software. step-by-step guide. split pdf tutorial organize pdfs">
+        <span class="blog-tag"><i data-lucide="scissors" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Split a PDF Online — Extract Pages or Ranges Free</h2>
         <p>Split a PDF into separate files or extract specific page ranges in seconds. Free, no signup, no software. Step-by-step guide.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/rotate-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/rotate-pdf-guide.html" class="blog-card-v2" data-cat="organize" data-search="how to rotate pdf pages online — free &amp; permanent rotate a single page or every page of a pdf by 90°, 180° or 270° and save the result permanently. free online tool, no signup. rotate pdf tutorial organize pdfs">
+        <span class="blog-tag"><i data-lucide="rotate-cw" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Rotate PDF Pages Online — Free &amp; Permanent</h2>
         <p>Rotate a single page or every page of a PDF by 90°, 180° or 270° and save the result permanently. Free online tool, no signup.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/crop-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/crop-pdf-guide.html" class="blog-card-v2" data-cat="organize" data-search="how to crop a pdf online — trim margins for free crop white margins, black scan borders or unwanted edges from any pdf in seconds. free online tool, no signup needed. crop pdf tutorial organize pdfs">
+        <span class="blog-tag"><i data-lucide="crop" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Crop a PDF Online — Trim Margins for Free</h2>
         <p>Crop white margins, black scan borders or unwanted edges from any PDF in seconds. Free online tool, no signup needed.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/organize-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/organize-pdf-guide.html" class="blog-card-v2" data-cat="organize" data-search="how to reorder pdf pages online — free organize pdf tool reorder, rearrange and reorganise the pages of any pdf in seconds. free online tool, no signup or install required. organize pdf tutorial organize pdfs">
+        <span class="blog-tag"><i data-lucide="list-ordered" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Reorder PDF Pages Online — Free Organize PDF Tool</h2>
         <p>Reorder, rearrange and reorganise the pages of any PDF in seconds. Free online tool, no signup or install required.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Compress & Optimize</h3>
-    <section class="blog-grid" aria-label="Compress & Optimize articles">
-      <a href="/blog/compress-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Guide</span>
+      <a href="/blog/compress-pdf-guide.html" class="blog-card-v2" data-cat="compress" data-search="how to compress pdf without losing quality — full guide reduce pdf file size by up to 80% without visible quality loss. free online tool, no signup. step-by-step compression guide. compress pdf guide compress &amp; optimize">
+        <span class="blog-tag"><i data-lucide="archive" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Guide</span>
         <h2>How to Compress PDF Without Losing Quality — Full Guide</h2>
         <p>Reduce PDF file size by up to 80% without visible quality loss. Free online tool, no signup. Step-by-step compression guide.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Convert From PDF</h3>
-    <section class="blog-grid" aria-label="Convert From PDF articles">
-      <a href="/blog/pdf-to-word-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/pdf-to-word-guide.html" class="blog-card-v2" data-cat="convert" data-search="how to convert pdf to word online for free — full guide turn any pdf into a fully editable microsoft word .docx document in seconds. free online converter, no signup, no email required. pdf to word conversion convert from pdf">
+        <span class="blog-tag"><i data-lucide="file-text" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>How to Convert PDF to Word Online for Free — Full Guide</h2>
         <p>Turn any PDF into a fully editable Microsoft Word .docx document in seconds. Free online converter, no signup, no email required.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/pdf-to-powerpoint-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/pdf-to-powerpoint-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert pdf to powerpoint online free — pdf to pptx guide turn any pdf into editable powerpoint slides (.pptx) in seconds. free converter — no signup, no email, no watermark. pdf to powerpoint conversion convert from pdf">
+        <span class="blog-tag"><i data-lucide="presentation" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert PDF to PowerPoint Online Free — PDF to PPTX Guide</h2>
         <p>Turn any PDF into editable PowerPoint slides (.pptx) in seconds. Free converter — no signup, no email, no watermark.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/pdf-to-excel-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/pdf-to-excel-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert pdf to excel online — free pdf tables to xlsx extract tables from any pdf into an editable excel spreadsheet. free, fast, no signup. perfect for invoices, reports and bank statements. pdf to excel conversion convert from pdf">
+        <span class="blog-tag"><i data-lucide="sheet" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert PDF to Excel Online — Free PDF Tables to XLSX</h2>
         <p>Extract tables from any PDF into an editable Excel spreadsheet. Free, fast, no signup. Perfect for invoices, reports and bank statements.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/pdf-to-jpg-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/pdf-to-jpg-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert pdf to jpg online — free high-quality image export export every pdf page as a high-quality jpg image. choose 150 or 200 dpi. free, no signup, instant download. pdf to jpg conversion convert from pdf">
+        <span class="blog-tag"><i data-lucide="image" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert PDF to JPG Online — Free High-Quality Image Export</h2>
         <p>Export every PDF page as a high-quality JPG image. Choose 150 or 200 DPI. Free, no signup, instant download.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Convert To PDF</h3>
-    <section class="blog-grid" aria-label="Convert To PDF articles">
-      <a href="/blog/word-to-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/word-to-pdf-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert word to pdf online free — docx to pdf guide convert word documents (.doc, .docx) to pdf in seconds. preserve fonts, layout and images. free online tool, no signup. word to pdf conversion convert to pdf">
+        <span class="blog-tag"><i data-lucide="file-text" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert Word to PDF Online Free — DOCX to PDF Guide</h2>
         <p>Convert Word documents (.doc, .docx) to PDF in seconds. Preserve fonts, layout and images. Free online tool, no signup.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/powerpoint-to-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/powerpoint-to-pdf-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert powerpoint to pdf online free — pptx to pdf convert powerpoint presentations (.ppt, .pptx) to clean, shareable pdfs in seconds. free, no signup, no watermark. powerpoint to pdf conversion convert to pdf">
+        <span class="blog-tag"><i data-lucide="presentation" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert PowerPoint to PDF Online Free — PPTX to PDF</h2>
         <p>Convert PowerPoint presentations (.ppt, .pptx) to clean, shareable PDFs in seconds. Free, no signup, no watermark.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/excel-to-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/excel-to-pdf-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert excel to pdf online — free xlsx to pdf guide turn excel spreadsheets (.xls, .xlsx) into clean pdf reports. free online converter — no signup or install required. excel to pdf conversion convert to pdf">
+        <span class="blog-tag"><i data-lucide="sheet" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert Excel to PDF Online — Free XLSX to PDF Guide</h2>
         <p>Turn Excel spreadsheets (.xls, .xlsx) into clean PDF reports. Free online converter — no signup or install required.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/jpg-to-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/jpg-to-pdf-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert jpg to pdf online free — combine images into pdf combine multiple jpg, png or other images into a single pdf document. free, fast, no signup. perfect for receipts, scans and photo books. jpg to pdf conversion convert to pdf">
+        <span class="blog-tag"><i data-lucide="image" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert JPG to PDF Online Free — Combine Images Into PDF</h2>
         <p>Combine multiple JPG, PNG or other images into a single PDF document. Free, fast, no signup. Perfect for receipts, scans and photo books.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/html-to-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Conversion</span>
+      <a href="/blog/html-to-pdf-guide.html" class="blog-card-v2" data-cat="convert" data-search="convert html to pdf online free — render webpages as pdf turn html files into clean, print-ready pdf documents. free online converter for developers and writers. no signup required. html to pdf conversion convert to pdf">
+        <span class="blog-tag"><i data-lucide="code" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Conversion</span>
         <h2>Convert HTML to PDF Online Free — Render Webpages as PDF</h2>
         <p>Turn HTML files into clean, print-ready PDF documents. Free online converter for developers and writers. No signup required.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Edit & Annotate</h3>
-    <section class="blog-grid" aria-label="Edit & Annotate articles">
-      <a href="/blog/edit-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/edit-pdf-guide.html" class="blog-card-v2" data-cat="edit" data-search="how to edit a pdf online free — add text &amp; annotations add text, notes and annotations to any pdf in your browser. free edit pdf tool — no signup, no software, no watermark. edit pdf tutorial edit &amp; annotate">
+        <span class="blog-tag"><i data-lucide="edit-3" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Edit a PDF Online Free — Add Text &amp; Annotations</h2>
         <p>Add text, notes and annotations to any PDF in your browser. Free Edit PDF tool — no signup, no software, no watermark.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/watermark-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/watermark-pdf-guide.html" class="blog-card-v2" data-cat="edit" data-search="how to add a watermark to a pdf online free stamp custom text watermarks (confidential, draft, your name) on every page of a pdf. free, no signup, no install. watermark pdf tutorial edit &amp; annotate">
+        <span class="blog-tag"><i data-lucide="droplet" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Add a Watermark to a PDF Online Free</h2>
         <p>Stamp custom text watermarks (CONFIDENTIAL, DRAFT, your name) on every page of a PDF. Free, no signup, no install.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/sign-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/sign-pdf-guide.html" class="blog-card-v2" data-cat="edit" data-search="how to sign a pdf online for free — digital signature guide add a digital text signature to any pdf in seconds. free sign pdf tool — no signup, no software, no watermark. sign pdf tutorial edit &amp; annotate">
+        <span class="blog-tag"><i data-lucide="pen-tool" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Sign a PDF Online for Free — Digital Signature Guide</h2>
         <p>Add a digital text signature to any PDF in seconds. Free Sign PDF tool — no signup, no software, no watermark.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/add-page-numbers-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/add-page-numbers-guide.html" class="blog-card-v2" data-cat="edit" data-search="how to add page numbers to a pdf online free insert page numbers into any pdf — choose position and starting number. free, no signup, no software install. add page numbers tutorial edit &amp; annotate">
+        <span class="blog-tag"><i data-lucide="hash" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Add Page Numbers to a PDF Online Free</h2>
         <p>Insert page numbers into any PDF — choose position and starting number. Free, no signup, no software install.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/redact-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Security</span>
+      <a href="/blog/redact-pdf-guide.html" class="blog-card-v2" data-cat="edit" data-search="how to redact a pdf online free — black out sensitive info permanently black out sensitive text, names or amounts in any pdf. free, secure, no signup. step-by-step redaction guide. redact pdf security edit &amp; annotate">
+        <span class="blog-tag"><i data-lucide="eye-off" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Security</span>
         <h2>How to Redact a PDF Online Free — Black Out Sensitive Info</h2>
         <p>Permanently black out sensitive text, names or amounts in any PDF. Free, secure, no signup. Step-by-step redaction guide.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Security</h3>
-    <section class="blog-grid" aria-label="Security articles">
-      <a href="/blog/protect-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Security</span>
+      <a href="/blog/protect-pdf-guide.html" class="blog-card-v2" data-cat="security" data-search="how to password-protect a pdf online free — encryption guide encrypt a pdf with a password so only authorised viewers can open it. free, no signup, no install. strong industry-standard encryption. protect pdf security security">
+        <span class="blog-tag"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Security</span>
         <h2>How to Password-Protect a PDF Online Free — Encryption Guide</h2>
         <p>Encrypt a PDF with a password so only authorised viewers can open it. Free, no signup, no install. Strong industry-standard encryption.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/unlock-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Security</span>
+      <a href="/blog/unlock-pdf-guide.html" class="blog-card-v2" data-cat="security" data-search="how to unlock a password-protected pdf online free remove the password from a pdf you own. free unlock pdf tool — no signup, no install, secure in-browser processing. unlock pdf security security">
+        <span class="blog-tag"><i data-lucide="unlock" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Security</span>
         <h2>How to Unlock a Password-Protected PDF Online Free</h2>
         <p>Remove the password from a PDF you own. Free Unlock PDF tool — no signup, no install, secure in-browser processing.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Advanced Tools</h3>
-    <section class="blog-grid" aria-label="Advanced Tools articles">
-      <a href="/blog/repair-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Utility</span>
+      <a href="/blog/repair-pdf-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to repair a corrupted pdf online free recover content from a damaged or unreadable pdf file. free repair pdf tool — no signup, no install, fast in-browser processing. repair pdf utility advanced tools">
+        <span class="blog-tag"><i data-lucide="wrench" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Utility</span>
         <h2>How to Repair a Corrupted PDF Online Free</h2>
         <p>Recover content from a damaged or unreadable PDF file. Free Repair PDF tool — no signup, no install, fast in-browser processing.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/scan-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Tutorial</span>
+      <a href="/blog/scan-pdf-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to scan to pdf online — convert image scans to pdf turn phone photos or scanner images into a clean searchable pdf document. free, fast, no signup. step-by-step scan-to-pdf guide. scan to pdf tutorial advanced tools">
+        <span class="blog-tag"><i data-lucide="scan-line" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Tutorial</span>
         <h2>How to Scan to PDF Online — Convert Image Scans to PDF</h2>
         <p>Turn phone photos or scanner images into a clean searchable PDF document. Free, fast, no signup. Step-by-step scan-to-PDF guide.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/ocr-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">AI</span>
+      <a href="/blog/ocr-pdf-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to ocr a pdf online free — make scanned pdfs searchable run ocr on any scanned pdf to extract searchable, copyable text. free ai-powered ocr — no signup, no install, no watermark. ocr pdf ai advanced tools">
+        <span class="blog-tag"><i data-lucide="type" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>AI</span>
         <h2>How to OCR a PDF Online Free — Make Scanned PDFs Searchable</h2>
         <p>Run OCR on any scanned PDF to extract searchable, copyable text. Free AI-powered OCR — no signup, no install, no watermark.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/compare-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Utility</span>
+      <a href="/blog/compare-pdf-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to compare two pdfs online — find differences free compare two pdf files side-by-side and highlight differences. free, fast, no signup. perfect for contract revisions and document audits. compare pdf utility advanced tools">
+        <span class="blog-tag"><i data-lucide="columns" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Utility</span>
         <h2>How to Compare Two PDFs Online — Find Differences Free</h2>
         <p>Compare two PDF files side-by-side and highlight differences. Free, fast, no signup. Perfect for contract revisions and document audits.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/ai-summarizer-guide.html" class="blog-card-v2">
-        <span class="blog-tag">AI</span>
+      <a href="/blog/ai-summarizer-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to summarize a pdf with ai — free online summary tool turn a 100-page pdf into a clear executive summary in seconds with ai. free, no signup, no install — choose your summary length. ai summarizer ai advanced tools">
+        <span class="blog-tag"><i data-lucide="sparkles" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>AI</span>
         <h2>How to Summarize a PDF with AI — Free Online Summary Tool</h2>
         <p>Turn a 100-page PDF into a clear executive summary in seconds with AI. Free, no signup, no install — choose your summary length.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/translate-pdf-guide.html" class="blog-card-v2">
-        <span class="blog-tag">AI</span>
+      <a href="/blog/translate-pdf-guide.html" class="blog-card-v2" data-cat="ai" data-search="how to translate a pdf online — free ai translation tool translate pdfs into spanish, french, german, chinese, japanese and more. free ai translator — no signup, fast, accurate. translate pdf ai advanced tools">
+        <span class="blog-tag"><i data-lucide="languages" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>AI</span>
         <h2>How to Translate a PDF Online — Free AI Translation Tool</h2>
         <p>Translate PDFs into Spanish, French, German, Chinese, Japanese and more. Free AI translator — no signup, fast, accurate.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/workflow-builder-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Utility</span>
+      <a href="/blog/workflow-builder-guide.html" class="blog-card-v2" data-cat="ai" data-search="pdf workflow builder — chain multiple operations in one pass compress, watermark and add page numbers to a pdf in a single click. free workflow builder — chain up to 3 pdf operations. workflow builder utility advanced tools">
+        <span class="blog-tag"><i data-lucide="git-branch" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Utility</span>
         <h2>PDF Workflow Builder — Chain Multiple Operations in One Pass</h2>
         <p>Compress, watermark and add page numbers to a PDF in a single click. Free Workflow Builder — chain up to 3 PDF operations.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/numbers-to-words-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Utility</span>
+      <a href="/blog/numbers-to-words-guide.html" class="blog-card-v2" data-cat="ai" data-search="numbers to words converter — free online number spelling convert any number into written words or currency text instantly. perfect for cheques, contracts, and invoices. free, no signup. numbers to words utility advanced tools">
+        <span class="blog-tag"><i data-lucide="hash" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Utility</span>
         <h2>Numbers to Words Converter — Free Online Number Spelling</h2>
         <p>Convert any number into written words or currency text instantly. Perfect for cheques, contracts, and invoices. Free, no signup.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/currency-converter-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Utility</span>
+      <a href="/blog/currency-converter-guide.html" class="blog-card-v2" data-cat="ai" data-search="free online currency converter — live rates for 160+ currencies convert between 160+ world currencies using live exchange rates. free, fast, no signup or registration required. currency converter utility advanced tools">
+        <span class="blog-tag"><i data-lucide="dollar-sign" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Utility</span>
         <h2>Free Online Currency Converter — Live Rates for 160+ Currencies</h2>
         <p>Convert between 160+ world currencies using live exchange rates. Free, fast, no signup or registration required.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-    </section>
-
-    <h3 class="blog-category-label">Image Tools</h3>
-    <section class="blog-grid" aria-label="Image Tools articles">
-      <a href="/blog/background-remover-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Image Tools</span>
+      <a href="/blog/background-remover-guide.html" class="blog-card-v2" data-cat="image" data-search="remove image backgrounds online free — background remover guide get a clean, transparent background on any product photo, portrait or logo in seconds. free ai background remover — no signup. background remover image tools image tools">
+        <span class="blog-tag"><i data-lucide="image-minus" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Image Tools</span>
         <h2>Remove Image Backgrounds Online Free — Background Remover Guide</h2>
         <p>Get a clean, transparent background on any product photo, portrait or logo in seconds. Free AI background remover — no signup.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/crop-image-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Image Tools</span>
+      <a href="/blog/crop-image-guide.html" class="blog-card-v2" data-cat="image" data-search="how to crop an image online free — precise image cropping crop any image to exact percentage offsets. perfect for social media, profile photos and product shots. free, no signup. crop image image tools image tools">
+        <span class="blog-tag"><i data-lucide="crop" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Image Tools</span>
         <h2>How to Crop an Image Online Free — Precise Image Cropping</h2>
         <p>Crop any image to exact percentage offsets. Perfect for social media, profile photos and product shots. Free, no signup.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/resize-image-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Image Tools</span>
+      <a href="/blog/resize-image-guide.html" class="blog-card-v2" data-cat="image" data-search="how to resize an image online — free resize tool with presets resize images to 1:1, 16:9, a4, hd or any custom size. perfect for social, print and web. free, no signup, instant download. image resize image tools image tools">
+        <span class="blog-tag"><i data-lucide="maximize-2" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Image Tools</span>
         <h2>How to Resize an Image Online — Free Resize Tool with Presets</h2>
         <p>Resize images to 1:1, 16:9, A4, HD or any custom size. Perfect for social, print and web. Free, no signup, instant download.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
-      <a href="/blog/image-filters-guide.html" class="blog-card-v2">
-        <span class="blog-tag">Image Tools</span>
+      <a href="/blog/image-filters-guide.html" class="blog-card-v2" data-cat="image" data-search="apply free image filters online — grayscale, sepia, blur &amp; more apply grayscale, sepia, blur, brightness, contrast, sharpen and invert filters to any image. free, fast, no signup needed. image filters image tools image tools">
+        <span class="blog-tag"><i data-lucide="sliders" style="width:11px;height:11px;vertical-align:middle;margin-right:4px;"></i>Image Tools</span>
         <h2>Apply Free Image Filters Online — Grayscale, Sepia, Blur &amp; More</h2>
         <p>Apply grayscale, sepia, blur, brightness, contrast, sharpen and invert filters to any image. Free, fast, no signup needed.</p>
         <span class="blog-read">Read article <i data-lucide="arrow-right"></i></span>
       </a>
     </section>
+
+    <p class="blog-empty" id="blog-empty" hidden>No articles match your search. Try a different keyword or category.</p>
+
   </main>
 
   <footer class="footer">
@@ -327,5 +352,6 @@
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
+  <script src="/js/blog-listing.js" defer></script>
 </body>
 </html>

@@ -150,8 +150,8 @@ function setMetaForStep(step) {
     document.title = `Preview & Process — ${name} | ILovePDF`;
     setMeta('description', `Review your file and run ${name}. Free online tool by ILovePDF — no signup required.`);
   } else if (step === 'download') {
-    document.title = `Download ${name} Result | ILovePDF`;
-    setMeta('description', `Your ${name} result is ready to download from ILovePDF — files are deleted automatically.`);
+    document.title = `Your file is ready — ${name} | ILovePDF`;
+    setMeta('description', `Your file is ready. Files are deleted automatically — free online ${name} by ILovePDF.`);
   } else {
     document.title = `${name} Online Free — ILovePDF`;
     setMeta('description', `Free online ${name} tool. ${currentTool.description}. No signup required — fast, secure, and free on ILovePDF.`);
@@ -637,8 +637,8 @@ function renderDownloadStep(tool) {
   container.innerHTML = `
     <div class="tool-page">
       ${toolHeaderBlock(tool, {
-        heading: `Your ${tool.name} result is ready`,
-        desc: `Files are deleted automatically — download below or process another file.`,
+        heading: `Your file is ready`,
+        desc: `Files are deleted automatically — download below or try another tool.`,
         icon: 'check-circle-2',
         hideStatus: true,
         back: { href: '/', label: 'All Tools' },
@@ -653,7 +653,10 @@ function renderDownloadStep(tool) {
             <i data-lucide="rotate-ccw"></i> Process another file
           </a>
           <a href="/" class="btn btn-outline">
-            <i data-lucide="home"></i> Back to all tools
+            <i data-lucide="grid-3x3"></i> Try another tool
+          </a>
+          <a href="/blog.html" class="btn btn-outline">
+            <i data-lucide="book-open"></i> Read guides
           </a>
         </div>
       </section>
@@ -960,7 +963,7 @@ async function processFile() {
         showStatus('error', 'No pages selected', 'Please keep at least one page before processing.');
         return;
       }
-      showProcessing('Preparing your edits…', 'Applying page order, rotations, and deletions before processing.');
+      showProcessing('Processing your file…', 'Just a moment.');
       const { file: editedFile } = await pageOrganizer.getEditedPdf();
       if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
       selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
@@ -999,7 +1002,7 @@ async function processFile() {
     if (lvl) formData.append('level', lvl);
   }
 
-  showProcessing(`Processing ${currentTool.name}…`, 'Your file is being processed securely. This usually takes only a few seconds.');
+  showProcessing(`Processing your file…`, 'This usually takes only a few seconds.');
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
 
@@ -1051,8 +1054,8 @@ async function processFile() {
       hideProcessing();
       triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
-      showStatus('success', 'File ready!',
-        `Processed locally in your browser — your file downloaded as <code>${escapeHtml(filename)}</code>.`,
+      showStatus('success', 'Your file is ready',
+        `Press the button if download does not start automatically.`,
         URL.createObjectURL(blob), filename);
       return;
     } catch (err) {
@@ -1061,7 +1064,7 @@ async function processFile() {
       if (processBtn) processBtn.disabled = false;
     }
     if (processBtn) processBtn.disabled = true;
-    showProcessing(`Processing ${currentTool.name}…`, 'Continuing online…');
+    showProcessing(`Processing your file…`, 'Almost done — just a moment.');
   }
 
   try {
@@ -1113,8 +1116,8 @@ async function processFile() {
       const filename = brandedFilename(selectedFiles[0].file.name, ext);
       hideProcessing();
       triggerDownload(blob, filename);
-      showStatus('success', 'File ready for download!',
-        `Press the button if download does not start automatically. <code>${escapeHtml(filename)}</code>`,
+      showStatus('success', 'Your file is ready',
+        `Press the button if download does not start automatically.`,
         URL.createObjectURL(blob), filename);
       return;
     }
@@ -1124,7 +1127,7 @@ async function processFile() {
     if (json.text)    { showTextResult(json.text, 'Extracted Text');    return; }
     if (json.summary) { showTextResult(json.summary, 'Summary');        return; }
     if (json.report)  { showReport(json.report);                        return; }
-    showStatus('success', 'Done!', json.message || 'Processing complete.');
+    showStatus('success', 'Your file is ready', json.message || 'All done.');
   } catch (err) {
     hideProcessing();
     showStatus('error', 'Please try again',
@@ -1361,21 +1364,79 @@ function renderSeoContent(tool) {
   const kw = catDesc[tool.category] || 'work with PDF and document files';
   const isImage = tool.group === 'image';
   const fileType = isImage ? 'image' : 'PDF';
+
+  // Per-tool deep content (benefits / use cases / FAQ) generated from
+  // scripts/blog-data.js. Optional — only renders when present.
+  // tool.id is the internal id (e.g. 'merge'); the content map is keyed by
+  // URL slug (e.g. 'merge-pdf') — TOOL_ID_TO_BLOG_SLUG bridges them.
+  const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
+  const extra = (window.TOOL_CONTENT && window.TOOL_CONTENT[slug]) || null;
+
+  const benefitsBlock = extra ? `
+      <h3>Benefits of ${escapeHtml(tool.name)}</h3>
+      <ul class="seo-benefits">
+        ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\n        ')}
+      </ul>` : '';
+
+  const useCasesBlock = extra ? `
+      <h3>Common use cases</h3>
+      <ul class="seo-usecases">
+        ${extra.useCases.map(uc => `<li><strong>${escapeHtml(uc.audience)}:</strong> ${uc.body}</li>`).join('\n        ')}
+      </ul>` : '';
+
   return `
     <div class="seo-content">
       <h2>${tool.name} Online — Free, Fast &amp; Secure</h2>
       <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, directly in your browser. No software to download, no account to create, no hidden fees.</p>
       <p>Drag and drop your ${fileType} onto the upload area or click to browse. Files up to 100&nbsp;MB are supported. Once processing is complete, the file is deleted from our servers automatically — usually within seconds.</p>
-      <h3>How to Use ${tool.name} on ILovePDF</h3>
+      <h3>How ${tool.name} works</h3>
       <ol class="seo-steps">
         <li><strong>Upload your file</strong> — drag &amp; drop or click the upload area.</li>
-        <li><strong>Reorder &amp; rotate</strong> — drag thumbnails to reorder, click rotate to adjust orientation.</li>
-        <li><strong>Set options</strong> — configure any tool-specific settings.</li>
-        <li><strong>Process &amp; download</strong> — your result downloads as <code>ILovePDF-[your-file-name]</code>.</li>
+        <li><strong>Preview &amp; configure</strong> — review your file and adjust any options.</li>
+        <li><strong>Process</strong> — click the Process button and wait a few seconds.</li>
+        <li><strong>Download</strong> — your file is ready instantly. We delete it shortly after.</li>
       </ol>
-      <h3>Why Choose ILovePDF?</h3>
-      <p>ILovePDF was built for people who need to ${kw} without installing software or paying for a subscription. With ${TOOLS.length} tools covering merging, compressing, AI summarisation and background removal, it's the only PDF toolkit you'll ever need.</p>
-    </div>`;
+      ${benefitsBlock}
+      ${useCasesBlock}
+      <h3>Why choose ILovePDF?</h3>
+      <ul class="seo-why">
+        <li><strong>Fast.</strong> Most files are processed in seconds.</li>
+        <li><strong>Free.</strong> No watermark, no daily cap, no signup needed for files under 100&nbsp;MB.</li>
+        <li><strong>Secure.</strong> HTTPS uploads and automatic deletion within 10 minutes.</li>
+        <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
+      </ul>
+    </div>
+    ${extra && extra.faq && extra.faq.length ? renderToolFaq(tool, extra.faq) : ''}`;
+}
+
+function renderToolFaq(tool, faq) {
+  const items = faq.map(f => `
+      <details class="blog-faq-item">
+        <summary>${escapeHtml(f.q)}</summary>
+        <div class="blog-faq-answer"><p>${f.a}</p></div>
+      </details>`).join('');
+  // Inject FAQ JSON-LD too — small SEO boost.
+  const ld = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: String(f.a).replace(/<[^>]+>/g, '') },
+    })),
+  });
+  // Append the schema once per tool render; remove any previous one.
+  document.querySelectorAll('script[data-tool-faq-ld]').forEach(s => s.remove());
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.setAttribute('data-tool-faq-ld', '1');
+  script.textContent = ld;
+  document.head.appendChild(script);
+  return `
+    <section class="tool-faq" aria-label="Frequently asked questions">
+      <h2>Frequently asked questions about ${escapeHtml(tool.name)}</h2>
+      <div class="blog-faq-list">${items}</div>
+    </section>`;
 }
 
 function escapeHtml(str) {
