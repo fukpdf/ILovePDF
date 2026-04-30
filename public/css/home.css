@@ -1190,6 +1190,10 @@ img, canvas, video, iframe { max-width: 100%; }
 }
 .about-contact h2{margin:0 0 6px;font-size:1.25rem;font-weight:800;letter-spacing:-.01em}
 .about-contact p{margin:0 0 12px;color:var(--text-soft);font-size:.9rem}
+.about-contact .contact-lede{
+  margin:0 0 6px;color:var(--text);font-size:.95rem;font-weight:600;line-height:1.5;
+}
+.about-contact .contact-sub{margin:0 0 12px;color:var(--text-soft);font-size:.88rem;line-height:1.5}
 .contact-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
 .contact-list li{
   display:flex;align-items:center;gap:10px;
@@ -1275,6 +1279,11 @@ img, canvas, video, iframe { max-width: 100%; }
 .cf-row input:invalid:not(:placeholder-shown),
 .cf-row textarea:invalid:not(:placeholder-shown){
   border-color:#e57373;
+  box-shadow:0 0 0 3px rgba(229,115,115,.15);
+}
+.cf-row input:focus:invalid:not(:placeholder-shown),
+.cf-row textarea:focus:invalid:not(:placeholder-shown){
+  box-shadow:0 0 0 3px rgba(229,115,115,.28);
 }
 
 .cf-btn{

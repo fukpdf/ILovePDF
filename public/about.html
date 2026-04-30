@@ -80,7 +80,8 @@
 
     <section class="about-contact" id="contact" aria-labelledby="contact-h">
       <h2 id="contact-h">Contact</h2>
-      <p>Got feedback, a bug report, or a partnership idea? Email us directly, or send a message using the form under each option.</p>
+      <p class="contact-lede">Contact ILovePDF for support, bug reports, or partnership inquiries. We respond quickly and help resolve PDF tool issues efficiently.</p>
+      <p class="contact-sub">Email us directly using the addresses below, or send a message with the form under each option. We usually reply within 24 hours.</p>
 
       <div class="contact-cards">
 
@@ -96,7 +97,7 @@
           <details class="cc-toggle">
             <summary>Or send a message <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
             <form class="contact-form" data-formspree="YOUR_SUPPORT_FORM_ID" novalidate>
-              <input type="hidden" name="_subject" value="ILovePDF — Support request">
+              <input type="hidden" name="_subject" value="Support Request - ILovePDF">
               <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
               <div class="cf-row">
                 <label for="sup-name">Your name</label>
@@ -131,7 +132,7 @@
           <details class="cc-toggle">
             <summary>Or send a bug report <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
             <form class="contact-form" data-formspree="YOUR_BUGS_FORM_ID" novalidate>
-              <input type="hidden" name="_subject" value="ILovePDF — Bug report">
+              <input type="hidden" name="_subject" value="Bug Report - ILovePDF">
               <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
               <div class="cf-row">
                 <label for="bug-name">Your name</label>
@@ -170,7 +171,7 @@
           <details class="cc-toggle">
             <summary>Or pitch a partnership <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
             <form class="contact-form" data-formspree="YOUR_PARTNERS_FORM_ID" novalidate>
-              <input type="hidden" name="_subject" value="ILovePDF — Partnership inquiry">
+              <input type="hidden" name="_subject" value="Partnership Inquiry - ILovePDF">
               <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
               <div class="cf-row">
                 <label for="par-name">Your name</label>
@@ -244,9 +245,57 @@
   <script src="/js/chrome.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
 
-  <!-- Contact-form AJAX (Formspree). Lightweight, no dependencies. -->
+  <!-- Contact-form AJAX (Formspree). Lightweight, zero dependencies. -->
   <script>
   (function () {
+    var COOLDOWN_MS    = 8000; // anti-spam: 8 s lockout after a successful send
+    var MIN_FILL_MS    = 1500; // bot-style instant fills are ignored
+    var SUCCESS_TEXT   = 'Thanks! Your message was sent. We usually reply within 24 hours.';
+    var lastSubmitAt   = 0;
+
+    // Stamp the time each form was opened, to catch instant bot submissions.
+    document.addEventListener('DOMContentLoaded', function () {
+      var forms = document.querySelectorAll('.contact-form');
+      Array.prototype.forEach.call(forms, function (f) { f.dataset.openedAt = Date.now(); });
+      // Also stamp when a <details> is expanded — gives a fresh "fill window".
+      var toggles = document.querySelectorAll('.cc-toggle');
+      Array.prototype.forEach.call(toggles, function (d) {
+        d.addEventListener('toggle', function () {
+          if (!d.open) return;
+          var f = d.querySelector('.contact-form');
+          if (f) f.dataset.openedAt = Date.now();
+        });
+      });
+    });
+
+    function setStatus(el, text, kind) {
+      el.textContent = text;
+      el.className = 'cf-status' + (kind ? ' is-' + kind : '');
+    }
+
+    function startCooldown(form, btn, txt, load) {
+      var seconds = Math.ceil(COOLDOWN_MS / 1000);
+      btn.disabled = true;
+      txt.hidden = true;
+      load.hidden = false;
+      // Reuse the loading slot to show a countdown so users know why it's locked.
+      var loadIcon = load.querySelector('svg');
+      var origHTML = load.innerHTML;
+      var tick = function () {
+        load.innerHTML = '<span aria-hidden="true">⏱</span> Please wait ' + seconds + 's…';
+        if (--seconds < 0) {
+          clearInterval(timer);
+          load.innerHTML = origHTML;
+          load.hidden = true;
+          txt.hidden  = false;
+          btn.disabled = false;
+          if (loadIcon && window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+        }
+      };
+      tick();
+      var timer = setInterval(tick, 1000);
+    }
+
     document.addEventListener('submit', async function (ev) {
       var form = ev.target;
       if (!form.matches || !form.matches('.contact-form')) return;
@@ -257,15 +306,30 @@
       var txt    = form.querySelector('.cf-btn-text');
       var load   = form.querySelector('.cf-btn-loading');
 
-      // HTML5 validation
+      // Block double-clicks while a submit is in flight.
+      if (btn.disabled) return;
+
+      // Per-page submit cooldown (across all 3 forms).
+      var sinceLast = Date.now() - lastSubmitAt;
+      if (lastSubmitAt && sinceLast < COOLDOWN_MS) {
+        setStatus(status, 'Please wait a few seconds before sending another message.', 'info');
+        return;
+      }
+
+      // HTML5 validation (focuses the first invalid field automatically).
       if (!form.checkValidity()) {
         form.reportValidity();
         return;
       }
-      // Honeypot — silently drop bots
+
+      // Honeypot — silently drop bots.
       if (form.elements['_gotcha'] && form.elements['_gotcha'].value) return;
+      // Time-trap: if the form was filled & submitted in <1.5 s, it's a bot.
+      var openedAt = parseInt(form.dataset.openedAt || '0', 10);
+      if (openedAt && (Date.now() - openedAt) < MIN_FILL_MS) return;
 
       var id = form.getAttribute('data-formspree') || '';
+
       // Until the owner pastes a real Formspree ID, fall back to mailto.
       if (!id || id.indexOf('YOUR_') === 0) {
         var emailLink = form.closest('.contact-card').querySelector('.cc-email');
@@ -274,22 +338,21 @@
         var body = '';
         Array.prototype.forEach.call(form.elements, function (el) {
           if (!el.name || el.name.charAt(0) === '_' || el.type === 'hidden' || el.type === 'submit') return;
-          body += el.labels && el.labels[0] ? el.labels[0].textContent.trim() + ': ' : el.name + ': ';
-          body += (el.value || '') + '\n\n';
+          var lbl = (el.labels && el.labels[0]) ? el.labels[0].textContent.trim() : el.name;
+          body += lbl + ': ' + (el.value || '') + '\n\n';
         });
         window.location.href = 'mailto:' + to
           + '?subject=' + encodeURIComponent(subject)
           + '&body='    + encodeURIComponent(body);
-        status.textContent = 'Opening your email app…';
-        status.className = 'cf-status is-info';
+        setStatus(status, 'Opening your email app…', 'info');
         return;
       }
 
+      // Loading state.
       btn.disabled = true;
       txt.hidden = true;
       load.hidden = false;
-      status.textContent = '';
-      status.className = 'cf-status';
+      setStatus(status, '', '');
 
       try {
         var res = await fetch('https://formspree.io/f/' + id, {
@@ -298,25 +361,38 @@
           body:    new FormData(form),
         });
         if (res.ok) {
-          status.textContent = 'Thanks! Your message was sent — we\u2019ll reply soon.';
-          status.className = 'cf-status is-ok';
+          lastSubmitAt = Date.now();
+          setStatus(status, SUCCESS_TEXT, 'ok');
           form.reset();
+          form.dataset.openedAt = Date.now();
+          // On mobile, scroll the success message into view above the keyboard.
+          if (window.innerWidth < 768 && status.scrollIntoView) {
+            status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          startCooldown(form, btn, txt, load);
         } else {
           var data = null;
           try { data = await res.json(); } catch (_) {}
           var msg = (data && data.errors && data.errors[0] && data.errors[0].message)
                   || 'Something went wrong. Please email us directly instead.';
-          status.textContent = msg;
-          status.className = 'cf-status is-err';
+          setStatus(status, msg, 'err');
+          btn.disabled = false; txt.hidden = false; load.hidden = true;
         }
       } catch (_) {
-        status.textContent = 'Network error. Please email us directly instead.';
-        status.className = 'cf-status is-err';
-      } finally {
-        btn.disabled = false;
-        txt.hidden = false;
-        load.hidden = true;
+        setStatus(status, 'Network error. Please email us directly instead.', 'err');
+        btn.disabled = false; txt.hidden = false; load.hidden = true;
       }
+    });
+
+    // Mobile-keyboard fix: when an input gains focus, scroll it into view above
+    // the on-screen keyboard so the user can always see what they're typing.
+    document.addEventListener('focusin', function (ev) {
+      var el = ev.target;
+      if (!el.matches || !el.matches('.contact-form input, .contact-form textarea')) return;
+      if (window.innerWidth >= 768) return;
+      setTimeout(function () {
+        if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
     });
   })();
   </script>
