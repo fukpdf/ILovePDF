@@ -1674,10 +1674,14 @@ body.mo-lock{ overflow:hidden;touch-action:none }
    HEADER — full inline nav + search bar (desktop) / icon (mobile)
    ============================================================ */
 
-/* Search container: always pushed to the right end of the nav */
-.header-search{position:relative;flex:none;max-width:none;margin-left:auto;flex-shrink:0;display:flex;align-items:center}
+/* Search container: pushed to right end of nav on all viewports */
+.header-search{
+  position:relative;flex:none;max-width:none;
+  margin-left:auto;flex-shrink:0;
+  display:flex;align-items:center;
+}
 
-/* Desktop: full search bar visible; mobile search icon hidden */
+/* Desktop default: full search bar visible, mobile icon hidden */
 .hs-bar{display:flex;align-items:center;gap:6px}
 .hs-mob-btn{
   display:none;width:40px;height:40px;border-radius:10px;padding:0;
@@ -1688,16 +1692,48 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 .hs-mob-btn:hover{background:var(--border)}
 .hs-mob-btn svg{width:18px;height:18px}
 
-/* Mobile header (<1024px): center brand, search icon only on right */
+/* ============================================================
+   MOBILE HEADER — strict override for <1024px
+   Brand centered, all nav hidden, search icon on right only.
+   Uses .site-header .X selectors to match the specificity of
+   the desktop overrides defined earlier in this file.
+   ============================================================ */
 @media (max-width:1023.98px){
-  .header-inner{justify-content:center;position:relative}
-  .nav{
-    flex:0 0 auto;margin:0;
-    position:absolute;right:clamp(12px,3vw,40px);
-    top:50%;transform:translateY(-50%);
+
+  /* 1 — Center the logo/brand */
+  .site-header .header-inner{
+    justify-content:center!important;
+    position:relative!important;
   }
-  .nav-direct{display:none}
-  .nav-item{display:none!important}
-  .hs-bar{display:none}
-  .hs-mob-btn{display:inline-flex}
+
+  /* 2 — Keep the nav in the DOM but absolutely pin it to the right
+          so it does NOT push the brand off-centre */
+  .site-header .nav{
+    position:absolute!important;
+    right:clamp(12px,3vw,40px)!important;
+    top:50%!important;
+    transform:translateY(-50%)!important;
+    flex:0 0 auto!important;
+    margin:0!important;
+    display:flex!important;
+    gap:0!important;
+  }
+
+  /* 3 — Hide every nav link and dropdown trigger */
+  .nav-direct,
+  .nav-item,
+  .nav-item.has-dd,
+  .nav-item.has-mega{
+    display:none!important;
+  }
+
+  /* 4 — Hide full search bar; show icon button */
+  .hs-bar{display:none!important}
+  .hs-mob-btn{display:inline-flex!important}
+
+  /* 5 — Keep header-search itself visible even if an older rule hid it */
+  .site-header .header-search{
+    display:flex!important;
+    flex:none!important;
+  }
 }
