@@ -225,6 +225,23 @@ function renderTrustStrip(){
     </ul>`;
 }
 
+function renderFeedback(blog){
+  // Lightweight client-side widget. JS lives in /js/blog-article.js and
+  // is keyed by blog slug so each guide tracks its own vote in localStorage.
+  return `<section class="blog-feedback" data-feedback-slug="${escAttr(blog.slug)}" aria-labelledby="fb-h-${escAttr(blog.slug)}">
+      <h3 id="fb-h-${escAttr(blog.slug)}" class="blog-feedback-title">Was this guide helpful?</h3>
+      <div class="blog-feedback-actions" role="group" aria-label="Feedback">
+        <button type="button" class="fb-btn" data-vote="yes" aria-label="Yes, this guide was helpful">
+          <span aria-hidden="true">👍</span> Yes
+        </button>
+        <button type="button" class="fb-btn" data-vote="no" aria-label="No, this guide was not helpful">
+          <span aria-hidden="true">👎</span> No
+        </button>
+      </div>
+      <p class="blog-feedback-msg" role="status" aria-live="polite"></p>
+    </section>`;
+}
+
 function renderWhyChoose(){
   return `<aside class="blog-why-choose" aria-label="Why choose ILovePDF">
       <h2>Why choose ILovePDF</h2>
@@ -405,6 +422,8 @@ function renderHtml(b){
       </aside>
 
     </div>
+
+    ${renderFeedback(b)}
 
     <section id="related-tools">
       ${renderRelatedTools(b)}

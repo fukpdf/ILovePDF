@@ -223,7 +223,7 @@ silently redirecting to `/` (the original "page reload" bug).
   - JSON-LD: Article + BreadcrumbList + FAQPage
   - Ad-slot placeholders (top, mid, bottom) ready for AdSense post-approval
 - `scripts/generate-blog-listing.js` — Rewritten `/blog.html`. Featured top-3 cards, live search input, 8 category tabs (All / Organize / Convert / Compress / Edit / Security / AI / Image) with client-side filter via `data-cat` + `data-search` attributes, BreadcrumbList JSON-LD.
-- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync.
+- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync + "Was this guide helpful?" feedback widget (localStorage-based, optional Formspree POST via `window.FEEDBACK_FORMSPREE_ID`).
 - `public/js/blog-listing.js` (new) — Search + tab filter wiring.
 - `public/css/blog.css` — Full rewrite covering all new components (progress bar, sidebar, TOC, FAQ accordion, related-cards, why-choose grid, featured cards, filter bar, tabs, ad slots, responsive).
 - `public/blog/best-pdf-tools.html` — Hand-written 36th file, preserved (NOT in BLOGS array, generator skips it).

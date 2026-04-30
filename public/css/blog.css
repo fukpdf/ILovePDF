@@ -296,6 +296,82 @@
   margin: -2px 0 18px;
 }
 
+/* ── "Was this guide helpful?" feedback widget ───────────── */
+.blog-feedback {
+  margin: 40px auto 0;
+  max-width: 720px;
+  padding: 18px 22px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  text-align: center;
+}
+.blog-feedback-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+.blog-feedback-actions {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.fb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 96px;
+  min-height: 42px;
+  padding: 8px 18px;
+  font: inherit;
+  font-size: .92rem;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  background: #f8fafc;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease,
+              color .15s ease, transform .1s ease;
+}
+.fb-btn:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--primary, #E5322E);
+  color: var(--primary, #E5322E);
+}
+.fb-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(229, 50, 46, .25);
+  border-color: var(--primary, #E5322E);
+}
+.fb-btn:active:not(:disabled) { transform: translateY(1px); }
+.fb-btn:disabled { cursor: default; opacity: .55; }
+.fb-btn.is-selected {
+  background: var(--primary, #E5322E);
+  border-color: var(--primary, #E5322E);
+  color: #fff;
+  opacity: 1;
+}
+.blog-feedback-msg {
+  margin: 10px 0 0;
+  min-height: 1.2em;
+  font-size: .85rem;
+  color: #1e7d3a;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.blog-feedback-msg.is-shown { opacity: 1; }
+@media (max-width: 480px) {
+  .blog-feedback { padding: 16px; }
+  .fb-btn { flex: 1 1 calc(50% - 5px); justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-btn, .blog-feedback-msg { transition: none; }
+}
+
 /* ── Related Tools (cards) ─────────────────────────────────── */
 .blog-related-tools {
   margin-top: 56px;
