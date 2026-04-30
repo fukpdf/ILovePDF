@@ -218,6 +218,7 @@ silently redirecting to `/` (the original "page reload" bug).
 - **Compress PDF (tool-page.js + page-organizer.js + home.css)** — `compress` is removed from `PAGE_LEVEL_TOOLS`; tool-page.js renders a custom **single-page thumbnail preview** for the uploaded PDF. Tier-aware compression options:
   - Free / anonymous: locked at "High" (~30 % reduction) with a Sign-up CTA.
   - Logged-in / paid: full Low / Medium / High slider mapped to the `level` form field forwarded to the worker / HF Space.
+  - **"Try advanced compression" CTA (2026-04):** appended to the result card after a successful browser-side compress (`appendCompressAdvancedLink()` in tool-page.js). Click temporarily flips `BrowserTools.supports('compress')` to `false` and re-runs `processFile()` so the dispatcher falls through to the queue / HF advanced engine for stronger size reduction.
 - **Download Swell + Burst (home.css + tool-page.js)** — the "Download Again" CTA is wrapped in `.dl-pulse` so it gently swells when ready. Click triggers `explodeAt()` which spawns a particle burst before the download fires; respects `prefers-reduced-motion`.
 
 ## Frontend / SEO / QA Polish (April 30, 2026)
@@ -237,8 +238,9 @@ silently redirecting to `/` (the original "page reload" bug).
   - JSON-LD: Article + BreadcrumbList + FAQPage
   - Ad-slot placeholders (top, mid, bottom) ready for AdSense post-approval
 - `scripts/generate-blog-listing.js` — Rewritten `/blog.html`. Featured top-3 cards, live search input, 8 category tabs (All / Organize / Convert / Compress / Edit / Security / AI / Image) with client-side filter via `data-cat` + `data-search` attributes, BreadcrumbList JSON-LD.
-- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync + "Was this guide helpful?" feedback widget (localStorage-based, optional Formspree POST via `window.FEEDBACK_FORMSPREE_ID`).
-- `public/js/blog-listing.js` (new) — Search + tab filter wiring.
+- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync + "Was this guide helpful?" feedback widget (localStorage-based, optional Formspree POST via `window.FEEDBACK_FORMSPREE_ID`). **Phase 1-6 (2026-04):** also promotes `.blog-article-header` into a hero with auto-derived subtitle + CTA button to the matching tool, injects a "Key benefits" 3-card highlight box after the intro, auto-applies `loading="lazy"` + `decoding="async"` to article images, and shows a dismissible sticky bottom CTA once the hero scrolls out of view. All purely additive — original HTML / SEO meta untouched.
+- `public/js/blog-listing.js` (new) — Search + tab filter wiring. Also upgrades the listing hero with an "Explore all 35 tools" CTA and lazy-loads images.
+- `public/js/firebase-init.js` — Init wrapped in `requestIdleCallback` (with `setTimeout` fallback) so the Firebase SDK fetch no longer competes with first paint. Backward-compatible because `window.FB.ready` (a Promise) is created synchronously.
 - `public/css/blog.css` — Full rewrite covering all new components (progress bar, sidebar, TOC, FAQ accordion, related-cards, why-choose grid, featured cards, filter bar, tabs, ad slots, responsive).
 - `public/blog/best-pdf-tools.html` — Hand-written 36th file, preserved (NOT in BLOGS array, generator skips it).
 

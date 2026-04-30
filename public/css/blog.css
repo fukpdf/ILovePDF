@@ -721,3 +721,160 @@
   .blog-feature-grid { grid-template-columns: 1fr; }
   .blog-listing-hero { padding: 32px 14px 24px; }
 }
+
+/* ============================================================
+   Phase 1-6 Blog UX overhaul (2026-04)
+   - Article hero treatment (gradient bg + CTA button)
+   - "Key benefits" highlight card
+   - Sticky bottom CTA on long reads
+   - Smooth scrolling for anchor links
+   ============================================================ */
+
+html { scroll-behavior: smooth; }
+
+/* Article header upgraded to hero look — only when it carries the
+   .blog-article-hero class (added by blog-article.js). */
+.blog-article-header.blog-article-hero{
+  position: relative;
+  padding: 36px 28px 28px;
+  background: linear-gradient(135deg,
+    rgba(99,102,241,.08) 0%,
+    rgba(139,92,246,.06) 50%,
+    rgba(236,72,153,.05) 100%);
+  border: 1px solid rgba(99,102,241,.16);
+  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.blog-article-header.blog-article-hero::before{
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--primary) 0%, #8b5cf6 50%, #ec4899 100%);
+}
+.blog-article-header.blog-article-hero h1{
+  font-size: clamp(1.7rem, 4.4vw, 2.4rem);
+  margin-bottom: 14px;
+}
+.blog-hero-sub{
+  font-size: 1.02rem;
+  color: var(--text-soft);
+  line-height: 1.6;
+  margin: 0 0 18px;
+  max-width: 640px;
+}
+.blog-hero-cta-row{
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  margin: 0 0 16px;
+}
+.blog-hero-cta{
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 26px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 10px;
+  font-size: .95rem; font-weight: 700;
+  text-decoration: none;
+  transition: background .2s, transform .15s, box-shadow .2s;
+  box-shadow: 0 4px 14px rgba(79,70,229,.25);
+}
+.blog-hero-cta:hover{
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(79,70,229,.32);
+  color: #fff; text-decoration: none;
+}
+.blog-hero-cta i{ width: 16px; height: 16px; }
+.blog-hero-cta-meta{
+  font-size: .82rem; color: var(--text-soft); font-weight: 500;
+}
+
+/* "Key benefits" card injected after the first paragraph. */
+.blog-key-benefits{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 24px 0 26px;
+  padding: 22px 22px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.blog-key-benefit{
+  display: flex; flex-direction: column; gap: 4px;
+}
+.blog-key-benefit-icon{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--grad-soft);
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+.blog-key-benefit-icon i{ width: 16px; height: 16px; }
+.blog-key-benefit-title{
+  font-size: .92rem; font-weight: 700; color: var(--text);
+  margin: 0;
+}
+.blog-key-benefit-desc{
+  font-size: .83rem; color: var(--text-soft);
+  line-height: 1.5; margin: 0;
+}
+
+/* Sticky bottom CTA — appears once user scrolls past the hero on article pages. */
+.blog-sticky-cta{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%) translateY(140%);
+  z-index: 90;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 22px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .9rem; font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 10px 28px rgba(79,70,229,.35);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), background .2s;
+  pointer-events: none;
+  opacity: 0;
+}
+.blog-sticky-cta.is-visible{
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  opacity: 1;
+}
+.blog-sticky-cta:hover{
+  background: #4338ca; color: #fff; text-decoration: none;
+}
+.blog-sticky-cta i{ width: 15px; height: 15px; }
+.blog-sticky-cta-close{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  margin-left: 4px;
+  background: rgba(255,255,255,.2);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem; line-height: 1;
+}
+.blog-sticky-cta-close:hover{ background: rgba(255,255,255,.32); }
+
+@media (max-width: 640px){
+  .blog-article-header.blog-article-hero{
+    padding: 28px 18px 22px;
+    margin-bottom: 22px;
+  }
+  .blog-key-benefits{
+    grid-template-columns: 1fr;
+    padding: 18px 16px;
+  }
+  .blog-sticky-cta{
+    bottom: 12px;
+    padding: 10px 18px;
+    font-size: .85rem;
+  }
+}

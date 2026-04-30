@@ -90,5 +90,17 @@
     }
   }
 
-  init();
+  // Defer init to browser idle time so the SDK fetch doesn't compete with
+  // first paint or critical scripts. Auth UI calls `await window.FB.ready`
+  // (created above), so any consumer that loads before init completes will
+  // simply wait for the promise — fully backward-compatible.
+  function scheduleInit() {
+    const start = () => { try { init(); } catch (e) { console.warn('[firebase] init failed:', e); } };
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(start, { timeout: 2500 });
+    } else {
+      setTimeout(start, 600);
+    }
+  }
+  scheduleInit();
 })();

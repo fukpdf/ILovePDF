@@ -1029,6 +1029,9 @@ async function processFile() {
       showStatus('success', 'Your file is ready',
         `Press the button if download does not start automatically.`,
         URL.createObjectURL(blob), filename);
+      // Compress: offer an opt-in advanced (server-side) re-compression for
+      // users who need a smaller result than what browser compression produced.
+      if (currentTool.id === 'compress') appendCompressAdvancedLink();
       if (processBtn) processBtn.disabled = false;
       return;
     } catch (err) {
@@ -1174,6 +1177,43 @@ function triggerDownload(blob, filename) {
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+// Compress: small "need more compression?" CTA appended below the standard
+// success card. Clicking it forces the queued / advanced (server-side) path
+// by temporarily flagging BrowserTools as unsupported for compress and
+// re-running processFile() with the originally selected file(s).
+function appendCompressAdvancedLink() {
+  const area = document.getElementById('result-area');
+  if (!area || area.querySelector('.compress-advanced-link')) return;
+  const link = document.createElement('div');
+  link.className = 'compress-advanced-link';
+  link.innerHTML = `
+    <p class="compress-advanced-hint">Need a smaller file?</p>
+    <button type="button" class="btn btn-outline btn-sm" id="try-advanced-compress">
+      <i data-lucide="zap"></i> Try advanced compression
+    </button>
+    <p class="compress-advanced-note">Uses a slower server-side engine for stronger size reduction.</p>
+  `;
+  area.appendChild(link);
+  if (window.lucide) lucide.createIcons();
+  const btn = link.querySelector('#try-advanced-compress');
+  if (btn) btn.addEventListener('click', runAdvancedCompress, { once: true });
+}
+
+async function runAdvancedCompress() {
+  if (!window.BrowserTools || !currentTool) return;
+  const originalSupports = window.BrowserTools.supports;
+  // Force the dispatcher to skip the browser path for compress on this run.
+  window.BrowserTools.supports = function(id) {
+    if (id === 'compress') return false;
+    return originalSupports.call(window.BrowserTools, id);
+  };
+  try {
+    await processFile();
+  } finally {
+    window.BrowserTools.supports = originalSupports;
+  }
 }
 
 function showStatus(type, title, message, downloadUrl, filename) {

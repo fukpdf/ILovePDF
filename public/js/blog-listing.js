@@ -1,6 +1,37 @@
-// Blog listing page — live search + category tab filter.
-// All cards are present in the DOM; we only toggle visibility, no fetches.
+// Blog listing page — live search + category tab filter, plus hero CTA
+// upgrade and image lazy-loading (mirrors blog-article.js).
 (function () {
+  // Promote the listing hero with a CTA button pointing at the tools grid.
+  function upgradeListingHero() {
+    const hero = document.querySelector('.blog-listing-hero');
+    if (!hero || hero.querySelector('.blog-hero-cta-row')) return;
+    const ctaRow = document.createElement('div');
+    ctaRow.className = 'blog-hero-cta-row';
+    ctaRow.style.justifyContent = 'center';
+    ctaRow.innerHTML = `
+      <a href="/#tools-root" class="blog-hero-cta">
+        <i data-lucide="grid"></i> Explore all 35 tools
+      </a>
+      <span class="blog-hero-cta-meta">Free · No signup · Files auto-deleted</span>
+    `;
+    hero.appendChild(ctaRow);
+    if (window.lucide) {
+      try { lucide.createIcons(); } catch (_) {}
+    }
+  }
+
+  function lazyImages() {
+    document.querySelectorAll('main img').forEach((img) => {
+      if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
+      if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    upgradeListingHero();
+    lazyImages();
+  });
+
   const grid     = document.getElementById('blog-all-grid');
   const input    = document.getElementById('blog-search-input');
   const empty    = document.getElementById('blog-empty');
