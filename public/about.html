@@ -78,14 +78,126 @@
       </div>
     </section>
 
-    <section class="about-contact" id="contact">
-      <h2>Contact</h2>
-      <p>Got feedback, a bug report, or a partnership idea? We'd love to hear from you.</p>
-      <ul class="contact-list">
-        <li><i data-lucide="mail"></i> Support: <a href="mailto:hello@ilovepdf.cyou">hello@ilovepdf.cyou</a></li>
-        <li><i data-lucide="alert-circle"></i> Report an issue: <a href="mailto:bugs@ilovepdf.cyou">bugs@ilovepdf.cyou</a></li>
-        <li><i data-lucide="handshake"></i> Partnerships: <a href="mailto:partners@ilovepdf.cyou">partners@ilovepdf.cyou</a></li>
-      </ul>
+    <section class="about-contact" id="contact" aria-labelledby="contact-h">
+      <h2 id="contact-h">Contact</h2>
+      <p>Got feedback, a bug report, or a partnership idea? Email us directly, or send a message using the form under each option.</p>
+
+      <div class="contact-cards">
+
+        <!-- ───── 1. Support ───── -->
+        <article class="contact-card">
+          <header class="cc-head">
+            <span class="cc-ico" aria-hidden="true"><i data-lucide="mail"></i></span>
+            <div class="cc-meta">
+              <h3>Support</h3>
+              <a class="cc-email" href="mailto:hello@ilovepdf.cyou">hello@ilovepdf.cyou</a>
+            </div>
+          </header>
+          <details class="cc-toggle">
+            <summary>Or send a message <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+            <form class="contact-form" data-formspree="YOUR_SUPPORT_FORM_ID" novalidate>
+              <input type="hidden" name="_subject" value="ILovePDF — Support request">
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
+              <div class="cf-row">
+                <label for="sup-name">Your name</label>
+                <input id="sup-name" type="text" name="name" placeholder="Jane Doe" required minlength="2" maxlength="80" autocomplete="name">
+              </div>
+              <div class="cf-row">
+                <label for="sup-email">Your email</label>
+                <input id="sup-email" type="email" name="email" placeholder="you@example.com" required maxlength="120" autocomplete="email">
+              </div>
+              <div class="cf-row">
+                <label for="sup-msg">Message</label>
+                <textarea id="sup-msg" name="message" placeholder="How can we help?" required minlength="10" maxlength="2000" rows="4"></textarea>
+              </div>
+              <button type="submit" class="cf-btn">
+                <span class="cf-btn-text"><i data-lucide="send"></i> Send message</span>
+                <span class="cf-btn-loading" hidden><i data-lucide="loader-2"></i> Sending…</span>
+              </button>
+              <p class="cf-status" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+        </article>
+
+        <!-- ───── 2. Bug report ───── -->
+        <article class="contact-card">
+          <header class="cc-head">
+            <span class="cc-ico" aria-hidden="true"><i data-lucide="alert-circle"></i></span>
+            <div class="cc-meta">
+              <h3>Report an issue</h3>
+              <a class="cc-email" href="mailto:bugs@ilovepdf.cyou">bugs@ilovepdf.cyou</a>
+            </div>
+          </header>
+          <details class="cc-toggle">
+            <summary>Or send a bug report <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+            <form class="contact-form" data-formspree="YOUR_BUGS_FORM_ID" novalidate>
+              <input type="hidden" name="_subject" value="ILovePDF — Bug report">
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
+              <div class="cf-row">
+                <label for="bug-name">Your name</label>
+                <input id="bug-name" type="text" name="name" placeholder="Jane Doe" required minlength="2" maxlength="80" autocomplete="name">
+              </div>
+              <div class="cf-row">
+                <label for="bug-email">Your email</label>
+                <input id="bug-email" type="email" name="email" placeholder="you@example.com" required maxlength="120" autocomplete="email">
+              </div>
+              <div class="cf-row">
+                <label for="bug-tool">Tool name <span class="cf-opt">(optional)</span></label>
+                <input id="bug-tool" type="text" name="tool" placeholder="e.g. Compress PDF" maxlength="60">
+              </div>
+              <div class="cf-row">
+                <label for="bug-desc">Issue description</label>
+                <textarea id="bug-desc" name="description" placeholder="What went wrong? Steps to reproduce, browser, file size…" required minlength="15" maxlength="4000" rows="5"></textarea>
+              </div>
+              <button type="submit" class="cf-btn">
+                <span class="cf-btn-text"><i data-lucide="bug"></i> Send bug report</span>
+                <span class="cf-btn-loading" hidden><i data-lucide="loader-2"></i> Sending…</span>
+              </button>
+              <p class="cf-status" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+        </article>
+
+        <!-- ───── 3. Partnerships ───── -->
+        <article class="contact-card">
+          <header class="cc-head">
+            <span class="cc-ico" aria-hidden="true"><i data-lucide="handshake"></i></span>
+            <div class="cc-meta">
+              <h3>Partnerships</h3>
+              <a class="cc-email" href="mailto:partners@ilovepdf.cyou">partners@ilovepdf.cyou</a>
+            </div>
+          </header>
+          <details class="cc-toggle">
+            <summary>Or pitch a partnership <i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+            <form class="contact-form" data-formspree="YOUR_PARTNERS_FORM_ID" novalidate>
+              <input type="hidden" name="_subject" value="ILovePDF — Partnership inquiry">
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
+              <div class="cf-row">
+                <label for="par-name">Your name</label>
+                <input id="par-name" type="text" name="name" placeholder="Jane Doe" required minlength="2" maxlength="80" autocomplete="name">
+              </div>
+              <div class="cf-row">
+                <label for="par-email">Your email</label>
+                <input id="par-email" type="email" name="email" placeholder="you@company.com" required maxlength="120" autocomplete="email">
+              </div>
+              <div class="cf-row">
+                <label for="par-company">Company / Website</label>
+                <input id="par-company" type="text" name="company" placeholder="Acme Inc. or acme.com" required minlength="2" maxlength="120" autocomplete="organization">
+              </div>
+              <div class="cf-row">
+                <label for="par-msg">Message</label>
+                <textarea id="par-msg" name="message" placeholder="Tell us about the opportunity." required minlength="10" maxlength="3000" rows="4"></textarea>
+              </div>
+              <button type="submit" class="cf-btn">
+                <span class="cf-btn-text"><i data-lucide="handshake"></i> Send proposal</span>
+                <span class="cf-btn-loading" hidden><i data-lucide="loader-2"></i> Sending…</span>
+              </button>
+              <p class="cf-status" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+        </article>
+
+      </div>
     </section>
   </main>
 
@@ -131,5 +243,82 @@
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
+
+  <!-- Contact-form AJAX (Formspree). Lightweight, no dependencies. -->
+  <script>
+  (function () {
+    document.addEventListener('submit', async function (ev) {
+      var form = ev.target;
+      if (!form.matches || !form.matches('.contact-form')) return;
+      ev.preventDefault();
+
+      var status = form.querySelector('.cf-status');
+      var btn    = form.querySelector('.cf-btn');
+      var txt    = form.querySelector('.cf-btn-text');
+      var load   = form.querySelector('.cf-btn-loading');
+
+      // HTML5 validation
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      // Honeypot — silently drop bots
+      if (form.elements['_gotcha'] && form.elements['_gotcha'].value) return;
+
+      var id = form.getAttribute('data-formspree') || '';
+      // Until the owner pastes a real Formspree ID, fall back to mailto.
+      if (!id || id.indexOf('YOUR_') === 0) {
+        var emailLink = form.closest('.contact-card').querySelector('.cc-email');
+        var to = emailLink ? emailLink.getAttribute('href').replace('mailto:', '') : 'hello@ilovepdf.cyou';
+        var subject = (form.elements['_subject'] && form.elements['_subject'].value) || 'ILovePDF contact';
+        var body = '';
+        Array.prototype.forEach.call(form.elements, function (el) {
+          if (!el.name || el.name.charAt(0) === '_' || el.type === 'hidden' || el.type === 'submit') return;
+          body += el.labels && el.labels[0] ? el.labels[0].textContent.trim() + ': ' : el.name + ': ';
+          body += (el.value || '') + '\n\n';
+        });
+        window.location.href = 'mailto:' + to
+          + '?subject=' + encodeURIComponent(subject)
+          + '&body='    + encodeURIComponent(body);
+        status.textContent = 'Opening your email app…';
+        status.className = 'cf-status is-info';
+        return;
+      }
+
+      btn.disabled = true;
+      txt.hidden = true;
+      load.hidden = false;
+      status.textContent = '';
+      status.className = 'cf-status';
+
+      try {
+        var res = await fetch('https://formspree.io/f/' + id, {
+          method:  'POST',
+          headers: { 'Accept': 'application/json' },
+          body:    new FormData(form),
+        });
+        if (res.ok) {
+          status.textContent = 'Thanks! Your message was sent — we\u2019ll reply soon.';
+          status.className = 'cf-status is-ok';
+          form.reset();
+        } else {
+          var data = null;
+          try { data = await res.json(); } catch (_) {}
+          var msg = (data && data.errors && data.errors[0] && data.errors[0].message)
+                  || 'Something went wrong. Please email us directly instead.';
+          status.textContent = msg;
+          status.className = 'cf-status is-err';
+        }
+      } catch (_) {
+        status.textContent = 'Network error. Please email us directly instead.';
+        status.className = 'cf-status is-err';
+      } finally {
+        btn.disabled = false;
+        txt.hidden = false;
+        load.hidden = true;
+      }
+    });
+  })();
+  </script>
 </body>
 </html>
