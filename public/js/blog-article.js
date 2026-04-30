@@ -134,8 +134,97 @@
       .join(' ');
   }
 
+  // Per-tool emotional hook (eyebrow line above the H1) and benefit-focused
+  // subtitle. Keyed by the slug derived from the article URL. Anything not
+  // in the map falls back to a generic hook + the first-paragraph derivation.
+  const HOOK_MAP = {
+    'merge-pdf':         'Working with multiple PDFs?',
+    'split-pdf':         'Need just a few pages from a long PDF?',
+    'compress-pdf':      'Struggling with large PDF files?',
+    'rotate-pdf':        'Pages turned the wrong way?',
+    'crop-pdf':          'Annoying margins on your PDF?',
+    'organize-pdf':      'Pages out of order?',
+    'add-page-numbers':  'Long PDF with no page numbers?',
+    'watermark-pdf':     'Need to brand or protect your PDFs?',
+    'protect-pdf':       'Sharing sensitive documents?',
+    'unlock-pdf':        'Locked out of your own PDF?',
+    'jpg-to-pdf':        'Got images you need as a PDF?',
+    'png-to-pdf':        'Got images you need as a PDF?',
+    'pdf-to-jpg':        'Need PDF pages as images?',
+    'pdf-to-word':       'Need to edit a PDF in Word?',
+    'pdf-to-powerpoint': 'Need PDF content in slides?',
+    'pdf-to-excel':      'Tables stuck inside a PDF?',
+    'word-to-pdf':       'Need a polished PDF from Word?',
+    'powerpoint-to-pdf': 'Sharing slides that need to look perfect?',
+    'excel-to-pdf':      'Sharing spreadsheets without losing formatting?',
+    'html-to-pdf':       'Need to save a webpage as a PDF?',
+    'ocr-pdf':           'Text trapped inside scanned pages?',
+    'scan-pdf':          'Need to scan a document on the go?',
+    'repair-pdf':        "PDF won't open or looks broken?",
+    'compare-pdf':       'Need to spot changes between two versions?',
+    'ai-summarizer':     'PDF too long to read?',
+    'translate-pdf':     'PDF in the wrong language?',
+    'workflow-builder':  'Tired of running tools one by one?',
+    'background-remover':'Need a clean cutout from your photo?',
+    'crop-image':        'Need just part of an image?',
+    'resize-image':      'Image too big or wrong dimensions?',
+    'image-filters':     'Want to enhance your photos quickly?',
+  };
+
+  const SUBTITLE_MAP = {
+    'merge-pdf':         'Combine PDFs instantly without losing quality — no signup required.',
+    'split-pdf':         'Pull out exactly the pages you need in seconds — right in your browser.',
+    'compress-pdf':      'Shrink PDFs up to 70% smaller while keeping crisp quality — no upload needed.',
+    'rotate-pdf':        'Fix every page orientation in one click and download in seconds.',
+    'crop-pdf':          'Trim margins and tighten layouts visually — no software install.',
+    'organize-pdf':      'Reorder, duplicate or delete pages with a simple drag-and-drop.',
+    'add-page-numbers':  'Add clean, customisable page numbers in seconds — choose position and style.',
+    'watermark-pdf':     'Stamp text or image watermarks across every page with full control.',
+    'protect-pdf':       'Add strong password protection right in your browser — your file never leaves your device.',
+    'unlock-pdf':        'Remove PDF passwords you own and regain full access — instantly and securely.',
+    'jpg-to-pdf':        'Combine images into one polished PDF with adjustable size and orientation.',
+    'png-to-pdf':        'Turn PNGs into a single sharable PDF in seconds — no uploads.',
+    'pdf-to-jpg':        'Export every page as a high-quality image for slides, web or social.',
+    'pdf-to-word':       'Convert PDFs to fully editable .docx with layout intact.',
+    'pdf-to-powerpoint': 'Turn PDFs into editable .pptx slides ready to present.',
+    'pdf-to-excel':      'Pull tables out of any PDF straight into a clean .xlsx spreadsheet.',
+    'word-to-pdf':       'Turn Word docs into pixel-perfect PDFs ready to share or print.',
+    'powerpoint-to-pdf': 'Lock your slides into a portable PDF that looks the same everywhere.',
+    'excel-to-pdf':      'Convert spreadsheets to crisp PDFs with formulas frozen in place.',
+    'html-to-pdf':       'Capture any webpage as a clean, paginated PDF.',
+    'ocr-pdf':           'Make scanned PDFs fully searchable with on-device-grade OCR — fast and accurate.',
+    'scan-pdf':          'Turn phone photos into clean, searchable PDF scans.',
+    'repair-pdf':        'Recover content from broken or partially corrupted PDFs in seconds.',
+    'compare-pdf':       'Highlight every difference between two PDF versions — side by side.',
+    'ai-summarizer':     'Get the key points from any PDF in seconds — powered by AI.',
+    'translate-pdf':     'Translate entire PDFs into 100+ languages while keeping the layout.',
+    'workflow-builder':  'Chain multiple PDF tools into one repeatable workflow — set it once, run it forever.',
+    'background-remover':'Get a clean transparent cutout from any photo in one click.',
+    'crop-image':        'Trim images precisely with a visual crop — perfect for thumbnails and avatars.',
+    'resize-image':      'Resize images to exact dimensions without losing sharpness.',
+    'image-filters':     'Apply pro-grade filters and adjustments to any photo in your browser.',
+  };
+
+  // Whether the tool is browser-only (no upload). Used to show "Works in browser"
+  // checkmark; defaults true for any slug we know about.
+  const ADVANCED_SLUGS = new Set([
+    'pdf-to-word','pdf-to-powerpoint','pdf-to-excel',
+    'word-to-pdf','powerpoint-to-pdf','excel-to-pdf','html-to-pdf',
+    'ocr-pdf','scan-pdf','repair-pdf','compare-pdf',
+    'ai-summarizer','translate-pdf','workflow-builder','background-remover',
+    'edit-pdf','sign-pdf','redact-pdf',
+  ]);
+
+  function genericHook(slug) {
+    if (!slug) return 'Need to handle PDFs the easy way?';
+    if (slug.startsWith('pdf-to-') || slug.endsWith('-to-pdf')) return 'Need to convert your file to a different format?';
+    if (slug.includes('image')) return 'Working with images?';
+    return 'Need a quick fix for your PDF?';
+  }
+
   // Pull a usable subtitle from the very first paragraph of the article body.
-  // Trim to ~180 chars so it stays one short paragraph.
+  // Trim to ~180 chars so it stays one short paragraph. Used as a fallback
+  // when SUBTITLE_MAP doesn't have an entry for the current tool.
   function deriveSubtitle() {
     const firstP = document.querySelector('.blog-article-body > p');
     if (!firstP) return null;
@@ -145,7 +234,8 @@
     return text.slice(0, 197).replace(/[\s,;.]+\S*$/, '') + '…';
   }
 
-  // Promote .blog-article-header into a hero: add subtitle + CTA button.
+  // Promote .blog-article-header into a hero: emotional hook + benefit subtitle
+  // + CTA button + checkmark trust indicators.
   function buildHero() {
     const header = document.querySelector('.blog-article-header');
     if (!header || header.classList.contains('blog-article-hero')) return null;
@@ -153,15 +243,23 @@
     if (!slug) return null;
 
     header.classList.add('blog-article-hero');
+    const h1 = header.querySelector('h1');
 
-    // Subtitle from intro paragraph
-    const sub = deriveSubtitle();
-    if (sub) {
+    // ── 1. Emotional hook (eyebrow above H1) ──────────────────────────────
+    if (h1 && !header.querySelector('.blog-hero-hook')) {
+      const hookText = HOOK_MAP[slug] || genericHook(slug);
+      const hookEl = document.createElement('p');
+      hookEl.className = 'blog-hero-hook';
+      hookEl.textContent = hookText;
+      header.insertBefore(hookEl, h1);
+    }
+
+    // ── 2. Benefit-focused subtitle (right after H1) ──────────────────────
+    const subText = SUBTITLE_MAP[slug] || deriveSubtitle();
+    if (subText) {
       const subEl = document.createElement('p');
       subEl.className = 'blog-hero-sub';
-      subEl.textContent = sub;
-      // Insert after H1 if present, else at end (before trust strip).
-      const h1 = header.querySelector('h1');
+      subEl.textContent = subText;
       const trust = header.querySelector('.blog-trust-strip');
       if (h1 && h1.nextSibling) {
         header.insertBefore(subEl, h1.nextSibling);
@@ -172,18 +270,31 @@
       }
     }
 
-    // CTA row
+    // ── 3. CTA + checkmark trust indicators ───────────────────────────────
+    const inBrowser = !ADVANCED_SLUGS.has(slug);
     const ctaRow = document.createElement('div');
     ctaRow.className = 'blog-hero-cta-row';
     ctaRow.innerHTML = `
       <a href="/${slug}" class="blog-hero-cta" data-blog-cta="hero">
         <i data-lucide="arrow-right-circle"></i> Open ${prettyToolName(slug)}
       </a>
-      <span class="blog-hero-cta-meta">Free · No signup · Files auto-deleted</span>
+    `;
+    const trustList = document.createElement('ul');
+    trustList.className = 'blog-hero-checks';
+    trustList.setAttribute('aria-label', 'What you get');
+    trustList.innerHTML = `
+      <li><span class="blog-hero-check">✔</span> No signup</li>
+      <li><span class="blog-hero-check">✔</span> 100% free</li>
+      <li><span class="blog-hero-check">✔</span> ${inBrowser ? 'Works in browser' : 'Files auto-deleted'}</li>
     `;
     const trust = header.querySelector('.blog-trust-strip');
-    if (trust) header.insertBefore(ctaRow, trust);
-    else header.appendChild(ctaRow);
+    if (trust) {
+      header.insertBefore(ctaRow, trust);
+      header.insertBefore(trustList, trust);
+    } else {
+      header.appendChild(ctaRow);
+      header.appendChild(trustList);
+    }
 
     return slug;
   }

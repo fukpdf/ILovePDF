@@ -755,16 +755,30 @@ html { scroll-behavior: smooth; }
   font-size: clamp(1.7rem, 4.4vw, 2.4rem);
   margin-bottom: 14px;
 }
+/* Emotional hook eyebrow shown ABOVE the H1. */
+.blog-hero-hook{
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 12px;
+  background: rgba(99,102,241,.1);
+  color: var(--primary);
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  line-height: 1.4;
+}
 .blog-hero-sub{
-  font-size: 1.02rem;
+  font-size: 1.05rem;
   color: var(--text-soft);
   line-height: 1.6;
-  margin: 0 0 18px;
+  margin: 0 0 20px;
   max-width: 640px;
+  font-weight: 500;
 }
 .blog-hero-cta-row{
   display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 .blog-hero-cta{
   display: inline-flex; align-items: center; gap: 8px;
@@ -784,8 +798,27 @@ html { scroll-behavior: smooth; }
   color: #fff; text-decoration: none;
 }
 .blog-hero-cta i{ width: 16px; height: 16px; }
-.blog-hero-cta-meta{
-  font-size: .82rem; color: var(--text-soft); font-weight: 500;
+
+/* Checkmark trust indicators directly under the CTA. */
+.blog-hero-checks{
+  display: flex; flex-wrap: wrap; gap: 6px 18px;
+  margin: 0 0 4px; padding: 0;
+  list-style: none;
+}
+.blog-hero-checks li{
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .85rem; font-weight: 600;
+  color: var(--text);
+}
+.blog-hero-check{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: #047857;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* "Key benefits" card injected after the first paragraph. */

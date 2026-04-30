@@ -6,78 +6,111 @@
 // backward compatibility with /merge-pdf style links). All navigation links
 // emit `tool.html?id=<tid>` so they work both on the Replit backend and on
 // Firebase Hosting (which has no SEO middleware).
+// Each tool now carries a `prio` field used for global priority ordering and
+// the visual ⚡ Instant / ☁️ Advanced badges:
+//   • 'instant'  → runs entirely in the browser (Group A — top)
+//   • 'compress' → compression (Group B — middle)
+//   • 'advanced' → server-powered / heavy (Group C — bottom)
+// Items WITHIN each category are sorted instant → compress → advanced so even
+// when users browse by purpose they see the fastest option first.
 window.TOOL_GROUPS = [
   {
     key:'organize', title:'Organize',
     items:[
-      { tid:'merge',    slug:'merge-pdf',    name:'Merge PDF',    icon:'layers',       desc:'Combine multiple PDFs into one' },
-      { tid:'split',    slug:'split-pdf',    name:'Split PDF',    icon:'scissors',     desc:'Extract pages or ranges' },
-      { tid:'rotate',   slug:'rotate-pdf',   name:'Rotate PDF',   icon:'rotate-cw',    desc:'Fix page orientation' },
-      { tid:'crop',     slug:'crop-pdf',     name:'Crop PDF',     icon:'crop',         desc:'Trim margins from pages' },
-      { tid:'organize', slug:'organize-pdf', name:'Organize PDF', icon:'list-ordered', desc:'Reorder, delete, duplicate pages' },
-      { tid:'compress', slug:'compress-pdf', name:'Compress PDF', icon:'archive',      desc:'Reduce PDF file size' },
-    ]
-  },
-  {
-    key:'convert', title:'Convert',
-    items:[
-      { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx' },
-      { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx' },
-      { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides' },
-      { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images' },
-      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF' },
-      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF' },
-      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF' },
-      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF' },
-      { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF' },
-    ]
-  },
-  {
-    key:'edit', title:'Edit',
-    items:[
-      { tid:'edit',         slug:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes' },
-      { tid:'watermark',    slug:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks' },
-      { tid:'sign',         slug:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures' },
-      { tid:'page-numbers', slug:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers' },
-      { tid:'redact',       slug:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content' },
+      { tid:'merge',    slug:'merge-pdf',    name:'Merge PDF',    icon:'layers',       desc:'Combine multiple PDFs into one',   prio:'instant'  },
+      { tid:'split',    slug:'split-pdf',    name:'Split PDF',    icon:'scissors',     desc:'Extract pages or ranges',          prio:'instant'  },
+      { tid:'rotate',   slug:'rotate-pdf',   name:'Rotate PDF',   icon:'rotate-cw',    desc:'Fix page orientation',             prio:'instant'  },
+      { tid:'crop',     slug:'crop-pdf',     name:'Crop PDF',     icon:'crop',         desc:'Trim margins from pages',          prio:'instant'  },
+      { tid:'organize', slug:'organize-pdf', name:'Organize PDF', icon:'list-ordered', desc:'Reorder, delete, duplicate pages', prio:'instant'  },
+      { tid:'compress', slug:'compress-pdf', name:'Compress PDF', icon:'archive',      desc:'Reduce PDF file size',             prio:'compress' },
     ]
   },
   {
     key:'security', title:'Security',
     items:[
-      { tid:'protect', slug:'protect-pdf', name:'Protect PDF', icon:'lock',   desc:'Add password protection' },
-      { tid:'unlock',  slug:'unlock-pdf',  name:'Unlock PDF',  icon:'unlock', desc:'Remove PDF password' },
-    ]
-  },
-  {
-    key:'advanced', title:'Advanced',
-    items:[
-      { tid:'repair',       slug:'repair-pdf',       name:'Repair PDF',       icon:'wrench',      desc:'Fix corrupted PDF files' },
-      { tid:'scan-to-pdf',  slug:'scan-pdf',         name:'Scan PDF',         icon:'scan-line',   desc:'Create searchable scans' },
-      { tid:'ocr',          slug:'ocr-pdf',          name:'OCR PDF',          icon:'type',        desc:'Recognize text in scans' },
-      { tid:'compare',      slug:'compare-pdf',      name:'Compare PDF',      icon:'git-compare', desc:'Diff two PDF documents' },
-      { tid:'ai-summarize', slug:'ai-summarizer',    name:'AI Summarizer',    icon:'sparkles',    desc:'Generate AI summaries' },
-      { tid:'translate',    slug:'translate-pdf',    name:'Translate PDF',    icon:'languages',   desc:'Translate PDFs to any language' },
-      { tid:'workflow',     slug:'workflow-builder', name:'Workflow Builder', icon:'workflow',    desc:'Chain multiple PDF tools' },
+      { tid:'protect', slug:'protect-pdf', name:'Protect PDF', icon:'lock',   desc:'Add password protection', prio:'instant' },
+      { tid:'unlock',  slug:'unlock-pdf',  name:'Unlock PDF',  icon:'unlock', desc:'Remove PDF password',     prio:'instant' },
     ]
   },
   {
     key:'image', title:'Image',
     items:[
-      { tid:'background-remover', slug:'background-remover', name:'Background Remover', icon:'image-off', desc:'Erase image backgrounds' },
-      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',      desc:'Trim images precisely' },
-      { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',  desc:'Change image dimensions' },
-      { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters' },
+      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',      desc:'Trim images precisely',     prio:'instant'  },
+      { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',  desc:'Change image dimensions',   prio:'instant'  },
+      { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters',       prio:'instant'  },
+      { tid:'background-remover', slug:'background-remover', name:'Background Remover', icon:'image-off', desc:'Erase image backgrounds',   prio:'advanced' },
+    ]
+  },
+  {
+    key:'edit', title:'Edit',
+    items:[
+      { tid:'watermark',    slug:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks',     prio:'instant'  },
+      { tid:'page-numbers', slug:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers',         prio:'instant'  },
+      { tid:'edit',         slug:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes', prio:'advanced' },
+      { tid:'sign',         slug:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures',            prio:'advanced' },
+      { tid:'redact',       slug:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content',      prio:'advanced' },
     ]
   },
   {
     key:'utilities', title:'Utilities',
     items:[
-      { url:'/currency-converter', name:'Currency Converter', icon:'dollar-sign', desc:'Live exchange rates for 160+ currencies' },
-      { url:'/numbers-to-words',   name:'Numbers to Words',   icon:'calculator',  desc:'Convert numbers and currency to words' },
+      { url:'/currency-converter', name:'Currency Converter', icon:'dollar-sign', desc:'Live exchange rates for 160+ currencies', prio:'instant' },
+      { url:'/numbers-to-words',   name:'Numbers to Words',   icon:'calculator',  desc:'Convert numbers and currency to words',   prio:'instant' },
+    ]
+  },
+  {
+    key:'convert', title:'Convert',
+    items:[
+      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF',          prio:'instant'  },
+      { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images',           prio:'instant'  },
+      { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx',    prio:'advanced' },
+      { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides',      prio:'advanced' },
+      { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx',          prio:'advanced' },
+      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
+      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
+      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
+      { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
+    ]
+  },
+  {
+    key:'advanced', title:'Advanced',
+    items:[
+      { tid:'ocr',          slug:'ocr-pdf',          name:'OCR PDF',          icon:'type',        desc:'Recognize text in scans',           prio:'advanced' },
+      { tid:'scan-to-pdf',  slug:'scan-pdf',         name:'Scan PDF',         icon:'scan-line',   desc:'Create searchable scans',           prio:'advanced' },
+      { tid:'repair',       slug:'repair-pdf',       name:'Repair PDF',       icon:'wrench',      desc:'Fix corrupted PDF files',           prio:'advanced' },
+      { tid:'compare',      slug:'compare-pdf',      name:'Compare PDF',      icon:'git-compare', desc:'Diff two PDF documents',            prio:'advanced' },
+      { tid:'ai-summarize', slug:'ai-summarizer',    name:'AI Summarizer',    icon:'sparkles',    desc:'Generate AI summaries',             prio:'advanced' },
+      { tid:'translate',    slug:'translate-pdf',    name:'Translate PDF',    icon:'languages',   desc:'Translate PDFs to any language',    prio:'advanced' },
+      { tid:'workflow',     slug:'workflow-builder', name:'Workflow Builder', icon:'workflow',    desc:'Chain multiple PDF tools',          prio:'advanced' },
     ]
   },
 ];
+
+// Helpers shared with the homepage + mobile overlay so badges and priority
+// bands render from a single source of truth.
+window.TOOL_PRIO_LABEL = {
+  instant:  '⚡ Instant',
+  compress: '⚙ Compression',
+  advanced: '☁️ Advanced',
+};
+window.toolBadgeHtml = function (prio) {
+  if (!prio || prio === 'compress') return '';
+  const cls  = prio === 'instant' ? 'tool-badge tool-badge--instant'
+                                  : 'tool-badge tool-badge--advanced';
+  const text = prio === 'instant' ? '⚡ Instant' : '☁️ Advanced';
+  return '<span class="' + cls + '" aria-label="' + text + '">' + text + '</span>';
+};
+// Flat priority bands used by the homepage. Order: A (instant) → B (compress) → C (advanced).
+window.TOOL_PRIORITY_BANDS = [
+  { key:'instant',  title:'Instant tools',  subtitle:'Run entirely in your browser — no upload, no waiting.',     icon:'zap'     },
+  { key:'compress', title:'Compression',    subtitle:'Shrink files fast — choose browser or advanced engine.',     icon:'archive' },
+  { key:'advanced', title:'Advanced tools', subtitle:'Server-powered conversion, OCR & AI for the heavy stuff.',   icon:'cloud'   },
+].map(band => ({
+  ...band,
+  items: window.TOOL_GROUPS
+    .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)))
+    .filter(t => (t.prio || 'instant') === band.key),
+}));
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present so
@@ -89,34 +122,37 @@ function renderHeader(){
   const nav = document.getElementById('nav');
   if (!nav) return;
 
-  // "All Tools" mega-menu columns
-  const MEGA_KEYS = ['organize','convert','edit','security','advanced','image','utilities'];
+  // "All Tools" mega-menu columns. Order reflects new priority: instant-heavy
+  // categories first (organize, security, image, edit, utilities), then convert
+  // and the heavy advanced bucket last.
+  const MEGA_KEYS = ['organize','security','image','edit','utilities','convert','advanced'];
   const megaCols = MEGA_KEYS.map(k => {
     const g = groupBy(k); if (!g) return '';
     return `
       <div class="mega-col">
         <h5>${g.title}</h5>
         ${g.items.map(t => `
-          <a class="mega-link" href="${toolUrl(t)}" title="${t.desc||''}">
+          <a class="mega-link" href="${toolUrl(t)}" title="${t.desc||''}" data-prio="${t.prio||'instant'}">
             <span class="mi"><i data-lucide="${t.icon}"></i></span>
-            <span>${t.name}</span>
+            <span class="mega-link-name">${t.name}</span>
+            ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
           </a>`).join('')}
       </div>`;
   }).join('');
 
-  // Simple dropdown item lists
+  // Simple dropdown item lists — reordered: instant browser tools first.
   const ORGANIZE_ITEMS = [
-    { name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
     { name:'Merge PDF',    href:'/merge-pdf',    icon:'layers'       },
     { name:'Split PDF',    href:'/split-pdf',    icon:'scissors'     },
     { name:'Rotate PDF',   href:'/rotate-pdf',   icon:'rotate-cw'    },
     { name:'Crop PDF',     href:'/crop-pdf',     icon:'crop'         },
+    { name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
   ];
   const CONVERT_ITEMS = [
+    { name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
     { name:'PDF to Word',       href:'/pdf-to-word',       icon:'file-text'    },
     { name:'PDF to PowerPoint', href:'/pdf-to-powerpoint', icon:'presentation' },
     { name:'PDF to Excel',      href:'/pdf-to-excel',      icon:'sheet'        },
-    { name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
   ];
   const ddLinks = arr => arr.map(i =>
     `<a class="dd-link" href="${i.href}">

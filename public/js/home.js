@@ -6,23 +6,42 @@
 const homeToolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
 /* ----------------------- render tools grid ----------------------- */
+// Renders three priority bands (Instant → Compression → Advanced) instead of
+// the legacy functional categories so users see the fastest-to-use tools at
+// the top of the page. The mega-menu still uses functional categories — this
+// is purely a homepage presentation choice driven by chrome.js metadata.
 function renderTools(){
   const root = document.getElementById('tools-root');
-  if (!root || !window.TOOL_GROUPS) return;
-  root.innerHTML = window.TOOL_GROUPS.map(g => `
-    <section class="cat-block" id="cat-${g.key}">
-      <div class="cat-title">${g.title}</div>
-      <div class="tools-grid">
-        ${g.items.map(t => `
-          <a class="tool" data-cat="${g.key}" href="${homeToolUrl(t)}">
-            <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
-            <h4>${t.name}</h4>
-            <p>${t.desc}</p>
-          </a>
-        `).join('')}
-      </div>
-    </section>
-  `).join('');
+  if (!root) return;
+  const bands = window.TOOL_PRIORITY_BANDS || [];
+  if (!bands.length) return;
+
+  const badge = (window.toolBadgeHtml || (()=> ''));
+  root.innerHTML = bands.map(b => {
+    if (!b.items.length) return '';
+    return `
+      <section class="cat-block cat-block--${b.key}" id="cat-${b.key}" data-prio="${b.key}">
+        <div class="cat-title cat-title--${b.key}">
+          <span class="cat-title-ico"><i data-lucide="${b.icon}"></i></span>
+          <span class="cat-title-text">${b.title}</span>
+          <span class="cat-title-count">${b.items.length}</span>
+        </div>
+        ${b.subtitle ? `<p class="cat-sub">${b.subtitle}</p>` : ''}
+        <div class="tools-grid">
+          ${b.items.map(t => `
+            <a class="tool" data-cat="${t._cat}" data-prio="${t.prio||'instant'}" href="${homeToolUrl(t)}">
+              <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
+              <div class="tool-text">
+                <h4>${t.name}</h4>
+                <p>${t.desc}</p>
+              </div>
+              ${badge(t.prio)}
+            </a>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }).join('');
 }
 
 /* ----------------------- mobile calculator toggle ----------------------- */

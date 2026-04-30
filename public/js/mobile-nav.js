@@ -26,8 +26,9 @@
           name: t.name,
           desc: t.desc || '',
           icon: t.icon || 'wrench',
-          url:  '/' + slug,
+          url:  t.url || ('/' + slug),
           cat:  g.title,
+          prio: t.prio || 'instant',
           hay:  (t.name + ' ' + (t.desc || '') + ' ' + g.title).toLowerCase(),
         });
       });
@@ -140,12 +141,13 @@
     }
 
     out.innerHTML = list.map(t => `
-      <a class="mo-row" href="${t.url}" role="option">
+      <a class="mo-row" href="${t.url}" role="option" data-prio="${t.prio||'instant'}">
         <span class="mo-row-icon"><i data-lucide="${t.icon}"></i></span>
         <span class="mo-row-text">
           <span class="mo-row-name">${escapeHtml(t.name)}</span>
           <span class="mo-row-cat">${escapeHtml(t.cat)}</span>
         </span>
+        ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
         <i class="mo-row-arrow" data-lucide="chevron-right"></i>
       </a>`).join('');
     if (window.lucide) lucide.createIcons();
@@ -159,13 +161,15 @@
     out.innerHTML = groups.map(g => {
       const items = (g.items || []).map(t => {
         const slug = t.slug || (t.id || t.name).toLowerCase().replace(/\s+/g, '-');
+        const href = t.url || ('/' + slug);
         return `
-          <a class="mo-row" href="/${slug}">
+          <a class="mo-row" href="${href}" data-prio="${t.prio||'instant'}">
             <span class="mo-row-icon"><i data-lucide="${t.icon || 'wrench'}"></i></span>
             <span class="mo-row-text">
               <span class="mo-row-name">${escapeHtml(t.name)}</span>
               ${t.desc ? `<span class="mo-row-cat">${escapeHtml(t.desc)}</span>` : ''}
             </span>
+            ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
             <i class="mo-row-arrow" data-lucide="chevron-right"></i>
           </a>`;
       }).join('');
