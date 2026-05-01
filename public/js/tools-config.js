@@ -156,7 +156,7 @@ const TOOLS = [
     description: 'Convert PDF to editable Word documents',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-word', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'pdf-to-powerpoint', name: 'PDF to PowerPoint', icon: 'layout',
@@ -170,7 +170,7 @@ const TOOLS = [
     description: 'Extract tables from PDFs into spreadsheets',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-excel', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'pdf-to-jpg', name: 'PDF to JPG', icon: 'image', clientSide: true,
@@ -192,7 +192,7 @@ const TOOLS = [
     description: 'Convert Word documents to PDF format',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/word-to-pdf', acceptedFiles: '.doc,.docx',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'powerpoint-to-pdf', name: 'PowerPoint to PDF', icon: 'monitor',
@@ -220,7 +220,7 @@ const TOOLS = [
     description: 'Convert HTML files into PDF documents',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/html-to-pdf', acceptedFiles: '.html,.htm',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
 
   // ── EDIT & ANNOTATE ───────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ const TOOLS = [
     description: 'Add text annotations and overlays to your PDF',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/edit', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'text',     label: 'Text to Add',              type: 'text',   placeholder: 'Your text here...' },
       { id: 'x',        label: 'X Position (%)',           type: 'number', placeholder: '50' },
@@ -261,7 +261,7 @@ const TOOLS = [
     description: 'Add a digital text signature to your PDF',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/sign', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'signatureText', label: 'Your Name / Signature', type: 'text',   placeholder: 'John Doe' },
       { id: 'page',          label: 'Page to Sign (blank = last)', type: 'number', placeholder: '' }
@@ -290,7 +290,7 @@ const TOOLS = [
     description: 'Black out sensitive areas of your PDF',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/redact', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'x',      label: 'X Position (%)',  type: 'number', placeholder: '10' },
       { id: 'y',      label: 'Y Position (%)',  type: 'number', placeholder: '40' },
@@ -330,7 +330,7 @@ const TOOLS = [
     description: 'Fix corrupted or damaged PDF files',
     category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
     apiEndpoint: '/api/repair', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'scan-to-pdf', name: 'Scan', icon: 'scan-line',
@@ -344,21 +344,21 @@ const TOOLS = [
     description: 'Extract and copy text from your PDF document',
     category: 'Advanced Tools', group: 'pdf', badge: 'AI',
     apiEndpoint: '/api/ocr', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'compare', name: 'Compare', icon: 'columns',
     description: 'Find differences between two PDF files',
     category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
     apiEndpoint: '/api/compare', acceptedFiles: '.pdf',
-    multipleFiles: true, working: true, options: []
+    multipleFiles: true, working: true, clientSide: true, options: []
   },
   {
     id: 'ai-summarize', name: 'AI Summarizer', icon: 'sparkles',
     description: 'Summarize PDF content with smart extraction',
     category: 'Advanced Tools', group: 'pdf', badge: 'AI',
     apiEndpoint: '/api/ai-summarize', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'sentences', label: 'Summary Length (number of key sentences)', type: 'number', placeholder: '7' }
     ]
@@ -432,7 +432,7 @@ const TOOLS = [
     description: 'Remove white or near-white backgrounds from images',
     category: 'Image Tools', group: 'image', badge: 'AI',
     apiEndpoint: '/api/background-remove', acceptedFiles: '.jpg,.jpeg,.png,.webp',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'threshold', label: 'Background Threshold (180–255, higher = stricter)', type: 'number', placeholder: '240' }
     ]

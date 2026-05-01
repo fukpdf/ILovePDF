@@ -5,10 +5,14 @@
 // Usage: window.BrowserTools.process(toolId, files, optionsObj)
 //        -> Promise<{ blob, filename }>
 (function () {
-  const PDFLIB_URL  = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
-  const PDFJS_URL   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
-  const PDFJS_WORKER= 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
-  const JSZIP_URL   = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+  const PDFLIB_URL    = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+  const PDFJS_URL     = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
+  const PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  const JSZIP_URL     = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+  const MAMMOTH_URL   = 'https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js';
+  const HTML2PDF_URL  = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js';
+  const XLSX_URL      = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 
   // ── lazy CDN loaders (cached) ────────────────────────────────────────────
   let pdfLibPromise = null;
@@ -51,6 +55,62 @@
       document.head.appendChild(s);
     });
     return jsZipPromise;
+  }
+
+  let mammothPromise = null;
+  function loadMammoth() {
+    if (window.mammoth) return Promise.resolve(window.mammoth);
+    if (mammothPromise) return mammothPromise;
+    mammothPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = MAMMOTH_URL; s.async = true;
+      s.onload  = () => window.mammoth ? resolve(window.mammoth) : reject(new Error('mammoth failed'));
+      s.onerror = () => reject(new Error('mammoth failed'));
+      document.head.appendChild(s);
+    });
+    return mammothPromise;
+  }
+
+  let html2pdfPromise = null;
+  function loadHtml2Pdf() {
+    if (window.html2pdf) return Promise.resolve(window.html2pdf);
+    if (html2pdfPromise) return html2pdfPromise;
+    html2pdfPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = HTML2PDF_URL; s.async = true;
+      s.onload  = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error('html2pdf failed'));
+      s.onerror = () => reject(new Error('html2pdf failed'));
+      document.head.appendChild(s);
+    });
+    return html2pdfPromise;
+  }
+
+  let xlsxPromise = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xlsxPromise) return xlsxPromise;
+    xlsxPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = XLSX_URL; s.async = true;
+      s.onload  = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX failed'));
+      s.onerror = () => reject(new Error('XLSX failed'));
+      document.head.appendChild(s);
+    });
+    return xlsxPromise;
+  }
+
+  let tesseractPromise = null;
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (tesseractPromise) return tesseractPromise;
+    tesseractPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = TESSERACT_URL; s.async = true;
+      s.onload  = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract failed'));
+      s.onerror = () => reject(new Error('Tesseract failed'));
+      document.head.appendChild(s);
+    });
+    return tesseractPromise;
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -424,10 +484,312 @@
     return { mime: 'image/jpeg', ext: '.jpg', q: 0.9 };
   }
 
+  // ── PHASE 1: WORD TO PDF ─────────────────────────────────────────────────
+  async function wordToPdf(files) {
+    const mammoth    = await loadMammoth();
+    const html2pdfFn = await loadHtml2Pdf();
+    const ab = await files[0].arrayBuffer();
+    const { value: htmlContent } = await mammoth.convertToHtml({ arrayBuffer: ab });
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    container.style.cssText = 'font-family:Arial,sans-serif;font-size:12pt;padding:40px;max-width:750px;position:fixed;left:-9999px;top:0;background:#fff;';
+    document.body.appendChild(container);
+    try {
+      const blob = await html2pdfFn()
+        .set({ margin: 12, image: { type: 'jpeg', quality: 0.95 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, html2canvas: { scale: 2, useCORS: true } })
+        .from(container)
+        .output('blob');
+      return new Blob([blob], { type: 'application/pdf' });
+    } finally {
+      if (container.parentNode) document.body.removeChild(container);
+    }
+  }
+
+  // ── PHASE 1: HTML TO PDF ─────────────────────────────────────────────────
+  async function htmlToPdf(files) {
+    const html2pdfFn = await loadHtml2Pdf();
+    const text = await files[0].text();
+    const container = document.createElement('div');
+    container.innerHTML = text;
+    container.style.cssText = 'max-width:750px;font-family:Arial,sans-serif;position:fixed;left:-9999px;top:0;background:#fff;padding:20px;';
+    document.body.appendChild(container);
+    try {
+      const blob = await html2pdfFn()
+        .set({ margin: 12, image: { type: 'jpeg', quality: 0.95 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, html2canvas: { scale: 2, useCORS: true } })
+        .from(container)
+        .output('blob');
+      return new Blob([blob], { type: 'application/pdf' });
+    } finally {
+      if (container.parentNode) document.body.removeChild(container);
+    }
+  }
+
+  // ── PHASE 2: EDIT PDF ────────────────────────────────────────────────────
+  async function editPdf(files, opts) {
+    const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
+    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
+    const text = String(opts.text || '');
+    if (!text) throw new Error('No text provided');
+    const font     = await doc.embedFont(StandardFonts.Helvetica);
+    const allPages = doc.getPages();
+    const fontSize = Math.max(6, Math.min(96, parseFloat(opts.fontSize || '14')));
+    const xPct     = Math.max(0, Math.min(100, parseFloat(opts.x || '50'))) / 100;
+    const yPct     = Math.max(0, Math.min(100, parseFloat(opts.y || '50'))) / 100;
+    const pageParam = String(opts.page || '1').trim().toLowerCase();
+    const targets = pageParam === 'all'
+      ? allPages
+      : [allPages[Math.max(0, parseInt(pageParam, 10) - 1)]].filter(Boolean);
+    for (const page of targets) {
+      const { width, height } = page.getSize();
+      page.drawText(text, { x: width * xPct, y: height * (1 - yPct), size: fontSize, font, color: rgb(0, 0, 0) });
+    }
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 2: SIGN PDF ────────────────────────────────────────────────────
+  async function signPdf(files, opts) {
+    const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
+    const doc  = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
+    const font = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
+    const text = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
+    const pages = doc.getPages();
+    const pageNum = parseInt(opts.page || pages.length, 10) || pages.length;
+    const page = pages[Math.max(0, Math.min(pages.length - 1, pageNum - 1))];
+    const { width } = page.getSize();
+    const fontSize = 26;
+    const tw = font.widthOfTextAtSize(text, fontSize);
+    const x  = Math.max(10, width - tw - 40);
+    const y  = 36;
+    page.drawLine({ start: { x: x - 4, y: y - 5 }, end: { x: x + tw + 4, y: y - 5 }, thickness: 0.6, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.55) });
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 2: REDACT PDF ──────────────────────────────────────────────────
+  async function redactPdf(files, opts) {
+    const { PDFDocument, rgb } = await loadPdfLib();
+    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
+    const pages = doc.getPages();
+    const total = pages.length;
+    const xPct  = Math.max(0, parseFloat(opts.x      || '10')) / 100;
+    const yPct  = Math.max(0, parseFloat(opts.y      || '40')) / 100;
+    const wPct  = Math.max(0.01, parseFloat(opts.width  || '30')) / 100;
+    const hPct  = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
+    const targets = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
+      ? pages
+      : parsePageRange(String(opts.pages), total).map(n => pages[n - 1]).filter(Boolean);
+    for (const page of targets) {
+      const { width, height } = page.getSize();
+      page.drawRectangle({ x: width * xPct, y: height * (1 - yPct - hPct), width: width * wPct, height: height * hPct, color: rgb(0, 0, 0) });
+    }
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 3: REPAIR PDF ──────────────────────────────────────────────────
+  async function repairPdf(files) {
+    const { PDFDocument } = await loadPdfLib();
+    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true, throwOnInvalidObject: false });
+    doc.setTitle(doc.getTitle() || 'Repaired Document');
+    return new Blob([await doc.save({ useObjectStreams: false })], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 3: PDF TO WORD ─────────────────────────────────────────────────
+  // Extracts text via pdfjs and packages it into a minimal valid DOCX.
+  async function pdfToWord(files) {
+    const pdfjsLib = await loadPdfJs();
+    const JSZip    = await loadJsZip();
+    const data = await readFileBytes(files[0]);
+    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += `\n\n[Page ${i}]\n` + content.items.map(it => it.str).join(' ');
+    }
+    const escaped = fullText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const paragraphs = escaped.split('\n').map(line =>
+      `<w:p><w:r><w:t xml:space="preserve">${line}</w:t></w:r></w:p>`
+    ).join('');
+    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs}<w:sectPr/></w:body></w:document>`;
+    const ctXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+    const relsXml= `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', ctXml);
+    zip.file('_rels/.rels', relsXml);
+    zip.file('word/document.xml', docXml);
+    zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
+    const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+  }
+
+  // ── PHASE 3: PDF TO EXCEL ────────────────────────────────────────────────
+  // Extracts text via pdfjs, groups items into rows by y-position, outputs XLSX.
+  async function pdfToExcel(files) {
+    const XLSX     = await loadXlsx();
+    const pdfjsLib = await loadPdfJs();
+    const data = await readFileBytes(files[0]);
+    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const wb   = XLSX.utils.book_new();
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const rows = {};
+      for (const item of content.items) {
+        if (!item.str.trim()) continue;
+        const yKey = Math.round(item.transform[5] / 8) * 8;
+        if (!rows[yKey]) rows[yKey] = [];
+        rows[yKey].push({ x: item.transform[4], text: item.str });
+      }
+      const sortedYs  = Object.keys(rows).map(Number).sort((a, b) => b - a);
+      const sheetData = sortedYs.map(y => rows[y].sort((a, b) => a.x - b.x).map(it => it.text));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), `Page ${i}`);
+    }
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    return { blob: new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+  }
+
+  // ── PHASE 3: COMPARE PDF ─────────────────────────────────────────────────
+  async function comparePdf(files) {
+    if (files.length < 2) throw new Error('Two PDFs required');
+    const pdfjsLib = await loadPdfJs();
+    async function extractText(file) {
+      const data = await readFileBytes(file);
+      const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+      const lines = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page    = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        lines.push({ page: i, text: content.items.map(it => it.str).join(' '), wordCount: 0 });
+      }
+      return lines;
+    }
+    const [linesA, linesB] = await Promise.all([extractText(files[0]), extractText(files[1])]);
+    const wordsA = new Set((linesA.map(l => l.text).join(' ').toLowerCase().match(/\b[a-z]{2,}\b/g) || []));
+    const wordsB = new Set((linesB.map(l => l.text).join(' ').toLowerCase().match(/\b[a-z]{2,}\b/g) || []));
+    const inter  = new Set([...wordsA].filter(w => wordsB.has(w)));
+    const union  = new Set([...wordsA, ...wordsB]);
+    const sim    = union.size > 0 ? Math.round(inter.size / union.size * 100) : 0;
+    const lines  = [
+      `COMPARISON REPORT`,
+      `${'─'.repeat(50)}`,
+      `File A : ${files[0].name}`,
+      `File B : ${files[1].name}`,
+      `File A pages : ${linesA.length}`,
+      `File B pages : ${linesB.length}`,
+      `Same page count : ${linesA.length === linesB.length ? 'Yes' : 'No'}`,
+      `File A words : ${wordsA.size}`,
+      `File B words : ${wordsB.size}`,
+      `Content similarity : ${sim}% word overlap`,
+      `Unique to File A : ${[...wordsA].filter(w => !wordsB.has(w)).length} words`,
+      `Unique to File B : ${[...wordsB].filter(w => !wordsA.has(w)).length} words`,
+      `${'─'.repeat(50)}`,
+    ];
+    return { blob: new Blob([lines.join('\n')], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+  }
+
+  // ── PHASE 4: OCR PDF ────────────────────────────────────────────────────
+  // Tries pdfjs text extraction first (fast). Falls back to tesseract.js for
+  // image-based PDFs where text content is negligible.
+  async function ocrPdf(files) {
+    const pdfjsLib = await loadPdfJs();
+    const data     = await readFileBytes(files[0]);
+    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    let allText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      allText += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    if (allText.replace(/\s/g, '').length > 60) {
+      return { blob: new Blob([allText.trim()], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+    }
+    // Render pages to canvas and run tesseract
+    const Tesseract = await loadTesseract();
+    const ocrLines  = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page     = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas   = document.createElement('canvas');
+      canvas.width   = Math.floor(viewport.width);
+      canvas.height  = Math.floor(viewport.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      canvas.width = 0; canvas.height = 0;
+      const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
+      ocrLines.push(`--- Page ${i} ---\n${text}`);
+    }
+    return { blob: new Blob([ocrLines.join('\n\n')], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+  }
+
+  // ── PHASE 4: BACKGROUND REMOVER (canvas pixel manipulation) ──────────────
+  // Removes near-white pixels by making them transparent. Matches server
+  // behavior (sharp threshold-based removal).
+  async function backgroundRemover(files, opts) {
+    const img       = await loadImageFromFile(files[0]);
+    const threshold = Math.max(100, Math.min(255, parseInt(opts.threshold || '240', 10)));
+    const canvas    = document.createElement('canvas');
+    canvas.width    = img.naturalWidth;
+    canvas.height   = img.naturalHeight;
+    const ctx       = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] >= threshold && d[i + 1] >= threshold && d[i + 2] >= threshold) d[i + 3] = 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const blob = await canvasToBlob(canvas, 'image/png');
+    return { blob, ext: '.png', mime: 'image/png' };
+  }
+
+  // ── PHASE 5: AI SUMMARIZER (extractive, browser-only) ────────────────────
+  // Uses pdfjs to extract text, then applies a TF-IDF-style extractive
+  // summarization. Fast, privacy-preserving, no upload needed.
+  async function aiSummarize(files, opts) {
+    const pdfjsLib = await loadPdfJs();
+    const data     = await readFileBytes(files[0]);
+    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(it => it.str).join(' ') + ' ';
+    }
+    if (!fullText.trim()) throw new Error('no_text');
+    const maxSentences = Math.min(20, Math.max(3, parseInt(opts.sentences || '7', 10)));
+    const sentences = (fullText.match(/[^.!?]{15,}[.!?]+/g) || [fullText]).map(s => s.trim()).filter(Boolean);
+    const words     = fullText.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+    const freq      = {};
+    words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    const scored = sentences.map(s => ({
+      s,
+      score: (s.toLowerCase().match(/\b[a-z]{3,}\b/g) || []).reduce((sum, w) => sum + (freq[w] || 0), 0),
+    }));
+    const topSentences = scored
+      .slice()
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxSentences)
+      .map(x => x.s);
+    const wordCount     = words.length;
+    const sentenceCount = sentences.length;
+    const summary = [
+      `Document Summary`,
+      `${'─'.repeat(40)}`,
+      topSentences.join(' '),
+      `${'─'.repeat(40)}`,
+      `Stats: ~${wordCount.toLocaleString()} words · ~${sentenceCount} sentences`,
+    ].join('\n');
+    return { blob: new Blob([summary], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+  }
+
   // ── DISPATCH TABLE ───────────────────────────────────────────────────────
   // Each handler returns either a Blob (PDF, default ext) OR an object
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
+    // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'merge':         merge,
     'split':         split,
     'rotate':        rotate,
@@ -442,6 +804,23 @@
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
     'image-filters': imageFilters,
+    // ── Phase 1 ───────────────────────────────────────────────────────────
+    'word-to-pdf':        wordToPdf,
+    'html-to-pdf':        htmlToPdf,
+    // ── Phase 2 ───────────────────────────────────────────────────────────
+    'edit':               editPdf,
+    'sign':               signPdf,
+    'redact':             redactPdf,
+    // ── Phase 3 ───────────────────────────────────────────────────────────
+    'pdf-to-word':        pdfToWord,
+    'pdf-to-excel':       pdfToExcel,
+    'repair':             repairPdf,
+    'compare':            comparePdf,
+    // ── Phase 4 ───────────────────────────────────────────────────────────
+    'ocr':                ocrPdf,
+    'background-remover': backgroundRemover,
+    // ── Phase 5 ───────────────────────────────────────────────────────────
+    'ai-summarize':       aiSummarize,
   };
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
@@ -450,6 +829,20 @@
     const fn = HANDLERS[toolId];
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
+
+    // File size routing: compress allows 200 MB, all other tools 50 MB.
+    // Files above limit fall through to the server API silently.
+    const SIZE_LIMITS = { compress: 200 * 1024 * 1024 };
+    const sizeLimit   = SIZE_LIMITS[toolId] || 50 * 1024 * 1024;
+    const totalBytes  = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);
+    if (totalBytes > sizeLimit) throw new Error('file_too_large_for_browser');
+
+    // Memory guard: if the JS heap is over 800 MB, hand off to the server.
+    try {
+      const mem = performance && performance.memory;
+      if (mem && mem.usedJSHeapSize > 800 * 1024 * 1024) throw new Error('memory_pressure');
+    } catch (e) { if (e.message === 'memory_pressure') throw e; }
+
     const result = await fn(files, options || {});
     // Normalise: handlers may return a Blob (PDF) or { blob, ext, mime }.
     let blob, ext;
