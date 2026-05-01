@@ -14,6 +14,8 @@ import advancedRouter from './routes/advanced.js';
 import imageRouter from './routes/image.js';
 import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
+import chatRouter from './routes/chat.js';
+import adminDashboardRouter, { requestLogMiddleware } from './routes/admin-dashboard.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
@@ -139,6 +141,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api', apiLimiter);
+app.use('/api', requestLogMiddleware); // request analytics logging
+app.use('/api', chatRouter);   // Laba AI chat (server-side key)
 app.use('/api', authRouter); // auth routes are NOT subject to usage limits
 app.use('/api', r2Router);   // R2 upload/download/list (own auth checks inside)
 
@@ -169,6 +173,9 @@ app.use((err, req, res, next) => {
   console.error('Server error:', err.message);
   res.status(500).json({ error: 'Internal server error.' });
 });
+
+// Admin dashboard (password-protected, mounted before catch-all)
+app.use('/admin', adminDashboardRouter);
 
 // Email-confirmation landing page
 app.get('/verify-signup', (req, res) => {
