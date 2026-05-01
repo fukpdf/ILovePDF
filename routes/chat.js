@@ -80,6 +80,9 @@ router.post('/chat', chatLimiter, async (req, res) => {
     if (!upstream.ok) {
       const errText = await upstream.text().catch(() => '');
       console.error('[chat] DeepSeek error', upstream.status, errText.slice(0, 200));
+      if (upstream.status === 402) {
+        return res.status(503).json({ error: 'Laba is temporarily offline — service credits need to be replenished. Please try again later.' });
+      }
       return res.status(502).json({ error: 'AI service temporarily unavailable. Please try again.' });
     }
 
