@@ -1,7 +1,10 @@
 /* =========================================================
-   LABA AI WIDGET — Browser-Side Only, Unlimited Chats
-   Uses: local knowledge base JSON + Transformers.js t5-small
-   NO external API calls. NO daily limits.
+   LABA AI WIDGET v2
+   - Browser-side only (no external API calls)
+   - Voice: STT via Web Speech API, TTS via SpeechSynthesis
+   - Multi-language: English, Urdu (script), Roman Urdu
+   - Universal responses: answers ANY query, never refuses
+   - Friendly female personality
    ========================================================= */
 
 (function () {
@@ -10,6 +13,191 @@
   const LABA_KB_URL = '/laba/laba-knowledge.json';
   const TRANSFORMERS_CDN = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
 
+  /* ============================================================
+     GENERAL KNOWLEDGE RESPONSE BANK
+     Covers common questions beyond PDF tools
+     ============================================================ */
+  const GENERAL_KB = [
+    // Greetings
+    {
+      patterns: [/^(hi|hello|hey|salam|assalam|aoa|helo|hii+|heyy+)\b/i, /^(namaste|namaskar)\b/i],
+      responses: {
+        en: ['Hello! 😊 I\'m Laba, your friendly AI assistant. How can I help you today?', 'Hi there! 👋 I\'m Laba. What can I do for you?'],
+        ur: ['السلام علیکم! 😊 میں لابا ہوں، آپ کی AI اسسٹنٹ۔ آپ کی کیا مدد کر سکتی ہوں؟', 'ہیلو! میں لابا ہوں۔ آپ کیسے ہیں؟ 😊'],
+        'roman-ur': ['Salam! 😊 Main Laba hoon, aapki AI assistant. Aaj main aapki kaise madad kar sakti hoon?', 'Hello! 👋 Aap kaise hain? Main Laba hoon, batayein kya chahiye?'],
+      },
+    },
+    // How are you
+    {
+      patterns: [/how are you|kaise ho|kaisi ho|kya haal|aap theek|you okay|you good/i],
+      responses: {
+        en: ['I\'m doing great, thank you for asking! 😊 I\'m here and ready to help you with anything you need.', 'I\'m wonderful! Always happy to assist. What can I do for you today? 💫'],
+        ur: ['میں بالکل ٹھیک ہوں، شکریہ! 😊 آپ بتائیں، میں آپ کی کیا مدد کر سکتی ہوں؟'],
+        'roman-ur': ['Main bilkul theek hoon, shukriya! 😊 Aap sunao, kya madad chahiye?', 'Main zabardast hoon! Aapki seva mein hazir hoon. Batayein kya karna hai? 💫'],
+      },
+    },
+    // What is your name
+    {
+      patterns: [/your name|aap ka naam|tumhara naam|apna naam|who are you|tum kaun|aap kaun/i],
+      responses: {
+        en: ['My name is **Laba** 🤖 — I\'m an AI assistant built for ILovePDF. I can help with PDF tools, answer questions, write emails, fix grammar, and much more!', 'I\'m **Laba**, your intelligent AI assistant! I\'m here to help with ILovePDF tools and any other questions you have. 😊'],
+        ur: ['میرا نام **لابا** ہے 🤖 — میں ILovePDF کی AI اسسٹنٹ ہوں۔ میں PDF ٹولز، ای میل، گرامر اور بہت کچھ میں مدد کر سکتی ہوں!'],
+        'roman-ur': ['Mera naam **Laba** hai 🤖 — Main ILovePDF ki AI assistant hoon. Main aapki PDF tools, email, grammar aur bohot kuch mein madad kar sakti hoon!'],
+      },
+    },
+    // What can you do
+    {
+      patterns: [/what can you do|aap kya kar|tum kya kar|help me with|kya kya kar|your ability|features/i],
+      responses: {
+        en: ['Here\'s what I can help you with:\n\n📄 **PDF Tools** — Explain any of the 36 tools\n📧 **Email Drafts** — Write professional emails\n✏️ **Grammar Fix** — Correct your sentences\n✨ **Rewrite** — Make text more professional\n💬 **General Chat** — Answer any question\n🌐 **Urdu/Roman Urdu** — I understand multiple languages!\n\nJust ask me anything! 😊'],
+        ur: ['میں یہ سب کر سکتی ہوں:\n\n📄 **PDF ٹولز** — تمام 36 ٹولز کی وضاحت\n📧 **ای میل** — پیشہ ورانہ ای میل لکھنا\n✏️ **گرامر** — جملے درست کرنا\n✨ **دوبارہ لکھنا** — متن کو بہتر بنانا\n💬 **عام سوالات** — کوئی بھی سوال پوچھیں!'],
+        'roman-ur': ['Main yeh sab kar sakti hoon:\n\n📄 **PDF Tools** — 36 tools ki wazahat\n📧 **Email Draft** — Professional email likhna\n✏️ **Grammar Fix** — Jumlay theek karna\n✨ **Rewrite** — Text ko behtar banana\n💬 **General Chat** — Koi bhi sawal poochein!\n\nBas pooch lo! 😊'],
+      },
+    },
+    // Thank you
+    {
+      patterns: [/thank you|thanks|shukriya|shukria|jazak|mehrbani|bahut accha|very good|great job|well done/i],
+      responses: {
+        en: ['You\'re very welcome! 😊 It\'s my pleasure to help. Let me know if you need anything else!', 'Happy to help anytime! 💫 Is there anything else you\'d like to know?'],
+        ur: ['خوشی ہوئی! 😊 جب بھی ضرورت ہو پوچھیں۔', 'آپ کا شکریہ! 💫 کوئی اور سوال ہو تو بتائیں۔'],
+        'roman-ur': ['Koi baat nahi! 😊 Jab bhi zaroorat ho, main hazir hoon.', 'Khushi hui madad karke! 💫 Kuch aur chahiye to batayein.'],
+      },
+    },
+    // Goodbye
+    {
+      patterns: [/bye|goodbye|khuda hafiz|allah hafiz|alvida|see you|take care|phir milenge/i],
+      responses: {
+        en: ['Goodbye! 👋 Take care and come back anytime you need help!', 'Bye! 😊 It was great talking to you. See you next time!'],
+        ur: ['خدا حافظ! 👋 جب بھی ضرورت ہو واپس آئیں!'],
+        'roman-ur': ['Allah Hafiz! 👋 Jab zaroorat ho, wapas aayein!', 'Khuda Hafiz! 😊 Phir milenge!'],
+      },
+    },
+    // What is ILovePDF
+    {
+      patterns: [/what is ilovepdf|ilovepdf kya|ilovepdf ke baare|about ilovepdf|tell me about this site/i],
+      responses: {
+        en: ['**ILovePDF** is a free online platform with **36 powerful tools** for working with PDF and image files! 🎉\n\nYou can:\n• Merge, Split, Compress PDFs\n• Convert PDF ↔ Word/Excel/PowerPoint\n• OCR scanned documents\n• Remove image backgrounds\n• And much more — all free, no signup required!\n\nFiles are processed securely and deleted automatically. 🔒'],
+        ur: ['**ILovePDF** ایک مفت آن لائن پلیٹ فارم ہے جس میں **36 طاقتور ٹولز** ہیں PDF اور امیج فائلوں کے لیے! 🎉\n\nسب ٹولز مفت ہیں اور کوئی رجسٹریشن نہیں چاہیے۔'],
+        'roman-ur': ['**ILovePDF** ek free online platform hai jis mein **36 tools** hain PDF aur image files ke liye! 🎉\n\nSab kuch free hai, koi signup nahi chahiye. Files automatically delete ho jaati hain. 🔒'],
+      },
+    },
+    // What is AI
+    {
+      patterns: [/what is ai|artificial intelligence|machine learning|deep learning|ai kya|ai ke baare/i],
+      responses: {
+        en: ['**Artificial Intelligence (AI)** is technology that allows computers to perform tasks that normally require human intelligence — like understanding language, recognizing images, and making decisions.\n\nI\'m an example of AI! I process your questions and generate helpful responses. 😊\n\nAI types include:\n• **Machine Learning** — computers learn from data\n• **Deep Learning** — neural networks inspired by the brain\n• **NLP** — understanding and generating human language'],
+        'roman-ur': ['**Artificial Intelligence (AI)** woh technology hai jo computers ko insaan jaise kaam karne deti hai — jaise language samajhna, images pehchanna, decisions lena.\n\nMain khud AI hoon! 😊\n\nAI ki kismein:\n• **Machine Learning** — data se seekhna\n• **Deep Learning** — brain jaise networks\n• **NLP** — language samajhna'],
+      },
+    },
+    // What is PDF
+    {
+      patterns: [/what is pdf|pdf kya|pdf ka matlab|pdf meaning|pdf full form/i],
+      responses: {
+        en: ['**PDF** stands for **Portable Document Format**. 📄\n\nIt was created by Adobe in 1993. A PDF file looks the same on every device — phone, computer, printer — no matter what software you use.\n\nKey advantages:\n✅ Same layout on all devices\n✅ Can contain text, images, links\n✅ Secure with passwords\n✅ Universal format for documents\n\nILovePDF has 36 free tools to work with PDF files! 🎉'],
+        ur: ['**PDF** کا مطلب ہے **Portable Document Format**۔ 📄\n\nیہ Adobe نے 1993 میں بنایا تھا۔ PDF فائل ہر ڈیوائس پر ایک جیسی دکھتی ہے۔\n\nILovePDF پر 36 مفت ٹولز ہیں PDF کے لیے! 🎉'],
+        'roman-ur': ['**PDF** ka matlab hai **Portable Document Format**. 📄\n\nYeh Adobe ne 1993 mein banaya. PDF file har device par same dikhti hai.\n\nILovePDF par 36 free tools hain PDF ke liye! 🎉'],
+      },
+    },
+    // Jokes
+    {
+      patterns: [/joke|funny|maza|hasao|laugh|mazak/i],
+      responses: {
+        en: ['😄 Here\'s one for you:\n\nWhy don\'t scientists trust atoms?\n**Because they make up everything!** 😂\n\nWant another one?', '😄 A PDF walked into a bar...\nThe bartender said "Sorry, we don\'t compress drinks here!" 😂'],
+        'roman-ur': ['😄 Yeh lo ek joke:\n\nPDF ne doctor se kaha: "Mujhe compress kar do!"\nDoctor bola: "Theek hai, pehle size batao!" 😂\n\nAur sunna hai?'],
+      },
+    },
+    // Time / Date
+    {
+      patterns: [/what time|what date|what day|aaj ka din|aaj ki date|time kya|date kya/i],
+      responses: {
+        en: () => {
+          const now = new Date();
+          return `🕐 Current time: **${now.toLocaleTimeString()}**\n📅 Today: **${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}**`;
+        },
+        'roman-ur': () => {
+          const now = new Date();
+          return `🕐 Abhi ka waqt: **${now.toLocaleTimeString()}**\n📅 Aaj: **${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}**`;
+        },
+      },
+    },
+    // Who made you / who created you
+    {
+      patterns: [/who made you|who created you|who built you|kisne banaya|aapko kisne|tumhe kisne|developer|creator/i],
+      responses: {
+        en: ['I was built as part of the **ILovePDF** platform — a free PDF tools website. I\'m Laba, your AI assistant, here to make your experience smoother! 😊\n\nI run entirely in your browser — no data is sent to any server for my AI responses.'],
+        'roman-ur': ['Mujhe **ILovePDF** platform ke liye banaya gaya hai — ek free PDF tools website. Main Laba hoon, aapki AI assistant! 😊\n\nMain completely aapke browser mein chalti hoon — koi data server par nahi jaata.'],
+      },
+    },
+    // Math
+    {
+      patterns: [/(\d+)\s*[\+\-\*\/x×÷]\s*(\d+)|calculate|math|calculate|compute|kitna hai|result kya/i],
+      responses: {
+        en: (msg) => {
+          try {
+            const expr = msg.replace(/[^0-9+\-*/().]/g, '').trim();
+            if (expr && /^[\d+\-*/().]+$/.test(expr)) {
+              // eslint-disable-next-line no-eval
+              const result = Function('"use strict"; return (' + expr + ')')();
+              if (typeof result === 'number' && isFinite(result)) {
+                return `🔢 **${expr} = ${result}**\n\nWant me to calculate something else? 😊`;
+              }
+            }
+          } catch (_) {}
+          return '🔢 I can do basic math! Try something like "12 * 8" or "100 / 4". What would you like to calculate?';
+        },
+        'roman-ur': (msg) => {
+          try {
+            const expr = msg.replace(/[^0-9+\-*/().]/g, '').trim();
+            if (expr && /^[\d+\-*/().]+$/.test(expr)) {
+              const result = Function('"use strict"; return (' + expr + ')')();
+              if (typeof result === 'number' && isFinite(result)) {
+                return `🔢 **${expr} = ${result}**\n\nAur kuch calculate karein? 😊`;
+              }
+            }
+          } catch (_) {}
+          return '🔢 Main basic math kar sakti hoon! Jaise "12 * 8" ya "100 / 4" likhein.';
+        },
+      },
+    },
+    // Motivation / encouragement
+    {
+      patterns: [/motivat|inspire|sad|udaas|upset|depressed|feel bad|dil nahi|help me feel|encourage|boost/i],
+      responses: {
+        en: ['Here\'s some motivation for you 💪\n\n*"Every expert was once a beginner. Every pro was once an amateur."*\n\nYou are doing amazing — keep going! The fact that you\'re here, learning and asking questions, shows you\'re on the right path. You\'ve got this! 🌟'],
+        ur: ['آپ کے لیے کچھ حوصلہ افزائی 💪\n\n*"ہر ماہر کبھی ابتدائی تھا۔"*\n\nآپ بہت اچھا کر رہے ہیں! آگے بڑھتے رہیں! 🌟'],
+        'roman-ur': ['Aapke liye kuch motivation 💪\n\n*"Har mahir pehle ek beginner tha."*\n\nAap zabardast kar rahe hain! Himmat rakhein aur aage badhte rahein! 🌟 Aap ye kar sakte hain!'],
+      },
+    },
+    // Weather (can't check live but give guidance)
+    {
+      patterns: [/weather|mausam|temperature|garmi|sardi|rain|barish|cloud/i],
+      responses: {
+        en: ['🌤️ I\'m running in your browser so I can\'t check live weather! For accurate weather, try:\n\n• **Google** — just search "weather [your city]"\n• **weather.com**\n• **AccuWeather**\n\nStay safe in whatever weather you\'re in! 😊'],
+        'roman-ur': ['🌤️ Main browser mein chalti hoon, isliye live weather nahi dekh sakti! Weather ke liye:\n\n• **Google** mein likhein "weather [aapka shehar]"\n• **weather.com**\n\nApna khayal rakhein! 😊'],
+      },
+    },
+  ];
+
+  /* ============================================================
+     UNIVERSAL FALLBACK RESPONSES (for anything else)
+     ============================================================ */
+  const FALLBACK_RESPONSES = {
+    en: [
+      (msg) => `That\'s an interesting question! 🤔 While I specialize in ILovePDF tools and text tasks, I\'ll do my best:\n\n**"${msg.substring(0,60)}${msg.length>60?'…':''}"**\n\nFor detailed research on this topic, I'd suggest Google or Wikipedia. Meanwhile, is there anything about our PDF tools I can help with? 😊`,
+      () => `Great question! I\'m Laba, focused on ILovePDF tools and everyday tasks. For this specific topic, a quick Google search would give you the most accurate answer. Can I help you with any PDF task or text work? 📄`,
+      () => `I appreciate you asking! 😊 While this goes beyond my core expertise, I always try to help. Could you tell me more specifically what you need? I might be able to assist or point you in the right direction!`,
+    ],
+    ur: [
+      () => `اچھا سوال ہے! 🤔 میں ILovePDF ٹولز اور متن کے کاموں میں ماہر ہوں۔ اس موضوع کے لیے Google یا Wikipedia بہتر ہوگا۔ کیا میں آپ کی PDF کام میں مدد کر سکتی ہوں؟`,
+    ],
+    'roman-ur': [
+      (msg) => `Acha sawal hai! 🤔 Main ILovePDF tools aur text tasks mein mahir hoon. Iske liye Google ya Wikipedia behtar hoga. Kya koi PDF kaam hai jo main kar sakti hoon? 📄`,
+    ],
+  };
+
+  /* ============================================================
+     LABA WIDGET CLASS
+     ============================================================ */
   class LabaWidget {
     constructor() {
       this.kb = null;
@@ -21,15 +209,23 @@
       this.dragState = { active: false, startX: 0, startY: 0, origX: 0, origY: 0 };
       this.busy = false;
 
+      // Voice state
+      this.voiceEnabled = false;
+      this.isListening = false;
+      this.recognition = null;
+      this.synthesis = window.speechSynthesis || null;
+      this.hasMic = false;
+      this.detectedLang = 'en';
+
       this._buildDOM();
       this._bindEvents();
+      this._initVoice();
       this.loadKnowledgeBase();
     }
 
     /* ---- DOM Construction ---- */
 
     _buildDOM() {
-      // Launcher button
       const launcher = document.createElement('div');
       launcher.id = 'laba-launcher';
       launcher.setAttribute('role', 'button');
@@ -40,19 +236,14 @@
         <div class="laba-ring-inner"></div>
         <div class="laba-ring-outer"></div>
         <div class="laba-orbit-container">
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
-          <div class="laba-dot"></div>
+          <div class="laba-dot"></div><div class="laba-dot"></div>
+          <div class="laba-dot"></div><div class="laba-dot"></div>
+          <div class="laba-dot"></div><div class="laba-dot"></div>
+          <div class="laba-dot"></div><div class="laba-dot"></div>
         </div>
         <span class="laba-icon" aria-hidden="true">🤖</span>
       `;
 
-      // Chat window
       const win = document.createElement('div');
       win.id = 'laba-window';
       win.className = 'laba-hidden';
@@ -62,19 +253,21 @@
         <div id="laba-header">
           <span id="laba-header-title">Laba 🤖 AI Assistant</span>
           <div id="laba-header-btns">
+            <button class="laba-hbtn" id="laba-speaker-btn" title="Toggle voice reply" aria-label="Toggle voice">🔇</button>
             <button class="laba-hbtn" id="laba-minimize-btn" title="Minimize" aria-label="Minimize">−</button>
             <button class="laba-hbtn" id="laba-close-btn" title="Close" aria-label="Close">✕</button>
           </div>
         </div>
         <div id="laba-messages" aria-live="polite">
           <div class="laba-msg laba-bot">
-            👋 Hi! I'm <strong>Laba</strong>, your AI assistant for ILovePDF!<br><br>
+            👋 Hi! I\'m <strong>Laba</strong>, your AI assistant!<br><br>
             I can help with:<br>
-            • PDF tool questions<br>
-            • Email drafts<br>
-            • Grammar correction<br>
-            • Sentence rewrites<br><br>
-            Ask me anything! 😊
+            • PDF tool questions 📄<br>
+            • Email drafts 📧<br>
+            • Grammar correction ✏️<br>
+            • General questions 💬<br>
+            • Urdu &amp; Roman Urdu 🌐<br><br>
+            Ask me <em>anything</em>! 😊
           </div>
         </div>
         <div id="laba-typing" class="laba-hidden">
@@ -89,10 +282,11 @@
         <div id="laba-input-area">
           <textarea
             id="laba-input"
-            placeholder="Ask me about PDF tools, email drafts, grammar…"
+            placeholder="Ask anything — PDF tools, grammar, email…"
             rows="1"
             aria-label="Type your message"
           ></textarea>
+          <button id="laba-mic-btn" title="Speak your message" aria-label="Speak message">🎙️</button>
           <button id="laba-send" aria-label="Send message">➤</button>
         </div>
       `;
@@ -106,6 +300,8 @@
       this.typingEl = win.querySelector('#laba-typing');
       this.inputEl = win.querySelector('#laba-input');
       this.sendBtn = win.querySelector('#laba-send');
+      this.micBtn = win.querySelector('#laba-mic-btn');
+      this.speakerBtn = win.querySelector('#laba-speaker-btn');
       this.modelBar = win.querySelector('#laba-model-bar');
       this.modelLabel = win.querySelector('#laba-model-label');
       this.modelFill = win.querySelector('#laba-model-fill');
@@ -114,30 +310,25 @@
     /* ---- Event Binding ---- */
 
     _bindEvents() {
-      // Launcher click / keyboard
       this.launcher.addEventListener('click', () => this.toggleChat());
       this.launcher.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.toggleChat(); }
       });
 
-      // Header buttons
       this.win.querySelector('#laba-close-btn').addEventListener('click', () => this.closeChat());
       this.win.querySelector('#laba-minimize-btn').addEventListener('click', () => this.minimizeChat());
 
-      // Send button + Enter key
       this.sendBtn.addEventListener('click', () => this._sendMessage());
       this.inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this._sendMessage();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._sendMessage(); }
       });
-
-      // Auto-resize textarea
       this.inputEl.addEventListener('input', () => {
         this.inputEl.style.height = 'auto';
         this.inputEl.style.height = Math.min(this.inputEl.scrollHeight, 90) + 'px';
       });
+
+      this.micBtn.addEventListener('click', () => this._toggleListening());
+      this.speakerBtn.addEventListener('click', () => this._toggleVoice());
 
       // Drag — mouse
       const header = this.win.querySelector('#laba-header');
@@ -173,10 +364,8 @@
       const newTop = this.dragState.origY + dy;
       const w = this.win.offsetWidth;
       const h = this.win.offsetHeight;
-      const clampedRight = Math.max(0, Math.min(newRight, window.innerWidth - w));
-      const clampedTop = Math.max(0, Math.min(newTop, window.innerHeight - h));
-      this.win.style.right = clampedRight + 'px';
-      this.win.style.top = clampedTop + 'px';
+      this.win.style.right = Math.max(0, Math.min(newRight, window.innerWidth - w)) + 'px';
+      this.win.style.top = Math.max(0, Math.min(newTop, window.innerHeight - h)) + 'px';
       this.win.style.bottom = 'auto';
     }
 
@@ -185,15 +374,122 @@
       this.win.style.transition = '';
     }
 
+    /* ---- Voice: Speech-to-Text ---- */
+
+    _initVoice() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        this.micBtn.classList.add('laba-no-mic');
+        this.micBtn.title = 'Voice input not supported in this browser';
+        return;
+      }
+
+      this.hasMic = true;
+      this.recognition = new SR();
+      this.recognition.continuous = false;
+      this.recognition.interimResults = false;
+      this.recognition.lang = 'en-US';
+
+      this.recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        this.inputEl.value = transcript;
+        this.inputEl.style.height = 'auto';
+        this.inputEl.style.height = Math.min(this.inputEl.scrollHeight, 90) + 'px';
+        this._stopListeningUI();
+        this._sendMessage();
+      };
+
+      this.recognition.onerror = (e) => {
+        console.warn('[Laba] Speech recognition error:', e.error);
+        this._stopListeningUI();
+        if (e.error === 'not-allowed') {
+          this.addMessage('bot', '🎙️ Microphone access was denied. Please allow microphone permission in your browser settings.');
+        }
+      };
+
+      this.recognition.onend = () => {
+        this._stopListeningUI();
+      };
+    }
+
+    _toggleListening() {
+      if (!this.hasMic) {
+        this.addMessage('bot', '🎙️ Voice input is not supported in your browser. Try Chrome or Edge for the best experience!');
+        return;
+      }
+      if (this.isListening) {
+        try { this.recognition.stop(); } catch (_) {}
+        this._stopListeningUI();
+      } else {
+        this._startListening();
+      }
+    }
+
+    _startListening() {
+      try {
+        // Set language based on detected lang
+        this.recognition.lang = this.detectedLang === 'ur' ? 'ur-PK' : 'en-US';
+        this.recognition.start();
+        this.isListening = true;
+        this.micBtn.classList.add('laba-listening');
+        this.micBtn.title = 'Listening… click to stop';
+        this.inputEl.placeholder = '🎙️ Listening…';
+      } catch (err) {
+        console.warn('[Laba] Could not start voice recognition:', err);
+      }
+    }
+
+    _stopListeningUI() {
+      this.isListening = false;
+      this.micBtn.classList.remove('laba-listening');
+      this.micBtn.title = 'Speak your message';
+      this.inputEl.placeholder = 'Ask anything — PDF tools, grammar, email…';
+    }
+
+    /* ---- Voice: Text-to-Speech ---- */
+
+    _toggleVoice() {
+      this.voiceEnabled = !this.voiceEnabled;
+      if (this.voiceEnabled) {
+        this.speakerBtn.textContent = '🔊';
+        this.speakerBtn.classList.add('laba-voice-on');
+        this.speakerBtn.title = 'Voice replies ON — click to mute';
+      } else {
+        this.speakerBtn.textContent = '🔇';
+        this.speakerBtn.classList.remove('laba-voice-on');
+        this.speakerBtn.title = 'Voice replies OFF — click to enable';
+        if (this.synthesis) this.synthesis.cancel();
+      }
+    }
+
+    speak(text) {
+      if (!this.voiceEnabled || !this.synthesis) return;
+      this.synthesis.cancel();
+      // Strip HTML tags for speech
+      const clean = text.replace(/<[^>]+>/g, '').replace(/\*\*/g, '').trim();
+      const utt = new SpeechSynthesisUtterance(clean);
+      utt.rate = 0.95;
+      utt.pitch = 1.1;
+      utt.volume = 1;
+      // Choose voice language
+      if (this.detectedLang === 'ur') {
+        utt.lang = 'ur-PK';
+      } else {
+        utt.lang = 'en-US';
+        // Prefer a female voice if available
+        const voices = this.synthesis.getVoices();
+        const female = voices.find(v => v.lang.startsWith('en') && /female|zira|hazel|karen|victoria|samantha/i.test(v.name));
+        if (female) utt.voice = female;
+      }
+      this.synthesis.speak(utt);
+    }
+
     /* ---- Open / Close / Minimize ---- */
 
     toggleChat() {
       if (this.isOpen) {
-        if (this.isMinimized) {
-          this.openChat();
-        } else {
-          this.closeChat();
-        }
+        if (this.isMinimized) { this.openChat(); }
+        else { this.closeChat(); }
       } else {
         this.openChat();
       }
@@ -212,19 +508,43 @@
       this.win.classList.add('laba-hidden');
       this.isOpen = false;
       this.isMinimized = false;
+      if (this.synthesis) this.synthesis.cancel();
     }
 
     minimizeChat() {
       this.win.classList.add('laba-hidden');
       this.isMinimized = true;
+      if (this.synthesis) this.synthesis.cancel();
     }
 
     /* ---- Vibration ---- */
 
     _vibrate(ms) {
-      try {
-        if (navigator.vibrate) navigator.vibrate(ms);
-      } catch (_) {}
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {}
+    }
+
+    /* ---- Language Detection ---- */
+
+    detectLanguage(msg) {
+      // Urdu script (Arabic characters)
+      if (/[\u0600-\u06FF\u0750-\u077F]/.test(msg)) return 'ur';
+      // Roman Urdu keyword detection
+      const romanUrduWords = [
+        'kya', 'hai', 'hain', 'mujhe', 'karo', 'kaise', 'nahi', 'aur', 'bhi', 'toh',
+        'yeh', 'woh', 'mein', 'aap', 'ap', 'theek', 'kuch', 'sab', 'koi', 'likho',
+        'batao', 'shukriya', 'shukria', 'mehrbani', 'achi', 'accha', 'bahut', 'bohat',
+        'phir', 'abhi', 'zaroor', 'zaroorat', 'madad', 'chahiye', 'karna', 'karo',
+        'banao', 'likhna', 'samjhao', 'bata', 'sunao', 'haan', 'jee', 'nahi', 'na',
+        'kal', 'aaj', 'kal', 'waqt', 'samay', 'shehar', 'mulk', 'log', 'banda',
+        'mushkil', 'asaan', 'mushkil', 'khush', 'udaas', 'dost', 'yaar',
+      ];
+      const lower = msg.toLowerCase();
+      const hits = romanUrduWords.filter(w => {
+        const re = new RegExp('\\b' + w + '\\b', 'i');
+        return re.test(lower);
+      });
+      if (hits.length >= 1) return 'roman-ur';
+      return 'en';
     }
 
     /* ---- Knowledge Base ---- */
@@ -244,20 +564,18 @@
       if (!this.kb) return null;
       const q = query.toLowerCase().trim();
 
-      // FAQ search
       for (const faq of this.kb.faq || []) {
         if (faq.keywords.some(kw => q.includes(kw))) {
           return { type: 'faq', data: faq };
         }
       }
 
-      // Tool search — score by keyword matches
       let bestScore = 0;
       let bestTool = null;
       for (const tool of this.kb.tools || []) {
         let score = 0;
         for (const kw of tool.keywords) {
-          if (q.includes(kw)) score += kw.length; // longer match = better
+          if (q.includes(kw)) score += kw.length;
         }
         if (score > bestScore) { bestScore = score; bestTool = tool; }
       }
@@ -265,7 +583,6 @@
       if (bestTool && bestScore >= 3) {
         return { type: 'tool', data: bestTool };
       }
-
       return null;
     }
 
@@ -284,27 +601,44 @@
       return `💬 ${faq.answer}`;
     }
 
+    /* ---- General Knowledge Search ---- */
+
+    searchGeneralKB(query, lang) {
+      for (const entry of GENERAL_KB) {
+        const matched = entry.patterns.some(p => p.test(query));
+        if (!matched) continue;
+
+        const respPool = entry.responses[lang] || entry.responses['en'] || entry.responses['roman-ur'];
+        if (!respPool) continue;
+
+        if (typeof respPool === 'function') {
+          return respPool(query);
+        }
+        if (Array.isArray(respPool)) {
+          const item = respPool[Math.floor(Math.random() * respPool.length)];
+          return typeof item === 'function' ? item(query) : item;
+        }
+        return respPool;
+      }
+      return null;
+    }
+
     /* ---- Transformers.js Model ---- */
 
     async _ensureModelLoaded() {
       if (this.modelLoaded) return true;
       if (this.modelLoading) {
-        // Wait until loaded
         return new Promise((resolve) => {
           const check = setInterval(() => {
-            if (this.modelLoaded || !this.modelLoading) {
-              clearInterval(check);
-              resolve(this.modelLoaded);
-            }
+            if (this.modelLoaded || !this.modelLoading) { clearInterval(check); resolve(this.modelLoaded); }
           }, 300);
         });
       }
 
       this.modelLoading = true;
-      this._showModelBar('Downloading AI model (~24MB, first use only)…', 5);
+      this._showModelBar('Downloading AI model (~24MB, one-time only)…', 5);
 
       try {
-        // Dynamically load transformers.js from CDN
         if (!window.__transformers_loaded) {
           await new Promise((resolve, reject) => {
             const s = document.createElement('script');
@@ -320,7 +654,6 @@
         const { pipeline, env } = window.Transformers || window.transformers || {};
         if (!pipeline) throw new Error('Transformers.js not available');
 
-        // Use smaller, faster model — runs in browser
         env.allowRemoteModels = true;
         env.useBrowserCache = true;
 
@@ -329,8 +662,7 @@
         this.pipeline = await pipeline('text2text-generation', 'Xenova/t5-small', {
           progress_callback: (info) => {
             if (info && info.progress) {
-              const pct = Math.min(95, 55 + (info.progress * 0.4));
-              this._showModelBar(`Loading model… ${Math.round(info.progress)}%`, pct);
+              this._showModelBar(`Loading model… ${Math.round(info.progress)}%`, Math.min(95, 55 + (info.progress * 0.4)));
             }
           },
         });
@@ -354,34 +686,21 @@
       this.modelFill.style.width = pct + '%';
     }
 
-    _hideModelBar() {
-      this.modelBar.classList.add('laba-hidden');
-    }
+    _hideModelBar() { this.modelBar.classList.add('laba-hidden'); }
 
     async processWithModel(task, text) {
       const loaded = await this._ensureModelLoaded();
-      if (!loaded || !this.pipeline) {
-        return null;
-      }
+      if (!loaded || !this.pipeline) return null;
 
-      let prompt;
-      if (task === 'grammar') {
-        prompt = `Fix grammar: ${text}`;
-      } else if (task === 'email') {
-        prompt = `Write a professional email about: ${text}`;
-      } else if (task === 'rewrite') {
-        prompt = `Rewrite professionally: ${text}`;
-      } else if (task === 'summarize') {
-        prompt = `Summarize: ${text}`;
-      } else {
-        prompt = text;
-      }
+      const prompts = {
+        grammar: `Fix grammar: ${text}`,
+        email:   `Write a professional email about: ${text}`,
+        rewrite: `Rewrite professionally: ${text}`,
+        summarize: `Summarize: ${text}`,
+      };
 
       try {
-        const result = await this.pipeline(prompt, {
-          max_new_tokens: 180,
-          do_sample: false,
-        });
+        const result = await this.pipeline(prompts[task] || text, { max_new_tokens: 200, do_sample: false });
         return result?.[0]?.generated_text?.trim() || null;
       } catch (err) {
         console.warn('[Laba] Model inference failed:', err.message);
@@ -393,56 +712,22 @@
 
     _detectIntent(msg) {
       const m = msg.toLowerCase();
-
-      // Grammar correction
-      if (
-        m.includes('grammar') || m.includes('correct') || m.includes('fix sentence') ||
-        m.includes('grammatically') || m.includes('theek karo') || m.includes('sahi karo') ||
-        m.match(/fix[^.]*sentence/) || m.match(/correct[^.]*sentence/)
-      ) {
-        return 'grammar';
-      }
-
-      // Email draft
-      if (
-        m.includes('email') || m.includes('mail') || m.includes('write email') ||
-        m.includes('draft email') || m.includes('email likho') || m.includes('email likhna')
-      ) {
-        return 'email';
-      }
-
-      // Sentence rewrite
-      if (
-        m.includes('rewrite') || m.includes('rephrase') || m.includes('improve') ||
-        m.includes('make professional') || m.includes('better version') ||
-        m.includes('professional banao') || m.includes('likhne ka tarika')
-      ) {
-        return 'rewrite';
-      }
-
-      // Short summary (text given inline)
-      if (
-        (m.includes('summarize') || m.includes('summary') || m.includes('summarise') || m.includes('tldr')) &&
-        msg.length > 60
-      ) {
-        return 'summarize';
-      }
-
+      if (m.match(/\bgrammar\b|\bfix sentence\b|\bcorrect.*sentence\b|\btheek karo\b|\bsahi karo\b|\bgrammatically\b/)) return 'grammar';
+      if (m.match(/\bemail\b|\bwrite.*email\b|\bdraft.*email\b|\bemail likho\b/)) return 'email';
+      if (m.match(/\brewrite\b|\brephrase\b|\bprofessional banao\b|\bmake.*professional\b/)) return 'rewrite';
+      if (m.match(/\bsummariz(e|ise)\b|\bsummary\b|\btldr\b/) && msg.length > 60) return 'summarize';
       return null;
     }
 
-    /* ---- Extract content from message (strip intent keywords) ---- */
-
     _extractContent(msg, intent) {
-      let text = msg;
       const removals = {
-        grammar: [/fix grammar[:\-]?\s*/gi, /correct[:\-]?\s*/gi, /theek karo[:\-]?\s*/gi, /sahi karo[:\-]?\s*/gi],
-        email: [/write (?:an? )?email(?: about)?[:\-]?\s*/gi, /draft (?:an? )?email(?: about)?[:\-]?\s*/gi, /email likho[:\-]?\s*/gi],
-        rewrite: [/rewrite[:\-]?\s*/gi, /rephrase[:\-]?\s*/gi, /make professional[:\-]?\s*/gi, /professional banao[:\-]?\s*/gi],
-        summarize: [/summarize[:\-]?\s*/gi, /summarise[:\-]?\s*/gi, /give summary[:\-]?\s*/gi, /ka summary do[:\-]?\s*/gi, /tldr[:\-]?\s*/gi],
+        grammar:   [/fix grammar[:\-]?\s*/gi, /correct[:\-]?\s*/gi, /theek karo[:\-]?\s*/gi, /sahi karo[:\-]?\s*/gi, /fix.*?:/gi],
+        email:     [/write (?:an? )?email(?: about)?[:\-]?\s*/gi, /draft (?:an? )?email[:\-]?\s*/gi, /email likho[:\-]?\s*/gi],
+        rewrite:   [/rewrite[:\-]?\s*/gi, /rephrase[:\-]?\s*/gi, /make professional[:\-]?\s*/gi, /professional banao[:\-]?\s*/gi],
+        summarize: [/summarize[:\-]?\s*/gi, /summarise[:\-]?\s*/gi, /summary[:\-]?\s*/gi, /tldr[:\-]?\s*/gi],
       };
-      const pats = removals[intent] || [];
-      for (const p of pats) text = text.replace(p, '');
+      let text = msg;
+      for (const p of (removals[intent] || [])) text = text.replace(p, '');
       return text.trim() || msg;
     }
 
@@ -452,64 +737,77 @@
       const trimmed = msg.trim();
       if (!trimmed) return;
 
+      // Detect language
+      this.detectedLang = this.detectLanguage(trimmed);
+
       this.addMessage('user', trimmed);
       this._setInputBusy(true);
       this.showTyping();
 
-      // Small delay for typing feel
-      await this._delay(400);
+      await this._delay(350);
 
-      // 1. Check knowledge base first
+      // 1. Knowledge base (PDF tools)
       const kbResult = this.searchKnowledgeBase(trimmed);
       if (kbResult) {
         this.hideTyping();
-        let answer;
-        if (kbResult.type === 'tool') {
-          answer = this._formatToolResponse(kbResult.data);
-        } else {
-          answer = this._formatFaqResponse(kbResult.data);
-        }
+        const answer = kbResult.type === 'tool'
+          ? this._formatToolResponse(kbResult.data)
+          : this._formatFaqResponse(kbResult.data);
         this.addMessage('bot', answer, true);
+        this.speak(answer);
         this._vibrate(40);
         this._setInputBusy(false);
         return;
       }
 
-      // 2. Detect model task intent
+      // 2. General knowledge bank
+      const genAnswer = this.searchGeneralKB(trimmed, this.detectedLang);
+      if (genAnswer) {
+        this.hideTyping();
+        this.addMessage('bot', genAnswer);
+        this.speak(genAnswer);
+        this._vibrate(40);
+        this._setInputBusy(false);
+        return;
+      }
+
+      // 3. Model-based tasks (grammar, email, rewrite, summarize)
       const intent = this._detectIntent(trimmed);
       if (intent) {
         const content = this._extractContent(trimmed, intent);
         this.hideTyping();
         this._showModelBar('Loading AI model for this task…', 10);
-
         const result = await this.processWithModel(intent, content);
-
         this._hideModelBar();
+
         if (result) {
-          const prefix = {
-            grammar: '✏️ <strong>Corrected:</strong>\n',
-            email: '📧 <strong>Email Draft:</strong>\n',
-            rewrite: '✨ <strong>Rewritten:</strong>\n',
-            summarize: '📝 <strong>Summary:</strong>\n',
-          }[intent] || '';
-          this.addMessage('bot', prefix + result, true);
+          const prefixes = {
+            grammar:  '✏️ <strong>Corrected:</strong>\n',
+            email:    '📧 <strong>Email Draft:</strong>\n',
+            rewrite:  '✨ <strong>Rewritten:</strong>\n',
+            summarize:'📝 <strong>Summary:</strong>\n',
+          };
+          const reply = (prefixes[intent] || '') + result;
+          this.addMessage('bot', reply, true);
+          this.speak(result);
           this._vibrate(40);
         } else {
-          this.addMessage('bot', '⚠️ The AI model couldn\'t load right now. Please check your internet connection and try again.');
+          const errMsg = this.detectedLang === 'roman-ur'
+            ? '⚠️ AI model abhi load nahi ho raha. Internet connection check karein aur dobara try karein.'
+            : '⚠️ The AI model couldn\'t load right now. Please check your connection and try again.';
+          this.addMessage('bot', errMsg);
         }
         this._setInputBusy(false);
         return;
       }
 
-      // 3. Out-of-scope fallback
+      // 4. Universal fallback — always gives a helpful response
       this.hideTyping();
-      const fallbacks = [
-        'I can help with PDF tools, email drafts, and grammar correction only. 😊\n\nTry asking:\n• "How to compress PDF?"\n• "Write email about PDF compression"\n• "Fix grammar: He go to school"',
-        'I\'m specialized in ILovePDF tools, email drafts, and grammar help! For other questions, please try a general search engine.\n\nWhat PDF task can I help you with? 📄',
-        'Great question! But that\'s a bit beyond my scope. I work best with:\n📄 PDF tool guidance\n📧 Email drafts\n✏️ Grammar correction\n✨ Sentence rewrites\n\nTry one of those!',
-      ];
-      const reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-      this.addMessage('bot', reply);
+      const fallbackPool = FALLBACK_RESPONSES[this.detectedLang] || FALLBACK_RESPONSES['en'];
+      const fallback = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+      const fallbackText = typeof fallback === 'function' ? fallback(trimmed) : fallback;
+      this.addMessage('bot', fallbackText);
+      this.speak(fallbackText);
       this._vibrate(40);
       this._setInputBusy(false);
     }
@@ -522,7 +820,12 @@
       if (isHtml) {
         div.innerHTML = content;
       } else {
-        div.textContent = content;
+        // Convert **bold** markdown to <strong>
+        const html = content
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        div.innerHTML = html;
       }
       this.msgArea.appendChild(div);
       this._scrollToBottom();
@@ -534,14 +837,10 @@
       this._scrollToBottom();
     }
 
-    hideTyping() {
-      this.typingEl.classList.add('laba-hidden');
-    }
+    hideTyping() { this.typingEl.classList.add('laba-hidden'); }
 
     _scrollToBottom() {
-      requestAnimationFrame(() => {
-        this.msgArea.scrollTop = this.msgArea.scrollHeight;
-      });
+      requestAnimationFrame(() => { this.msgArea.scrollTop = this.msgArea.scrollHeight; });
     }
 
     _setInputBusy(busy) {
@@ -559,15 +858,12 @@
       this.handleUserMessage(val);
     }
 
-    _delay(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    _delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   }
 
   /* ---- Bootstrap ---- */
-
   function init() {
-    if (document.getElementById('laba-launcher')) return; // already mounted
+    if (document.getElementById('laba-launcher')) return;
     window.__labaWidget = new LabaWidget();
   }
 
