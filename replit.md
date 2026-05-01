@@ -1,267 +1,39 @@
 # ILovePDF — Free Online PDF & Image Tools
 
-A production-ready PDF + image processing platform with 33 tools, branded as **ILovePDF** (red theme #E5322E).
+## Overview
+ILovePDF is a production-ready platform offering 33 online tools for PDF and image processing. The project aims to provide a comprehensive, user-friendly, and highly available service for document manipulation, targeting a broad user base with both free and premium tiers. Key capabilities include PDF merging, splitting, compression, conversion (to/from Word, PPT, Excel, HTML, JPG), editing, security features, advanced tools like OCR and AI summarization, and a suite of image manipulation tools. The platform emphasizes performance, security, and a seamless user experience across various devices.
 
-## Architecture
+## User Preferences
+I prefer detailed explanations.
+I want an iterative development process.
+I want to be asked before major changes are made.
 
-```
-/
-├── server.js                    — Express entry (port 5000, rate limiting, security headers)
-├── utils/cleanup.js             — File cleanup + shared response helpers
-├── controllers/
-│   ├── pdfController.js
-│   └── imageController.js
-├── routes/                      — All routes accept files up to 100 MB
-│   ├── organize.js              — Merge, Split, Rotate, Crop, Organize PDF
-│   ├── edit.js                  — Compress, Edit, Watermark, Sign, Page Numbers, Redact
-│   ├── convert.js               — JPG↔PDF, Scan, PDF↔Word/PPT/Excel/HTML
-│   ├── security.js              — Protect / Unlock PDF
-│   ├── advanced.js              — Repair, OCR, Compare, AI Summarizer, Translate, Workflow
-│   └── image.js                 — Background Remover, Crop, Resize, Filters
-├── public/
-│   ├── index.html               — Dashboard (mega-menu header, 5-col footer, signup modal, processing overlay)
-│   ├── tool.html                — Tool page (same persistent layout)
-│   ├── blog.html, blog/         — Blog
-│   ├── privacy.html, terms.html, disclaimer.html
-│   ├── robots.txt, sitemap.xml
-│   ├── css/styles.css           — Full design system (red theme, mega-menu, footer, processing UI)
-│   └── js/
-│       ├── tools-config.js      — All tool definitions + 8 categories (matches header hierarchy)
-│       ├── config.js            — API base + queue API base resolution
-│       ├── queue-client.js      — Queue submit + 3 s polling for heavy tools (Cloudflare Worker)
-│       ├── sidebar.js           — Sidebar nav with category groupings
-│       ├── mega-menu.js         — Topbar mega-menu (8 categories with hover/click dropdowns)
-│       ├── dashboard.js         — Card rendering for the home page
-│       ├── tool-page.js         — Per-tool UI, drag-drop reorder, rotation, branded download, signup check
-│       └── shared.js            — Modals, sidebar toggle, cookies, signup-required, processing overlay
-└── cloudflare/worker/           — Scalable queue layer (deployed to Cloudflare, NOT to this Repl)
-    ├── wrangler.toml            — KV / R2 / Queue bindings + env vars
-    ├── README.md                — One-time setup + deploy guide
-    └── src/
-        ├── index.js             — Producer (HTTP) + queue consumer in one Worker
-        ├── jobs.js              — KV job-record CRUD
-        ├── r2.js                — R2 helpers (input upload, result save, signed URLs)
-        ├── auth.js              — Firebase ID-token verifier (RS256, no SDK)
-        ├── limits.js            — Tier caps mirroring utils/usage.js
-        └── processors.js        — HF Space delegation + pdf-lib light fallback
-```
+## System Architecture
+The application follows a client-server architecture. The frontend is built with pure HTML/CSS/JS, focusing on a responsive and intuitive UI/UX with a distinctive red theme (`#E5322E`). Key UI components include a persistent mega-menu header, a 5-column footer, a dashboard with tool cards, and a dedicated processing overlay.
 
-## Tool routing
+The backend is an Express.js server handling API requests, file uploads (up to 100 MB), and orchestrating PDF/image processing. Processing logic is distributed:
+- **Browser-side processing**: For instant, lightweight operations using `pdf-lib`, `pdfjs`, and canvas.
+- **Cloudflare Worker (Queue)**: For heavy, AI-backed, or complex tasks, leveraging Hugging Face Spaces for advanced processing. This provides a scalable, serverless queue system.
+- **Direct Express Backend**: As a fallback for browser/queue failures and for specific tools requiring server-side encryption (e.g., PDF Protection).
 
-Dispatch order in `public/js/tool-page.js#processFile`:
+**Core Features & Design Patterns:**
+- **Tool Routing**: A sophisticated dispatcher prioritizes browser-side processing, then the Cloudflare queue, and finally direct Express API calls.
+- **User Tiers**: Implemented with `utils/usage.js` for guest, free, and premium users, defining daily file limits and per-file size caps.
+- **File Management**: Automatic cleanup of temporary local and R2 storage files. User-saved files in R2 are retained until manually deleted.
+- **SEO Optimization**: Dynamic generation of canonical URLs, structured data (JSON-LD for Article, BreadcrumbList, FAQPage), and a dedicated blog system with SEO-friendly content and internal linking.
+- **Performance**: Firebase SDK initialization is deferred using `requestIdleCallback` to avoid competing with first paint.
+- **Tool Prioritization**: Frontend reordering and badging of tools (Instant, Compress, Advanced) based on execution speed to guide user selection.
+- **Editor Features**: Drag-and-drop file reordering with thumbnails, per-file rotation, client-side size guards, and a signup-required modal for large files.
 
-1. **Browser-side** (`BrowserTools.process`) — runs first whenever the tool is
-   marked `clientSide: true` and `BrowserTools.supports(id)` is true. Zero
-   upload, no network, instant result.
-2. **Queue → Cloudflare Worker** (`pdf-jobs`) — only for tools listed in
-   `queue-client.js#QUEUED_TOOL_IDS` AND when `window.QUEUE_API_BASE`
-   resolves to a real Worker URL. Heavy / Hugging Face-backed tools.
-3. **Direct → Express backend** — final fallback for everything else, and
-   for queue/browser failures.
-
-| Path                                | Tools                                                                                                                                          |
-|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| Browser-side (pdf-lib / pdfjs / canvas) | Merge, Split, Rotate, Crop, Organize, JPG/PNG → PDF, Page Numbers, Watermark, **Compress (basic)**, **Unlock**, **PDF → JPG**, **Crop Image**, **Resize Image**, **Image Filters** |
-| Standalone browser pages            | Currency Converter, Numbers to Words                                                                                                           |
-| Queue → Cloudflare Worker (HF)      | Compress (advanced fallback), OCR, PDF↔Word/Excel/PowerPoint, Word/Excel/PowerPoint → PDF, HTML → PDF, Edit, Sign, Redact, Repair, Scan, Compare, AI Summarizer, Translate, Workflow, Background Remover |
-| Direct → Express backend            | Protect (real password encryption — pdf-lib can't do it browser-side), plus fallback for any tool whose browser/queue path fails               |
-
-For Compress specifically: BrowserTools tries a basic in-browser re-save
-first; if the result isn't smaller (`NO_BROWSER_GAIN`), the dispatcher
-silently falls through to the Hugging Face queue (advanced) and then the
-Express route. UI/messages are identical for both paths.
-
-## Brand & UI
-
-- **Brand**: ILovePDF
-- **Primary color**: `#E5322E` (red)
-- **Download filenames**: `ILovePDF-[Original-Name].<ext>`
-- **Persistent layout**: header (with mega-menu) and 5-column footer present on every page
-- **Mega-menu hierarchy** (matches sidebar):
-  - Organize PDFs · Compress & Optimize · Convert From PDF · Convert To PDF · Edit & Annotate · Security · Advanced Tools · Image Tools
-
-## Editor Features
-
-- File thumbnails with drag-and-drop reordering (mouse + touch)
-- Per-file rotation control (`rotations[]` sent in form data)
-- Dedicated full-screen **processing overlay** with animated spinner before download
-- 100 MB client-side size guard → opens **Sign Up Required** modal
-- 100 MB backend limit (multer) returns `413` → also triggers Sign Up modal
-
-## Tech Stack
-
-- **Backend**: Node.js + Express 5 (ES Modules), multer (100 MB), express-rate-limit, compression
-- **PDF processing**: pdf-lib, mammoth, pptxgenjs, exceljs, pdf-parse, JSZip
-- **Image processing**: sharp
-- **Frontend**: Pure HTML/CSS/JS (no frameworks), Lucide icons, Inter font, fully responsive
-
-## Running
-
-```bash
-node server.js   # listens on port 5000
-```
-
-## Deployment
-
-Frontend is hosted on **Firebase Hosting** (`ilovepdf.cyou`, project `ilovepdf-web`).
-Backend (Node/Express) is intended to run on a separate host (e.g. Replit Deployments,
-Railway, Fly, Render). The frontend reaches the backend via `public/js/config.js`,
-which maps each frontend host to a backend URL through `HOST_TO_BACKEND` and exposes:
-
-- `window.API_BASE` — root URL for API calls
-- `apiUrl(path)` — prefixes API paths with the backend
-- `apiFetch(path, opts)` — fetch wrapper that adds `credentials: 'include'`
-
-`firebase.json` rewrites `/api/**` to `/index.html` so static hosting doesn't 404
-on accidental client-side API misroutes; real API calls go directly to the backend.
-
-### Server-side configuration (env vars)
-
-| Variable                       | Purpose                                          |
-|--------------------------------|--------------------------------------------------|
-| `JWT_SECRET`                   | Signs the `ilovepdf_token` auth cookie           |
-| `ALLOWED_ORIGINS`              | Extra CORS origins (comma-separated). Defaults already include `ilovepdf.cyou`, `www.ilovepdf.cyou`, `ilovepdf-web.web.app`, `ilovepdf-web.firebaseapp.com`. Use `*` to allow any. |
-| `MAX_UPLOAD_MB`                | Hard ceiling on per-file upload size (default 200) |
-| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | Cloudflare R2 storage (uploads + saved files) |
-| `FIREBASE_API_KEY` *or* `GOOGLE_API_KEY` | Public Firebase Web SDK API key (either env var works) |
-| `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` / `FIREBASE_STORAGE_BUCKET` | Public Firebase Web SDK config (returned by `/api/config/firebase`) |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin SDK credentials for verifying Firebase ID tokens |
-| `HF_API_TOKEN` (or legacy `HUGGINGFACE_API_TOKEN`) | Hugging Face inference token for AI tools |
-| `HF_SPACE_URL`                 | Optional self-hosted HF Space fallback URL |
-
-The backend logs which services are enabled at startup. Until R2/Firebase env vars
-are set, those endpoints respond with `503 not configured` instead of crashing.
-
-### User tier system
-
-`utils/usage.js` enforces three tiers, all in one middleware (`checkUsage`):
-
-| Tier    | Detection                                | Daily files | Per-file cap |
-|---------|------------------------------------------|-------------|--------------|
-| guest   | No auth cookie                           | 10          | 60 MB        |
-| free    | Logged in, `users.plan='free'` (default) | 30          | 200 MB       |
-| premium | Logged in, `users.plan='premium'`        | unlimited   | `MAX_UPLOAD_MB` |
-
-To upgrade a user manually:
-```sql
-UPDATE users SET plan='premium' WHERE email='someone@example.com';
-```
-
-### Auto-cleanup
-
-- Local uploads (`UPLOAD_DIR`): swept every 15 min by `utils/upload.js`.
-- R2 `tmp/` prefix: swept every 5 min, objects older than 10 min deleted
-  (`utils/r2.js → startR2Sweeper`).
-- R2 `users/<uid>/` prefix: kept until the user deletes from /dashboard.html.
-
-## Frontend tool dispatcher
-
-`public/js/app-router.js` exposes a single `window.runTool(toolId, files, opts)`
-plus a `TOOL_MAP` describing how each of the 33 tools is handled:
-
-```js
-TOOL_MAP['merge']    // { type: 'browser', id: 'merge' }       -> pdf-lib
-TOOL_MAP['compress'] // { type: 'api', endpoint: '/api/compress', field: 'pdf' }
-```
-
-Browser tools (8) run entirely client-side via `browser-tools.js`
-(merge, split, rotate, crop, organize, page-numbers, watermark, jpg-to-pdf).
-The remaining 25 dispatch to the backend through `apiUrl()` from `config.js`
-(which auto-prefixes with the production backend URL when the page is served
-from Firebase Hosting).
-
-`tool-page.js` already integrates this fast path internally — `runTool` is
-the standalone API for any future entry points (quick-action cards, CLI,
-external embeds).
-
-### Cross-origin auth cookie
-
-Because the frontend (Firebase) and backend (Replit/Railway) live on different
-origins, `routes/auth.js` automatically sets the auth cookie with
-`SameSite=None; Secure` for cross-origin requests, and `SameSite=Lax` for
-same-origin (local dev / single-host deploy).
-
-## Frontend pages
-
-- `/` — Dashboard (tool grid)
-- `/tool.html?id=...` — Per-tool page (also reachable via SEO slugs like `/merge-pdf.html`)
-- `/n2w.html` — Numbers-to-words converter (special tool)
-- `/dashboard.html` — "My Files" — lists the signed-in user's R2-saved files
-- `/verify-signup.html` — Email-confirmation step of signup
-- `/blog.html`, `/privacy.html`, `/terms.html`, `/disclaimer.html` — Static pages
-
-## Tool-page routing
-
-`utils/seo.js` (server) and `public/js/tools-config.js` (client) share the same
-`SLUG_MAP` (34 entries). On Firebase static hosting, `tool-page.js` calls
-`window.resolveToolIdFromUrl()` which checks (in order):
-
-1. `window.__TOOL_ID` (server-injected, when serving from Express)
-2. The current pathname against `SLUG_MAP`
-3. The `?id=` query param
-4. The first path segment
-
-If nothing matches, a friendly **Tool not found** screen is rendered instead of
-silently redirecting to `/` (the original "page reload" bug).
-
-## Phase 1–5 Polish (April 2026)
-
-- **Header redesign (chrome.js + home.css)**: Desktop header now shows inline nav: Merge PDF | Split PDF | Organize ▼ | Convert ▼ | All Tools ▼ | Search bar. Organize/Convert are simple dropdowns (hover + click toggle, ARIA-expanded). Mobile (<1024px) centers the brand and replaces the full search bar with a search icon that opens the mobile overlay. Implemented `wireSimpleDropdowns()` and `wireMobileSearchBtn()` in chrome.js.
-- **Trust strip (tool-page.js)**: Changed "auto-deleted within 1 hour" → "auto-deleted after 10 minutes" to match R2 sweeper config.
-- **SEO canonical URL (tool-page.js)**: `setMetaForStep()` now creates/updates a `<link rel="canonical">` pointing to the base tool URL (`origin/slug`) on every step render — preview and download steps still point back to the upload page.
-
-## Recent Changes (April 2026)
-
-- **Cloudflare Worker — CORS hardened**: `corsHeaders()` now mirrors the request origin when `ALLOWED_ORIGINS=*` (avoids the "Access-Control-Allow-Credentials with wildcard" pitfall) and exposes `content-disposition`. Added `readHfToken(env)` which accepts `HF_API_TOKEN`, `HF_TOKEN`, `HUGGINGFACE_API_TOKEN`, or `HUGGING_FACE_TOKEN`. `processors.js` uses the same fallback chain.
-- **Header (chrome.js)** — "All Tools" mega-menu now lists ONLY the tools NOT already exposed in the main header (Advanced + Image groups). The Organize / Convert / Edit / Security tools remain in the inline dropdowns.
-- **Mobile header (home.css)** — keeps Logo + Brand + Login + Signup + Hamburger visible at every breakpoint. Removed the rule that previously hid `.btn-signin` below 1280 px. `html, body { overflow-x:hidden }` to kill any horizontal scroll.
-- **Compress PDF (tool-page.js + page-organizer.js + home.css)** — `compress` is removed from `PAGE_LEVEL_TOOLS`; tool-page.js renders a custom **single-page thumbnail preview** for the uploaded PDF. Tier-aware compression options:
-  - Free / anonymous: locked at "High" (~30 % reduction) with a Sign-up CTA.
-  - Logged-in / paid: full Low / Medium / High slider mapped to the `level` form field forwarded to the worker / HF Space.
-  - **"Try advanced compression" CTA (2026-04):** appended to the result card after a successful browser-side compress (`appendCompressAdvancedLink()` in tool-page.js). Click temporarily flips `BrowserTools.supports('compress')` to `false` and re-runs `processFile()` so the dispatcher falls through to the queue / HF advanced engine for stronger size reduction.
-- **Download Swell + Burst (home.css + tool-page.js)** — the "Download Again" CTA is wrapped in `.dl-pulse` so it gently swells when ready. Click triggers `explodeAt()` which spawns a particle burst before the download fires; respects `prefers-reduced-motion`.
-
-## Frontend / SEO / QA Polish (April 30, 2026)
-
-### Privacy messaging
-- `public/js/queue-client.js` and `public/js/tool-page.js` — All user-facing status text (queue position, "Continuing online…", "File ready for download!", etc.) replaced with neutral copy ("Processing your file…", "Your file is ready"). Backend / worker / queue terminology no longer leaks to the UI.
-- `public/tool.html` — Default processing-overlay copy softened.
-
-### Blog system (35 articles + index)
-- `scripts/blog-data.js` — 35 long-form guides (one per tool). NOT regenerated; treated as source of truth.
-- `scripts/generate-blogs.js` — Rewritten generator. Each post now includes:
-  - Reading-progress bar, breadcrumbs (Home › Blog › Title), trust strip
-  - Sticky right sidebar (TOC + popular tools widget)
-  - Auto-generated TOC with IntersectionObserver active-section highlight
-  - Mid-content + end-of-post CTAs back to the matching tool
-  - Related tools (7) and related blogs (6) at the bottom
-  - JSON-LD: Article + BreadcrumbList + FAQPage
-  - Ad-slot placeholders (top, mid, bottom) ready for AdSense post-approval
-- `scripts/generate-blog-listing.js` — Rewritten `/blog.html`. Featured top-3 cards, live search input, 8 category tabs (All / Organize / Convert / Compress / Edit / Security / AI / Image) with client-side filter via `data-cat` + `data-search` attributes, BreadcrumbList JSON-LD.
-- `public/js/blog-article.js` (new) — Reading progress + TOC active-link sync + "Was this guide helpful?" feedback widget (localStorage-based, optional Formspree POST via `window.FEEDBACK_FORMSPREE_ID`). **Phase 1-6 (2026-04):** also promotes `.blog-article-header` into a hero with auto-derived subtitle + CTA button to the matching tool, injects a "Key benefits" 3-card highlight box after the intro, auto-applies `loading="lazy"` + `decoding="async"` to article images, and shows a dismissible sticky bottom CTA once the hero scrolls out of view. **Conversion polish (2026-04):** also injects an emotional-hook eyebrow above the H1, replaces the auto-derived subtitle with a benefit-focused per-tool subtitle (`SUBTITLE_MAP`, fallback to first paragraph), and adds a checkmark trust strip (✔ No signup ✔ 100% free ✔ Works in browser / Files auto-deleted) directly under the CTA. All purely additive — original HTML / SEO meta untouched.
-- `public/js/blog-listing.js` (new) — Search + tab filter wiring. Also upgrades the listing hero with an "Explore all 35 tools" CTA and lazy-loads images.
-
-### Tool prioritization & visual badges (2026-04)
-The full tool catalog is now organized by **execution speed** instead of pure category, so users land on instant tools first:
-- `public/js/chrome.js` — Each tool entry in `TOOL_GROUPS` carries a `prio` field (`'instant'` | `'compress'` | `'advanced'`). Items inside every category and dropdown (`MEGA_KEYS`, `ORGANIZE_ITEMS`, `CONVERT_ITEMS`) are reordered so browser-native tools appear before server-side ones. Exposes `window.TOOL_PRIO_LABEL`, `window.toolBadgeHtml(prio)` (returns the small ⚡ Instant / ☁️ Advanced pill, empty string for `compress`), and `window.TOOL_PRIORITY_BANDS` (the three flat bands the homepage renders: Instant tools → Compression → Advanced tools, each with an icon + subtitle).
-- `public/js/home.js` — `renderTools()` now reads `window.TOOL_PRIORITY_BANDS` and emits three priority bands instead of legacy categories. Each card uses `.cat-block--{instant|compress|advanced}` and includes the priority badge in its top-right corner.
-- `public/js/mobile-nav.js` — Both the search overlay and the tools overlay now show the same priority badge next to each row.
-- `public/css/home.css` — Adds `.cat-title` (icon + text + count layout), `.cat-sub`, per-band accent colors, and `.tool-badge` (with `--instant` amber and `--advanced` indigo variants). Mega-menu and mobile-nav rows reuse the same badge inline.
-- Backend, routing, tool logic and SEO meta are untouched — this is purely a frontend reorder + visual tag pass.
-- `public/js/firebase-init.js` — Init wrapped in `requestIdleCallback` (with `setTimeout` fallback) so the Firebase SDK fetch no longer competes with first paint. Backward-compatible because `window.FB.ready` (a Promise) is created synchronously.
-- `public/css/blog.css` — Full rewrite covering all new components (progress bar, sidebar, TOC, FAQ accordion, related-cards, why-choose grid, featured cards, filter bar, tabs, ad slots, responsive).
-- `public/blog/best-pdf-tools.html` — Hand-written 36th file, preserved (NOT in BLOGS array, generator skips it).
-
-### Tool-page deep SEO content
-- `scripts/generate-tool-content.js` (new) — Builds `public/js/tool-content.js` from `blog-data.js`, exporting `window.TOOL_CONTENT[urlSlug] = { benefits, useCases, faq }` for all 35 tools (105 sections total).
-- `public/js/tool-page.js` — `renderSeoContent()` now injects per-tool **Benefits**, **Common use cases**, and **Why choose ILovePDF** lists, plus a dedicated **Frequently asked questions** accordion. FAQPage JSON-LD is appended to `<head>` per tool render (replacing any previous schema, so single-page navigation stays clean).
-- `public/tool.html` — Loads `tool-content.js` and `blog.css` (FAQ accordion shares blog styles).
-- `public/css/styles.css` — Styles added for `.seo-benefits`, `.seo-usecases`, `.seo-why`, `.tool-faq`.
-
-### Build commands
-```bash
-node scripts/generate-tool-content.js   # → public/js/tool-content.js
-node scripts/generate-blogs.js          # → public/blog/*.html (35 files)
-node scripts/generate-blog-listing.js   # → public/blog.html
-```
-A workflow restart is required after editing `public/tool.html` because `server.js` caches it in memory at startup.
+## External Dependencies
+- **Cloudflare**: Used for Workers (serverless queue), R2 (object storage for uploads and results), and potentially KV storage.
+- **Hugging Face**: For AI-powered tools (OCR, AI Summarizer, Translate, advanced compression, background removal) via Hugging Face Spaces.
+- **Firebase**: For frontend hosting, user authentication (via Firebase ID tokens), and potentially other Firebase services.
+- **pdf-lib**: JavaScript library for browser-side PDF manipulation.
+- **mammoth, pptxgenjs, exceljs, pdf-parse, JSZip**: Libraries for various document format conversions and parsing.
+- **sharp**: Node.js module for high-performance image processing.
+- **Lucide icons**: For vector icons in the UI.
+- **Inter font**: Typography.
+- **multer**: Node.js middleware for handling `multipart/form-data`, primarily for file uploads.
+- **express-rate-limit, compression**: Express middleware for security and performance.
+- **Formspree**: Optional integration for feedback forms.
