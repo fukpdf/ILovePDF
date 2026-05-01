@@ -1,0 +1,429 @@
+/* =========================================================
+   LABA AI WIDGET — Browser-Side, No API, Unlimited Chats
+   ========================================================= */
+
+/* ---- Keyframe Animations ---- */
+
+@keyframes laba-rainbow-border {
+  0%   { border-color: #ff0000; box-shadow: 0 0 18px 4px #ff000088; }
+  14%  { border-color: #ff6600; box-shadow: 0 0 18px 4px #ff660088; }
+  28%  { border-color: #ffcc00; box-shadow: 0 0 18px 4px #ffcc0088; }
+  42%  { border-color: #00cc44; box-shadow: 0 0 18px 4px #00cc4488; }
+  57%  { border-color: #0088ff; box-shadow: 0 0 18px 4px #0088ff88; }
+  71%  { border-color: #8800ff; box-shadow: 0 0 18px 4px #8800ff88; }
+  85%  { border-color: #ff00cc; box-shadow: 0 0 18px 4px #ff00cc88; }
+  100% { border-color: #ff0000; box-shadow: 0 0 18px 4px #ff000088; }
+}
+
+@keyframes laba-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+
+@keyframes laba-icon-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes laba-ripple {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes laba-orbit {
+  from { transform: rotate(0deg) translateX(32px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(32px) rotate(-360deg); }
+}
+
+@keyframes laba-ring-cw {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes laba-ring-ccw {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(-360deg); }
+}
+
+@keyframes laba-rainbow-glow-text {
+  0%   { color: #ff0000; }
+  16%  { color: #ff6600; }
+  33%  { color: #ffcc00; }
+  50%  { color: #00cc44; }
+  66%  { color: #0088ff; }
+  83%  { color: #8800ff; }
+  100% { color: #ff0000; }
+}
+
+@keyframes laba-slide-up {
+  from { opacity: 0; transform: scale(0.7) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes laba-typing-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%            { transform: scale(1.0); opacity: 1; }
+}
+
+@keyframes laba-rainbow-border-win {
+  0%   { border-color: #ff0000; }
+  16%  { border-color: #ff6600; }
+  33%  { border-color: #00cc44; }
+  50%  { border-color: #0088ff; }
+  66%  { border-color: #8800ff; }
+  83%  { border-color: #ff00cc; }
+  100% { border-color: #ff0000; }
+}
+
+/* ---- Floating Launcher Button ---- */
+
+#laba-launcher {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid #ff0000;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  cursor: pointer;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation:
+    laba-rainbow-border 3s linear infinite,
+    laba-pulse 2s ease-in-out infinite;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#laba-launcher .laba-icon {
+  font-size: 28px;
+  animation: laba-icon-spin 10s linear infinite;
+  display: block;
+  line-height: 1;
+}
+
+/* Ripple wave */
+#laba-launcher .laba-ripple {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  animation: laba-ripple 3s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Orbiting dots */
+#laba-launcher .laba-orbit-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.laba-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: -3.5px;
+  margin-left: -3.5px;
+  animation: laba-orbit 4s linear infinite;
+}
+
+.laba-dot:nth-child(1) { background: #ff0000; animation-delay: 0s; }
+.laba-dot:nth-child(2) { background: #ff6600; animation-delay: -0.5s; }
+.laba-dot:nth-child(3) { background: #ffcc00; animation-delay: -1s; }
+.laba-dot:nth-child(4) { background: #00cc44; animation-delay: -1.5s; }
+.laba-dot:nth-child(5) { background: #0088ff; animation-delay: -2s; }
+.laba-dot:nth-child(6) { background: #8800ff; animation-delay: -2.5s; }
+.laba-dot:nth-child(7) { background: #ff00cc; animation-delay: -3s; }
+.laba-dot:nth-child(8) { background: #ffffff; animation-delay: -3.5s; }
+
+/* Inner ring (clockwise) */
+#laba-launcher .laba-ring-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255,255,255,0.25);
+  animation: laba-ring-cw 6s linear infinite;
+  pointer-events: none;
+}
+
+/* Outer ring (counter-clockwise) */
+#laba-launcher .laba-ring-outer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255,200,0,0.2);
+  animation: laba-ring-ccw 8s linear infinite;
+  pointer-events: none;
+}
+
+/* ---- Chat Window ---- */
+
+#laba-window {
+  position: fixed;
+  bottom: 108px;
+  right: 28px;
+  width: 380px;
+  height: 500px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 2px solid #ff0000;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  z-index: 9001;
+  overflow: hidden;
+  animation:
+    laba-slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards,
+    laba-rainbow-border-win 3s linear infinite;
+  transform-origin: bottom right;
+}
+
+#laba-window.laba-hidden {
+  display: none !important;
+}
+
+/* Header */
+#laba-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+  border-radius: 18px 18px 0 0;
+}
+
+#laba-header:active { cursor: grabbing; }
+
+#laba-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  animation: laba-rainbow-glow-text 3s linear infinite;
+  letter-spacing: 0.3px;
+}
+
+#laba-header-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.laba-hbtn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.laba-hbtn:hover { background: rgba(255,255,255,0.22); }
+
+/* Messages area */
+#laba-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8f9ff;
+  scroll-behavior: smooth;
+}
+
+#laba-messages::-webkit-scrollbar { width: 4px; }
+#laba-messages::-webkit-scrollbar-thumb { background: #c5c5e8; border-radius: 4px; }
+
+.laba-msg {
+  max-width: 82%;
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.laba-msg.laba-user {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  align-self: flex-end;
+}
+
+.laba-msg.laba-bot {
+  background: #fff;
+  color: #1a1a2e;
+  border: 1px solid #e0e0f0;
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Typing indicator */
+#laba-typing {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 9px 13px;
+  background: #fff;
+  border: 1px solid #e0e0f0;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+#laba-typing.laba-hidden { display: none; }
+
+.laba-typing-dot {
+  width: 7px;
+  height: 7px;
+  background: #7c3aed;
+  border-radius: 50%;
+  animation: laba-typing-dot 1.2s ease-in-out infinite;
+}
+
+.laba-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.laba-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Model loading bar */
+#laba-model-bar {
+  background: #fff8e1;
+  border-top: 1px solid #ffe082;
+  padding: 6px 14px;
+  font-size: 11.5px;
+  color: #7c5f00;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#laba-model-bar.laba-hidden { display: none; }
+
+#laba-model-progress {
+  flex: 1;
+  height: 4px;
+  background: #ffe082;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#laba-model-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* Input area */
+#laba-input-area {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+#laba-input {
+  flex: 1;
+  border: 1.5px solid #e0e0f0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  max-height: 90px;
+  min-height: 38px;
+  transition: border-color 0.2s;
+  background: #f8f9ff;
+  color: #1a1a2e;
+  overflow-y: auto;
+}
+
+#laba-input:focus { border-color: #7c3aed; background: #fff; }
+
+#laba-send {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border: none;
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+#laba-send:hover { opacity: 0.88; transform: scale(1.07); }
+#laba-send:active { transform: scale(0.95); }
+#laba-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Tool link chip */
+.laba-tool-link {
+  display: inline-block;
+  margin-top: 6px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff !important;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.laba-tool-link:hover { opacity: 0.85; }
+
+/* ---- Mobile Responsiveness ---- */
+
+@media (max-width: 480px) {
+  #laba-window {
+    width: calc(100vw - 16px);
+    height: 70vh;
+    bottom: 96px;
+    right: 8px;
+    left: 8px;
+  }
+
+  #laba-launcher {
+    bottom: 18px;
+    right: 18px;
+    width: 58px;
+    height: 58px;
+  }
+
+  #laba-launcher .laba-icon { font-size: 24px; }
+}
