@@ -1193,7 +1193,7 @@ function appendCompressAdvancedLink() {
     <button type="button" class="btn btn-outline btn-sm" id="try-advanced-compress">
       <i data-lucide="zap"></i> Try advanced compression
     </button>
-    <p class="compress-advanced-note">Uses a slower server-side engine for stronger size reduction.</p>
+    <p class="compress-advanced-note">Applies deeper compression for stronger size reduction.</p>
   `;
   area.appendChild(link);
   if (window.lucide) lucide.createIcons();
@@ -1430,7 +1430,7 @@ function renderSeoContent(tool) {
   return `
     <div class="seo-content">
       <h2>${tool.name} Online — Free, Fast &amp; Secure</h2>
-      <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, directly in your browser. No software to download, no account to create, no hidden fees.</p>
+      <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, instantly. No software to download, no account to create, no hidden fees.</p>
       <p>Drag and drop your ${fileType} onto the upload area or click to browse. Files up to 100&nbsp;MB are supported. Once processing is complete, the file is deleted from our servers automatically — usually within seconds.</p>
       <h3>How ${tool.name} works</h3>
       <ol class="seo-steps">

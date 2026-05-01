@@ -173,17 +173,17 @@
 
   const SUBTITLE_MAP = {
     'merge-pdf':         'Combine PDFs instantly without losing quality — no signup required.',
-    'split-pdf':         'Pull out exactly the pages you need in seconds — right in your browser.',
-    'compress-pdf':      'Shrink PDFs up to 70% smaller while keeping crisp quality — no upload needed.',
+    'split-pdf':         'Pull out exactly the pages you need — fast and simple.',
+    'compress-pdf':      'Shrink PDFs up to 70% smaller while keeping crisp quality.',
     'rotate-pdf':        'Fix every page orientation in one click and download in seconds.',
     'crop-pdf':          'Trim margins and tighten layouts visually — no software install.',
     'organize-pdf':      'Reorder, duplicate or delete pages with a simple drag-and-drop.',
     'add-page-numbers':  'Add clean, customisable page numbers in seconds — choose position and style.',
     'watermark-pdf':     'Stamp text or image watermarks across every page with full control.',
-    'protect-pdf':       'Add strong password protection right in your browser — your file never leaves your device.',
+    'protect-pdf':       'Add strong password protection to any PDF — fast and secure.',
     'unlock-pdf':        'Remove PDF passwords you own and regain full access — instantly and securely.',
     'jpg-to-pdf':        'Combine images into one polished PDF with adjustable size and orientation.',
-    'png-to-pdf':        'Turn PNGs into a single sharable PDF in seconds — no uploads.',
+    'png-to-pdf':        'Turn PNGs into a single sharable PDF in seconds.',
     'pdf-to-jpg':        'Export every page as a high-quality image for slides, web or social.',
     'pdf-to-word':       'Convert PDFs to fully editable .docx with layout intact.',
     'pdf-to-powerpoint': 'Turn PDFs into editable .pptx slides ready to present.',
@@ -202,7 +202,7 @@
     'background-remover':'Get a clean transparent cutout from any photo in one click.',
     'crop-image':        'Trim images precisely with a visual crop — perfect for thumbnails and avatars.',
     'resize-image':      'Resize images to exact dimensions without losing sharpness.',
-    'image-filters':     'Apply pro-grade filters and adjustments to any photo in your browser.',
+    'image-filters':     'Apply pro-grade filters and adjustments to any photo — quick and easy.',
   };
 
   // Whether the tool is browser-only (no upload). Used to show "Works in browser"
@@ -285,7 +285,7 @@
     trustList.innerHTML = `
       <li><span class="blog-hero-check">✔</span> No signup</li>
       <li><span class="blog-hero-check">✔</span> 100% free</li>
-      <li><span class="blog-hero-check">✔</span> ${inBrowser ? 'Works in browser' : 'Files auto-deleted'}</li>
+      <li><span class="blog-hero-check">✔</span> Simple &amp; secure</li>
     `;
     const trust = header.querySelector('.blog-trust-strip');
     if (trust) {
@@ -310,8 +310,8 @@
     if (!anchor) return;
 
     const benefits = [
-      { icon: 'zap',          title: 'Fast in your browser',    desc: 'Most files are processed instantly — no waiting in a queue.' },
-      { icon: 'shield-check', title: 'Private & secure',         desc: 'Files never leave your device for browser-side tools, and uploads are deleted within minutes.' },
+      { icon: 'zap',          title: 'Instant results',          desc: 'Files are processed instantly — no waiting.' },
+      { icon: 'shield-check', title: 'Private & secure',         desc: 'Your files are handled securely and deleted automatically after processing.' },
       { icon: 'sparkles',     title: 'Free, no signup',          desc: 'No account required for files under 100 MB. Use as often as you need.' },
     ];
 

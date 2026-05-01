@@ -6,7 +6,7 @@ window.TOOL_CONTENT = {
     "benefits": [
       {
         "title": "No software install",
-        "body": "Runs entirely in the browser. Works on Windows, Mac, Linux, iPhone, Android — anything with a modern browser."
+        "body": "Works on any device — Windows, Mac, Linux, iPhone, Android."
       },
       {
         "title": "Privacy first",
@@ -70,7 +70,7 @@ window.TOOL_CONTENT = {
         "body": "The output PDF is clean — we never stamp our brand on your document."
       },
       {
-        "title": "Browser-based",
+        "title": "Works everywhere",
         "body": "Works on phone, tablet, or desktop. Ideal when you're away from your usual machine."
       }
     ],
@@ -801,7 +801,7 @@ window.TOOL_CONTENT = {
     "benefits": [
       {
         "title": "No software install",
-        "body": "Browser-based editing — works on phone, tablet or laptop."
+        "body": "Easy editing — works on phone, tablet or laptop."
       },
       {
         "title": "Pixel-precise placement",
@@ -1126,7 +1126,7 @@ window.TOOL_CONTENT = {
         "body": "Once unlocked, the PDF works with merge, split, compress, and edit tools."
       },
       {
-        "title": "Browser-based",
+        "title": "Works everywhere",
         "body": "No software install or trip to Adobe Reader settings."
       },
       {
@@ -1180,7 +1180,7 @@ window.TOOL_CONTENT = {
       },
       {
         "title": "Free, immediate",
-        "body": "No signup or wait queue — repair attempt completes in seconds."
+        "body": "No signup needed — repair attempt completes in seconds."
       },
       {
         "title": "Works on most corruption types",
@@ -1225,7 +1225,7 @@ window.TOOL_CONTENT = {
     "benefits": [
       {
         "title": "Phone-friendly",
-        "body": "Take photos with your phone, upload them in the browser, get a tidy PDF."
+        "body": "Take photos with your phone, upload them, and get a tidy PDF."
       },
       {
         "title": "Single shareable file",
@@ -1555,7 +1555,7 @@ window.TOOL_CONTENT = {
       },
       {
         "title": "Instant",
-        "body": "Converts in real-time as you type. No upload, no processing wait."
+        "body": "Converts in real-time as you type — instant results."
       }
     ],
     "useCases": [
@@ -1709,7 +1709,7 @@ window.TOOL_CONTENT = {
         "body": "Cropping doesn't recompress — the kept region retains original quality."
       },
       {
-        "title": "Browser-based",
+        "title": "Works everywhere",
         "body": "Works on phone, tablet or laptop without installing software."
       },
       {
@@ -1815,8 +1815,8 @@ window.TOOL_CONTENT = {
         "body": "Filters use sharp's optimised pipeline for clean, artefact-free results."
       },
       {
-        "title": "Browser-based",
-        "body": "Works on any device with a modern browser."
+        "title": "Works everywhere",
+        "body": "Works on any device."
       },
       {
         "title": "Free, no signup",

@@ -102,9 +102,9 @@ window.toolBadgeHtml = function (prio) {
 };
 // Flat priority bands used by the homepage. Order: A (instant) → B (compress) → C (advanced).
 window.TOOL_PRIORITY_BANDS = [
-  { key:'instant',  title:'Instant tools',  subtitle:'Run entirely in your browser — no upload, no waiting.',     icon:'zap'     },
-  { key:'compress', title:'Compression',    subtitle:'Shrink files fast — choose browser or advanced engine.',     icon:'archive' },
-  { key:'advanced', title:'Advanced tools', subtitle:'Server-powered conversion, OCR & AI for the heavy stuff.',   icon:'cloud'   },
+  { key:'instant',  title:'Instant tools',  subtitle:'Fast, simple tools designed for quick results.',            icon:'zap'     },
+  { key:'compress', title:'Compression',    subtitle:'Shrink your files fast — choose your preferred quality.',    icon:'archive' },
+  { key:'advanced', title:'Advanced tools', subtitle:'Powerful conversion, OCR & AI tools for demanding tasks.',   icon:'cloud'   },
 ].map(band => ({
   ...band,
   items: window.TOOL_GROUPS

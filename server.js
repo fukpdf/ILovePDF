@@ -181,6 +181,11 @@ app.get('/about', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'about.html'));
 });
 
+// Contact redirects to the contact section on the about page
+app.get('/contact', (_req, res) => {
+  res.redirect(301, '/about.html#contact');
+});
+
 // SEO routes
 const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), 'utf8');
 app.get('/:slug', (req, res, next) => {
