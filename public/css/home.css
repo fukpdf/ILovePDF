@@ -35,7 +35,7 @@
      ─────────────────────────────────────────────────────────── */
   --z-header:     1000;
   --z-mobile-nav:  900;
-  --z-dropdown:   1100;
+  --z-dropdown:   1300;
   --z-chatbot:    1200;
   --z-modal:      2000;
 }
@@ -52,16 +52,18 @@ body{
   color:var(--text);
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
+  padding-top:var(--header-h);
 }
 img,video,iframe{max-width:100%}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:0;background:none}
 
 /* ============================================================
-   HEADER (sticky + responsive)
+   HEADER (fixed — always visible on scroll)
    ============================================================ */
 .site-header{
-  position:sticky;top:0;z-index:var(--z-header);
+  position:fixed;top:0;left:0;right:0;width:100%;
+  z-index:var(--z-header);
   background:rgba(255,255,255,.97);
   backdrop-filter:saturate(180%) blur(12px);
   -webkit-backdrop-filter:saturate(180%) blur(12px);
@@ -612,6 +614,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   opacity:0;visibility:hidden;transform:translateY(-6px);
   transition:opacity .15s, transform .15s, visibility .15s;
   z-index:var(--z-dropdown);
+  max-width:100vw;overflow-x:auto;
 }
 .nav-item .dd{left:0;min-width:240px;padding:10px;display:flex;flex-direction:column;gap:2px}
 .nav-item.has-mega .mega{
@@ -1133,9 +1136,9 @@ img, canvas, video, iframe { max-width: 100%; }
    PASS 5 — Quick Access strip + About page + dropdown polish
    ============================================================ */
 
-/* Bump dropdown stacking so it always sits above content/ads */
-.nav-item .dd, .nav-item .mega { z-index: 80; }
-.nav-item.has-mega .mega { z-index: 90; }
+/* Dropdown stacking — use CSS variable from :root (--z-dropdown: 1300) */
+.nav-item .dd, .nav-item .mega { z-index: var(--z-dropdown, 1300); }
+.nav-item.has-mega .mega { z-index: var(--z-dropdown, 1300); }
 
 /* Quick Access cards — three CTA tiles linking to the major tool families */
 .quick-access{

@@ -196,6 +196,80 @@
   };
 
   /* ============================================================
+     LABA LOGGER — Centralised error logging for debugging
+     All errors written to window.__labaErrors (array, capped 50)
+     ============================================================ */
+  const LabaLogger = {
+    _store: [],
+    log(context, error, extra = {}) {
+      const entry = {
+        ts: new Date().toISOString(),
+        context,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? (error.stack || '') : '',
+        ...extra,
+      };
+      this._store.push(entry);
+      if (this._store.length > 50) this._store.shift();
+      window.__labaErrors = this._store;
+      console.warn(`[Laba:${context}]`, entry.error, extra);
+    },
+    getAll() { return [...this._store]; },
+  };
+
+  /* ============================================================
+     SMART SUGGESTIONS MAP
+     Returns 2–3 contextual follow-up chips based on response type
+     ============================================================ */
+  const SUGGESTIONS = {
+    greeting: {
+      en: ['What can you do?', 'Tell me about PDF tools', 'Fix my grammar'],
+      ur: ['آپ کیا کر سکتی ہیں؟', 'PDF ٹولز کے بارے میں بتائیں', 'میری گرامر درست کریں'],
+      'roman-ur': ['Aap kya kar sakti hain?', 'PDF tools ke baare mein batayein', 'Meri grammar theek karo'],
+    },
+    tool: {
+      en: ['Show me all PDF tools', 'How do I convert PDF to Word?', 'Compress a PDF'],
+      ur: ['تمام PDF ٹولز دکھائیں', 'PDF کو Word میں کیسے بدلیں؟', 'PDF کمپریس کریں'],
+      'roman-ur': ['Sab PDF tools dikhao', 'PDF ko Word mein kaise badlein?', 'PDF compress karo'],
+    },
+    faq: {
+      en: ['What other tools do you have?', 'Is this service free?', 'How secure are my files?'],
+      ur: ['اور کیا ٹولز ہیں؟', 'کیا یہ مفت ہے؟', 'میری فائلیں محفوظ ہیں؟'],
+      'roman-ur': ['Aur kya tools hain?', 'Kya yeh free hai?', 'Meri files safe hain?'],
+    },
+    grammar: {
+      en: ['Fix another sentence', 'Write me an email', 'Rewrite professionally'],
+      ur: ['ایک اور جملہ درست کریں', 'ای میل لکھیں', 'پیشہ ورانہ انداز میں لکھیں'],
+      'roman-ur': ['Ek aur jumla theek karo', 'Email likho', 'Professional andaz mein likho'],
+    },
+    email: {
+      en: ['Fix my grammar', 'Rewrite this text', 'Write a follow-up email'],
+      ur: ['میری گرامر درست کریں', 'یہ متن دوبارہ لکھیں', 'فالو اپ ای میل لکھیں'],
+      'roman-ur': ['Meri grammar theek karo', 'Yeh text dobara likho', 'Follow-up email likho'],
+    },
+    rewrite: {
+      en: ['Fix my grammar', 'Write me an email', 'Summarize this text'],
+      ur: ['میری گرامر درست کریں', 'ای میل لکھیں', 'خلاصہ بنائیں'],
+      'roman-ur': ['Meri grammar theek karo', 'Email likho', 'Summary banao'],
+    },
+    summarize: {
+      en: ['Rewrite professionally', 'Fix my grammar', 'Tell me about PDF tools'],
+      ur: ['پیشہ ورانہ انداز میں لکھیں', 'گرامر درست کریں', 'PDF ٹولز کے بارے میں بتائیں'],
+      'roman-ur': ['Professional andaz mein likho', 'Grammar theek karo', 'PDF tools ke baare mein batao'],
+    },
+    fallback: {
+      en: ['Tell me about PDF tools', 'Help me write an email', 'Fix my grammar'],
+      ur: ['PDF ٹولز کے بارے میں بتائیں', 'ای میل لکھنے میں مدد کریں', 'گرامر درست کریں'],
+      'roman-ur': ['PDF tools ke baare mein batao', 'Email likhne mein madad karo', 'Grammar theek karo'],
+    },
+    general: {
+      en: ['Tell me more', 'Help with a PDF tool', 'Write an email for me'],
+      ur: ['مزید بتائیں', 'PDF ٹول میں مدد', 'میرے لیے ای میل لکھیں'],
+      'roman-ur': ['Mazeed batao', 'PDF tool mein madad', 'Mere liye email likho'],
+    },
+  };
+
+  /* ============================================================
      LABA WIDGET CLASS
      ============================================================ */
   class LabaWidget {
@@ -216,6 +290,13 @@
       this.synthesis = window.speechSynthesis || null;
       this.hasMic = false;
       this.detectedLang = 'en';
+
+      // Session memory — stores last 20 turns, detected topics, start time
+      this.session = {
+        history: [],      // [{role:'user'|'bot', content:string, ts:number}]
+        context: {},      // {lastTopic, toolsSeen:[]}
+        startTime: Date.now(),
+      };
 
       this._buildDOM();
       this._bindEvents();
@@ -400,7 +481,7 @@
       };
 
       this.recognition.onerror = (e) => {
-        console.warn('[Laba] Speech recognition error:', e.error);
+        LabaLogger.log('speech-recognition', new Error(e.error), { type: e.error });
         this._stopListeningUI();
         if (e.error === 'not-allowed') {
           this.addMessage('bot', '🎙️ Microphone access was denied. Please allow microphone permission in your browser settings.');
@@ -435,7 +516,7 @@
         this.micBtn.title = 'Listening… click to stop';
         this.inputEl.placeholder = '🎙️ Listening…';
       } catch (err) {
-        console.warn('[Laba] Could not start voice recognition:', err);
+        LabaLogger.log('speech-start', err);
       }
     }
 
@@ -500,6 +581,12 @@
       this.isOpen = true;
       this.isMinimized = false;
       this._vibrate(60);
+      // Show welcome suggestions on first open only
+      if (!this._welcomeSuggestionsShown) {
+        this._welcomeSuggestionsShown = true;
+        const lang = this.detectedLang || 'en';
+        this._showSuggestions(this._getSuggestions('greeting', lang));
+      }
       setTimeout(() => this.inputEl.focus(), 100);
       this._scrollToBottom();
     }
@@ -552,10 +639,10 @@
     async loadKnowledgeBase() {
       try {
         const res = await fetch(LABA_KB_URL);
-        if (!res.ok) throw new Error('KB fetch failed');
+        if (!res.ok) throw new Error(`KB fetch failed: HTTP ${res.status}`);
         this.kb = await res.json();
       } catch (e) {
-        console.warn('[Laba] Knowledge base load failed:', e.message);
+        LabaLogger.log('kb-load', e);
         this.kb = { tools: [], faq: [] };
       }
     }
@@ -673,7 +760,7 @@
         setTimeout(() => this._hideModelBar(), 1200);
         return true;
       } catch (err) {
-        console.warn('[Laba] Model load failed:', err.message);
+        LabaLogger.log('model-load', err);
         this.modelLoading = false;
         this._hideModelBar();
         return false;
@@ -703,7 +790,7 @@
         const result = await this.pipeline(prompts[task] || text, { max_new_tokens: 200, do_sample: false });
         return result?.[0]?.generated_text?.trim() || null;
       } catch (err) {
-        console.warn('[Laba] Model inference failed:', err.message);
+        LabaLogger.log('model-inference', err, { task });
         return null;
       }
     }
@@ -740,6 +827,12 @@
       // Detect language
       this.detectedLang = this.detectLanguage(trimmed);
 
+      // Record user message in session memory
+      this._sessionRecord('user', trimmed);
+
+      // Remove existing suggestion chips before new query
+      this.msgArea.querySelectorAll('.laba-suggestions').forEach(el => el.remove());
+
       this.addMessage('user', trimmed);
       this._setInputBusy(true);
       this.showTyping();
@@ -756,6 +849,9 @@
         this.addMessage('bot', answer, true);
         this.speak(answer);
         this._vibrate(40);
+        this._sessionRecord('bot', answer);
+        this.session.context.lastTopic = kbResult.type;
+        this._showSuggestions(this._getSuggestions(kbResult.type, this.detectedLang));
         this._setInputBusy(false);
         return;
       }
@@ -767,6 +863,11 @@
         this.addMessage('bot', genAnswer);
         this.speak(genAnswer);
         this._vibrate(40);
+        this._sessionRecord('bot', genAnswer);
+        // Detect if this was a greeting
+        const isGreeting = /^(hi|hello|hey|salam|assalam|aoa|namaste)/i.test(trimmed);
+        this.session.context.lastTopic = isGreeting ? 'greeting' : 'general';
+        this._showSuggestions(this._getSuggestions(this.session.context.lastTopic, this.detectedLang));
         this._setInputBusy(false);
         return;
       }
@@ -777,7 +878,12 @@
         const content = this._extractContent(trimmed, intent);
         this.hideTyping();
         this._showModelBar('Loading AI model for this task…', 10);
-        const result = await this.processWithModel(intent, content);
+        let result = null;
+        try {
+          result = await this.processWithModel(intent, content);
+        } catch (err) {
+          LabaLogger.log('model-inference', err, { intent, contentLength: content.length });
+        }
         this._hideModelBar();
 
         if (result) {
@@ -791,11 +897,16 @@
           this.addMessage('bot', reply, true);
           this.speak(result);
           this._vibrate(40);
+          this._sessionRecord('bot', reply);
+          this.session.context.lastTopic = intent;
+          this._showSuggestions(this._getSuggestions(intent, this.detectedLang));
         } else {
           const errMsg = this.detectedLang === 'roman-ur'
             ? '⚠️ AI model abhi load nahi ho raha. Internet connection check karein aur dobara try karein.'
             : '⚠️ The AI model couldn\'t load right now. Please check your connection and try again.';
           this.addMessage('bot', errMsg);
+          this._sessionRecord('bot', errMsg);
+          this._showSuggestions(this._getSuggestions('fallback', this.detectedLang));
         }
         this._setInputBusy(false);
         return;
@@ -809,7 +920,58 @@
       this.addMessage('bot', fallbackText);
       this.speak(fallbackText);
       this._vibrate(40);
+      this._sessionRecord('bot', fallbackText);
+      this.session.context.lastTopic = 'fallback';
+      this._showSuggestions(this._getSuggestions('fallback', this.detectedLang));
       this._setInputBusy(false);
+    }
+
+    /* ---- Session Memory ---- */
+
+    _sessionRecord(role, content) {
+      this.session.history.push({ role, content: content.substring(0, 500), ts: Date.now() });
+      // Keep only last 20 entries to avoid memory bloat
+      if (this.session.history.length > 20) this.session.history.shift();
+    }
+
+    /* ---- Smart Suggestions ---- */
+
+    /**
+     * Return 2–3 contextual follow-up suggestion chips.
+     * @param {string} topic - key into SUGGESTIONS map
+     * @param {string} lang  - 'en' | 'ur' | 'roman-ur'
+     * @returns {string[]}
+     */
+    _getSuggestions(topic, lang) {
+      const group = SUGGESTIONS[topic] || SUGGESTIONS['general'];
+      const pool = group[lang] || group['en'] || [];
+      // Return a random 2-chip slice so suggestions vary
+      const shuffled = pool.slice().sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, 2);
+    }
+
+    /**
+     * Render clickable suggestion chips below the last bot message.
+     * Clicking a chip fills the input and auto-sends the message.
+     * @param {string[]} chips
+     */
+    _showSuggestions(chips) {
+      if (!chips || chips.length === 0) return;
+      const container = document.createElement('div');
+      container.className = 'laba-suggestions';
+      chips.forEach((text) => {
+        const btn = document.createElement('button');
+        btn.className = 'laba-suggestion-chip';
+        btn.textContent = text;
+        btn.addEventListener('click', () => {
+          container.remove();
+          this.inputEl.value = text;
+          this._sendMessage();
+        });
+        container.appendChild(btn);
+      });
+      this.msgArea.appendChild(container);
+      this._scrollToBottom();
     }
 
     /* ---- UI Helpers ---- */

@@ -461,17 +461,50 @@
 
 .laba-tool-link:hover { opacity: 0.85; }
 
+/* ---- Smart Suggestions (Phase 6) ---- */
+.laba-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px 0;
+  padding: 0 2px;
+}
+
+.laba-suggestion-chip {
+  background: #f0f1ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.laba-suggestion-chip:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+  transform: translateY(-1px);
+}
+
+.laba-suggestion-chip:active {
+  transform: translateY(0);
+}
+
 /* ---- Mobile Responsiveness ---- */
 
-/* On tablet/mobile (<= 1024px): raise launcher above the 64px bottom nav bar */
+/* On tablet/mobile (<= 1024px): raise launcher above the 80px bottom nav bar */
 @media (max-width: 1023.98px) {
   #laba-launcher {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     right: 16px;
   }
 
   #laba-window {
-    bottom: calc(146px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(154px + env(safe-area-inset-bottom, 0px));
     right: 16px;
   }
 }
@@ -480,13 +513,13 @@
   #laba-window {
     width: calc(100vw - 16px);
     height: 65vh;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
     right: 8px;
     left: 8px;
   }
 
   #laba-launcher {
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     right: 12px;
     width: 58px;
     height: 58px;

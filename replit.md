@@ -8,6 +8,35 @@ I prefer detailed explanations.
 I want an iterative development process.
 I want to be asked before major changes are made.
 
+## UI Architecture (current)
+
+### Z-Index System (defined in `public/css/home.css :root`)
+| Variable | Value | Usage |
+|---|---|---|
+| `--z-header` | 1000 | `.site-header` (fixed) |
+| `--z-mobile-nav` | 900 | `.mobile-bottom-nav` |
+| `--z-dropdown` | 1300 | `.dd`, `.mega` dropdowns |
+| `--z-chatbot` | 1200 | Laba launcher + chat window |
+| `--z-modal` | 2000 | Auth modal, limit modal |
+
+### Header
+- `position: fixed; top: 0; left: 0; right: 0; width: 100%` — always on screen
+- `body` has `padding-top: var(--header-h)` (68px) to compensate for fixed layout
+- `.site-header` uses `backdrop-filter: blur(12px)` glassmorphism
+
+### Laba AI Widget (`public/laba/`)
+- **Voice**: Web Speech API (STT + TTS), multi-language (English / Urdu / Roman Urdu)
+- **Session Memory**: `this.session.history` — last 20 turns, capped to 500 chars per entry
+- **Smart Suggestions**: Contextual follow-up chips after every bot reply (`SUGGESTIONS` map)
+- **Error Logging**: `LabaLogger` → `window.__labaErrors` (capped at 50, available for debugging)
+- **Fallback**: Universal fallback pool — always returns a helpful reply
+- Mobile: launcher `bottom: calc(80px + env(safe-area-inset-bottom))` above bottom nav
+
+### Dropdown Overflow Fix (`public/js/dropdown-fix.js`)
+- Clamps `.dd` and `.mega` using `getBoundingClientRect()` on open
+- MutationObserver watches `.is-open` class; hover listener for CSS-only opens
+- Resets on close; recomputes on window resize
+
 ## System Architecture
 The application follows a client-server architecture. The frontend is built with pure HTML/CSS/JS, focusing on a responsive and intuitive UI/UX with a distinctive red theme (`#E5322E`). Key UI components include a persistent mega-menu header, a 5-column footer, a dashboard with tool cards, and a dedicated processing overlay.
 
