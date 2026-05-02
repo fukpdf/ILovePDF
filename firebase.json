@@ -2,17 +2,6 @@
   "hosting": {
     "public": "public",
     "cleanUrls": true,
-    "headers": [
-      {
-        "source": "/ads.txt",
-        "headers": [
-          {
-            "key": "Content-Type",
-            "value": "text/plain"
-          }
-        ]
-      }
-    ],
     "rewrites": [
       {
         "source": "/ads.txt",
