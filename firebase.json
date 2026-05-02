@@ -2,6 +2,7 @@
   "hosting": {
     "public": "public",
     "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -13,15 +14,7 @@
         "destination": "/ads.txt"
       },
       {
-        "source": "/preview",
-        "destination": "/tool.html"
-      },
-      {
-        "source": "/download",
-        "destination": "/tool.html"
-      },
-      {
-        "source": "**",
+        "source": "/!(ads.txt)**",
         "destination": "/tool.html"
       }
     ]
