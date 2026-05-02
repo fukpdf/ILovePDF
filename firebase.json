@@ -2,11 +2,16 @@
   "hosting": {
     "public": "public",
     "cleanUrls": true,
-    "trailingSlash": false,
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
+    "headers": [
+      {
+        "source": "/ads.txt",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ]
+      }
     ],
     "rewrites": [
       {
@@ -14,7 +19,7 @@
         "destination": "/ads.txt"
       },
       {
-        "source": "/!(ads.txt)**",
+        "source": "**",
         "destination": "/tool.html"
       }
     ]
