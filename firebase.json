@@ -1,16 +1,15 @@
 {
   "hosting": {
     "public": "public",
-    "cleanUrls": true,
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
-      {
-        "source": "/ads.txt",
-        "destination": "/ads.txt"
-      },
-      {
-        "source": "**",
-        "destination": "/tool.html"
-      }
+      { "source": "/*/preview",  "destination": "/tool.html" },
+      { "source": "/*/download", "destination": "/tool.html" },
+      { "source": "**",          "destination": "/tool.html" }
     ]
   }
 }
