@@ -1,15 +1,29 @@
 {
   "hosting": {
     "public": "public",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
-      { "source": "/*/preview",  "destination": "/tool.html" },
-      { "source": "/*/download", "destination": "/tool.html" },
-      { "source": "**",          "destination": "/tool.html" }
+      {
+        "source": "/ads.txt",
+        "destination": "/ads.txt"
+      },
+      {
+        "source": "/preview",
+        "destination": "/tool.html"
+      },
+      {
+        "source": "/download",
+        "destination": "/tool.html"
+      },
+      {
+        "source": "**",
+        "destination": "/tool.html"
+      }
     ]
   }
 }
