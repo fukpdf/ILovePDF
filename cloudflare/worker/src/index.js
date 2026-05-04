@@ -44,9 +44,10 @@ function corsHeaders(env, request) {
   };
 }
 
-// Read the HF token under any of the common naming variants we might have
-// configured the secret as. Centralised so we can't accidentally read the
-// wrong one in different code paths.
+// Retained for backward compatibility with any consumers that import it.
+// HuggingFace is no longer used in active processing paths — all AI tasks
+// are handled browser-side (extractive summarize, MyMemory translate) or
+// by the Express backend on Cloud Run.
 export function readHfToken(env) {
   return (env && (env.HF_API_TOKEN || env.HF_TOKEN || env.HUGGINGFACE_API_TOKEN || env.HUGGING_FACE_TOKEN)) || '';
 }
@@ -188,7 +189,9 @@ async function handleHealth(request, env) {
     } catch { hf_reachable = false; }
   }
 
-  const ok = r2_bound && kv_bound && q_bound && !!hf_url;
+  // Health is green when the core queue infrastructure is present.
+  // HuggingFace is informational only — not required for operation.
+  const ok = r2_bound && kv_bound && q_bound;
   return json(env, request, {
     ok,
     service: 'ilovepdf-queue',
@@ -196,8 +199,9 @@ async function handleHealth(request, env) {
       r2:        { bound: r2_bound, reachable: r2_reachable },
       kv:        { bound: kv_bound },
       queue:     { bound: q_bound },
-      hf:        { configured: !!hf_url, token: hf_token, reachable: hf_reachable, url: hf_url },
+      hf:        { configured: !!hf_url, token: hf_token, reachable: hf_reachable, url: hf_url, note: 'not used for processing' },
       firebase:  { project_id: fb_proj },
+      backend:   { cloud_run_url: env.BACKEND_URL || null },
     },
     tools: [...QUEUED_TOOLS],
   });
@@ -245,6 +249,28 @@ export default {
       if (p === '/api/health') {
         return await handleHealth(request, env);
       }
+      // Proxy unmatched /api/* requests to Cloud Run (or any BACKEND_URL).
+      // Set BACKEND_URL in wrangler.toml / dashboard secrets to activate.
+      if (p.startsWith('/api/') && env.BACKEND_URL) {
+        const backendBase = env.BACKEND_URL.replace(/\/$/, '');
+        const target      = backendBase + p + url.search;
+        const proxied     = new Request(target, {
+          method:  request.method,
+          headers: request.headers,
+          body:    (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : undefined,
+          redirect: 'follow',
+        });
+        try {
+          const resp    = await fetch(proxied);
+          const headers = new Headers(resp.headers);
+          Object.entries(corsHeaders(env, request)).forEach(([k, v]) => headers.set(k, v));
+          return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+        } catch (proxyErr) {
+          console.error('[proxy] backend request failed:', proxyErr.message);
+          return json(env, request, { error: 'backend unreachable', detail: proxyErr.message }, 502);
+        }
+      }
+
       // Not an API route — pass through to Firebase Hosting so its SPA
       // rewrites serve the correct index.html / tool.html shell.
       return fetch(request);

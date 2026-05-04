@@ -163,7 +163,7 @@ const TOOLS = [
     description: 'Transform PDFs into editable presentations',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-powerpoint', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'pdf-to-excel', name: 'PDF to Excel', icon: 'table',
@@ -199,14 +199,14 @@ const TOOLS = [
     description: 'Convert presentations to PDF format',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/powerpoint-to-pdf', acceptedFiles: '.ppt,.pptx',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'excel-to-pdf', name: 'Excel to PDF', icon: 'grid',
     description: 'Convert Excel spreadsheets to PDF',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/excel-to-pdf', acceptedFiles: '.xls,.xlsx',
-    multipleFiles: false, working: true, options: []
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'jpg-to-pdf', name: 'JPG to PDF', icon: 'file-image', clientSide: true,
@@ -337,7 +337,7 @@ const TOOLS = [
     description: 'Convert scanned images into a PDF document',
     category: 'Advanced Tools', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/scan-to-pdf', acceptedFiles: '.jpg,.jpeg,.png',
-    multipleFiles: true, working: true, options: []
+    multipleFiles: true, working: true, clientSide: true, options: []
   },
   {
     id: 'ocr', name: 'OCR', icon: 'type',
@@ -368,7 +368,7 @@ const TOOLS = [
     description: 'Translate PDF documents into any language',
     category: 'Advanced Tools', group: 'pdf', badge: 'AI',
     apiEndpoint: '/api/translate', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'targetLang', label: 'Target Language', type: 'select', options: [
         { value: 'es', label: 'Spanish' },
@@ -391,7 +391,7 @@ const TOOLS = [
     description: 'Chain multiple PDF operations in a single pass',
     category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
     apiEndpoint: '/api/workflow', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'step1', label: 'Step 1 — Operation', type: 'select', options: [
         { value: '',           label: '— Select operation —' },

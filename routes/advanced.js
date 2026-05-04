@@ -5,7 +5,6 @@ import path from 'path';
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { extractPdfText, textToPdf, extractiveSummarize, formatBytes } from '../utils/pdfText.js';
-import { summariseText, translateText, isHfConfigured } from '../utils/ai.js';
 
 const router = express.Router();
 import { UPLOAD_DIR } from '../utils/upload.js';
@@ -50,7 +49,7 @@ router.post('/ocr', upload.single('pdf'), async (req, res) => {
     if (!text.trim()) {
       return res.json({
         text: '[No extractable text found]\n\nThis PDF appears to contain only scanned images. ' +
-              'For true image-based OCR, Tesseract integration is needed. ' +
+              'For true image-based OCR, use the browser-side OCR (Tesseract) which runs automatically. ' +
               'Text-based PDFs will have their content extracted here.'
       });
     }
@@ -119,7 +118,7 @@ router.post('/compare', upload.array('pdfs'), async (req, res) => {
   }
 });
 
-// ── AI SUMMARIZER ─────────────────────────────────────────────────────────
+// ── AI SUMMARIZER — extractive, no external AI dependency ─────────────────
 
 router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
   try {
@@ -134,26 +133,13 @@ router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
     }
 
     const maxSentences = Math.min(20, Math.max(3, parseInt(req.body.sentences) || 7));
-
-    // Prefer Hugging Face when available; fall back to local extractive summary.
-    let summary = '';
-    let engine = 'local-extractive';
-    if (isHfConfigured()) {
-      try {
-        summary = await summariseText(text, { sentences: maxSentences });
-        engine = 'huggingface:bart-large-cnn';
-      } catch (e) {
-        console.error('[ai-summarize] HF fallback:', e.message);
-      }
-    }
-    if (!summary) summary = extractiveSummarize(text, maxSentences);
-
-    const wordCount = text.split(/\s+/).length;
+    const summary = extractiveSummarize(text, maxSentences);
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
     const sentenceCount = (text.match(/[.!?]+/g) || []).length;
 
     cleanupFiles(req.file);
     res.json({
-      summary: `📄 Document Summary  (engine: ${engine})\n${'─'.repeat(40)}\n${summary}\n\n${'─'.repeat(40)}\n📊 Stats: ~${wordCount.toLocaleString()} words · ~${sentenceCount} sentences`
+      summary: `Document Summary\n${'─'.repeat(40)}\n${summary}\n\n${'─'.repeat(40)}\nStats: ~${wordCount.toLocaleString()} words · ~${sentenceCount} sentences`,
     });
   } catch (err) {
     cleanupFiles(req.file);
@@ -161,7 +147,7 @@ router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
   }
 });
 
-// ── TRANSLATE ─────────────────────────────────────────────────────────────
+// ── TRANSLATE — MyMemory free API, no HuggingFace dependency ──────────────
 
 router.post('/translate', upload.single('pdf'), async (req, res) => {
   try {
@@ -176,29 +162,19 @@ router.post('/translate', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ error: 'No extractable text found. PDF may be image-based.' });
     }
 
-    let translatedText = '';
-    if (isHfConfigured()) {
+    const chunks = chunkText(text.substring(0, 8000), 450);
+    const translated = [];
+    for (const chunk of chunks) {
       try {
-        translatedText = await translateText(text.substring(0, 12000), targetLang);
-      } catch (e) {
-        console.error('[translate] HF failed, falling back to MyMemory:', e.message);
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const data = await resp.json();
+        translated.push(data?.responseData?.translatedText || chunk);
+      } catch {
+        translated.push(chunk);
       }
     }
-    if (!translatedText) {
-      const chunks = chunkText(text.substring(0, 8000), 450);
-      const translated = [];
-      for (const chunk of chunks) {
-        try {
-          const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
-          const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          const data = await resp.json();
-          translated.push(data?.responseData?.translatedText || chunk);
-        } catch {
-          translated.push(chunk);
-        }
-      }
-      translatedText = translated.join(' ');
-    }
+    const translatedText = translated.join(' ');
     const outBytes = await textToPdf(translatedText, PDFDocument, StandardFonts, rgb);
 
     cleanupFiles(req.file);
@@ -255,7 +231,7 @@ router.post('/workflow', upload.single('pdf'), async (req, res) => {
             const tw = font.widthOfTextAtSize(wText, fs2);
             page.drawText(wText, {
               x: (width - tw) / 2, y: (height - fs2) / 2,
-              size: fs2, font, color: rgb(0.6, 0.6, 0.6), opacity: 0.3, rotate: degrees(45)
+              size: fs2, font, color: rgb(0.6, 0.6, 0.6), opacity: 0.3, rotate: degrees(45),
             });
           });
           bytes = await pdfDoc.save();
@@ -301,6 +277,8 @@ router.post('/workflow', upload.single('pdf'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── helpers ───────────────────────────────────────────────────────────────
 
 function chunkText(text, size) {
   const chunks = [];

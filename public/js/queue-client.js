@@ -3,26 +3,25 @@
 // UI helpers (showProcessing / hideProcessing / triggerDownload / showStatus)
 // are reused so the visual experience is unchanged.
 (function () {
-  // Heavy tools that legitimately need the remote (Hugging Face) pipeline.
-  // Browser-capable tools are NOT listed here — they run via BrowserTools
-  // (see public/js/browser-tools.js) and never touch the queue.
-  //
-  // `compress` stays here as the optional ADVANCED fallback: BrowserTools
-  // attempts a basic in-browser compression first, and only when that
-  // doesn't help does the dispatcher fall through to this queue path.
+  // Tools that fall back to the remote processing queue when browser-side
+  // execution fails (memory pressure, file too large, worker error, etc.).
+  // All listed tools have browser-first implementations in BrowserTools
+  // (public/js/browser-tools.js) and only reach the queue if those fail.
+  // The queue path is only active when window.QUEUE_API_BASE is configured.
   const QUEUED_TOOL_IDS = new Set([
-    // Compress (advanced fallback only — browser tries basic first)
+    // Compress (queue as advanced server fallback when browser can't help)
     'compress',
-    // Convert (heavy)
+    // Convert from PDF
     'ocr',
     'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
+    // Convert to PDF
     'word-to-pdf', 'excel-to-pdf', 'powerpoint-to-pdf', 'html-to-pdf',
-    // Edit & annotate (heavy / server-only)
+    // Edit & annotate
     'edit', 'sign', 'redact',
-    // Advanced
+    // Advanced tools
     'repair', 'scan-to-pdf', 'compare', 'workflow',
     'ai-summarize', 'translate',
-    // Image (AI)
+    // Image tools
     'background-remover',
   ]);
 

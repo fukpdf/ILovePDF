@@ -99,6 +99,11 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Powered-By', 'ILovePDF');
+  // SharedArrayBuffer requires both COOP and COEP.
+  // credentialless mode allows CDN resources (jsdelivr, etc.) without CORP headers
+  // while still enabling cross-origin isolation for large-file worker transfers.
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
   next();
 });
 

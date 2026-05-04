@@ -13,6 +13,7 @@
   const HTML2PDF_URL  = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js';
   const XLSX_URL      = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
   const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  const PPTXGEN_URL   = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
 
   // ── lazy CDN loaders (cached) ────────────────────────────────────────────
   let pdfLibPromise = null;
@@ -111,6 +112,36 @@
       document.head.appendChild(s);
     });
     return tesseractPromise;
+  }
+
+  let pptxGenPromise = null;
+  function loadPptxGen() {
+    if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
+    if (pptxGenPromise) return pptxGenPromise;
+    pptxGenPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = PPTXGEN_URL; s.async = true;
+      s.onload  = () => window.PptxGenJS ? resolve(window.PptxGenJS) : reject(new Error('PptxGenJS failed'));
+      s.onerror = () => reject(new Error('PptxGenJS failed'));
+      document.head.appendChild(s);
+    });
+    return pptxGenPromise;
+  }
+
+  // Lazy-loads the Worker Pool script (/workers/workerPool.js) the first time
+  // it is needed. Returns window.WorkerPool or rejects if the script fails.
+  let workerPoolPromise = null;
+  function loadWorkerPool() {
+    if (window.WorkerPool) return Promise.resolve(window.WorkerPool);
+    if (workerPoolPromise) return workerPoolPromise;
+    workerPoolPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/workers/workerPool.js'; s.async = true;
+      s.onload  = () => window.WorkerPool ? resolve(window.WorkerPool) : reject(new Error('WorkerPool unavailable'));
+      s.onerror = () => reject(new Error('WorkerPool script failed to load'));
+      document.head.appendChild(s);
+    });
+    return workerPoolPromise;
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -785,6 +816,287 @@
     return { blob: new Blob([summary], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
   }
 
+  // ── PHASE 6: TRANSLATE PDF (MyMemory API, no upload) ─────────────────────
+  function chunkText(text, size) {
+    const chunks = [];
+    let i = 0;
+    while (i < text.length) {
+      let end = Math.min(i + size, text.length);
+      if (end < text.length) {
+        const ls = text.lastIndexOf(' ', end);
+        if (ls > i) end = ls;
+      }
+      chunks.push(text.slice(i, end).trim());
+      i = end + 1;
+    }
+    return chunks.filter(c => c);
+  }
+
+  async function translatePdf(files, opts) {
+    const targetLang = opts.targetLang || 'es';
+    const pdfjsLib   = await loadPdfJs();
+    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
+
+    const data = await readFileBytes(files[0]);
+    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(it => it.str).join(' ') + '\n\n';
+    }
+    if (!fullText.trim()) throw new Error('No extractable text found in PDF');
+
+    const chunks     = chunkText(fullText.substring(0, 8000), 450);
+    const translated = [];
+    for (const chunk of chunks) {
+      try {
+        const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const json = await resp.json();
+        translated.push(json?.responseData?.translatedText || chunk);
+      } catch { translated.push(chunk); }
+    }
+    const translatedText = translated.join(' ');
+
+    // Build output PDF using pdf-lib word-wrap
+    const doc      = await PDFDoc.create();
+    const font     = await doc.embedFont(SF.Helvetica);
+    const fontSize = 11;
+    const lineH    = fontSize * 1.5;
+    const margin   = 50;
+    const PW = 595, PH = 842; // A4
+    const usableW  = PW - margin * 2;
+
+    const words = translatedText.split(/\s+/);
+    const lines = [];
+    let cur = '';
+    for (const word of words) {
+      const test = cur ? cur + ' ' + word : word;
+      if (font.widthOfTextAtSize(test, fontSize) > usableW && cur) {
+        lines.push(cur); cur = word;
+      } else { cur = test; }
+    }
+    if (cur) lines.push(cur);
+
+    let page = doc.addPage([PW, PH]);
+    let y    = PH - margin;
+    for (const line of lines) {
+      if (y - lineH < margin) { page = doc.addPage([PW, PH]); y = PH - margin; }
+      if (line.trim()) page.drawText(line, { x: margin, y: y - lineH, size: fontSize, font, color: RGB(0, 0, 0) });
+      y -= lineH;
+    }
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 6: WORKFLOW BUILDER (chained pdf-lib operations) ────────────────
+  async function workflowPdf(files, opts) {
+    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB, degrees: DEG } = await loadPdfLib();
+
+    const steps = [
+      { op: opts.step1, value: opts.step1_value || '' },
+      { op: opts.step2, value: opts.step2_value || '' },
+      { op: opts.step3, value: opts.step3_value || '' },
+    ].filter(s => s.op && s.op !== '');
+    if (steps.length === 0) throw new Error('Please select at least one operation');
+
+    let bytes = await readFileBytes(files[0]);
+
+    for (const step of steps) {
+      const doc = await PDFDoc.load(bytes, { ignoreEncryption: true });
+      switch (step.op) {
+        case 'compress':
+          bytes = await doc.save({ useObjectStreams: true }); break;
+
+        case 'rotate-90':
+          doc.getPages().forEach(p => p.setRotation(DEG((p.getRotation().angle + 90) % 360)));
+          bytes = await doc.save(); break;
+
+        case 'rotate-180':
+          doc.getPages().forEach(p => p.setRotation(DEG((p.getRotation().angle + 180) % 360)));
+          bytes = await doc.save(); break;
+
+        case 'watermark': {
+          const font  = await doc.embedFont(SF.HelveticaBold);
+          const wText = step.value || 'WATERMARK';
+          doc.getPages().forEach(page => {
+            const { width, height } = page.getSize();
+            const fs = Math.min(width, height) * 0.07;
+            const tw = font.widthOfTextAtSize(wText, fs);
+            page.drawText(wText, { x: (width - tw) / 2, y: (height - fs) / 2, size: fs, font, color: RGB(0.6, 0.6, 0.6), opacity: 0.3, rotate: DEG(45) });
+          });
+          bytes = await doc.save(); break;
+        }
+
+        case 'page-numbers': {
+          const font  = await doc.embedFont(SF.Helvetica);
+          const total = doc.getPageCount();
+          doc.getPages().forEach((page, idx) => {
+            const { width } = page.getSize();
+            const label = `${idx + 1} / ${total}`;
+            const tw = font.widthOfTextAtSize(label, 10);
+            page.drawText(label, { x: (width - tw) / 2, y: 14, size: 10, font, color: RGB(0.4, 0.4, 0.4) });
+          });
+          bytes = await doc.save(); break;
+        }
+
+        case 'sign': {
+          const font    = await doc.embedFont(SF.HelveticaBoldOblique);
+          const sigText = step.value || 'Signed';
+          const lastPage = doc.getPage(doc.getPageCount() - 1);
+          const { width: W, height: H } = lastPage.getSize();
+          const fs = 22;
+          const tw = font.widthOfTextAtSize(sigText, fs);
+          const sx = W * 0.6;
+          lastPage.drawLine({ start: { x: sx, y: H * 0.1 }, end: { x: W * 0.9, y: H * 0.1 }, thickness: 0.8, color: RGB(0.2, 0.2, 0.2) });
+          lastPage.drawText(sigText, { x: sx + (W * 0.3 - tw) / 2, y: H * 0.1 + 8, size: fs, font, color: RGB(0.05, 0.1, 0.6) });
+          bytes = await doc.save(); break;
+        }
+
+        default: break;
+      }
+    }
+    return new Blob([bytes], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 6: PDF TO POWERPOINT (pdfjs text → pptxgenjs) ─────────────────
+  async function pdfToPowerpoint(files) {
+    const PptxGenJS = await loadPptxGen();
+    const pdfjsLib  = await loadPdfJs();
+    const data = await readFileBytes(files[0]);
+    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+
+    const pptx    = new PptxGenJS();
+    pptx.layout   = 'LAYOUT_16x9';
+    pptx.title    = files[0].name.replace(/\.[^.]+$/, '');
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const text    = content.items.map(it => it.str).join(' ').trim();
+      const slide   = pptx.addSlide();
+      slide.addText(`Page ${i}`, { x: 0.4, y: 0.15, w: '90%', h: 0.45, fontSize: 20, bold: true, color: '303030' });
+      if (text) {
+        slide.addText(text.substring(0, 900), { x: 0.4, y: 0.75, w: '90%', h: 4.2, fontSize: 11, color: '555555', wrap: true });
+      }
+    }
+
+    const blob = await pptx.write({ outputType: 'blob' });
+    return { blob, ext: '.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
+  }
+
+  // ── PHASE 6: POWERPOINT TO PDF (JSZip parse → pdf-lib) ───────────────────
+  async function powerpointToPdf(files) {
+    const JSZip = await loadJsZip();
+    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
+
+    const ab  = await files[0].arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+
+    const slideNames = Object.keys(zip.files)
+      .filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n))
+      .sort((a, b) => {
+        const na = parseInt((a.match(/\d+/) || ['0'])[0], 10);
+        const nb = parseInt((b.match(/\d+/) || ['0'])[0], 10);
+        return na - nb;
+      });
+
+    const doc  = await PDFDoc.create();
+    const font = await doc.embedFont(SF.Helvetica);
+    const bold = await doc.embedFont(SF.HelveticaBold);
+    const PW   = 842, PH = 595; // landscape A4
+    const margin = 48, fontSize = 11, lineH = fontSize * 1.6;
+
+    if (slideNames.length === 0) {
+      const p = doc.addPage([PW, PH]);
+      p.drawText('No slides found in presentation', { x: margin, y: PH / 2, size: fontSize, font, color: RGB(0, 0, 0) });
+    }
+
+    for (const slideName of slideNames) {
+      const xml   = await zip.files[slideName].async('text');
+      const texts = [];
+      const re    = /<a:t[^>]*>([^<]*)<\/a:t>/g;
+      let m;
+      while ((m = re.exec(xml)) !== null) {
+        const t = m[1]
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&apos;/g, "'").replace(/&quot;/g, '"').trim();
+        if (t) texts.push(t);
+      }
+
+      const page = doc.addPage([PW, PH]);
+      const slideNum = (slideName.match(/slide(\d+)/) || ['', '?'])[1];
+      page.drawText(`Slide ${slideNum}`, { x: margin, y: PH - margin, size: 15, font: bold, color: RGB(0.2, 0.2, 0.2) });
+
+      let y = PH - margin - 26;
+      for (const t of texts) {
+        if (y < margin + fontSize) break;
+        const usableW = PW - margin * 2;
+        if (font.widthOfTextAtSize(t, fontSize) > usableW) {
+          const words = t.split(' ');
+          let line = '';
+          for (const word of words) {
+            const test = line ? line + ' ' + word : word;
+            if (font.widthOfTextAtSize(test, fontSize) > usableW && line) {
+              if (y < margin + fontSize) break;
+              page.drawText(line, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) });
+              y -= lineH; line = word;
+            } else { line = test; }
+          }
+          if (line && y >= margin) { page.drawText(line, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) }); y -= lineH; }
+        } else {
+          page.drawText(t, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) });
+          y -= lineH;
+        }
+      }
+    }
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
+  // ── PHASE 6: EXCEL TO PDF (XLSX parse → pdf-lib table) ───────────────────
+  async function excelToPdf(files) {
+    const XLSX = await loadXlsx();
+    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
+
+    const ab  = await files[0].arrayBuffer();
+    const wb  = XLSX.read(ab, { type: 'array' });
+    const doc  = await PDFDoc.create();
+    const font = await doc.embedFont(SF.Helvetica);
+    const bold = await doc.embedFont(SF.HelveticaBold);
+    const PW   = 842, PH = 595; // landscape A4
+    const margin = 40, fontSize = 10, lineH = fontSize * 1.7, colW = 95;
+
+    for (const sheetName of wb.SheetNames) {
+      const sheet = wb.Sheets[sheetName];
+      const rows  = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rows.length) continue;
+
+      let page = doc.addPage([PW, PH]);
+      page.drawText(`Sheet: ${sheetName}`, { x: margin, y: PH - margin, size: 14, font: bold, color: RGB(0.15, 0.15, 0.5) });
+      let y = PH - margin - 20;
+      const maxCols = Math.min(9, Math.max(...rows.map(r => r.length)));
+
+      for (let ri = 0; ri < rows.length; ri++) {
+        if (y < margin + lineH) { page = doc.addPage([PW, PH]); y = PH - margin; }
+        const row      = rows[ri];
+        const isHeader = ri === 0;
+        const usedFont = isHeader ? bold : font;
+        if (isHeader) {
+          page.drawRectangle({ x: margin, y: y - lineH + 2, width: PW - margin * 2, height: lineH, color: RGB(0.92, 0.92, 0.96) });
+        }
+        for (let ci = 0; ci < maxCols; ci++) {
+          const x = margin + ci * colW;
+          if (x + colW > PW - margin) break;
+          const cell = String(row[ci] ?? '').substring(0, 13);
+          page.drawText(cell, { x: x + 3, y: y - lineH + 4, size: fontSize, font: usedFont, color: RGB(0, 0, 0) });
+        }
+        page.drawLine({ start: { x: margin, y: y - lineH }, end: { x: PW - margin, y: y - lineH }, thickness: 0.25, color: RGB(0.75, 0.75, 0.75) });
+        y -= lineH;
+      }
+    }
+    return new Blob([await doc.save()], { type: 'application/pdf' });
+  }
+
   // ── DISPATCH TABLE ───────────────────────────────────────────────────────
   // Each handler returns either a Blob (PDF, default ext) OR an object
   // { blob, ext, mime } when the output format isn't .pdf.
@@ -821,7 +1133,21 @@
     'background-remover': backgroundRemover,
     // ── Phase 5 ───────────────────────────────────────────────────────────
     'ai-summarize':       aiSummarize,
+    // ── Phase 6 ───────────────────────────────────────────────────────────
+    'translate':          translatePdf,
+    'workflow':           workflowPdf,
+    'pdf-to-powerpoint':  pdfToPowerpoint,
+    'powerpoint-to-pdf':  powerpointToPdf,
+    'excel-to-pdf':       excelToPdf,
+    'scan-to-pdf':        imagesToPdf,
   };
+
+  // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
+  // can safely run inside a Web Worker via WorkerPool.
+  const WORKER_TOOLS = new Set([
+    'compress', 'repair', 'workflow', 'merge', 'rotate',
+    'page-numbers', 'watermark', 'sign', 'redact', 'edit',
+  ]);
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
 
@@ -830,21 +1156,54 @@
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
-    // File size routing: compress allows 200 MB, all other tools 50 MB.
-    // Files above limit fall through to the server API silently.
+    // File size routing: compress allows 200 MB; everything else 50 MB.
+    // Files above this limit fall through to the server API.
     const SIZE_LIMITS = { compress: 200 * 1024 * 1024 };
     const sizeLimit   = SIZE_LIMITS[toolId] || 50 * 1024 * 1024;
     const totalBytes  = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);
     if (totalBytes > sizeLimit) throw new Error('file_too_large_for_browser');
 
-    // Memory guard: if the JS heap is over 800 MB, hand off to the server.
+    // Memory guard — use MemoryMonitor when loaded, fall back to inline check.
     try {
-      const mem = performance && performance.memory;
-      if (mem && mem.usedJSHeapSize > 800 * 1024 * 1024) throw new Error('memory_pressure');
+      if (window.MemoryMonitor) {
+        if (window.MemoryMonitor.isUnderPressure()) throw new Error('memory_pressure');
+        if (window.MemoryMonitor.wouldExceedLimit(totalBytes)) throw new Error('memory_pressure');
+      } else {
+        const mem = performance && performance.memory;
+        if (mem && mem.usedJSHeapSize > 800 * 1024 * 1024) throw new Error('memory_pressure');
+      }
     } catch (e) { if (e.message === 'memory_pressure') throw e; }
 
+    // ── Worker Pool path (off-main-thread for eligible tools) ────────────
+    // WorkerPool is tried first for pure pdf-lib operations. On any failure
+    // (pool unavailable, SharedArrayBuffer not supported, worker crash) we
+    // fall through silently to the main-thread handler below.
+    if (WORKER_TOOLS.has(toolId) && typeof Worker !== 'undefined') {
+      try {
+        const pool = await loadWorkerPool().catch(() => null);
+        if (pool) {
+          const fileName = files[0].name; // save before transfer
+          const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
+          // Transfer buffers (zero-copy) — they become detached in main thread.
+          const workerResult = await pool.run(
+            '/workers/pdf-worker.js',
+            { tool: toolId, buffers, options: options || {} },
+            buffers,
+          );
+          if (workerResult && workerResult.buffer) {
+            const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+            return { blob, filename: brandedFilename(fileName, '.pdf') };
+          }
+        }
+      } catch (workerErr) {
+        // Non-fatal: fall through to main-thread handler.
+        console.warn('[BrowserTools] worker fallback for', toolId, '—', workerErr.message);
+      }
+    }
+
+    // ── Main-thread path ─────────────────────────────────────────────────
     const result = await fn(files, options || {});
-    // Normalise: handlers may return a Blob (PDF) or { blob, ext, mime }.
+    // Normalise: handlers return either a Blob (PDF) or { blob, ext, mime }.
     let blob, ext;
     if (result && result.blob) {
       blob = result.blob;
