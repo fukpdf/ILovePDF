@@ -1,55 +1,58 @@
-// Per-tool processors. Two strategies:
+// Per-tool processors for the Cloudflare Queue consumer.
 //
-//   1. HF Space delegation — for AI / image / heavy conversions, we POST
-//      the file to the user's existing Hugging Face Space (HF_SPACE_URL),
-//      which already implements every queued tool. The Worker stays a
-//      thin orchestrator and never blocks on heavy CPU.
+// Strategy:
+//   1. Light path  — small compress jobs run pdf-lib directly inside the
+//      Worker (no cold-start, < 30 ms, zero egress).
+//   2. Backend proxy — everything else is forwarded to the Express backend
+//      running on Cloud Run (env.BACKEND_URL).  The Worker is a thin
+//      orchestrator; it never blocks on heavy CPU itself.
 //
-//   2. Light fallback — for compress / merge-style PDF ops we run pdf-lib
-//      directly inside the Worker. Bounded CPU; safe for the ≤ 50 ms tier
-//      and well under 30 s on the paid tier for typical SaaS inputs.
+// HuggingFace / HF_SPACE_URL is no longer used.  All AI tasks are handled
+// either browser-side (extractive summarise, MyMemory translate) or by the
+// Express backend routes.
 //
 // Every processor returns:  { bytes: Uint8Array, ext: string, mime: string }
 
 import { PDFDocument } from 'pdf-lib';
 import { getObjectBytes } from './r2.js';
 
-const HF_TIMEOUT_MS = 110_000; // HF Spaces can be slow on cold start
+const BACKEND_TIMEOUT_MS = 120_000;
 
-// Maps queued tool ids → HF Space POST routes. The Space mirrors the
-// existing Express route names 1:1, so adding a new tool here only
-// requires the HF Space to expose the matching path.
-const HF_ENDPOINTS = {
-  // Compress & convert (existing)
-  'compress':           '/compress',
-  'ocr':                '/ocr',
-  'pdf-to-word':        '/pdf-to-word',
-  'pdf-to-excel':       '/pdf-to-excel',
-  'pdf-to-powerpoint':  '/pdf-to-powerpoint',
-  'pdf-to-jpg':         '/pdf-to-jpg',
-  'word-to-pdf':        '/word-to-pdf',
-  'excel-to-pdf':       '/excel-to-pdf',
-  'powerpoint-to-pdf':  '/powerpoint-to-pdf',
-  'html-to-pdf':        '/html-to-pdf',
+// Maps queued tool ids → Express route paths (same as the backend's
+// /api/<path> convention).  Adding a new tool only requires the Express
+// backend to expose the matching route.
+const BACKEND_ROUTES = {
+  // Compress & convert from PDF
+  'compress':           { path: '/compress',          field: 'pdf' },
+  'ocr':                { path: '/ocr',               field: 'pdf' },
+  'pdf-to-word':        { path: '/pdf-to-word',       field: 'pdf' },
+  'pdf-to-excel':       { path: '/pdf-to-excel',      field: 'pdf' },
+  'pdf-to-powerpoint':  { path: '/pdf-to-powerpoint', field: 'pdf' },
+  'pdf-to-jpg':         { path: '/pdf-to-jpg',        field: 'pdf' },
+  // Convert to PDF
+  'word-to-pdf':        { path: '/word-to-pdf',       field: 'pdf' },
+  'excel-to-pdf':       { path: '/excel-to-pdf',      field: 'pdf' },
+  'powerpoint-to-pdf':  { path: '/powerpoint-to-pdf', field: 'pdf' },
+  'html-to-pdf':        { path: '/html-to-pdf',       field: 'pdf' },
   // Edit & annotate
-  'edit':               '/edit',
-  'sign':               '/sign',
-  'redact':             '/redact',
+  'edit':               { path: '/edit',              field: 'pdf' },
+  'sign':               { path: '/sign',              field: 'pdf' },
+  'redact':             { path: '/redact',            field: 'pdf' },
   // Security
-  'protect':            '/protect',
-  'unlock':             '/unlock',
-  // Advanced
-  'repair':             '/repair',
-  'scan-to-pdf':        '/scan-to-pdf',
-  'compare':            '/compare',
-  'workflow':           '/workflow',
-  'ai-summarize':       '/ai-summarize',
-  'translate':          '/translate',
-  // Image
-  'background-remover': '/background-remove',
-  'crop-image':         '/crop-image',
-  'resize-image':       '/resize-image',
-  'image-filters':      '/filters',
+  'protect':            { path: '/protect',           field: 'pdf' },
+  'unlock':             { path: '/unlock',            field: 'pdf' },
+  // Advanced tools
+  'repair':             { path: '/repair',            field: 'pdf' },
+  'scan-to-pdf':        { path: '/scan-to-pdf',       field: 'images' },
+  'compare':            { path: '/compare',           field: 'pdfs' },
+  'workflow':           { path: '/workflow',          field: 'pdf' },
+  'ai-summarize':       { path: '/ai-summarize',      field: 'pdf' },
+  'translate':          { path: '/translate',         field: 'pdf' },
+  // Image tools
+  'background-remover': { path: '/image/bg-remove',  field: 'image' },
+  'crop-image':         { path: '/image/crop',        field: 'image' },
+  'resize-image':       { path: '/image/resize',      field: 'image' },
+  'image-filters':      { path: '/image/filters',     field: 'image' },
 };
 
 const EXT_BY_TOOL = {
@@ -80,37 +83,43 @@ const EXT_BY_TOOL = {
   'image-filters':      { ext: '.png',  mime: 'image/png' },
 };
 
-function endpointFor(tool) { return HF_ENDPOINTS[tool]; }
+// ── Light pdf-lib path for small compress jobs ────────────────────────────────
+async function lightCompress(fileBytes) {
+  const src = await PDFDocument.load(fileBytes, { ignoreEncryption: true, updateMetadata: false });
+  const out = await PDFDocument.create();
+  const pages = await out.copyPages(src, src.getPageIndices());
+  pages.forEach(p => out.addPage(p));
+  const bytes = await out.save({ useObjectStreams: true, addDefaultPage: false });
+  return { bytes, ext: '.pdf', mime: 'application/pdf' };
+}
 
-// ── HF Space pass-through ────────────────────────────────────────────────────
-async function callHuggingFace(env, job, fileBytes) {
-  const path = endpointFor(job.tool);
-  if (!path) throw new Error(`HF route not mapped for tool: ${job.tool}`);
-  if (!env.HF_SPACE_URL) throw new Error('HF_SPACE_URL not configured');
+// ── Backend (Cloud Run) pass-through ─────────────────────────────────────────
+async function callBackend(env, job, fileBytes) {
+  const route = BACKEND_ROUTES[job.tool];
+  if (!route) throw new Error(`No backend route mapped for tool: ${job.tool}`);
+  if (!env.BACKEND_URL) throw new Error('BACKEND_URL not configured in worker env');
 
   const fd = new FormData();
-  fd.append('file', new Blob([fileBytes], { type: job.content_type || 'application/octet-stream' }), job.file_name || 'input');
+  const contentType = job.content_type || 'application/octet-stream';
+  const fileName    = job.file_name    || 'input';
+  fd.append(route.field, new Blob([fileBytes], { type: contentType }), fileName);
+
   for (const [k, v] of Object.entries(job.options || {})) {
     if (v !== null && v !== undefined && v !== '') fd.append(k, String(v));
   }
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), HF_TIMEOUT_MS);
+  const backendBase = env.BACKEND_URL.replace(/\/+$/, '');
+  const url         = `${backendBase}/api${route.path}`;
+
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), BACKEND_TIMEOUT_MS);
   try {
-    const r = await fetch(env.HF_SPACE_URL.replace(/\/+$/, '') + path, {
-      method: 'POST',
-      body: fd,
-      signal: ctrl.signal,
-      headers: (() => {
-        const tok = env.HF_API_TOKEN || env.HF_TOKEN || env.HUGGINGFACE_API_TOKEN || env.HUGGING_FACE_TOKEN;
-        return tok ? { Authorization: `Bearer ${tok}` } : {};
-      })(),
-    });
+    const r = await fetch(url, { method: 'POST', body: fd, signal: ctrl.signal });
     if (!r.ok) {
       const body = await r.text().catch(() => '');
-      throw new Error(`HF ${r.status}: ${body.slice(0, 240)}`);
+      throw new Error(`Backend ${r.status} for ${job.tool}: ${body.slice(0, 300)}`);
     }
-    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    const ct   = (r.headers.get('content-type') || '').toLowerCase();
     const meta = EXT_BY_TOOL[job.tool] || { ext: '.bin', mime: ct || 'application/octet-stream' };
     const bytes = new Uint8Array(await r.arrayBuffer());
     return { bytes, ext: meta.ext, mime: meta.mime };
@@ -119,35 +128,21 @@ async function callHuggingFace(env, job, fileBytes) {
   }
 }
 
-// ── Light pdf-lib fallback for compress ──────────────────────────────────────
-async function lightCompress(fileBytes) {
-  const src = await PDFDocument.load(fileBytes, { ignoreEncryption: true, updateMetadata: false });
-  const out = await PDFDocument.create();
-  const pages = await out.copyPages(src, src.getPageIndices());
-  pages.forEach((p) => out.addPage(p));
-  const bytes = await out.save({ useObjectStreams: true, addDefaultPage: false });
-  return { bytes, ext: '.pdf', mime: 'application/pdf' };
-}
-
-// ── Public entry: pick a strategy per tool ───────────────────────────────────
+// ── Public entry ──────────────────────────────────────────────────────────────
 export async function process(env, job) {
   const fileBytes = await getObjectBytes(env, job.file_key);
 
-  // Light path: a small subset runs entirely in the Worker so we can serve
-  // even if the HF Space is cold or down.
+  // Light path: compress < 25 MB runs entirely in the Worker.
   if (job.tool === 'compress' && fileBytes.length < 25 * 1024 * 1024) {
     try {
       return await lightCompress(fileBytes);
     } catch (e) {
-      // fall through to HF
-      console.warn('[light-compress] failed, falling back to HF:', e.message);
+      console.warn('[light-compress] failed, falling back to backend:', e.message);
     }
   }
 
-  return callHuggingFace(env, job, fileBytes);
+  return callBackend(env, job, fileBytes);
 }
 
-// All tool ids the queue accepts. Anything in TOOLS but NOT here is a
-// browser-only / client-side tool (merge, split, rotate, crop, organize,
-// jpg-to-pdf, watermark, page-numbers, numbers-to-words).
-export const QUEUED_TOOLS = new Set(Object.keys(HF_ENDPOINTS));
+// All tool ids the queue consumer accepts.
+export const QUEUED_TOOLS = new Set(Object.keys(BACKEND_ROUTES));

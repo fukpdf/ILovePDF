@@ -103,7 +103,7 @@ router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
 
     const buffer = fs.readFileSync(req.file.path);
     const text = await extractPdfText(buffer);
-    if (!text.trim()) throw new Error('No extractable text found. The PDF may be image-based or scanned.');
+    if (!text.trim()) { cleanupFiles(req.file); return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based or scanned.' }); }
 
     const children = text.split('\n').map(line =>
       new Paragraph({ children: [new TextRun({ text: line || '', break: line.trim() ? 0 : 1 })] })
@@ -129,7 +129,10 @@ router.post('/pdf-to-powerpoint', upload.single('pdf'), async (req, res) => {
 
     const buffer = fs.readFileSync(req.file.path);
     const text = await extractPdfText(buffer);
-    if (!text.trim()) throw new Error('No extractable text found. The PDF may be image-based.');
+    if (!text.trim()) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based.' });
+    }
 
     const pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_WIDE';
@@ -171,7 +174,10 @@ router.post('/pdf-to-excel', upload.single('pdf'), async (req, res) => {
 
     const buffer = fs.readFileSync(req.file.path);
     const text = await extractPdfText(buffer);
-    if (!text.trim()) throw new Error('No extractable text found. The PDF may be image-based.');
+    if (!text.trim()) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based.' });
+    }
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'PDF Tools Pro';
@@ -275,7 +281,7 @@ router.post('/powerpoint-to-pdf', upload.single('pdf'), async (req, res) => {
       if (slideText) allText += `[Slide]\n${slideText}\n\n`;
     }
 
-    if (!allText.trim()) throw new Error('No text found in the presentation.');
+    if (!allText.trim()) { cleanupFiles(req.file); return res.status(400).json({ error: 'No text found in the presentation.' }); }
 
     const outBytes = await textToPdf(allText, PDFDocument, StandardFonts, rgb);
     cleanupFiles(req.file);
