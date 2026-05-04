@@ -15,21 +15,81 @@
   const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   const PPTXGEN_URL   = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
 
-  // ── lazy CDN loaders (cached) ────────────────────────────────────────────
-  let pdfLibPromise = null;
-  function loadPdfLib() {
-    if (window.PDFLib) return Promise.resolve(window.PDFLib);
-    if (pdfLibPromise) return pdfLibPromise;
-    pdfLibPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = PDFLIB_URL; s.async = true;
-      s.onload  = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib failed to load'));
-      s.onerror = () => reject(new Error('pdf-lib failed to load'));
-      document.head.appendChild(s);
+  // ── IDB-backed CDN script loader ─────────────────────────────────────────
+  // On first load: fetches from CDN, executes via script tag, then stores
+  // bytes in IndexedDB. On subsequent page loads: reads from IDB → creates
+  // a blob URL → injects as script tag (zero network round-trip).
+  // Falls back to CDN direct if IDB is unavailable or blob: URL is blocked
+  // by CSP (onerror triggers CDN retry automatically).
+  function loadScriptCached(url, globalName, slot) {
+    if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
+    if (slot.p) return slot.p;
+
+    slot.p = new Promise((resolve, reject) => {
+      const inject = (src, done) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = () => done(null);
+        s.onerror = () => done(new Error('err'));
+        document.head.appendChild(s);
+      };
+
+      const settle = (err) => {
+        if (err) { slot.p = null; reject(new Error((globalName || url) + ' failed to load')); return; }
+        const val = globalName ? window[globalName] : true;
+        if (!val && globalName) { slot.p = null; reject(new Error(globalName + ' not found after load')); return; }
+        resolve(val);
+      };
+
+      (async () => {
+        // ── Path A: IDB hit → inject as blob URL ────────────────────────
+        if (window.IDBCache) {
+          try {
+            const cached = await window.IDBCache.get(url);
+            if (cached) {
+              const blobUrl = URL.createObjectURL(new Blob([cached], { type: 'application/javascript' }));
+              inject(blobUrl, (err) => {
+                URL.revokeObjectURL(blobUrl);
+                if (!err) { console.log('[IDBCache] hit:', url.split('/').pop()); settle(null); return; }
+                // CSP blocked blob: → fall back to CDN
+                inject(url, settle);
+              });
+              return;
+            }
+          } catch (_) {}
+        }
+
+        // ── Path B: CDN → execute, then cache bytes in background ───────
+        inject(url, (err) => {
+          settle(err);
+          if (!err && window.IDBCache) {
+            fetch(url).then(r => r.ok ? r.arrayBuffer() : null)
+              .then(ab => { if (ab) { window.IDBCache.set(url, ab).catch(() => {}); console.log('[IDBCache] cached:', url.split('/').pop()); } })
+              .catch(() => {});
+          }
+        });
+      })();
     });
-    return pdfLibPromise;
+
+    return slot.p;
   }
 
+  // ── lazy CDN loaders (IDB-cached for UMD bundles) ────────────────────────
+  const _pdfLibSlot   = { p: null };
+  const _jsZipSlot    = { p: null };
+  const _mammothSlot  = { p: null };
+  const _html2pdfSlot = { p: null };
+  const _xlsxSlot     = { p: null };
+  const _pptxSlot     = { p: null };
+
+  function loadPdfLib()   { return loadScriptCached(PDFLIB_URL,   'PDFLib',    _pdfLibSlot); }
+  function loadJsZip()    { return loadScriptCached(JSZIP_URL,    'JSZip',     _jsZipSlot); }
+  function loadMammoth()  { return loadScriptCached(MAMMOTH_URL,  'mammoth',   _mammothSlot); }
+  function loadHtml2Pdf() { return loadScriptCached(HTML2PDF_URL, 'html2pdf',  _html2pdfSlot); }
+  function loadXlsx()     { return loadScriptCached(XLSX_URL,     'XLSX',      _xlsxSlot); }
+  function loadPptxGen()  { return loadScriptCached(PPTXGEN_URL,  'PptxGenJS', _pptxSlot); }
+
+  // pdfjs uses dynamic import() — ES module; IDB/blob-URL not applicable.
   let pdfJsPromise = null;
   function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -44,62 +104,7 @@
     return pdfJsPromise;
   }
 
-  let jsZipPromise = null;
-  function loadJsZip() {
-    if (window.JSZip) return Promise.resolve(window.JSZip);
-    if (jsZipPromise) return jsZipPromise;
-    jsZipPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = JSZIP_URL; s.async = true;
-      s.onload  = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip failed to load'));
-      s.onerror = () => reject(new Error('JSZip failed to load'));
-      document.head.appendChild(s);
-    });
-    return jsZipPromise;
-  }
-
-  let mammothPromise = null;
-  function loadMammoth() {
-    if (window.mammoth) return Promise.resolve(window.mammoth);
-    if (mammothPromise) return mammothPromise;
-    mammothPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = MAMMOTH_URL; s.async = true;
-      s.onload  = () => window.mammoth ? resolve(window.mammoth) : reject(new Error('mammoth failed'));
-      s.onerror = () => reject(new Error('mammoth failed'));
-      document.head.appendChild(s);
-    });
-    return mammothPromise;
-  }
-
-  let html2pdfPromise = null;
-  function loadHtml2Pdf() {
-    if (window.html2pdf) return Promise.resolve(window.html2pdf);
-    if (html2pdfPromise) return html2pdfPromise;
-    html2pdfPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = HTML2PDF_URL; s.async = true;
-      s.onload  = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error('html2pdf failed'));
-      s.onerror = () => reject(new Error('html2pdf failed'));
-      document.head.appendChild(s);
-    });
-    return html2pdfPromise;
-  }
-
-  let xlsxPromise = null;
-  function loadXlsx() {
-    if (window.XLSX) return Promise.resolve(window.XLSX);
-    if (xlsxPromise) return xlsxPromise;
-    xlsxPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = XLSX_URL; s.async = true;
-      s.onload  = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX failed'));
-      s.onerror = () => reject(new Error('XLSX failed'));
-      document.head.appendChild(s);
-    });
-    return xlsxPromise;
-  }
-
+  // Tesseract manages its own WASM/worker caching internally.
   let tesseractPromise = null;
   function loadTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -114,22 +119,7 @@
     return tesseractPromise;
   }
 
-  let pptxGenPromise = null;
-  function loadPptxGen() {
-    if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
-    if (pptxGenPromise) return pptxGenPromise;
-    pptxGenPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = PPTXGEN_URL; s.async = true;
-      s.onload  = () => window.PptxGenJS ? resolve(window.PptxGenJS) : reject(new Error('PptxGenJS failed'));
-      s.onerror = () => reject(new Error('PptxGenJS failed'));
-      document.head.appendChild(s);
-    });
-    return pptxGenPromise;
-  }
-
-  // Lazy-loads the Worker Pool script (/workers/workerPool.js) the first time
-  // it is needed. Returns window.WorkerPool or rejects if the script fails.
+  // WorkerPool is a local script — no CDN or IDB needed.
   let workerPoolPromise = null;
   function loadWorkerPool() {
     if (window.WorkerPool) return Promise.resolve(window.WorkerPool);
@@ -1174,17 +1164,15 @@
       }
     } catch (e) { if (e.message === 'memory_pressure') throw e; }
 
-    // ── Worker Pool path (off-main-thread for eligible tools) ────────────
-    // WorkerPool is tried first for pure pdf-lib operations. On any failure
-    // (pool unavailable, SharedArrayBuffer not supported, worker crash) we
-    // fall through silently to the main-thread handler below.
+    // ── Worker Pool path (off-main-thread for eligible pure pdf-lib tools) ──
     if (WORKER_TOOLS.has(toolId) && typeof Worker !== 'undefined') {
+      const t0 = Date.now();
+      console.log(`[BrowserTools] [${toolId}] worker START`);
       try {
         const pool = await loadWorkerPool().catch(() => null);
         if (pool) {
-          const fileName = files[0].name; // save before transfer
+          const fileName = files[0].name;
           const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
-          // Transfer buffers (zero-copy) — they become detached in main thread.
           const workerResult = await pool.run(
             '/workers/pdf-worker.js',
             { tool: toolId, buffers, options: options || {} },
@@ -1192,18 +1180,23 @@
           );
           if (workerResult && workerResult.buffer) {
             const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+            if (blob.size === 0) throw new Error('Worker produced empty output — falling back');
+            console.log(`[BrowserTools] [${toolId}] worker END — ${Date.now() - t0}ms, ${blob.size} bytes`);
             return { blob, filename: brandedFilename(fileName, '.pdf') };
           }
+          console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread (no buffer in result)`);
+        } else {
+          console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread (pool unavailable)`);
         }
       } catch (workerErr) {
-        // Non-fatal: fall through to main-thread handler.
-        console.warn('[BrowserTools] worker fallback for', toolId, '—', workerErr.message);
+        console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread: ${workerErr.message}`);
       }
     }
 
     // ── Main-thread path ─────────────────────────────────────────────────
+    const t1 = Date.now();
+    console.log(`[BrowserTools] [${toolId}] main-thread START`);
     const result = await fn(files, options || {});
-    // Normalise: handlers return either a Blob (PDF) or { blob, ext, mime }.
     let blob, ext;
     if (result && result.blob) {
       blob = result.blob;
@@ -1212,6 +1205,9 @@
       blob = result;
       ext  = '.pdf';
     }
+    // Validate output: empty blob means the handler silently failed.
+    if (!blob || blob.size === 0) throw new Error(`[${toolId}] browser processing produced empty output`);
+    console.log(`[BrowserTools] [${toolId}] main-thread END — ${Date.now() - t1}ms, ${blob.size} bytes`);
     const filename = brandedFilename(files[0].name, ext);
     return { blob, filename };
   }

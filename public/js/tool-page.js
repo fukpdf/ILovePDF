@@ -1028,7 +1028,7 @@ async function processFile() {
       if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
       showStatus('success', 'Your file is ready',
         `Press the button if download does not start automatically.`,
-        URL.createObjectURL(blob), filename);
+        createStatusUrl(blob), filename);
       // Compress: offer an opt-in advanced (server-side) re-compression for
       // users who need a smaller result than what browser compression produced.
       if (currentTool.id === 'compress') appendCompressAdvancedLink();
@@ -1077,7 +1077,7 @@ async function processFile() {
     const endpoint = (typeof window.apiUrl === 'function')
       ? window.apiUrl(currentTool.apiEndpoint)
       : currentTool.apiEndpoint;
-    const response = await fetch(endpoint, {
+    const response = await fetchWithRetry(endpoint, {
       method: 'POST',
       body: formData,
       credentials: 'include',
@@ -1124,7 +1124,7 @@ async function processFile() {
       triggerDownload(blob, filename);
       showStatus('success', 'Your file is ready',
         `Press the button if download does not start automatically.`,
-        URL.createObjectURL(blob), filename);
+        createStatusUrl(blob), filename);
       return;
     }
 
@@ -1177,6 +1177,39 @@ function triggerDownload(blob, filename) {
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+// Create an object URL for showStatus download links and schedule automatic
+// revocation after 5 minutes (generous enough for any user action).
+function createStatusUrl(blob) {
+  const url = URL.createObjectURL(blob);
+  setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 5 * 60 * 1000);
+  return url;
+}
+
+// Fetch with automatic retry on HTTP 429 (rate-limit only — hard limits like
+// LIMIT_REACHED are not retried). Up to maxRetries attempts with exponential
+// back-off starting at 1 s, doubling each time, capped at 8 s.
+async function fetchWithRetry(url, options, maxRetries) {
+  maxRetries = (maxRetries === undefined) ? 3 : maxRetries;
+  let delay = 1000;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const r = await fetch(url, options);
+    if (r.status === 429) {
+      try {
+        const data = await r.clone().json();
+        // Hard limits should surface to the user immediately — no retry.
+        if (data.error === 'LIMIT_REACHED' || data.error === 'FILE_TOO_LARGE') return r;
+      } catch (_) {}
+      if (attempt < maxRetries) {
+        console.warn('[fetchWithRetry] 429 on attempt', attempt + 1, '— retrying in', delay, 'ms');
+        await new Promise(res => setTimeout(res, delay));
+        delay = Math.min(delay * 2, 8000);
+        continue;
+      }
+    }
+    return r;
+  }
 }
 
 // Compress: small "need more compression?" CTA appended below the standard

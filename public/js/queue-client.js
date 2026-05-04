@@ -149,9 +149,12 @@
       ui.hideProcessing();
       ui.triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(1);
+      // Create a status URL and schedule revocation after 5 minutes.
+      const _statusUrl = URL.createObjectURL(blob);
+      setTimeout(() => { try { URL.revokeObjectURL(_statusUrl); } catch (_) {} }, 5 * 60 * 1000);
       ui.showStatus('success', 'Your file is ready',
         `Press the button if download does not start automatically.`,
-        URL.createObjectURL(blob), filename);
+        _statusUrl, filename);
     } catch (err) {
       ui.hideProcessing();
       ui.showStatus('error', 'Please try again', NEUTRAL_ERR);

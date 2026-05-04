@@ -10,6 +10,12 @@ const router = express.Router();
 import { UPLOAD_DIR } from '../utils/upload.js';
 const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 100 * 1024 * 1024 } });
 
+// Returns 400 for known client-input errors, 500 for genuine server faults.
+function clientErrStatus(err) {
+  const msg = (err && err.message) || '';
+  return /no (file|text|page|input)|image.based|scanned|unsupported|invalid|not found|empty|no extractable|no text|could not parse|corrupt/i.test(msg) ? 400 : 500;
+}
+
 // ── REPAIR ────────────────────────────────────────────────────────────────
 
 router.post('/repair', upload.single('pdf'), async (req, res) => {
@@ -31,7 +37,7 @@ router.post('/repair', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-repair.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -57,7 +63,7 @@ router.post('/ocr', upload.single('pdf'), async (req, res) => {
     res.json({ text: text.trim() });
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -114,7 +120,7 @@ router.post('/compare', upload.array('pdfs'), async (req, res) => {
     res.json({ report });
   } catch (err) {
     cleanupFiles(req.files);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -143,7 +149,7 @@ router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
     });
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -181,7 +187,7 @@ router.post('/translate', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, `ilovepdf-translated-${targetLang}.pdf`);
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -274,7 +280,7 @@ router.post('/workflow', upload.single('pdf'), async (req, res) => {
     sendPdf(res, bytes, 'ilovepdf-workflow.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 

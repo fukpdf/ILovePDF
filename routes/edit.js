@@ -8,6 +8,12 @@ import { gsCompress } from '../utils/pdfTools.js';
 const router = express.Router();
 const upload = createUpload('pdf', 100 * 1024 * 1024);
 
+// Returns 400 for known client-input errors, 500 for genuine server faults.
+function clientErrStatus(err) {
+  const msg = (err && err.message) || '';
+  return /no (file|text|page|input)|invalid|not found|empty|corrupt|no text/i.test(msg) ? 400 : 500;
+}
+
 // Compress — Ghostscript first (real size reduction), pdf-lib fallback
 router.post('/compress', upload.single('pdf'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
@@ -28,7 +34,7 @@ router.post('/compress', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-compress.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -61,7 +67,7 @@ router.post('/edit', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-edit.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -101,7 +107,7 @@ router.post('/watermark', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-watermark.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -138,7 +144,7 @@ router.post('/sign', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-sign.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -175,7 +181,7 @@ router.post('/page-numbers', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-page-numbers.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
@@ -207,7 +213,7 @@ router.post('/redact', upload.single('pdf'), async (req, res) => {
     sendPdf(res, outBytes, 'ilovepdf-redact.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(500).json({ error: err.message });
+    res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
 
