@@ -1199,9 +1199,13 @@
     onStep(1, 'done', 53);
     onStep(2, 'active', 57, 'Building document\u2026');
 
-    var wResult = await runAdvancedWorker({ op: 'build-docx', pages: pages });
+    var wResult;
+    try {
+      wResult = await runAdvancedWorker({ op: 'build-docx', pages: pages });
+    } catch (_) {}
     pages = null;
-    if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
+    // If worker failed for any reason, fall back to browser-tools.js pdfToWord
+    if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 90);
     onStep(3, 'active', 93, 'Finalizing output\u2026');
@@ -1258,9 +1262,12 @@
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building spreadsheet\u2026');
 
-    var wResult = await runAdvancedWorker({ op: 'build-xlsx', sheets: sheets });
+    var wResult;
+    try {
+      wResult = await runAdvancedWorker({ op: 'build-xlsx', sheets: sheets });
+    } catch (_) {}
     sheets = null;
-    if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
+    if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 90);
     onStep(3, 'active', 93, 'Finalizing output\u2026');
@@ -1322,9 +1329,12 @@
     onStep(2, 'active', 58, 'Building presentation\u2026');
 
     var docTitle = file.name.replace(/\.[^.]+$/, '');
-    var wResult  = await runAdvancedWorker({ op: 'build-pptx', slides: slides, docTitle: docTitle });
+    var wResult;
+    try {
+      wResult = await runAdvancedWorker({ op: 'build-pptx', slides: slides, docTitle: docTitle });
+    } catch (_) {}
     slides = null;
-    if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
+    if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 90);
     onStep(3, 'active', 93, 'Finalizing output\u2026');
@@ -1375,11 +1385,34 @@
       await pdf.destroy();
       pdfSource.cleanup(); // Safe to revoke now — PDF is fully done
       onStep(1, 'done', 50, 'Content ready');
-      onStep(2, 'done', 80);
-      onStep(3, 'active', 90, 'Preparing result\u2026');
-      var nBlob = new Blob([nativeText.trim()], { type: 'text/plain;charset=utf-8' });
+      onStep(2, 'active', 60, 'Building document\u2026');
+
+      // Build structured paragraphs from native text, one per page
+      var nativePageTexts = nativeText.split('\n');
+      var nativeParas = nativePageTexts.filter(function (l) { return l.trim(); }).map(function (l) {
+        return { text: l.trim(), isHeading: false };
+      });
+      var nativeDocPages = [{ pageNum: 1, paragraphs: nativeParas.length ? nativeParas : [{ text: nativeText.trim(), isHeading: false }] }];
+
+      try {
+        var nWResult = await runAdvancedWorker({ op: 'build-docx', pages: nativeDocPages });
+        if (nWResult && nWResult.buffer) {
+          var nBlob = new Blob([nWResult.buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          });
+          onStep(2, 'done', 90);
+          onStep(3, 'active', 93, 'Preparing result\u2026');
+          onStep(3, 'done', 100);
+          return { blob: nBlob, filename: brandedFilename(file.name, '.docx') };
+        }
+      } catch (_) {}
+
+      // Fallback: return plain text
+      onStep(2, 'done', 90);
+      onStep(3, 'active', 93, 'Preparing result\u2026');
+      var nTxtBlob = new Blob([nativeText.trim()], { type: 'text/plain;charset=utf-8' });
       onStep(3, 'done', 100);
-      return { blob: nBlob, filename: brandedFilename(file.name, '.txt') };
+      return { blob: nTxtBlob, filename: brandedFilename(file.name, '.txt') };
     }
 
     // Image-based: Tesseract OCR
@@ -1464,10 +1497,33 @@
     }
 
     onStep(2, 'done', 80);
-    onStep(3, 'active', 84, 'Preparing result\u2026');
-    var blob = new Blob([allLines.join('\n\n').trim()], { type: 'text/plain;charset=utf-8' });
+    onStep(3, 'active', 84, 'Building document\u2026');
+
+    // Build pages structure for DOCX output
+    var ocrPages = allLines.map(function (lineStr, idx) {
+      var text = lineStr.replace(/^=== Page \d+ ===\n?/, '').trim();
+      var paragraphs = text.split('\n').filter(Boolean).map(function (t) {
+        return { text: t.trim(), isHeading: false };
+      });
+      if (!paragraphs.length) paragraphs = [{ text: '(no content)', isHeading: false }];
+      return { pageNum: idx + 1, paragraphs: paragraphs };
+    });
+
+    try {
+      var ocrWResult = await runAdvancedWorker({ op: 'build-docx', pages: ocrPages });
+      if (ocrWResult && ocrWResult.buffer) {
+        var ocrBlob = new Blob([ocrWResult.buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+        onStep(3, 'done', 100);
+        return { blob: ocrBlob, filename: brandedFilename(file.name, '.docx') };
+      }
+    } catch (_) {}
+
+    // Fallback: plain text
+    var ocrTxtBlob = new Blob([allLines.join('\n\n').trim()], { type: 'text/plain;charset=utf-8' });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '.txt') };
+    return { blob: ocrTxtBlob, filename: brandedFilename(file.name, '.txt') };
   };
 
   // ─── BACKGROUND REMOVER (Phase 5: WebGPU in worker) ──────────────────────
@@ -1567,7 +1623,8 @@
     } catch (e) { /* silent */ }
 
     buf = null;
-    if (!resultBuf) throw new Error('This PDF could not be repaired. The file may be too damaged or use an unsupported format.');
+    // Fall back to browser-tools.js repairPdf when worker is unavailable
+    if (!resultBuf) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 78);
     onStep(3, 'active', 82, 'Finalizing output\u2026');
@@ -1701,10 +1758,34 @@
     onStep(1, 'done', 45);
     onStep(2, 'active', 49, 'Generating summary\u2026');
 
-    var scored = await runAdvancedWorker({
-      op: 'chunk-text-score', text: allText, maxSentences: maxSentences,
-    });
+    var _allTextForScore = allText;
+    var scored;
+    try {
+      scored = await runAdvancedWorker({
+        op: 'chunk-text-score', text: _allTextForScore, maxSentences: maxSentences,
+      });
+    } catch (_) {}
     allText = null;
+
+    // Inline TF-IDF fallback when worker is unavailable
+    if (!scored || !scored.summary) {
+      var _sentences = (_allTextForScore.match(/[^.!?\n]{10,}[.!?]/g) || [])
+        .map(function (s) { return s.trim(); }).filter(function (s) { return s.length >= 15; });
+      if (!_sentences.length) _sentences = _allTextForScore.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
+      var _words = _allTextForScore.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+      var _freq = {};
+      _words.forEach(function (w) { _freq[w] = (_freq[w] || 0) + 1; });
+      var _top = _sentences.slice()
+        .map(function (s) {
+          var sw = s.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+          return { s: s, score: sw.reduce(function (n, w) { return n + (_freq[w] || 0); }, 0) / (sw.length || 1) };
+        })
+        .sort(function (a, b) { return b.score - a.score; })
+        .slice(0, maxSentences)
+        .map(function (x) { return x.s; });
+      scored = { summary: _top.join(' '), wordCount: _words.length, sentenceCount: _sentences.length, topCount: _top.length };
+    }
+    _allTextForScore = null;
 
     if (!scored || !scored.summary) throw AEError(ERR.WORKER, 'summarize_empty');
 
@@ -1857,6 +1938,12 @@
     onStep(2, 'done', 79);
     onStep(3, 'active', 82, 'Finalizing output\u2026');
 
+    // Check if any pages actually have content
+    var _hasContent = translated.some(function (pg) { return pg.text && pg.text.trim().length > 0; });
+    if (!_hasContent) {
+      throw new Error('No translatable text was found in this PDF. The document may contain only images or scanned content. Use the OCR tool first to extract text.');
+    }
+
     var lineOut = [
       'ILovePDF \u2014 Translated (' + targetLang.toUpperCase() + ')',
       '='.repeat(50),
@@ -1972,7 +2059,7 @@
     if (result) {
       var _rb = (result && result.blob) ? result.blob : result;
       if (_rb instanceof Blob) {
-        var _TEXT_TOOLS = ['compare', 'ai-summarize', 'translate', 'ocr'];
+        var _TEXT_TOOLS = ['compare', 'ai-summarize', 'translate'];
         var _minOut = _TEXT_TOOLS.indexOf(toolId) !== -1 ? 1 : 50;
         if (_rb.size < _minOut) {
           LiveFeed.hide();

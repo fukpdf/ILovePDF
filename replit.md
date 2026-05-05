@@ -62,6 +62,16 @@ Processing logic:
 - **Size limits**: <50 MB for most tools, <200 MB for compress, <500 MB absolute hard limit. Memory guard aborts before OOM.
 - **Sentinel delegators**: word-to-pdf, excel-to-pdf, html-to-pdf, scan-to-pdf throw ERR.ORIG → fall to pre-hook browser handlers (all have real implementations).
 
+**Critical Bug Fixes (v4.1 — May 2026):**
+- **WorkerPool script loading**: Added `<script src="/workers/workerPool.js"></script>` to `tool.html` before `browser-tools.js`. This was the root cause of all worker-dependent tools failing with `pool_unavailable` — `window.WorkerPool` was never initialized.
+- **Tools fixed by WorkerPool fix**: PDF→Word, PDF→PowerPoint, PDF→Excel, Background Remover, AI Summarizer (all use `runAdvancedWorker`), Repair PDF, Compress (uses `runPdfWorker`).
+- **Repair PDF fallback**: Changed from hard error to `ERR.ORIG` fallback → now falls through to browser-tools.js `repairPdf` (pdf-lib based) when worker is unavailable.
+- **PDF→Word/PowerPoint/Excel fallbacks**: Each now wraps `runAdvancedWorker` in try-catch and throws `ERR.ORIG` on failure, falling back to browser-tools.js implementations.
+- **OCR output changed to DOCX**: Both the fast path (native text extraction) and the Tesseract path now output `.docx` via `runAdvancedWorker({op:'build-docx'})` instead of `.txt`. Fallback to `.txt` retained if worker fails.
+- **AI Summarizer inline fallback**: Added inline TF-IDF scoring fallback when `runAdvancedWorker` is unavailable, so the tool always produces output.
+- **Translate PDF empty output**: Added check — if all translated pages are empty (PDF has no extractable text), throws a helpful error guiding users to OCR tool first.
+- **Output validation updated**: Removed `ocr` from `_TEXT_TOOLS` (min 1 byte) since OCR now returns DOCX (always >50 bytes); standard minimum of 50 bytes now applies.
+
 **Production Guards (v4.0):**
 - **Output Validation Layer** (`OutputValidator` in tool-page.js): validates every result before download — checks blob size against per-MIME minimums and strips whitespace-only text outputs. Applied in both the browser-side and advanced-engine paths.
 - **Tool Execution Guard + Retry** (`tryWithRetry` in tool-page.js): wraps all browser-side processing in up to 2 attempts. Terminal errors (file too large, user-correctable) skip retry.
