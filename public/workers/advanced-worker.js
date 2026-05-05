@@ -176,40 +176,90 @@ async function buildPptx(slides, docTitle) {
   return await pptx.write({ outputType: 'arraybuffer' });
 }
 
-// ── REMOVE BACKGROUND (CPU path only) ─────────────────────────────────────────
-// Phase 5: CPU pixel loop with feathered edge smoothing.
+// ── REMOVE BACKGROUND (CPU path, enhanced feathering + multi-pass) ────────────
+// Phase 5: threshold-based removal with colour-range sampling, variable feather,
+// and a 3×3 neighbourhood smoothing pass.
 function removeBg(pixelsBuf, width, height, threshold) {
-  var t = Math.max(100, Math.min(255, threshold || 240));
+  var t = Math.max(60, Math.min(255, threshold || 240));
   var d = new Uint8ClampedArray(pixelsBuf);
-  var featherRange = 35;
 
-  // Pass 1: threshold + feather
+  // Determine whether the image likely has a light or dark background by
+  // sampling 200 evenly-spaced pixels around the image border.
+  var borderSum = 0, borderCount = 0;
+  var step = Math.max(1, Math.floor((width * 2 + height * 2) / 200));
+  for (var bx = 0; bx < width; bx += step) {
+    // top row
+    var bi0 = bx * 4;
+    borderSum += (d[bi0] + d[bi0+1] + d[bi0+2]) / 3; borderCount++;
+    // bottom row
+    var bi1 = ((height - 1) * width + bx) * 4;
+    borderSum += (d[bi1] + d[bi1+1] + d[bi1+2]) / 3; borderCount++;
+  }
+  for (var by = 0; by < height; by += step) {
+    var bi2 = by * width * 4;
+    borderSum += (d[bi2] + d[bi2+1] + d[bi2+2]) / 3; borderCount++;
+    var bi3 = (by * width + width - 1) * 4;
+    borderSum += (d[bi3] + d[bi3+1] + d[bi3+2]) / 3; borderCount++;
+  }
+  var avgBorder = borderCount > 0 ? borderSum / borderCount : 200;
+  var isDark = avgBorder < 80; // dark background detection
+
+  // Feather zone: larger range → softer edges.
+  var featherRange = 50;
+
+  // Pass 1: classify pixels and apply feathering.
   for (var i = 0; i < d.length; i += 4) {
     var r = d[i], g = d[i + 1], b = d[i + 2];
-    var avg = (r + g + b) / 3;
+    var lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-    if (r >= t && g >= t && b >= t) {
-      d[i + 3] = 0;
-    } else if (avg >= t - featherRange) {
-      var alpha = Math.round(255 * (1 - (avg - (t - featherRange)) / featherRange));
-      alpha = Math.max(0, Math.min(255, alpha));
-      if (alpha < d[i + 3]) d[i + 3] = alpha;
+    if (!isDark) {
+      // Light background — remove near-white pixels
+      if (r >= t && g >= t && b >= t) {
+        d[i + 3] = 0;
+      } else if (lum >= t - featherRange) {
+        var pct   = (lum - (t - featherRange)) / featherRange;
+        var alpha = Math.round(255 * (1 - Math.pow(pct, 0.7)));
+        alpha = Math.max(0, Math.min(255, alpha));
+        if (alpha < d[i + 3]) d[i + 3] = alpha;
+      }
+    } else {
+      // Dark background — remove near-black pixels
+      var tDark = 255 - t;
+      if (r <= tDark && g <= tDark && b <= tDark) {
+        d[i + 3] = 0;
+      } else if (lum <= tDark + featherRange) {
+        var pct2  = (tDark + featherRange - lum) / featherRange;
+        var alpha2 = Math.round(255 * (1 - Math.pow(pct2, 0.7)));
+        alpha2 = Math.max(0, Math.min(255, alpha2));
+        if (alpha2 < d[i + 3]) d[i + 3] = alpha2;
+      }
     }
   }
 
-  // Pass 2: edge smoothing
+  // Pass 2: 3×3 neighbourhood alpha smoothing (soften jagged edges).
   var d2 = new Uint8ClampedArray(d);
-  for (var y = 1; y < height - 1; y++) {
-    for (var x = 1; x < width - 1; x++) {
-      var idx   = (y * width + x) * 4;
-      var a     = d[idx + 3];
-      if (a === 255) {
-        var above = d[((y - 1) * width + x) * 4 + 3];
-        var below = d[((y + 1) * width + x) * 4 + 3];
-        var left  = d[(y * width + x - 1) * 4 + 3];
-        var right = d[(y * width + x + 1) * 4 + 3];
+  for (var py = 1; py < height - 1; py++) {
+    for (var px = 1; px < width - 1; px++) {
+      var idx = (py * width + px) * 4;
+      var a   = d[idx + 3];
+      // Only smooth the transition zone (neither fully opaque nor fully transparent)
+      if (a > 0 && a < 255) {
+        var sum = 0, cnt = 0;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            sum += d[((py + dy) * width + px + dx) * 4 + 3];
+            cnt++;
+          }
+        }
+        d2[idx + 3] = Math.round((a * 0.6) + (sum / cnt) * 0.4);
+      } else if (a === 255) {
+        // Fully opaque pixel on edge: gently inherit from transparent neighbours
+        var above = d[((py - 1) * width + px) * 4 + 3];
+        var below = d[((py + 1) * width + px) * 4 + 3];
+        var left  = d[(py * width + px - 1) * 4 + 3];
+        var right = d[(py * width + px + 1) * 4 + 3];
         var minN  = Math.min(above, below, left, right);
-        if (minN < 230) d2[idx + 3] = Math.round(a * 0.85 + minN * 0.15);
+        if (minN < 200) d2[idx + 3] = Math.round(a * 0.78 + minN * 0.22);
       }
     }
   }

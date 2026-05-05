@@ -1036,129 +1036,55 @@ async function processFile() {
         const el = document.getElementById(`opt-${o.id}`);
         if (el && el.value !== '') opts[o.id] = el.value;
       });
-      const { blob, filename } = await window.BrowserTools.process(
+      const result = await window.BrowserTools.process(
         currentTool.id,
         selectedFiles.map(e => e.file),
         opts,
       );
+      const { blob, filename } = result;
       hideProcessing();
       triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
-      showStatus('success', 'Your file is ready',
-        `Press the button if download does not start automatically.`,
-        createStatusUrl(blob), filename);
-      // Compress: offer an opt-in advanced (server-side) re-compression for
-      // users who need a smaller result than what browser compression produced.
+      // Compress: surface "already optimised" when the PDF could not be shrunk.
+      const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
+      showStatus(
+        'success',
+        isAlreadyOpt ? 'Already optimised' : 'Your file is ready',
+        isAlreadyOpt
+          ? 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.'
+          : 'Press the button if download does not start automatically.',
+        createStatusUrl(blob),
+        filename,
+      );
       if (currentTool.id === 'compress') appendCompressAdvancedLink();
       if (processBtn) processBtn.disabled = false;
       return;
     } catch (err) {
-      // Silent fall-through to the queue / direct path. Keep the spinner up.
-    }
-    showProcessing(`Processing your file…`, 'Almost done — just a moment.');
-  }
-
-  // ── Queue path: tools listed in QueueClient.QUEUED_TOOL_IDS go through the
-  // queued processing API. UI helpers are passed in so the flow is identical.
-  if (window.QueueClient && window.QueueClient.isQueued(currentTool.id)) {
-    const opts = {};
-    (currentTool.options || []).forEach(o => {
-      const el = document.getElementById(`opt-${o.id}`);
-      if (el && el.value !== '') opts[o.id] = el.value;
-    });
-    if (currentTool.id === 'compress') {
-      const lvl = readCompressLevel();
-      if (lvl) opts.level = lvl;
-    }
-    try {
-      const handled = await window.QueueClient.tryProcess(
-        currentTool,
-        selectedFiles.map(e => e.file),
-        opts,
-        {
-          showProcessing,
-          hideProcessing,
-          triggerDownload,
-          showStatus,
-        },
-      );
-      if (handled) {
-        if (processBtn) processBtn.disabled = false;
-        return;
+      hideProcessing();
+      const rawMsg = (err && err.message) || '';
+      let userMsg = 'Something went wrong. Please try again.';
+      if (rawMsg === 'file_too_large_for_browser') {
+        userMsg = 'This file is too large to process in the browser. Please use a file under 50 MB.';
+      } else if (rawMsg === 'memory_pressure') {
+        userMsg = 'Your browser is running low on memory. Please close other tabs and try again.';
+      } else if (rawMsg && rawMsg !== '__orig__' &&
+                 rawMsg !== 'NO_BROWSER_GAIN' &&
+                 rawMsg !== 'No browser-side compression possible' &&
+                 !rawMsg.startsWith('no_processor_') &&
+                 rawMsg.length < 200) {
+        userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
       }
-    } catch (err) {
-      // Silently fall through to the direct route.
+      showStatus('error', 'Processing failed', userMsg);
+      if (processBtn) processBtn.disabled = false;
+      return;
     }
   }
 
-  try {
-    const endpoint = (typeof window.apiUrl === 'function')
-      ? window.apiUrl(currentTool.apiEndpoint)
-      : currentTool.apiEndpoint;
-    const response = await fetchWithRetry(endpoint, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    });
-    if (response.status === 429 || response.status === 413) {
-      const data = await response.json().catch(() => ({}));
-      if (data.error === 'LIMIT_REACHED') {
-        hideProcessing();
-        if (typeof window.showLimitPopup === 'function') {
-          window.showLimitPopup(data.message, !!data.isAnonymous);
-        } else {
-          alert(data.message);
-        }
-        return;
-      }
-    }
-    if (response.ok && window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
-    const ct = (response.headers.get('content-type') || '').toLowerCase();
-
-    if (response.status === 413) {
-      hideProcessing();
-      showSignupModal(selectedFiles[0].file);
-      return;
-    }
-    if (response.status === 501) { hideProcessing(); showComingSoon(currentTool.name); return; }
-
-    if (!response.ok) {
-      hideProcessing();
-      showStatus('error', 'Please try again',
-        'Processing is taking longer than usual. Please wait or try again later.');
-      return;
-    }
-
-    const downloadMimes = [
-      'application/pdf', 'application/vnd.',
-      'image/jpeg', 'image/png', 'image/webp',
-      'application/zip',
-    ];
-    if (downloadMimes.some(m => ct.includes(m))) {
-      const blob = await response.blob();
-      const ext  = mimeToExt(ct);
-      const filename = brandedFilename(selectedFiles[0].file.name, ext);
-      hideProcessing();
-      triggerDownload(blob, filename);
-      showStatus('success', 'Your file is ready',
-        `Press the button if download does not start automatically.`,
-        createStatusUrl(blob), filename);
-      return;
-    }
-
-    const json = await response.json().catch(() => ({}));
-    hideProcessing();
-    if (json.text)    { showTextResult(json.text, 'Extracted Text');    return; }
-    if (json.summary) { showTextResult(json.summary, 'Summary');        return; }
-    if (json.report)  { showReport(json.report);                        return; }
-    showStatus('success', 'Your file is ready', json.message || 'All done.');
-  } catch (err) {
-    hideProcessing();
-    showStatus('error', 'Please try again',
-      'Processing is taking longer than usual. Please wait or try again later.');
-  } finally {
-    if (processBtn) processBtn.disabled = false;
-  }
+  // No browser handler found for this tool
+  hideProcessing();
+  showStatus('error', 'Tool unavailable',
+    'This tool is not yet available in your browser. Please try again in a moment.');
+  if (processBtn) processBtn.disabled = false;
 }
 
 // ── BRANDED FILENAME ───────────────────────────────────────────────────────
@@ -1230,9 +1156,8 @@ async function fetchWithRetry(url, options, maxRetries) {
 }
 
 // Compress: small "need more compression?" CTA appended below the standard
-// success card. Clicking it forces the queued / advanced (server-side) path
-// by temporarily flagging BrowserTools as unsupported for compress and
-// re-running processFile() with the originally selected file(s).
+// success card. Clicking it runs a render-based deep compression entirely in
+// the browser: each page is rasterised to JPEG then re-embedded in a new PDF.
 function appendCompressAdvancedLink() {
   const area = document.getElementById('result-area');
   if (!area || area.querySelector('.compress-advanced-link')) return;
@@ -1241,9 +1166,9 @@ function appendCompressAdvancedLink() {
   link.innerHTML = `
     <p class="compress-advanced-hint">Need a smaller file?</p>
     <button type="button" class="btn btn-outline btn-sm" id="try-advanced-compress">
-      <i data-lucide="zap"></i> Try advanced compression
+      <i data-lucide="zap"></i> Try deep compression
     </button>
-    <p class="compress-advanced-note">Applies deeper compression for stronger size reduction.</p>
+    <p class="compress-advanced-note">Renders each page as an optimised image for maximum size reduction.</p>
   `;
   area.appendChild(link);
   if (window.lucide) lucide.createIcons();
@@ -1252,17 +1177,87 @@ function appendCompressAdvancedLink() {
 }
 
 async function runAdvancedCompress() {
-  if (!window.BrowserTools || !currentTool) return;
-  const originalSupports = window.BrowserTools.supports;
-  // Force the dispatcher to skip the browser path for compress on this run.
-  window.BrowserTools.supports = function(id) {
-    if (id === 'compress') return false;
-    return originalSupports.call(window.BrowserTools, id);
-  };
+  if (!selectedFiles || !selectedFiles.length) return;
+  const btn = document.getElementById('try-advanced-compress');
+  if (btn) { btn.disabled = true; btn.textContent = 'Compressing…'; }
+  const processBtn = document.getElementById('process-btn');
+  if (processBtn) processBtn.disabled = true;
+  showProcessing('Applying deep compression…', 'Rendering pages for maximum size reduction.');
+
   try {
-    await processFile();
+    // Render-based deep compression: every page → JPEG canvas → re-embedded PDF.
+    const { PDFDocument } = await window.BrowserTools._loadPdfLib();
+    let pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      const m = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+      pdfjsLib = m && (m.default || m);
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+      window.pdfjsLib = pdfjsLib;
+    }
+
+    const file    = selectedFiles[0].file;
+    const data    = await file.arrayBuffer();
+    const srcPdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const total   = srcPdf.numPages;
+    const outDoc  = await PDFDocument.create();
+
+    for (let i = 1; i <= total; i++) {
+      showProcessing(
+        `Deep compression — page ${i} of ${total}…`,
+        'Optimising image quality for a smaller file size.',
+      );
+      const page = await srcPdf.getPage(i);
+      // Native page size (points) — preserve original dimensions exactly.
+      const vp1   = page.getViewport({ scale: 1 });
+      const pw    = vp1.width;
+      const ph    = vp1.height;
+      // Render at ~110 DPI (scale ≈ 1.53) — good balance of quality vs size.
+      const scale = Math.min(1.53, 110 / 72);
+      const vp    = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(vp.width);
+      canvas.height = Math.round(vp.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      page.cleanup();
+      const jpgBytes = await new Promise((res, rej) => {
+        canvas.toBlob(b => {
+          if (!b) { rej(new Error('Canvas encode failed')); return; }
+          b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
+        }, 'image/jpeg', 0.72);
+      });
+      canvas.width = 0; canvas.height = 0;
+      const img = await outDoc.embedJpg(jpgBytes);
+      const pg  = outDoc.addPage([pw, ph]);
+      pg.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+    }
+    await srcPdf.destroy();
+
+    const outBytes = await outDoc.save({ useObjectStreams: true });
+    const blob     = new Blob([outBytes], { type: 'application/pdf' });
+    const filename = brandedFilename(file.name, '.pdf');
+    const saved    = Math.max(0, Math.round((1 - blob.size / file.size) * 100));
+
+    hideProcessing();
+    triggerDownload(blob, filename);
+    if (window.UsageLimit) window.UsageLimit.record(1);
+    showStatus(
+      'success',
+      saved > 0 ? `Reduced by ${saved}%` : 'Compression complete',
+      'Press the button if the download does not start automatically.',
+      createStatusUrl(blob),
+      filename,
+    );
+  } catch (err) {
+    hideProcessing();
+    const msg = (err && err.message && err.message.length < 200)
+      ? err.message : 'Please try again with a different file.';
+    showStatus('error', 'Deep compression failed', msg);
   } finally {
-    window.BrowserTools.supports = originalSupports;
+    if (processBtn) processBtn.disabled = false;
   }
 }
 

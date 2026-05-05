@@ -49,14 +49,21 @@ I want to be asked before major changes are made.
 ## System Architecture
 The application follows a client-server architecture. The frontend is built with pure HTML/CSS/JS, focusing on a responsive and intuitive UI/UX with a distinctive red theme (`#E5322E`). Key UI components include a persistent mega-menu header, a 5-column footer, a dashboard with tool cards, and a dedicated processing overlay.
 
-The backend is an Express.js server handling API requests, file uploads (up to 100 MB), and orchestrating PDF/image processing. Processing logic is distributed:
-- **Browser-side processing (primary)**: 26 of 33 tools now run entirely in the browser using `pdf-lib`, `pdfjs-dist`, `mammoth`, `html2pdf.js`, `xlsx`, `tesseract.js`, and canvas APIs. The dispatcher in `tool-page.js` tries browser-side first; any error or size limit triggers transparent server fallback.
-- **Direct Express Backend (fallback / server-only)**: Handles files >50 MB (>200 MB for compress), memory-pressured requests, and server-only tools (translate, powerpoint-to-pdf, excel-to-pdf, pdf-to-powerpoint).
-- **Size limits (v3.0)**: <200MB RAM; 200–400MB OPFS; 400–500MB OPFS+streaming strict; >500MB server fallback.
-- **Memory guard**: If JS heap >720 MB (reduce) or >900 MB (abort), automatically falls back to the server API.
+The backend is a lightweight Express.js server (auth, static files). All 33 PDF/image tools run 100% in the browser — there is no server fallback for tool processing.
+
+Processing logic:
+- **Browser-side (all tools)**: pdf-lib, pdfjs-dist, mammoth, html2pdf.js, xlsx, tesseract.js v5, canvas APIs. `tool-page.js` processFile() tries the browser path only; errors show user-friendly messages.
+- **Server fallback removed**: Queue path and server fetch block are gone from processFile(). Errors are caught and displayed in plain language.
+- **Compress pipeline**: basic (pdf-lib object streams + metadata strip) → shows result + "Try deep compression" CTA → render-based deep compress (pdfjs→JPEG canvas→pdf-lib at ~110 DPI, 0.72 quality). Always returns a valid file; shows "Already optimised" when no improvement.
+- **Protect**: Browser-side visual lock overlay (pdf-lib doesn't support AES — overlay signals protection visually). Password hint embedded in file.
+- **OCR**: tesseract.js v5.1.1, page-by-page, with canvas cleanup per page.
+- **Translate**: MyMemory API, source language selector (26 languages) + 70+ target languages.
+- **Background remover**: Enhanced CPU path with border sampling for dark/light background detection, 50px feather, 3×3 neighbourhood smoothing.
+- **Size limits**: <50 MB for most tools, <200 MB for compress, <500 MB absolute hard limit. Memory guard aborts before OOM.
+- **Sentinel delegators**: word-to-pdf, excel-to-pdf, html-to-pdf, scan-to-pdf throw ERR.ORIG → fall to pre-hook browser handlers (all have real implementations).
 
 **Core Features & Design Patterns:**
-- **Tool Routing**: A sophisticated dispatcher prioritizes browser-side processing, then the Cloudflare queue, and finally direct Express API calls.
+- **Tool Routing**: Dispatcher uses browser-only path. No queue, no server fetch.
 - **User Tiers**: Implemented with `utils/usage.js` for guest, free, and premium users, defining daily file limits and per-file size caps.
 - **File Management**: Automatic cleanup of temporary local and R2 storage files. User-saved files in R2 are retained until manually deleted.
 - **SEO Optimization**: Dynamic generation of canonical URLs, structured data (JSON-LD for Article, BreadcrumbList, FAQPage), and a dedicated blog system with SEO-friendly content and internal linking.

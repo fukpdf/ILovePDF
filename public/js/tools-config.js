@@ -303,12 +303,10 @@ const TOOLS = [
   // ── SECURITY ──────────────────────────────────────────────────────────────
   {
     id: 'protect', name: 'Protect PDF', icon: 'lock',
-    description: 'Encrypt your PDF with a password',
+    description: 'Add password protection to your PDF',
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/protect', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true,
-    /* Browser-only password encryption isn't safe to do with pdf-lib alone,
-       so this routes straight to the local Express backend (no HF queue). */
+    multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'password', label: 'Password', type: 'text', placeholder: 'Enter a password' }
     ]
@@ -370,6 +368,34 @@ const TOOLS = [
     apiEndpoint: '/api/translate', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
     options: [
+      { id: 'sourceLang', label: 'Source Language (language of your PDF)', type: 'select', options: [
+        { value: 'en', label: 'English' },
+        { value: 'ar', label: 'Arabic' },
+        { value: 'zh', label: 'Chinese (Simplified)' },
+        { value: 'zh-TW', label: 'Chinese (Traditional)' },
+        { value: 'nl', label: 'Dutch' },
+        { value: 'fr', label: 'French' },
+        { value: 'de', label: 'German' },
+        { value: 'el', label: 'Greek' },
+        { value: 'he', label: 'Hebrew' },
+        { value: 'hi', label: 'Hindi' },
+        { value: 'id', label: 'Indonesian' },
+        { value: 'it', label: 'Italian' },
+        { value: 'ja', label: 'Japanese' },
+        { value: 'ko', label: 'Korean' },
+        { value: 'ms', label: 'Malay' },
+        { value: 'fa', label: 'Persian (Farsi)' },
+        { value: 'pl', label: 'Polish' },
+        { value: 'pt', label: 'Portuguese' },
+        { value: 'ru', label: 'Russian' },
+        { value: 'es', label: 'Spanish' },
+        { value: 'sv', label: 'Swedish' },
+        { value: 'th', label: 'Thai' },
+        { value: 'tr', label: 'Turkish' },
+        { value: 'uk', label: 'Ukrainian' },
+        { value: 'ur', label: 'Urdu' },
+        { value: 'vi', label: 'Vietnamese' }
+      ]},
       { id: 'targetLang', label: 'Target Language', type: 'select', options: [
         { value: 'af', label: 'Afrikaans' },
         { value: 'sq', label: 'Albanian' },

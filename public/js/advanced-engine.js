@@ -1072,7 +1072,20 @@
     } catch (e) { /* silent — fallback below */ }
     buf = null;
 
-    if (!resultBuf || resultBuf.byteLength >= file.size) throw new Error(ERR.ORIG);
+    if (!resultBuf || resultBuf.byteLength >= file.size) {
+      // PDF is already well-optimised — return the original with a clear message.
+      onStep(2, 'done', 85);
+      onStep(3, 'active', 90, 'File is already well\u2011optimised\u2026');
+      var origBufFallback = await file.arrayBuffer();
+      var origBlob = new Blob([origBufFallback], { type: 'application/pdf' });
+      origBufFallback = null;
+      onStep(3, 'done', 100);
+      return {
+        blob: origBlob,
+        filename: brandedFilename(file.name, '.pdf'),
+        alreadyOptimized: true,
+      };
+    }
 
     var saved = Math.round((1 - resultBuf.byteLength / file.size) * 100);
     onStep(2, 'done', 85);
@@ -1306,7 +1319,7 @@
     onStep(2, 'active', 25, 'Processing content\u2026');
 
     if (!window.Tesseract) {
-      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
     }
     if (!window.Tesseract) throw AEError(ERR.NETWORK, 'engine_load_failed');
 
@@ -1486,7 +1499,7 @@
     } catch (e) { /* silent */ }
 
     buf = null;
-    if (!resultBuf) throw new Error(ERR.ORIG);
+    if (!resultBuf) throw new Error('This PDF could not be repaired. The file may be too damaged or use an unsupported format.');
 
     onStep(2, 'done', 78);
     onStep(3, 'active', 82, 'Finalizing output\u2026');
@@ -1688,6 +1701,7 @@
     if (!isOnline()) throw AEError(ERR.NETWORK, 'offline');
 
     var targetLang = (opts && (opts.targetLang || opts.targetLanguage)) || 'es';
+    var srcLang    = (opts && (opts.sourceLang || opts.sourceLanguage)) || 'en';
     var MAX_CHARS  = 450;
 
     var savedTrans = await ProgressStore.load('translate', fHash);
@@ -1726,7 +1740,7 @@
             if (hEl) hEl.textContent = 'Optimizing connection\u2026';
           }
           var url = 'https://api.mymemory.translated.net/get?q=' +
-            encodeURIComponent(seg) + '&langpair=en|' + encodeURIComponent(targetLang);
+            encodeURIComponent(seg) + '&langpair=' + encodeURIComponent(srcLang) + '|' + encodeURIComponent(targetLang);
           return fetchWithRetry(url, signal ? { signal: signal } : {}, 1, 10000)
             .then(function (resp) { return resp.json(); })
             .then(function (json) {
@@ -1797,7 +1811,7 @@
     } catch (e) { /* silent */ }
 
     buf = null;
-    if (!resultBuf) throw new Error(ERR.ORIG);
+    if (!resultBuf) throw new Error('The workflow could not be applied. Please check your selected operations and try again.');
 
     onStep(2, 'done', 80);
     onStep(3, 'active', 84, 'Finalizing output\u2026');
@@ -1811,14 +1825,14 @@
   async function runTool(toolId, files, opts, origProcess) {
     var totalBytes = Array.from(files).reduce(function (s, f) { return s + (f.size || 0); }, 0);
 
-    // Phase 10: 500MB absolute limit
+    // 500 MB absolute limit — too large to process in the browser.
     if (totalBytes > MAX_BROWSER_BYTES) {
-      throw new Error(ERR.ORIG); // silently delegate to server
+      throw new Error('file_too_large_for_browser');
     }
 
-    // Silent memory guard (still applies for non-OPFS path)
+    // Memory guard — abort early before we OOM the tab.
     if (shouldFallbackMem(totalBytes)) {
-      throw new Error(ERR.ORIG);
+      throw new Error('memory_pressure');
     }
 
     var proc = processors[toolId];

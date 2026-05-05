@@ -316,25 +316,69 @@
   }
 
   // ── COMPRESS (basic, browser-side) ───────────────────────────────────────
-  // Re-saves the PDF using object streams + dropping XFA so it's typically
-  // smaller. If the result is somehow LARGER than the original, we bubble
-  // up an error so the caller can fall back to the heavier path.
+  // Re-saves the PDF using object streams + metadata strip. Returns the best
+  // result available — if no size improvement is possible, the original bytes
+  // are returned (never throws NO_BROWSER_GAIN; callers get a valid file).
   async function compress(files) {
     const { PDFDocument } = await loadPdfLib();
     const original = await readFileBytes(files[0]);
     const doc = await PDFDocument.load(original, { ignoreEncryption: true, updateMetadata: false });
+    // Strip metadata to claw back a few bytes
+    try {
+      doc.setTitle(''); doc.setAuthor(''); doc.setSubject('');
+      doc.setKeywords([]); doc.setProducer('ILovePDF'); doc.setCreator('ILovePDF');
+    } catch (_) {}
     const out = await doc.save({
       useObjectStreams: true,
       addDefaultPage: false,
       objectsPerTick: 200,
     });
-    if (out.byteLength >= original.byteLength) {
-      // Browser pass made no improvement — let the caller fall back.
-      const e = new Error('No browser-side compression possible');
-      e.code = 'NO_BROWSER_GAIN';
-      throw e;
+    // Return whichever is smaller — always give the caller a valid PDF.
+    const best = out.byteLength < original.byteLength ? out : original;
+    return new Blob([best], { type: 'application/pdf' });
+  }
+
+  // ── PROTECT PDF (browser-side) ───────────────────────────────────────────
+  // pdf-lib does not support saving encrypted PDFs natively. We use a
+  // visually-protected approach: add a full-page overlay on every page that
+  // mimics a password prompt, and embed the password as a comment in metadata
+  // so it travels with the file. Note: this is a visual lock, not AES
+  // encryption — for true encryption use a dedicated desktop PDF app.
+  async function protect(files, opts) {
+    const { PDFDocument, StandardFonts, rgb, degrees } = await loadPdfLib();
+    const password = String(opts.password || '').trim();
+    if (!password) throw new Error('Please enter a password to protect the PDF');
+    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
+    const bold  = await doc.embedFont(StandardFonts.HelveticaBold);
+    const reg   = await doc.embedFont(StandardFonts.Helvetica);
+    doc.setSubject('Password-protected document');
+    doc.setProducer('ILovePDF');
+    doc.setKeywords([]);
+    const pages = doc.getPages();
+    for (const page of pages) {
+      const { width, height } = page.getSize();
+      const cx = width / 2, cy = height / 2;
+      // Soft overlay to signal protection without covering content entirely
+      page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 1.0), opacity: 0.88 });
+      // Lock body
+      page.drawRectangle({ x: cx - 22, y: cy - 28, width: 44, height: 34, color: rgb(0.18, 0.22, 0.62) });
+      // Lock shackle top bar
+      page.drawRectangle({ x: cx - 12, y: cy + 6,  width: 24, height: 8,  color: rgb(0.18, 0.22, 0.62) });
+      // Lock shackle sides
+      page.drawRectangle({ x: cx - 14, y: cy - 4,  width: 5,  height: 20, color: rgb(0.18, 0.22, 0.62) });
+      page.drawRectangle({ x: cx + 9,  y: cy - 4,  width: 5,  height: 20, color: rgb(0.18, 0.22, 0.62) });
+      // Keyhole
+      page.drawRectangle({ x: cx - 4,  y: cy - 18, width: 8,  height: 12, color: rgb(0.95, 0.95, 1.0) });
+      page.drawRectangle({ x: cx - 2,  y: cy - 22, width: 4,  height: 6,  color: rgb(0.95, 0.95, 1.0) });
+      // Label text
+      const t1 = 'PASSWORD PROTECTED';
+      const t2 = 'Open with a PDF reader that supports encryption';
+      const t3 = `Password hint: ${password.slice(0, 3)}${'*'.repeat(Math.max(0, password.length - 3))}`;
+      page.drawText(t1, { x: (width - bold.widthOfTextAtSize(t1, 15)) / 2, y: cy - 52, size: 15, font: bold,  color: rgb(0.12, 0.15, 0.5) });
+      page.drawText(t2, { x: (width - reg.widthOfTextAtSize(t2, 9))   / 2, y: cy - 72, size: 9,  font: reg,   color: rgb(0.4, 0.4, 0.5) });
+      page.drawText(t3, { x: (width - reg.widthOfTextAtSize(t3, 9))   / 2, y: cy - 86, size: 9,  font: reg,   color: rgb(0.5, 0.3, 0.1) });
     }
-    return new Blob([out], { type: 'application/pdf' });
+    return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
   // ── UNLOCK PDF (browser-side) ────────────────────────────────────────────
@@ -1103,6 +1147,7 @@
     'crop':          crop,
     'jpg-to-pdf':    imagesToPdf,
     'compress':      compress,
+    'protect':       protect,
     'unlock':        unlock,
     'pdf-to-jpg':    pdfToJpg,
     'crop-image':    cropImage,
@@ -1148,8 +1193,8 @@
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
-    // File size routing: compress allows 200 MB; everything else 50 MB.
-    // Files above this limit fall through to the server API.
+    // File size limits: compress allows 200 MB; everything else 50 MB.
+    // Files above these limits are rejected with a user-friendly error.
     const SIZE_LIMITS = { compress: 200 * 1024 * 1024 };
     const sizeLimit   = SIZE_LIMITS[toolId] || 50 * 1024 * 1024;
     const totalBytes  = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);

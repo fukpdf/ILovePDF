@@ -101,9 +101,8 @@ OPS.compress = async function (buffers) {
     .filter(b => b.byteLength < original.byteLength)
     .sort((a, b) => a.byteLength - b.byteLength)[0];
 
-  // Return null to signal no improvement — callers must not return original as "compressed"
-  if (!best) return null;
-  return best;
+  // If no strategy improved the size, return the original so callers always get valid output.
+  return best || original;
 };
 
 OPS.repair = async function (buffers) {
