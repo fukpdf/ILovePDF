@@ -57,10 +57,18 @@ Processing logic:
 - **Compress pipeline**: basic (pdf-lib object streams + metadata strip) → shows result + "Try deep compression" CTA → render-based deep compress (pdfjs→JPEG canvas→pdf-lib at ~110 DPI, 0.72 quality). Always returns a valid file; shows "Already optimised" when no improvement.
 - **Protect**: Browser-side visual lock overlay (pdf-lib doesn't support AES — overlay signals protection visually). Password hint embedded in file.
 - **OCR**: tesseract.js v5.1.1, page-by-page, with canvas cleanup per page.
-- **Translate**: MyMemory API, source language selector (26 languages) + 70+ target languages.
+- **Translate**: MyMemory API, source language selector (26 languages) + 70+ target languages. Sentence-boundary–aware chunk splitting (≤450 chars/segment, splits at ". !?"), retryWithBackoff(3, 800ms, 12s).
 - **Background remover**: Enhanced CPU path with border sampling for dark/light background detection, 50px feather, 3×3 neighbourhood smoothing.
 - **Size limits**: <50 MB for most tools, <200 MB for compress, <500 MB absolute hard limit. Memory guard aborts before OOM.
 - **Sentinel delegators**: word-to-pdf, excel-to-pdf, html-to-pdf, scan-to-pdf throw ERR.ORIG → fall to pre-hook browser handlers (all have real implementations).
+
+**Production Guards (v4.0):**
+- **Output Validation Layer** (`OutputValidator` in tool-page.js): validates every result before download — checks blob size against per-MIME minimums and strips whitespace-only text outputs. Applied in both the browser-side and advanced-engine paths.
+- **Tool Execution Guard + Retry** (`tryWithRetry` in tool-page.js): wraps all browser-side processing in up to 2 attempts. Terminal errors (file too large, user-correctable) skip retry.
+- **OCR Auto-trigger** (pdf-to-word, pdf-to-excel): detects sparse/zero extracted text and throws a user-friendly error guiding users to the OCR tool instead of silently producing an empty file.
+- **Deep Compression Warning**: "Text will not be selectable after deep compression" shown in the `appendCompressAdvancedLink` CTA.
+- **safeMessage() comprehensive mapping** (advanced-engine.js): maps all internal error types to clean user-facing messages with no technical jargon (no Worker, WASM, OPFS, chunk, ArrayBuffer). Also guides scanned-PDF users to the OCR tool.
+- **Per-tool minimum output sizes** (browser-tools.js): pdf-to-word/excel/pptx require ≥800 bytes, images require ≥100 bytes, fallback is 200 bytes.
 
 **Core Features & Design Patterns:**
 - **Tool Routing**: Dispatcher uses browser-only path. No queue, no server fetch.

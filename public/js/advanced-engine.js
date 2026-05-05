@@ -57,15 +57,63 @@
     if (!err) return 'Something went wrong. Please try again.';
     var t = err.aeType || '';
     var m = (err.message || '').toLowerCase();
+    var raw = err.message || '';
+
     if (t === ERR.ORIG || m === '__orig__') return null;
-    if (t === ERR.NETWORK || m.includes('offline') || m.includes('internet'))
-      return 'No internet connection.';
-    if (m.includes('requires two'))
+
+    if (t === ERR.NETWORK || m.includes('offline') || m.includes('no internet'))
+      return 'No internet connection. Please check your connection and try again.';
+
+    if (m.includes('requires two') || m.includes('please upload two'))
       return 'Please upload two PDF files to compare.';
-    if (m.includes('no extractable text'))
-      return 'Unable to process this file. The document may not contain readable text.';
+
+    // Scanned / no-text documents — guide user to OCR
+    if (m.includes('no extractable text') || m.includes('no_extractable_text') ||
+        m.includes('image-based') || m.includes('scanned document') ||
+        m.includes('no selectable text')) {
+      // Forward helpful messages as-is if they're short and user-friendly
+      if (raw.length > 10 && raw.length < 250 && !raw.includes('__') &&
+          !raw.toLowerCase().includes('wasm') && !raw.toLowerCase().includes('worker'))
+        return raw.charAt(0).toUpperCase() + raw.slice(1);
+      return 'No selectable text found. For scanned documents, use the OCR tool to extract content.';
+    }
+
     if (m.includes('please select'))
       return 'Please select at least one operation to continue.';
+
+    if (m.includes('file_too_large') || m.includes('too large to process'))
+      return 'This file is too large to process. Please use a smaller file.';
+
+    if (t === ERR.TIMEOUT || m.includes('tool_timeout') || m.includes('timeout'))
+      return 'Processing is taking too long. Please try with a shorter document.';
+
+    if (m.includes('engine_load') || m.includes('pdfjs_load') || m.includes('failed to load'))
+      return 'A required component could not be loaded. Please check your connection and try again.';
+
+    if (m.includes('memory_pressure') || (m.includes('memory') && !m.includes('my')))
+      return 'Your device is running low on memory. Please close other tabs and try again.';
+
+    if (m.includes('empty') && (m.includes('output') || m.includes('result') || m.includes('appear')))
+      return 'The result appears empty. Please try again with a different file.';
+
+    if (m.includes('build_failed') || m.includes('build failed'))
+      return 'The document could not be assembled. Please try again.';
+
+    if (m.includes('canvas encode') || m.includes('image_decode'))
+      return 'Image processing failed. Please try a different file.';
+
+    if (m.includes('image processing') || m.includes('decode failed'))
+      return 'This image format is not supported. Please try a JPG or PNG file.';
+
+    // Pass through short, user-readable messages that don't contain internal terms
+    if (raw.length > 3 && raw.length < 220 &&
+        !raw.includes('Worker') && !raw.includes('wasm') && !raw.includes('OPFS') &&
+        !raw.includes('chunk') && !raw.includes('ArrayBuffer') && !raw.includes('byteLength') &&
+        !raw.includes('__') && !raw.toLowerCase().includes('undefined') &&
+        !raw.toLowerCase().includes('null')) {
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    }
+
     return 'Something went wrong. Please try again.';
   }
 
@@ -1135,7 +1183,18 @@
       pdfSource.cleanup();  // Revoke OPFS blob URL only after PDF is fully done
     }
 
-    if (!pages.length) throw AEError(ERR.PARSE, 'no_extractable_text');
+    if (!pages.length) {
+      // All pages appear image-based — guide the user to the OCR tool.
+      throw new Error('This document appears to be image-based with no selectable text. Please use the OCR tool to extract content from scanned PDFs.');
+    }
+
+    // Even if some pages exist, check that we actually got meaningful content.
+    var _totalWordChars = pages.reduce(function (s, p) {
+      return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
+    }, 0);
+    if (_totalWordChars < Math.max(8, total * 2)) {
+      throw new Error('No selectable text was found. This PDF may contain scanned images — use the OCR tool to extract content.');
+    }
 
     onStep(1, 'done', 53);
     onStep(2, 'active', 57, 'Building document\u2026');
@@ -1185,6 +1244,15 @@
       prefetcher.dispose();
       await pdf.destroy();
       pdfSource.cleanup();
+    }
+
+    // If every sheet is empty the PDF contains no extractable table data.
+    var _allSheetsEmpty = sheets.every(function (s) {
+      return s.rows.length === 0 ||
+        (s.rows.length === 1 && s.rows[0].length === 1 && s.rows[0][0] === '(empty)');
+    });
+    if (_allSheetsEmpty) {
+      throw new Error('No data could be extracted from this PDF. For scanned documents, try the OCR tool first to make the content selectable.');
     }
 
     onStep(1, 'done', 55);
@@ -1721,14 +1789,37 @@
       var pg = pages[p];
       if (pg.blank || !pg.text) { translated.push({ num: pg.num, text: '' }); continue; }
 
-      var segments = [];
-      var pos = 0, txt = pg.text;
-      while (pos < txt.length) {
-        var end = Math.min(pos + MAX_CHARS, txt.length);
-        if (end < txt.length) { var ls = txt.lastIndexOf(' ', end); if (ls > pos) end = ls; }
-        segments.push(txt.slice(pos, end).trim());
-        pos = end + 1;
-      }
+      // Sentence-boundary–aware chunking: prefer splitting at ". ", "? ", "! "
+      // so translation preserves meaning across API calls.
+      var segments = (function splitSentences(txt, max) {
+        var out   = [];
+        var parts = txt.match(/[^.!?]+[.!?]+["'\u2019]?[\s]*|[^.!?]+$/g) || [txt];
+        var cur   = '';
+        for (var si = 0; si < parts.length; si++) {
+          var s = parts[si];
+          if (cur.length + s.length > max && cur) {
+            out.push(cur.trim());
+            cur = s;
+          } else {
+            cur = cur ? cur + ' ' + s : s;
+          }
+        }
+        if (cur.trim()) out.push(cur.trim());
+        // Safety: if a single sentence exceeds max, hard-split it.
+        var final = [];
+        for (var oi = 0; oi < out.length; oi++) {
+          var seg = out[oi];
+          if (seg.length <= max) { final.push(seg); continue; }
+          var pos2 = 0;
+          while (pos2 < seg.length) {
+            var end2 = Math.min(pos2 + max, seg.length);
+            if (end2 < seg.length) { var ls2 = seg.lastIndexOf(' ', end2); if (ls2 > pos2) end2 = ls2; }
+            final.push(seg.slice(pos2, end2).trim());
+            pos2 = end2 + 1;
+          }
+        }
+        return final.length ? final : [txt.slice(0, max)];
+      }(pg.text, MAX_CHARS));
 
       var translatedParts = [];
       for (var c = 0; c < segments.length; c++) {
@@ -1873,6 +1964,21 @@
         var safeErr = new Error(safeMessage(err) || 'Something went wrong. Please try again.');
         safeErr.aeType = err.aeType;
         throw safeErr;
+      }
+    }
+
+    // ── Output Validation Layer ────────────────────────────────────────────
+    // Reject obviously empty / corrupted results before they reach the UI.
+    if (result) {
+      var _rb = (result && result.blob) ? result.blob : result;
+      if (_rb instanceof Blob) {
+        var _TEXT_TOOLS = ['compare', 'ai-summarize', 'translate', 'ocr'];
+        var _minOut = _TEXT_TOOLS.indexOf(toolId) !== -1 ? 1 : 50;
+        if (_rb.size < _minOut) {
+          LiveFeed.hide();
+          vanish();
+          throw new Error('The result appears empty. Please try again with a different file.');
+        }
       }
     }
 

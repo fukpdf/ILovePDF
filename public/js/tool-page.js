@@ -950,6 +950,85 @@ function clearAll() {
   if (window.ToolState && currentTool) ToolState.clear(Flow.baseSlug());
 }
 
+// ── OUTPUT VALIDATOR ─────────────────────────────────────────────────────────
+// Inspects every result before handing it to the download trigger.
+// Guards against empty blobs, malformed PDFs, and text-only whitespace outputs.
+const OutputValidator = {
+  _minBytes(mime) {
+    if (!mime) return 200;
+    if (mime.includes('pdf'))               return 500;
+    if (mime.includes('zip'))               return 200;
+    if (mime.includes('image'))             return 200;
+    if (mime.includes('text'))              return 3;
+    if (mime.includes('wordprocessingml')) return 1000;
+    if (mime.includes('spreadsheetml'))    return 1000;
+    if (mime.includes('presentationml'))   return 1000;
+    return 200;
+  },
+
+  async check(toolId, result) {
+    if (!result) return { ok: false, msg: 'No output was produced. Please try again.' };
+    const blob = (result && result.blob instanceof Blob)
+      ? result.blob : (result instanceof Blob ? result : null);
+    if (!blob) return { ok: false, msg: 'The result could not be read. Please try again.' };
+
+    if (blob.size === 0)
+      return { ok: false, msg: 'The output file is empty. The document may be damaged or in an unsupported format.' };
+
+    const minBytes = this._minBytes(blob.type);
+    if (blob.size < minBytes)
+      return { ok: false, msg: 'The output file appears incomplete. Please try again with a different file.' };
+
+    // For text outputs: ensure content isn't just headers / whitespace.
+    if (blob.type && blob.type.includes('text') && blob.size < 5000) {
+      try {
+        const text = await blob.text();
+        const stripped = text
+          .replace(/={3,}/g, '').replace(/-{3,}/g, '')
+          .replace(/ILovePDF[^\n]*/gi, '').replace(/Page\s*\d+/gi, '')
+          .replace(/Source\s*:/gi, '').replace(/File\s*[AB]\s*:/gi, '')
+          .trim().replace(/\s+/g, '');
+        if (stripped.length < 3)
+          return { ok: false, msg: 'No readable content was found. For scanned documents, try the OCR tool.' };
+      } catch (_) {}
+    }
+
+    return { ok: true };
+  },
+};
+
+// ── PROCESSING RETRY WRAPPER ──────────────────────────────────────────────────
+// Attempt the browser-side processing up to MAX_ATTEMPTS times.
+// Terminal errors (file too large, user-correctable inputs) are not retried.
+async function tryWithRetry(toolId, files, opts) {
+  const MAX_ATTEMPTS = 2;
+  let lastErr;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 0) {
+        showProcessing('Applying an alternative approach…', 'This may take a moment.');
+        await new Promise(r => setTimeout(r, 700));
+      }
+      return await window.BrowserTools.process(toolId, files, opts);
+    } catch (err) {
+      lastErr = err;
+      const m = (err && err.message) || '';
+      // Don't retry terminal / user-correctable conditions
+      if (
+        m === 'file_too_large_for_browser' ||
+        m === 'memory_pressure' ||
+        m === 'No files provided' ||
+        m.startsWith('Please enter') ||
+        m.startsWith('Please upload') ||
+        m.startsWith('No text provided') ||
+        m.includes('Please select') ||
+        m.includes('Please upload two')
+      ) throw err;
+    }
+  }
+  throw lastErr;
+}
+
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
@@ -1036,11 +1115,21 @@ async function processFile() {
         const el = document.getElementById(`opt-${o.id}`);
         if (el && el.value !== '') opts[o.id] = el.value;
       });
-      const result = await window.BrowserTools.process(
+      const result = await tryWithRetry(
         currentTool.id,
         selectedFiles.map(e => e.file),
         opts,
       );
+
+      // ── Output Validation Layer ─────────────────────────────────────────
+      const validation = await OutputValidator.check(currentTool.id, result);
+      if (!validation.ok) {
+        hideProcessing();
+        showStatus('error', 'Result incomplete', validation.msg);
+        if (processBtn) processBtn.disabled = false;
+        return;
+      }
+
       const { blob, filename } = result;
       hideProcessing();
       triggerDownload(blob, filename);
@@ -1064,14 +1153,19 @@ async function processFile() {
       const rawMsg = (err && err.message) || '';
       let userMsg = 'Something went wrong. Please try again.';
       if (rawMsg === 'file_too_large_for_browser') {
-        userMsg = 'This file is too large to process in the browser. Please use a file under 50 MB.';
+        userMsg = 'This file is too large to process directly. Please use a file under 50 MB.';
       } else if (rawMsg === 'memory_pressure') {
-        userMsg = 'Your browser is running low on memory. Please close other tabs and try again.';
+        userMsg = 'Your device is running low on memory. Please close other tabs and try again.';
       } else if (rawMsg && rawMsg !== '__orig__' &&
                  rawMsg !== 'NO_BROWSER_GAIN' &&
                  rawMsg !== 'No browser-side compression possible' &&
                  !rawMsg.startsWith('no_processor_') &&
-                 rawMsg.length < 200) {
+                 !rawMsg.includes('Worker') &&
+                 !rawMsg.includes('wasm') &&
+                 !rawMsg.includes('OPFS') &&
+                 !rawMsg.includes('chunk') &&
+                 !rawMsg.includes('ArrayBuffer') &&
+                 rawMsg.length < 220) {
         userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
       }
       showStatus('error', 'Processing failed', userMsg);
@@ -1169,6 +1263,9 @@ function appendCompressAdvancedLink() {
       <i data-lucide="zap"></i> Try deep compression
     </button>
     <p class="compress-advanced-note">Renders each page as an optimised image for maximum size reduction.</p>
+    <p class="compress-advanced-note" style="color:#92400e;font-size:11px;margin-top:3px;">
+      &#9888; Text will not be selectable after deep compression.
+    </p>
   `;
   area.appendChild(link);
   if (window.lucide) lucide.createIcons();

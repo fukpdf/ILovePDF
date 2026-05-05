@@ -1244,8 +1244,20 @@
       blob = result;
       ext  = '.pdf';
     }
-    // Validate output: empty blob means the handler silently failed.
-    if (!blob || blob.size === 0) throw new Error(`[${toolId}] browser processing produced empty output`);
+    // Validate output: reject empty or suspiciously small results immediately.
+    const _MIN_SIZES = {
+      'pdf-to-word': 800, 'pdf-to-excel': 800, 'pdf-to-powerpoint': 800,
+      'ocr': 1, 'compare': 1, 'ai-summarize': 1, 'translate': 1,
+      'pdf-to-jpg': 100, 'background-remover': 100,
+      'crop-image': 100, 'resize-image': 100, 'image-filters': 100,
+    };
+    const _minBytes = _MIN_SIZES[toolId] !== undefined ? _MIN_SIZES[toolId] : 200;
+    if (!blob || blob.size < _minBytes) {
+      const _why = (!blob || blob.size === 0)
+        ? 'The output file is empty. The document may be damaged or in an unsupported format.'
+        : 'The output file appears incomplete. Please try again with a different file.';
+      throw new Error(_why);
+    }
     const filename = brandedFilename(files[0].name, ext);
     return { blob, filename };
   }
