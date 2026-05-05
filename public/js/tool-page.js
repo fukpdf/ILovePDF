@@ -278,23 +278,43 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderNotFound(toolId, slug) {
   const c = document.getElementById('tool-content');
   if (!c) return;
+  // BUG-1 FIX: auto-redirect to homepage after 3 s so users are never stranded
+  // on a broken route (e.g. refreshing mid-session with no state).
+  clearTimeout(window.__aeNotFoundTimer);
+  window.__aeNotFoundTimer = setTimeout(function () {
+    const p = window.location.pathname;
+    if (p !== '/' && p !== '/index.html') window.location.href = '/';
+  }, 3000);
+
+  let countdown = 3;
   c.innerHTML = `
     <div class="tool-page">
       <div class="tool-header">
-        <a href="/" class="back-link"><i data-lucide="arrow-left"></i> All Tools</a>
+        <a href="/" class="back-link" onclick="clearTimeout(window.__aeNotFoundTimer)">
+          <i data-lucide="arrow-left"></i> All Tools
+        </a>
       </div>
       <div class="status-card status-error" style="margin-top:24px">
-        <i data-lucide="alert-circle"></i>
+        <i data-lucide="home"></i>
         <div>
-          <div class="status-card-title">Tool not found</div>
+          <div class="status-card-title">Page not found</div>
           <div class="status-card-msg">
-            We couldn't find a tool for
-            <code>${escapeHtml('/' + (slug || ''))}</code>${toolId ? ` (id: <code>${escapeHtml(toolId)}</code>)` : ''}.
-            <br><a href="/" style="color:#E5322E;font-weight:600">Browse all tools →</a>
+            Taking you back to all tools in
+            <strong id="ae-nf-count">3</strong> second(s)…
+            <br><a href="/" style="color:#E5322E;font-weight:600"
+                  onclick="clearTimeout(window.__aeNotFoundTimer)">Go now →</a>
           </div>
         </div>
       </div>
     </div>`;
+
+  const tick = setInterval(function () {
+    countdown--;
+    const el = document.getElementById('ae-nf-count');
+    if (el) el.textContent = countdown;
+    if (countdown <= 0) clearInterval(tick);
+  }, 1000);
+
   if (window.lucide) lucide.createIcons();
 }
 
@@ -1535,40 +1555,17 @@ function isPaidUser() {
 }
 
 function renderCompressOptionsHtml() {
-  if (isPaidUser()) {
-    return `
-      <div class="options-section compress-options" data-compress-options="paid">
-        <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Level</div>
-        <div class="compress-slider-wrap">
-          <input type="range" min="0" max="2" step="1" value="1"
-                 class="compress-slider" id="opt-level" />
-          <div class="compress-slider-labels">
-            <span data-lvl="0">Low<br><small>Best quality</small></span>
-            <span data-lvl="1" class="active">Medium<br><small>Recommended</small></span>
-            <span data-lvl="2">High<br><small>Smallest file</small></span>
-          </div>
-        </div>
-      </div>`;
-  }
+  // BUG-2 FIX: slider is now available to all users — no paid gate.
   return `
-    <div class="options-section compress-options" data-compress-options="free">
-      <div class="options-title">
-        <i data-lucide="sliders-horizontal"></i> Compression Level
-      </div>
+    <div class="options-section compress-options" data-compress-options="all">
+      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Level</div>
       <div class="compress-slider-wrap">
-        <input type="range" min="0" max="2" step="1" value="2" disabled
+        <input type="range" min="0" max="2" step="1" value="1"
                class="compress-slider" id="opt-level" />
         <div class="compress-slider-labels">
-          <span data-lvl="0" style="opacity:.45">Low</span>
-          <span data-lvl="1" style="opacity:.45">Medium</span>
-          <span data-lvl="2" class="active">High <small>(free)</small></span>
-        </div>
-      </div>
-      <div class="compress-tier-note">
-        <i data-lucide="lock"></i>
-        <div>
-          Free plan compresses every PDF at the strongest setting (~30% smaller).
-          <button type="button" class="link-btn" data-auth="signup">Sign up free</button> to unlock the Low / Medium / High slider.
+          <span data-lvl="0">Low<br><small>Best quality</small></span>
+          <span data-lvl="1" class="active">Medium<br><small>Recommended</small></span>
+          <span data-lvl="2">High<br><small>Smallest file</small></span>
         </div>
       </div>
     </div>`;
@@ -1643,8 +1640,7 @@ async function renderCompressPreview() {
 // Convert the slider value (0/1/2) into the level string the Express
 // /api/compress route forwards to the upstream processor.
 function readCompressLevel() {
-  // Free users: hardcoded "high" (~30%) regardless of slider state.
-  if (!isPaidUser()) return 'high';
+  // BUG-2 FIX: read actual slider value for all users.
   const slider = document.getElementById('opt-level');
   if (!slider) return 'medium';
   const v = parseInt(slider.value, 10);

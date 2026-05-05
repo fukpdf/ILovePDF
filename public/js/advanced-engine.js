@@ -65,6 +65,83 @@
     return 'Something went wrong. Please try again.';
   }
 
+  // ── CAPABILITIES ─────────────────────────────────────────────────────────
+  // SharedArrayBuffer: zero-copy memory transfer between workers when COOP/COEP
+  // headers are set. Detected once; never exposed in any user-facing text.
+  var HAS_SAB = (function () {
+    try { return typeof SharedArrayBuffer !== 'undefined' && !!new SharedArrayBuffer(1); }
+    catch (_) { return false; }
+  }());
+
+  // OPFS: Origin Private File System — disk-based staging for files ≥ 200 MB.
+  // Prevents full-file RAM spike by letting pdfjs stream via a blob URL instead
+  // of holding the whole ArrayBuffer. Never exposed to users.
+  var OPFS_THRESHOLD = 200 * 1024 * 1024;
+
+  var OPFSStore = (function () {
+    var AVAIL = (function () {
+      try {
+        return typeof navigator !== 'undefined' &&
+               typeof navigator.storage !== 'undefined' &&
+               typeof navigator.storage.getDirectory === 'function';
+      } catch (_) { return false; }
+    }());
+    var _root = null;
+
+    function getRoot() {
+      if (_root) return Promise.resolve(_root);
+      return navigator.storage.getDirectory().then(function (r) {
+        _root = r; return r;
+      });
+    }
+
+    function write(name, buffer) {
+      if (!AVAIL) return Promise.reject(new Error('opfs_unavail'));
+      return getRoot()
+        .then(function (root) { return root.getFileHandle(name, { create: true }); })
+        .then(function (fh)   { return fh.createWritable(); })
+        .then(function (wr)   { return wr.write(buffer).then(function () { return wr.close(); }); });
+    }
+
+    function getFile(name) {
+      if (!AVAIL) return Promise.reject(new Error('opfs_unavail'));
+      return getRoot()
+        .then(function (root) { return root.getFileHandle(name); })
+        .then(function (fh)   { return fh.getFile(); });
+    }
+
+    function del(name) {
+      if (!AVAIL) return Promise.resolve();
+      return getRoot()
+        .then(function (root) { return root.removeEntry(name); })
+        .catch(function () {});
+    }
+
+    function available() { return AVAIL; }
+
+    return { available: available, write: write, getFile: getFile, del: del };
+  }());
+
+  // Stage a large File to OPFS and return a { url, cleanup } object.
+  // pdfjs can load via URL (streaming) instead of a full in-RAM ArrayBuffer,
+  // halving peak memory for files above OPFS_THRESHOLD.
+  async function stageToOPFS(file) {
+    var key = 'ae_stage_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    var buf = await file.arrayBuffer();
+    await OPFSStore.write(key, buf);
+    buf = null; // release main-thread ArrayBuffer before pdfjs reads
+    var opfsFile = await OPFSStore.getFile(key);
+    var url = URL.createObjectURL(opfsFile);
+    trackBlob(url);
+    return {
+      url: url,
+      cleanup: function () {
+        try { URL.revokeObjectURL(url); } catch (_) {}
+        OPFSStore.del(key);
+      }
+    };
+  }
+
   // ── MEMORY GUARD ───────────────────────────────────────────────────────────
   var MEM_REDUCE = 550 * 1024 * 1024;
   var MEM_LOW    = 720 * 1024 * 1024;
@@ -509,6 +586,24 @@
     return _pdfJsPromise;
   }
 
+  // ── OPFS-AWARE PDF SOURCE LOADER ─────────────────────────────────────────
+  // For files ≥ OPFS_THRESHOLD: stages to OPFS disk so pdfjs streams via URL
+  // instead of holding the full ArrayBuffer in RAM (halves peak heap usage).
+  // For smaller files: falls back to the standard in-RAM path.
+  // Returns { src: {…}, cleanup() } — always call cleanup() after pdf.destroy().
+  async function loadPdfSource(file) {
+    if (file.size >= OPFS_THRESHOLD && OPFSStore.available()) {
+      try {
+        var staged = await stageToOPFS(file);
+        return { src: { url: staged.url, isEvalSupported: false }, cleanup: staged.cleanup };
+      } catch (_) {
+        // OPFS write failed silently — fall through to in-RAM path
+      }
+    }
+    var buf = await file.arrayBuffer();
+    return { src: { data: buf, isEvalSupported: false }, cleanup: function () { buf = null; } };
+  }
+
   var _scriptLoads = {};
   function loadScript(url) {
     if (_scriptLoads[url]) return _scriptLoads[url];
@@ -851,13 +946,13 @@
     var file = files[0];
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf   = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf       = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total = pdf.numPages;
     var pages = [];
     var skipped = 0;
@@ -901,13 +996,13 @@
     var file = files[0];
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf    = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf        = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total  = pdf.numPages;
     var sheets = [];
 
@@ -945,13 +1040,13 @@
     var file = files[0];
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf    = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf        = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total  = pdf.numPages;
     var slides = [];
 
@@ -1009,12 +1104,12 @@
     var fHash = _fileHash(file);
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
 
-    var pdf   = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf       = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total = pdf.numPages;
 
     // Fast path: check for native text layer first
@@ -1235,9 +1330,9 @@
     onStep(1, 'active', 15, 'Analyzing first document\u2026');
 
     async function extractText(file, label, base) {
-      var buf = await file.arrayBuffer();
-      var pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-      buf = null;
+      var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+      var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+      pdfSource.cleanup();
       var pages = [];
       for (var pi = 1; pi <= pdf.numPages; pi++) {
         var pg = await pdf.getPage(pi);
@@ -1311,13 +1406,13 @@
     var file = files[0];
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf     = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf         = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total   = pdf.numPages;
     var allText = '';
     var skipped = 0;
@@ -1374,13 +1469,13 @@
     var fHash = _fileHash(file);
     onStep(0, 'active', 5, 'Analyzing document\u2026');
 
-    var pdfjsLib = await loadPdfJs();
-    var buf      = await file.arrayBuffer();
+    var pdfjsLib  = await loadPdfJs();
+    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf   = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    buf       = null;
+    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    pdfSource.cleanup();
     var total = pdf.numPages;
     var pages = [];
 
