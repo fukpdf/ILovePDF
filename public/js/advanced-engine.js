@@ -1331,53 +1331,56 @@
     // Phase 10: streaming strict mode for large files
     var strictStream = pdfSource.strictStreaming;
 
-    for (var i = startPage; i <= total; i++) {
-      var pg       = await pdf.getPage(i);
-      var pgContent = await pg.getTextContent();
+    try {
+      for (var i = startPage; i <= total; i++) {
+        var pg       = await pdf.getPage(i);
+        var pgContent = await pg.getTextContent();
 
-      if (isPageBlank(pgContent)) {
-        pg.cleanup();
-        allLines.push('=== Page ' + i + ' ===\n(no content)');
-        continue;
+        if (isPageBlank(pgContent)) {
+          pg.cleanup();
+          allLines.push('=== Page ' + i + ' ===\n(no content)');
+          continue;
+        }
+
+        var viewport = pg.getViewport({ scale: scale });
+        var capW     = Math.min(Math.floor(viewport.width),  HARD_MAX_IMG_DIM);
+        var capH     = Math.min(Math.floor(viewport.height), HARD_MAX_IMG_DIM);
+        var capScale = scale * Math.min(capW / viewport.width, capH / viewport.height);
+        var capVp    = pg.getViewport({ scale: capScale });
+
+        var cvs    = document.createElement('canvas');
+        cvs.width  = Math.floor(capVp.width);
+        cvs.height = Math.floor(capVp.height);
+        var ctx    = cvs.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+        await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
+        pg.cleanup(); // Phase 2: release page immediately
+
+        var dataUrl = cvs.toDataURL('image/jpeg', 0.92);
+        cvs.width = 0; cvs.height = 0; cvs = null;
+
+        var ocrResult = await worker.recognize(dataUrl);
+        dataUrl = null;
+        allLines.push('=== Page ' + i + ' ===\n' + ocrResult.data.text);
+
+        await ProgressStore.save('ocr', fHash, {
+          pagesDone: i, totalPages: total, lines: allLines.slice(),
+        });
+
+        var pct = 25 + Math.round((i / total) * 55);
+        onStep(2, 'active', pct, 'Page ' + i + ' of ' + total);
+
+        // Phase 10: in strict streaming mode, GC hint after each page
+        if (strictStream && typeof gc === 'function') { try { gc(); } catch (_) {} }
       }
-
-      var viewport = pg.getViewport({ scale: scale });
-      var capW     = Math.min(Math.floor(viewport.width),  HARD_MAX_IMG_DIM);
-      var capH     = Math.min(Math.floor(viewport.height), HARD_MAX_IMG_DIM);
-      var capScale = scale * Math.min(capW / viewport.width, capH / viewport.height);
-      var capVp    = pg.getViewport({ scale: capScale });
-
-      var cvs    = document.createElement('canvas');
-      cvs.width  = Math.floor(capVp.width);
-      cvs.height = Math.floor(capVp.height);
-      var ctx    = cvs.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cvs.width, cvs.height);
-      await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
-      pg.cleanup(); // Phase 2: release page immediately
-
-      var dataUrl = cvs.toDataURL('image/jpeg', 0.92);
-      cvs.width = 0; cvs.height = 0; cvs = null;
-
-      var ocrResult = await worker.recognize(dataUrl);
-      dataUrl = null;
-      allLines.push('=== Page ' + i + ' ===\n' + ocrResult.data.text);
-
-      await ProgressStore.save('ocr', fHash, {
-        pagesDone: i, totalPages: total, lines: allLines.slice(),
-      });
-
-      var pct = 25 + Math.round((i / total) * 55);
-      onStep(2, 'active', pct, 'Page ' + i + ' of ' + total);
-
-      // Phase 10: in strict streaming mode, GC hint after each page
-      if (strictStream && typeof gc === 'function') { try { gc(); } catch (_) {} }
+    } finally {
+      // Always clean up — even if recognition throws or user navigates away
+      try { await worker.terminate(); } catch (_) {}
+      await pdf.destroy(); // Phase 2: full destroy before revoking source URL
+      pdfSource.cleanup(); // Safe to revoke OPFS blob URL now
+      await ProgressStore.clear('ocr', fHash);
     }
-
-    await worker.terminate();
-    await pdf.destroy(); // Phase 2: full destroy before revoking source URL
-    pdfSource.cleanup(); // Safe to revoke OPFS blob URL now
-    await ProgressStore.clear('ocr', fHash);
 
     onStep(2, 'done', 80);
     onStep(3, 'active', 84, 'Preparing result\u2026');

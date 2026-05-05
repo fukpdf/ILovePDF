@@ -229,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const last = sessionStorage.getItem(guardKey);
     if (last === dest) {                                   // already bounced once
       try { sessionStorage.removeItem(guardKey); } catch {}
-      console.warn('[tool-page] redirect to', dest, 'suppressed (loop guard)');
       return false;
     }
     try { sessionStorage.setItem(guardKey, dest); } catch {}
@@ -782,8 +781,7 @@ function maybeOpenPageOrganizer() {
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   window.PageOrganizer.open(host, files[0], { onChange: () => {} })
     .then(ctrl => { pageOrganizer = ctrl; })
-    .catch(err => {
-      console.warn('[page-organizer] open failed:', err);
+    .catch(() => {
       // Fall back to the plain file row so the user is never stuck.
       list.style.display = '';
       host.remove();
@@ -1222,7 +1220,6 @@ async function fetchWithRetry(url, options, maxRetries) {
         if (data.error === 'LIMIT_REACHED' || data.error === 'FILE_TOO_LARGE') return r;
       } catch (_) {}
       if (attempt < maxRetries) {
-        console.warn('[fetchWithRetry] 429 on attempt', attempt + 1, '— retrying in', delay, 'ms');
         await new Promise(res => setTimeout(res, delay));
         delay = Math.min(delay * 2, 8000);
         continue;

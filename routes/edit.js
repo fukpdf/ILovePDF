@@ -18,14 +18,16 @@ function clientErrStatus(err) {
 router.post('/compress', upload.single('pdf'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
   try {
+    const LEVEL_MAP = { 'low': 'printer', 'medium': 'ebook', 'high': 'screen' };
     const quality = ['screen','ebook','printer','prepress'].includes(req.body.quality)
-      ? req.body.quality : 'ebook';
+      ? req.body.quality
+      : (LEVEL_MAP[String(req.body.level)] || 'ebook');
     try {
       const buf = await gsCompress(req.file.path, quality);
       cleanupFiles(req.file);
       return sendPdf(res, buf, 'ilovepdf-compress.pdf');
-    } catch (gErr) {
-      console.warn('[compress] ghostscript failed, falling back to pdf-lib:', gErr.message);
+    } catch (_gErr) {
+      // Ghostscript unavailable — fall through to pdf-lib path
     }
     const bytes = fs.readFileSync(req.file.path);
     const doc = await PDFDocument.load(bytes, { updateMetadata: false });

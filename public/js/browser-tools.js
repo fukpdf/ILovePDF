@@ -50,7 +50,7 @@
               const blobUrl = URL.createObjectURL(new Blob([cached], { type: 'application/javascript' }));
               inject(blobUrl, (err) => {
                 URL.revokeObjectURL(blobUrl);
-                if (!err) { console.log('[IDBCache] hit:', url.split('/').pop()); settle(null); return; }
+                if (!err) { settle(null); return; }
                 // CSP blocked blob: → fall back to CDN
                 inject(url, settle);
               });
@@ -64,7 +64,7 @@
           settle(err);
           if (!err && window.IDBCache) {
             fetch(url).then(r => r.ok ? r.arrayBuffer() : null)
-              .then(ab => { if (ab) { window.IDBCache.set(url, ab).catch(() => {}); console.log('[IDBCache] cached:', url.split('/').pop()); } })
+              .then(ab => { if (ab) { window.IDBCache.set(url, ab).catch(() => {}); } })
               .catch(() => {});
           }
         });
