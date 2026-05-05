@@ -8,6 +8,15 @@ I prefer detailed explanations.
 I want an iterative development process.
 I want to be asked before major changes are made.
 
+## Replit Environment Setup
+- **Runtime**: Node.js 20, port 5000
+- **Start command**: `node server.js`
+- **JWT_SECRET**: Generated and stored as a shared env var
+- **Optional integrations** (work without these):
+  - Firebase Auth: set `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - Cloudflare R2 storage: set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+  - HuggingFace AI: set `HF_API_TOKEN` (informational only — AI tools use local/extractive logic)
+
 ## UI Architecture (current)
 
 ### Z-Index System (defined in `public/css/home.css :root`)
@@ -55,15 +64,27 @@ The backend is an Express.js server handling API requests, file uploads (up to 1
 - **Tool Prioritization**: Frontend reordering and badging of tools (Instant, Compress, Advanced) based on execution speed to guide user selection.
 - **Editor Features**: Drag-and-drop file reordering with thumbnails, per-file rotation, client-side size guards, and a signup-required modal for large files.
 
+## Authentication
+The app uses a custom JWT-based auth system stored in SQLite (`utils/db.js`). Users sign up/log in via `/api/auth/*` endpoints. JWT tokens are issued as HttpOnly cookies (`ilovepdf_token`). Firebase Auth is an optional secondary login provider — if `FIREBASE_API_KEY` and related env vars are set, users can also log in with Google/Firebase.
+
+## Key Files
+- `server.js` — Express entry point, middleware, routes
+- `routes/auth.js` — Signup, login, logout, JWT cookie management
+- `routes/organize.js`, `edit.js`, `convert.js`, `security.js`, `advanced.js`, `image.js` — Tool API endpoints
+- `utils/db.js` — SQLite database (users, pending_signups)
+- `utils/usage.js` — Per-IP and per-user daily quotas
+- `utils/r2.js` — Cloudflare R2 storage (optional)
+- `utils/firebase-admin.js` — Firebase token verification (optional)
+- `public/` — Frontend HTML/CSS/JS
+- `public/js/tools-config.js` — All 33 tool definitions
+
 ## External Dependencies
-- **Cloudflare**: Used for Workers (serverless queue), R2 (object storage for uploads and results), and potentially KV storage.
-- **Hugging Face**: For AI-powered tools (OCR, AI Summarizer, Translate, advanced compression, background removal) via Hugging Face Spaces.
-- **Firebase**: For frontend hosting, user authentication (via Firebase ID tokens), and potentially other Firebase services.
-- **pdf-lib**: JavaScript library for browser-side PDF manipulation.
-- **mammoth, pptxgenjs, exceljs, pdf-parse, JSZip**: Libraries for various document format conversions and parsing.
-- **sharp**: Node.js module for high-performance image processing.
-- **Lucide icons**: For vector icons in the UI.
-- **Inter font**: Typography.
-- **multer**: Node.js middleware for handling `multipart/form-data`, primarily for file uploads.
-- **express-rate-limit, compression**: Express middleware for security and performance.
-- **Formspree**: Optional integration for feedback forms.
+- **Cloudflare R2**: Optional object storage for uploads and results (S3-compatible)
+- **Firebase**: Optional user authentication via Firebase ID tokens and Google login
+- **pdf-lib**: JavaScript library for browser-side PDF manipulation
+- **mammoth, pptxgenjs, exceljs, pdf-parse, JSZip**: Libraries for document format conversions
+- **sharp**: Node.js module for high-performance image processing
+- **Lucide icons**: Vector icons in the UI
+- **Inter font**: Typography
+- **multer**: Node.js middleware for file uploads
+- **express-rate-limit, compression**: Express middleware for security and performance
