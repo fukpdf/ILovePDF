@@ -62,6 +62,18 @@ Processing logic:
 - **Size limits**: <50 MB for most tools, <200 MB for compress, <500 MB absolute hard limit. Memory guard aborts before OOM.
 - **Sentinel delegators**: word-to-pdf, excel-to-pdf, html-to-pdf, scan-to-pdf throw ERR.ORIG → fall to pre-hook browser handlers (all have real implementations).
 
+**Production Hardening (v4.2 — May 2026) — 12 Phases:**
+- **Phase 1 — DebugTrace**: New `public/js/debug-trace.js` sets `window.DebugTrace` with `log/error/result/getLogs/dump/report`. Added to `tool.html` before workerPool.js. `DT()` accessor in advanced-engine.js. Call `DebugTrace.dump()` in DevTools for full audit. 500-entry capped ring buffer.
+- **Phase 2 — Strict Output Validation**: `validateOutput(toolId, blob)` with per-tool minimum sizes (DOCX/XLSX/PPTX ≥1000 bytes, PDF ≥200 bytes, TXT ≥20 bytes). Applied in `runTool()` BEFORE any download trigger.
+- **Phase 3 — Auto-OCR Trigger**: `autoOcrFallback(file, onStep, stepBase, stepIdx)` shared helper runs Tesseract page-by-page and returns `[{pageNum, text}]`. Applied in: `pdf-to-word` (sparse text triggers OCR → DOCX), `pdf-to-excel` (empty sheets → OCR text as rows), `ai-summarize` (no text → OCR → TF-IDF), `translate` (no text → OCR → MyMemory API).
+- **Phase 4 — AI Document Parser**: Enhanced `extractStructuredParagraphs()` heading detection — uses font size threshold (>1.35× median) AND ALL-CAPS short-line detection.
+- **Phase 5 — Tool-Specific Fixes**: Background Remover now has CPU fallback (`removeBgInline()`) when worker fails. PDF→Word/Excel/PPT/OCR all have ERR.ORIG fallbacks.
+- **Phase 6 — Retry System**: `retryWithBackoff(fn, maxRetries, baseMs, timeoutMs)` already present.
+- **Phase 7 — Memory + Size Guard**: `shouldFallbackMem()` + 500MB hard limit + OPFS staging already present.
+- **Phase 8 — Stealth System**: `safeMessage()` updated with `invalid_output` and `no_readable_text` handlers. Zero technical terms ever reach the UI.
+- **Phase 9 — UI Trust**: Download only triggered after `validateOutput()` passes. No pre-created blob URLs.
+- **Phase 12 — Audit**: `AdvancedEngine.audit()` in DevTools shows all registered tools, trace entries, errors, results, WorkerPool stats, memory tier.
+
 **Critical Bug Fixes (v4.1 — May 2026):**
 - **WorkerPool script loading**: Added `<script src="/workers/workerPool.js"></script>` to `tool.html` before `browser-tools.js`. This was the root cause of all worker-dependent tools failing with `pool_unavailable` — `window.WorkerPool` was never initialized.
 - **Tools fixed by WorkerPool fix**: PDF→Word, PDF→PowerPoint, PDF→Excel, Background Remover, AI Summarizer (all use `runAdvancedWorker`), Repair PDF, Compress (uses `runPdfWorker`).

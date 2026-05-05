@@ -93,6 +93,12 @@
     if (m.includes('memory_pressure') || (m.includes('memory') && !m.includes('my')))
       return 'Your device is running low on memory. Please close other tabs and try again.';
 
+    if (m.includes('invalid_output') || m.includes('invalid output'))
+      return 'The output could not be generated. Please try with a different file.';
+
+    if (m.includes('no readable text') || m.includes('no text could be found'))
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+
     if (m.includes('empty') && (m.includes('output') || m.includes('result') || m.includes('appear')))
       return 'The result appears empty. Please try again with a different file.';
 
@@ -823,6 +829,15 @@
     return combined.replace(/\s/g, '').length < 5;
   }
 
+  // Lightweight accessor — falls back to no-op stubs when debug-trace.js is absent.
+  function DT() {
+    return window.DebugTrace || {
+      log:    function () {},
+      error:  function () {},
+      result: function () {},
+    };
+  }
+
   // ── LIVE FEED (UI panel) ───────────────────────────────────────────────────
   var _feedCssInjected = false;
   var _feedActive      = false;
@@ -1020,7 +1035,10 @@
       var lineText  = lineItems.map(function (it) { return it.str; }).join(' ').trim();
       if (!lineText) return;
       var maxH      = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
-      var isHeading = maxH > medianH * 1.3;
+      // Phase 4: detect headings by font size AND ALL-CAPS short lines
+      var isHeading = maxH > medianH * 1.35 ||
+        (lineText.length >= 3 && lineText.length < 80 &&
+         lineText === lineText.toUpperCase() && /[A-Z]/.test(lineText));
       var gap        = lastY !== null ? lastY - y : 0;
       var isNewBlock = gap > medianH * 2.2 || isHeading;
       if (lastY === null || isNewBlock) {
@@ -1072,6 +1090,142 @@
       for (var ci = 0; ci <= maxCol; ci++) row.push(cells[y][ci] || '');
       return row;
     });
+  }
+
+  // ── PHASE 2: STRICT OUTPUT VALIDATOR ─────────────────────────────────────
+  // Per-tool minimum blob sizes. Validates BEFORE any download is triggered.
+  var _VALIDATE_MINS = {
+    'pdf-to-word':        1000,
+    'pdf-to-excel':       1000,
+    'pdf-to-powerpoint':  1000,
+    'ocr':                200,
+    'background-remover': 200,
+    'repair':             200,
+    'compress':           200,
+    'compare':            20,
+    'ai-summarize':       20,
+    'translate':          20,
+    'workflow':           200,
+  };
+
+  function validateOutput(toolId, blob) {
+    var minSize = _VALIDATE_MINS[toolId] !== undefined ? _VALIDATE_MINS[toolId] : 50;
+    if (!blob || blob.size < minSize) {
+      DT().error('validate-output', { toolId: toolId, size: blob ? blob.size : 0, min: minSize });
+      throw new Error('invalid_output');
+    }
+    DT().result('validate-output', { toolId: toolId, size: blob.size, ok: true });
+  }
+
+  // ── PHASE 5: BACKGROUND-REMOVER CPU FALLBACK (main-thread pixel path) ────
+  // Mirrors the removeBg() logic in advanced-worker.js for when the worker fails.
+  function removeBgInline(pixelsBuf, width, height, threshold) {
+    var t  = Math.max(60, Math.min(255, threshold || 240));
+    var d  = new Uint8ClampedArray(pixelsBuf);
+
+    var borderSum = 0, borderCount = 0;
+    var bStep = Math.max(1, Math.floor((width * 2 + height * 2) / 200));
+    for (var bx = 0; bx < width; bx += bStep) {
+      var bi0 = bx * 4;
+      borderSum += (d[bi0] + d[bi0+1] + d[bi0+2]) / 3; borderCount++;
+      var bi1 = ((height - 1) * width + bx) * 4;
+      borderSum += (d[bi1] + d[bi1+1] + d[bi1+2]) / 3; borderCount++;
+    }
+    for (var by = 0; by < height; by += bStep) {
+      var bi2 = by * width * 4;
+      borderSum += (d[bi2] + d[bi2+1] + d[bi2+2]) / 3; borderCount++;
+      var bi3 = (by * width + width - 1) * 4;
+      borderSum += (d[bi3] + d[bi3+1] + d[bi3+2]) / 3; borderCount++;
+    }
+    var avgBorder  = borderCount > 0 ? borderSum / borderCount : 200;
+    var isDark     = avgBorder < 80;
+    var feather    = 50;
+
+    for (var i = 0; i < d.length; i += 4) {
+      var r = d[i], g = d[i+1], b = d[i+2];
+      var lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (!isDark) {
+        if (r >= t && g >= t && b >= t) {
+          d[i+3] = 0;
+        } else if (lum >= t - feather) {
+          var pct = (lum - (t - feather)) / feather;
+          var alpha = Math.round(255 * (1 - Math.pow(pct, 0.7)));
+          if (alpha < d[i+3]) d[i+3] = Math.max(0, Math.min(255, alpha));
+        }
+      } else {
+        var tDk = 255 - t;
+        if (r <= tDk && g <= tDk && b <= tDk) {
+          d[i+3] = 0;
+        } else if (lum <= tDk + feather) {
+          var pct2 = (tDk + feather - lum) / feather;
+          var alpha2 = Math.round(255 * (1 - Math.pow(pct2, 0.7)));
+          if (alpha2 < d[i+3]) d[i+3] = Math.max(0, Math.min(255, alpha2));
+        }
+      }
+    }
+    return { pixels: d.buffer, width: width, height: height };
+  }
+
+  // ── PHASE 3: AUTO-OCR FALLBACK ────────────────────────────────────────────
+  // Re-loads the file and runs Tesseract page-by-page. Returns an array of
+  // { pageNum, text } objects. Called when pdfjs text extraction yields nothing.
+  async function autoOcrFallback(file, onStep, stepBase, stepIdx) {
+    stepBase = stepBase || 35;
+    stepIdx  = stepIdx  || 1;
+    DT().log('auto-ocr-start', { file: file.name, size: file.size });
+    onStep(stepIdx, 'active', stepBase, 'Scanning pages for text\u2026');
+
+    if (!window.Tesseract) {
+      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    }
+    if (!window.Tesseract) throw AEError(ERR.NETWORK, 'engine_load_failed');
+
+    var pdfjsLib2 = await loadPdfJs();
+    var pdfSrc2   = await loadPdfSource(file);
+    var pdf2      = await pdfjsLib2.getDocument(pdfSrc2.src).promise;
+    var total2    = pdf2.numPages;
+    var worker2   = await window.Tesseract.createWorker('eng', 1, { logger: function () {} });
+    var results   = [];
+
+    try {
+      for (var oi = 1; oi <= total2; oi++) {
+        var pg2      = await pdf2.getPage(oi);
+        var viewport2 = pg2.getViewport({ scale: DEVICE.ocrScale });
+        var capW2    = Math.min(Math.floor(viewport2.width),  HARD_MAX_IMG_DIM);
+        var capH2    = Math.min(Math.floor(viewport2.height), HARD_MAX_IMG_DIM);
+        var capScale2 = DEVICE.ocrScale * Math.min(capW2 / viewport2.width, capH2 / viewport2.height);
+        var capVp2   = pg2.getViewport({ scale: capScale2 });
+
+        var cvs2    = document.createElement('canvas');
+        cvs2.width  = Math.floor(capVp2.width);
+        cvs2.height = Math.floor(capVp2.height);
+        var ctx2    = cvs2.getContext('2d');
+        ctx2.fillStyle = '#ffffff';
+        ctx2.fillRect(0, 0, cvs2.width, cvs2.height);
+        await pg2.render({ canvasContext: ctx2, viewport: capVp2 }).promise;
+        pg2.cleanup();
+
+        var dataUrl2 = cvs2.toDataURL('image/jpeg', 0.92);
+        cvs2.width = 0; cvs2.height = 0; cvs2 = null;
+
+        var ocrRes2  = await worker2.recognize(dataUrl2);
+        dataUrl2     = null;
+        var pageText = (ocrRes2.data.text || '').trim();
+        results.push({ pageNum: oi, text: pageText });
+        DT().log('auto-ocr-page', { page: oi, chars: pageText.length });
+
+        var pct2 = stepBase + Math.round((oi / total2) * (78 - stepBase));
+        onStep(stepIdx, 'active', pct2, 'Scanning page ' + oi + ' of ' + total2);
+      }
+    } finally {
+      try { await worker2.terminate(); } catch (_) {}
+      await pdf2.destroy();
+      pdfSrc2.cleanup();
+    }
+
+    var totalChars = results.reduce(function (s, p) { return s + p.text.length; }, 0);
+    DT().result('auto-ocr-done', { pages: results.length, totalChars: totalChars });
+    return results;
   }
 
   // ── TOOL STEPS (stealth labels — Phase 11 enhanced) ───────────────────────
@@ -1183,17 +1337,28 @@
       pdfSource.cleanup();  // Revoke OPFS blob URL only after PDF is fully done
     }
 
-    if (!pages.length) {
-      // All pages appear image-based — guide the user to the OCR tool.
-      throw new Error('This document appears to be image-based with no selectable text. Please use the OCR tool to extract content from scanned PDFs.');
-    }
-
-    // Even if some pages exist, check that we actually got meaningful content.
     var _totalWordChars = pages.reduce(function (s, p) {
       return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
     }, 0);
-    if (_totalWordChars < Math.max(8, total * 2)) {
-      throw new Error('No selectable text was found. This PDF may contain scanned images — use the OCR tool to extract content.');
+    DT().log('pdf-to-word-extract', { pages: pages.length, chars: _totalWordChars, totalPdfPages: total });
+
+    // Phase 3: Auto-OCR trigger — when the PDF has no/sparse selectable text
+    // (scanned document), automatically run Tesseract instead of throwing.
+    if (!pages.length || _totalWordChars < Math.max(8, total * 2)) {
+      DT().log('pdf-to-word-ocr-trigger', { reason: 'sparse_text', chars: _totalWordChars });
+      var ocrWPages = await autoOcrFallback(file, onStep, 35, 1);
+      var ocrWChars = ocrWPages.reduce(function (s, p) { return s + p.text.length; }, 0);
+      DT().log('pdf-to-word-ocr-result', { chars: ocrWChars });
+      if (ocrWChars < 10) {
+        throw new Error('No readable text could be found. This may be a scanned document with unclear content.');
+      }
+      pages = ocrWPages.map(function (p) {
+        var paras = p.text.split('\n').filter(function (l) { return l.trim(); }).map(function (l) {
+          return { text: l.trim(), isHeading: false };
+        });
+        if (!paras.length) paras = [{ text: '(no content)', isHeading: false }];
+        return { pageNum: p.pageNum, paragraphs: paras };
+      });
     }
 
     onStep(1, 'done', 53);
@@ -1255,8 +1420,24 @@
       return s.rows.length === 0 ||
         (s.rows.length === 1 && s.rows[0].length === 1 && s.rows[0][0] === '(empty)');
     });
+    DT().log('pdf-to-excel-extract', { sheets: sheets.length, allEmpty: _allSheetsEmpty });
+
+    // Phase 3: Auto-OCR trigger — extract text via Tesseract and use as rows
     if (_allSheetsEmpty) {
-      throw new Error('No data could be extracted from this PDF. For scanned documents, try the OCR tool first to make the content selectable.');
+      DT().log('pdf-to-excel-ocr-trigger', { reason: 'all_empty' });
+      var ocrEPages = await autoOcrFallback(file, onStep, 35, 1);
+      var ocrEChars = ocrEPages.reduce(function (s, p) { return s + p.text.length; }, 0);
+      DT().log('pdf-to-excel-ocr-result', { chars: ocrEChars });
+      if (ocrEChars < 5) {
+        throw new Error('No data could be extracted from this PDF. For scanned documents, try the OCR tool first.');
+      }
+      sheets = ocrEPages.map(function (p) {
+        var rows = p.text.split('\n')
+          .map(function (l) { return l.trim(); })
+          .filter(Boolean)
+          .map(function (l) { return [l]; });
+        return { name: 'Page ' + p.pageNum, rows: rows.length ? rows : [['(empty)']] };
+      });
     }
 
     onStep(1, 'done', 55);
@@ -1570,12 +1751,22 @@
     var rawBuffer = imageData.data.buffer.slice(0);
     imageData = null;
 
-    var wResult = await runAdvancedWorker(
-      { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH, threshold: threshold },
-      [rawBuffer]
-    );
+    DT().log('bg-remover-start', { width: drawW, height: drawH, threshold: threshold });
+    var wResult;
+    try {
+      wResult = await runAdvancedWorker(
+        { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH, threshold: threshold },
+        [rawBuffer]
+      );
+    } catch (bgWorkerErr) {
+      DT().error('bg-remover-worker', bgWorkerErr);
+      // Phase 5: CPU fallback — process pixels in the main thread
+      onStep(2, 'active', 45, 'Processing image\u2026');
+      wResult = removeBgInline(rawBuffer, drawW, drawH, threshold);
+    }
 
     if (!wResult || !(wResult.pixels instanceof ArrayBuffer)) {
+      DT().error('bg-remover-result', 'no pixels in output');
       throw AEError(ERR.WORKER, 'bg_remove_failed');
     }
 
@@ -1752,7 +1943,17 @@
       pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
     }
 
-    if (!allText.trim()) throw AEError(ERR.PARSE, 'no_extractable_text');
+    DT().log('ai-summarize-extract', { chars: allText.trim().length, pages: total, skipped: skipped });
+
+    // Phase 3: Auto-OCR trigger for scanned PDFs
+    if (!allText.trim()) {
+      DT().log('ai-summarize-ocr-trigger', { reason: 'no_text' });
+      onStep(1, 'active', 38, 'Scanning pages for content\u2026');
+      var ocrSPages = await autoOcrFallback(file, onStep, 38, 1);
+      allText = ocrSPages.map(function (p) { return p.text; }).join(' ');
+      DT().log('ai-summarize-ocr-result', { chars: allText.length });
+      if (!allText.trim()) throw AEError(ERR.PARSE, 'no_extractable_text');
+    }
 
     var maxSentences = parseInt((opts && (opts.sentences || opts.length)) || '7', 10) || 7;
     onStep(1, 'done', 45);
@@ -1848,6 +2049,23 @@
     onStep(2, 'active', 41, 'Preparing content\u2026');
 
     if (!isOnline()) throw AEError(ERR.NETWORK, 'offline');
+
+    // Phase 3: Auto-OCR trigger — if PDF has no extractable text, run OCR first
+    var _translateTextTotal = pages.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
+    DT().log('translate-extract', { chars: _translateTextTotal, pages: pages.length });
+    if (_translateTextTotal < 20) {
+      DT().log('translate-ocr-trigger', { reason: 'sparse_text' });
+      onStep(1, 'active', 38, 'Scanning pages for content\u2026');
+      var ocrTPages = await autoOcrFallback(file, onStep, 38, 1);
+      var ocrTChars = ocrTPages.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
+      DT().log('translate-ocr-result', { chars: ocrTChars });
+      if (ocrTChars < 10) {
+        throw new Error('No text could be found in this document. For scanned documents, run the OCR tool first to extract text.');
+      }
+      pages = ocrTPages.map(function (p) {
+        return { num: p.pageNum, text: p.text, blank: !p.text.trim() };
+      });
+    }
 
     var targetLang = (opts && (opts.targetLang || opts.targetLanguage)) || 'es';
     var srcLang    = (opts && (opts.sourceLang || opts.sourceLanguage)) || 'en';
@@ -2054,14 +2272,14 @@
       }
     }
 
-    // ── Output Validation Layer ────────────────────────────────────────────
-    // Reject obviously empty / corrupted results before they reach the UI.
+    // ── Phase 2: Strict Output Validation Layer ───────────────────────────
+    // Validates BEFORE download is triggered — NO fake success, NO empty output.
     if (result) {
       var _rb = (result && result.blob) ? result.blob : result;
       if (_rb instanceof Blob) {
-        var _TEXT_TOOLS = ['compare', 'ai-summarize', 'translate'];
-        var _minOut = _TEXT_TOOLS.indexOf(toolId) !== -1 ? 1 : 50;
-        if (_rb.size < _minOut) {
+        try {
+          validateOutput(toolId, _rb);
+        } catch (valErr) {
           LiveFeed.hide();
           vanish();
           throw new Error('The result appears empty. Please try again with a different file.');
@@ -2132,7 +2350,7 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:          '3.0',
+    version:          '4.1',
     TOOL_IDS:         ADVANCED_IDS,
     LiveFeed:         LiveFeed,
     LivePreview:      LivePreview,
@@ -2142,6 +2360,25 @@
     ProgressStore:    ProgressStore,
     memTier:          memTier,
     vanish:           vanish,
+    validateOutput:   validateOutput,
+    autoOcrFallback:  autoOcrFallback,
+    // Phase 12: Audit helper — call AdvancedEngine.audit() in DevTools
+    audit: function () {
+      var dt = window.DebugTrace;
+      var tools = Array.from(ADVANCED_IDS);
+      var entries = dt ? dt.getLogs() : [];
+      var errors  = entries.filter(function (e) { return e.type === 'error'; });
+      var results = entries.filter(function (e) { return e.type === 'result'; });
+      console.group('AdvancedEngine v4.1 — Audit Report');
+      console.log('Tools registered:', tools.length, tools);
+      console.log('DebugTrace entries:', entries.length, '| errors:', errors.length, '| results:', results.length);
+      if (errors.length) { console.warn('Errors:', errors); }
+      if (results.length) { console.info('Results:', results); }
+      if (dt) dt.dump();
+      console.log('WorkerPool:', window.WorkerPool ? window.WorkerPool.getStats() : 'not loaded');
+      console.log('MemoryTier:', memTier());
+      console.groupEnd();
+    },
   };
 
 }());
