@@ -43,8 +43,8 @@ The application follows a client-server architecture. The frontend is built with
 The backend is an Express.js server handling API requests, file uploads (up to 100 MB), and orchestrating PDF/image processing. Processing logic is distributed:
 - **Browser-side processing (primary)**: 26 of 33 tools now run entirely in the browser using `pdf-lib`, `pdfjs-dist`, `mammoth`, `html2pdf.js`, `xlsx`, `tesseract.js`, and canvas APIs. The dispatcher in `tool-page.js` tries browser-side first; any error or size limit triggers transparent server fallback.
 - **Direct Express Backend (fallback / server-only)**: Handles files >50 MB (>200 MB for compress), memory-pressured requests, and server-only tools (translate, powerpoint-to-pdf, excel-to-pdf, pdf-to-powerpoint).
-- **Size limits**: compress=200 MB browser threshold; all other browser tools=50 MB — enforced in `BrowserTools.process()`.
-- **Memory guard**: If JS heap >800 MB, automatically falls back to the server API.
+- **Size limits (v3.0)**: <200MB RAM; 200–400MB OPFS; 400–500MB OPFS+streaming strict; >500MB server fallback.
+- **Memory guard**: If JS heap >720 MB (reduce) or >900 MB (abort), automatically falls back to the server API.
 
 **Core Features & Design Patterns:**
 - **Tool Routing**: A sophisticated dispatcher prioritizes browser-side processing, then the Cloudflare queue, and finally direct Express API calls.

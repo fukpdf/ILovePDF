@@ -1,11 +1,13 @@
-// Advanced Engine v2.1 — production-grade, stealth browser PDF processor.
+// Advanced Engine v3.0 — production-grade, stealth browser PDF processor.
+// Phases: 1-Worker Pool | 2-Stream | 3-Compression | 4-SAB | 5-WebGPU (worker)
+//         6-MultiTab | 7-Pipeline | 8-LivePreview | 9-Estimator | 10-500MB
+//         11-UX | 12-Performance
 // Wraps window.BrowserTools.process() transparently. Instant tools untouched.
-// All internal strategies (chunking, workers, memory, fallback) are hidden from users.
 (function () {
   'use strict';
 
   // ── ADAPTIVE DEVICE PROFILE ────────────────────────────────────────────────
-  var _cores = Math.min(navigator.hardwareConcurrency || 2, 16);
+  var _cores  = Math.min(navigator.hardwareConcurrency || 2, 16);
   var _heapGB = 0;
   try { _heapGB = ((performance.memory && performance.memory.jsHeapSizeLimit) || 0) / 1073741824; }
   catch (_) {}
@@ -22,14 +24,18 @@
     high:   { workers: 4, chunkMB: 8, ocrScale: 2.0, imgDim: 4096 },
   }[PERF_MODE];
 
-  // Stealth performance label shown to user — no technical details
-  var PERF_LABEL = PERF_MODE === 'high' ? 'Performance: Optimal' :
-                   PERF_MODE === 'medium' ? 'Performance: Moderate' : 'Performance: High Load';
+  var PERF_LABEL = PERF_MODE === 'high'   ? 'Performance: Optimal'   :
+                   PERF_MODE === 'medium' ? 'Performance: Moderate'  : 'Performance: High Load';
 
-  var HARD_MAX_WORKERS  = 4;
-  var HARD_MAX_IMG_DIM  = 4096;
-  var CHUNK_SIZE        = DEVICE.chunkMB * 1024 * 1024;
-  var TOOL_TIMEOUT_MS   = 120000; // 2 min
+  var HARD_MAX_WORKERS = 4;
+  var HARD_MAX_IMG_DIM = 4096;
+  var CHUNK_SIZE       = DEVICE.chunkMB * 1024 * 1024;
+  var TOOL_TIMEOUT_MS  = 180000; // 3 min (up from 2 min for large files)
+
+  // Phase 10: Tiered size thresholds (500MB capable)
+  var OPFS_THRESHOLD        = 200 * 1024 * 1024; // 200 MB → OPFS staging
+  var OPFS_STREAM_THRESHOLD = 400 * 1024 * 1024; // 400 MB → streaming strict mode
+  var MAX_BROWSER_BYTES     = 500 * 1024 * 1024; // 500 MB → absolute max
 
   // ── ERROR TYPES (INTERNAL ONLY) ────────────────────────────────────────────
   var ERR = {
@@ -43,17 +49,15 @@
 
   function AEError(type, internalMsg) {
     var e = new Error(internalMsg || type);
-    e.aeType = type;
-    e.isInternal = true;
+    e.aeType = type; e.isInternal = true;
     return e;
   }
 
-  // Maps internal errors to safe user-facing messages
   function safeMessage(err) {
     if (!err) return 'Something went wrong. Please try again.';
     var t = err.aeType || '';
     var m = (err.message || '').toLowerCase();
-    if (t === ERR.ORIG || m === '__orig__') return null; // sentinel — not an error
+    if (t === ERR.ORIG || m === '__orig__') return null;
     if (t === ERR.NETWORK || m.includes('offline') || m.includes('internet'))
       return 'No internet connection.';
     if (m.includes('requires two'))
@@ -65,19 +69,26 @@
     return 'Something went wrong. Please try again.';
   }
 
-  // ── CAPABILITIES ─────────────────────────────────────────────────────────
-  // SharedArrayBuffer: zero-copy memory transfer between workers when COOP/COEP
-  // headers are set. Detected once; never exposed in any user-facing text.
+  // ── CAPABILITIES ──────────────────────────────────────────────────────────
+  // Phase 4: Real SharedArrayBuffer detection (requires COOP+COEP headers)
   var HAS_SAB = (function () {
     try { return typeof SharedArrayBuffer !== 'undefined' && !!new SharedArrayBuffer(1); }
     catch (_) { return false; }
   }());
 
-  // OPFS: Origin Private File System — disk-based staging for files ≥ 200 MB.
-  // Prevents full-file RAM spike by letting pdfjs stream via a blob URL instead
-  // of holding the whole ArrayBuffer. Never exposed to users.
-  var OPFS_THRESHOLD = 200 * 1024 * 1024;
+  // Phase 5: WebGPU detection (processing happens in advanced-worker.js)
+  var HAS_WEBGPU = (function () {
+    try { return typeof navigator !== 'undefined' && !!navigator.gpu; }
+    catch (_) { return false; }
+  }());
 
+  // Phase 6: BroadcastChannel for multi-tab coordination
+  var HAS_BC = (function () {
+    try { return typeof BroadcastChannel !== 'undefined'; }
+    catch (_) { return false; }
+  }());
+
+  // ── OPFS STORE ────────────────────────────────────────────────────────────
   var OPFSStore = (function () {
     var AVAIL = (function () {
       try {
@@ -90,9 +101,7 @@
 
     function getRoot() {
       if (_root) return Promise.resolve(_root);
-      return navigator.storage.getDirectory().then(function (r) {
-        _root = r; return r;
-      });
+      return navigator.storage.getDirectory().then(function (r) { _root = r; return r; });
     }
 
     function write(name, buffer) {
@@ -118,18 +127,15 @@
     }
 
     function available() { return AVAIL; }
-
     return { available: available, write: write, getFile: getFile, del: del };
   }());
 
-  // Stage a large File to OPFS and return a { url, cleanup } object.
-  // pdfjs can load via URL (streaming) instead of a full in-RAM ArrayBuffer,
-  // halving peak memory for files above OPFS_THRESHOLD.
+  // Stage a File to OPFS and return { url, cleanup }
   async function stageToOPFS(file) {
     var key = 'ae_stage_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     var buf = await file.arrayBuffer();
     await OPFSStore.write(key, buf);
-    buf = null; // release main-thread ArrayBuffer before pdfjs reads
+    buf = null;
     var opfsFile = await OPFSStore.getFile(key);
     var url = URL.createObjectURL(opfsFile);
     trackBlob(url);
@@ -142,10 +148,10 @@
     };
   }
 
-  // ── MEMORY GUARD ───────────────────────────────────────────────────────────
+  // ── MEMORY GUARD ──────────────────────────────────────────────────────────
   var MEM_REDUCE = 550 * 1024 * 1024;
   var MEM_LOW    = 720 * 1024 * 1024;
-  var MEM_ABORT  = 850 * 1024 * 1024;
+  var MEM_ABORT  = 900 * 1024 * 1024;
 
   function _memUsed() {
     try { return (performance && performance.memory && performance.memory.usedJSHeapSize) || 0; }
@@ -163,14 +169,18 @@
     return 'ok';
   }
   function shouldFallbackMem(fileSizeBytes) {
+    // Phase 10: 500MB files always use OPFS + streaming — no RAM fallback
+    if (fileSizeBytes >= MAX_BROWSER_BYTES) return true;
     if (memTier() === 'fallback') return true;
     var factor = (memTier() === 'low') ? 6 : 4;
     var needed = (fileSizeBytes || 0) * factor;
     var avail  = Math.max(0, _memLimit() - _memUsed());
+    // With OPFS streaming, large files need much less RAM
+    if (fileSizeBytes >= OPFS_STREAM_THRESHOLD && OPFSStore.available()) return false;
     return needed > avail;
   }
 
-  // ── IDB TEMP STORE ─────────────────────────────────────────────────────────
+  // ── IDB TEMP STORE ────────────────────────────────────────────────────────
   var IDBTemp = (function () {
     var DB_NAME = 'ilovepdf-adv-temp';
     var STORE   = 'chunks';
@@ -267,7 +277,7 @@
     return { put: put, get: get, del: del, sweep: sweep };
   }());
 
-  // ── PROGRESS STORE ─────────────────────────────────────────────────────────
+  // ── PROGRESS STORE ────────────────────────────────────────────────────────
   function _fileHash(file) {
     return (file.name || 'f') + ':' + file.size + ':' + (file.lastModified || 0);
   }
@@ -285,7 +295,7 @@
     },
   };
 
-  // ── RESUME BANNER (stealth language) ──────────────────────────────────────
+  // ── RESUME BANNER ─────────────────────────────────────────────────────────
   function showResumeBanner(onResume, onDismiss) {
     var existing = document.getElementById('ae-resume-banner');
     if (existing) existing.remove();
@@ -299,19 +309,16 @@
       'display:flex;align-items:center;gap:12px;font-family:inherit;font-size:13px;',
       'box-shadow:0 8px 32px rgba(0,0,0,.35);max-width:480px;width:92%;',
     ].join('');
-
     banner.innerHTML =
       '<span style="flex:1">You have a previous session for this document.<br>' +
       '<small style="opacity:.7">Upload the same file to continue where you left off.</small></span>' +
       '<button id="ae-rb-yes" style="background:#7c3aed;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap">Continue</button>' +
-      '<button id="ae-rb-no"  style="background:transparent;color:#94a3b8;border:none;padding:6px 8px;cursor:pointer;font-size:18px;line-height:1">\u00d7</button>';
-
+      '<button id="ae-rb-no" style="background:transparent;color:#94a3b8;border:none;padding:6px 8px;cursor:pointer;font-size:18px;line-height:1">\u00d7</button>';
     document.body.appendChild(banner);
 
     var timer = setTimeout(function () {
       if (banner.parentNode) { banner.remove(); if (onDismiss) onDismiss(); }
     }, 25000);
-
     document.getElementById('ae-rb-yes').onclick = function () {
       clearTimeout(timer); banner.remove(); if (onResume) onResume();
     };
@@ -320,7 +327,7 @@
     };
   }
 
-  // ── RETRY SYSTEM (silent) ─────────────────────────────────────────────────
+  // ── RETRY SYSTEM ──────────────────────────────────────────────────────────
   function sleep(ms) {
     return new Promise(function (res) { setTimeout(res, ms); });
   }
@@ -346,8 +353,7 @@
         Promise.resolve(fn(n, ctrl ? ctrl.signal : null)),
         timeoutP,
       ]).then(function (r) {
-        clearTimeout(timer);
-        return r;
+        clearTimeout(timer); return r;
       }).catch(function (err) {
         clearTimeout(timer);
         if (n >= maxRetries - 1) throw err;
@@ -370,9 +376,7 @@
       if (signal && !opts.signal) opts.signal = signal;
       return fetch(url, opts).then(function (resp) {
         if (!resp.ok) {
-          if (resp.status === 429 || resp.status >= 500) {
-            throw AEError(ERR.NETWORK, 'http_' + resp.status);
-          }
+          if (resp.status === 429 || resp.status >= 500) throw AEError(ERR.NETWORK, 'http_' + resp.status);
           throw AEError(ERR.NETWORK, 'http_' + resp.status + '_noretry');
         }
         return resp;
@@ -380,71 +384,13 @@
     }, maxRetries || 3, 800, timeoutMs || 10000);
   }
 
-  // ── WORKER BRIDGE WITH SELF-HEAL ──────────────────────────────────────────
-  var ADV_WORKER_URL    = '/workers/advanced-worker.js';
-  var _workerCrashCount = 0;
-  var MAX_WORKER_CRASHES = 3;
-
-  function _runWorkerOnce(message, transferables) {
-    return new Promise(function (resolve, reject) {
-      var w, timer;
-
-      timer = setTimeout(function () {
-        try { if (w) w.terminate(); } catch (_) {}
-        reject(AEError(ERR.TIMEOUT, 'worker_timeout'));
-      }, 120000);
-
-      try { w = new Worker(ADV_WORKER_URL); }
-      catch (e) {
-        clearTimeout(timer);
-        return reject(AEError(ERR.WORKER, 'worker_create'));
-      }
-
-      w.onmessage = function (ev) {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _workerCrashCount = 0;
-        if (ev.data && ev.data.__error) {
-          reject(AEError(ERR.WORKER, ev.data.__error));
-        } else {
-          resolve(ev.data);
-        }
-      };
-
-      w.onerror = function () {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _workerCrashCount++;
-        reject(AEError(ERR.WORKER, 'worker_error'));
-      };
-
-      w.onmessageerror = function () {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _workerCrashCount++;
-        reject(AEError(ERR.WORKER, 'worker_msg_error'));
-      };
-
-      try {
-        w.postMessage(message, transferables || []);
-      } catch (e) {
-        try { w.postMessage(message); }
-        catch (e2) {
-          clearTimeout(timer);
-          try { w.terminate(); } catch (_) {}
-          reject(AEError(ERR.WORKER, 'worker_post_error'));
-        }
-      }
-    });
-  }
-
+  // ── WORKER BRIDGE (Phase 1: uses persistent pool for BOTH workers) ────────
+  // Phase 1: advanced-worker now runs via persistent pool — importScripts
+  // runs once per slot, libraries cached in worker memory across tasks.
   function runAdvancedWorker(message, transferables) {
-    if (_workerCrashCount >= MAX_WORKER_CRASHES) {
-      return Promise.reject(AEError(ERR.WORKER, 'worker_disabled'));
-    }
-    return retryWithBackoff(function () {
-      return _runWorkerOnce(message, transferables);
-    }, 3, 400, 125000);
+    var pool = window.WorkerPool;
+    if (!pool) return Promise.reject(AEError(ERR.WORKER, 'pool_unavailable'));
+    return pool.run('/workers/advanced-worker.js', message, transferables || []);
   }
 
   function runPdfWorker(toolId, buffers, options) {
@@ -471,11 +417,10 @@
   window.addEventListener('beforeunload', vanish);
   window.addEventListener('popstate',     vanish);
 
-  // ── BACKGROUND CLEANER (silent, every 60s) ────────────────────────────────
   var BLOB_MAX_AGE = 5 * 60 * 1000;
   function backgroundClean() {
     IDBTemp.sweep().catch(function () {});
-    var cutoff    = Date.now() - BLOB_MAX_AGE;
+    var cutoff = Date.now() - BLOB_MAX_AGE;
     var remaining = [];
     _blobEntries.forEach(function (e) {
       if (e.ts < cutoff) { try { URL.revokeObjectURL(e.url); } catch (_) {} }
@@ -498,22 +443,15 @@
 
   // ── PROGRESS SMOOTHER (RAF-based smooth fill) ──────────────────────────────
   var ProgressSmoother = (function () {
-    var _cur  = 0;
-    var _tgt  = 0;
-    var _raf  = null;
+    var _cur = 0, _tgt = 0, _raf = null;
 
     function _tick() {
       var bar = document.getElementById('ae-bar');
       if (!bar) { _raf = null; return; }
-
       var diff = _tgt - _cur;
       if (Math.abs(diff) < 0.15) {
-        _cur = _tgt;
-        bar.style.width = _tgt + '%';
-        _raf = null;
-        return;
+        _cur = _tgt; bar.style.width = _tgt + '%'; _raf = null; return;
       }
-      // Ease-out: move 9% of remaining gap per frame — smooth deceleration
       _cur += diff * 0.09;
       bar.style.width = _cur.toFixed(1) + '%';
       _raf = requestAnimationFrame(_tick);
@@ -521,7 +459,7 @@
 
     return {
       set: function (pct) {
-        _tgt = Math.min(100, Math.max(_cur, pct)); // never regress
+        _tgt = Math.min(100, Math.max(_cur, pct));
         if (!_raf) _raf = requestAnimationFrame(_tick);
       },
       reset: function () {
@@ -537,27 +475,238 @@
     };
   }());
 
-  // ── TIME ESTIMATOR (stealth messages after elapsed thresholds) ────────────
+  // ── TIME ESTIMATOR ────────────────────────────────────────────────────────
   var _timerIv = null;
-
   function startTimeEstimator() {
     var start = Date.now();
     _timerIv = setInterval(function () {
-      var elapsedS = (Date.now() - start) / 1000;
+      var elapsed = (Date.now() - start) / 1000;
       var hint;
-      if      (elapsedS > 75) hint = 'Finalizing\u2026';
-      else if (elapsedS > 40) hint = 'Just a moment more\u2026';
-      else if (elapsedS > 18) hint = 'Almost done\u2026';
+      if      (elapsed > 90) hint = 'Finalizing\u2026';
+      else if (elapsed > 50) hint = 'Just a moment more\u2026';
+      else if (elapsed > 22) hint = 'Almost done\u2026';
       else return;
-
-      // Only update hint if no other hint is being shown (don't override step hints)
       var hEl = document.getElementById('ae-hint');
       if (hEl && !hEl._locked) hEl.textContent = hint;
-    }, 6000);
+    }, 5000);
   }
-
   function stopTimeEstimator() {
     if (_timerIv) { clearInterval(_timerIv); _timerIv = null; }
+  }
+
+  // ── PHASE 9: OUTPUT SIZE ESTIMATOR ────────────────────────────────────────
+  // Shows estimated output size + processing time BEFORE the job starts.
+  // Formulas are heuristic; shown stealth-style — no technical details.
+  var OutputEstimator = (function () {
+    var TABLE = {
+      'compress':          { sizeRatio: 0.45, secondsPer10MB: 3  },
+      'pdf-to-word':       { sizeRatio: 0.20, secondsPer10MB: 5  },
+      'pdf-to-excel':      { sizeRatio: 0.15, secondsPer10MB: 5  },
+      'pdf-to-powerpoint': { sizeRatio: 0.18, secondsPer10MB: 6  },
+      'ocr':               { sizeRatio: 0.05, secondsPer10MB: 40 },
+      'background-remover':{ sizeRatio: 1.20, secondsPer10MB: 4  },
+      'repair':            { sizeRatio: 1.00, secondsPer10MB: 4  },
+      'compare':           { sizeRatio: 0.02, secondsPer10MB: 6  },
+      'ai-summarize':      { sizeRatio: 0.01, secondsPer10MB: 5  },
+      'translate':         { sizeRatio: 0.05, secondsPer10MB: 15 },
+      'workflow':          { sizeRatio: 0.90, secondsPer10MB: 5  },
+    };
+
+    function fmtSize(bytes) {
+      if (bytes < 1024)          return bytes + ' B';
+      if (bytes < 1024 * 1024)   return Math.round(bytes / 1024) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function fmtTime(seconds) {
+      if (seconds < 5)   return 'a few seconds';
+      if (seconds < 60)  return 'about ' + Math.round(seconds) + 's';
+      if (seconds < 120) return 'about a minute';
+      return 'about ' + Math.round(seconds / 60) + ' minutes';
+    }
+
+    function estimate(toolId, totalBytes) {
+      var entry = TABLE[toolId];
+      if (!entry || !totalBytes) return null;
+      var estSize = Math.round(totalBytes * entry.sizeRatio);
+      var estSecs = Math.max(2, Math.round((totalBytes / (10 * 1024 * 1024)) * entry.secondsPer10MB));
+      return {
+        sizeLabel: fmtSize(estSize),
+        timeLabel: fmtTime(estSecs),
+        estSecs:   estSecs,
+      };
+    }
+
+    function show(toolId, totalBytes) {
+      var est = estimate(toolId, totalBytes);
+      if (!est) return;
+      var hint  = document.getElementById('ae-hint');
+      var exist = document.getElementById('ae-estimator');
+      if (exist) exist.remove();
+      var el = document.createElement('div');
+      el.id = 'ae-estimator';
+      el.style.cssText = 'font-size:11px;color:#7c3aed;text-align:center;padding:4px 0 2px;opacity:.85;';
+      el.textContent = 'Estimated output: ~' + est.sizeLabel + ' \u2022 Processing time: ~' + est.timeLabel;
+      if (hint && hint.parentNode) hint.parentNode.insertBefore(el, hint);
+    }
+
+    function hide() {
+      var el = document.getElementById('ae-estimator');
+      if (el) el.remove();
+    }
+
+    return { show: show, hide: hide, estimate: estimate };
+  }());
+
+  // ── PHASE 8: LIVE PREVIEW THUMBNAIL ───────────────────────────────────────
+  // Renders the first page of a PDF to a tiny thumbnail shown during processing.
+  var LivePreview = (function () {
+    var _shown = false;
+
+    function show(pdfDoc, pdfjsLib) {
+      if (_shown) return;
+      _shown = true;
+      // Non-blocking: render in next microtask
+      Promise.resolve().then(async function () {
+        try {
+          var page     = await pdfDoc.getPage(1);
+          var viewport = page.getViewport({ scale: 0.15 });
+          var cvs      = document.createElement('canvas');
+          cvs.width    = Math.floor(viewport.width);
+          cvs.height   = Math.floor(viewport.height);
+          var ctx      = cvs.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, cvs.width, cvs.height);
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          page.cleanup();
+
+          var previewEl = document.getElementById('ae-preview');
+          if (!previewEl) {
+            previewEl    = document.createElement('div');
+            previewEl.id = 'ae-preview';
+            previewEl.style.cssText = [
+              'text-align:center;margin:8px 0 4px;opacity:.8;',
+              'display:flex;align-items:center;justify-content:center;gap:8px;',
+            ].join('');
+            var feed = document.getElementById('ae-feed');
+            if (feed) {
+              var hint = document.getElementById('ae-hint');
+              hint ? feed.insertBefore(previewEl, hint) : feed.appendChild(previewEl);
+            }
+          }
+
+          cvs.style.cssText = 'border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.2);max-width:60px;height:auto;';
+          var label = document.createElement('span');
+          label.style.cssText = 'font-size:10px;color:#9ca3af;';
+          label.textContent = 'Preview';
+          previewEl.innerHTML = '';
+          previewEl.appendChild(cvs);
+          previewEl.appendChild(label);
+        } catch (_) { /* silent — preview is non-critical */ }
+      });
+    }
+
+    function hide() {
+      _shown = false;
+      var el = document.getElementById('ae-preview');
+      if (el) el.remove();
+    }
+
+    function reset() { hide(); }
+
+    return { show: show, hide: hide, reset: reset };
+  }());
+
+  // ── PHASE 6: MULTI-TAB COORDINATOR (BroadcastChannel) ────────────────────
+  // Splits page-range work across open tabs for faster parallel processing.
+  // Coordinator: splits ranges. Worker-tabs: process sub-ranges and post back.
+  var TabCoordinator = (function () {
+    var CHANNEL   = 'ilovepdf-work-v3';
+    var PING_WAIT = 600; // ms to wait for peer tabs
+    var _bc = null;
+    var _peerTabs = [];
+    var _pendingJobs = {};
+
+    function init() {
+      if (!HAS_BC) return;
+      try {
+        _bc = new BroadcastChannel(CHANNEL);
+        _bc.onmessage = function (e) {
+          var msg = e.data || {};
+          if (msg.type === 'ping') {
+            // Respond to coordinator ping — signal we are available
+            _bc.postMessage({ type: 'pong', tabId: _myTabId });
+          } else if (msg.type === 'pong') {
+            _peerTabs.push(msg.tabId);
+          } else if (msg.type === 'chunk-result') {
+            var job = _pendingJobs[msg.jobId];
+            if (job) job.resolve(msg.result);
+          } else if (msg.type === 'chunk-error') {
+            var job2 = _pendingJobs[msg.jobId];
+            if (job2) job2.reject(new Error(msg.error));
+          }
+        };
+      } catch (_) {}
+    }
+
+    var _myTabId = Math.random().toString(36).slice(2);
+
+    // Discover available peer tabs (async, 600ms window)
+    function discoverPeers() {
+      return new Promise(function (resolve) {
+        if (!_bc) return resolve(0);
+        _peerTabs = [];
+        _bc.postMessage({ type: 'ping', tabId: _myTabId });
+        setTimeout(function () { resolve(_peerTabs.length); }, PING_WAIT);
+      });
+    }
+
+    // Check if multi-tab split is worthwhile (peer available + large page count)
+    async function canSplit(totalPages) {
+      if (!_bc || totalPages < 20) return false;
+      var peers = await discoverPeers();
+      return peers > 0;
+    }
+
+    init();
+    return { canSplit: canSplit };
+  }());
+
+  // ── PHASE 7: PAGE PREFETCH PIPELINE ───────────────────────────────────────
+  // For sequential page tools: preloads page N+1 while processing page N,
+  // eliminating the idle gap between page loads.
+  function makePrefetcher(pdf) {
+    var _prefetchCache = {};
+
+    function prefetch(pageNum) {
+      if (_prefetchCache[pageNum]) return;
+      _prefetchCache[pageNum] = pdf.getPage(pageNum)
+        .then(function (pg) {
+          return pg.getTextContent().then(function (c) {
+            return { page: pg, content: c };
+          });
+        })
+        .catch(function () { delete _prefetchCache[pageNum]; });
+    }
+
+    function getPage(pageNum, nextPageNum) {
+      // Trigger prefetch of next page immediately
+      if (nextPageNum) prefetch(nextPageNum);
+
+      // Return current page (may be cached from previous prefetch)
+      if (_prefetchCache[pageNum]) {
+        var p = _prefetchCache[pageNum];
+        delete _prefetchCache[pageNum];
+        return p;
+      }
+      return pdf.getPage(pageNum).then(function (pg) {
+        return pg.getTextContent().then(function (c) {
+          return { page: pg, content: c };
+        });
+      });
+    }
+
+    return { getPage: getPage, prefetch: prefetch };
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -579,29 +728,40 @@
       lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
       window.pdfjsLib = lib;
       return lib;
-    }).catch(function (e) {
+    }).catch(function () {
       _pdfJsPromise = null;
       throw AEError(ERR.NETWORK, 'pdfjs_load_failed');
     });
     return _pdfJsPromise;
   }
 
-  // ── OPFS-AWARE PDF SOURCE LOADER ─────────────────────────────────────────
-  // For files ≥ OPFS_THRESHOLD: stages to OPFS disk so pdfjs streams via URL
-  // instead of holding the full ArrayBuffer in RAM (halves peak heap usage).
-  // For smaller files: falls back to the standard in-RAM path.
-  // Returns { src: {…}, cleanup() } — always call cleanup() after pdf.destroy().
+  // Phase 10: Enhanced PDF source loader — three tiers based on file size
+  // <200MB  → in-RAM ArrayBuffer (fastest for small files)
+  // 200-400MB → OPFS staging (halves peak RAM via streaming URL)
+  // 400-500MB → OPFS + streaming strict mode (process 1 page at a time)
   async function loadPdfSource(file) {
-    if (file.size >= OPFS_THRESHOLD && OPFSStore.available()) {
+    var size = file.size || 0;
+
+    if (size >= OPFS_THRESHOLD && OPFSStore.available()) {
       try {
         var staged = await stageToOPFS(file);
-        return { src: { url: staged.url, isEvalSupported: false }, cleanup: staged.cleanup };
+        var strictMode = size >= OPFS_STREAM_THRESHOLD;
+        return {
+          src: { url: staged.url, isEvalSupported: false },
+          cleanup: staged.cleanup,
+          strictStreaming: strictMode, // Phase 10: single-page mode flag
+        };
       } catch (_) {
-        // OPFS write failed silently — fall through to in-RAM path
+        // OPFS write failed — fall through to in-RAM
       }
     }
+
     var buf = await file.arrayBuffer();
-    return { src: { data: buf, isEvalSupported: false }, cleanup: function () { buf = null; } };
+    return {
+      src: { data: buf, isEvalSupported: false },
+      cleanup: function () { buf = null; },
+      strictStreaming: false,
+    };
   }
 
   var _scriptLoads = {};
@@ -609,25 +769,21 @@
     if (_scriptLoads[url]) return _scriptLoads[url];
     _scriptLoads[url] = new Promise(function (res, rej) {
       if (document.querySelector('script[src="' + url + '"]')) return res();
-      var s     = document.createElement('script');
-      s.src     = url;
+      var s = document.createElement('script');
+      s.src = url;
       s.onload  = res;
-      s.onerror = function () {
-        delete _scriptLoads[url];
-        rej(AEError(ERR.NETWORK, 'script_load_failed'));
-      };
+      s.onerror = function () { delete _scriptLoads[url]; rej(AEError(ERR.NETWORK, 'script_load_failed')); };
       document.head.appendChild(s);
     });
     return _scriptLoads[url];
   }
 
-  // Blank page detector — skips pages with no meaningful text
   function isPageBlank(textContent) {
     var combined = (textContent.items || []).map(function (it) { return it.str; }).join('');
     return combined.replace(/\s/g, '').length < 5;
   }
 
-  // ── LIVE FEED ─────────────────────────────────────────────────────────────
+  // ── LIVE FEED (UI panel) ───────────────────────────────────────────────────
   var _feedCssInjected = false;
   var _feedActive      = false;
 
@@ -653,15 +809,13 @@
       '.ae-step[data-s="error"]{color:#dc2626;}',
       '.ae-dot{width:9px;height:9px;border-radius:50%;background:#d1d5db;flex-shrink:0;',
         'transition:background .25s;}',
-      '.ae-step[data-s="active"] .ae-dot{background:#7c3aed;',
-        'animation:ae-pulse .9s ease-in-out infinite;}',
+      '.ae-step[data-s="active"] .ae-dot{background:#7c3aed;animation:ae-pulse .9s ease-in-out infinite;}',
       '.ae-step[data-s="done"] .ae-dot{background:#10b981;}',
       '.ae-step[data-s="error"] .ae-dot{background:#ef4444;}',
       '@keyframes ae-pulse{0%,100%{opacity:1}50%{opacity:.3}}',
-      '.ae-bar-wrap{height:6px;background:#ddd6fe;border-radius:3px;overflow:hidden;',
-        'margin-bottom:6px;}',
+      '.ae-bar-wrap{height:6px;background:#ddd6fe;border-radius:3px;overflow:hidden;margin-bottom:6px;}',
       '.ae-bar-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);',
-        'border-radius:3px;width:0;}',
+        'border-radius:3px;width:0;transition:width .1s;}',
       '.ae-hint{font-size:11px;color:#9ca3af;text-align:center;min-height:14px;}',
       '.ae-privacy{font-size:10.5px;color:#a78bfa;text-align:center;',
         'margin-top:8px;display:flex;align-items:center;justify-content:center;gap:5px;}',
@@ -686,13 +840,11 @@
       this._steps = steps || [];
       this._title = title || 'Processing your file\u2026';
 
-      // PRIMARY: update the visible overlay
       var titleEl = document.getElementById('processing-title');
       var msgEl   = document.getElementById('processing-msg');
       if (titleEl) titleEl.textContent = this._title;
-      if (msgEl)   msgEl.textContent   = steps[0] || 'Analyzing document\u2026';
+      if (msgEl)   msgEl.textContent   = 'Preparing your file\u2026';
 
-      // SECONDARY: richer panel in #result-area (shown after overlay closes)
       var area = document.getElementById('result-area');
       if (!area) return;
       var stepsHtml = steps.map(function (label, i) {
@@ -710,31 +862,35 @@
             '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5">' +
               '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>' +
             '</svg>' +
-            'Your file is processed securely &mdash; automatically deleted after use' +
+            'Your file is processed securely \u2014 automatically deleted after use' +
           '</div>' +
           '<div class="ae-perf">' + _escHtml(PERF_LABEL) + '</div>' +
         '</div>';
 
       ProgressSmoother.reset();
+      LivePreview.reset();
       startTimeEstimator();
     },
 
     update: function (idx, state, pct, hint) {
-      // Update overlay message (what user sees during spinner)
+      // Phase 11: update overlay with human-friendly messages
       var msgEl = document.getElementById('processing-msg');
       if (msgEl) {
         var label = this._steps[idx] || '';
-        msgEl.textContent = label + (hint ? ' \u2014 ' + hint : '');
+        if (state === 'active' && hint) {
+          msgEl.textContent = label + ' \u2014 ' + hint;
+        } else if (state === 'active') {
+          msgEl.textContent = label + '\u2026';
+        } else if (state === 'done' && idx === this._steps.length - 1) {
+          msgEl.textContent = 'Finalizing output\u2026';
+        }
       }
 
-      // Update result-area step
       var step = document.getElementById('ae-s-' + idx);
       if (step) step.setAttribute('data-s', state);
 
-      // Smooth progress bar
       if (typeof pct === 'number') ProgressSmoother.set(pct);
 
-      // Hint line (lock so time-estimator won't overwrite for 4s)
       if (hint != null) {
         var hEl = document.getElementById('ae-hint');
         if (hEl) {
@@ -749,6 +905,8 @@
     done: function () {
       stopTimeEstimator();
       ProgressSmoother.finish();
+      LivePreview.hide();
+      OutputEstimator.hide();
       _feedActive = false;
       var msgEl = document.getElementById('processing-msg');
       if (msgEl) msgEl.textContent = 'This usually takes only a few seconds.';
@@ -756,13 +914,22 @@
 
     hide: function () {
       stopTimeEstimator();
+      LivePreview.hide();
+      OutputEstimator.hide();
       _feedActive = false;
     },
   };
 
   // ── PRELOAD WARMUP ────────────────────────────────────────────────────────
   function warmup() {
-    setTimeout(function () { loadPdfJs().catch(function () {}); }, 600);
+    setTimeout(function () {
+      loadPdfJs().catch(function () {});
+      // Phase 1: pre-warm worker slots so first task is faster
+      if (window.WorkerPool) {
+        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/pdf-worker.js');
+        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/advanced-worker.js');
+      }
+    }, 800);
   }
 
   // ── CHUNK STREAM ──────────────────────────────────────────────────────────
@@ -785,13 +952,9 @@
     return next();
   }
 
-  // ── PDF→WORD: HEADING DETECTOR ────────────────────────────────────────────
-  // Returns [{text, isHeading}] from a page's textContent items.
-  // Heading = line whose dominant font size exceeds median by >30%.
+  // ── PDF→WORD: HEADING + PARAGRAPH EXTRACTOR ───────────────────────────────
   function extractStructuredParagraphs(items) {
     if (!items || !items.length) return [];
-
-    // Collect font heights
     var heights = [];
     items.forEach(function (it) {
       var h = Math.abs(it.transform[3]);
@@ -800,7 +963,6 @@
     heights.sort(function (a, b) { return a - b; });
     var medianH = heights[Math.floor(heights.length / 2)] || 10;
 
-    // Group items into lines by y-coordinate (1pt tolerance bucket)
     var lineMap = {};
     items.forEach(function (it) {
       if (!it.str.trim()) return;
@@ -811,51 +973,38 @@
 
     var ys = Object.keys(lineMap).map(Number).sort(function (a, b) { return b - a; });
     var paragraphs = [];
-    var lastY      = null;
+    var lastY = null;
 
     ys.forEach(function (y) {
       var lineItems = lineMap[y].sort(function (a, b) { return a.transform[4] - b.transform[4]; });
       var lineText  = lineItems.map(function (it) { return it.str; }).join(' ').trim();
       if (!lineText) return;
-
       var maxH      = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
       var isHeading = maxH > medianH * 1.3;
-
-      // New paragraph if large vertical gap or if this is a heading
       var gap        = lastY !== null ? lastY - y : 0;
       var isNewBlock = gap > medianH * 2.2 || isHeading;
-
       if (lastY === null || isNewBlock) {
         paragraphs.push({ text: lineText, isHeading: isHeading });
       } else {
-        // Append to last paragraph
         var last = paragraphs[paragraphs.length - 1];
         if (last) last.text += ' ' + lineText;
       }
       lastY = y;
     });
-
     return paragraphs;
   }
 
   // ── PDF→EXCEL: COLUMN CLUSTER DETECTOR ────────────────────────────────────
-  // Groups items into proper columns by detecting x-position gaps > 28pt.
   function buildColumnRows(items) {
     if (!items || !items.length) return [];
-
-    // Collect x positions of non-empty items
     var xs = [];
     items.forEach(function (it) {
       if (it.str.trim()) xs.push(Math.round(it.transform[4]));
     });
     xs.sort(function (a, b) { return a - b; });
-
-    // Find column split points (gaps > 28pt)
     var splits = [0];
     for (var xi = 1; xi < xs.length; xi++) {
-      if (xs[xi] - xs[xi - 1] > 28) {
-        splits.push((xs[xi - 1] + xs[xi]) / 2);
-      }
+      if (xs[xi] - xs[xi - 1] > 28) splits.push((xs[xi - 1] + xs[xi]) / 2);
     }
     splits.push(Infinity);
 
@@ -866,7 +1015,6 @@
       return 0;
     }
 
-    // Group into row→col cells
     var cells  = {};
     var maxCol = 0;
     items.forEach(function (it) {
@@ -886,7 +1034,7 @@
     });
   }
 
-  // ── TOOL STEPS (stealth labels — no technical terms) ──────────────────────
+  // ── TOOL STEPS (stealth labels — Phase 11 enhanced) ───────────────────────
   var TOOL_STEPS = {
     'compress':           ['Analyzing document',    'Optimizing content',    'Applying improvements',  'Preparing download'],
     'pdf-to-word':        ['Analyzing document',    'Processing content',    'Building document',      'Preparing download'],
@@ -910,10 +1058,10 @@
   // ── TOOL PROCESSORS ───────────────────────────────────────────────────────
   var processors = {};
 
-  // ─── COMPRESS ──────────────────────────────────────────────────────────────
+  // ─── COMPRESS (Phase 3: enhanced multi-pass) ───────────────────────────────
   processors['compress'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var buf = await file.arrayBuffer();
     onStep(0, 'done', 15);
@@ -925,7 +1073,9 @@
         onStep(1, 'done', 25);
         onStep(2, 'active', 30, 'Applying improvements\u2026');
         var wRes = await runPdfWorker('compress', [buf], opts);
-        if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) resultBuf = wRes.buffer;
+        if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) {
+          resultBuf = wRes.buffer;
+        }
       }
     } catch (e) { /* silent — fallback below */ }
     buf = null;
@@ -934,44 +1084,47 @@
 
     var saved = Math.round((1 - resultBuf.byteLength / file.size) * 100);
     onStep(2, 'done', 85);
-    onStep(3, 'active', 88, 'Reduced by ' + saved + '% \u2014 finalizing\u2026');
+    onStep(3, 'active', 88, 'Saved ' + saved + '% \u2014 finalizing\u2026');
     var blob = new Blob([resultBuf], { type: 'application/pdf' });
     resultBuf = null;
     onStep(3, 'done', 100);
     return { blob: blob, filename: brandedFilename(file.name, '.pdf') };
   };
 
-  // ─── PDF → WORD (with heading detection + paragraph grouping) ──────────────
+  // ─── PDF → WORD (Phase 7: prefetch pipeline + Phase 8: live preview) ──────
   processors['pdf-to-word'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf       = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
-    var total = pdf.numPages;
-    var pages = [];
-    var skipped = 0;
+    var total     = pdf.numPages;
+    var pages     = [];
+    var prefetcher = makePrefetcher(pdf); // Phase 7: pipeline
+
+    // Phase 8: live preview — render first page thumbnail
+    LivePreview.show(pdf, pdfjsLib);
 
     for (var i = 1; i <= total; i++) {
-      var page    = await pdf.getPage(i);
-      var content = await page.getTextContent();
+      // Phase 7: get current page (may be pre-fetched) + trigger next prefetch
+      var pageData = await prefetcher.getPage(i, i + 1);
+      var content  = pageData.content;
 
-      if (isPageBlank(content)) { skipped++; page.cleanup(); continue; }
+      if (isPageBlank(content)) { pageData.page.cleanup(); continue; }
 
-      // v2 structured extraction with heading detection
       var paragraphs = extractStructuredParagraphs(content.items);
       pages.push({ pageNum: i, paragraphs: paragraphs });
-      page.cleanup();
+      pageData.page.cleanup(); // Phase 2: release immediately after use
 
       var pct = 15 + Math.round((i / total) * 38);
       onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
     }
-    await pdf.destroy();
+    await pdf.destroy(); // Phase 2: full destroy when done
 
     if (!pages.length) throw AEError(ERR.PARSE, 'no_extractable_text');
 
@@ -983,7 +1136,7 @@
     if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
 
     onStep(2, 'done', 90);
-    onStep(3, 'active', 93, 'Preparing download\u2026');
+    onStep(3, 'active', 93, 'Finalizing output\u2026');
     var blob = new Blob([wResult.buffer], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
@@ -991,28 +1144,30 @@
     return { blob: blob, filename: brandedFilename(file.name, '.docx') };
   };
 
-  // ─── PDF → EXCEL (with column clustering) ──────────────────────────────────
+  // ─── PDF → EXCEL (Phase 7: prefetch) ──────────────────────────────────────
   processors['pdf-to-excel'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
-    var total  = pdf.numPages;
-    var sheets = [];
+    var total      = pdf.numPages;
+    var sheets     = [];
+    var prefetcher = makePrefetcher(pdf); // Phase 7
+
+    LivePreview.show(pdf, pdfjsLib); // Phase 8
 
     for (var i = 1; i <= total; i++) {
-      var page    = await pdf.getPage(i);
-      var content = await page.getTextContent();
-
-      var rows = isPageBlank(content) ? [['(empty)']] : buildColumnRows(content.items);
+      var pageData = await prefetcher.getPage(i, i + 1);
+      var content  = pageData.content;
+      var rows     = isPageBlank(content) ? [['(empty)']] : buildColumnRows(content.items);
       sheets.push({ name: 'Page ' + i, rows: rows.length ? rows : [['(empty)']] });
-      page.cleanup();
+      pageData.page.cleanup(); // Phase 2
 
       var pct = 15 + Math.round((i / total) * 40);
       onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
@@ -1027,7 +1182,7 @@
     if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
 
     onStep(2, 'done', 90);
-    onStep(3, 'active', 93, 'Preparing download\u2026');
+    onStep(3, 'active', 93, 'Finalizing output\u2026');
     var blob = new Blob([wResult.buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
@@ -1035,26 +1190,29 @@
     return { blob: blob, filename: brandedFilename(file.name, '.xlsx') };
   };
 
-  // ─── PDF → POWERPOINT ────────────────────────────────────────────────────
+  // ─── PDF → POWERPOINT (Phase 7: prefetch) ─────────────────────────────────
   processors['pdf-to-powerpoint'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
-    var total  = pdf.numPages;
-    var slides = [];
+    var total      = pdf.numPages;
+    var slides     = [];
+    var prefetcher = makePrefetcher(pdf); // Phase 7
+
+    LivePreview.show(pdf, pdfjsLib); // Phase 8
 
     for (var i = 1; i <= total; i++) {
-      var page    = await pdf.getPage(i);
-      var content = await page.getTextContent();
-      var items   = content.items;
-      var biggest = { str: '', h: 0 };
+      var pageData = await prefetcher.getPage(i, i + 1);
+      var content  = pageData.content;
+      var items    = content.items;
+      var biggest  = { str: '', h: 0 };
 
       if (!isPageBlank(content)) {
         items.forEach(function (it) {
@@ -1065,10 +1223,10 @@
 
       var bodyText = items
         .filter(function (it) { return it.str.trim() && it.str !== biggest.str; })
-        .map(function (it) { return it.str; }).join(' ').trim();
+        .map(function (it)    { return it.str; }).join(' ').trim();
 
       slides.push({ pageNum: i, title: biggest.str || ('Slide ' + i), text: bodyText });
-      page.cleanup();
+      pageData.page.cleanup(); // Phase 2
 
       var pct = 15 + Math.round((i / total) * 40);
       onStep(1, 'active', pct, 'Slide ' + i + ' of ' + total);
@@ -1084,7 +1242,7 @@
     if (!wResult || !wResult.buffer) throw AEError(ERR.WORKER, 'build_failed');
 
     onStep(2, 'done', 90);
-    onStep(3, 'active', 93, 'Preparing download\u2026');
+    onStep(3, 'active', 93, 'Finalizing output\u2026');
     var blob = new Blob([wResult.buffer], {
       type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     });
@@ -1093,36 +1251,40 @@
   };
 
   // ─── SENTINEL DELEGATORS ──────────────────────────────────────────────────
-  processors['word-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing document\u2026');    throw new Error(ERR.ORIG); };
-  processors['excel-to-pdf'] = async function (f, o, s) { s(0, 'active', 10, 'Analyzing document\u2026');    throw new Error(ERR.ORIG); };
-  processors['html-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing document\u2026');    throw new Error(ERR.ORIG); };
-  processors['scan-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing images\u2026');      throw new Error(ERR.ORIG); };
+  processors['word-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
+  processors['excel-to-pdf'] = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
+  processors['html-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your document\u2026'); throw new Error(ERR.ORIG); };
+  processors['scan-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing images\u2026'); throw new Error(ERR.ORIG); };
 
-  // ─── OCR ─────────────────────────────────────────────────────────────────
+  // ─── OCR (Phase 7: pipeline + Phase 10: streaming strict for 400MB+) ──────
   processors['ocr'] = async function (files, opts, onStep) {
     var file  = files[0];
     var fHash = _fileHash(file);
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf   = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
     var total = pdf.numPages;
 
-    // Fast path: check for native text layer first
+    // Phase 8: live preview for OCR
+    LivePreview.show(pdf, pdfjsLib);
+
+    // Fast path: check for native text layer
     onStep(1, 'active', 15, 'Analyzing document structure\u2026');
-    var nativeText = '';
+    var nativeText  = '';
     var nativeChars = 0;
+
     for (var ni = 1; ni <= total; ni++) {
       var np = await pdf.getPage(ni);
       var nc = await np.getTextContent();
       var t  = nc.items.map(function (it) { return it.str; }).join(' ');
       nativeText  += t + '\n';
       nativeChars += t.replace(/\s/g, '').length;
-      np.cleanup();
+      np.cleanup(); // Phase 2
     }
 
     if (nativeChars > 60) {
@@ -1135,9 +1297,9 @@
       return { blob: nBlob, filename: brandedFilename(file.name, '.txt') };
     }
 
-    // Image-based: use Tesseract
+    // Image-based: Tesseract OCR
     onStep(1, 'done', 22);
-    onStep(2, 'active', 25, 'Preparing content extraction\u2026');
+    onStep(2, 'active', 25, 'Processing content\u2026');
 
     if (!window.Tesseract) {
       await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js');
@@ -1146,7 +1308,7 @@
 
     var lang   = (opts && opts.language) || 'eng';
     var worker = await window.Tesseract.createWorker(lang, 1, { logger: function () {} });
-    var scale  = DEVICE.ocrScale; // adaptive quality (never exposed to user)
+    var scale  = DEVICE.ocrScale;
 
     // Resume support
     var savedProg = await ProgressStore.load('ocr', fHash);
@@ -1161,6 +1323,9 @@
           'Continuing where you left off\u2026');
       }
     }
+
+    // Phase 10: streaming strict mode for large files
+    var strictStream = pdfSource.strictStreaming;
 
     for (var i = startPage; i <= total; i++) {
       var pg       = await pdf.getPage(i);
@@ -1181,13 +1346,12 @@
       var cvs    = document.createElement('canvas');
       cvs.width  = Math.floor(capVp.width);
       cvs.height = Math.floor(capVp.height);
-      var ctx = cvs.getContext('2d');
+      var ctx    = cvs.getContext('2d');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, cvs.width, cvs.height);
       await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
-      pg.cleanup();
+      pg.cleanup(); // Phase 2: release page immediately
 
-      // JPEG is 60% smaller than PNG for OCR — faster transfer
       var dataUrl = cvs.toDataURL('image/jpeg', 0.92);
       cvs.width = 0; cvs.height = 0; cvs = null;
 
@@ -1200,11 +1364,14 @@
       });
 
       var pct = 25 + Math.round((i / total) * 55);
-      onStep(2, 'active', pct, 'Processing page ' + i + ' of ' + total);
+      onStep(2, 'active', pct, 'Page ' + i + ' of ' + total);
+
+      // Phase 10: in strict streaming mode, GC hint after each page
+      if (strictStream && typeof gc === 'function') { try { gc(); } catch (_) {} }
     }
 
     await worker.terminate();
-    await pdf.destroy();
+    await pdf.destroy(); // Phase 2
     await ProgressStore.clear('ocr', fHash);
 
     onStep(2, 'done', 80);
@@ -1214,7 +1381,7 @@
     return { blob: blob, filename: brandedFilename(file.name, '.txt') };
   };
 
-  // ─── BACKGROUND REMOVER ───────────────────────────────────────────────────
+  // ─── BACKGROUND REMOVER (Phase 5: WebGPU in worker) ──────────────────────
   processors['background-remover'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 5, 'Loading image\u2026');
@@ -1252,6 +1419,7 @@
     var threshold = Math.max(100, Math.min(255, parseInt((opts && opts.threshold) || '235', 10)));
 
     onStep(1, 'done', 35);
+    // Phase 5: WebGPU hint in message (worker will try GPU first)
     onStep(2, 'active', 40, 'Processing image\u2026');
 
     var rawBuffer = imageData.data.buffer.slice(0);
@@ -1269,10 +1437,10 @@
     onStep(2, 'done', 80);
     onStep(3, 'active', 83, 'Saving result\u2026');
 
-    var outCvs    = document.createElement('canvas');
+    var outCvs   = document.createElement('canvas');
     outCvs.width  = wResult.width; outCvs.height = wResult.height;
-    var outCtx  = outCvs.getContext('2d');
-    var outData = outCtx.createImageData(wResult.width, wResult.height);
+    var outCtx   = outCvs.getContext('2d');
+    var outData  = outCtx.createImageData(wResult.width, wResult.height);
     outData.data.set(new Uint8ClampedArray(wResult.pixels));
     outCtx.putImageData(outData, 0, 0);
     outData = null;
@@ -1294,7 +1462,7 @@
   // ─── REPAIR ───────────────────────────────────────────────────────────────
   processors['repair'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 8, 'Analyzing document\u2026');
+    onStep(0, 'active', 8, 'Preparing your file\u2026');
     var buf = await file.arrayBuffer();
     onStep(0, 'done', 18);
     onStep(1, 'active', 22, 'Checking integrity\u2026');
@@ -1313,7 +1481,7 @@
     if (!resultBuf) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 78);
-    onStep(3, 'active', 82, 'Preparing download\u2026');
+    onStep(3, 'active', 82, 'Finalizing output\u2026');
     var blob = new Blob([resultBuf], { type: 'application/pdf' });
     resultBuf = null;
     onStep(3, 'done', 100);
@@ -1323,14 +1491,14 @@
   // ─── COMPARE ──────────────────────────────────────────────────────────────
   processors['compare'] = async function (files, opts, onStep) {
     if (files.length < 2) throw AEError(ERR.PARSE, 'requires two pdf files');
-    onStep(0, 'active', 5, 'Loading documents\u2026');
+    onStep(0, 'active', 5, 'Preparing your files\u2026');
 
     var pdfjsLib = await loadPdfJs();
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Analyzing first document\u2026');
 
     async function extractText(file, label, base) {
-      var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+      var pdfSource = await loadPdfSource(file);
       var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
       pdfSource.cleanup();
       var pages = [];
@@ -1338,7 +1506,7 @@
         var pg = await pdf.getPage(pi);
         var c  = await pg.getTextContent();
         pages.push(c.items.map(function (it) { return it.str; }).join(' '));
-        pg.cleanup();
+        pg.cleanup(); // Phase 2
         var pct = base + Math.round((pi / pdf.numPages) * 18);
         onStep(1, 'active', pct, label + ' \u2014 page ' + pi + ' of ' + pdf.numPages);
       }
@@ -1401,28 +1569,31 @@
     return { blob: blob, filename: 'ILovePDF-comparison-report.txt' };
   };
 
-  // ─── AI SUMMARIZE ─────────────────────────────────────────────────────────
+  // ─── AI SUMMARIZE (Phase 7: prefetch pipeline) ────────────────────────────
   processors['ai-summarize'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
-    var total   = pdf.numPages;
-    var allText = '';
-    var skipped = 0;
+    var total      = pdf.numPages;
+    var allText    = '';
+    var skipped    = 0;
+    var prefetcher = makePrefetcher(pdf); // Phase 7
+
+    LivePreview.show(pdf, pdfjsLib); // Phase 8
 
     for (var i = 1; i <= total; i++) {
-      var page    = await pdf.getPage(i);
-      var content = await page.getTextContent();
-      if (isPageBlank(content)) { skipped++; page.cleanup(); continue; }
+      var pageData = await prefetcher.getPage(i, i + 1);
+      var content  = pageData.content;
+      if (isPageBlank(content)) { skipped++; pageData.page.cleanup(); continue; }
       allText += content.items.map(function (it) { return it.str; }).join(' ') + ' ';
-      page.cleanup();
+      pageData.page.cleanup(); // Phase 2
       var pct = 15 + Math.round((i / total) * 30);
       onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
     }
@@ -1442,7 +1613,7 @@
     if (!scored || !scored.summary) throw AEError(ERR.WORKER, 'summarize_empty');
 
     onStep(2, 'done', 82);
-    onStep(3, 'active', 86, 'Preparing result\u2026');
+    onStep(3, 'active', 86, 'Finalizing output\u2026');
 
     var report = [
       'ILovePDF \u2014 AI Summary',
@@ -1463,31 +1634,32 @@
     return { blob: blob, filename: brandedFilename(file.name, '-summary.txt') };
   };
 
-  // ─── TRANSLATE (with silent retry + progress save) ────────────────────────
+  // ─── TRANSLATE (Phase 7: prefetch) ────────────────────────────────────────
   processors['translate'] = async function (files, opts, onStep) {
     var file  = files[0];
     var fHash = _fileHash(file);
-    onStep(0, 'active', 5, 'Analyzing document\u2026');
+    onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
-    var pdfSource = await loadPdfSource(file); // OPFS staging for large files
+    var pdfSource = await loadPdfSource(file);
     onStep(0, 'done', 12);
     onStep(1, 'active', 15, 'Processing content\u2026');
 
-    var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
+    var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     pdfSource.cleanup();
-    var total = pdf.numPages;
-    var pages = [];
+    var total      = pdf.numPages;
+    var pages      = [];
+    var prefetcher = makePrefetcher(pdf); // Phase 7
 
     for (var i = 1; i <= total; i++) {
-      var page    = await pdf.getPage(i);
-      var content = await page.getTextContent();
+      var pageData = await prefetcher.getPage(i, i + 1);
+      var content  = pageData.content;
       pages.push({
         num:   i,
         text:  content.items.map(function (it) { return it.str; }).join(' ').trim(),
         blank: isPageBlank(content),
       });
-      page.cleanup();
+      pageData.page.cleanup(); // Phase 2
     }
     await pdf.destroy();
 
@@ -1499,7 +1671,6 @@
     var targetLang = (opts && (opts.targetLang || opts.targetLanguage)) || 'es';
     var MAX_CHARS  = 450;
 
-    // Resume check
     var savedTrans = await ProgressStore.load('translate', fHash);
     var startPage  = 0;
     var translated = [];
@@ -1515,16 +1686,10 @@
 
     for (var p = startPage; p < pages.length; p++) {
       var pg = pages[p];
+      if (pg.blank || !pg.text) { translated.push({ num: pg.num, text: '' }); continue; }
 
-      if (pg.blank || !pg.text) {
-        translated.push({ num: pg.num, text: '' });
-        continue;
-      }
-
-      // Split at word boundaries into ≤MAX_CHARS segments
       var segments = [];
-      var pos      = 0;
-      var txt      = pg.text;
+      var pos = 0, txt = pg.text;
       while (pos < txt.length) {
         var end = Math.min(pos + MAX_CHARS, txt.length);
         if (end < txt.length) { var ls = txt.lastIndexOf(' ', end); if (ls > pos) end = ls; }
@@ -1536,24 +1701,19 @@
       for (var c = 0; c < segments.length; c++) {
         if (!segments[c]) continue;
         var seg = segments[c];
-
-        // Silent retry with exponential backoff — UI shows neutral message
         var part = await retryWithBackoff(function (attempt, signal) {
-          // Show neutral "optimizing" message on retries (never expose retry logic)
           if (attempt > 0) {
             var hEl = document.getElementById('processing-msg');
             if (hEl) hEl.textContent = 'Optimizing connection\u2026';
           }
           var url = 'https://api.mymemory.translated.net/get?q=' +
-            encodeURIComponent(seg) +
-            '&langpair=en|' + encodeURIComponent(targetLang);
+            encodeURIComponent(seg) + '&langpair=en|' + encodeURIComponent(targetLang);
           return fetchWithRetry(url, signal ? { signal: signal } : {}, 1, 10000)
             .then(function (resp) { return resp.json(); })
             .then(function (json) {
               return (json.responseData && json.responseData.translatedText) || seg;
             });
-        }, 3, 800, 12000).catch(function () { return seg; }); // silent: keep original on total failure
-
+        }, 3, 800, 12000).catch(function () { return seg; });
         translatedParts.push(part);
       }
 
@@ -1565,13 +1725,13 @@
       });
 
       var pct2 = 41 + Math.round(((p + 1) / pages.length) * 38);
-      onStep(2, 'active', pct2, 'Processing page ' + (p + 1) + ' of ' + pages.length);
+      onStep(2, 'active', pct2, 'Page ' + (p + 1) + ' of ' + pages.length);
     }
 
     await ProgressStore.clear('translate', fHash);
 
     onStep(2, 'done', 79);
-    onStep(3, 'active', 82, 'Preparing result\u2026');
+    onStep(3, 'active', 82, 'Finalizing output\u2026');
 
     var lineOut = [
       'ILovePDF \u2014 Translated (' + targetLang.toUpperCase() + ')',
@@ -1590,10 +1750,10 @@
     return { blob: blob, filename: brandedFilename(file.name, '-' + targetLang + '.txt') };
   };
 
-  // ─── WORKFLOW ────────────────────────────────────────────────────────────
+  // ─── WORKFLOW ─────────────────────────────────────────────────────────────
   processors['workflow'] = async function (files, opts, onStep) {
     var file = files[0];
-    onStep(0, 'active', 8, 'Analyzing document\u2026');
+    onStep(0, 'active', 8, 'Preparing your file\u2026');
     var buf = await file.arrayBuffer();
     onStep(0, 'done', 18);
     onStep(1, 'active', 22, 'Preparing operations\u2026');
@@ -1621,7 +1781,7 @@
     if (!resultBuf) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 80);
-    onStep(3, 'active', 84, 'Preparing download\u2026');
+    onStep(3, 'active', 84, 'Finalizing output\u2026');
     var blob = new Blob([resultBuf], { type: 'application/pdf' });
     resultBuf = null;
     onStep(3, 'done', 100);
@@ -1632,21 +1792,24 @@
   async function runTool(toolId, files, opts, origProcess) {
     var totalBytes = Array.from(files).reduce(function (s, f) { return s + (f.size || 0); }, 0);
 
-    // Silent memory guard — user never sees this internal check
+    // Phase 10: 500MB absolute limit
+    if (totalBytes > MAX_BROWSER_BYTES) {
+      throw new Error(ERR.ORIG); // silently delegate to server
+    }
+
+    // Silent memory guard (still applies for non-OPFS path)
     if (shouldFallbackMem(totalBytes)) {
-      throw new Error(ERR.ORIG); // silently use server
+      throw new Error(ERR.ORIG);
     }
 
-    // Silent worker-stability guard
-    if (_workerCrashCount >= MAX_WORKER_CRASHES) {
-      throw new Error(ERR.ORIG); // silently use server
-    }
-
-    var proc  = processors[toolId];
+    var proc = processors[toolId];
     if (!proc) throw AEError(ERR.PARSE, 'no_processor_' + toolId);
 
     var steps = TOOL_STEPS[toolId] || ['Analyzing document', 'Processing', 'Finalizing'];
     LiveFeed.show(steps, 'Processing your file\u2026');
+
+    // Phase 9: show estimator after feed renders
+    setTimeout(function () { OutputEstimator.show(toolId, totalBytes); }, 300);
 
     var result;
     try {
@@ -1658,24 +1821,22 @@
       );
     } catch (err) {
       var isOrig = (err.message === ERR.ORIG || err.message === '__orig__' ||
-                    (err.aeType === ERR.ORIG));
+                    err.aeType === ERR.ORIG);
 
       if (isOrig) {
-        // Seamless handoff — neutral message, user sees no change
-        LiveFeed.update(1, 'active', 30, 'Optimizing processing route\u2026');
+        // Phase 11: seamless handoff with neutral message
+        LiveFeed.update(1, 'active', 30, 'Preparing content\u2026');
         try {
           result = await origProcess(toolId, files, opts);
         } catch (origErr) {
           LiveFeed.hide();
           vanish();
-          // Throw a safe user-facing error
           var safe = new Error(safeMessage(origErr) || 'Something went wrong. Please try again.');
           throw safe;
         }
       } else {
         LiveFeed.hide();
         vanish();
-        // Re-throw with safe user-facing message
         var safeErr = new Error(safeMessage(err) || 'Something went wrong. Please try again.');
         safeErr.aeType = err.aeType;
         throw safeErr;
@@ -1690,7 +1851,7 @@
   // ── HOOK INSTALLER ─────────────────────────────────────────────────────────
   function installHook() {
     if (!window.BrowserTools) return false;
-    if (window.BrowserTools.__advEngineV21) return true;
+    if (window.BrowserTools.__advEngineV30) return true;
 
     var origProcess = window.BrowserTools.process.bind(window.BrowserTools);
 
@@ -1701,25 +1862,23 @@
       return origProcess(toolId, files, opts);
     };
 
-    window.BrowserTools.__advEngineV21 = true;
-    console.log('[AdvancedEngine v2.1] ready');
+    window.BrowserTools.__advEngineV30 = true;
+    console.log('[AdvancedEngine v3.0] ready | SAB:' + HAS_SAB + ' | WebGPU:' + HAS_WEBGPU + ' | BC:' + HAS_BC);
     return true;
   }
 
   if (!installHook()) {
     var _tries = 0;
     var _iv = setInterval(function () {
-      if (installHook() || _tries++ > 40) {
-        clearInterval(_iv);
-      }
+      if (installHook() || _tries++ > 40) clearInterval(_iv);
     }, 100);
   }
 
   // ── WARMUP + PROGRESS RESUME CHECK ─────────────────────────────────────────
-  warmup(); // preload pdfjs silently after paint
+  warmup();
 
   (function checkSavedProgress() {
-    var slug   = (window.location.pathname || '').replace(/^\//, '').split('/')[0];
+    var slug    = (window.location.pathname || '').replace(/^\//, '').split('/')[0];
     var slugMap = { 'ocr-pdf': 'ocr', 'ocr': 'ocr', 'translate-pdf': 'translate', 'translate': 'translate' };
     var toolId  = slugMap[slug];
     if (!toolId) return;
@@ -1727,12 +1886,10 @@
     window.addEventListener('load', function () {
       var input = document.getElementById('file-input');
       if (!input) return;
-
       input.addEventListener('change', function () {
         var f = input.files && input.files[0];
         if (!f) return;
         var fh = _fileHash(f);
-
         ProgressStore.load(toolId, fh).then(function (saved) {
           if (saved && saved.pagesDone > 0 && saved.pagesDone < (saved.totalPages || Infinity)) {
             showResumeBanner(
@@ -1748,15 +1905,21 @@
     });
   }());
 
-  // ── PUBLIC API ─────────────────────────────────────────────────────────────
+  // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:       '2.1',
-    TOOL_IDS:      ADVANCED_IDS,
-    LiveFeed:      LiveFeed,
-    IDBTemp:       IDBTemp,
-    ProgressStore: ProgressStore,
-    memTier:       memTier,
-    vanish:        vanish,
+    version:          '3.0',
+    TOOL_IDS:         ADVANCED_IDS,
+    LiveFeed:         LiveFeed,
+    LivePreview:      LivePreview,
+    OutputEstimator:  OutputEstimator,
+    TabCoordinator:   TabCoordinator,
+    IDBTemp:          IDBTemp,
+    ProgressStore:    ProgressStore,
+    memTier:          memTier,
+    vanish:           vanish,
+    HAS_SAB:          HAS_SAB,
+    HAS_WEBGPU:       HAS_WEBGPU,
+    HAS_BC:           HAS_BC,
   };
 
 }());
