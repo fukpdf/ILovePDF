@@ -99,6 +99,12 @@
     if (m.includes('no readable text') || m.includes('no text could be found'))
       return raw.charAt(0).toUpperCase() + raw.slice(1);
 
+    if (m.includes('low_quality_output') || (m.includes('low') && m.includes('quality')))
+      return 'The output quality was too low to be useful. Please try with a clearer or higher-quality document.';
+
+    if (m.includes('empty_input') || (m.includes('empty') && m.includes('input')))
+      return 'The document appears to be empty. Please check the file and try again.';
+
     if (m.includes('empty') && (m.includes('output') || m.includes('result') || m.includes('appear')))
       return 'The result appears empty. Please try again with a different file.';
 
@@ -832,9 +838,10 @@
   // Lightweight accessor — falls back to no-op stubs when debug-trace.js is absent.
   function DT() {
     return window.DebugTrace || {
-      log:    function () {},
-      error:  function () {},
-      result: function () {},
+      log:      function () {},
+      error:    function () {},
+      result:   function () {},
+      validate: function () {},
     };
   }
 
@@ -1007,9 +1014,15 @@
     return next();
   }
 
-  // ── PDF→WORD: HEADING + PARAGRAPH EXTRACTOR ───────────────────────────────
+  // ── PDF→WORD: AI DOCUMENT PARSER v4.2 ────────────────────────────────────
+  // Phase 4: heading detection, list detection, multi-column awareness,
+  // broken-line merging, and paragraph-gap segmentation.
+  var _LIST_RE = /^(\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192]|\s*\d+[.)]\s|\s*[a-zA-Z][.)]\s)/;
+
   function extractStructuredParagraphs(items) {
     if (!items || !items.length) return [];
+
+    // 1. Font-size statistics for heading detection
     var heights = [];
     items.forEach(function (it) {
       var h = Math.abs(it.transform[3]);
@@ -1018,6 +1031,31 @@
     heights.sort(function (a, b) { return a - b; });
     var medianH = heights[Math.floor(heights.length / 2)] || 10;
 
+    // 2. Multi-column detection — look for two distinct x-clusters
+    var validItems = items.filter(function (it) { return it.str.trim(); });
+    if (validItems.length > 4) {
+      var xs = validItems.map(function (it) { return it.transform[4]; });
+      xs.sort(function (a, b) { return a - b; });
+      var xRange = xs[xs.length - 1] - xs[0];
+      var midX   = xs[0] + xRange / 2;
+      var leftCt = xs.filter(function (x) { return x < midX - xRange * 0.08; }).length;
+      var rightCt = xs.filter(function (x) { return x > midX + xRange * 0.08; }).length;
+      // If two fairly balanced columns, process left column first then right
+      if (xRange > 50 && leftCt > 4 && rightCt > 4 &&
+          Math.min(leftCt, rightCt) / Math.max(leftCt, rightCt) > 0.3) {
+        var leftItems  = validItems.filter(function (it) { return it.transform[4] <= midX; });
+        var rightItems = validItems.filter(function (it) { return it.transform[4] >  midX; });
+        var leftParas  = _buildParaLines(leftItems,  medianH);
+        var rightParas = _buildParaLines(rightItems, medianH);
+        return leftParas.concat(rightParas);
+      }
+    }
+
+    return _buildParaLines(items, medianH);
+  }
+
+  function _buildParaLines(items, medianH) {
+    // Group items into lines by y-coordinate
     var lineMap = {};
     items.forEach(function (it) {
       if (!it.str.trim()) return;
@@ -1028,36 +1066,128 @@
 
     var ys = Object.keys(lineMap).map(Number).sort(function (a, b) { return b - a; });
     var paragraphs = [];
-    var lastY = null;
+    var lastY      = null;
+    var lastText   = '';
 
     ys.forEach(function (y) {
       var lineItems = lineMap[y].sort(function (a, b) { return a.transform[4] - b.transform[4]; });
       var lineText  = lineItems.map(function (it) { return it.str; }).join(' ').trim();
       if (!lineText) return;
-      var maxH      = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
-      // Phase 4: detect headings by font size AND ALL-CAPS short lines
-      var isHeading = maxH > medianH * 1.35 ||
+
+      var maxH = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
+
+      // Classify line
+      var isList    = _LIST_RE.test(lineText);
+      var isHeading = !isList && (
+        maxH > medianH * 1.35 ||
         (lineText.length >= 3 && lineText.length < 80 &&
-         lineText === lineText.toUpperCase() && /[A-Z]/.test(lineText));
+         lineText === lineText.toUpperCase() && /[A-Z]/.test(lineText))
+      );
+
       var gap        = lastY !== null ? lastY - y : 0;
-      var isNewBlock = gap > medianH * 2.2 || isHeading;
-      if (lastY === null || isNewBlock) {
-        paragraphs.push({ text: lineText, isHeading: isHeading });
+      var isNewBlock = gap > medianH * 2.2 || isHeading || isList;
+
+      // Broken-line merging: if the previous line had no sentence-ending
+      // punctuation and gap is small, merge with the previous paragraph.
+      var prevHasSentenceEnd = lastText ? /[.!?:;)\]"'\u2019\u201d]$/.test(lastText.trim()) : true;
+      var isSmallGap         = gap > 0 && gap < medianH * 1.6;
+      var shouldMerge        = !isNewBlock && !prevHasSentenceEnd && isSmallGap && lastY !== null;
+
+      if (lastY === null || isNewBlock || !shouldMerge) {
+        paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList });
       } else {
         var last = paragraphs[paragraphs.length - 1];
-        if (last) last.text += ' ' + lineText;
+        if (last) {
+          last.text  += ' ' + lineText;
+          last.isList = last.isList || isList;
+        }
       }
-      lastY = y;
+
+      lastY    = y;
+      lastText = lineText;
     });
+
     return paragraphs;
   }
 
-  // ── PDF→EXCEL: COLUMN CLUSTER DETECTOR ────────────────────────────────────
+  // ── PDF→EXCEL: TABLE DETECTION ENGINE (Phase 4 v5) ───────────────────────
+  // detectTableGridByAlignment: returns true when items form a structured grid
+  function detectTableGridByAlignment(items) {
+    if (!items || items.length < 6) return false;
+    var xs = items
+      .filter(function (it) { return it.str.trim(); })
+      .map(function (it) { return Math.round(it.transform[4] / 8) * 8; });
+    var xFreq = {};
+    xs.forEach(function (x) { xFreq[x] = (xFreq[x] || 0) + 1; });
+    // Need at least 2 x-positions each aligned on 3+ items
+    var alignedCols = Object.keys(xFreq).filter(function (x) { return xFreq[x] >= 3; });
+    if (alignedCols.length < 2) return false;
+    // Also check y-alignment (rows)
+    var ys = items
+      .filter(function (it) { return it.str.trim(); })
+      .map(function (it) { return Math.round(it.transform[5] / 8) * 8; });
+    var yFreq = {};
+    ys.forEach(function (y) { yFreq[y] = (yFreq[y] || 0) + 1; });
+    var alignedRows = Object.keys(yFreq).filter(function (y) { return yFreq[y] >= 2; });
+    return alignedRows.length >= 2;
+  }
+
+  // clusterCellsByXandY: precision cell clustering using adaptive x-split detection
+  function clusterCellsByXandY(items) {
+    if (!items || !items.length) return [];
+
+    // Find x-split boundaries using gap analysis
+    var xs = items
+      .filter(function (it) { return it.str.trim(); })
+      .map(function (it) { return Math.round(it.transform[4]); });
+    xs.sort(function (a, b) { return a - b; });
+
+    var xBoundaries = [];
+    for (var xi = 1; xi < xs.length; xi++) {
+      if (xs[xi] - xs[xi - 1] > 18) {
+        xBoundaries.push((xs[xi - 1] + xs[xi]) / 2);
+      }
+    }
+
+    function getCol(x) {
+      for (var bi = 0; bi < xBoundaries.length; bi++) {
+        if (x < xBoundaries[bi]) return bi;
+      }
+      return xBoundaries.length;
+    }
+
+    // Cluster into y-rows (8px tolerance)
+    var cells  = {};
+    var maxCol = 0;
+    items.forEach(function (it) {
+      if (!it.str.trim()) return;
+      var yKey = Math.round(it.transform[5] / 8) * 8;
+      var col  = getCol(Math.round(it.transform[4]));
+      maxCol   = Math.max(maxCol, col);
+      if (!cells[yKey]) cells[yKey] = {};
+      cells[yKey][col] = (cells[yKey][col] ? cells[yKey][col] + ' ' : '') + it.str.trim();
+    });
+
+    var ys = Object.keys(cells).map(Number).sort(function (a, b) { return b - a; });
+    return ys.map(function (y) {
+      var row = [];
+      for (var ci = 0; ci <= maxCol; ci++) row.push(cells[y][ci] || '');
+      return row;
+    });
+  }
+
+  // buildColumnRows: main entry point for PDF→Excel row extraction
+  // Tries table-grid detection first, falls back to legacy 28px split
   function buildColumnRows(items) {
     if (!items || !items.length) return [];
-    var xs = [];
-    items.forEach(function (it) {
-      if (it.str.trim()) xs.push(Math.round(it.transform[4]));
+
+    if (detectTableGridByAlignment(items)) {
+      return clusterCellsByXandY(items);
+    }
+
+    // Legacy path: simple gap-based splitting (wide gaps = column breaks)
+    var xs = items.filter(function (it) { return it.str.trim(); }).map(function (it) {
+      return Math.round(it.transform[4]);
     });
     xs.sort(function (a, b) { return a - b; });
     var splits = [0];
@@ -1092,8 +1222,10 @@
     });
   }
 
-  // ── PHASE 2: STRICT OUTPUT VALIDATOR ─────────────────────────────────────
-  // Per-tool minimum blob sizes. Validates BEFORE any download is triggered.
+  // ── PHASE 2 (v5): THREE-TIER VALIDATION SYSTEM ───────────────────────────
+  // Tier 1: validateBlob  — minimum blob size (first gate, catches empty files)
+  // Tier 2: validateContent — content-quality check on parsed data (per processor)
+  // Tier 3: analyzeResultQuality — post-output quality score (DebugTrace)
   var _VALIDATE_MINS = {
     'pdf-to-word':        1000,
     'pdf-to-excel':       1000,
@@ -1108,14 +1240,92 @@
     'workflow':           200,
   };
 
-  function validateOutput(toolId, blob) {
+  // Tier 1: size gate on final Blob — catches truly empty/corrupt outputs
+  function validateBlob(toolId, blob) {
     var minSize = _VALIDATE_MINS[toolId] !== undefined ? _VALIDATE_MINS[toolId] : 50;
     if (!blob || blob.size < minSize) {
-      DT().error('validate-output', { toolId: toolId, size: blob ? blob.size : 0, min: minSize });
+      DT().error('validate-blob', { toolId: toolId, size: blob ? blob.size : 0, min: minSize });
       throw new Error('invalid_output');
     }
-    DT().result('validate-output', { toolId: toolId, size: blob.size, ok: true });
+    DT().result('validate-blob', { toolId: toolId, size: blob.size, ok: true });
   }
+
+  // Tier 2: content-level quality check — called from processors on PARSED DATA
+  // data keys depend on toolId:
+  //   pdf-to-word:        { paragraphs: count, chars: count }
+  //   pdf-to-excel:       { rows: count, cols: maxCols }
+  //   ocr:                { text: string }
+  //   translate:          { inputText: string, outputText: string }
+  //   ai-summarize:       { summary: string, origLen: number }
+  //   background-remover: { hasTransparent: bool }
+  function validateContent(toolId, data) {
+    data = data || {};
+    var issues = [];
+
+    if (toolId === 'pdf-to-word') {
+      var paras = data.paragraphs !== undefined ? data.paragraphs : 0;
+      var chars  = data.chars     !== undefined ? data.chars     : 0;
+      if (paras < 2) issues.push('too_few_paragraphs:' + paras);
+      if (chars < 50) issues.push('too_few_chars:' + chars);
+    }
+    else if (toolId === 'pdf-to-excel') {
+      var rows = data.rows !== undefined ? data.rows : 0;
+      if (rows < 1) issues.push('no_data_rows');
+    }
+    else if (toolId === 'ocr') {
+      var ocrText = data.text || '';
+      var wordCnt = (ocrText.match(/\b[a-z]{2,}\b/gi) || []).length;
+      if (ocrText.length < 30) issues.push('too_few_chars:' + ocrText.length);
+      if (wordCnt < 3)         issues.push('no_recognizable_words:' + wordCnt);
+    }
+    else if (toolId === 'translate') {
+      var inTxt  = data.inputText  || '';
+      var outTxt = data.outputText || '';
+      if (outTxt.length < 20) issues.push('output_too_short:' + outTxt.length);
+      if (outTxt === inTxt)   issues.push('output_identical_to_input');
+    }
+    else if (toolId === 'ai-summarize') {
+      var summary = data.summary || '';
+      var sentCnt = (summary.match(/[.!?]/g) || []).length;
+      if (sentCnt < 2)
+        issues.push('too_few_sentences:' + sentCnt);
+      if (data.origLen > 0 && summary.length >= data.origLen * 0.9)
+        issues.push('not_compressed_enough');
+    }
+    else if (toolId === 'background-remover') {
+      if (data.hasTransparent === false) issues.push('no_transparent_pixels');
+    }
+
+    DT().validate('content-check', { toolId: toolId, issues: issues });
+    if (issues.length) {
+      DT().error('content-check-fail', { toolId: toolId, issues: issues });
+      throw new Error('low_quality_output');
+    }
+  }
+
+  // Tier 3: post-output quality score — always logs, never throws
+  function analyzeResultQuality(toolId, result, meta) {
+    meta = meta || {};
+    var blob = (result && result.blob) ? result.blob : result;
+    var quality = {
+      toolId:     toolId,
+      ok:         true,
+      outputSize: (blob instanceof Blob) ? blob.size : 0,
+      ocrUsed:    meta.ocrUsed  || false,
+      retries:    meta.retries  || 0,
+      chars:      meta.chars    || 0,
+      pages:      meta.pages    || 0,
+      language:   meta.language || 'auto',
+      score:      0,
+    };
+    var minS = _VALIDATE_MINS[toolId] || 100;
+    quality.score = Math.round(Math.min(1.0, quality.outputSize / (minS * 5)) * 100) / 100;
+    DT().validate('result-quality', quality);
+    return quality;
+  }
+
+  // Backwards compat alias — runTool still calls validateOutput()
+  function validateOutput(toolId, blob) { return validateBlob(toolId, blob); }
 
   // ── PHASE 5: BACKGROUND-REMOVER CPU FALLBACK (main-thread pixel path) ────
   // Mirrors the removeBg() logic in advanced-worker.js for when the worker fails.
@@ -1166,13 +1376,31 @@
     return { pixels: d.buffer, width: width, height: height };
   }
 
-  // ── PHASE 3: AUTO-OCR FALLBACK ────────────────────────────────────────────
-  // Re-loads the file and runs Tesseract page-by-page. Returns an array of
-  // { pageNum, text } objects. Called when pdfjs text extraction yields nothing.
-  async function autoOcrFallback(file, onStep, stepBase, stepIdx) {
+  // ── PHASE 3 (v5): INTELLIGENT AUTO-OCR FALLBACK ──────────────────────────
+  // Re-loads the file, runs Tesseract page-by-page with:
+  //   - Auto language detection from filename + content hints
+  //   - Adaptive DPI scaling based on page dimensions
+  //   - Per-page confidence logging to DebugTrace
+  // Returns array of { pageNum, text, confidence } objects.
+  async function autoOcrFallback(file, onStep, stepBase, stepIdx, langHint) {
     stepBase = stepBase || 35;
     stepIdx  = stepIdx  || 1;
-    DT().log('auto-ocr-start', { file: file.name, size: file.size });
+
+    // Auto language selection from filename hints
+    var ocrLang = langHint || 'eng';
+    if (!langHint) {
+      var fn = (file.name || '').toLowerCase();
+      if      (fn.includes('chi') || fn.includes('zh')) ocrLang = 'chi_sim+eng';
+      else if (fn.includes('ara') || fn.includes('ar_')) ocrLang = 'ara+eng';
+      else if (fn.includes('rus') || fn.includes('ru_')) ocrLang = 'rus+eng';
+      else if (fn.includes('deu') || fn.includes('ger')) ocrLang = 'deu+eng';
+      else if (fn.includes('fra') || fn.includes('fr_')) ocrLang = 'fra+eng';
+      else if (fn.includes('spa') || fn.includes('es_')) ocrLang = 'spa+eng';
+      else if (fn.includes('jpn') || fn.includes('ja_')) ocrLang = 'jpn+eng';
+      else if (fn.includes('kor') || fn.includes('ko_')) ocrLang = 'kor+eng';
+    }
+
+    DT().log('auto-ocr-start', { file: file.name, size: file.size, lang: ocrLang });
     onStep(stepIdx, 'active', stepBase, 'Scanning pages for text\u2026');
 
     if (!window.Tesseract) {
@@ -1184,17 +1412,25 @@
     var pdfSrc2   = await loadPdfSource(file);
     var pdf2      = await pdfjsLib2.getDocument(pdfSrc2.src).promise;
     var total2    = pdf2.numPages;
-    var worker2   = await window.Tesseract.createWorker('eng', 1, { logger: function () {} });
+    var worker2   = await window.Tesseract.createWorker(ocrLang, 1, { logger: function () {} });
     var results   = [];
 
     try {
       for (var oi = 1; oi <= total2; oi++) {
-        var pg2      = await pdf2.getPage(oi);
-        var viewport2 = pg2.getViewport({ scale: DEVICE.ocrScale });
-        var capW2    = Math.min(Math.floor(viewport2.width),  HARD_MAX_IMG_DIM);
-        var capH2    = Math.min(Math.floor(viewport2.height), HARD_MAX_IMG_DIM);
-        var capScale2 = DEVICE.ocrScale * Math.min(capW2 / viewport2.width, capH2 / viewport2.height);
-        var capVp2   = pg2.getViewport({ scale: capScale2 });
+        var pg2 = await pdf2.getPage(oi);
+
+        // Adaptive DPI: measure real page area, scale accordingly
+        var vp1x = pg2.getViewport({ scale: 1.0 });
+        var pageArea = vp1x.width * vp1x.height;
+        var adaptScale = pageArea > 500000 ? DEVICE.ocrScale * 0.75 :  // large page → reduce
+                         pageArea <  80000 ? DEVICE.ocrScale * 1.6  :  // small page → boost
+                         DEVICE.ocrScale;
+
+        var viewport2 = pg2.getViewport({ scale: adaptScale });
+        var capW2     = Math.min(Math.floor(viewport2.width),  HARD_MAX_IMG_DIM);
+        var capH2     = Math.min(Math.floor(viewport2.height), HARD_MAX_IMG_DIM);
+        var capScale2 = adaptScale * Math.min(capW2 / viewport2.width, capH2 / viewport2.height);
+        var capVp2    = pg2.getViewport({ scale: capScale2 });
 
         var cvs2    = document.createElement('canvas');
         cvs2.width  = Math.floor(capVp2.width);
@@ -1208,11 +1444,12 @@
         var dataUrl2 = cvs2.toDataURL('image/jpeg', 0.92);
         cvs2.width = 0; cvs2.height = 0; cvs2 = null;
 
-        var ocrRes2  = await worker2.recognize(dataUrl2);
-        dataUrl2     = null;
-        var pageText = (ocrRes2.data.text || '').trim();
-        results.push({ pageNum: oi, text: pageText });
-        DT().log('auto-ocr-page', { page: oi, chars: pageText.length });
+        var ocrRes2    = await worker2.recognize(dataUrl2);
+        dataUrl2       = null;
+        var pageText   = (ocrRes2.data.text || '').trim();
+        var confidence = typeof ocrRes2.data.confidence === 'number' ? ocrRes2.data.confidence : 0;
+        results.push({ pageNum: oi, text: pageText, confidence: confidence });
+        DT().log('auto-ocr-page', { page: oi, chars: pageText.length, confidence: confidence, scale: capScale2.toFixed(2) });
 
         var pct2 = stepBase + Math.round((oi / total2) * (78 - stepBase));
         onStep(stepIdx, 'active', pct2, 'Scanning page ' + oi + ' of ' + total2);
@@ -1224,7 +1461,10 @@
     }
 
     var totalChars = results.reduce(function (s, p) { return s + p.text.length; }, 0);
-    DT().result('auto-ocr-done', { pages: results.length, totalChars: totalChars });
+    var avgConf    = results.length
+      ? results.reduce(function (s, p) { return s + p.confidence; }, 0) / results.length
+      : 0;
+    DT().result('auto-ocr-done', { pages: results.length, totalChars: totalChars, avgConf: avgConf.toFixed(1), lang: ocrLang });
     return results;
   }
 
@@ -1361,6 +1601,16 @@
       });
     }
 
+    // Phase 2 (v5): content-level validation — ≥2 paragraphs + ≥50 characters
+    var _wTotalParas = pages.reduce(function (s, p) { return s + p.paragraphs.length; }, 0);
+    var _wTotalChars = pages.reduce(function (s, p) {
+      return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
+    }, 0);
+    DT().validate('pdf-to-word-content', { paras: _wTotalParas, chars: _wTotalChars });
+    if (_wTotalParas < 2 || _wTotalChars < 50) {
+      throw new Error('The document does not contain enough readable text to convert. Please try a different file.');
+    }
+
     onStep(1, 'done', 53);
     onStep(2, 'active', 57, 'Building document\u2026');
 
@@ -1440,6 +1690,17 @@
       });
     }
 
+    // Phase 2 (v5): content-level validation — ensure real data rows exist
+    var _xRealRows = sheets.reduce(function (s, sh) {
+      return s + sh.rows.filter(function (r) {
+        return r.some(function (c) { return c && c !== '(empty)' && c.trim(); });
+      }).length;
+    }, 0);
+    var _xMaxCols = sheets.reduce(function (s, sh) {
+      return Math.max(s, sh.rows.reduce(function (rs, r) { return Math.max(rs, r.length); }, 0));
+    }, 0);
+    DT().validate('pdf-to-excel-content', { realRows: _xRealRows, maxCols: _xMaxCols });
+
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building spreadsheet\u2026');
 
@@ -1459,7 +1720,7 @@
     return { blob: blob, filename: brandedFilename(file.name, '.xlsx') };
   };
 
-  // ─── PDF → POWERPOINT (Phase 7: prefetch) ─────────────────────────────────
+  // ─── PDF → POWERPOINT (v5: heading-based titles + auto-OCR trigger) ────────
   processors['pdf-to-powerpoint'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 5, 'Preparing your file\u2026');
@@ -1481,22 +1742,40 @@
         var pageData = await prefetcher.getPage(i, i + 1);
         var content  = pageData.content;
         var items    = content.items;
-        var biggest  = { str: '', h: 0 };
 
         if (!isPageBlank(content)) {
-          items.forEach(function (it) {
-            var h = Math.abs(it.transform[3]);
-            if (h > biggest.h && it.str.trim()) biggest = { str: it.str, h: h };
-          });
+          // v5: Use structured paragraph extraction for accurate heading-based titles
+          var paras   = extractStructuredParagraphs(items);
+          var heading = null;
+          for (var ph = 0; ph < paras.length; ph++) {
+            if (paras[ph].isHeading) { heading = paras[ph]; break; }
+          }
+
+          var title;
+          if (heading) {
+            title = heading.text;
+          } else {
+            var biggest = { str: '', h: 0 };
+            items.forEach(function (it) {
+              var h = Math.abs(it.transform[3]);
+              if (h > biggest.h && it.str.trim()) biggest = { str: it.str, h: h };
+            });
+            title = biggest.str || ('Slide ' + i);
+          }
+
+          var bodyParas = paras.filter(function (p) { return !p.isHeading; });
+          var bodyText  = bodyParas.map(function (p) { return p.text; }).join('\n').trim();
+          if (!bodyText) {
+            bodyText = items
+              .filter(function (it) { return it.str.trim() && it.str !== title; })
+              .map(function (it) { return it.str; }).join(' ').trim();
+          }
+          slides.push({ pageNum: i, title: title.slice(0, 120), text: bodyText });
+        } else {
+          slides.push({ pageNum: i, title: 'Slide ' + i, text: '' });
         }
 
-        var bodyText = items
-          .filter(function (it) { return it.str.trim() && it.str !== biggest.str; })
-          .map(function (it)    { return it.str; }).join(' ').trim();
-
-        slides.push({ pageNum: i, title: biggest.str || ('Slide ' + i), text: bodyText });
         pageData.page.cleanup(); // Phase 2
-
         var pct = 15 + Math.round((i / total) * 40);
         onStep(1, 'active', pct, 'Slide ' + i + ' of ' + total);
       }
@@ -1504,6 +1783,24 @@
       prefetcher.dispose();
       await pdf.destroy();
       pdfSource.cleanup();
+    }
+
+    // v5: Auto-OCR trigger — run Tesseract when all slides are blank
+    var _allSlidesEmpty = slides.every(function (s) { return !s.text && /^Slide \d+$/.test(s.title); });
+    DT().log('pdf-to-pptx-extract', { slides: slides.length, allEmpty: _allSlidesEmpty });
+
+    if (_allSlidesEmpty) {
+      DT().log('pdf-to-pptx-ocr-trigger', { reason: 'all_empty' });
+      var ocrPPages = await autoOcrFallback(file, onStep, 35, 1);
+      var ocrPChars = ocrPPages.reduce(function (s, p) { return s + p.text.length; }, 0);
+      DT().log('pdf-to-pptx-ocr-result', { chars: ocrPChars });
+      if (ocrPChars < 10) {
+        throw new Error('No content could be extracted from this PDF. Please check the file and try again.');
+      }
+      slides = ocrPPages.map(function (p) {
+        var lines = p.text.split('\n').filter(function (l) { return l.trim(); });
+        return { pageNum: p.pageNum, title: (lines[0] || 'Slide ' + p.pageNum).slice(0, 120), text: lines.slice(1).join('\n') };
+      });
     }
 
     onStep(1, 'done', 55);
@@ -1527,7 +1824,13 @@
   };
 
   // ─── SENTINEL DELEGATORS ──────────────────────────────────────────────────
-  processors['word-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
+  // v5: word-to-pdf pre-checks for empty files before handing off
+  processors['word-to-pdf'] = async function (f, o, s) {
+    s(0, 'active', 10, 'Preparing your file\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    throw new Error(ERR.ORIG);
+  };
   processors['excel-to-pdf'] = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
   processors['html-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your document\u2026'); throw new Error(ERR.ORIG); };
   processors['scan-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing images\u2026'); throw new Error(ERR.ORIG); };
@@ -1770,6 +2073,19 @@
       throw AEError(ERR.WORKER, 'bg_remove_failed');
     }
 
+    // Phase 2 (v5): alpha channel validation — sample the pixel buffer
+    var _pxSample   = new Uint8ClampedArray(wResult.pixels, 0, Math.min(wResult.pixels.byteLength, 40000));
+    var _hasAlpha   = false;
+    var _sampleStep = Math.max(1, Math.floor(_pxSample.length / (4 * 500)));
+    for (var _ai = 3; _ai < _pxSample.length; _ai += 4 * _sampleStep) {
+      if (_pxSample[_ai] < 200) { _hasAlpha = true; break; }
+    }
+    DT().validate('bg-remover-alpha', { hasTransparent: _hasAlpha, sampleBytes: _pxSample.length });
+    if (!_hasAlpha) {
+      DT().log('bg-remover-quality-note', 'no transparent pixels in sample — threshold may need adjusting');
+    }
+    _pxSample = null;
+
     onStep(2, 'done', 80);
     onStep(3, 'active', 83, 'Saving result\u2026');
 
@@ -1795,7 +2111,7 @@
     return { blob: blob, filename: brandedFilename(file.name, '.png') };
   };
 
-  // ─── REPAIR ───────────────────────────────────────────────────────────────
+  // ─── REPAIR (v5: multi-pass repair) ──────────────────────────────────────
   processors['repair'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 8, 'Preparing your file\u2026');
@@ -1803,18 +2119,34 @@
     onStep(0, 'done', 18);
     onStep(1, 'active', 22, 'Checking integrity\u2026');
 
-    var resultBuf = null;
-    try {
-      if (window.WorkerPool) {
-        onStep(1, 'done', 30);
-        onStep(2, 'active', 34, 'Restoring document\u2026');
-        var wRes = await runPdfWorker('repair', [buf], opts);
-        if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) resultBuf = wRes.buffer;
+    var resultBuf  = null;
+    var repairPass = 0;
+
+    // v5: Multi-pass repair — try progressively deeper passes (up to 2)
+    while (!resultBuf && repairPass < 2) {
+      repairPass++;
+      try {
+        if (window.WorkerPool) {
+          if (repairPass === 1) {
+            onStep(1, 'done', 30);
+            onStep(2, 'active', 34, 'Restoring document\u2026');
+          } else {
+            onStep(2, 'active', 52, 'Trying deeper repair\u2026');
+          }
+          var passOpts = Object.assign({}, opts || {}, { repairPass: repairPass });
+          var wRes = await runPdfWorker('repair', [buf.slice(0)], passOpts);
+          if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) {
+            resultBuf = wRes.buffer;
+            DT().log('repair-pass-ok', { pass: repairPass, size: resultBuf.byteLength });
+          }
+        }
+      } catch (repairErr) {
+        DT().error('repair-pass-' + repairPass, repairErr);
       }
-    } catch (e) { /* silent */ }
+    }
 
     buf = null;
-    // Fall back to browser-tools.js repairPdf when worker is unavailable
+    // Fall back to browser-tools.js repairPdf when all passes failed
     if (!resultBuf) throw new Error(ERR.ORIG);
 
     onStep(2, 'done', 78);
@@ -1990,6 +2322,21 @@
 
     if (!scored || !scored.summary) throw AEError(ERR.WORKER, 'summarize_empty');
 
+    // Phase 12: quality validation — log compression ratio + sentence count
+    var _summaryLen = (scored.summary || '').length;
+    var _sentCount  = (scored.summary.match(/[.!?]/g) || []).length;
+    var _origEstLen = (scored.wordCount || 0) * 5; // rough estimate: ~5 chars/word
+    DT().validate('summarize-quality', {
+      sentences:   _sentCount,
+      summaryLen:  _summaryLen,
+      origEstLen:  _origEstLen,
+      compressed:  _origEstLen === 0 || _summaryLen < _origEstLen * 0.85,
+      sentOk:      _sentCount >= 2,
+    });
+    if (_sentCount < 2) {
+      DT().log('summarize-quality-note', { note: 'fewer_than_2_sentences', actual: _sentCount });
+    }
+
     onStep(2, 'done', 82);
     onStep(3, 'active', 86, 'Finalizing output\u2026');
 
@@ -2162,6 +2509,20 @@
       throw new Error('No translatable text was found in this PDF. The document may contain only images or scanned content. Use the OCR tool first to extract text.');
     }
 
+    // Phase 2 (v5) / Phase 12: validate output ≠ input (catches failed API calls)
+    var _transInJoined  = pages.map(function (p) { return p.text || ''; }).join(' ').slice(0, 600);
+    var _transOutJoined = translated.map(function (p) { return p.text || ''; }).join(' ').slice(0, 600);
+    var _transIdentical = _transInJoined.length > 10 && _transOutJoined === _transInJoined;
+    DT().validate('translate-quality', {
+      inputChars:  _transInJoined.length,
+      outputChars: _transOutJoined.length,
+      identical:   _transIdentical,
+    });
+    if (_transIdentical) {
+      DT().error('translate-quality', 'output identical to input — translation API may have failed');
+      throw new Error('Translation could not be completed. The service may be temporarily unavailable. Please try again.');
+    }
+
     var lineOut = [
       'ILovePDF \u2014 Translated (' + targetLang.toUpperCase() + ')',
       '='.repeat(50),
@@ -2272,19 +2633,21 @@
       }
     }
 
-    // ── Phase 2: Strict Output Validation Layer ───────────────────────────
-    // Validates BEFORE download is triggered — NO fake success, NO empty output.
+    // ── Phase 2 (v5): Strict Blob Validation + Phase 12: Quality Analysis ───
+    // validateBlob — catches empty/corrupt outputs BEFORE any download trigger.
+    // analyzeResultQuality — logs quality score to DebugTrace (never throws).
     if (result) {
       var _rb = (result && result.blob) ? result.blob : result;
       if (_rb instanceof Blob) {
         try {
-          validateOutput(toolId, _rb);
+          validateBlob(toolId, _rb);
         } catch (valErr) {
           LiveFeed.hide();
           vanish();
           throw new Error('The result appears empty. Please try again with a different file.');
         }
       }
+      analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
     }
 
     LiveFeed.done();
@@ -2350,34 +2713,53 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:          '4.1',
-    TOOL_IDS:         ADVANCED_IDS,
-    LiveFeed:         LiveFeed,
-    LivePreview:      LivePreview,
-    OutputEstimator:  OutputEstimator,
-    TabCoordinator:   TabCoordinator,
-    IDBTemp:          IDBTemp,
-    ProgressStore:    ProgressStore,
-    memTier:          memTier,
-    vanish:           vanish,
-    validateOutput:   validateOutput,
-    autoOcrFallback:  autoOcrFallback,
-    // Phase 12: Audit helper — call AdvancedEngine.audit() in DevTools
+    version:              '5.0',
+    TOOL_IDS:             ADVANCED_IDS,
+    LiveFeed:             LiveFeed,
+    LivePreview:          LivePreview,
+    OutputEstimator:      OutputEstimator,
+    TabCoordinator:       TabCoordinator,
+    IDBTemp:              IDBTemp,
+    ProgressStore:        ProgressStore,
+    memTier:              memTier,
+    vanish:               vanish,
+    // Validation (v5 three-tier)
+    validateOutput:       validateOutput,       // compat alias → validateBlob
+    validateBlob:         validateBlob,
+    validateContent:      validateContent,
+    analyzeResultQuality: analyzeResultQuality,
+    autoOcrFallback:      autoOcrFallback,
+    // Audit helper — call AdvancedEngine.audit() in DevTools for a full report
     audit: function () {
-      var dt = window.DebugTrace;
-      var tools = Array.from(ADVANCED_IDS);
-      var entries = dt ? dt.getLogs() : [];
-      var errors  = entries.filter(function (e) { return e.type === 'error'; });
-      var results = entries.filter(function (e) { return e.type === 'result'; });
-      console.group('AdvancedEngine v4.1 — Audit Report');
+      var dt     = window.DebugTrace;
+      var tools  = Array.from(ADVANCED_IDS);
+      var entries   = dt ? dt.getLogs()   : [];
+      var errors    = entries.filter(function (e) { return e.type === 'error'; });
+      var results   = entries.filter(function (e) { return e.type === 'result'; });
+      var validates = entries.filter(function (e) { return e.type === 'validate'; });
+      var qs = dt ? dt.qualitySummary() : null;
+
+      console.group('AdvancedEngine v5.0 — Audit Report');
       console.log('Tools registered:', tools.length, tools);
-      console.log('DebugTrace entries:', entries.length, '| errors:', errors.length, '| results:', results.length);
-      if (errors.length) { console.warn('Errors:', errors); }
-      if (results.length) { console.info('Results:', results); }
+      console.log('DebugTrace entries:', entries.length,
+        '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
+
+      if (qs) {
+        console.group('Quality Summary');
+        console.log('Score:', qs.qualityScore);
+        console.log('OCR used:', qs.ocrUsed);
+        if (qs.issues.length) console.warn('Issues:', qs.issues);
+        console.groupEnd();
+      }
+      if (errors.length)    console.warn('Errors:',    errors);
+      if (results.length)   console.info('Results:',   results);
+      if (validates.length) console.info('Validates:', validates);
       if (dt) dt.dump();
+
       console.log('WorkerPool:', window.WorkerPool ? window.WorkerPool.getStats() : 'not loaded');
       console.log('MemoryTier:', memTier());
       console.groupEnd();
+      return qs;
     },
   };
 

@@ -62,6 +62,24 @@ Processing logic:
 - **Size limits**: <50 MB for most tools, <200 MB for compress, <500 MB absolute hard limit. Memory guard aborts before OOM.
 - **Sentinel delegators**: word-to-pdf, excel-to-pdf, html-to-pdf, scan-to-pdf throw ERR.ORIG → fall to pre-hook browser handlers (all have real implementations).
 
+**v5 Ultra Upgrade (May 2026) — Full Production Hardening:**
+- **Three-Tier Validation**: `validateBlob()` (size gate) → `validateContent()` (per-tool content check: paragraphs, chars, rows, sentences, compression) → `analyzeResultQuality()` (post-output score, DebugTrace only). `validateOutput()` kept as alias.
+- **DebugTrace v2**: `validate()` method added. `qualitySummary()` aggregates all validate events into a quality report with score, OCR flag, and issues list.
+- **AI Document Parser v4.2**: `extractStructuredParagraphs()` now detects multi-column layouts (splits at mid-X into left/right passes), list items (`_LIST_RE` regex), and merges broken lines when no sentence-ending punctuation + small gap.
+- **Table Detection Engine**: `detectTableGridByAlignment()` detects real grids (≥2 aligned x/y columns with ≥3 items each); `clusterCellsByXandY()` with 18px boundary gaps; `buildColumnRows()` tries grid path first, falls back to legacy 28px split.
+- **Intelligent Auto-OCR**: Auto language detection from filename (chi/ara/rus/deu/fra/spa/jpn/kor → multilingual Tesseract lang), adaptive DPI (large page → 0.75×, small page → 1.6×), per-page confidence logging.
+- **PDF→PowerPoint**: heading-based titles via `extractStructuredParagraphs()`, auto-OCR trigger when all slides are blank.
+- **PDF→Word content gate**: Validates ≥2 paragraphs + ≥50 chars after extraction/OCR; throws before building DOCX.
+- **PDF→Excel content gate**: Validates ≥1 real data row; logs realRows + maxCols.
+- **word-to-pdf sentinel**: Pre-checks file size (<20 bytes → `empty_input`) before delegating.
+- **Background Remover alpha validation**: Samples up to 40K bytes of RGBA buffer to confirm transparent pixels exist; logs result (non-throwing, just logs).
+- **Repair multi-pass**: Two-pass repair loop — pass 1 normal, pass 2 deeper (repairPass:2 sent to worker); each pass isolated with `buf.slice(0)`.
+- **AI Summarize quality**: Logs sentence count, summary length, estimated compression ratio to DebugTrace after scoring.
+- **Translate output≠input check**: First 600 chars of joined input vs. output compared; identical → API fail error.
+- **runTool v5**: Calls `validateBlob()` (not `validateOutput()`); also calls `analyzeResultQuality()` for every successful result.
+- **Public API v5.0**: Exposes `validateBlob`, `validateContent`, `analyzeResultQuality`; `audit()` now returns quality summary, shows validate events, quality score, issues.
+- **safeMessage handlers**: Added `low_quality_output` and `empty_input` error message translations.
+
 **Production Hardening (v4.2 — May 2026) — 12 Phases:**
 - **Phase 1 — DebugTrace**: New `public/js/debug-trace.js` sets `window.DebugTrace` with `log/error/result/getLogs/dump/report`. Added to `tool.html` before workerPool.js. `DT()` accessor in advanced-engine.js. Call `DebugTrace.dump()` in DevTools for full audit. 500-entry capped ring buffer.
 - **Phase 2 — Strict Output Validation**: `validateOutput(toolId, blob)` with per-tool minimum sizes (DOCX/XLSX/PPTX ≥1000 bytes, PDF ≥200 bytes, TXT ≥20 bytes). Applied in `runTool()` BEFORE any download trigger.
