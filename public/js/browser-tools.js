@@ -372,10 +372,12 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
+      page.cleanup(); // Release page resources immediately after render
       pages.push(await canvasToBlob(canvas, 'image/jpeg', jpegQ));
       // Free the canvas explicitly to keep memory bounded on big PDFs.
       canvas.width = 0; canvas.height = 0;
     }
+    await pdf.destroy(); // Release PDF document resources
 
     if (pages.length === 1) {
       return { blob: pages[0], ext: '.jpg', mime: 'image/jpeg' };
@@ -1166,8 +1168,6 @@
 
     // ── Worker Pool path (off-main-thread for eligible pure pdf-lib tools) ──
     if (WORKER_TOOLS.has(toolId) && typeof Worker !== 'undefined') {
-      const t0 = Date.now();
-      console.log(`[BrowserTools] [${toolId}] worker START`);
       try {
         const pool = await loadWorkerPool().catch(() => null);
         if (pool) {
@@ -1181,21 +1181,15 @@
           if (workerResult && workerResult.buffer) {
             const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
             if (blob.size === 0) throw new Error('Worker produced empty output — falling back');
-            console.log(`[BrowserTools] [${toolId}] worker END — ${Date.now() - t0}ms, ${blob.size} bytes`);
             return { blob, filename: brandedFilename(fileName, '.pdf') };
           }
-          console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread (no buffer in result)`);
-        } else {
-          console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread (pool unavailable)`);
         }
       } catch (workerErr) {
-        console.warn(`[BrowserTools] [${toolId}] worker FALLBACK → main-thread: ${workerErr.message}`);
+        // Fall through to main-thread path silently
       }
     }
 
     // ── Main-thread path ─────────────────────────────────────────────────
-    const t1 = Date.now();
-    console.log(`[BrowserTools] [${toolId}] main-thread START`);
     const result = await fn(files, options || {});
     let blob, ext;
     if (result && result.blob) {
@@ -1207,7 +1201,6 @@
     }
     // Validate output: empty blob means the handler silently failed.
     if (!blob || blob.size === 0) throw new Error(`[${toolId}] browser processing produced empty output`);
-    console.log(`[BrowserTools] [${toolId}] main-thread END — ${Date.now() - t1}ms, ${blob.size} bytes`);
     const filename = brandedFilename(files[0].name, ext);
     return { blob, filename };
   }

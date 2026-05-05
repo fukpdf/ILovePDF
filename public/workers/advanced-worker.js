@@ -1,6 +1,6 @@
-// Advanced Worker v3.0 — persistent off-thread document builder + pixel processor.
+// Advanced Worker v3.1 — persistent off-thread document builder + pixel processor.
 // Phase 1: Persistent (handles multiple tasks, no re-spawn).
-// Phase 5: WebGPU detection + OffscreenCanvas acceleration for remove-bg.
+// Phase 5: CPU pixel processing for remove-bg (WebGPU removed — broken dispatch math).
 // Operations: build-docx | build-xlsx | build-pptx | remove-bg | chunk-text-score
 
 // ── LAZY LIBRARY LOADING ───────────────────────────────────────────────────────
@@ -8,22 +8,6 @@ var _jszip = false, _xlsx = false, _pptx = false;
 function ensureJszip() { if (!_jszip) { importScripts('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'); _jszip = true; } }
 function ensureXlsx()  { if (!_xlsx)  { importScripts('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'); _xlsx = true; } }
 function ensurePptx()  { if (!_pptx)  { importScripts('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'); _pptx = true; } }
-
-// Phase 5: WebGPU availability (stealth — never exposed to user)
-var _gpuDevice = null;
-var _gpuChecked = false;
-
-async function tryGetGPU() {
-  if (_gpuChecked) return _gpuDevice;
-  _gpuChecked = true;
-  try {
-    if (typeof navigator === 'undefined' || !navigator.gpu) return null;
-    const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
-    if (!adapter) return null;
-    _gpuDevice = await adapter.requestDevice();
-    return _gpuDevice;
-  } catch (_) { return null; }
-}
 
 // ── XML ESCAPE ─────────────────────────────────────────────────────────────────
 function esc(s) {
@@ -192,88 +176,14 @@ async function buildPptx(slides, docTitle) {
   return await pptx.write({ outputType: 'arraybuffer' });
 }
 
-// ── REMOVE BACKGROUND ─────────────────────────────────────────────────────────
-// Phase 5: Try WebGPU compute shader first; fall back to CPU pixel loop.
-
-async function removeBgGPU(device, pixelsBuf, width, height, threshold) {
-  // WebGPU compute shader for parallel pixel processing
-  const t = Math.max(100, Math.min(255, threshold || 240));
-  const feather = 35;
-
-  const wgsl = `
-    @group(0) @binding(0) var<storage, read_write> pixels: array<u32>;
-
-    @compute @workgroup_size(64)
-    fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-      let idx = id.x;
-      let total = arrayLength(&pixels) / 4u;
-      if (idx >= total) { return; }
-
-      let base = idx * 4u;
-      let r = pixels[base];
-      let g = pixels[base + 1u];
-      let b = pixels[base + 2u];
-      let avg = (r + g + b) / 3u;
-      let th  = u32(${t});
-      let fe  = u32(${feather});
-
-      if (r >= th && g >= th && b >= th) {
-        pixels[base + 3u] = 0u;
-      } else if (avg >= (th - fe)) {
-        let alpha = u32(255u * (th - avg) / fe);
-        let cur   = pixels[base + 3u];
-        if (alpha < cur) { pixels[base + 3u] = alpha; }
-      }
-    }
-  `;
-
-  const src = new Uint32Array(pixelsBuf);
-  const bufSize = src.byteLength;
-
-  const gpuBuf = device.createBuffer({
-    size: bufSize,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(gpuBuf, 0, src.buffer);
-
-  const readBuf = device.createBuffer({
-    size: bufSize,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
-
-  const module   = device.createShaderModule({ code: wgsl });
-  const pipeline = await device.createComputePipelineAsync({
-    layout: 'auto',
-    compute: { module, entryPoint: 'main' },
-  });
-
-  const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: gpuBuf } }],
-  });
-
-  const encoder = device.createCommandEncoder();
-  const pass    = encoder.beginComputePass();
-  pass.setPipeline(pipeline);
-  pass.setBindGroup(0, bindGroup);
-  pass.dispatchWorkgroups(Math.ceil(src.length / 4 / 64));
-  pass.end();
-  encoder.copyBufferToBuffer(gpuBuf, 0, readBuf, 0, bufSize);
-  device.queue.submit([encoder.finish()]);
-
-  await readBuf.mapAsync(GPUMapMode.READ);
-  const result = new Uint8ClampedArray(readBuf.getMappedRange().slice(0));
-  readBuf.unmap();
-  gpuBuf.destroy(); readBuf.destroy();
-
-  return result.buffer;
-}
-
-function removeBgCPU(pixelsBuf, width, height, threshold) {
+// ── REMOVE BACKGROUND (CPU path only) ─────────────────────────────────────────
+// Phase 5: CPU pixel loop with feathered edge smoothing.
+function removeBg(pixelsBuf, width, height, threshold) {
   var t = Math.max(100, Math.min(255, threshold || 240));
   var d = new Uint8ClampedArray(pixelsBuf);
   var featherRange = 35;
 
+  // Pass 1: threshold + feather
   for (var i = 0; i < d.length; i += 4) {
     var r = d[i], g = d[i + 1], b = d[i + 2];
     var avg = (r + g + b) / 3;
@@ -287,36 +197,24 @@ function removeBgCPU(pixelsBuf, width, height, threshold) {
     }
   }
 
-  // Edge smoothing pass
+  // Pass 2: edge smoothing
   var d2 = new Uint8ClampedArray(d);
   for (var y = 1; y < height - 1; y++) {
     for (var x = 1; x < width - 1; x++) {
       var idx   = (y * width + x) * 4;
       var a     = d[idx + 3];
       if (a === 255) {
-        var above = d[((y-1)*width + x)*4 + 3];
-        var below = d[((y+1)*width + x)*4 + 3];
-        var left  = d[(y*width + x - 1)*4 + 3];
-        var right = d[(y*width + x + 1)*4 + 3];
+        var above = d[((y - 1) * width + x) * 4 + 3];
+        var below = d[((y + 1) * width + x) * 4 + 3];
+        var left  = d[(y * width + x - 1) * 4 + 3];
+        var right = d[(y * width + x + 1) * 4 + 3];
         var minN  = Math.min(above, below, left, right);
         if (minN < 230) d2[idx + 3] = Math.round(a * 0.85 + minN * 0.15);
       }
     }
   }
+
   return { pixels: d2.buffer, width: width, height: height };
-}
-
-async function removeBg(pixelsBuf, width, height, threshold) {
-  // Phase 5: Try WebGPU for hardware-accelerated pixel processing
-  try {
-    var device = await tryGetGPU();
-    if (device) {
-      var gpuResult = await removeBgGPU(device, pixelsBuf, width, height, threshold);
-      return { pixels: gpuResult, width: width, height: height };
-    }
-  } catch (_) { /* GPU failed — fall through to CPU */ }
-
-  return removeBgCPU(pixelsBuf, width, height, threshold);
 }
 
 // ── CHUNK TEXT SCORING (extractive summarisation, TF-IDF) ─────────────────────
@@ -383,7 +281,7 @@ self.onmessage = async function (e) {
       }
       case 'remove-bg': {
         if (!(data.pixels instanceof ArrayBuffer)) throw new Error('pixels must be ArrayBuffer');
-        var result = await removeBg(data.pixels, data.width, data.height, data.threshold);
+        var result = removeBg(data.pixels, data.width, data.height, data.threshold);
         self.postMessage(
           { pixels: result.pixels, width: result.width, height: result.height },
           [result.pixels]

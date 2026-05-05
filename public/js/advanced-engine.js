@@ -175,8 +175,8 @@
     var factor = (memTier() === 'low') ? 6 : 4;
     var needed = (fileSizeBytes || 0) * factor;
     var avail  = Math.max(0, _memLimit() - _memUsed());
-    // With OPFS streaming, large files need much less RAM
-    if (fileSizeBytes >= OPFS_STREAM_THRESHOLD && OPFSStore.available()) return false;
+    // With OPFS streaming, large files need much less RAM — but still honour fallback tier
+    if (fileSizeBytes >= OPFS_STREAM_THRESHOLD && OPFSStore.available() && memTier() !== 'fallback') return false;
     return needed > avail;
   }
 
@@ -408,6 +408,7 @@
   function trackKey(key)   { if (key) _tempKeys.push(key); }
 
   function vanish() {
+    ProgressSmoother.reset(); // Cancel any pending RAF to avoid post-navigation animation
     var entries = _blobEntries.splice(0);
     entries.forEach(function (e) { try { URL.revokeObjectURL(e.url); } catch (_) {} });
     var keys = _tempKeys.splice(0);
@@ -618,14 +619,13 @@
   }());
 
   // ── PHASE 6: MULTI-TAB COORDINATOR (BroadcastChannel) ────────────────────
-  // Splits page-range work across open tabs for faster parallel processing.
-  // Coordinator: splits ranges. Worker-tabs: process sub-ranges and post back.
+  // Responds to peer pings so other tabs can detect this tab.
+  // Work-splitting is not implemented — dispatcher always returns false
+  // to avoid adding 600ms discovery delay to every tool invocation.
   var TabCoordinator = (function () {
-    var CHANNEL   = 'ilovepdf-work-v3';
-    var PING_WAIT = 600; // ms to wait for peer tabs
-    var _bc = null;
-    var _peerTabs = [];
-    var _pendingJobs = {};
+    var CHANNEL  = 'ilovepdf-work-v3';
+    var _myTabId = Math.random().toString(36).slice(2);
+    var _bc      = null;
 
     function init() {
       if (!HAS_BC) return;
@@ -633,40 +633,16 @@
         _bc = new BroadcastChannel(CHANNEL);
         _bc.onmessage = function (e) {
           var msg = e.data || {};
-          if (msg.type === 'ping') {
-            // Respond to coordinator ping — signal we are available
+          // Respond to pings so other tabs count us as a peer
+          if (msg.type === 'ping' && msg.tabId !== _myTabId) {
             _bc.postMessage({ type: 'pong', tabId: _myTabId });
-          } else if (msg.type === 'pong') {
-            _peerTabs.push(msg.tabId);
-          } else if (msg.type === 'chunk-result') {
-            var job = _pendingJobs[msg.jobId];
-            if (job) job.resolve(msg.result);
-          } else if (msg.type === 'chunk-error') {
-            var job2 = _pendingJobs[msg.jobId];
-            if (job2) job2.reject(new Error(msg.error));
           }
         };
       } catch (_) {}
     }
 
-    var _myTabId = Math.random().toString(36).slice(2);
-
-    // Discover available peer tabs (async, 600ms window)
-    function discoverPeers() {
-      return new Promise(function (resolve) {
-        if (!_bc) return resolve(0);
-        _peerTabs = [];
-        _bc.postMessage({ type: 'ping', tabId: _myTabId });
-        setTimeout(function () { resolve(_peerTabs.length); }, PING_WAIT);
-      });
-    }
-
-    // Check if multi-tab split is worthwhile (peer available + large page count)
-    async function canSplit(totalPages) {
-      if (!_bc || totalPages < 20) return false;
-      var peers = await discoverPeers();
-      return peers > 0;
-    }
+    // canSplit is disabled — returns false immediately without 600ms wait
+    function canSplit() { return Promise.resolve(false); }
 
     init();
     return { canSplit: canSplit };
@@ -706,7 +682,23 @@
       });
     }
 
-    return { getPage: getPage, prefetch: prefetch };
+    // Dispose any pre-fetched but unconsumed pages to avoid leaking PDF resources
+    function dispose() {
+      var keys = Object.keys(_prefetchCache);
+      for (var i = 0; i < keys.length; i++) {
+        var p = _prefetchCache[keys[i]];
+        delete _prefetchCache[keys[i]];
+        if (p && typeof p.then === 'function') {
+          p.then(function (data) {
+            if (data && data.page && typeof data.page.cleanup === 'function') {
+              try { data.page.cleanup(); } catch (_) {}
+            }
+          }).catch(function () {});
+        }
+      }
+    }
+
+    return { getPage: getPage, prefetch: prefetch, dispose: dispose };
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -1102,7 +1094,6 @@
     onStep(1, 'active', 15, 'Processing content\u2026');
 
     var pdf       = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total     = pdf.numPages;
     var pages     = [];
     var prefetcher = makePrefetcher(pdf); // Phase 7: pipeline
@@ -1110,21 +1101,26 @@
     // Phase 8: live preview — render first page thumbnail
     LivePreview.show(pdf, pdfjsLib);
 
-    for (var i = 1; i <= total; i++) {
-      // Phase 7: get current page (may be pre-fetched) + trigger next prefetch
-      var pageData = await prefetcher.getPage(i, i + 1);
-      var content  = pageData.content;
+    try {
+      for (var i = 1; i <= total; i++) {
+        // Phase 7: get current page (may be pre-fetched) + trigger next prefetch
+        var pageData = await prefetcher.getPage(i, i + 1);
+        var content  = pageData.content;
 
-      if (isPageBlank(content)) { pageData.page.cleanup(); continue; }
+        if (isPageBlank(content)) { pageData.page.cleanup(); continue; }
 
-      var paragraphs = extractStructuredParagraphs(content.items);
-      pages.push({ pageNum: i, paragraphs: paragraphs });
-      pageData.page.cleanup(); // Phase 2: release immediately after use
+        var paragraphs = extractStructuredParagraphs(content.items);
+        pages.push({ pageNum: i, paragraphs: paragraphs });
+        pageData.page.cleanup(); // Phase 2: release immediately after use
 
-      var pct = 15 + Math.round((i / total) * 38);
-      onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+        var pct = 15 + Math.round((i / total) * 38);
+        onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+      }
+    } finally {
+      prefetcher.dispose(); // Clean up any unconsumed prefetched pages
+      await pdf.destroy();  // Phase 2: full destroy — do this before revoking source URL
+      pdfSource.cleanup();  // Revoke OPFS blob URL only after PDF is fully done
     }
-    await pdf.destroy(); // Phase 2: full destroy when done
 
     if (!pages.length) throw AEError(ERR.PARSE, 'no_extractable_text');
 
@@ -1155,24 +1151,28 @@
     onStep(1, 'active', 15, 'Processing content\u2026');
 
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total      = pdf.numPages;
     var sheets     = [];
     var prefetcher = makePrefetcher(pdf); // Phase 7
 
     LivePreview.show(pdf, pdfjsLib); // Phase 8
 
-    for (var i = 1; i <= total; i++) {
-      var pageData = await prefetcher.getPage(i, i + 1);
-      var content  = pageData.content;
-      var rows     = isPageBlank(content) ? [['(empty)']] : buildColumnRows(content.items);
-      sheets.push({ name: 'Page ' + i, rows: rows.length ? rows : [['(empty)']] });
-      pageData.page.cleanup(); // Phase 2
+    try {
+      for (var i = 1; i <= total; i++) {
+        var pageData = await prefetcher.getPage(i, i + 1);
+        var content  = pageData.content;
+        var rows     = isPageBlank(content) ? [['(empty)']] : buildColumnRows(content.items);
+        sheets.push({ name: 'Page ' + i, rows: rows.length ? rows : [['(empty)']] });
+        pageData.page.cleanup(); // Phase 2
 
-      var pct = 15 + Math.round((i / total) * 40);
-      onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+        var pct = 15 + Math.round((i / total) * 40);
+        onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+      }
+    } finally {
+      prefetcher.dispose();
+      await pdf.destroy();
+      pdfSource.cleanup();
     }
-    await pdf.destroy();
 
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building spreadsheet\u2026');
@@ -1201,37 +1201,41 @@
     onStep(1, 'active', 15, 'Processing content\u2026');
 
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total      = pdf.numPages;
     var slides     = [];
     var prefetcher = makePrefetcher(pdf); // Phase 7
 
     LivePreview.show(pdf, pdfjsLib); // Phase 8
 
-    for (var i = 1; i <= total; i++) {
-      var pageData = await prefetcher.getPage(i, i + 1);
-      var content  = pageData.content;
-      var items    = content.items;
-      var biggest  = { str: '', h: 0 };
+    try {
+      for (var i = 1; i <= total; i++) {
+        var pageData = await prefetcher.getPage(i, i + 1);
+        var content  = pageData.content;
+        var items    = content.items;
+        var biggest  = { str: '', h: 0 };
 
-      if (!isPageBlank(content)) {
-        items.forEach(function (it) {
-          var h = Math.abs(it.transform[3]);
-          if (h > biggest.h && it.str.trim()) biggest = { str: it.str, h: h };
-        });
+        if (!isPageBlank(content)) {
+          items.forEach(function (it) {
+            var h = Math.abs(it.transform[3]);
+            if (h > biggest.h && it.str.trim()) biggest = { str: it.str, h: h };
+          });
+        }
+
+        var bodyText = items
+          .filter(function (it) { return it.str.trim() && it.str !== biggest.str; })
+          .map(function (it)    { return it.str; }).join(' ').trim();
+
+        slides.push({ pageNum: i, title: biggest.str || ('Slide ' + i), text: bodyText });
+        pageData.page.cleanup(); // Phase 2
+
+        var pct = 15 + Math.round((i / total) * 40);
+        onStep(1, 'active', pct, 'Slide ' + i + ' of ' + total);
       }
-
-      var bodyText = items
-        .filter(function (it) { return it.str.trim() && it.str !== biggest.str; })
-        .map(function (it)    { return it.str; }).join(' ').trim();
-
-      slides.push({ pageNum: i, title: biggest.str || ('Slide ' + i), text: bodyText });
-      pageData.page.cleanup(); // Phase 2
-
-      var pct = 15 + Math.round((i / total) * 40);
-      onStep(1, 'active', pct, 'Slide ' + i + ' of ' + total);
+    } finally {
+      prefetcher.dispose();
+      await pdf.destroy();
+      pdfSource.cleanup();
     }
-    await pdf.destroy();
 
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building presentation\u2026');
@@ -1267,7 +1271,6 @@
     onStep(0, 'done', 12);
 
     var pdf   = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total = pdf.numPages;
 
     // Phase 8: live preview for OCR
@@ -1289,6 +1292,7 @@
 
     if (nativeChars > 60) {
       await pdf.destroy();
+      pdfSource.cleanup(); // Safe to revoke now — PDF is fully done
       onStep(1, 'done', 50, 'Content ready');
       onStep(2, 'done', 80);
       onStep(3, 'active', 90, 'Preparing result\u2026');
@@ -1371,7 +1375,8 @@
     }
 
     await worker.terminate();
-    await pdf.destroy(); // Phase 2
+    await pdf.destroy(); // Phase 2: full destroy before revoking source URL
+    pdfSource.cleanup(); // Safe to revoke OPFS blob URL now
     await ProgressStore.clear('ocr', fHash);
 
     onStep(2, 'done', 80);
@@ -1500,17 +1505,20 @@
     async function extractText(file, label, base) {
       var pdfSource = await loadPdfSource(file);
       var pdf = await pdfjsLib.getDocument(pdfSource.src).promise;
-      pdfSource.cleanup();
       var pages = [];
-      for (var pi = 1; pi <= pdf.numPages; pi++) {
-        var pg = await pdf.getPage(pi);
-        var c  = await pg.getTextContent();
-        pages.push(c.items.map(function (it) { return it.str; }).join(' '));
-        pg.cleanup(); // Phase 2
-        var pct = base + Math.round((pi / pdf.numPages) * 18);
-        onStep(1, 'active', pct, label + ' \u2014 page ' + pi + ' of ' + pdf.numPages);
+      try {
+        for (var pi = 1; pi <= pdf.numPages; pi++) {
+          var pg = await pdf.getPage(pi);
+          var c  = await pg.getTextContent();
+          pages.push(c.items.map(function (it) { return it.str; }).join(' '));
+          pg.cleanup(); // Phase 2
+          var pct = base + Math.round((pi / pdf.numPages) * 18);
+          onStep(1, 'active', pct, label + ' \u2014 page ' + pi + ' of ' + pdf.numPages);
+        }
+      } finally {
+        await pdf.destroy();
+        pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
       }
-      await pdf.destroy();
       return pages;
     }
 
@@ -1580,7 +1588,6 @@
     onStep(1, 'active', 15, 'Processing content\u2026');
 
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total      = pdf.numPages;
     var allText    = '';
     var skipped    = 0;
@@ -1588,16 +1595,21 @@
 
     LivePreview.show(pdf, pdfjsLib); // Phase 8
 
-    for (var i = 1; i <= total; i++) {
-      var pageData = await prefetcher.getPage(i, i + 1);
-      var content  = pageData.content;
-      if (isPageBlank(content)) { skipped++; pageData.page.cleanup(); continue; }
-      allText += content.items.map(function (it) { return it.str; }).join(' ') + ' ';
-      pageData.page.cleanup(); // Phase 2
-      var pct = 15 + Math.round((i / total) * 30);
-      onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+    try {
+      for (var i = 1; i <= total; i++) {
+        var pageData = await prefetcher.getPage(i, i + 1);
+        var content  = pageData.content;
+        if (isPageBlank(content)) { skipped++; pageData.page.cleanup(); continue; }
+        allText += content.items.map(function (it) { return it.str; }).join(' ') + ' ';
+        pageData.page.cleanup(); // Phase 2
+        var pct = 15 + Math.round((i / total) * 30);
+        onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
+      }
+    } finally {
+      prefetcher.dispose();
+      await pdf.destroy();
+      pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
     }
-    await pdf.destroy();
 
     if (!allText.trim()) throw AEError(ERR.PARSE, 'no_extractable_text');
 
@@ -1646,22 +1658,26 @@
     onStep(1, 'active', 15, 'Processing content\u2026');
 
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
-    pdfSource.cleanup();
     var total      = pdf.numPages;
     var pages      = [];
     var prefetcher = makePrefetcher(pdf); // Phase 7
 
-    for (var i = 1; i <= total; i++) {
-      var pageData = await prefetcher.getPage(i, i + 1);
-      var content  = pageData.content;
-      pages.push({
-        num:   i,
-        text:  content.items.map(function (it) { return it.str; }).join(' ').trim(),
-        blank: isPageBlank(content),
-      });
-      pageData.page.cleanup(); // Phase 2
+    try {
+      for (var i = 1; i <= total; i++) {
+        var pageData = await prefetcher.getPage(i, i + 1);
+        var content  = pageData.content;
+        pages.push({
+          num:   i,
+          text:  content.items.map(function (it) { return it.str; }).join(' ').trim(),
+          blank: isPageBlank(content),
+        });
+        pageData.page.cleanup(); // Phase 2
+      }
+    } finally {
+      prefetcher.dispose();
+      await pdf.destroy();
+      pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
     }
-    await pdf.destroy();
 
     onStep(1, 'done', 38);
     onStep(2, 'active', 41, 'Preparing content\u2026');
@@ -1863,7 +1879,6 @@
     };
 
     window.BrowserTools.__advEngineV30 = true;
-    console.log('[AdvancedEngine v3.0] ready | SAB:' + HAS_SAB + ' | WebGPU:' + HAS_WEBGPU + ' | BC:' + HAS_BC);
     return true;
   }
 
@@ -1917,9 +1932,6 @@
     ProgressStore:    ProgressStore,
     memTier:          memTier,
     vanish:           vanish,
-    HAS_SAB:          HAS_SAB,
-    HAS_WEBGPU:       HAS_WEBGPU,
-    HAS_BC:           HAS_BC,
   };
 
 }());

@@ -1,18 +1,14 @@
-// Worker Pool v3.0 — persistent workers, smart queue, auto-restart on crash.
+// Worker Pool v3.1 — persistent workers, smart queue, idle cleanup.
 // Phase 1: Workers are REUSED across tasks — no spawn/terminate overhead.
-// Phase 4: SharedArrayBuffer zero-copy transfer when COOP+COEP headers are active.
+// SAB path REMOVED (was broken: sabBuffers never sent to worker).
 (function () {
   'use strict';
 
-  var MAX_PER_URL  = Math.min(navigator.hardwareConcurrency || 4, 8);
+  var MAX_PER_URL  = Math.min(navigator.hardwareConcurrency || 4, 4);
   var TIMEOUT_MS   = 120000; // 2-minute hard cap per task
   var MAX_CRASHES  = 3;      // auto-restart limit before slot is retired
-
-  // Detect SAB support (requires COOP + COEP headers)
-  var HAS_SAB = (function () {
-    try { return typeof SharedArrayBuffer !== 'undefined' && !!new SharedArrayBuffer(1); }
-    catch (_) { return false; }
-  }());
+  var IDLE_TTL_MS  = 60000;  // terminate idle workers after 60 s
+  var MAX_QUEUE    = 50;     // reject tasks beyond this queue depth
 
   // Map<workerUrl, { url, slots[], queue[] }>
   var pools = {};
@@ -32,7 +28,7 @@
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
       settle(pool, slot, err, null);
-      // Auto-restart within crash limit — pool entry stays valid
+      // Auto-restart within crash limit
       if (slot.crashes < MAX_CRASHES) {
         var w = spawnWorker(pool.url);
         if (w) { slot.worker = w; attachHandlers(pool, slot); }
@@ -47,9 +43,31 @@
   function makeSlot(pool) {
     var w = spawnWorker(pool.url);
     if (!w) return null;
-    var slot = { worker: w, busy: false, crashes: 0, timer: null, resolve: null, reject: null };
+    var slot = {
+      worker:   w,
+      busy:     false,
+      crashes:  0,
+      timer:    null,   // task timeout
+      idleTimer: null,  // idle termination
+      resolve:  null,
+      reject:   null,
+    };
     attachHandlers(pool, slot);
     return slot;
+  }
+
+  function _startIdleTimer(pool, slot) {
+    _clearIdleTimer(slot);
+    slot.idleTimer = setTimeout(function () {
+      if (slot.busy) return;
+      var idx = pool.slots.indexOf(slot);
+      if (idx !== -1) pool.slots.splice(idx, 1);
+      try { slot.worker.terminate(); } catch (_) {}
+    }, IDLE_TTL_MS);
+  }
+
+  function _clearIdleTimer(slot) {
+    if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
   }
 
   function settle(pool, slot, err, data) {
@@ -70,18 +88,22 @@
       res(data);
     }
 
-    // Immediately serve next queued task on this now-free worker
+    // Start idle timer — will terminate this slot if nothing picks it up
+    _startIdleTimer(pool, slot);
+
+    // Immediately serve next queued task on this now-free slot
     drainOne(pool, slot);
   }
 
   function dispatch(pool, slot, task) {
+    _clearIdleTimer(slot);
     slot.busy    = true;
     slot.resolve = task.resolve;
     slot.reject  = task.reject;
 
     slot.timer = setTimeout(function () {
       settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
-      // Restart worker after timeout — it may be in an unrecoverable state
+      // Restart worker after timeout — may be in an unrecoverable state
       var w = spawnWorker(pool.url);
       if (w) {
         try { slot.worker.terminate(); } catch (_) {}
@@ -98,41 +120,18 @@
     var msg = task.message;
     var xfr = task.transferables || [];
 
-    // Phase 4: If SAB available and transferables contain large ArrayBuffers,
-    // wrap them in a SharedArrayBuffer so both sides share the same memory
-    // (avoids copy overhead for large payloads when multiple workers need the data).
-    if (HAS_SAB && xfr.length > 0) {
-      try {
-        var sabXfr = [];
-        xfr.forEach(function (buf) {
-          if (buf instanceof ArrayBuffer && buf.byteLength > 512 * 1024) {
-            // Copy into SAB — no re-copy needed on worker side
-            var sab = new SharedArrayBuffer(buf.byteLength);
-            new Uint8Array(sab).set(new Uint8Array(buf));
-            sabXfr.push(sab);
-          } else {
-            sabXfr.push(buf);
-          }
-        });
-        // Patch message to reference SABs by position
-        msg = Object.assign({}, msg, { _sabMode: true, _sabCount: sabXfr.length });
-        slot.worker.postMessage(msg, sabXfr.filter(function (b) { return b instanceof ArrayBuffer; }));
-        return;
-      } catch (_) { /* SAB failed — fall through to standard transfer */ }
-    }
-
+    // Standard structured-clone transfer (SAB path removed — was broken)
     try {
       slot.worker.postMessage(msg, xfr);
     } catch (_) {
       try {
-        slot.worker.postMessage(msg); // fallback: structured-clone (no transfer)
+        slot.worker.postMessage(msg); // fallback: no transfer
       } catch (e2) {
         settle(pool, slot, new Error('postMessage failed: ' + e2.message), null);
       }
     }
   }
 
-  // Give a specific (just-freed) slot the next queued task, if any
   function drainOne(pool, slot) {
     if (pool.queue.length === 0) return;
     if (slot.busy || slot.crashes >= MAX_CRASHES) return;
@@ -140,7 +139,6 @@
     if (task) dispatch(pool, slot, task);
   }
 
-  // Drain the queue across all free slots
   function drainAll(pool) {
     for (var i = 0; i < pool.slots.length && pool.queue.length > 0; i++) {
       var s = pool.slots[i];
@@ -148,7 +146,6 @@
         drainOne(pool, s);
       }
     }
-    // Spawn new slots if under limit and queue remains
     while (pool.queue.length > 0 && pool.slots.length < MAX_PER_URL) {
       var slot = makeSlot(pool);
       if (!slot) break;
@@ -163,9 +160,15 @@
     var pool = getPool(workerUrl);
 
     return new Promise(function (resolve, reject) {
+      // Queue overflow guard
+      if (pool.queue.length >= MAX_QUEUE) {
+        reject(new Error('Worker queue full — too many concurrent tasks'));
+        return;
+      }
+
       var task = { message: message, transferables: transferables || [], resolve: resolve, reject: reject };
 
-      // Phase 1: try to use an existing free, healthy slot (no new spawn needed)
+      // Try to use an existing free, healthy slot
       for (var i = 0; i < pool.slots.length; i++) {
         var s = pool.slots[i];
         if (!s.busy && s.crashes < MAX_CRASHES) {
@@ -184,7 +187,7 @@
         }
       }
 
-      // All slots busy / at limit → queue and wait
+      // All slots busy / at limit → queue
       pool.queue.push(task);
     });
   }
@@ -203,12 +206,14 @@
     return out;
   }
 
-  // Pre-warm a worker URL (creates one idle slot in advance)
   function prewarm(workerUrl) {
     var pool = getPool(workerUrl);
     if (pool.slots.length === 0) {
       var slot = makeSlot(pool);
-      if (slot) pool.slots.push(slot);
+      if (slot) {
+        pool.slots.push(slot);
+        _startIdleTimer(pool, slot);
+      }
     }
   }
 
