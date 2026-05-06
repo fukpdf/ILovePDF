@@ -15,7 +15,7 @@ ILovePDF is a platform offering 33 online tools for PDF and image processing, pr
 - **Backend**: Express.js (Node.js 20)
 - **Database**: SQLite (for users, pending signups)
 - **ORM**: _Populate as you build_
-- **Validation**: Custom validation layers (`validateBlob`, `validateContent`, `analyzeResultQuality`)
+- **Validation**: 4-tier pipeline: `validateBlob` → `validateContent` → `analyzeResultQuality` → `validateMeaningfulness`
 - **Build Tool**: _Populate as you build_
 
 ## Where things live
@@ -30,8 +30,8 @@ ILovePDF is a platform offering 33 online tools for PDF and image processing, pr
 ## Architecture decisions
 - **Browser-side Processing**: All 33 PDF/image tools run 100% in the browser using libraries like pdf-lib, tesseract.js, and canvas APIs, with no server-side fallback for tool processing.
 - **Client-Server Split**: A lightweight Express.js server handles authentication and static file serving, while complex document processing is offloaded to the client.
-- **Three-Tier Validation Pipeline**: `validateBlob` (size gate) → `validateContent` (per-tool content rules) → `analyzeResultQuality` (enforced score gate). All must pass before download is triggered — no fake success.
-- **Quality Score Enforcement (v5.3)**: `analyzeResultQuality()` uses hybrid scoring — 65% output-size ratio + 35% structural metadata (chars, paras, rows, pages, ocrUsed). Score < 0.40 on binary-output tools (`_BINARY_TOOLS` Set) throws `low_quality_output` and blocks download. Score 0.40–0.69 logs a warning only.
+- **Four-Tier Validation Pipeline (v5.4)**: `validateBlob` (size gate) → `validateContent` (per-tool content rules) → `analyzeResultQuality` (hybrid quality score) → `validateMeaningfulness` (semantic: word diversity, repetition ratio, sentence coherence). All must pass — no fake success.
+- **Quality Score Enforcement (v5.4)**: `analyzeResultQuality()` uses hybrid scoring — 65% output-size ratio + 35% structural metadata. `validateMeaningfulness()` scores word diversity, trigram repetition, avg words/sentence, symbol noise — blocks if score < 0.35, warns if < 0.55.
 - **Universal Fallback Chains**: Every tool follows Worker → CPU inline → alternative logic → clean fail. Background remover: 2-pass retry (original threshold → relaxed by −25); hard fail with user message if no alpha detected. Repair: 2-pass loop + pdfjsLib integrity check after repair.
 - **Zero Technical Leakage (Stealth Mode)**: `safeMessage()` intercepts all errors and maps them to user-friendly messages. Internal terms (worker, wasm, OPFS, gpu, thread, SharedArray, chunk, ArrayBuffer) are never exposed.
 - **Comprehensive Error Handling**: Internal error types are mapped to clean, non-technical user-facing messages, often guiding users to alternative tools (e.g., OCR for scanned PDFs).

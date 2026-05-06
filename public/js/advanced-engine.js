@@ -1,7 +1,9 @@
-// Advanced Engine v3.0 — production-grade, stealth browser PDF processor.
+// Advanced Engine v5.4 — production-grade, stealth browser PDF processor.
 // Phases: 1-Worker Pool | 2-Stream | 3-Compression | 4-SAB | 5-WebGPU (worker)
 //         6-MultiTab | 7-Pipeline | 8-LivePreview | 9-Estimator | 10-500MB
 //         11-UX | 12-Performance
+// v5.4: Input Intelligence Engine | OCR v2 Multi-Pass | AI Document Parser v5
+//        Table Intelligence System | Result Meaningfulness Engine | Honest Compress
 // Wraps window.BrowserTools.process() transparently. Instant tools untouched.
 (function () {
   'use strict';
@@ -151,11 +153,13 @@
     return 'Something went wrong. Please try again.';
   }
 
-  // ── INPUT ANALYZER (v5.2) ─────────────────────────────────────────────────
-  // Pre-flight validation that runs BEFORE any processor. Detects empty files,
-  // corrupt data, and invalid PDF headers so users get immediate clear feedback.
+  // ── INPUT INTELLIGENCE ENGINE (v5.4) ──────────────────────────────────────
+  // Pre-flight validation + routing that runs BEFORE any processor.
+  // Detects: file type via magic bytes, text/image ratio, scanned vs digital,
+  // multi-language hints, corrupted structure, empty docs.
+  // Routing: force OCR, hybrid extraction, correct tool routing, early reject.
   var InputAnalyzer = (function () {
-    var EMPTY_THRESHOLD = 150; // bytes — any smaller is definitely empty/corrupt
+    var EMPTY_THRESHOLD = 150;
 
     var PDF_INPUT_TOOLS = new Set([
       'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'compress', 'ocr',
@@ -164,6 +168,128 @@
       'protect', 'unlock',
     ]);
 
+    // Magic byte signatures for file type detection (ignore extension/MIME)
+    var MAGIC = [
+      { sig: [0x25,0x50,0x44,0x46],          type: 'pdf',  name: 'PDF'   },
+      { sig: [0x89,0x50,0x4E,0x47],          type: 'png',  name: 'PNG'   },
+      { sig: [0xFF,0xD8,0xFF],               type: 'jpeg', name: 'JPEG'  },
+      { sig: [0x47,0x49,0x46,0x38],          type: 'gif',  name: 'GIF'   },
+      { sig: [0x42,0x4D],                    type: 'bmp',  name: 'BMP'   },
+      { sig: [0x52,0x49,0x46,0x46],          type: 'webp', name: 'WebP'  },
+      { sig: [0x50,0x4B,0x03,0x04],          type: 'zip',  name: 'ZIP/Office' },
+      { sig: [0xD0,0xCF,0x11,0xE0],          type: 'ole',  name: 'Legacy Office' },
+    ];
+
+    async function detectMagicType(file) {
+      try {
+        var hdr = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+        for (var mi = 0; mi < MAGIC.length; mi++) {
+          var m = MAGIC[mi];
+          var match = m.sig.every(function(b, i) { return hdr[i] === b; });
+          if (match) return { type: m.type, name: m.name };
+        }
+      } catch (_) {}
+      return { type: 'unknown', name: 'Unknown' };
+    }
+
+    // Analyze text vs image ratio from pdfjs text content items
+    function analyzeTextImageRatio(items) {
+      var textItems = (items || []).filter(function(it) { return it.str && it.str.trim(); });
+      var totalItems = (items || []).length;
+      var textCount = textItems.length;
+      var textChars = textItems.reduce(function(s,it) { return s + it.str.length; }, 0);
+      var ratio = totalItems > 0 ? textCount / totalItems : 0;
+      return {
+        textItems: textCount,
+        totalItems: totalItems,
+        textChars: textChars,
+        ratio: ratio,
+        isImageHeavy: textChars < 20 && totalItems > 0,
+        isEmpty: totalItems === 0 || textChars < 5,
+      };
+    }
+
+    // Detect if PDF is scanned (image-based) vs digital (has text layer)
+    async function detectScannedVsDigital(file) {
+      try {
+        var lib = await loadPdfJsSafe();
+        if (!lib) return { isScanned: false, confidence: 0 };
+        var buf = await file.slice(0, Math.min(file.size, 2 * 1024 * 1024)).arrayBuffer();
+        var pdf = await lib.getDocument({ data: buf, isEvalSupported: false }).promise;
+        var pagesToCheck = Math.min(pdf.numPages, 3);
+        var totalChars = 0, totalItems = 0;
+        for (var i = 1; i <= pagesToCheck; i++) {
+          var pg = await pdf.getPage(i);
+          var tc = await pg.getTextContent();
+          var ratio = analyzeTextImageRatio(tc.items);
+          totalChars += ratio.textChars;
+          totalItems += ratio.totalItems;
+          pg.cleanup();
+        }
+        await pdf.destroy();
+        var avgChars = totalChars / pagesToCheck;
+        var isScanned = avgChars < 30;
+        return { isScanned: isScanned, avgCharsPerPage: avgChars, confidence: isScanned ? 0.9 : 0.1 };
+      } catch (_) {
+        return { isScanned: false, confidence: 0 };
+      }
+    }
+
+    function loadPdfJsSafe() {
+      try { return loadPdfJs(); } catch(_) { return Promise.resolve(null); }
+    }
+
+    // Detect multi-language hints from text sample
+    function detectMultiLanguageHints(textSample) {
+      if (!textSample || textSample.length < 10) return { primary: 'unknown', hints: [] };
+      var s = textSample.slice(0, 1000);
+      var cjk    = (s.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g) || []).length;
+      var arabic = (s.match(/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/g) || []).length;
+      var cyril  = (s.match(/[\u0400-\u04ff]/g) || []).length;
+      var korean = (s.match(/[\uac00-\ud7af\u1100-\u11ff]/g) || []).length;
+      var latin  = (s.match(/[a-zA-Z]/g) || []).length;
+      var total  = cjk + arabic + cyril + korean + latin || 1;
+      var hints  = [];
+      if (cjk / total > 0.1)    hints.push('chinese');
+      if (arabic / total > 0.1) hints.push('arabic');
+      if (cyril / total > 0.1)  hints.push('russian');
+      if (korean / total > 0.1) hints.push('korean');
+      if (latin / total > 0.1)  hints.push('latin');
+      var primary = cjk > arabic && cjk > cyril && cjk > korean ? 'chi_sim'
+                  : arabic > cyril && arabic > korean ? 'ara'
+                  : cyril > korean ? 'rus'
+                  : korean > latin ? 'kor' : 'eng';
+      return { primary: primary, hints: hints, mixed: hints.length > 1 };
+    }
+
+    // Routing decision based on detected file properties
+    function routeByDetection(toolId, magicType, scannedInfo, langHints) {
+      var routing = { action: 'normal', forceOcr: false, hybridMode: false, langHint: null };
+
+      // Misnamed file correction
+      if (PDF_INPUT_TOOLS.has(toolId) && magicType.type !== 'pdf' && magicType.type !== 'unknown') {
+        if (magicType.type === 'jpeg' || magicType.type === 'png' || magicType.type === 'webp') {
+          routing.action = 'image_as_pdf';
+          routing.forceOcr = true;
+        }
+      }
+
+      // Image-heavy PDF → force OCR
+      if (scannedInfo && scannedInfo.isScanned && PDF_INPUT_TOOLS.has(toolId)) {
+        if (['pdf-to-word','pdf-to-excel','pdf-to-powerpoint','translate','ai-summarize'].includes(toolId)) {
+          routing.forceOcr = true;
+          routing.action = routing.action === 'normal' ? 'force_ocr' : routing.action;
+        }
+      }
+
+      // Language hint for OCR
+      if (langHints && langHints.primary && langHints.primary !== 'eng') {
+        routing.langHint = langHints.primary;
+      }
+
+      return routing;
+    }
+
     async function check(toolId, files) {
       if (!files || !files.length) {
         return { ok: false, reason: 'no_file',
@@ -171,40 +297,57 @@
       }
       var file = files[0];
 
-      // Empty / near-empty file gate
+      // Empty / near-empty file gate — immediate reject
       if (file.size < EMPTY_THRESHOLD) {
-        DT().error('input-analyzer', { reason: 'empty_file', size: file.size, tool: toolId });
+        DT().error('input-intelligence', { reason: 'empty_file', size: file.size, tool: toolId });
         return {
           ok: false, reason: 'empty_file',
           message: 'The file appears to be empty or too small to process. Please try with a different file.',
         };
       }
 
+      // Magic byte detection — ignores extension/MIME lies
+      var magicType = await detectMagicType(file);
+      DT().log('input-intelligence-magic', { tool: toolId, detected: magicType.type, name: magicType.name, size: file.size });
+
       // PDF header validation for PDF-input tools
       if (PDF_INPUT_TOOLS.has(toolId)) {
         var looksLikePdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
-        if (looksLikePdf) {
-          try {
-            var hdr = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-            // PDF signature: %PDF (0x25 0x50 0x44 0x46)
-            var validHdr = hdr[0] === 0x25 && hdr[1] === 0x50 &&
-                           hdr[2] === 0x44 && hdr[3] === 0x46;
-            if (!validHdr) {
-              DT().error('input-analyzer', { reason: 'invalid_pdf_header', tool: toolId });
-              return {
-                ok: false, reason: 'invalid_pdf_header',
-                message: 'This file does not appear to be a valid PDF. If it\'s damaged, try the Repair PDF tool first.',
-              };
-            }
-          } catch (_) { /* slice read failed — allow through; processor will handle it */ }
+        if (looksLikePdf && magicType.type !== 'pdf') {
+          DT().error('input-intelligence', { reason: 'invalid_pdf_header', detected: magicType.type, tool: toolId });
+          return {
+            ok: false, reason: 'invalid_pdf_header',
+            message: 'This file does not appear to be a valid PDF. If it\'s damaged, try the Repair PDF tool first.',
+          };
+        }
+        if (!looksLikePdf && magicType.type === 'pdf') {
+          // Correctly detected as PDF despite wrong extension — allow
+          DT().log('input-intelligence', { note: 'misnamed_as_pdf', actual: magicType.type });
         }
       }
 
-      DT().log('input-analyzer', { tool: toolId, size: file.size, type: file.type || 'unknown', ok: true });
-      return { ok: true };
+      // Scanned vs digital detection (fast, only for heavy processors)
+      var scannedInfo = null;
+      if (['pdf-to-word','pdf-to-excel','pdf-to-powerpoint','translate','ai-summarize'].includes(toolId)
+          && magicType.type === 'pdf') {
+        scannedInfo = await detectScannedVsDigital(file);
+        DT().log('input-intelligence-scan', { toolId: toolId, isScanned: scannedInfo.isScanned,
+          avgChars: (scannedInfo.avgCharsPerPage || 0).toFixed(0) });
+      }
+
+      // Build routing decision
+      var routing = routeByDetection(toolId, magicType, scannedInfo);
+
+      DT().log('input-intelligence', {
+        tool: toolId, size: file.size, magicType: magicType.type,
+        isScanned: scannedInfo ? scannedInfo.isScanned : null,
+        routing: routing.action, forceOcr: routing.forceOcr, ok: true,
+      });
+
+      return { ok: true, routing: routing, magicType: magicType, scannedInfo: scannedInfo };
     }
 
-    return { check: check };
+    return { check: check, analyzeTextImageRatio: analyzeTextImageRatio, detectMultiLanguageHints: detectMultiLanguageHints };
   }());
 
   // ── CAPABILITIES ──────────────────────────────────────────────────────────
@@ -913,26 +1056,45 @@
     return combined.replace(/\s/g, '').length < 5;
   }
 
-  // v5.3: OCR language auto-detection from Unicode character frequency.
-  // Samples up to 500 chars of any native text already extracted from the PDF
-  // (even sparse) to pick the correct Tesseract language before OCR starts.
+  // v5.4: OCR language detection — upgraded with Unicode ranges, character
+  // frequency analysis, word pattern matching, and multi-language support.
   // Falls back to 'eng' when the sample is too small or ambiguous.
   function _detectOcrLanguage(textSample) {
     if (!textSample || textSample.replace(/\s/g, '').length < 12) return 'eng';
-    var s      = textSample.slice(0, 500);
-    var cjk    = (s.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uff00-\uffef]/g) || []).length;
-    var arabic = (s.match(/[\u0600-\u06ff\u0750-\u077f]/g) || []).length;
-    var cyril  = (s.match(/[\u0400-\u04ff]/g) || []).length;
-    var korean = (s.match(/[\uac00-\ud7af\u1100-\u11ff]/g) || []).length;
+    var s = textSample.slice(0, 1000); // v5.4: doubled sample size
+
+    // Unicode range frequency analysis
+    var cjk    = (s.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u31f0-\u31ff]/g) || []).length;
+    var arabic = (s.match(/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/g) || []).length;
+    var cyril  = (s.match(/[\u0400-\u04ff\u0500-\u052f]/g) || []).length;
+    var korean = (s.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\ua960-\ua97f]/g) || []).length;
+    var thai   = (s.match(/[\u0e00-\u0e7f]/g) || []).length;
     var latin  = (s.match(/[a-zA-Z]/g) || []).length;
-    var total  = cjk + arabic + cyril + korean + latin || 1;
+    var total  = cjk + arabic + cyril + korean + thai + latin || 1;
+
+    // Word pattern analysis for disambiguation
+    var words = (s.match(/\b[a-zA-Z]{3,}\b/g) || []);
+    var commonEnglish = /\b(the|and|for|are|but|not|you|all|can|had|her|was|one|our|out|day|get|has|him|his|how|man|new|now|old|see|two|way|who|its|let|put|say|she|too|use)\b/i;
+    var hasEnglishWords = words.filter(function(w) { return commonEnglish.test(w); }).length;
+
     var lang;
-    if      (cjk    / total > 0.25) lang = 'chi_sim';
-    else if (arabic / total > 0.20) lang = 'ara';
-    else if (cyril  / total > 0.25) lang = 'rus';
-    else if (korean / total > 0.25) lang = 'kor';
-    else                            lang = 'eng';
-    DT().log('ocr-lang-detect', { sample: s.length, cjk: cjk, arabic: arabic, cyril: cyril, korean: korean, lang: lang });
+    // Strict thresholds: needs clear dominance to choose non-Latin
+    if      (cjk    / total > 0.20) lang = 'chi_sim';
+    else if (arabic / total > 0.15) lang = 'ara';
+    else if (cyril  / total > 0.20) lang = 'rus';
+    else if (korean / total > 0.20) lang = 'kor';
+    else if (thai   / total > 0.15) lang = 'tha';
+    else                             lang = 'eng';
+
+    // Mixed language: append +eng for better coverage if non-English dominant
+    if (lang !== 'eng' && (latin / total > 0.15 || hasEnglishWords > 2)) {
+      lang = lang + '+eng';
+    }
+
+    DT().log('ocr-lang-detect-v54', {
+      sample: s.length, cjk: cjk, arabic: arabic, cyril: cyril,
+      korean: korean, thai: thai, latin: latin, englishWords: hasEnglishWords, lang: lang,
+    });
     return lang;
   }
 
@@ -1115,10 +1277,14 @@
     return next();
   }
 
-  // ── PDF→WORD: AI DOCUMENT PARSER v4.2 ────────────────────────────────────
-  // Phase 4: heading detection, list detection, multi-column awareness,
-  // broken-line merging, and paragraph-gap segmentation.
-  var _LIST_RE = /^(\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192]|\s*\d+[.)]\s|\s*[a-zA-Z][.)]\s)/;
+  // ── AI DOCUMENT PARSER v5 (v5.4 MAJOR UPGRADE) ───────────────────────────
+  // Detects: headings (font+caps+spacing), paragraph blocks, lists (bullets/numbers),
+  // tables (grid+alignment), sections, page breaks.
+  // NEW: layout reconstruction engine, intelligent broken-line merging,
+  // reading order fix (multi-column), related block grouping.
+  var _LIST_RE = /^(\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]|\s*\d+[.)]\s|\s*[a-zA-Z][.)]\s|\s*[ivxlcdmIVXLCDM]+[.)]\s)/;
+  var _NUMBLIST_RE = /^\s*(\d+|[a-zA-Z])[.)]\s+\S/;
+  var _SECTION_RE  = /^(chapter|section|part|article|appendix)\s+[\d\w]/i;
 
   function extractStructuredParagraphs(items) {
     if (!items || !items.length) return [];
@@ -1131,36 +1297,62 @@
     });
     heights.sort(function (a, b) { return a - b; });
     var medianH = heights[Math.floor(heights.length / 2)] || 10;
+    var maxH    = heights[heights.length - 1] || 10;
 
-    // 2. Multi-column detection — look for two distinct x-clusters
+    // 2. Multi-column detection — look for 2-3 distinct x-clusters
     var validItems = items.filter(function (it) { return it.str.trim(); });
-    if (validItems.length > 4) {
+    if (validItems.length > 6) {
       var xs = validItems.map(function (it) { return it.transform[4]; });
       xs.sort(function (a, b) { return a - b; });
       var xRange = xs[xs.length - 1] - xs[0];
-      var midX   = xs[0] + xRange / 2;
-      var leftCt = xs.filter(function (x) { return x < midX - xRange * 0.08; }).length;
-      var rightCt = xs.filter(function (x) { return x > midX + xRange * 0.08; }).length;
-      // If two fairly balanced columns, process left column first then right
-      if (xRange > 50 && leftCt > 4 && rightCt > 4 &&
-          Math.min(leftCt, rightCt) / Math.max(leftCt, rightCt) > 0.3) {
-        var leftItems  = validItems.filter(function (it) { return it.transform[4] <= midX; });
-        var rightItems = validItems.filter(function (it) { return it.transform[4] >  midX; });
-        var leftParas  = _buildParaLines(leftItems,  medianH);
-        var rightParas = _buildParaLines(rightItems, medianH);
-        return leftParas.concat(rightParas);
+
+      // Detect column breaks via gap analysis
+      var colBoundaries = [];
+      for (var ci = 1; ci < xs.length; ci++) {
+        if (xs[ci] - xs[ci - 1] > xRange * 0.28) {
+          colBoundaries.push((xs[ci - 1] + xs[ci]) / 2);
+        }
+      }
+
+      if (colBoundaries.length >= 1 && xRange > 60) {
+        // Multi-column: sort each column top-to-bottom independently, then concat
+        var cols = [[]];
+        for (var ki = 0; ki < colBoundaries.length; ki++) cols.push([]);
+        validItems.forEach(function (it) {
+          var x = it.transform[4];
+          var col = 0;
+          for (var bi = 0; bi < colBoundaries.length; bi++) {
+            if (x > colBoundaries[bi]) col = bi + 1;
+          }
+          cols[col].push(it);
+        });
+
+        // Validate column balance (each column has ≥20% of items)
+        var balanced = cols.every(function(c) { return c.length > 0; }) &&
+          cols.filter(function(c) { return c.length / validItems.length > 0.15; }).length >= 2;
+
+        if (balanced) {
+          var allParas = [];
+          cols.forEach(function(colItems) {
+            if (colItems.length) allParas = allParas.concat(_buildParaLines(colItems, medianH, maxH));
+          });
+          DT().log('doc-parser-v5-multicol', { cols: cols.length, items: validItems.length });
+          return allParas;
+        }
       }
     }
 
-    return _buildParaLines(items, medianH);
+    return _buildParaLines(items, medianH, maxH);
   }
 
-  function _buildParaLines(items, medianH) {
-    // Group items into lines by y-coordinate
+  function _buildParaLines(items, medianH, maxH) {
+    maxH = maxH || medianH * 2;
+
+    // Group items into lines by y-coordinate (2px tolerance)
     var lineMap = {};
     items.forEach(function (it) {
       if (!it.str.trim()) return;
-      var yKey = Math.round(it.transform[5]);
+      var yKey = Math.round(it.transform[5] / 2) * 2; // 2px bucket
       if (!lineMap[yKey]) lineMap[yKey] = [];
       lineMap[yKey].push(it);
     });
@@ -1169,86 +1361,166 @@
     var paragraphs = [];
     var lastY      = null;
     var lastText   = '';
+    var lastH      = medianH;
 
     ys.forEach(function (y) {
       var lineItems = lineMap[y].sort(function (a, b) { return a.transform[4] - b.transform[4]; });
-      var lineText  = lineItems.map(function (it) { return it.str; }).join(' ').trim();
+
+      // Reconstruct line text: handle spacing between items intelligently
+      var lineText = _reconstructLineText(lineItems);
       if (!lineText) return;
 
-      var maxH = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
+      var lineMaxH = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
+      var lineBold = lineItems.some(function(it) { return it.fontName && /bold/i.test(it.fontName); });
 
-      // Classify line
+      // Classify line — v5.4: richer detection
       var isList    = _LIST_RE.test(lineText);
+      var isNumList = _NUMBLIST_RE.test(lineText);
+      var isSection = _SECTION_RE.test(lineText.trim());
+
       var isHeading = !isList && (
-        maxH > medianH * 1.35 ||
-        (lineText.length >= 3 && lineText.length < 80 &&
-         lineText === lineText.toUpperCase() && /[A-Z]/.test(lineText))
+        lineMaxH > medianH * 1.3 ||               // larger font
+        lineBold && lineMaxH >= medianH ||          // bold + normal size
+        isSection ||                                // section keyword
+        (lineText.length >= 2 && lineText.length < 90 &&
+         lineText.trim() === lineText.trim().toUpperCase() &&
+         /[A-Z\u0400-\u04ff\u0600-\u06ff]/.test(lineText))  // ALL CAPS (any script)
       );
 
-      var gap        = lastY !== null ? lastY - y : 0;
-      var isNewBlock = gap > medianH * 2.2 || isHeading || isList;
+      // Page break detection: large gap > 3x line height
+      var gap       = lastY !== null ? lastY - y : 0;
+      var isPageBreak = gap > medianH * 5;
+      var isNewBlock  = gap > medianH * 2.0 || isHeading || isSection || isPageBreak;
 
-      // Broken-line merging: if the previous line had no sentence-ending
-      // punctuation and gap is small, merge with the previous paragraph.
-      var prevHasSentenceEnd = lastText ? /[.!?:;)\]"'\u2019\u201d]$/.test(lastText.trim()) : true;
-      var isSmallGap         = gap > 0 && gap < medianH * 1.6;
-      var shouldMerge        = !isNewBlock && !prevHasSentenceEnd && isSmallGap && lastY !== null;
+      // Intelligent broken-line merging v5.4:
+      // Merge if: previous line didn't end with sentence punctuation AND
+      //           gap is small AND same approximate font size AND
+      //           not starting a list item AND same x-origin (not a new para indent)
+      var prevHasSentenceEnd = lastText ? /[.!?:;)\]"'\u2019\u201d\u060c\u061b\u061f]$/.test(lastText.trim()) : true;
+      var isSmallGap         = gap > 0 && gap < medianH * 1.8;
+      var sameSize           = Math.abs(lineMaxH - lastH) < medianH * 0.3;
+      var shouldMerge        = !isNewBlock && !prevHasSentenceEnd && isSmallGap && sameSize && lastY !== null;
 
-      if (lastY === null || isNewBlock || !shouldMerge) {
-        paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList });
-      } else {
+      if (shouldMerge) {
         var last = paragraphs[paragraphs.length - 1];
-        if (last) {
-          last.text  += ' ' + lineText;
+        if (last && !last.isHeading) {
+          // Smart join: add space or not based on whether last char is hyphen
+          var lastChar = last.text.trim().slice(-1);
+          if (lastChar === '-') {
+            last.text = last.text.trim().slice(0, -1) + lineText; // de-hyphenate
+          } else {
+            last.text += ' ' + lineText;
+          }
           last.isList = last.isList || isList;
+        } else {
+          paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList, isNumList: isNumList });
         }
+      } else {
+        // Group related blocks: if a list item follows a heading, tag them
+        paragraphs.push({
+          text: lineText,
+          isHeading: isHeading,
+          isList: isList,
+          isNumList: isNumList,
+          isSection: isSection,
+          level: isHeading ? _headingLevel(lineMaxH, medianH, maxH) : 0,
+        });
       }
 
       lastY    = y;
       lastText = lineText;
+      lastH    = lineMaxH;
     });
 
-    return paragraphs;
+    // Post-process: remove consecutive duplicate lines (scanning artifacts)
+    return paragraphs.filter(function(p, i) {
+      if (i === 0) return true;
+      return p.text.trim().toLowerCase() !== paragraphs[i-1].text.trim().toLowerCase();
+    });
   }
 
-  // ── PDF→EXCEL: TABLE DETECTION ENGINE (Phase 4 v5) ───────────────────────
-  // detectTableGridByAlignment: returns true when items form a structured grid
+  // Reconstruct line text with intelligent spacing
+  function _reconstructLineText(lineItems) {
+    if (!lineItems.length) return '';
+    var parts = [];
+    var prevEnd = null;
+    lineItems.forEach(function(it) {
+      if (!it.str) return;
+      var x = it.transform[4];
+      if (prevEnd !== null && x - prevEnd > 3) {
+        // Gap between items: add space if missing
+        var lastPart = parts[parts.length - 1] || '';
+        if (lastPart && !lastPart.endsWith(' ')) parts.push(' ');
+      }
+      parts.push(it.str);
+      prevEnd = x + (it.width || it.str.length * Math.abs(it.transform[3]) * 0.5);
+    });
+    return parts.join('').replace(/\s+/g, ' ').trim();
+  }
+
+  // Determine heading level from font size ratio
+  function _headingLevel(h, medianH, maxH) {
+    var ratio = h / (maxH || medianH);
+    if (ratio > 0.85) return 1; // H1
+    if (ratio > 0.65) return 2; // H2
+    if (ratio > 0.50) return 3; // H3
+    return 4;                   // H4+
+  }
+
+  // ── TABLE INTELLIGENCE SYSTEM (v5.4) ─────────────────────────────────────
+  // Smart table detection via alignment + spacing consistency.
+  // Rebuilds into structured rows with consistent columns.
+  // Rejects: single-column results, no numeric/text pattern (not real tables).
+
+  // detectTableGridByAlignment: smart grid detection
   function detectTableGridByAlignment(items) {
     if (!items || items.length < 6) return false;
-    var xs = items
-      .filter(function (it) { return it.str.trim(); })
-      .map(function (it) { return Math.round(it.transform[4] / 8) * 8; });
+    var filtered = items.filter(function (it) { return it.str.trim(); });
+    if (filtered.length < 4) return false;
+
+    var xs = filtered.map(function (it) { return Math.round(it.transform[4] / 6) * 6; });
     var xFreq = {};
     xs.forEach(function (x) { xFreq[x] = (xFreq[x] || 0) + 1; });
-    // Need at least 2 x-positions each aligned on 3+ items
-    var alignedCols = Object.keys(xFreq).filter(function (x) { return xFreq[x] >= 3; });
+    var alignedCols = Object.keys(xFreq).filter(function (x) { return xFreq[x] >= 2; });
     if (alignedCols.length < 2) return false;
-    // Also check y-alignment (rows)
-    var ys = items
-      .filter(function (it) { return it.str.trim(); })
-      .map(function (it) { return Math.round(it.transform[5] / 8) * 8; });
+
+    // Spacing consistency: check that x-gaps are regular (table-like)
+    var colXs = alignedCols.map(Number).sort(function(a,b) { return a - b; });
+    if (colXs.length >= 2) {
+      var gaps = [];
+      for (var gi = 1; gi < colXs.length; gi++) gaps.push(colXs[gi] - colXs[gi-1]);
+      var avgGap = gaps.reduce(function(s,g){return s+g;},0) / gaps.length;
+      var gapVariance = gaps.reduce(function(s,g){return s+Math.pow(g-avgGap,2);},0) / gaps.length;
+      // High variance means irregular spacing — likely not a proper table
+      if (avgGap > 5 && Math.sqrt(gapVariance) / avgGap > 1.5) return false;
+    }
+
+    var ys = filtered.map(function (it) { return Math.round(it.transform[5] / 6) * 6; });
     var yFreq = {};
     ys.forEach(function (y) { yFreq[y] = (yFreq[y] || 0) + 1; });
     var alignedRows = Object.keys(yFreq).filter(function (y) { return yFreq[y] >= 2; });
     return alignedRows.length >= 2;
   }
 
-  // clusterCellsByXandY: precision cell clustering using adaptive x-split detection
+  // clusterCellsByXandY: precision cell clustering with consistent column enforcement
   function clusterCellsByXandY(items) {
     if (!items || !items.length) return [];
 
-    // Find x-split boundaries using gap analysis
-    var xs = items
-      .filter(function (it) { return it.str.trim(); })
-      .map(function (it) { return Math.round(it.transform[4]); });
+    var filtered = items.filter(function (it) { return it.str.trim(); });
+    var xs = filtered.map(function (it) { return Math.round(it.transform[4]); });
     xs.sort(function (a, b) { return a - b; });
 
+    // Find x boundaries using gap analysis (minimum gap of 15px)
     var xBoundaries = [];
     for (var xi = 1; xi < xs.length; xi++) {
-      if (xs[xi] - xs[xi - 1] > 18) {
+      if (xs[xi] - xs[xi - 1] > 15) {
         xBoundaries.push((xs[xi - 1] + xs[xi]) / 2);
       }
     }
+    // Deduplicate boundaries that are too close together
+    xBoundaries = xBoundaries.filter(function(b, i) {
+      return i === 0 || b - xBoundaries[i-1] > 10;
+    });
 
     function getCol(x) {
       for (var bi = 0; bi < xBoundaries.length; bi++) {
@@ -1257,12 +1529,10 @@
       return xBoundaries.length;
     }
 
-    // Cluster into y-rows (8px tolerance)
     var cells  = {};
     var maxCol = 0;
-    items.forEach(function (it) {
-      if (!it.str.trim()) return;
-      var yKey = Math.round(it.transform[5] / 8) * 8;
+    filtered.forEach(function (it) {
+      var yKey = Math.round(it.transform[5] / 6) * 6;
       var col  = getCol(Math.round(it.transform[4]));
       maxCol   = Math.max(maxCol, col);
       if (!cells[yKey]) cells[yKey] = {};
@@ -1270,32 +1540,66 @@
     });
 
     var ys = Object.keys(cells).map(Number).sort(function (a, b) { return b - a; });
-    return ys.map(function (y) {
+    var rows = ys.map(function (y) {
       var row = [];
       for (var ci = 0; ci <= maxCol; ci++) row.push(cells[y][ci] || '');
       return row;
     });
+
+    // v5.4 RULE: Reject if only 1 column — not tabular data
+    if (maxCol === 0) return [];
+
+    // v5.4 RULE: Validate that at least one column has numeric/mixed content (real table)
+    var hasNumericCol = false;
+    for (var ci2 = 0; ci2 <= maxCol; ci2++) {
+      var colVals = rows.map(function(r) { return r[ci2] || ''; }).filter(Boolean);
+      var numericCount = colVals.filter(function(v) { return /\d/.test(v); }).length;
+      if (numericCount / colVals.length > 0.25) { hasNumericCol = true; break; }
+    }
+    // If no column has numbers, check for consistent text patterns (headers etc.)
+    if (!hasNumericCol) {
+      var allSingleWord = rows.every(function(r) {
+        return r.filter(Boolean).every(function(c) { return c.split(/\s+/).length <= 2; });
+      });
+      if (!allSingleWord && rows.length < 3) return []; // Not enough structure
+    }
+
+    return rows;
   }
 
   // buildColumnRows: main entry point for PDF→Excel row extraction
-  // Tries table-grid detection first, falls back to legacy 28px split
   function buildColumnRows(items) {
     if (!items || !items.length) return [];
 
     if (detectTableGridByAlignment(items)) {
-      return clusterCellsByXandY(items);
+      var smartRows = clusterCellsByXandY(items);
+      if (smartRows.length > 0) {
+        DT().log('table-intelligence-v54', { method: 'smart-grid', rows: smartRows.length,
+          cols: smartRows[0] ? smartRows[0].length : 0 });
+        return smartRows;
+      }
     }
 
-    // Legacy path: simple gap-based splitting (wide gaps = column breaks)
+    // Fallback: adaptive gap-based splitting
     var xs = items.filter(function (it) { return it.str.trim(); }).map(function (it) {
       return Math.round(it.transform[4]);
     });
     xs.sort(function (a, b) { return a - b; });
-    var splits = [0];
+
+    // Adaptive gap threshold based on document width
+    var xRange   = xs.length > 1 ? xs[xs.length - 1] - xs[0] : 100;
+    var minGap   = Math.max(20, xRange * 0.06); // 6% of doc width
+    var splits   = [0];
     for (var xi = 1; xi < xs.length; xi++) {
-      if (xs[xi] - xs[xi - 1] > 28) splits.push((xs[xi - 1] + xs[xi]) / 2);
+      if (xs[xi] - xs[xi - 1] > minGap) splits.push((xs[xi - 1] + xs[xi]) / 2);
     }
     splits.push(Infinity);
+
+    // v5.4 RULE: reject single-column result
+    if (splits.length <= 2) {
+      DT().log('table-intelligence-v54', { method: 'fallback', rejected: 'single_column' });
+      return [];
+    }
 
     function getColIdx(x) {
       for (var ci = 0; ci < splits.length - 1; ci++) {
@@ -1315,12 +1619,16 @@
       cells[yKey][col] = (cells[yKey][col] ? cells[yKey][col] + ' ' : '') + it.str.trim();
     });
 
+    if (maxCol === 0) return []; // single column — not table data
+
     var ys = Object.keys(cells).map(Number).sort(function (a, b) { return b - a; });
-    return ys.map(function (y) {
+    var result = ys.map(function (y) {
       var row = [];
       for (var ci = 0; ci <= maxCol; ci++) row.push(cells[y][ci] || '');
       return row;
     });
+    DT().log('table-intelligence-v54', { method: 'fallback-gap', rows: result.length, cols: maxCol + 1 });
+    return result;
   }
 
   // ── PHASE 2 (v5): THREE-TIER VALIDATION SYSTEM ───────────────────────────
@@ -1490,6 +1798,75 @@
     return quality;
   }
 
+  // ── RESULT MEANINGFULNESS ENGINE (v5.4) ─────────────────────────────────
+  // Tier 4: Post-output semantic analysis. Checks actual content quality —
+  // not just size or structure counts. Blocks meaningless / garbage output.
+  // Scores: word diversity (unique/total), repetition ratio, sentence coherence.
+  var _MEANINGFULNESS_TOOLS = new Set(['pdf-to-word', 'ocr', 'ai-summarize', 'translate']);
+
+  function validateMeaningfulness(toolId, textContent) {
+    if (!_MEANINGFULNESS_TOOLS.has(toolId)) return; // only for text-output tools
+    var text = (textContent || '').trim();
+    if (text.length < 80) return; // too short to score meaningfully
+
+    var issues = [];
+    var score  = 1.0;
+
+    // 1. Word diversity: ratio of unique words to total words
+    var words       = (text.toLowerCase().match(/\b[a-z\u00c0-\u024f\u0400-\u04ff]{2,}\b/g) || []);
+    var totalWords  = words.length;
+    var uniqueWords = (new Set(words)).size;
+    var diversityR  = totalWords > 0 ? uniqueWords / totalWords : 0;
+    if (totalWords > 20 && diversityR < 0.12) {
+      issues.push('low_word_diversity:' + diversityR.toFixed(2));
+      score -= 0.35;
+    }
+
+    // 2. Repetition ratio: repeated consecutive 3-word sequences
+    var trigrams    = [];
+    for (var wi = 0; wi < words.length - 2; wi++) {
+      trigrams.push(words[wi] + ' ' + words[wi+1] + ' ' + words[wi+2]);
+    }
+    var uniqueTrig  = (new Set(trigrams)).size;
+    var repetitionR = trigrams.length > 0 ? 1 - (uniqueTrig / trigrams.length) : 0;
+    if (trigrams.length > 10 && repetitionR > 0.55) {
+      issues.push('high_repetition_ratio:' + repetitionR.toFixed(2));
+      score -= 0.30;
+    }
+
+    // 3. Sentence coherence: minimum average words per sentence
+    var sentences   = text.match(/[^.!?\n]{8,}[.!?]/g) || text.split(/\n+/).filter(function(l){ return l.trim().length > 10; });
+    var avgWPS      = sentences.length > 0 ? totalWords / sentences.length : 0;
+    if (totalWords > 30 && sentences.length > 2 && avgWPS < 2.5) {
+      issues.push('low_coherence:avg_wps=' + avgWPS.toFixed(1));
+      score -= 0.20;
+    }
+
+    // 4. Symbol noise: ratio of non-alphabetic chars to total chars (OCR garbage)
+    var nonAlpha = (text.replace(/\s/g, '').match(/[^a-z0-9.,;:!?'"()\-\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]/gi) || []).length;
+    var totalNS  = text.replace(/\s/g, '').length;
+    if (totalNS > 60 && nonAlpha / totalNS > 0.65) {
+      issues.push('high_symbol_noise:' + (nonAlpha / totalNS).toFixed(2));
+      score -= 0.25;
+    }
+
+    score = Math.max(0, Math.min(1, score));
+    DT().validate('meaningfulness', {
+      toolId: toolId, score: score.toFixed(2), diversity: diversityR.toFixed(2),
+      repetition: repetitionR.toFixed(2), avgWPS: avgWPS.toFixed(1),
+      totalWords: totalWords, uniqueWords: uniqueWords, issues: issues,
+    });
+
+    if (score < 0.35) {
+      DT().error('meaningfulness-fail', { toolId: toolId, score: score, issues: issues });
+      throw new Error('low_quality_output');
+    }
+    if (score < 0.55) {
+      DT().log('meaningfulness-warning', { toolId: toolId, score: score, issues: issues });
+    }
+    return score;
+  }
+
   // Backwards compat alias — runTool still calls validateOutput()
   function validateOutput(toolId, blob) { return validateBlob(toolId, blob); }
 
@@ -1542,21 +1919,23 @@
     return { pixels: d.buffer, width: width, height: height };
   }
 
-  // ── PHASE 3 (v5): INTELLIGENT AUTO-OCR FALLBACK ──────────────────────────
-  // Re-loads the file, runs Tesseract page-by-page with:
-  //   - Auto language detection from filename + content hints
-  //   - Adaptive DPI scaling based on page dimensions
-  //   - Per-page confidence logging to DebugTrace
-  // Returns array of { pageNum, text, confidence } objects.
+  // ── OCR v2 MULTI-PASS ENGINE (v5.4 MAJOR UPGRADE) ────────────────────────
+  // Three-pass strategy: native extraction → OCR → hybrid merge.
+  //   Pass 1: Native text layer extraction (fast, structure-aware)
+  //   Pass 2: Tesseract OCR with adaptive DPI (for scanned/image-only pages)
+  //   Pass 3: Hybrid merge — prefer native text for pages with good coverage,
+  //           fall back to OCR for sparse/empty pages.
+  // Language detection: filename hints → Unicode range analysis → Tesseract lang.
+  // Returns array of { pageNum, text, confidence, source:'native'|'ocr'|'hybrid' }.
   async function autoOcrFallback(file, onStep, stepBase, stepIdx, langHint) {
     stepBase = stepBase || 35;
     stepIdx  = stepIdx  || 1;
 
-    // Auto language selection from filename hints
+    // Language selection: explicit hint → filename analysis → Unicode sample
     var ocrLang = langHint || 'eng';
     if (!langHint) {
       var fn = (file.name || '').toLowerCase();
-      if      (fn.includes('chi') || fn.includes('zh')) ocrLang = 'chi_sim+eng';
+      if      (fn.includes('chi') || fn.includes('zh'))  ocrLang = 'chi_sim+eng';
       else if (fn.includes('ara') || fn.includes('ar_')) ocrLang = 'ara+eng';
       else if (fn.includes('rus') || fn.includes('ru_')) ocrLang = 'rus+eng';
       else if (fn.includes('deu') || fn.includes('ger')) ocrLang = 'deu+eng';
@@ -1564,32 +1943,96 @@
       else if (fn.includes('spa') || fn.includes('es_')) ocrLang = 'spa+eng';
       else if (fn.includes('jpn') || fn.includes('ja_')) ocrLang = 'jpn+eng';
       else if (fn.includes('kor') || fn.includes('ko_')) ocrLang = 'kor+eng';
+      else if (fn.includes('por') || fn.includes('pt_')) ocrLang = 'por+eng';
     }
 
-    DT().log('auto-ocr-start', { file: file.name, size: file.size, lang: ocrLang });
+    DT().log('ocr-v2-start', { file: file.name, size: file.size, lang: ocrLang });
     onStep(stepIdx, 'active', stepBase, 'Scanning pages for text\u2026');
 
+    // ── Pass 1: Native text layer (fast pre-pass) ──────────────────────────
+    var nativePageTexts = {};
+    try {
+      var pdfjsNative = await loadPdfJs();
+      var pdfNativeSrc = await loadPdfSource(file);
+      var pdfNative = await pdfjsNative.getDocument(pdfNativeSrc.src).promise;
+      var nativeTotal = pdfNative.numPages;
+      for (var ni = 1; ni <= nativeTotal; ni++) {
+        var np = await pdfNative.getPage(ni);
+        var nc = await np.getTextContent();
+        var nativeText = nc.items.map(function(it){ return it.str; }).join(' ').trim();
+        nativePageTexts[ni] = {
+          text: nativeText,
+          chars: nativeText.replace(/\s/g, '').length,
+          items: nc.items.length,
+        };
+        np.cleanup();
+      }
+      await pdfNative.destroy();
+      pdfNativeSrc.cleanup();
+      DT().log('ocr-v2-native-pass', { pages: nativeTotal,
+        totalChars: Object.values(nativePageTexts).reduce(function(s,p){return s+p.chars;},0) });
+    } catch (nativeErr) {
+      DT().log('ocr-v2-native-fail', { err: String(nativeErr).slice(0,80) });
+    }
+
+    // Check if we even need OCR (all pages have good native text)
+    var nativeKeys = Object.keys(nativePageTexts);
+    var allNativeGood = nativeKeys.length > 0 && nativeKeys.every(function(k) {
+      return nativePageTexts[k].chars >= 30;
+    });
+    if (allNativeGood) {
+      // All pages have good native text — build result without Tesseract
+      var nativeResults = nativeKeys.sort(function(a,b){return +a-+b;}).map(function(k) {
+        return { pageNum: +k, text: nativePageTexts[k].text, confidence: 99, source: 'native' };
+      });
+      DT().result('ocr-v2-done', { method: 'native-only', pages: nativeResults.length });
+      return nativeResults;
+    }
+
+    // ── Pass 2: Tesseract OCR ──────────────────────────────────────────────
     if (!window.Tesseract) {
       await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
     }
     if (!window.Tesseract) throw AEError(ERR.NETWORK, 'engine_load_failed');
+
+    // Refine language from native text sample if no explicit hint
+    if (!langHint && Object.keys(nativePageTexts).length > 0) {
+      var sampleText = Object.values(nativePageTexts)
+        .map(function(p){ return p.text; }).join(' ').slice(0, 500);
+      if (sampleText.replace(/\s/g,'').length >= 12) {
+        var detectedLang = _detectOcrLanguage(sampleText);
+        if (detectedLang && detectedLang !== 'eng') {
+          ocrLang = detectedLang;
+          DT().log('ocr-v2-lang-refined', { lang: ocrLang });
+        }
+      }
+    }
 
     var pdfjsLib2 = await loadPdfJs();
     var pdfSrc2   = await loadPdfSource(file);
     var pdf2      = await pdfjsLib2.getDocument(pdfSrc2.src).promise;
     var total2    = pdf2.numPages;
     var worker2   = await window.Tesseract.createWorker(ocrLang, 1, { logger: function () {} });
-    var results   = [];
+    var ocrResults = {};
 
     try {
       for (var oi = 1; oi <= total2; oi++) {
+        // Skip OCR on pages that already have strong native text (≥80 chars)
+        var nativePg = nativePageTexts[oi];
+        if (nativePg && nativePg.chars >= 80) {
+          ocrResults[oi] = { text: nativePg.text, confidence: 99, source: 'native', skippedOcr: true };
+          var pctSkip = stepBase + Math.round((oi / total2) * (78 - stepBase));
+          onStep(stepIdx, 'active', pctSkip, 'Page ' + oi + ' of ' + total2);
+          continue;
+        }
+
         var pg2 = await pdf2.getPage(oi);
 
         // Adaptive DPI: measure real page area, scale accordingly
-        var vp1x = pg2.getViewport({ scale: 1.0 });
+        var vp1x     = pg2.getViewport({ scale: 1.0 });
         var pageArea = vp1x.width * vp1x.height;
-        var adaptScale = pageArea > 500000 ? DEVICE.ocrScale * 0.75 :  // large page → reduce
-                         pageArea <  80000 ? DEVICE.ocrScale * 1.6  :  // small page → boost
+        var adaptScale = pageArea > 500000 ? DEVICE.ocrScale * 0.75 :
+                         pageArea <  80000 ? DEVICE.ocrScale * 1.6  :
                          DEVICE.ocrScale;
 
         var viewport2 = pg2.getViewport({ scale: adaptScale });
@@ -1614,11 +2057,28 @@
         dataUrl2       = null;
         var pageText   = (ocrRes2.data.text || '').trim();
         var confidence = typeof ocrRes2.data.confidence === 'number' ? ocrRes2.data.confidence : 0;
-        results.push({ pageNum: oi, text: pageText, confidence: confidence });
-        DT().log('auto-ocr-page', { page: oi, chars: pageText.length, confidence: confidence, scale: capScale2.toFixed(2) });
+
+        // ── Pass 3: Hybrid merge ─────────────────────────────────────────
+        // If native text exists but is sparse, pick best of native vs OCR
+        var finalText   = pageText;
+        var finalSource = 'ocr';
+        if (nativePg && nativePg.chars > 0) {
+          // Prefer OCR if confidence is high; prefer native if OCR confidence is low
+          if (confidence > 65 && pageText.length > nativePg.text.length * 0.8) {
+            finalText   = pageText;
+            finalSource = 'hybrid-ocr-preferred';
+          } else if (nativePg.chars >= 20) {
+            finalText   = nativePg.text;
+            finalSource = 'hybrid-native-preferred';
+          }
+        }
+
+        ocrResults[oi] = { text: finalText, confidence: confidence, source: finalSource };
+        DT().log('ocr-v2-page', { page: oi, chars: finalText.length, conf: confidence.toFixed(0),
+          src: finalSource, scale: capScale2.toFixed(2) });
 
         var pct2 = stepBase + Math.round((oi / total2) * (78 - stepBase));
-        onStep(stepIdx, 'active', pct2, 'Scanning page ' + oi + ' of ' + total2);
+        onStep(stepIdx, 'active', pct2, 'Page ' + oi + ' of ' + total2);
       }
     } finally {
       try { await worker2.terminate(); } catch (_) {}
@@ -1626,11 +2086,16 @@
       pdfSrc2.cleanup();
     }
 
-    var totalChars = results.reduce(function (s, p) { return s + p.text.length; }, 0);
-    var avgConf    = results.length
-      ? results.reduce(function (s, p) { return s + p.confidence; }, 0) / results.length
-      : 0;
-    DT().result('auto-ocr-done', { pages: results.length, totalChars: totalChars, avgConf: avgConf.toFixed(1), lang: ocrLang });
+    var results = Object.keys(ocrResults).sort(function(a,b){return +a-+b;}).map(function(k) {
+      return Object.assign({ pageNum: +k }, ocrResults[k]);
+    });
+
+    var totalChars  = results.reduce(function (s, p) { return s + p.text.length; }, 0);
+    var avgConf     = results.length
+      ? results.reduce(function (s, p) { return s + (p.confidence || 0); }, 0) / results.length : 0;
+    var ocrPageCnt  = results.filter(function(p){ return p.source !== 'native'; }).length;
+    DT().result('ocr-v2-done', { pages: results.length, ocrPages: ocrPageCnt,
+      totalChars: totalChars, avgConf: avgConf.toFixed(1), lang: ocrLang });
     return results;
   }
 
@@ -2477,7 +2942,7 @@
     return { blob: blob, filename: 'ILovePDF-comparison-report.txt' };
   };
 
-  // ─── AI SUMMARIZE (Phase 7: prefetch pipeline) ────────────────────────────
+  // ─── AI SUMMARIZE (v5.4: heading-aware extraction + dedup + meaningfulness) ─
   processors['ai-summarize'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 5, 'Preparing your file\u2026');
@@ -2490,35 +2955,44 @@
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     var total      = pdf.numPages;
     var allText    = '';
+    var allParas   = []; // v5.4: heading-aware paragraph collection
     var skipped    = 0;
-    var prefetcher = makePrefetcher(pdf); // Phase 7
+    var prefetcher = makePrefetcher(pdf);
 
-    LivePreview.show(pdf, pdfjsLib); // Phase 8
+    LivePreview.show(pdf, pdfjsLib);
 
     try {
       for (var i = 1; i <= total; i++) {
         var pageData = await prefetcher.getPage(i, i + 1);
         var content  = pageData.content;
         if (isPageBlank(content)) { skipped++; pageData.page.cleanup(); continue; }
+
+        // v5.4: extract structured paragraphs for heading-aware scoring
+        var paras = extractStructuredParagraphs(content.items);
+        paras.forEach(function(p) { allParas.push(p); });
         allText += content.items.map(function (it) { return it.str; }).join(' ') + ' ';
-        pageData.page.cleanup(); // Phase 2
+        pageData.page.cleanup();
         var pct = 15 + Math.round((i / total) * 30);
         onStep(1, 'active', pct, 'Page ' + i + ' of ' + total);
       }
     } finally {
       prefetcher.dispose();
       await pdf.destroy();
-      pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
+      pdfSource.cleanup();
     }
 
-    DT().log('ai-summarize-extract', { chars: allText.trim().length, pages: total, skipped: skipped });
+    DT().log('ai-summarize-extract-v54', { chars: allText.trim().length, pages: total,
+      skipped: skipped, paras: allParas.length,
+      headings: allParas.filter(function(p){return p.isHeading;}).length });
 
-    // Phase 3: Auto-OCR trigger for scanned PDFs
+    // Phase 3: Auto-OCR for scanned PDFs
     if (!allText.trim()) {
       DT().log('ai-summarize-ocr-trigger', { reason: 'no_text' });
       onStep(1, 'active', 38, 'Scanning pages for content\u2026');
       var ocrSPages = await autoOcrFallback(file, onStep, 38, 1);
       allText = ocrSPages.map(function (p) { return p.text; }).join(' ');
+      allParas = allText.split(/\n+/).filter(function(l){ return l.trim().length > 5; })
+        .map(function(l){ return { text: l.trim(), isHeading: false }; });
       DT().log('ai-summarize-ocr-result', { chars: allText.length });
       if (!allText.trim()) throw AEError(ERR.PARSE, 'no_extractable_text');
     }
@@ -2536,42 +3010,69 @@
     } catch (_) {}
     allText = null;
 
-    // Inline TF-IDF fallback when worker is unavailable
+    // v5.4: Inline TF-IDF fallback — heading-aware + duplicate removal
     if (!scored || !scored.summary) {
       var _sentences = (_allTextForScore.match(/[^.!?\n]{10,}[.!?]/g) || [])
         .map(function (s) { return s.trim(); }).filter(function (s) { return s.length >= 15; });
-      if (!_sentences.length) _sentences = _allTextForScore.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!_sentences.length) {
+        _sentences = _allTextForScore.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+
       var _words = _allTextForScore.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
-      var _freq = {};
+      var _freq  = {};
       _words.forEach(function (w) { _freq[w] = (_freq[w] || 0) + 1; });
-      var _top = _sentences.slice()
-        .map(function (s) {
-          var sw = s.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
-          return { s: s, score: sw.reduce(function (n, w) { return n + (_freq[w] || 0); }, 0) / (sw.length || 1) };
-        })
-        .sort(function (a, b) { return b.score - a.score; })
-        .slice(0, maxSentences)
-        .map(function (x) { return x.s; });
-      scored = { summary: _top.join(' '), wordCount: _words.length, sentenceCount: _sentences.length, topCount: _top.length };
+
+      // v5.4: Boost heading sentences — they get double weight
+      var _headingTexts = new Set(allParas.filter(function(p){ return p.isHeading; })
+        .map(function(p){ return p.text.trim().toLowerCase(); }));
+
+      var _scored = _sentences.slice().map(function (s) {
+        var sw = s.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+        var baseScore = sw.reduce(function (n, w) { return n + (_freq[w] || 0); }, 0) / (sw.length || 1);
+        var headingBoost = _headingTexts.has(s.trim().toLowerCase()) ? 2.0 : 1.0;
+        return { s: s, score: baseScore * headingBoost };
+      }).sort(function (a, b) { return b.score - a.score; });
+
+      // v5.4: Remove near-duplicate sentences before selecting top N
+      var _seen    = [];
+      var _deduped = [];
+      for (var di = 0; di < _scored.length && _deduped.length < maxSentences; di++) {
+        var candidate = _scored[di].s.trim().toLowerCase();
+        var isDup = _seen.some(function(prev) {
+          // Jaccard similarity > 0.6 → duplicate
+          var a = new Set(prev.split(/\s+/)), b = new Set(candidate.split(/\s+/));
+          var inter = 0;
+          b.forEach(function(w){ if (a.has(w)) inter++; });
+          var union = a.size + b.size - inter;
+          return union > 0 && inter / union > 0.60;
+        });
+        if (!isDup) { _deduped.push(_scored[di].s); _seen.push(candidate); }
+      }
+
+      scored = {
+        summary:       _deduped.join(' '),
+        wordCount:     _words.length,
+        sentenceCount: _sentences.length,
+        topCount:      _deduped.length,
+      };
     }
     _allTextForScore = null;
 
     if (!scored || !scored.summary) throw AEError(ERR.WORKER, 'summarize_empty');
 
-    // Phase 12: quality validation — log compression ratio + sentence count
+    // v5.4: Meaningfulness gate on summary text
+    try { validateMeaningfulness('ai-summarize', scored.summary); } catch (_) {
+      throw new Error('The summary could not be generated from this document. The content may be too fragmented or unclear.');
+    }
+
     var _summaryLen = (scored.summary || '').length;
     var _sentCount  = (scored.summary.match(/[.!?]/g) || []).length;
-    var _origEstLen = (scored.wordCount || 0) * 5; // rough estimate: ~5 chars/word
-    DT().validate('summarize-quality', {
-      sentences:   _sentCount,
-      summaryLen:  _summaryLen,
-      origEstLen:  _origEstLen,
-      compressed:  _origEstLen === 0 || _summaryLen < _origEstLen * 0.85,
-      sentOk:      _sentCount >= 2,
+    var _origEstLen = (scored.wordCount || 0) * 5;
+    DT().validate('summarize-quality-v54', {
+      sentences: _sentCount, summaryLen: _summaryLen,
+      origEstLen: _origEstLen, compressed: _origEstLen === 0 || _summaryLen < _origEstLen * 0.85,
+      sentOk: _sentCount >= 2,
     });
-    if (_sentCount < 2) {
-      DT().log('summarize-quality-note', { note: 'fewer_than_2_sentences', actual: _sentCount });
-    }
 
     onStep(2, 'done', 82);
     onStep(3, 'active', 86, 'Finalizing output\u2026');
@@ -2592,10 +3093,14 @@
 
     var blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '-summary.txt') };
+    return {
+      blob: blob,
+      filename: brandedFilename(file.name, '-summary.txt'),
+      _quality: { chars: _summaryLen, paras: _sentCount, pages: total, ocrUsed: false },
+    };
   };
 
-  // ─── TRANSLATE (Phase 7: prefetch) ────────────────────────────────────────
+  // ─── TRANSLATE (v5.4: paragraph-preserving + context continuity + meaningfulness) ─
   processors['translate'] = async function (files, opts, onStep) {
     var file  = files[0];
     var fHash = _fileHash(file);
@@ -2609,23 +3114,27 @@
     var pdf        = await pdfjsLib.getDocument(pdfSource.src).promise;
     var total      = pdf.numPages;
     var pages      = [];
-    var prefetcher = makePrefetcher(pdf); // Phase 7
+    var prefetcher = makePrefetcher(pdf);
 
     try {
       for (var i = 1; i <= total; i++) {
         var pageData = await prefetcher.getPage(i, i + 1);
         var content  = pageData.content;
+        // v5.4: extract structured paragraphs to preserve paragraph structure
+        var paras    = isPageBlank(content) ? [] : extractStructuredParagraphs(content.items);
+        var flatText = paras.map(function(p){ return p.text; }).join('\n\n');
         pages.push({
           num:   i,
-          text:  content.items.map(function (it) { return it.str; }).join(' ').trim(),
+          text:  flatText || content.items.map(function (it) { return it.str; }).join(' ').trim(),
+          paras: paras,
           blank: isPageBlank(content),
         });
-        pageData.page.cleanup(); // Phase 2
+        pageData.page.cleanup();
       }
     } finally {
       prefetcher.dispose();
       await pdf.destroy();
-      pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
+      pdfSource.cleanup();
     }
 
     onStep(1, 'done', 38);
@@ -2633,9 +3142,9 @@
 
     if (!isOnline()) throw AEError(ERR.NETWORK, 'offline');
 
-    // Phase 3: Auto-OCR trigger — if PDF has no extractable text, run OCR first
+    // Phase 3: Auto-OCR trigger
     var _translateTextTotal = pages.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
-    DT().log('translate-extract', { chars: _translateTextTotal, pages: pages.length });
+    DT().log('translate-extract-v54', { chars: _translateTextTotal, pages: pages.length });
     if (_translateTextTotal < 20) {
       DT().log('translate-ocr-trigger', { reason: 'sparse_text' });
       onStep(1, 'active', 38, 'Scanning pages for content\u2026');
@@ -2646,13 +3155,14 @@
         throw new Error('No text could be found in this document. For scanned documents, run the OCR tool first to extract text.');
       }
       pages = ocrTPages.map(function (p) {
-        return { num: p.pageNum, text: p.text, blank: !p.text.trim() };
+        return { num: p.pageNum, text: p.text, paras: [], blank: !p.text.trim() };
       });
     }
 
     var targetLang = (opts && (opts.targetLang || opts.targetLanguage)) || 'es';
     var srcLang    = (opts && (opts.sourceLang || opts.sourceLanguage)) || 'en';
-    var MAX_CHARS  = 450;
+    // v5.4: Smaller chunks (380 chars) for better context continuity per API call
+    var MAX_CHARS  = (opts && opts._retrySmallChunks) ? (opts._chunkSize || 150) : 380;
 
     var savedTrans = await ProgressStore.load('translate', fHash);
     var startPage  = 0;
@@ -2667,63 +3177,89 @@
       }
     }
 
+    // v5.4: paragraph-aware chunk splitter — preserves paragraph boundaries
+    function _splitPreservingParagraphs(txt, max) {
+      var paragraphs = txt.split(/\n{2,}/);
+      var out = [];
+      var cur = '';
+      for (var pi = 0; pi < paragraphs.length; pi++) {
+        var para = paragraphs[pi].trim();
+        if (!para) continue;
+        // If single paragraph exceeds max, sentence-split it
+        if (para.length > max) {
+          if (cur) { out.push(cur.trim()); cur = ''; }
+          var parts = para.match(/[^.!?]+[.!?]+["'\u2019]?[\s]*|[^.!?]+$/g) || [para];
+          var sentCur = '';
+          for (var si = 0; si < parts.length; si++) {
+            var s = parts[si];
+            if (sentCur.length + s.length > max && sentCur) {
+              out.push(sentCur.trim()); sentCur = s;
+            } else {
+              sentCur = sentCur ? sentCur + ' ' + s : s;
+            }
+          }
+          if (sentCur.trim()) out.push(sentCur.trim());
+        } else if (cur.length + para.length + 2 > max && cur) {
+          out.push(cur.trim());
+          cur = para;
+        } else {
+          cur = cur ? cur + '\n\n' + para : para;
+        }
+      }
+      if (cur.trim()) out.push(cur.trim());
+      return out.length ? out : [txt.slice(0, max)];
+    }
+
+    // v5.4: Previous segment context — pass last translated sentence as context hint
+    var _prevTranslated = '';
+
     for (var p = startPage; p < pages.length; p++) {
       var pg = pages[p];
       if (pg.blank || !pg.text) { translated.push({ num: pg.num, text: '' }); continue; }
 
-      // Sentence-boundary–aware chunking: prefer splitting at ". ", "? ", "! "
-      // so translation preserves meaning across API calls.
-      var segments = (function splitSentences(txt, max) {
-        var out   = [];
-        var parts = txt.match(/[^.!?]+[.!?]+["'\u2019]?[\s]*|[^.!?]+$/g) || [txt];
-        var cur   = '';
-        for (var si = 0; si < parts.length; si++) {
-          var s = parts[si];
-          if (cur.length + s.length > max && cur) {
-            out.push(cur.trim());
-            cur = s;
-          } else {
-            cur = cur ? cur + ' ' + s : s;
-          }
-        }
-        if (cur.trim()) out.push(cur.trim());
-        // Safety: if a single sentence exceeds max, hard-split it.
-        var final = [];
-        for (var oi = 0; oi < out.length; oi++) {
-          var seg = out[oi];
-          if (seg.length <= max) { final.push(seg); continue; }
-          var pos2 = 0;
-          while (pos2 < seg.length) {
-            var end2 = Math.min(pos2 + max, seg.length);
-            if (end2 < seg.length) { var ls2 = seg.lastIndexOf(' ', end2); if (ls2 > pos2) end2 = ls2; }
-            final.push(seg.slice(pos2, end2).trim());
-            pos2 = end2 + 1;
-          }
-        }
-        return final.length ? final : [txt.slice(0, max)];
-      }(pg.text, MAX_CHARS));
-
+      var segments = _splitPreservingParagraphs(pg.text, MAX_CHARS);
       var translatedParts = [];
       for (var c = 0; c < segments.length; c++) {
         if (!segments[c]) continue;
         var seg = segments[c];
+
+        // v5.4: Context continuity — prepend last sentence from previous translation
+        // as a "context" prefix to keep the API oriented, then strip it from result.
+        var contextPrefix = '';
+        if (_prevTranslated && _prevTranslated.length > 0 && c === 0) {
+          var prevSentences = _prevTranslated.match(/[^.!?]{5,}[.!?]/g) || [];
+          if (prevSentences.length > 0) {
+            contextPrefix = prevSentences[prevSentences.length - 1].trim() + ' ';
+          }
+        }
+
+        var queryText = contextPrefix + seg;
         var part = await retryWithBackoff(function (attempt, signal) {
           if (attempt > 0) {
             var hEl = document.getElementById('processing-msg');
             if (hEl) hEl.textContent = 'Optimizing connection\u2026';
           }
           var url = 'https://api.mymemory.translated.net/get?q=' +
-            encodeURIComponent(seg) + '&langpair=' + encodeURIComponent(srcLang) + '|' + encodeURIComponent(targetLang);
+            encodeURIComponent(queryText) + '&langpair=' +
+            encodeURIComponent(srcLang) + '|' + encodeURIComponent(targetLang);
           return fetchWithRetry(url, signal ? { signal: signal } : {}, 1, 10000)
             .then(function (resp) { return resp.json(); })
             .then(function (json) {
-              return (json.responseData && json.responseData.translatedText) || seg;
+              var raw = (json.responseData && json.responseData.translatedText) || seg;
+              // Strip the context prefix from result if present
+              if (contextPrefix && raw.startsWith(contextPrefix.trim())) {
+                raw = raw.slice(contextPrefix.trim().length).trim();
+              }
+              return raw;
             });
         }, 3, 800, 12000).catch(function () { return seg; });
+
         translatedParts.push(part);
       }
 
-      translated.push({ num: pg.num, text: translatedParts.join(' ') });
+      var pageTranslated = translatedParts.join('\n\n');
+      _prevTranslated = pageTranslated;
+      translated.push({ num: pg.num, text: pageTranslated });
 
       await ProgressStore.save('translate', fHash, {
         pagesDone:  p + 1, totalPages: total,
@@ -2739,24 +3275,29 @@
     onStep(2, 'done', 79);
     onStep(3, 'active', 82, 'Finalizing output\u2026');
 
-    // Check if any pages actually have content
     var _hasContent = translated.some(function (pg) { return pg.text && pg.text.trim().length > 0; });
     if (!_hasContent) {
       throw new Error('No translatable text was found in this PDF. The document may contain only images or scanned content. Use the OCR tool first to extract text.');
     }
 
-    // Phase 2 (v5) / Phase 12: validate output ≠ input (catches failed API calls)
+    // Validate output ≠ input
     var _transInJoined  = pages.map(function (p) { return p.text || ''; }).join(' ').slice(0, 600);
     var _transOutJoined = translated.map(function (p) { return p.text || ''; }).join(' ').slice(0, 600);
     var _transIdentical = _transInJoined.length > 10 && _transOutJoined === _transInJoined;
-    DT().validate('translate-quality', {
-      inputChars:  _transInJoined.length,
-      outputChars: _transOutJoined.length,
-      identical:   _transIdentical,
+    DT().validate('translate-quality-v54', {
+      inputChars: _transInJoined.length, outputChars: _transOutJoined.length,
+      identical: _transIdentical, chunkSize: MAX_CHARS,
     });
     if (_transIdentical) {
-      DT().error('translate-quality', 'output identical to input — translation API may have failed');
+      DT().error('translate-quality', 'output identical to input');
       throw new Error('Translation could not be completed. The service may be temporarily unavailable. Please try again.');
+    }
+
+    // v5.4: Meaningfulness gate on full translated text
+    var _fullOutput = translated.map(function(p){ return p.text || ''; }).join(' ');
+    try { validateMeaningfulness('translate', _fullOutput); } catch (_) {
+      // Only block on meaningless output, not short translations
+      if (_fullOutput.length > 200) throw new Error('The translated output did not meet quality requirements. Please try again.');
     }
 
     var lineOut = [
@@ -2773,7 +3314,11 @@
 
     var blob = new Blob([lineOut.join('\n')], { type: 'text/plain;charset=utf-8' });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '-' + targetLang + '.txt') };
+    return {
+      blob: blob,
+      filename: brandedFilename(file.name, '-' + targetLang + '.txt'),
+      _quality: { chars: _transOutJoined.length, paras: translated.length, pages: total },
+    };
   };
 
   // ─── WORKFLOW ─────────────────────────────────────────────────────────────
@@ -2814,7 +3359,7 @@
     return { blob: blob, filename: brandedFilename(file.name, '-workflow.pdf') };
   };
 
-  // ── MAIN RUNNER (v5.2: InputAnalyzer + Smart Retry Engine) ────────────────
+  // ── MAIN RUNNER (v5.4: Input Intelligence + OCR v2 + Meaningfulness Gate) ──
   async function runTool(toolId, files, opts, origProcess) {
     var totalBytes = Array.from(files).reduce(function (s, f) { return s + (f.size || 0); }, 0);
 
@@ -2828,12 +3373,24 @@
       throw new Error('memory_pressure');
     }
 
-    // v5.2: Input Analyzer pre-flight — catch empty/corrupt/invalid files
-    // immediately, before any processor runs, for clean early UX feedback.
+    // v5.4: Input Intelligence Engine pre-flight — detects magic bytes, scanned
+    // vs digital, multi-language, empty/corrupt files, and builds routing advice.
     var _precheck = await InputAnalyzer.check(toolId, files);
     if (!_precheck.ok) {
       DT().error('runTool-precheck-fail', { toolId: toolId, reason: _precheck.reason });
       throw new Error(_precheck.message);
+    }
+
+    // Extract routing hints for downstream processors
+    var _routing   = (_precheck.routing)   || {};
+    var _langHint  = (_routing.langHint)   || null;
+    var _forceOcr  = (_routing.forceOcr)   || false;
+    if (_forceOcr || _langHint) {
+      opts = Object.assign({}, opts || {}, {
+        _forceOcr: _forceOcr,
+        _langHint: _langHint,
+      });
+      DT().log('runTool-routing', { toolId: toolId, forceOcr: _forceOcr, langHint: _langHint });
     }
 
     var proc = processors[toolId];
@@ -2845,16 +3402,16 @@
     // Phase 9: show estimator after feed renders
     setTimeout(function () { OutputEstimator.show(toolId, totalBytes); }, 300);
 
-    // v5.2: Smart Retry Engine
-    // When a processor fails with low_quality_output or the validation pipeline
-    // rejects the result, re-run once with enhanced options (higher DPI, smaller
-    // chunks, forced OCR, etc.). UX message stays neutral — never shows internals.
+    // v5.4: Smart Retry Engine (enhanced)
+    // Re-runs with upgraded options on: low_quality_output, invalid_output.
+    // New retry strategies: OCR hybrid boost, structure rebuild, micro-chunks.
     var _SMART_RETRY_OPTS = {
-      'ocr':                { _retryDpiBoost:  true },
-      'translate':          { _retrySmallChunks: true, _chunkSize: 200 },
-      'pdf-to-word':        { _retryForceOcr:  true },
-      'pdf-to-excel':       { _retryForceOcr:  true },
-      'ai-summarize':       { sentences: 12, _retryBoost: true },
+      'ocr':                { _retryDpiBoost: true, _retryHybrid: true },
+      'translate':          { _retrySmallChunks: true, _chunkSize: 150 },
+      'pdf-to-word':        { _retryForceOcr: true },
+      'pdf-to-excel':       { _retryForceOcr: true },
+      'pdf-to-powerpoint':  { _retryForceOcr: true },
+      'ai-summarize':       { sentences: 14, _retryBoost: true },
       'background-remover': { threshold: 200 },
       'compress':           { _retryDeep: true },
     };
@@ -2870,8 +3427,8 @@
         : Object.assign({}, opts || {}, _SMART_RETRY_OPTS[toolId] || {});
 
       if (_attempt > 1) {
-        DT().log('smart-retry', { toolId: toolId, attempt: _attempt });
-        // Neutral UX message — no technical reason exposed (Stealth Mode)
+        DT().log('smart-retry-v54', { toolId: toolId, attempt: _attempt, opts: Object.keys(_SMART_RETRY_OPTS[toolId] || {}) });
+        // Neutral UX message — Stealth Mode (never expose internals)
         LiveFeed.update(1, 'active', 38,
           _attempt === 2 ? 'Improving result\u2026' : 'Optimizing output\u2026');
       }
@@ -2889,7 +3446,7 @@
                        _procErr.aeType === ERR.ORIG);
 
         if (_isOrig) {
-          // Seamless handoff to browser-tools.js fallback — no retry for these
+          // Seamless handoff to browser-tools.js fallback — no retry
           LiveFeed.update(1, 'active', 30, 'Preparing content\u2026');
           try {
             result = await origProcess(toolId, files, opts);
@@ -2897,7 +3454,7 @@
             LiveFeed.hide(); vanish();
             throw new Error(safeMessage(origErr) || 'Something went wrong. Please try again.');
           }
-          break; // origProcess handled it; skip retry loop
+          break;
         }
 
         // Low-quality or invalid output → retry with enhanced opts if available
@@ -2905,7 +3462,7 @@
                        _procErr.message === 'invalid_output');
         if (_isLowQ && _attempt < _maxAttempts) {
           result = null;
-          continue; // retry with _curOpts enhanced
+          continue;
         }
 
         // Terminal error — sanitize and surface
@@ -2915,11 +3472,13 @@
         throw _safeErr;
       }
 
-      // ── v5.2 Validation Pipeline (Hybrid) ──────────────────────────────
-      // Tier 1: validateBlob  — hard size gate (catches empty/zero-byte output)
-      // Tier 2: analyzeResultQuality — hybrid quality gate (size + structure)
-      // RULE 1: NO FAKE SUCCESS — block download on any validation failure.
+      // ── v5.4 Validation Pipeline (4-Tier) ───────────────────────────────
+      // Tier 1: validateBlob  — hard size gate
+      // Tier 2: analyzeResultQuality — hybrid quality score (size + structure)
+      // Tier 3: validateMeaningfulness — semantic content quality
+      // RULE: NO FAKE SUCCESS — block download on any failure.
       var _valFailed = false;
+      var _valReason = '';
 
       if (result) {
         var _rb = (result && result.blob) ? result.blob : result;
@@ -2927,24 +3486,33 @@
           try {
             validateBlob(toolId, _rb);
           } catch (_blobErr) {
-            _valFailed = true;
+            _valFailed = true; _valReason = 'blob';
           }
         }
         if (!_valFailed) {
           try {
             analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
           } catch (_qualErr) {
-            _valFailed = true;
+            _valFailed = true; _valReason = 'quality';
+          }
+        }
+        // Tier 3: validateMeaningfulness — only for text-output results
+        if (!_valFailed && result && result._textContent) {
+          try {
+            validateMeaningfulness(toolId, result._textContent);
+          } catch (_meaningErr) {
+            _valFailed = true; _valReason = 'meaningfulness';
           }
         }
       }
 
       if (_valFailed) {
+        DT().log('validation-fail', { toolId: toolId, attempt: _attempt, reason: _valReason });
         if (_attempt < _maxAttempts && _canRetry) {
-          DT().log('smart-retry-quality', { toolId: toolId, attempt: _attempt });
+          DT().log('smart-retry-quality', { toolId: toolId, attempt: _attempt, reason: _valReason });
           LiveFeed.update(1, 'active', 40, 'Optimizing output\u2026');
           result = null;
-          continue; // retry with enhanced opts
+          continue;
         }
         LiveFeed.hide(); vanish();
         throw new Error('The output quality was too low to be useful. Please try with a clearer or higher-quality file.');
@@ -3016,7 +3584,7 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:              '5.3',
+    version:              '5.4',
     InputAnalyzer:        InputAnalyzer,
     TOOL_IDS:             ADVANCED_IDS,
     LiveFeed:             LiveFeed,
@@ -3028,11 +3596,14 @@
     memTier:              memTier,
     vanish:               vanish,
     // Validation (v5 three-tier)
-    validateOutput:       validateOutput,       // compat alias → validateBlob
-    validateBlob:         validateBlob,
-    validateContent:      validateContent,
-    analyzeResultQuality: analyzeResultQuality,
-    autoOcrFallback:      autoOcrFallback,
+    validateOutput:           validateOutput,       // compat alias → validateBlob
+    validateBlob:             validateBlob,
+    validateContent:          validateContent,
+    analyzeResultQuality:     analyzeResultQuality,
+    validateMeaningfulness:   validateMeaningfulness,   // v5.4 Tier 4
+    autoOcrFallback:          autoOcrFallback,
+    extractStructuredParagraphs: extractStructuredParagraphs,
+    buildColumnRows:          buildColumnRows,
     // Audit helper — call AdvancedEngine.audit() in DevTools for a full report
     audit: function () {
       var dt     = window.DebugTrace;
@@ -3043,22 +3614,67 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.3 — Audit Report');
+      console.group('AdvancedEngine v5.4 — Audit Report');
+      console.log('Version: 5.4');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
-      // v5.2: surface InputAnalyzer pre-flight failures and smart retry counts
-      var preChecks = entries.filter(function (e) { return e.key === 'input-analyzer'; });
-      var retries   = entries.filter(function (e) { return e.key === 'smart-retry' || e.key === 'smart-retry-quality'; });
-      console.log('InputAnalyzer checks:', preChecks.length,
-        '| pre-flight failures:', preChecks.filter(function (e) { return e.type === 'error'; }).length);
-      console.log('Smart retries triggered:', retries.length);
+
+      // v5.4: Input Intelligence Engine tracking
+      var inputIntelChecks = entries.filter(function (e) {
+        return e.key === 'input-intelligence' || e.key === 'input-intelligence-magic' || e.key === 'input-intelligence-scan';
+      });
+      console.log('Input Intelligence checks:', inputIntelChecks.length);
+      var magicChecks = entries.filter(function (e) { return e.key === 'input-intelligence-magic'; });
+      var magicTypes = magicChecks.map(function(e) { return (e.data || {}).detected; }).filter(Boolean);
+      if (magicTypes.length) console.log('File types detected:', magicTypes.join(', '));
+
+      // v5.4: OCR v2 tracking
+      var ocrV2Starts = entries.filter(function (e) { return e.key === 'ocr-v2-start'; });
+      var ocrV2Done   = entries.filter(function (e) { return e.key === 'ocr-v2-done'; });
+      var ocrNative   = ocrV2Done.filter(function(e) { return (e.data||{}).method === 'native-only'; });
+      console.log('OCR v2 runs:', ocrV2Starts.length,
+        '| native-only:', ocrNative.length, '| full OCR:', ocrV2Done.length - ocrNative.length);
+
+      // v5.4: Meaningfulness Engine tracking
+      var meaningChecks  = validates.filter(function (e) { return e.key === 'meaningfulness'; });
+      var meaningFails   = errors.filter(function (e) { return e.key === 'meaningfulness-fail'; });
+      var meaningWarns   = entries.filter(function (e) { return e.key === 'meaningfulness-warning'; });
+      console.log('Meaningfulness checks:', meaningChecks.length,
+        '| failures:', meaningFails.length, '| warnings:', meaningWarns.length);
+      if (meaningChecks.length) {
+        var scores = meaningChecks.map(function(e) { return parseFloat((e.data||{}).score || '0'); });
+        var avgScore = scores.reduce(function(s,v){return s+v;},0) / scores.length;
+        console.log('  avg score:', avgScore.toFixed(2),
+          '| min:', Math.min.apply(null,scores).toFixed(2),
+          '| max:', Math.max.apply(null,scores).toFixed(2));
+      }
+
+      // v5.4: AI Document Parser v5 tracking
+      var docParserV5 = entries.filter(function (e) { return e.key === 'doc-parser-v5-multicol'; });
+      console.log('AI Document Parser v5 multi-column detections:', docParserV5.length);
+
+      // v5.4: Table Intelligence System tracking
+      var tableIntel = entries.filter(function (e) { return e.key === 'table-intelligence-v54'; });
+      var tableRejected = tableIntel.filter(function(e){ return (e.data||{}).rejected; });
+      console.log('Table Intelligence decisions:', tableIntel.length, '| rejected:', tableRejected.length);
+
+      // v5.4: Smart Retry tracking
+      var retries = entries.filter(function (e) {
+        return e.key === 'smart-retry-v54' || e.key === 'smart-retry-quality';
+      });
+      console.log('Smart retries v5.4:', retries.length);
+      if (retries.length) {
+        var byTool = {};
+        retries.forEach(function(e) { var t=(e.data||{}).toolId||'?'; byTool[t]=(byTool[t]||0)+1; });
+        console.log('  by tool:', byTool);
+      }
 
       if (qs) {
         console.group('Quality Summary');
         console.log('Score:', qs.qualityScore);
         console.log('OCR used:', qs.ocrUsed);
-        if (qs.issues.length) console.warn('Issues:', qs.issues);
+        if (qs.issues && qs.issues.length) console.warn('Issues:', qs.issues);
         console.groupEnd();
       }
       if (errors.length)    console.warn('Errors:',    errors);
