@@ -1,63 +1,60 @@
 # ILovePDF — Free Online PDF & Image Tools
-ILovePDF is a platform offering 33 online tools for PDF and image processing, providing a comprehensive, user-friendly, and highly available service for document manipulation.
+ILovePDF is a production-ready platform offering 33+ online tools for PDF and image processing (merge, split, compress, convert, OCR, AI summarize, image manipulation, and more).
 
 ## Run & Operate
 - **Run**: `node server.js`
 - **Port**: 5000
-- **Environment Variables**:
-    - `JWT_SECRET`: Required for authentication.
-    - `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`: Optional, for Firebase Auth.
-    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`: Optional, for Cloudflare R2 storage.
-    - `HF_API_TOKEN`: Informational only (AI tools use local/extractive logic).
+- **Required env vars**: `JWT_SECRET` (auth signing key)
+- **Optional env vars**:
+  - Firebase Auth: `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - Cloudflare R2 storage: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+  - HuggingFace (informational only): `HF_API_TOKEN`
+  - CORS: `ALLOWED_ORIGINS` (comma-separated, defaults to production domains; `*` allows all)
 
 ## Stack
-- **Frontend**: Pure HTML/CSS/JS
-- **Backend**: Express.js (Node.js 20)
-- **Database**: SQLite (for users, pending signups)
-- **ORM**: _Populate as you build_
-- **Validation**: 4-tier pipeline: `validateBlob` → `validateContent` → `analyzeResultQuality` → `validateMeaningfulness`
-- **Build Tool**: _Populate as you build_
+- **Backend**: Node.js 20 + Express 5 (ES modules)
+- **Frontend**: Vanilla HTML/CSS/JS (no SPA framework)
+- **Database**: SQLite via `better-sqlite3` (`.data/app.db` — users, pending signups)
+- **Storage**: Cloudflare R2 (optional; falls back to local `/tmp/ilovepdf-uploads`)
+- **Auth**: JWT cookies (`ilovepdf_token`) + optional Firebase bridge for Google Sign-In
 
 ## Where things live
-- `server.js`: Express entry point, middleware, routes.
-- `routes/`: API endpoints for authentication and tool categories.
-- `utils/db.js`: SQLite database schema and operations.
-- `public/`: All frontend assets (HTML, CSS, JS).
-- `public/js/tools-config.js`: Source of truth for all 33 tool definitions.
-- `public/css/home.css`: Defines Z-index system and core UI styles.
-- `public/laba/`: Laba AI Widget implementation.
+- `server.js` — Express entry point, middleware, route mounts
+- `routes/` — auth, organize, edit, convert, security, advanced, image, r2, seo-routes
+- `utils/db.js` — SQLite schema (source of truth)
+- `utils/firebase-admin.js` — Firebase Admin init + JWT cookie helpers
+- `utils/r2.js` — Cloudflare R2 helpers
+- `public/` — all static frontend assets
+- `public/js/tools-config.js` — source of truth for all tool definitions
+- `public/js/auth-ui.js` — auth modal + profile chip (injected on every page)
+- `cloudflare/worker/` — optional Cloudflare Queue Worker for heavy async jobs
 
 ## Architecture decisions
-- **Browser-side Processing**: All 33 PDF/image tools run 100% in the browser using libraries like pdf-lib, tesseract.js, and canvas APIs, with no server-side fallback for tool processing.
-- **Client-Server Split**: A lightweight Express.js server handles authentication and static file serving, while complex document processing is offloaded to the client.
-- **Four-Tier Validation Pipeline (v5.4)**: `validateBlob` (size gate) → `validateContent` (per-tool content rules) → `analyzeResultQuality` (hybrid quality score) → `validateMeaningfulness` (semantic: word diversity, repetition ratio, sentence coherence). All must pass — no fake success.
-- **Quality Score Enforcement (v5.4)**: `analyzeResultQuality()` uses hybrid scoring — 65% output-size ratio + 35% structural metadata. `validateMeaningfulness()` scores word diversity, trigram repetition, avg words/sentence, symbol noise — blocks if score < 0.35, warns if < 0.55.
-- **Universal Fallback Chains**: Every tool follows Worker → CPU inline → alternative logic → clean fail. Background remover: 2-pass retry (original threshold → relaxed by −25); hard fail with user message if no alpha detected. Repair: 2-pass loop + pdfjsLib integrity check after repair.
-- **Zero Technical Leakage (Stealth Mode)**: `safeMessage()` intercepts all errors and maps them to user-friendly messages. Internal terms (worker, wasm, OPFS, gpu, thread, SharedArray, chunk, ArrayBuffer) are never exposed.
-- **Comprehensive Error Handling**: Internal error types are mapped to clean, non-technical user-facing messages, often guiding users to alternative tools (e.g., OCR for scanned PDFs).
-- **Deferred Firebase Init**: Firebase SDK initialization is deferred using `requestIdleCallback` to prioritize initial page load and user experience.
+- **Browser-first processing**: Most PDF/image tools run in the browser (pdf-lib, canvas APIs); server handles auth, storage, and heavier conversions.
+- **Optional Firebase**: Firebase is an enhancement for Google Sign-In only. The app fully works with its own email/password auth (SQLite + bcrypt + JWT).
+- **Optional R2**: File uploads fall back to local temp storage when R2 is not configured.
+- **Graceful degradation**: All optional services (Firebase, R2, HF) are probed at boot and disabled cleanly if credentials are absent — no hard crashes.
+- **Same-origin + cross-origin cookies**: `cookieOpts()` auto-detects cross-origin requests and switches to `SameSite=None; Secure` for the JWT cookie.
 
 ## Product
-- 33 online tools for PDF and image processing (merge, split, compress, convert, edit, OCR, AI summarization, image manipulation).
-- User tiers: Guest, Free, and Premium with varying file limits and size caps.
-- SEO optimized with dynamic canonical URLs, structured data, and a blog system.
-- Responsive UI/UX with a distinctive red theme and glassmorphism elements.
-- Laba AI Widget for conversational assistance with voice support and contextual suggestions.
+- 33+ PDF tools: merge, split, compress, rotate, watermark, sign, protect, unlock, OCR, repair, compare, AI summarize/translate
+- Image tools: background remover, crop, resize, filters
+- Utility tools: Numbers to Words, Currency Converter
+- User tiers: Guest → Free → Premium with per-day quotas and file-size caps
+- SEO: dynamic canonical URLs, structured data, sitemap, blog
 
 ## User preferences
-I prefer detailed explanations.
-I want an iterative development process.
-I want to be asked before major changes are made.
+- Prefers detailed explanations
+- Wants iterative development with confirmation before major changes
 
 ## Gotchas
-- The `JWT_SECRET` environment variable is critical for authentication.
-- Worker-dependent tools require `workerPool.js` to be correctly loaded before `browser-tools.js`.
-- Deep compression makes text unselectable; a warning is displayed.
-- Translate PDF tool will throw an error if no extractable text is found, guiding users to OCR first.
+- `JWT_SECRET` must be set; defaults to `dev-secret-change-me` (insecure) if missing
+- `better-sqlite3` is a native addon — must be compiled for the correct Node version
+- `.data/` directory is auto-created at boot for SQLite; keep it out of Docker/CI caches
+- Firebase and R2 are entirely optional — the app boots and runs tools without them
 
 ## Pointers
-- **pdf-lib documentation**: [https://pdf-lib.js.org/](https://pdf-lib.js.org/)
-- **tesseract.js documentation**: [https://tesseract.projectnaptha.com/](https://tesseract.projectnaptha.com/)
-- **Express.js documentation**: [https://expressjs.com/](https://expressjs.com/)
-- **Firebase Authentication**: [https://firebase.google.com/docs/auth](https://firebase.google.com/docs/auth)
-- **Cloudflare R2 documentation**: [https://developers.cloudflare.com/r2/](https://developers.cloudflare.com/r2/)
+- Express 5 docs: https://expressjs.com/
+- pdf-lib: https://pdf-lib.js.org/
+- Firebase Admin SDK: https://firebase.google.com/docs/admin/setup
+- Cloudflare R2: https://developers.cloudflare.com/r2/
