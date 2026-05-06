@@ -151,6 +151,62 @@
     return 'Something went wrong. Please try again.';
   }
 
+  // ── INPUT ANALYZER (v5.2) ─────────────────────────────────────────────────
+  // Pre-flight validation that runs BEFORE any processor. Detects empty files,
+  // corrupt data, and invalid PDF headers so users get immediate clear feedback.
+  var InputAnalyzer = (function () {
+    var EMPTY_THRESHOLD = 150; // bytes — any smaller is definitely empty/corrupt
+
+    var PDF_INPUT_TOOLS = new Set([
+      'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'compress', 'ocr',
+      'translate', 'ai-summarize', 'compare', 'repair', 'workflow', 'split',
+      'merge', 'rotate', 'organize', 'page-numbers', 'watermark', 'crop',
+      'protect', 'unlock',
+    ]);
+
+    async function check(toolId, files) {
+      if (!files || !files.length) {
+        return { ok: false, reason: 'no_file',
+          message: 'No file provided. Please upload a file and try again.' };
+      }
+      var file = files[0];
+
+      // Empty / near-empty file gate
+      if (file.size < EMPTY_THRESHOLD) {
+        DT().error('input-analyzer', { reason: 'empty_file', size: file.size, tool: toolId });
+        return {
+          ok: false, reason: 'empty_file',
+          message: 'The file appears to be empty or too small to process. Please try with a different file.',
+        };
+      }
+
+      // PDF header validation for PDF-input tools
+      if (PDF_INPUT_TOOLS.has(toolId)) {
+        var looksLikePdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
+        if (looksLikePdf) {
+          try {
+            var hdr = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+            // PDF signature: %PDF (0x25 0x50 0x44 0x46)
+            var validHdr = hdr[0] === 0x25 && hdr[1] === 0x50 &&
+                           hdr[2] === 0x44 && hdr[3] === 0x46;
+            if (!validHdr) {
+              DT().error('input-analyzer', { reason: 'invalid_pdf_header', tool: toolId });
+              return {
+                ok: false, reason: 'invalid_pdf_header',
+                message: 'This file does not appear to be a valid PDF. If it\'s damaged, try the Repair PDF tool first.',
+              };
+            }
+          } catch (_) { /* slice read failed — allow through; processor will handle it */ }
+        }
+      }
+
+      DT().log('input-analyzer', { tool: toolId, size: file.size, type: file.type || 'unknown', ok: true });
+      return { ok: true };
+    }
+
+    return { check: check };
+  }());
+
   // ── CAPABILITIES ──────────────────────────────────────────────────────────
   // Phase 4: Real SharedArrayBuffer detection (requires COOP+COEP headers)
   var HAS_SAB = (function () {
@@ -1282,29 +1338,46 @@
   //   background-remover: { hasTransparent: bool }
   function validateContent(toolId, data) {
     data = data || {};
-    var issues = [];
+    var issues  = [];
+    var softLog = []; // warnings that log but do NOT block download
 
     if (toolId === 'pdf-to-word') {
       var paras = data.paragraphs !== undefined ? data.paragraphs : 0;
       var chars  = data.chars     !== undefined ? data.chars     : 0;
-      if (paras < 2) issues.push('too_few_paragraphs:' + paras);
+      if (paras < 2)  issues.push('too_few_paragraphs:' + paras);
       if (chars < 50) issues.push('too_few_chars:' + chars);
     }
     else if (toolId === 'pdf-to-excel') {
       var rows = data.rows !== undefined ? data.rows : 0;
+      var cols = data.cols !== undefined ? data.cols : 0;
       if (rows < 1) issues.push('no_data_rows');
+      // v5.2: soft warning if only a single column — may be OCR text, not tabular data
+      if (rows >= 1 && cols === 1) softLog.push('single_column_result');
     }
     else if (toolId === 'ocr') {
       var ocrText = data.text || '';
       var wordCnt = (ocrText.match(/\b[a-z]{2,}\b/gi) || []).length;
       if (ocrText.length < 30) issues.push('too_few_chars:' + ocrText.length);
       if (wordCnt < 3)         issues.push('no_recognizable_words:' + wordCnt);
+      // v5.2: garbage text detection — repeating single character or extreme symbol noise
+      if (ocrText.length > 20 && /(.)\1{6,}/.test(ocrText)) {
+        issues.push('garbage_text_repeating_chars');
+      }
+      var _nonAlpha = (ocrText.replace(/\s/g, '').match(/[^a-z0-9.,;:!?'"()\-]/gi) || []).length;
+      var _totalNS  = ocrText.replace(/\s/g, '').length;
+      if (_totalNS > 40 && _nonAlpha / _totalNS > 0.70) {
+        issues.push('high_symbol_noise_ratio:' + (_nonAlpha / _totalNS).toFixed(2));
+      }
     }
     else if (toolId === 'translate') {
       var inTxt  = data.inputText  || '';
       var outTxt = data.outputText || '';
       if (outTxt.length < 20) issues.push('output_too_short:' + outTxt.length);
       if (outTxt === inTxt)   issues.push('output_identical_to_input');
+      // v5.2: output must be at least 30% as long as the input — catches truncated API returns
+      if (inTxt.length > 50 && outTxt.length < inTxt.length * 0.30) {
+        issues.push('output_too_short_ratio:' + (outTxt.length / inTxt.length).toFixed(2));
+      }
     }
     else if (toolId === 'ai-summarize') {
       var summary = data.summary || '';
@@ -1313,11 +1386,21 @@
         issues.push('too_few_sentences:' + sentCnt);
       if (data.origLen > 0 && summary.length >= data.origLen * 0.9)
         issues.push('not_compressed_enough');
+      // v5.2: duplicate sentence detection — catches broken extractive pass
+      var _rawSents  = summary.match(/[^.!?]+[.!?]+/g) || [];
+      var _sentNorms = _rawSents.map(function (s) { return s.trim().toLowerCase(); });
+      var _sentSet   = new Set(_sentNorms);
+      if (_rawSents.length > 3 && _sentSet.size < _rawSents.length * 0.60) {
+        softLog.push('high_duplicate_sentences:' + _rawSents.length + '_unique:' + _sentSet.size);
+      }
     }
     else if (toolId === 'background-remover') {
       if (data.hasTransparent === false) issues.push('no_transparent_pixels');
     }
 
+    if (softLog.length) {
+      DT().log('content-check-soft', { toolId: toolId, warnings: softLog });
+    }
     DT().validate('content-check', { toolId: toolId, issues: issues });
     if (issues.length) {
       DT().error('content-check-fail', { toolId: toolId, issues: issues });
@@ -1351,7 +1434,22 @@
       tier:       'unknown',
     };
     var minS = _VALIDATE_MINS[toolId] || 100;
-    quality.score = Math.round(Math.min(1.0, quality.outputSize / (minS * 5)) * 100) / 100;
+    // v5.2: Hybrid scoring — 65% output-size ratio + 35% structural metadata.
+    // Prevents false-fail on small-but-valid text outputs (e.g. short DOCX/XLSX).
+    var _sizeScore   = Math.min(1.0, quality.outputSize / (minS * 5));
+    var _structScore = 0;
+    if (meta.chars  && meta.chars  > 0) _structScore += Math.min(0.50, meta.chars  / 500);
+    if (meta.paras  && meta.paras  >= 2) _structScore += 0.15;
+    if (meta.rows   && meta.rows   >= 1) _structScore += 0.10;
+    if (meta.pages  && meta.pages  >= 1) _structScore += 0.05;
+    if (meta.ocrUsed)                    _structScore += 0.05; // OCR ran and produced output
+    var _hasStructData = !!(meta.chars || meta.paras || meta.rows);
+    quality.score = Math.round(
+      Math.min(1.0, _hasStructData
+        ? _sizeScore * 0.65 + Math.min(1.0, _structScore) * 0.35
+        : _sizeScore
+      ) * 100
+    ) / 100;
 
     quality.tier = quality.score >= 0.70 ? 'success' :
                    quality.score >= 0.40 ? 'warning' : 'fail';
@@ -2671,7 +2769,7 @@
     return { blob: blob, filename: brandedFilename(file.name, '-workflow.pdf') };
   };
 
-  // ── MAIN RUNNER ────────────────────────────────────────────────────────────
+  // ── MAIN RUNNER (v5.2: InputAnalyzer + Smart Retry Engine) ────────────────
   async function runTool(toolId, files, opts, origProcess) {
     var totalBytes = Array.from(files).reduce(function (s, f) { return s + (f.size || 0); }, 0);
 
@@ -2685,6 +2783,14 @@
       throw new Error('memory_pressure');
     }
 
+    // v5.2: Input Analyzer pre-flight — catch empty/corrupt/invalid files
+    // immediately, before any processor runs, for clean early UX feedback.
+    var _precheck = await InputAnalyzer.check(toolId, files);
+    if (!_precheck.ok) {
+      DT().error('runTool-precheck-fail', { toolId: toolId, reason: _precheck.reason });
+      throw new Error(_precheck.message);
+    }
+
     var proc = processors[toolId];
     if (!proc) throw AEError(ERR.PARSE, 'no_processor_' + toolId);
 
@@ -2694,61 +2800,112 @@
     // Phase 9: show estimator after feed renders
     setTimeout(function () { OutputEstimator.show(toolId, totalBytes); }, 300);
 
-    var result;
-    try {
-      result = await withTimeout(
-        proc(files, opts || {}, function (idx, state, pct, hint) {
-          LiveFeed.update(idx, state, pct, hint);
-        }),
-        TOOL_TIMEOUT_MS
-      );
-    } catch (err) {
-      var isOrig = (err.message === ERR.ORIG || err.message === '__orig__' ||
-                    err.aeType === ERR.ORIG);
+    // v5.2: Smart Retry Engine
+    // When a processor fails with low_quality_output or the validation pipeline
+    // rejects the result, re-run once with enhanced options (higher DPI, smaller
+    // chunks, forced OCR, etc.). UX message stays neutral — never shows internals.
+    var _SMART_RETRY_OPTS = {
+      'ocr':                { _retryDpiBoost:  true },
+      'translate':          { _retrySmallChunks: true, _chunkSize: 200 },
+      'pdf-to-word':        { _retryForceOcr:  true },
+      'pdf-to-excel':       { _retryForceOcr:  true },
+      'ai-summarize':       { sentences: 12, _retryBoost: true },
+      'background-remover': { threshold: 200 },
+      'compress':           { _retryDeep: true },
+    };
+    var _canRetry    = !!_SMART_RETRY_OPTS[toolId];
+    var _maxAttempts = _canRetry ? 2 : 1;
+    var result       = null;
 
-      if (isOrig) {
-        // Phase 11: seamless handoff with neutral message
-        LiveFeed.update(1, 'active', 30, 'Preparing content\u2026');
-        try {
-          result = await origProcess(toolId, files, opts);
-        } catch (origErr) {
-          LiveFeed.hide();
-          vanish();
-          var safe = new Error(safeMessage(origErr) || 'Something went wrong. Please try again.');
-          throw safe;
-        }
-      } else {
-        LiveFeed.hide();
-        vanish();
-        var safeErr = new Error(safeMessage(err) || 'Something went wrong. Please try again.');
-        safeErr.aeType = err.aeType;
-        throw safeErr;
-      }
-    }
+    var _onStep = function (idx, state, pct, hint) { LiveFeed.update(idx, state, pct, hint); };
 
-    // ── v5.1: Full Validation Pipeline ──────────────────────────────────────
-    // Step 1: validateBlob  — hard size gate (catches empty/corrupt)
-    // Step 2: analyzeResultQuality — enforced quality score gate (< 0.40 throws)
-    // RULE 1: NO FAKE SUCCESS — block download on any validation failure.
-    if (result) {
-      var _rb = (result && result.blob) ? result.blob : result;
-      if (_rb instanceof Blob) {
-        try {
-          validateBlob(toolId, _rb);
-        } catch (valErr) {
-          LiveFeed.hide();
-          vanish();
-          throw new Error('The result appears empty. Please try again with a different file.');
-        }
+    for (var _attempt = 1; _attempt <= _maxAttempts; _attempt++) {
+      var _curOpts = (_attempt === 1)
+        ? (opts || {})
+        : Object.assign({}, opts || {}, _SMART_RETRY_OPTS[toolId] || {});
+
+      if (_attempt > 1) {
+        DT().log('smart-retry', { toolId: toolId, attempt: _attempt });
+        // Neutral UX message — no technical reason exposed (Stealth Mode)
+        LiveFeed.update(1, 'active', 38,
+          _attempt === 2 ? 'Improving result\u2026' : 'Optimizing output\u2026');
       }
-      // Quality gate — enforced, not optional
+
+      var _procErr = null;
+
       try {
-        analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
-      } catch (qualErr) {
-        LiveFeed.hide();
-        vanish();
-        throw new Error(qualErr.message || 'low_quality_output');
+        result = await withTimeout(proc(files, _curOpts, _onStep), TOOL_TIMEOUT_MS);
+      } catch (err) {
+        _procErr = err;
       }
+
+      if (_procErr) {
+        var _isOrig = (_procErr.message === ERR.ORIG || _procErr.message === '__orig__' ||
+                       _procErr.aeType === ERR.ORIG);
+
+        if (_isOrig) {
+          // Seamless handoff to browser-tools.js fallback — no retry for these
+          LiveFeed.update(1, 'active', 30, 'Preparing content\u2026');
+          try {
+            result = await origProcess(toolId, files, opts);
+          } catch (origErr) {
+            LiveFeed.hide(); vanish();
+            throw new Error(safeMessage(origErr) || 'Something went wrong. Please try again.');
+          }
+          break; // origProcess handled it; skip retry loop
+        }
+
+        // Low-quality or invalid output → retry with enhanced opts if available
+        var _isLowQ = (_procErr.message === 'low_quality_output' ||
+                       _procErr.message === 'invalid_output');
+        if (_isLowQ && _attempt < _maxAttempts) {
+          result = null;
+          continue; // retry with _curOpts enhanced
+        }
+
+        // Terminal error — sanitize and surface
+        LiveFeed.hide(); vanish();
+        var _safeErr = new Error(safeMessage(_procErr) || 'Something went wrong. Please try again.');
+        _safeErr.aeType = _procErr.aeType;
+        throw _safeErr;
+      }
+
+      // ── v5.2 Validation Pipeline (Hybrid) ──────────────────────────────
+      // Tier 1: validateBlob  — hard size gate (catches empty/zero-byte output)
+      // Tier 2: analyzeResultQuality — hybrid quality gate (size + structure)
+      // RULE 1: NO FAKE SUCCESS — block download on any validation failure.
+      var _valFailed = false;
+
+      if (result) {
+        var _rb = (result && result.blob) ? result.blob : result;
+        if (_rb instanceof Blob) {
+          try {
+            validateBlob(toolId, _rb);
+          } catch (_blobErr) {
+            _valFailed = true;
+          }
+        }
+        if (!_valFailed) {
+          try {
+            analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
+          } catch (_qualErr) {
+            _valFailed = true;
+          }
+        }
+      }
+
+      if (_valFailed) {
+        if (_attempt < _maxAttempts && _canRetry) {
+          DT().log('smart-retry-quality', { toolId: toolId, attempt: _attempt });
+          LiveFeed.update(1, 'active', 40, 'Optimizing output\u2026');
+          result = null;
+          continue; // retry with enhanced opts
+        }
+        LiveFeed.hide(); vanish();
+        throw new Error('The output quality was too low to be useful. Please try with a clearer or higher-quality file.');
+      }
+
+      break; // success — exit retry loop
     }
 
     LiveFeed.done();
@@ -2814,7 +2971,8 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:              '5.0',
+    version:              '5.2',
+    InputAnalyzer:        InputAnalyzer,
     TOOL_IDS:             ADVANCED_IDS,
     LiveFeed:             LiveFeed,
     LivePreview:          LivePreview,
@@ -2840,10 +2998,16 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.0 — Audit Report');
+      console.group('AdvancedEngine v5.2 — Audit Report');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
+      // v5.2: surface InputAnalyzer pre-flight failures and smart retry counts
+      var preChecks = entries.filter(function (e) { return e.key === 'input-analyzer'; });
+      var retries   = entries.filter(function (e) { return e.key === 'smart-retry' || e.key === 'smart-retry-quality'; });
+      console.log('InputAnalyzer checks:', preChecks.length,
+        '| pre-flight failures:', preChecks.filter(function (e) { return e.type === 'error'; }).length);
+      console.log('Smart retries triggered:', retries.length);
 
       if (qs) {
         console.group('Quality Summary');
