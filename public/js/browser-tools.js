@@ -551,21 +551,55 @@
     return { mime: 'image/jpeg', ext: '.jpg', q: 0.9 };
   }
 
-  // ── PHASE 1: WORD TO PDF ─────────────────────────────────────────────────
+  // ── WORD TO PDF (v3.0 — full CSS layout engine) ──────────────────────────
+  // mammoth converts DOCX → HTML preserving headings, lists, bold/italic,
+  // tables. We inject a comprehensive CSS block so html2pdf renders tables
+  // with proper borders, correct font mapping, list indentation, and spacing.
   async function wordToPdf(files) {
     const mammoth    = await loadMammoth();
     const html2pdfFn = await loadHtml2Pdf();
     const ab = await files[0].arrayBuffer();
-    const { value: htmlContent } = await mammoth.convertToHtml({ arrayBuffer: ab });
+    const { value: htmlContent, messages } = await mammoth.convertToHtml({ arrayBuffer: ab });
+    if (!htmlContent || !htmlContent.trim()) {
+      throw new Error('Could not extract content from this Word document. The file may be corrupt or empty.');
+    }
+    const CSS = `<style>
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body,div{font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.6;color:#111;}
+      h1{font-size:20pt;font-weight:700;margin:18px 0 8px;color:#1a1a2e;border-bottom:2px solid #e2e8f0;padding-bottom:4px;}
+      h2{font-size:15pt;font-weight:700;margin:14px 0 6px;color:#1e293b;}
+      h3{font-size:12pt;font-weight:700;margin:12px 0 4px;color:#334155;}
+      h4,h5,h6{font-size:11pt;font-weight:700;margin:10px 0 4px;}
+      p{margin:0 0 9px;}
+      table{border-collapse:collapse;width:100%;margin:12px 0;page-break-inside:avoid;}
+      table td,table th{border:1px solid #999;padding:5px 10px;vertical-align:top;font-size:11pt;}
+      table th,table tr:first-child td{background:#f0f4f8;font-weight:700;}
+      table tr:nth-child(even) td{background:#fafafa;}
+      ul{margin:6px 0 9px 22px;list-style:disc;}
+      ol{margin:6px 0 9px 22px;list-style:decimal;}
+      li{margin-bottom:3px;}
+      strong,b{font-weight:700;}
+      em,i{font-style:italic;}
+      a{color:#1a56db;text-decoration:underline;}
+      img{max-width:100%;height:auto;}
+      blockquote{border-left:3px solid #94a3b8;margin:8px 0;padding:4px 12px;color:#475569;}
+      pre,code{font-family:Courier New,monospace;font-size:10pt;background:#f1f5f9;padding:2px 5px;border-radius:3px;}
+    </style>`;
     const container = document.createElement('div');
-    container.innerHTML = htmlContent;
-    container.style.cssText = 'font-family:Arial,sans-serif;font-size:12pt;padding:40px;max-width:750px;position:fixed;left:-9999px;top:0;background:#fff;';
+    container.innerHTML = CSS + htmlContent;
+    container.style.cssText = 'padding:36px 44px;max-width:760px;position:fixed;left:-9999px;top:0;background:#fff;';
     document.body.appendChild(container);
     try {
       const blob = await html2pdfFn()
-        .set({ margin: 12, image: { type: 'jpeg', quality: 0.95 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, html2canvas: { scale: 2, useCORS: true } })
+        .set({
+          margin: [10, 12, 10, 12],
+          image:  { type: 'jpeg', quality: 0.97 },
+          jsPDF:  { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+        })
         .from(container)
         .output('blob');
+      if (!blob || blob.size < 500) throw new Error('Conversion produced an empty PDF. The document may have unsupported formatting.');
       return new Blob([blob], { type: 'application/pdf' });
     } finally {
       if (container.parentNode) document.body.removeChild(container);
@@ -957,30 +991,84 @@
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
-  // ── PHASE 3: PDF TO EXCEL ────────────────────────────────────────────────
-  // Extracts text via pdfjs, groups items into rows by y-position, outputs XLSX.
+  // ── PDF TO EXCEL (v3.0 — column clustering, numeric detection, multi-page) ─
+  // Uses X-position gap clustering to detect real columns rather than
+  // treating every unique X as a new column. Numeric cells are coerced to
+  // numbers so Excel formulas work. Pages beyond the first get their own sheet.
   async function pdfToExcel(files) {
     const XLSX     = await loadXlsx();
     const pdfjsLib = await loadPdfJs();
     const data = await readFileBytes(files[0]);
     const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
     const wb   = XLSX.utils.book_new();
+
     for (let i = 1; i <= pdf.numPages; i++) {
       const page    = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const rows = {};
-      for (const item of content.items) {
-        if (!item.str.trim()) continue;
-        const yKey = Math.round(item.transform[5] / 8) * 8;
-        if (!rows[yKey]) rows[yKey] = [];
-        rows[yKey].push({ x: item.transform[4], text: item.str });
+
+      const items = content.items
+        .filter(it => it.str && it.str.trim())
+        .map(it => ({ x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), text: it.str.trim() }));
+
+      if (items.length === 0) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([]), `Page ${i}`);
+        page.cleanup(); continue;
       }
-      const sortedYs  = Object.keys(rows).map(Number).sort((a, b) => b - a);
-      const sheetData = sortedYs.map(y => rows[y].sort((a, b) => a.x - b.x).map(it => it.text));
+
+      // ── Column clustering: merge X positions within 15px of each other ─
+      const xSorted = [...new Set(items.map(it => it.x))].sort((a, b) => a - b);
+      const clusters = [];
+      for (const x of xSorted) {
+        const last = clusters[clusters.length - 1];
+        if (!last || x - last.max > 15) {
+          clusters.push({ min: x, max: x, center: x });
+        } else {
+          last.max = x;
+          last.center = Math.round((last.min + last.max) / 2);
+        }
+      }
+      const numCols = clusters.length;
+
+      function findCol(x) {
+        let best = 0, bestDist = Infinity;
+        for (let c = 0; c < clusters.length; c++) {
+          const dist = Math.abs(x - clusters[c].center);
+          if (dist < bestDist) { bestDist = dist; best = c; }
+        }
+        return best;
+      }
+
+      // ── Row clustering: bucket Y with 4px tolerance ─────────────────────
+      const rowMap = {};
+      for (const it of items) {
+        const yKey = Math.round(it.y / 4) * 4;
+        if (!rowMap[yKey]) rowMap[yKey] = {};
+        const col = findCol(it.x);
+        rowMap[yKey][col] = (rowMap[yKey][col] ? rowMap[yKey][col] + ' ' : '') + it.text;
+      }
+
+      const sortedYs  = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
+      const sheetData = sortedYs.map(y => {
+        const row = new Array(numCols).fill('');
+        for (const [col, val] of Object.entries(rowMap[y])) {
+          const ci  = parseInt(col, 10);
+          const raw = String(val).trim();
+          // Coerce obvious numeric cells (digits, commas, dots, $, %, -)
+          const num = parseFloat(raw.replace(/[$,%\s]/g, ''));
+          row[ci]   = (!isNaN(num) && /^-?[\d,.$% ]+$/.test(raw)) ? num : raw;
+        }
+        return row;
+      });
+
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), `Page ${i}`);
+      page.cleanup();
     }
+
+    await pdf.destroy();
     const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-    return { blob: new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+    const blob  = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if (blob.size < 500) throw new Error('Could not extract any table data from this PDF');
+    return { blob, ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
   }
 
   // ── PHASE 3: COMPARE PDF ─────────────────────────────────────────────────
@@ -1176,6 +1264,13 @@
     return chunks.filter(c => c);
   }
 
+  // ── TRANSLATE PDF (v3.0 — OCR fallback, sentence chunking, reject identical) ─
+  // 1. Extract text via pdfjs; if sparse (<60 chars) auto-trigger Tesseract OCR
+  // 2. Chunk by sentence boundaries (not arbitrary char positions)
+  // 3. Translate each chunk via MyMemory API with 8s timeout
+  // 4. Reject chunks where translation === source (API echo) — fall back to source
+  // 5. If ALL chunks failed, surface a clear error
+  // 6. Build paginated output PDF with pdf-lib word-wrap
   async function translatePdf(files, opts) {
     const targetLang = opts.targetLang || 'es';
     const pdfjsLib   = await loadPdfJs();
@@ -1188,28 +1283,80 @@
       const page    = await pdf.getPage(i);
       const content = await page.getTextContent();
       fullText += content.items.map(it => it.str).join(' ') + '\n\n';
+      page.cleanup();
     }
-    if (!fullText.trim()) throw new Error('No extractable text found in PDF');
 
-    const chunks     = chunkText(fullText.substring(0, 8000), 450);
-    const translated = [];
+    // OCR fallback for scanned / image-only PDFs
+    if (fullText.replace(/\s/g, '').length < 60) {
+      const Tesseract = await loadTesseract();
+      const ocrPages  = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page     = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas   = document.createElement('canvas');
+        canvas.width   = Math.floor(viewport.width);
+        canvas.height  = Math.floor(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const { data: { text } } = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng', { logger: () => {} });
+        ocrPages.push(text.trim());
+        canvas.width = 0; canvas.height = 0;
+        page.cleanup();
+      }
+      fullText = ocrPages.join('\n\n');
+    }
+
+    await pdf.destroy();
+    if (!fullText.trim()) throw new Error('No text found in this PDF. Please try a different file.');
+
+    // Sentence-aware chunking (respect sentence boundaries, max 450 chars/chunk)
+    function sentenceChunks(text, maxLen) {
+      const out = [];
+      let cur = '';
+      const sentences = text.match(/[^.!?]{3,}[.!?]+(?:\s|$)|[^.!?]{3,}$/g) || [text];
+      for (const s of sentences) {
+        const candidate = cur ? cur + ' ' + s.trim() : s.trim();
+        if (candidate.length > maxLen && cur) { out.push(cur.trim()); cur = s.trim(); }
+        else { cur = candidate; }
+      }
+      if (cur.trim()) out.push(cur.trim());
+      return out.filter(c => c.length > 0);
+    }
+
+    const chunks      = sentenceChunks(fullText, 450);
+    const translated  = [];
+    let   failCount   = 0;
     for (const chunk of chunks) {
       try {
         const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
         const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
         const json = await resp.json();
-        translated.push(json?.responseData?.translatedText || chunk);
-      } catch { translated.push(chunk); }
+        const t    = String(json?.responseData?.translatedText || '').trim();
+        // Reject identical output (API returned the original text unchanged)
+        if (t && t.toLowerCase() !== chunk.trim().toLowerCase()) {
+          translated.push(t);
+        } else {
+          translated.push(chunk);
+          failCount++;
+        }
+      } catch { translated.push(chunk); failCount++; }
     }
+
+    if (failCount === chunks.length) {
+      throw new Error('Translation service is temporarily unavailable. Please try again in a moment.');
+    }
+
     const translatedText = translated.join(' ');
 
-    // Build output PDF using pdf-lib word-wrap
+    // Build output PDF (pdf-lib word-wrap)
     const doc      = await PDFDoc.create();
     const font     = await doc.embedFont(SF.Helvetica);
     const fontSize = 11;
     const lineH    = fontSize * 1.5;
     const margin   = 50;
-    const PW = 595, PH = 842; // A4
+    const PW = 595, PH = 842;
     const usableW  = PW - margin * 2;
 
     const words = translatedText.split(/\s+/);
@@ -1230,7 +1377,10 @@
       if (line.trim()) page.drawText(line, { x: margin, y: y - lineH, size: fontSize, font, color: RGB(0, 0, 0) });
       y -= lineH;
     }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
+
+    const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+    if (blob.size < 500) throw new Error('Translation produced no valid output. Please try a different file.');
+    return blob;
   }
 
   // ── PHASE 6: WORKFLOW BUILDER (chained pdf-lib operations) ────────────────

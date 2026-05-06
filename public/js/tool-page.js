@@ -453,7 +453,7 @@ function trustStripHtml() {
   return `
     <ul class="trust-strip" aria-label="Why you can trust this tool">
       <li><i data-lucide="shield-check"></i> Secure processing</li>
-      <li><i data-lucide="trash-2"></i> Files auto-deleted after 10&nbsp;minutes</li>
+      <li><i data-lucide="trash-2"></i> Files deleted after download for your privacy</li>
       <li><i data-lucide="cloud-off"></i> No installation required</li>
     </ul>`;
 }
@@ -1598,7 +1598,7 @@ function renderSeoContent(tool) {
       <ul class="seo-why">
         <li><strong>Fast.</strong> Most files are processed in seconds.</li>
         <li><strong>Free.</strong> No watermark, no daily cap, no signup needed for files under 100&nbsp;MB.</li>
-        <li><strong>Secure.</strong> HTTPS uploads and automatic deletion within 10 minutes.</li>
+        <li><strong>Secure.</strong> All processing happens in your browser — files are never uploaded to our servers.</li>
         <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
       </ul>
     </div>
