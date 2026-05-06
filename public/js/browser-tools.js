@@ -745,42 +745,46 @@
     return finalBlob;
   }
 
-  // ── PHASE 3: PDF TO WORD (v3.0 — structure-aware, table detection, OCR fallback) ──
-  // Pipeline: extract text w/ font metadata → detect headings/tables/paragraphs
-  // → build rich DOCX. Auto-triggers Tesseract OCR for scanned/image-only PDFs.
-  // Validates output and retries with forced OCR if first pass yields sparse content.
+  // ── PDF TO WORD (v4.0 — paragraph merge, ratio headings, xPos table cells, OCR refine) ─
+  // Pipeline: extract pages with font + coord + page-width metadata
+  // → compute modal body font size for ratio-based heading detection
+  // → classify lines as h1/h2/p/table-row using adaptive thresholds
+  // → merge broken paragraph lines at sentence boundaries
+  // → split table cells using actual X-position gaps (not fragile whitespace split)
+  // → OCR triggers on sparse text OR when no blocks found after digital extraction
   async function pdfToWord(files) {
     const pdfjsLib = await loadPdfJs();
     const JSZip    = await loadJsZip();
     const data     = await readFileBytes(files[0]);
     const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
 
-    // ── XML helper ────────────────────────────────────────────────────────
     function escXml(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── Step 1: extract all pages with per-item font size + x/y coords ────
+    // ── Step 1: extract pages with per-item font size, x/y, and page width ─
     async function extractPages() {
       const pages = [];
       for (let i = 1; i <= pdf.numPages; i++) {
-        const page    = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        pages.push({ items: content.items, pageNumber: i });
+        const page     = await pdf.getPage(i);
+        const content  = await page.getTextContent();
+        const viewport = page.getViewport({ scale: 1 });
+        pages.push({ items: content.items, pageNumber: i, width: viewport.width });
         page.cleanup();
       }
       return pages;
     }
 
-    // ── Step 2: scanned PDF detection ─────────────────────────────────────
+    // ── Step 2: scanned PDF detection (chars < 50 across all pages) ─────────
     function detectScanned(pages) {
       const total = pages.reduce((s, p) =>
         s + p.items.map(it => it.str).join('').replace(/\s/g, '').length, 0);
       return total < 50;
     }
 
-    // ── Step 3: group items into visual lines (bucket by Y position) ───────
-    function groupIntoLines(items) {
+    // ── Step 3: group items into visual lines, preserving individual parts ───
+    // Bucketing by 3pt Y tolerance. Parts[] kept for cell-splitting in tables.
+    function groupIntoLines(items, pageWidth) {
       const buckets = {};
       for (const item of items) {
         if (!item.str || !item.str.trim()) continue;
@@ -797,68 +801,150 @@
           text:       sorted.map(p => p.text).join(' ').trim(),
           fontSize:   bucket.fontSize,
           xPositions: sorted.map(p => p.x),
+          parts:      sorted,            // preserved for table cell splitting
+          pageWidth:  pageWidth || 612,  // used for adaptive column gap
         };
       }).filter(l => l.text.length > 0);
     }
 
-    // ── Step 4: classify each visual line ─────────────────────────────────
-    function classifyLine(line) {
-      const t  = line.text;
-      const fs = line.fontSize || 0;
-      // Heading 1: large font or short ALL-CAPS line
-      if (fs > 14 || (t === t.toUpperCase() && t.length >= 3 && t.length < 80 && /[A-Z]/.test(t) && !/^\d/.test(t))) return 'h1';
-      // Heading 2: numbered outline (1. or 1.1 )
-      if (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) return 'h2';
-      // Table row: two or more column positions with a gap ≥ 60 pts
+    // ── Step 4: compute modal body font size (most-common rounded size) ──────
+    function computeBaseFontSize(lines) {
+      const sizes = lines.map(l => Math.round(l.fontSize)).filter(s => s > 0);
+      if (!sizes.length) return 11;
+      const freq = {};
+      for (const s of sizes) freq[s] = (freq[s] || 0) + 1;
+      return parseInt(Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0], 10) || 11;
+    }
+
+    // ── Step 5: classify each line using font-ratio + pattern detection ───────
+    // base = modal body font size; gap = 4.5% of page width for table detection.
+    function classifyLine(line, base) {
+      const t   = line.text;
+      const fs  = line.fontSize || 0;
+      const b   = base || 11;
+      const gap = (line.pageWidth || 612) * 0.045;
+
+      // Heading 1: significantly larger font OR short ALL-CAPS non-numeric line
+      if (
+        (fs > 0 && fs > b * 1.35) ||
+        (t === t.toUpperCase() && t.length >= 3 && t.length < 90 && /[A-Z]/.test(t) && !/^\d/.test(t))
+      ) return 'h1';
+
+      // Heading 2: moderately larger font OR numbered outline (1. / 1.1. / A.)
+      if (
+        (fs > 0 && fs > b * 1.15 && fs <= b * 1.35) ||
+        (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) ||
+        (/^[A-Z]\.\s+\S/.test(t) && t.length <= 100)
+      ) return 'h2';
+
+      // Table row: any two adjacent parts separated by ≥ adaptive gap
       if (line.xPositions.length >= 2) {
         for (let k = 1; k < line.xPositions.length; k++) {
-          if (line.xPositions[k] - line.xPositions[k - 1] > 60) return 'table-row';
+          if (line.xPositions[k] - line.xPositions[k - 1] >= gap) return 'table-row';
         }
       }
-      // Table row by multi-space pattern (common in copy-text tables)
-      if (line.text.split(/\s{2,}/).length >= 3) return 'table-row';
+      // Table row: 3+ tokens separated by ≥ 3 spaces (copy-text tables)
+      if (line.text.split(/\s{3,}/).length >= 3) return 'table-row';
+
       return 'p';
     }
 
-    // ── Step 5: merge consecutive table-rows into table blocks ────────────
+    // ── Step 6: build document structure with paragraph merging ─────────────
+    // Broken lines (no sentence-final punctuation, same font, next is also a
+    // paragraph) are buffered and joined into a single <w:p>.
     function buildStructure(lines) {
-      const blocks   = [];
-      let tableRows  = [];
+      if (!lines.length) return [];
+      const base       = computeBaseFontSize(lines);
+      const blocks     = [];
+      let tableRows    = [];
+      let paraBuffer   = '';
+
       const flushTable = () => {
         if (tableRows.length >= 2) { blocks.push({ type: 'table', rows: tableRows }); }
         else if (tableRows.length === 1) { blocks.push({ type: 'p', text: tableRows[0].text }); }
         tableRows = [];
       };
-      for (const line of lines) {
-        const type = classifyLine(line);
-        if (type === 'table-row') {
-          tableRows.push(line);
-        } else {
+      const flushPara = () => {
+        if (paraBuffer.trim()) { blocks.push({ type: 'p', text: paraBuffer.trim() }); }
+        paraBuffer = '';
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const next = lines[i + 1];
+        const type = classifyLine(line, base);
+
+        if (type === 'h1' || type === 'h2') {
+          flushPara();
           flushTable();
           blocks.push({ type, text: line.text });
+          continue;
+        }
+
+        if (type === 'table-row') {
+          flushPara();
+          tableRows.push(line);
+          continue;
+        }
+
+        // ── Paragraph — merge broken lines ───────────────────────────────
+        flushTable();
+        const endsWithPunct = /[.!?:;]$/.test(line.text.trim());
+        const nextType      = next ? classifyLine(next, base) : null;
+        const sameFontSize  = !next || Math.abs((line.fontSize || 0) - (next.fontSize || 0)) < 1.5;
+
+        paraBuffer = paraBuffer ? paraBuffer + ' ' + line.text : line.text;
+
+        // Flush paragraph when: ends with punctuation, next is not a plain
+        // paragraph, or font sizes differ (start of a new paragraph)
+        if (endsWithPunct || !next || nextType !== 'p' || !sameFontSize) {
+          flushPara();
         }
       }
+      flushPara();
       flushTable();
       return blocks;
     }
 
-    // ── Step 6: build table XML with borders ──────────────────────────────
+    // ── Step 7: table XML — split cells by actual X-position gaps ────────────
+    // Uses parts[].x if available; falls back to whitespace split.
     function buildTableXml(rows) {
-      const border = (side) =>
-        `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
+      const border  = side => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
       const borders = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(border).join('')}</w:tblBorders>`;
-      const tRows = rows.map(row => {
+
+      function splitCells(row) {
+        if (row.parts && row.parts.length >= 2) {
+          const gap   = (row.pageWidth || 612) * 0.045;
+          const cells = [];
+          let cell    = row.parts[0].text;
+          for (let k = 1; k < row.parts.length; k++) {
+            if (row.parts[k].x - row.parts[k - 1].x >= gap) {
+              cells.push(cell.trim());
+              cell = row.parts[k].text;
+            } else {
+              cell += ' ' + row.parts[k].text;
+            }
+          }
+          cells.push(cell.trim());
+          return cells.filter(Boolean);
+        }
+        // Fallback: split by 2+ whitespace
         const cols = row.text.split(/\s{2,}/).filter(Boolean);
-        const cells = cols.map(c =>
+        return cols.length >= 2 ? cols : [row.text];
+      }
+
+      const tRows = rows.map(row => {
+        const cells = splitCells(row);
+        return `<w:tr>${cells.map(c =>
           `<w:tc><w:tcPr><w:tcBorders>${['top','left','bottom','right'].map(border).join('')}</w:tcBorders></w:tcPr>` +
-          `<w:p><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c.trim())}</w:t></w:r></w:p></w:tc>`
-        ).join('');
-        return `<w:tr>${cells}</w:tr>`;
+          `<w:p><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c)}</w:t></w:r></w:p></w:tc>`
+        ).join('')}</w:tr>`;
       }).join('');
+
       return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/>${borders}</w:tblPr>${tRows}</w:tbl>`;
     }
 
-    // ── Step 7: build document.xml body ───────────────────────────────────
+    // ── Step 8: build document.xml ───────────────────────────────────────────
     function buildDocXml(structure) {
       const parts = structure.map(block => {
         if (block.type === 'table') return buildTableXml(block.rows);
@@ -883,7 +969,7 @@
              `</w:body></w:document>`;
     }
 
-    // ── Step 8: OCR path (for scanned/image PDFs) ─────────────────────────
+    // ── Step 9: OCR path — render pages at 2× scale for accuracy ────────────
     async function runOcr() {
       const Tesseract = await loadTesseract();
       const ocrLines  = [];
@@ -906,7 +992,14 @@
       return ocrLines.join('\n');
     }
 
-    // ── Step 9: package everything into a DOCX zip ─────────────────────────
+    // OCR lines use stub metadata (single x-position, base font size)
+    function ocrLinesToLineObjects(rawText) {
+      return rawText.split('\n')
+        .map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0], parts: [{ text: l.trim(), x: 0 }], pageWidth: 612 }))
+        .filter(l => l.text);
+    }
+
+    // ── Step 10: package into DOCX zip ──────────────────────────────────────
     async function buildDocxBlob(structure) {
       if (!structure || !structure.length) throw new Error('No content extracted from document.');
       const docXml = buildDocXml(structure);
@@ -926,7 +1019,7 @@
         `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/></w:style>` +
         `</w:styles>`;
 
-      const ctXml   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      const ctXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
         `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
         `<Default Extension="xml" ContentType="application/xml"/>` +
@@ -953,22 +1046,25 @@
       return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     }
 
-    // ── Step 10: main processing with retry ────────────────────────────────
+    // ── Step 11: main processing with OCR retry ──────────────────────────────
     async function processPass(forceOcr) {
       if (forceOcr) {
-        const rawText  = await runOcr();
-        const lines    = rawText.split('\n').map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0] })).filter(l => l.text);
-        return buildDocxBlob(buildStructure(lines));
+        const rawText = await runOcr();
+        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
       }
       const pages   = await extractPages();
       const scanned = detectScanned(pages);
       if (scanned) {
         const rawText = await runOcr();
-        const lines   = rawText.split('\n').map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0] })).filter(l => l.text);
-        return buildDocxBlob(buildStructure(lines));
+        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
       }
-      const allLines  = pages.flatMap(p => groupIntoLines(p.items));
+      const allLines  = pages.flatMap(p => groupIntoLines(p.items, p.width));
       const structure = buildStructure(allLines);
+      // OCR fallback: digital extraction found no blocks at all
+      if (structure.length === 0) {
+        const rawText = await runOcr();
+        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
+      }
       return buildDocxBlob(structure);
     }
 
@@ -979,8 +1075,8 @@
       docxBlob = await processPass(true);
     }
 
+    // Retry with OCR if output is suspiciously small
     if (!docxBlob || docxBlob.size < 1200) {
-      // retry with OCR if output is suspiciously tiny
       try { docxBlob = await processPass(true); } catch (_) {}
     }
     if (!docxBlob || docxBlob.size < 500) {
@@ -991,20 +1087,24 @@
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
-  // ── PDF TO EXCEL (v3.0 — column clustering, numeric detection, multi-page) ─
-  // Uses X-position gap clustering to detect real columns rather than
-  // treating every unique X as a new column. Numeric cells are coerced to
-  // numbers so Excel formulas work. Pages beyond the first get their own sheet.
+  // ── PDF TO EXCEL (v4.0 — adaptive gap, 10px Y buckets, auto col widths) ────
+  // Column gap = pageWidth * 0.04 (adaptive, replaces fixed 15px).
+  // Y row tolerance = 10px (improved grouping vs 4px).
+  // Auto column widths written via XLSX !cols (maxLen * 1.2, capped at 60).
+  // Numeric cells coerced to numbers for live Excel formulas.
+  // Validation: throw if zero rows extracted across all pages.
   async function pdfToExcel(files) {
     const XLSX     = await loadXlsx();
     const pdfjsLib = await loadPdfJs();
     const data = await readFileBytes(files[0]);
     const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
     const wb   = XLSX.utils.book_new();
+    let totalRows = 0;
 
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page    = await pdf.getPage(i);
-      const content = await page.getTextContent();
+      const page     = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1 });
+      const content  = await page.getTextContent();
 
       const items = content.items
         .filter(it => it.str && it.str.trim())
@@ -1015,15 +1115,19 @@
         page.cleanup(); continue;
       }
 
-      // ── Column clustering: merge X positions within 15px of each other ─
+      // ── Adaptive column gap: 4% of page width (min 12, max 35 pts) ─────
+      const pageWidth = viewport.width || 612;
+      const colGap    = Math.max(12, Math.min(35, pageWidth * 0.04));
+
+      // ── Column clustering with adaptive gap ──────────────────────────────
       const xSorted = [...new Set(items.map(it => it.x))].sort((a, b) => a - b);
       const clusters = [];
       for (const x of xSorted) {
         const last = clusters[clusters.length - 1];
-        if (!last || x - last.max > 15) {
+        if (!last || x - last.max > colGap) {
           clusters.push({ min: x, max: x, center: x });
         } else {
-          last.max = x;
+          last.max    = x;
           last.center = Math.round((last.min + last.max) / 2);
         }
       }
@@ -1038,10 +1142,10 @@
         return best;
       }
 
-      // ── Row clustering: bucket Y with 4px tolerance ─────────────────────
+      // ── Row clustering: 10px Y tolerance ────────────────────────────────
       const rowMap = {};
       for (const it of items) {
-        const yKey = Math.round(it.y / 4) * 4;
+        const yKey = Math.round(it.y / 10) * 10;
         if (!rowMap[yKey]) rowMap[yKey] = {};
         const col = findCol(it.x);
         rowMap[yKey][col] = (rowMap[yKey][col] ? rowMap[yKey][col] + ' ' : '') + it.text;
@@ -1053,18 +1157,36 @@
         for (const [col, val] of Object.entries(rowMap[y])) {
           const ci  = parseInt(col, 10);
           const raw = String(val).trim();
-          // Coerce obvious numeric cells (digits, commas, dots, $, %, -)
+          // Coerce obvious numeric cells so Excel formulas work
           const num = parseFloat(raw.replace(/[$,%\s]/g, ''));
           row[ci]   = (!isNaN(num) && /^-?[\d,.$% ]+$/.test(raw)) ? num : raw;
         }
         return row;
       });
 
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetData), `Page ${i}`);
+      totalRows += sheetData.length;
+
+      // ── Auto column widths (maxCellLength * 1.2, capped at 60) ──────────
+      const ws   = XLSX.utils.aoa_to_sheet(sheetData);
+      const cols = [];
+      for (let c = 0; c < numCols; c++) {
+        let maxLen = 8;
+        for (const row of sheetData) {
+          const cell = String(row[c] ?? '');
+          if (cell.length > maxLen) maxLen = cell.length;
+        }
+        cols.push({ wch: Math.min(Math.ceil(maxLen * 1.2), 60) });
+      }
+      ws['!cols'] = cols;
+
+      XLSX.utils.book_append_sheet(wb, ws, `Page ${i}`);
       page.cleanup();
     }
 
     await pdf.destroy();
+
+    if (totalRows === 0) throw new Error('No table content could be extracted from this PDF. The file may be scanned or image-based.');
+
     const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
     const blob  = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     if (blob.size < 500) throw new Error('Could not extract any table data from this PDF');
