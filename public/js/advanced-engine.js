@@ -913,6 +913,29 @@
     return combined.replace(/\s/g, '').length < 5;
   }
 
+  // v5.3: OCR language auto-detection from Unicode character frequency.
+  // Samples up to 500 chars of any native text already extracted from the PDF
+  // (even sparse) to pick the correct Tesseract language before OCR starts.
+  // Falls back to 'eng' when the sample is too small or ambiguous.
+  function _detectOcrLanguage(textSample) {
+    if (!textSample || textSample.replace(/\s/g, '').length < 12) return 'eng';
+    var s      = textSample.slice(0, 500);
+    var cjk    = (s.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uff00-\uffef]/g) || []).length;
+    var arabic = (s.match(/[\u0600-\u06ff\u0750-\u077f]/g) || []).length;
+    var cyril  = (s.match(/[\u0400-\u04ff]/g) || []).length;
+    var korean = (s.match(/[\uac00-\ud7af\u1100-\u11ff]/g) || []).length;
+    var latin  = (s.match(/[a-zA-Z]/g) || []).length;
+    var total  = cjk + arabic + cyril + korean + latin || 1;
+    var lang;
+    if      (cjk    / total > 0.25) lang = 'chi_sim';
+    else if (arabic / total > 0.20) lang = 'ara';
+    else if (cyril  / total > 0.25) lang = 'rus';
+    else if (korean / total > 0.25) lang = 'kor';
+    else                            lang = 'eng';
+    DT().log('ocr-lang-detect', { sample: s.length, cjk: cjk, arabic: arabic, cyril: cyril, korean: korean, lang: lang });
+    return lang;
+  }
+
   // Lightweight accessor — falls back to no-op stubs when debug-trace.js is absent.
   function DT() {
     return window.DebugTrace || {
@@ -1946,6 +1969,26 @@
       });
     }
 
+    // v5.3: Filter individually blank slides — slides with no body text AND a
+    // generic "Slide N" auto-title. Always keep at least 1 slide.
+    if (slides.length > 1) {
+      var _slidesBeforeFilter = slides.length;
+      var _contentSlides = slides.filter(function (s) {
+        var hasText  = s.text && s.text.trim().length > 0;
+        var hasTitle = !/^Slide \d+$/.test((s.title || '').trim());
+        return hasText || hasTitle;
+      });
+      if (_contentSlides.length > 0) {
+        if (_contentSlides.length < _slidesBeforeFilter) {
+          DT().log('pdf-to-pptx-blank-filter', {
+            before: _slidesBeforeFilter, after: _contentSlides.length,
+            removed: _slidesBeforeFilter - _contentSlides.length,
+          });
+        }
+        slides = _contentSlides;
+      }
+    }
+
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building presentation\u2026');
 
@@ -2051,7 +2094,9 @@
     }
     if (!window.Tesseract) throw AEError(ERR.NETWORK, 'engine_load_failed');
 
-    var lang   = (opts && opts.language) || 'eng';
+    // v5.3: auto-detect language from native text sample (even if sparse);
+    // falls back to 'eng'. Allows override via opts.language if user specified.
+    var lang   = (opts && opts.language) || _detectOcrLanguage(nativeText);
     var worker = await window.Tesseract.createWorker(lang, 1, { logger: function () {} });
     var scale  = DEVICE.ocrScale;
 
@@ -2971,7 +3016,7 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:              '5.2',
+    version:              '5.3',
     InputAnalyzer:        InputAnalyzer,
     TOOL_IDS:             ADVANCED_IDS,
     LiveFeed:             LiveFeed,
@@ -2998,7 +3043,7 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.2 — Audit Report');
+      console.group('AdvancedEngine v5.3 — Audit Report');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
