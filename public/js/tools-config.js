@@ -156,7 +156,17 @@ const TOOLS = [
     description: 'Convert PDF to editable Word documents',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-word', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'structureMode', label: 'Structure', type: 'select', options: [
+        { value: 'preserve-layout', label: 'Preserve Layout' },
+        { value: 'simple-text',     label: 'Simple Text (Fast)' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'auto',  label: 'Auto (Recommended)' },
+        { value: 'force', label: 'Force OCR' },
+      ]},
+    ]
   },
   {
     id: 'pdf-to-powerpoint', name: 'PDF to PowerPoint', icon: 'layout',

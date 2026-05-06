@@ -745,45 +745,25 @@
     return finalBlob;
   }
 
-  // ── PDF TO WORD (v4.0 — paragraph merge, ratio headings, xPos table cells, OCR refine) ─
-  // Pipeline: extract pages with font + coord + page-width metadata
-  // → compute modal body font size for ratio-based heading detection
-  // → classify lines as h1/h2/p/table-row using adaptive thresholds
-  // → merge broken paragraph lines at sentence boundaries
-  // → split table cells using actual X-position gaps (not fragile whitespace split)
-  // → OCR triggers on sparse text OR when no blocks found after digital extraction
-  async function pdfToWord(files) {
-    const pdfjsLib = await loadPdfJs();
-    const JSZip    = await loadJsZip();
-    const data     = await readFileBytes(files[0]);
-    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+  // ── PDF TO WORD (v4.2 — hybrid OCR/digital, bbox-based OCR structure) ─────────
+  // Per-page hybrid: digital if ≥ 5 extractable chars, else Tesseract word bboxes.
+  // OCR now uses word.bbox X/Y for real line reconstruction + font-size estimated
+  // from bbox height → heading/table/paragraph detection works on scanned pages.
+  // Opts: structureMode (preserve-layout|simple-text), ocrMode (auto|force).
+  async function pdfToWord(files, opts) {
+    opts = opts || {};
+    const pdfjsLib   = await loadPdfJs();
+    const JSZip      = await loadJsZip();
+    const data       = await readFileBytes(files[0]);
+    const pdf        = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const forceOcr   = String(opts.ocrMode || '').toLowerCase() === 'force';
+    const simpleText = String(opts.structureMode || '').toLowerCase() === 'simple-text';
 
     function escXml(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── Step 1: extract pages with per-item font size, x/y, and page width ─
-    async function extractPages() {
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page     = await pdf.getPage(i);
-        const content  = await page.getTextContent();
-        const viewport = page.getViewport({ scale: 1 });
-        pages.push({ items: content.items, pageNumber: i, width: viewport.width });
-        page.cleanup();
-      }
-      return pages;
-    }
-
-    // ── Step 2: scanned PDF detection (chars < 50 across all pages) ─────────
-    function detectScanned(pages) {
-      const total = pages.reduce((s, p) =>
-        s + p.items.map(it => it.str).join('').replace(/\s/g, '').length, 0);
-      return total < 50;
-    }
-
-    // ── Step 3: group items into visual lines, preserving individual parts ───
-    // Bucketing by 3pt Y tolerance. Parts[] kept for cell-splitting in tables.
+    // ── Step 1: group pdfjs items into visual lines (3pt Y buckets) ──────────
     function groupIntoLines(items, pageWidth) {
       const buckets = {};
       for (const item of items) {
@@ -801,13 +781,67 @@
           text:       sorted.map(p => p.text).join(' ').trim(),
           fontSize:   bucket.fontSize,
           xPositions: sorted.map(p => p.x),
-          parts:      sorted,            // preserved for table cell splitting
-          pageWidth:  pageWidth || 612,  // used for adaptive column gap
+          parts:      sorted,
+          pageWidth:  pageWidth || 612,
         };
       }).filter(l => l.text.length > 0);
     }
 
-    // ── Step 4: compute modal body font size (most-common rounded size) ──────
+    // ── Step 2: OCR a page → line objects with real bbox coordinates ──────────
+    // Uses Tesseract word.bbox for X/Y position. Font size estimated from bbox
+    // word height (scaled from 2× canvas). Same output shape as groupIntoLines()
+    // so buildStructure() handles heading/table/paragraph detection on both paths.
+    async function ocrPageToLines(page, pageWidth) {
+      const Tesseract = await loadTesseract();
+      const viewport  = page.getViewport({ scale: 2.0 });
+      const canvas    = document.createElement('canvas');
+      canvas.width    = Math.floor(viewport.width);
+      canvas.height   = Math.floor(viewport.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      canvas.width = 0; canvas.height = 0;
+
+      const { data: { words } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
+      if (!words || !words.length) return [];
+
+      // Scale from 2× canvas pixel space → 1× PDF point space (divide by 2)
+      const wordItems = words
+        .filter(w => w.text && w.text.trim() && w.confidence > 30)
+        .map(w => ({
+          text:     w.text.trim(),
+          x:        Math.round((w.bbox.x0 + w.bbox.x1) / 4),           // center X / 2× scale
+          y:        Math.round((w.bbox.y0 + w.bbox.y1) / 4),           // center Y / 2× scale
+          fontSize: Math.max(1, Math.round((w.bbox.y1 - w.bbox.y0) / 2)), // height  / 2× scale
+        }));
+
+      if (!wordItems.length) return [];
+
+      // Bucket words into lines by Y (10px tolerance in PDF space)
+      const rowMap = {};
+      for (const w of wordItems) {
+        const yKey = Math.round(w.y / 10) * 10;
+        if (!rowMap[yKey]) rowMap[yKey] = [];
+        rowMap[yKey].push(w);
+      }
+
+      const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => a - b); // top → bottom
+      return sortedYs.map(y => {
+        const ws    = rowMap[y].sort((a, b) => a.x - b.x);
+        const maxFs = Math.max(...ws.map(w => w.fontSize));
+        return {
+          text:       ws.map(w => w.text).join(' ').trim(),
+          fontSize:   maxFs,
+          xPositions: ws.map(w => w.x),
+          parts:      ws.map(w => ({ text: w.text, x: w.x })),
+          pageWidth:  pageWidth || 612,
+        };
+      }).filter(l => l.text.length > 0);
+    }
+
+    // ── Step 3: compute modal body font size ────────────────────────────────
     function computeBaseFontSize(lines) {
       const sizes = lines.map(l => Math.round(l.fontSize)).filter(s => s > 0);
       if (!sizes.length) return 11;
@@ -816,48 +850,40 @@
       return parseInt(Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0], 10) || 11;
     }
 
-    // ── Step 5: classify each line using font-ratio + pattern detection ───────
-    // base = modal body font size; gap = 4.5% of page width for table detection.
+    // ── Step 4: classify each line (ratio headings, coord tables) ────────────
     function classifyLine(line, base) {
       const t   = line.text;
       const fs  = line.fontSize || 0;
       const b   = base || 11;
       const gap = (line.pageWidth || 612) * 0.045;
 
-      // Heading 1: significantly larger font OR short ALL-CAPS non-numeric line
       if (
         (fs > 0 && fs > b * 1.35) ||
         (t === t.toUpperCase() && t.length >= 3 && t.length < 90 && /[A-Z]/.test(t) && !/^\d/.test(t))
       ) return 'h1';
 
-      // Heading 2: moderately larger font OR numbered outline (1. / 1.1. / A.)
       if (
         (fs > 0 && fs > b * 1.15 && fs <= b * 1.35) ||
         (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) ||
         (/^[A-Z]\.\s+\S/.test(t) && t.length <= 100)
       ) return 'h2';
 
-      // Table row: any two adjacent parts separated by ≥ adaptive gap
       if (line.xPositions.length >= 2) {
         for (let k = 1; k < line.xPositions.length; k++) {
           if (line.xPositions[k] - line.xPositions[k - 1] >= gap) return 'table-row';
         }
       }
-      // Table row: 3+ tokens separated by ≥ 3 spaces (copy-text tables)
       if (line.text.split(/\s{3,}/).length >= 3) return 'table-row';
-
       return 'p';
     }
 
-    // ── Step 6: build document structure with paragraph merging ─────────────
-    // Broken lines (no sentence-final punctuation, same font, next is also a
-    // paragraph) are buffered and joined into a single <w:p>.
+    // ── Step 5: build document structure with paragraph merging ─────────────
     function buildStructure(lines) {
       if (!lines.length) return [];
-      const base       = computeBaseFontSize(lines);
-      const blocks     = [];
-      let tableRows    = [];
-      let paraBuffer   = '';
+      const base     = computeBaseFontSize(lines);
+      const blocks   = [];
+      let tableRows  = [];
+      let paraBuffer = '';
 
       const flushTable = () => {
         if (tableRows.length >= 2) { blocks.push({ type: 'table', rows: tableRows }); }
@@ -872,42 +898,31 @@
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const next = lines[i + 1];
-        const type = classifyLine(line, base);
+        const type = simpleText ? 'p' : classifyLine(line, base);
 
         if (type === 'h1' || type === 'h2') {
-          flushPara();
-          flushTable();
+          flushPara(); flushTable();
           blocks.push({ type, text: line.text });
           continue;
         }
-
         if (type === 'table-row') {
           flushPara();
           tableRows.push(line);
           continue;
         }
-
-        // ── Paragraph — merge broken lines ───────────────────────────────
         flushTable();
         const endsWithPunct = /[.!?:;]$/.test(line.text.trim());
-        const nextType      = next ? classifyLine(next, base) : null;
+        const nextType      = next && !simpleText ? classifyLine(next, base) : null;
         const sameFontSize  = !next || Math.abs((line.fontSize || 0) - (next.fontSize || 0)) < 1.5;
-
         paraBuffer = paraBuffer ? paraBuffer + ' ' + line.text : line.text;
-
-        // Flush paragraph when: ends with punctuation, next is not a plain
-        // paragraph, or font sizes differ (start of a new paragraph)
-        if (endsWithPunct || !next || nextType !== 'p' || !sameFontSize) {
-          flushPara();
-        }
+        if (endsWithPunct || !next || nextType !== 'p' || !sameFontSize) { flushPara(); }
       }
       flushPara();
       flushTable();
       return blocks;
     }
 
-    // ── Step 7: table XML — split cells by actual X-position gaps ────────────
-    // Uses parts[].x if available; falls back to whitespace split.
+    // ── Step 6: table XML — split cells by X-position gaps ───────────────────
     function buildTableXml(rows) {
       const border  = side => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
       const borders = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(border).join('')}</w:tblBorders>`;
@@ -918,17 +933,12 @@
           const cells = [];
           let cell    = row.parts[0].text;
           for (let k = 1; k < row.parts.length; k++) {
-            if (row.parts[k].x - row.parts[k - 1].x >= gap) {
-              cells.push(cell.trim());
-              cell = row.parts[k].text;
-            } else {
-              cell += ' ' + row.parts[k].text;
-            }
+            if (row.parts[k].x - row.parts[k - 1].x >= gap) { cells.push(cell.trim()); cell = row.parts[k].text; }
+            else { cell += ' ' + row.parts[k].text; }
           }
           cells.push(cell.trim());
           return cells.filter(Boolean);
         }
-        // Fallback: split by 2+ whitespace
         const cols = row.text.split(/\s{2,}/).filter(Boolean);
         return cols.length >= 2 ? cols : [row.text];
       }
@@ -940,11 +950,10 @@
           `<w:p><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c)}</w:t></w:r></w:p></w:tc>`
         ).join('')}</w:tr>`;
       }).join('');
-
       return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/>${borders}</w:tblPr>${tRows}</w:tbl>`;
     }
 
-    // ── Step 8: build document.xml ───────────────────────────────────────────
+    // ── Step 7: build document.xml ───────────────────────────────────────────
     function buildDocXml(structure) {
       const parts = structure.map(block => {
         if (block.type === 'table') return buildTableXml(block.rows);
@@ -969,37 +978,7 @@
              `</w:body></w:document>`;
     }
 
-    // ── Step 9: OCR path — render pages at 2× scale for accuracy ────────────
-    async function runOcr() {
-      const Tesseract = await loadTesseract();
-      const ocrLines  = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page     = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas   = document.createElement('canvas');
-        canvas.width   = Math.floor(viewport.width);
-        canvas.height  = Math.floor(viewport.height);
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        const dataUrl = canvas.toDataURL('image/png');
-        canvas.width = 0; canvas.height = 0;
-        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
-        ocrLines.push(`[Page ${i}]`, text.trim());
-        page.cleanup();
-      }
-      return ocrLines.join('\n');
-    }
-
-    // OCR lines use stub metadata (single x-position, base font size)
-    function ocrLinesToLineObjects(rawText) {
-      return rawText.split('\n')
-        .map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0], parts: [{ text: l.trim(), x: 0 }], pageWidth: 612 }))
-        .filter(l => l.text);
-    }
-
-    // ── Step 10: package into DOCX zip ──────────────────────────────────────
+    // ── Step 8: package into DOCX zip ────────────────────────────────────────
     async function buildDocxBlob(structure) {
       if (!structure || !structure.length) throw new Error('No content extracted from document.');
       const docXml = buildDocXml(structure);
@@ -1046,41 +1025,79 @@
       return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     }
 
-    // ── Step 11: main processing with OCR retry ──────────────────────────────
-    async function processPass(forceOcr) {
-      if (forceOcr) {
-        const rawText = await runOcr();
-        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
+    // ── Step 9: per-page hybrid pass ─────────────────────────────────────────
+    // Digital if page has ≥ 5 non-whitespace chars; Tesseract word-bbox OCR otherwise.
+    async function buildAllLines(useForceOcr) {
+      const allLines = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page      = await pdf.getPage(i);
+        const viewport  = page.getViewport({ scale: 1 });
+        const content   = await page.getTextContent();
+        const pageWidth = viewport.width || 612;
+        const items     = content.items.filter(it => it.str && it.str.trim());
+        const charCount = items.map(it => it.str.replace(/\s/g, '')).join('').length;
+        const needsOcr  = useForceOcr || charCount < 5;
+
+        if (!needsOcr) {
+          allLines.push(...groupIntoLines(items, pageWidth));
+          page.cleanup();
+        } else {
+          try {
+            const ocrLines = await ocrPageToLines(page, pageWidth);
+            allLines.push(...ocrLines);
+          } catch (_) {}
+          page.cleanup();
+        }
       }
-      const pages   = await extractPages();
-      const scanned = detectScanned(pages);
-      if (scanned) {
-        const rawText = await runOcr();
-        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
-      }
-      const allLines  = pages.flatMap(p => groupIntoLines(p.items, p.width));
-      const structure = buildStructure(allLines);
-      // OCR fallback: digital extraction found no blocks at all
-      if (structure.length === 0) {
-        const rawText = await runOcr();
-        return buildDocxBlob(buildStructure(ocrLinesToLineObjects(rawText)));
-      }
-      return buildDocxBlob(structure);
+      return allLines;
     }
 
-    let docxBlob;
+    // ── Step 10: full OCR pass for retry ─────────────────────────────────────
+    async function buildAllLinesOcr() {
+      const allLines = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page      = await pdf.getPage(i);
+        const viewport  = page.getViewport({ scale: 1 });
+        const pageWidth = viewport.width || 612;
+        try {
+          const ocrLines = await ocrPageToLines(page, pageWidth);
+          allLines.push(...ocrLines);
+        } catch (_) {}
+        page.cleanup();
+      }
+      return allLines;
+    }
+
+    // ── Step 11: main processing + smart retry ───────────────────────────────
+    let structure = [];
     try {
-      docxBlob = await processPass(false);
-    } catch (_) {
-      docxBlob = await processPass(true);
+      structure = buildStructure(await buildAllLines(forceOcr));
+    } catch (_) {}
+
+    // Retry with full OCR when digital pass returns nothing
+    if (!structure.length && !forceOcr) {
+      try { structure = buildStructure(await buildAllLinesOcr()); } catch (_) {}
     }
 
-    // Retry with OCR if output is suspiciously small
-    if (!docxBlob || docxBlob.size < 1200) {
-      try { docxBlob = await processPass(true); } catch (_) {}
+    if (!structure.length) {
+      throw new Error('This PDF does not contain usable document content. It may be encrypted, blank, or in an unsupported format.');
     }
-    if (!docxBlob || docxBlob.size < 500) {
-      throw new Error('Could not extract content from this document. It may be encrypted, corrupted, or in an unsupported format.');
+
+    let docxBlob = await buildDocxBlob(structure);
+
+    // If output is suspiciously small, retry with full OCR
+    if (docxBlob.size < 1200 && !forceOcr) {
+      try {
+        const retryStruct = buildStructure(await buildAllLinesOcr());
+        if (retryStruct.length) {
+          const retryBlob = await buildDocxBlob(retryStruct);
+          if (retryBlob.size > docxBlob.size) docxBlob = retryBlob;
+        }
+      } catch (_) {}
+    }
+
+    if (!docxBlob || docxBlob.size < 1000) {
+      throw new Error('This PDF does not contain usable document content.');
     }
 
     await pdf.destroy();

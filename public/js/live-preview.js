@@ -534,6 +534,172 @@
     }
   }
 
+  // ── PDF → WORD LIVE PREVIEW ──────────────────────────────────────────────
+  // Dedicated preview for pdf-to-word. Uses same ratio-based heading detection
+  // as the engine. Shows 📌 H1, 🔷 H2, ¶ paragraph, 📊 table, OCR badge for
+  // scanned docs. Stats: pages / headings / tables / paras / mode.
+  async function mountPdfWordPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing document structure…</div>';
+
+    var pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      try {
+        var mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+        if (!mod.GlobalWorkerOptions.workerSrc) {
+          mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+        }
+        pdfjsLib = mod; window.pdfjsLib = mod;
+      } catch (_) { pdfjsLib = null; }
+    }
+    if (!pdfjsLib) throw new Error('PDF library not available');
+
+    var buf        = await file.arrayBuffer();
+    var pdf        = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    var numPages   = pdf.numPages;
+    var checkPages = Math.min(numPages, 3);
+    var totalRawChars = 0;
+    var allLines = [];  // [{ text, fontSize, xPositions, pageWidth }]
+
+    for (var pg = 1; pg <= checkPages; pg++) {
+      var page      = await pdf.getPage(pg);
+      var viewport  = page.getViewport({ scale: 1 });
+      var content   = await page.getTextContent();
+      var pageWidth = viewport.width || 612;
+      var buckets   = {};
+
+      content.items.forEach(function (it) {
+        if (!it.str || !it.str.trim()) return;
+        totalRawChars += it.str.replace(/\s/g, '').length;
+        var yKey = Math.round(it.transform[5] / 3) * 3;
+        if (!buckets[yKey]) buckets[yKey] = { parts: [], fontSize: 0 };
+        buckets[yKey].parts.push({ text: it.str, x: it.transform[4] });
+        if ((it.height || 0) > buckets[yKey].fontSize) buckets[yKey].fontSize = it.height || 0;
+      });
+      page.cleanup();
+
+      Object.keys(buckets).map(Number).sort(function (a, b) { return b - a; }).forEach(function (y) {
+        var bucket = buckets[y];
+        var sorted = bucket.parts.sort(function (a, b) { return a.x - b.x; });
+        var text   = sorted.map(function (p) { return p.text; }).join(' ').trim();
+        if (!text) return;
+        allLines.push({ text: text, fontSize: bucket.fontSize, xPositions: sorted.map(function (p) { return p.x; }), pageWidth: pageWidth });
+      });
+    }
+    await pdf.destroy();
+
+    var isScanned = totalRawChars < 50;
+
+    // ── Modal base font size (same logic as engine) ─────────────────────────
+    var sizes = allLines.map(function (l) { return Math.round(l.fontSize); }).filter(function (s) { return s > 0; });
+    var base  = 11;
+    if (sizes.length) {
+      var freq = {};
+      sizes.forEach(function (s) { freq[s] = (freq[s] || 0) + 1; });
+      base = parseInt(Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; })[0], 10) || 11;
+    }
+
+    // ── Classify lines with same thresholds as engine ───────────────────────
+    var headingCount = 0, paraCount = 0, tableCount = 0;
+    var structLines  = [];
+
+    allLines.forEach(function (line) {
+      var t   = line.text;
+      var fs  = line.fontSize || 0;
+      var gap = (line.pageWidth || 612) * 0.045;
+      var type = 'p';
+
+      if (
+        (fs > 0 && fs > base * 1.35) ||
+        (t === t.toUpperCase() && t.length >= 3 && t.length < 90 && /[A-Z]/.test(t) && !/^\d/.test(t))
+      ) type = 'h1';
+      else if (
+        (fs > 0 && fs > base * 1.15 && fs <= base * 1.35) ||
+        (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) ||
+        (/^[A-Z]\.\s+\S/.test(t) && t.length <= 100)
+      ) type = 'h2';
+      else if (line.xPositions && line.xPositions.length >= 2) {
+        for (var k = 1; k < line.xPositions.length; k++) {
+          if (line.xPositions[k] - line.xPositions[k - 1] >= gap) { type = 'table'; break; }
+        }
+      }
+      if (type === 'p' && t.split(/\s{3,}/).length >= 3) type = 'table';
+
+      if (type === 'h1') {
+        headingCount++;
+        if (structLines.length < 16) structLines.push({ type: 'h1', text: t.slice(0, 72) });
+      } else if (type === 'h2') {
+        headingCount++;
+        if (structLines.length < 16) structLines.push({ type: 'h2', text: t.slice(0, 72) });
+      } else if (type === 'table') {
+        tableCount++;
+        if (structLines.length < 16) structLines.push({ type: 'table', text: t.slice(0, 80) });
+      } else {
+        paraCount++;
+        if (structLines.length < 16) structLines.push({ type: 'para', text: t.slice(0, 72) });
+      }
+    });
+
+    var mode = isScanned ? 'OCR' : 'Digital';
+
+    var ocrBadge = isScanned
+      ? '<div class="lp-scanned-notice">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+          ' Scanned PDF — Tesseract OCR will reconstruct headings, paragraphs and tables during conversion.' +
+        '</div>'
+      : '';
+
+    var structPanel = '';
+    if (isScanned) {
+      structPanel = '<div class="lp-struct">' +
+        '<div class="lp-struct-title">OCR mode — no selectable text found</div>' +
+        '<div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">🔍</span>' +
+          '<span class="lp-struct-text">Tesseract will process each page using word bounding boxes to detect and reconstruct headings, paragraphs and tables.</span>' +
+        '</div></div>';
+    } else if (!structLines.length) {
+      structPanel = '<div class="lp-struct">' +
+        '<div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">⚠️</span>' +
+          '<span class="lp-struct-text">No readable content detected in the first 3 pages. OCR will be attempted during conversion.</span>' +
+        '</div></div>';
+    } else {
+      structPanel = '<div class="lp-struct"><div class="lp-struct-title">Detected structure</div>' +
+        structLines.map(function (l) {
+          var icon = l.type === 'h1' ? '📌' : l.type === 'h2' ? '🔷' : l.type === 'table' ? '📊' : '¶';
+          var cls  = (l.type === 'h1' || l.type === 'h2') ? 'lp-struct-heading' : l.type === 'table' ? 'lp-struct-table' : 'lp-struct-para';
+          return '<div class="lp-struct-line ' + cls + '">' +
+                   '<span class="lp-struct-icon">' + icon + '</span>' +
+                   '<span class="lp-struct-text">' + esc(l.text) + '</span>' +
+                 '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    host.innerHTML =
+      '<div class="lp-panel">' +
+        '<div class="lp-header">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' +
+            '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+            ' Document Structure' +
+          '</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages === 1 ? '' : 's') + '</span>' +
+            (isScanned
+              ? '<span class="lp-stat lp-stat--warn"><b>Scanned</b> — OCR</span>'
+              : '<span class="lp-stat"><b>' + headingCount + '</b> heading' + (headingCount === 1 ? '' : 's') + '</span>' +
+                '<span class="lp-stat"><b>' + tableCount + '</b> table' + (tableCount === 1 ? '' : 's') + '</span>' +
+                '<span class="lp-stat"><b>' + paraCount + '</b> para' + (paraCount === 1 ? '' : 's') + '</span>') +
+            '<span class="lp-stat"><b>' + mode + '</b></span>' +
+          '</div>' +
+        '</div>' +
+        (ocrBadge ? '<div class="lp-scanned-wrap">' + ocrBadge + '</div>' : '') +
+        '<div class="lp-extract-body">' + structPanel + '</div>' +
+        '<div class="lp-footer">Structure preview — first 3 pages. Conversion processes the full document.</div>' +
+      '</div>';
+  }
+
   // ── PDF → EXCEL LIVE PREVIEW ─────────────────────────────────────────────
   // Shows a real HTML table preview with per-page rows/columns, OCR badge when
   // scanned, and stats header. Non-blocking — failure silently clears host.
@@ -704,7 +870,7 @@
     try {
       if (toolId === 'word-to-pdf')                         await mountWordToPdf(file, host);
       else if (toolId === 'excel-to-pdf')                   await mountExcelToPdf(file, host);
-      else if (toolId === 'pdf-to-word')                    await mountPdfExtract(file, host, toolId);
+      else if (toolId === 'pdf-to-word')                    await mountPdfWordPreview(file, host);
       else if (toolId === 'pdf-to-excel')                   await mountPdfExcelPreview(file, host);
       else if (toolId === 'background-remover')             await mountBgRemover(file, host);
     } catch (err) {
