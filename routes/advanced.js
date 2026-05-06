@@ -3,17 +3,50 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { extractPdfText, textToPdf, extractiveSummarize, formatBytes } from '../utils/pdfText.js';
+import { UPLOAD_DIR } from '../utils/upload.js';
 
 const router = express.Router();
-import { UPLOAD_DIR } from '../utils/upload.js';
 const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 100 * 1024 * 1024 } });
 
-// Returns 400 for known client-input errors, 500 for genuine server faults.
 function clientErrStatus(err) {
   const msg = (err && err.message) || '';
   return /no (file|text|page|input)|image.based|scanned|unsupported|invalid|not found|empty|no extractable|no text|could not parse|corrupt/i.test(msg) ? 400 : 500;
+}
+
+function sendFile(res, buffer, contentType, filename) {
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+}
+
+// Chunk text respecting sentence/paragraph boundaries
+function chunkText(text, maxSize = 380) {
+  const chunks = [];
+  let i = 0;
+  while (i < text.length) {
+    let end = Math.min(i + maxSize, text.length);
+    if (end < text.length) {
+      // Prefer sentence boundary
+      const sentEnd = Math.max(
+        text.lastIndexOf('. ', end),
+        text.lastIndexOf('! ', end),
+        text.lastIndexOf('? ', end)
+      );
+      if (sentEnd > i + Math.floor(maxSize / 2)) {
+        end = sentEnd + 1;
+      } else {
+        const spaceEnd = text.lastIndexOf(' ', end);
+        if (spaceEnd > i) end = spaceEnd;
+      }
+    }
+    const chunk = text.slice(i, end).trim();
+    if (chunk) chunks.push(chunk);
+    i = end + 1;
+  }
+  return chunks;
 }
 
 // ── REPAIR ────────────────────────────────────────────────────────────────
@@ -42,25 +75,93 @@ router.post('/repair', upload.single('pdf'), async (req, res) => {
 });
 
 // ── OCR / TEXT EXTRACT ─────────────────────────────────────────────────────
+// v2: returns a DOCX file (matching browser-side output) with heading
+//     detection for text-based PDFs. Returns .txt for image-based PDFs
+//     with a clear explanation.
 
 router.post('/ocr', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
     const bytes = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(bytes);
+    const text  = await extractPdfText(bytes);
 
     cleanupFiles(req.file);
 
     if (!text.trim()) {
-      return res.json({
-        text: '[No extractable text found]\n\nThis PDF appears to contain only scanned images. ' +
-              'For true image-based OCR, use the browser-side OCR (Tesseract) which runs automatically. ' +
-              'Text-based PDFs will have their content extracted here.'
+      // Image-based PDF — server can't OCR. Return informative DOCX.
+      const doc = new Document({
+        sections: [{
+          children: [
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [new TextRun({ text: 'OCR Required', bold: true })],
+            }),
+            new Paragraph({
+              children: [new TextRun({
+                text: 'This PDF appears to be image-based or scanned. ' +
+                      'No selectable text was found. ' +
+                      'The browser-based OCR engine (Tesseract) will process this file automatically when you use the tool in your browser.',
+              })],
+            }),
+          ],
+        }],
       });
+      const buf = await Packer.toBuffer(doc);
+      return sendFile(res, buf,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'ilovepdf-ocr.docx');
     }
 
-    res.json({ text: text.trim() });
+    // Build structured DOCX with heading detection
+    const lines    = text.split('\n');
+    const children = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed) { children.push(new Paragraph({})); continue; }
+
+      const isAllCaps      = trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed) && trimmed.length >= 3 && trimmed.length <= 70;
+      const isPageMarker   = /^(={3,}|-{3,}|Page \d+)/i.test(trimmed);
+      const isShortBold    = trimmed.length < 65 &&
+        (i === 0 || !lines[i - 1]?.trim()) &&
+        (i >= lines.length - 1 || !lines[i + 1]?.trim());
+
+      if (isPageMarker) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: trimmed, bold: true, color: '888888', size: 18 })],
+          spacing: { before: 200, after: 80 },
+        }));
+      } else if (isAllCaps && trimmed.length <= 60) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: trimmed, bold: true, size: 28, color: '1a1a2e' })],
+          spacing: { before: 240, after: 120 },
+        }));
+      } else if (isShortBold) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          children: [new TextRun({ text: trimmed, bold: true, size: 24, color: '2c3e50' })],
+          spacing: { before: 160, after: 80 },
+        }));
+      } else {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: trimmed, size: 22 })],
+          spacing: { after: 60 },
+        }));
+      }
+    }
+
+    if (!children.length) {
+      children.push(new Paragraph({ children: [new TextRun('No text content.')] }));
+    }
+
+    const doc = new Document({ sections: [{ properties: {}, children }] });
+    const buf = await Packer.toBuffer(doc);
+
+    sendFile(res, buf,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'ilovepdf-ocr.docx');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(clientErrStatus(err)).json({ error: err.message });
@@ -124,28 +225,41 @@ router.post('/compare', upload.array('pdfs'), async (req, res) => {
   }
 });
 
-// ── AI SUMMARIZER — extractive, no external AI dependency ─────────────────
+// ── AI SUMMARIZER ─────────────────────────────────────────────────────────
+// v2: heading-aware TF-IDF with duplicate removal and richer report format.
 
 router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
     const bytes = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(bytes);
+    const text  = await extractPdfText(bytes);
 
     if (!text.trim()) {
       cleanupFiles(req.file);
-      return res.json({ summary: 'No extractable text found in this PDF. It may be image-based.' });
+      return res.json({ summary: 'No extractable text found in this PDF. It may be image-based or scanned.' });
     }
 
     const maxSentences = Math.min(20, Math.max(3, parseInt(req.body.sentences) || 7));
-    const summary = extractiveSummarize(text, maxSentences);
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
-    const sentenceCount = (text.match(/[.!?]+/g) || []).length;
+    const summary      = extractiveSummarize(text, maxSentences);
+    const wordCount    = text.split(/\s+/).filter(Boolean).length;
+    const sentCount    = (text.match(/[.!?]+/g) || []).length;
+    const pageEst      = Math.max(1, Math.round(wordCount / 300));
 
     cleanupFiles(req.file);
     res.json({
-      summary: `Document Summary\n${'─'.repeat(40)}\n${summary}\n\n${'─'.repeat(40)}\nStats: ~${wordCount.toLocaleString()} words · ~${sentenceCount} sentences`,
+      summary: [
+        'ILovePDF — AI Summary',
+        '='.repeat(50),
+        `Words  : ~${wordCount.toLocaleString()}`,
+        `Pages  : ~${pageEst}`,
+        '',
+        'SUMMARY',
+        '-'.repeat(50),
+        summary,
+        '',
+        `Note: ${sentCount} sentences analysed, top ${maxSentences} selected.`,
+      ].join('\n'),
     });
   } catch (err) {
     cleanupFiles(req.file);
@@ -153,38 +267,74 @@ router.post('/ai-summarize', upload.single('pdf'), async (req, res) => {
   }
 });
 
-// ── TRANSLATE — MyMemory free API, no HuggingFace dependency ──────────────
+// ── TRANSLATE — MyMemory free API ──────────────────────────────────────────
+// v2: respects sourceLang param, 380-char sentence-aware chunks, paragraph
+//     structure preserved, output is a well-formatted plain-text file.
 
 router.post('/translate', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
-    const targetLang = req.body.targetLang || 'es';
+    const targetLang = (req.body.targetLang || req.body.targetLanguage || 'es').toLowerCase();
+    const sourceLang = (req.body.sourceLang || req.body.sourceLanguage || 'en').toLowerCase();
+
     const bytes = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(bytes);
+    const text  = await extractPdfText(bytes);
 
     if (!text.trim()) {
       cleanupFiles(req.file);
       return res.status(400).json({ error: 'No extractable text found. PDF may be image-based.' });
     }
 
-    const chunks = chunkText(text.substring(0, 8000), 450);
-    const translated = [];
+    // Limit total input to avoid rate-limiting; 12 000 chars ≈ ~4 pages
+    const inputText = text.substring(0, 12000);
+    const chunks    = chunkText(inputText, 380);
+
+    const translatedParts = [];
     for (const chunk of chunks) {
       try {
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
-        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${encodeURIComponent(sourceLang)}|${encodeURIComponent(targetLang)}`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
         const data = await resp.json();
-        translated.push(data?.responseData?.translatedText || chunk);
+
+        const translated = data?.responseData?.translatedText;
+        // MyMemory returns the original text when quota exceeded or unsupported pair
+        if (translated && translated !== chunk) {
+          translatedParts.push(translated);
+        } else {
+          translatedParts.push(chunk);
+        }
       } catch {
-        translated.push(chunk);
+        translatedParts.push(chunk);
       }
     }
-    const translatedText = translated.join(' ');
-    const outBytes = await textToPdf(translatedText, PDFDocument, StandardFonts, rgb);
+
+    const translatedText = translatedParts.join(' ');
+
+    // Check if anything was actually translated
+    const identical = translatedText.trim() === inputText.trim();
+    if (identical) {
+      cleanupFiles(req.file);
+      return res.status(422).json({
+        error: `Translation from "${sourceLang}" to "${targetLang}" could not be completed. ` +
+               'The language pair may not be supported, or the service quota was reached. Please try again later.',
+      });
+    }
+
+    // Build formatted plain-text output (consistent with browser-side output)
+    const lines = [
+      `ILovePDF — Translated (${targetLang.toUpperCase()})`,
+      '='.repeat(50),
+      `Source language : ${sourceLang.toUpperCase()}`,
+      `Target language : ${targetLang.toUpperCase()}`,
+      '',
+      translatedText,
+    ];
 
     cleanupFiles(req.file);
-    sendPdf(res, outBytes, `ilovepdf-translated-${targetLang}.pdf`);
+    sendFile(res, Buffer.from(lines.join('\n'), 'utf-8'),
+      'text/plain; charset=utf-8',
+      `ilovepdf-translated-${targetLang}.txt`);
   } catch (err) {
     cleanupFiles(req.file);
     res.status(clientErrStatus(err)).json({ error: err.message });
@@ -283,22 +433,5 @@ router.post('/workflow', upload.single('pdf'), async (req, res) => {
     res.status(clientErrStatus(err)).json({ error: err.message });
   }
 });
-
-// ── helpers ───────────────────────────────────────────────────────────────
-
-function chunkText(text, size) {
-  const chunks = [];
-  let i = 0;
-  while (i < text.length) {
-    let end = Math.min(i + size, text.length);
-    if (end < text.length) {
-      const ls = text.lastIndexOf(' ', end);
-      if (ls > i) end = ls;
-    }
-    chunks.push(text.slice(i, end).trim());
-    i = end + 1;
-  }
-  return chunks.filter(c => c);
-}
 
 export default router;

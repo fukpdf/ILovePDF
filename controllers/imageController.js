@@ -8,34 +8,89 @@ function sendImage(res, buffer, mimeType, filename) {
   res.send(buffer);
 }
 
-// ── BACKGROUND REMOVER (white bg removal) ─────────────────────────────────
+// ── BACKGROUND REMOVER ─────────────────────────────────────────────────────
+// v2: threshold-based removal + 1-pass edge feathering for smooth borders.
+//
+// Algorithm:
+//  1. Convert to RGBA raw pixels.
+//  2. Hard-threshold pass: mark near-white pixels as fully transparent.
+//  3. Feathering pass: for each opaque pixel that has at least one transparent
+//     neighbour, reduce its alpha proportionally to the fraction of transparent
+//     neighbours (8-connectivity). This gives a 1-pixel anti-aliased edge
+//     instead of harsh jagged boundaries.
 
 export async function backgroundRemove(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an image.' });
 
-    const buffer = fs.readFileSync(req.file.path);
-    const threshold = Math.min(255, Math.max(180, parseInt(req.body.threshold) || 240));
+    const buffer    = fs.readFileSync(req.file.path);
+    const threshold = Math.min(255, Math.max(140, parseInt(req.body.threshold) || 240));
 
     const { data, info } = await sharp(buffer)
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
 
+    const { width, height } = info;
     const pixels = new Uint8Array(data);
+    const total  = width * height;
 
-    for (let i = 0; i < pixels.length; i += 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
+    // ── Pass 1: hard threshold ──────────────────────────────────────────────
+    // Mark each near-white pixel fully transparent; keep truly opaque pixels.
+    const mask = new Uint8Array(total); // 0 = transparent, 1 = opaque
+
+    for (let i = 0; i < total; i++) {
+      const base = i * 4;
+      const r = pixels[base];
+      const g = pixels[base + 1];
+      const b = pixels[base + 2];
       if (r >= threshold && g >= threshold && b >= threshold) {
-        pixels[i + 3] = 0;
+        pixels[base + 3] = 0;
+        mask[i] = 0;
+      } else {
+        mask[i] = 1;
       }
     }
 
+    // ── Pass 2: edge feathering ────────────────────────────────────────────
+    // For opaque pixels adjacent to transparent ones, partially reduce alpha
+    // based on the proportion of transparent neighbours (8-connectivity).
+    // This softens the hard cutout edge by 1 pixel.
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        if (!mask[idx]) continue;           // already transparent — skip
+
+        // Count transparent neighbours in 8-connected neighbourhood
+        let transNeighbours = 0;
+        let totalNeighbours = 0;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const ny = y + dy;
+            const nx = x + dx;
+            if (ny < 0 || ny >= height || nx < 0 || nx >= width) continue;
+            totalNeighbours++;
+            if (!mask[ny * width + nx]) transNeighbours++;
+          }
+        }
+
+        if (transNeighbours > 0 && totalNeighbours > 0) {
+          // Alpha = 255 × (1 − fraction_transparent)
+          // Clamp to ensure truly interior pixels stay opaque.
+          const fraction = transNeighbours / totalNeighbours;
+          const alpha    = Math.round(255 * (1 - fraction));
+          pixels[idx * 4 + 3] = Math.max(0, Math.min(255, alpha));
+        }
+      }
+    }
+
+    // ── Encode result as PNG (alpha channel required) ─────────────────────
     const result = await sharp(Buffer.from(pixels), {
-      raw: { width: info.width, height: info.height, channels: 4 }
-    }).png().toBuffer();
+      raw: { width, height, channels: 4 },
+    }).png({ compressionLevel: 6 }).toBuffer();
 
     cleanupFiles(req.file);
     sendImage(res, result, 'image/png', 'ilovepdf-bg-removed.png');

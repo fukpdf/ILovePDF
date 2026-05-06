@@ -67,25 +67,81 @@ export function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function extractiveSummarize(text, maxSentences = 5) {
-  const sentences = text.match(/[^.!?\n]+[.!?]+/g) || [];
-  if (sentences.length <= maxSentences) return text.trim();
+// ── EXTRACTIVE SUMMARIZE v2 ────────────────────────────────────────────────
+// Improvements over v1:
+//  • Heading-line detection → 2× score boost for heading sentences
+//  • Near-duplicate removal via Jaccard similarity (threshold 0.60)
+//  • Sentence ordering preserved in final output (position-stable)
+//  • Minimum sentence length filter (≥15 chars) removes noise fragments
+//  • Fallback to paragraph-split when sentence count is very low
 
+export function extractiveSummarize(text, maxSentences = 7) {
+  // ── 1. Extract sentences ─────────────────────────────────────────────────
+  let sentences = (text.match(/[^.!?\n]{10,}[.!?]+["'\u2019]?/g) || [])
+    .map(s => s.trim())
+    .filter(s => s.length >= 15);
+
+  // Fallback: paragraph-split when almost no sentences detected
+  if (sentences.length < 3) {
+    sentences = text
+      .split(/\n{2,}/)
+      .map(s => s.replace(/\s+/g, ' ').trim())
+      .filter(s => s.length >= 15);
+  }
+
+  if (!sentences.length) return text.trim().substring(0, 500);
+  if (sentences.length <= maxSentences) return sentences.join(' ');
+
+  // ── 2. Build word frequency table (TF) ───────────────────────────────────
   const words = text.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
-  const freq = {};
+  const freq  = {};
   words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
 
+  // ── 3. Detect heading lines for score boost ───────────────────────────────
+  const headingSet = new Set(
+    text.split('\n')
+      .map(l => l.trim())
+      .filter(l => {
+        if (!l || l.length < 3 || l.length > 80) return false;
+        return (
+          (l === l.toUpperCase() && /[A-Z]/.test(l)) ||         // ALL-CAPS
+          /^(\d+\.)+\s+\S/.test(l) ||                           // 1.2. Section
+          /^[A-Z][^.!?]{3,60}$/.test(l)                         // Title-case short line
+        );
+      })
+      .map(l => l.toLowerCase())
+  );
+
+  // ── 4. Score each sentence ────────────────────────────────────────────────
   const scored = sentences.map((s, i) => {
-    const score = (s.toLowerCase().match(/\b[a-z]{4,}\b/g) || [])
-      .reduce((sum, w) => sum + (freq[w] || 0), 0);
-    return { s: s.trim(), score, i };
+    const sw    = s.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+    const base  = sw.reduce((n, w) => n + (freq[w] || 0), 0) / (sw.length || 1);
+    const boost = headingSet.has(s.trim().toLowerCase()) ? 2.0 : 1.0;
+    return { s, score: base * boost, i };
   });
 
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, maxSentences)
-    .sort((a, b) => a.i - b.i)
-    .map(t => t.s)
-    .join(' ');
+  // ── 5. Sort by score, remove near-duplicates (Jaccard > 0.60) ────────────
+  const sorted  = scored.slice().sort((a, b) => b.score - a.score);
+  const seen    = [];
+  const deduped = [];
+
+  for (const candidate of sorted) {
+    if (deduped.length >= maxSentences) break;
+    const cWords = new Set(candidate.s.toLowerCase().split(/\s+/));
+    const isDup  = seen.some(prev => {
+      const pWords = new Set(prev.toLowerCase().split(/\s+/));
+      let inter = 0;
+      cWords.forEach(w => { if (pWords.has(w)) inter++; });
+      const union = cWords.size + pWords.size - inter;
+      return union > 0 && inter / union > 0.60;
+    });
+    if (!isDup) {
+      deduped.push(candidate);
+      seen.push(candidate.s.toLowerCase());
+    }
+  }
+
+  // ── 6. Restore original order for readability ────────────────────────────
+  deduped.sort((a, b) => a.i - b.i);
+  return deduped.map(d => d.s).join(' ');
 }
-function toggleSidebar(){document.querySelector(".sidebar").classList.toggle("active")}
