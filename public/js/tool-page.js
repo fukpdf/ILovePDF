@@ -622,6 +622,8 @@ function renderPreviewStep(tool) {
         <div class="upload-files-list" id="files-list"></div>
       </section>
 
+      <div id="live-preview-host"></div>
+
       ${optionsHtml}
 
       <div class="process-btn-wrap">
@@ -642,6 +644,15 @@ function renderPreviewStep(tool) {
   renderFileList();
   maybeOpenPageOrganizer();
   wireStepNav();
+
+  // Live Preview Engine (v5.5) — non-blocking document/image preview panel
+  if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
+    const lpHost = document.getElementById('live-preview-host');
+    if (lpHost) {
+      window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
+        .catch(function () { /* non-fatal — tool still works without preview */ });
+    }
+  }
 }
 
 // ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────

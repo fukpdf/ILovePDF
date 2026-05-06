@@ -27,6 +27,8 @@ ILovePDF is a production-ready platform offering 33+ online tools for PDF and im
 - `public/` — all static frontend assets
 - `public/js/tools-config.js` — source of truth for all tool definitions
 - `public/js/auth-ui.js` — auth modal + profile chip (injected on every page)
+- `public/js/live-preview.js` — Live Preview Engine v5.5 (word/excel/pdf/image previews)
+- `public/js/advanced-engine.js` — wraps `window.BrowserTools.process`; validation, quality scoring, retries, DebugTrace, `window.AdvancedEngine.audit()`
 - `cloudflare/worker/` — optional Cloudflare Queue Worker for heavy async jobs
 
 ## Architecture decisions
@@ -35,6 +37,7 @@ ILovePDF is a production-ready platform offering 33+ online tools for PDF and im
 - **Optional R2**: File uploads fall back to local temp storage when R2 is not configured.
 - **Graceful degradation**: All optional services (Firebase, R2, HF) are probed at boot and disabled cleanly if credentials are absent — no hard crashes.
 - **Same-origin + cross-origin cookies**: `cookieOpts()` auto-detects cross-origin requests and switches to `SameSite=None; Secure` for the JWT cookie.
+- **Live Preview v5.5**: Non-blocking preview panels injected in `renderPreviewStep` for word-to-pdf (mammoth HTML), excel-to-pdf (XLSX tables), pdf-to-word/excel (PDF.js thumbnails + structure), background-remover (before/after canvas + threshold slider). Failures are silent — tool still works.
 
 ## Product
 - 33+ PDF tools: merge, split, compress, rotate, watermark, sign, protect, unlock, OCR, repair, compare, AI summarize/translate

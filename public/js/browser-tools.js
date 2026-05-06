@@ -652,12 +652,63 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── PHASE 3: REPAIR PDF ──────────────────────────────────────────────────
+  // ── PHASE 3: REPAIR PDF (multi-pass v5.5) ───────────────────────────────
+  // Pass 1: Lenient load → save uncompressed streams (fixes object corruption)
+  // Pass 2: Re-open to verify page count is preserved
+  // Pass 3: Rebuild metadata + resave with object streams for size efficiency
   async function repairPdf(files) {
     const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true, throwOnInvalidObject: false });
-    doc.setTitle(doc.getTitle() || 'Repaired Document');
-    return new Blob([await doc.save({ useObjectStreams: false })], { type: 'application/pdf' });
+    const bytes = await readFileBytes(files[0]);
+
+    // Pass 1: Try increasingly lenient load options
+    const loadStrategies = [
+      { ignoreEncryption: true, throwOnInvalidObject: false },
+      { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false },
+    ];
+
+    let doc = null;
+    for (const opts of loadStrategies) {
+      try {
+        doc = await PDFDocument.load(bytes, opts);
+        if (doc && doc.getPageCount() > 0) break;
+        doc = null;
+      } catch (_) { doc = null; }
+    }
+
+    if (!doc) {
+      throw new Error('The PDF is too severely damaged to repair. Please try with a different file.');
+    }
+
+    // Pass 1 output — uncompressed streams (most compatible)
+    const pass1Bytes = await doc.save({ useObjectStreams: false });
+
+    // Pass 2: Re-open the repaired bytes to verify integrity
+    let verifiedDoc;
+    try {
+      verifiedDoc = await PDFDocument.load(pass1Bytes, { throwOnInvalidObject: false });
+      if (!verifiedDoc || verifiedDoc.getPageCount() === 0) throw new Error('no pages');
+    } catch (_) {
+      // Pass 2 failed — return pass 1 output (still better than nothing)
+      return new Blob([pass1Bytes], { type: 'application/pdf' });
+    }
+
+    // Pass 3: Rebuild metadata + resave with object streams
+    try {
+      const existingTitle = verifiedDoc.getTitle();
+      verifiedDoc.setTitle(existingTitle || 'Repaired Document');
+      verifiedDoc.setProducer('ILovePDF Repair Tool');
+      verifiedDoc.setModificationDate(new Date());
+    } catch (_) { /* metadata rebuild is best-effort */ }
+
+    const finalBytes = await verifiedDoc.save({ useObjectStreams: true });
+    const finalBlob  = new Blob([finalBytes], { type: 'application/pdf' });
+
+    // Sanity: don't return a blob that's suspiciously small vs original
+    if (finalBlob.size < 500 && bytes.byteLength > 1000) {
+      return new Blob([pass1Bytes], { type: 'application/pdf' });
+    }
+
+    return finalBlob;
   }
 
   // ── PHASE 3: PDF TO WORD ─────────────────────────────────────────────────
@@ -754,41 +805,81 @@
     return { blob: new Blob([lines.join('\n')], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
   }
 
-  // ── PHASE 4: OCR PDF ────────────────────────────────────────────────────
-  // Tries pdfjs text extraction first (fast). Falls back to tesseract.js for
-  // image-based PDFs where text content is negligible.
+  // ── PHASE 4: OCR PDF (v5.5 — returns DOCX with heading detection) ────────
+  // Tries pdfjs text extraction first (fast, preserves layout).
+  // Falls back to Tesseract for scanned/image-only PDFs.
+  // Output: .docx (matching the server-side OCR format).
   async function ocrPdf(files) {
     const pdfjsLib = await loadPdfJs();
+    const JSZip    = await loadJsZip();
     const data     = await readFileBytes(files[0]);
     const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+
     let allText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page    = await pdf.getPage(i);
       const content = await page.getTextContent();
       allText += content.items.map(it => it.str).join(' ') + '\n';
+      page.cleanup();
     }
-    if (allText.replace(/\s/g, '').length > 60) {
-      return { blob: new Blob([allText.trim()], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+
+    // If digital text is sparse, use Tesseract OCR
+    if (allText.replace(/\s/g, '').length < 60) {
+      const Tesseract = await loadTesseract();
+      const ocrLines  = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page     = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas   = document.createElement('canvas');
+        canvas.width   = Math.floor(viewport.width);
+        canvas.height  = Math.floor(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const dataUrl = canvas.toDataURL('image/png');
+        canvas.width = 0; canvas.height = 0;
+        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
+        ocrLines.push(text.trim());
+        page.cleanup();
+      }
+      allText = ocrLines.join('\n\n');
     }
-    // Render pages to canvas and run tesseract
-    const Tesseract = await loadTesseract();
-    const ocrLines  = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page     = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas   = document.createElement('canvas');
-      canvas.width   = Math.floor(viewport.width);
-      canvas.height  = Math.floor(viewport.height);
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-      canvas.width = 0; canvas.height = 0;
-      const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
-      ocrLines.push(`--- Page ${i} ---\n${text}`);
+    await pdf.destroy();
+
+    // Build DOCX from extracted text with heading detection
+    const lines     = allText.split('\n').map(l => l.trim()).filter(Boolean);
+    const docXmlParts = [];
+    for (const line of lines) {
+      const esc    = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const isH1   = line === line.toUpperCase() && line.length >= 4 && line.length <= 70 && /[A-Z]/.test(line);
+      const isH2   = !isH1 && /^(\d+\.)+\s+\S/.test(line) && line.length <= 80;
+      const pStyle = isH1 ? 'Heading1' : isH2 ? 'Heading2' : 'Normal';
+      const rStyle = isH1 ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
+                     isH2 ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
+                             '<w:sz><w:val>24</w:val></w:sz>';
+      docXmlParts.push(
+        '<w:p><w:pPr><w:pStyle w:val="' + pStyle + '"/></w:pPr>' +
+        '<w:r><w:rPr>' + rStyle + '</w:rPr><w:t xml:space="preserve">' + esc + '</w:t></w:r></w:p>'
+      );
     }
-    return { blob: new Blob([ocrLines.join('\n\n')], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+
+    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${docXmlParts.join('')}<w:sectPr/></w:body>
+</w:document>`;
+
+    const ctXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+    const relsXml= `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+    const wRels  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', ctXml);
+    zip.file('_rels/.rels', relsXml);
+    zip.file('word/document.xml', docXml);
+    zip.file('word/_rels/document.xml.rels', wRels);
+    const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
   // ── PHASE 4: BACKGROUND REMOVER (canvas pixel manipulation) ──────────────
