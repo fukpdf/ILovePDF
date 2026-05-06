@@ -111,17 +111,39 @@
     if (m.includes('build_failed') || m.includes('build failed'))
       return 'The document could not be assembled. Please try again.';
 
-    if (m.includes('canvas encode') || m.includes('image_decode'))
+    if (m.includes('canvas encode') || m.includes('image_decode') || m.includes('canvas_export'))
       return 'Image processing failed. Please try a different file.';
 
     if (m.includes('image processing') || m.includes('decode failed'))
       return 'This image format is not supported. Please try a JPG or PNG file.';
 
-    // Pass through short, user-readable messages that don't contain internal terms
+    // Background remover — user-friendly specifics
+    if (m.includes('bg_remove_failed') || m.includes('background_removal'))
+      return 'Background removal failed. Please try with an image that has a solid background.';
+
+    if (m.includes('no background detected') || m.includes('solid') && m.includes('background'))
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    // Repair — pass through user-friendly repair messages
+    if (m.includes('too severely damaged') || m.includes('could not be fully repaired'))
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    // Generic "not available" for missing processors or pool errors
+    if (m.includes('pool_unavail') || m.includes('no_processor') || m.includes('engine_unavail'))
+      return 'This tool is not available right now. Please refresh the page and try again.';
+
+    // Translation API failure
+    if (m.includes('translation could not') || m.includes('temporarily unavailable'))
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    // Pass through short, user-readable messages that don't contain any internal term
     if (raw.length > 3 && raw.length < 220 &&
-        !raw.includes('Worker') && !raw.includes('wasm') && !raw.includes('OPFS') &&
-        !raw.includes('chunk') && !raw.includes('ArrayBuffer') && !raw.includes('byteLength') &&
-        !raw.includes('__') && !raw.toLowerCase().includes('undefined') &&
+        !raw.includes('Worker') && !raw.includes('worker') &&
+        !raw.includes('wasm')   && !raw.includes('OPFS')   &&
+        !raw.includes('chunk')  && !raw.includes('ArrayBuffer') &&
+        !raw.includes('byteLength') && !raw.includes('gpu') &&
+        !raw.includes('thread') && !raw.includes('SharedArray') &&
+        !raw.includes('__')     && !raw.toLowerCase().includes('undefined') &&
         !raw.toLowerCase().includes('null')) {
       return raw.charAt(0).toUpperCase() + raw.slice(1);
     }
@@ -1303,7 +1325,16 @@
     }
   }
 
-  // Tier 3: post-output quality score — always logs, never throws
+  // Tier 3: post-output quality scoring with enforced gate for binary tools.
+  // Score tiers:
+  //   ≥ 0.70 → success (no action)
+  //   0.40–0.69 → warning (logs only, download allowed)
+  //   < 0.40 → FAIL — binary tools throw 'low_quality_output'; text tools just log
+  var _BINARY_TOOLS = new Set([
+    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
+    'background-remover', 'repair', 'compress',
+  ]);
+
   function analyzeResultQuality(toolId, result, meta) {
     meta = meta || {};
     var blob = (result && result.blob) ? result.blob : result;
@@ -1317,10 +1348,24 @@
       pages:      meta.pages    || 0,
       language:   meta.language || 'auto',
       score:      0,
+      tier:       'unknown',
     };
     var minS = _VALIDATE_MINS[toolId] || 100;
     quality.score = Math.round(Math.min(1.0, quality.outputSize / (minS * 5)) * 100) / 100;
+
+    quality.tier = quality.score >= 0.70 ? 'success' :
+                   quality.score >= 0.40 ? 'warning' : 'fail';
+    quality.ok   = quality.tier !== 'fail';
+
     DT().validate('result-quality', quality);
+
+    if (quality.tier === 'fail' && _BINARY_TOOLS.has(toolId)) {
+      DT().error('quality-gate-fail', { toolId: toolId, score: quality.score, size: quality.outputSize, min: minS });
+      throw new Error('low_quality_output');
+    }
+    if (quality.tier === 'warning') {
+      DT().log('quality-gate-warning', { toolId: toolId, score: quality.score });
+    }
     return quality;
   }
 
@@ -2055,7 +2100,22 @@
     imageData = null;
 
     DT().log('bg-remover-start', { width: drawW, height: drawH, threshold: threshold });
-    var wResult;
+
+    // v5.1: Helper — sample alpha channel of a pixel buffer (RGBA)
+    function _sampleHasAlpha(pixelsBuf) {
+      var samp = new Uint8ClampedArray(pixelsBuf, 0, Math.min(pixelsBuf.byteLength, 40000));
+      var step = Math.max(1, Math.floor(samp.length / (4 * 500)));
+      for (var ai = 3; ai < samp.length; ai += 4 * step) {
+        if (samp[ai] < 200) return true;
+      }
+      return false;
+    }
+
+    // v5.1: Retry chain — Worker → CPU inline → relaxed threshold → hard fail
+    var wResult   = null;
+    var _hasAlpha = false;
+
+    // Pass 1: worker path (transfers rawBuffer — detaches it in main thread)
     try {
       wResult = await runAdvancedWorker(
         { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH, threshold: threshold },
@@ -2063,28 +2123,47 @@
       );
     } catch (bgWorkerErr) {
       DT().error('bg-remover-worker', bgWorkerErr);
-      // Phase 5: CPU fallback — process pixels in the main thread
       onStep(2, 'active', 45, 'Processing image\u2026');
-      wResult = removeBgInline(rawBuffer, drawW, drawH, threshold);
+      // rawBuffer may be detached after transfer attempt — re-read from canvas
+      var fbBuf = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
+      wResult = removeBgInline(fbBuf, drawW, drawH, threshold);
+      fbBuf   = null;
+    }
+    rawBuffer = null;
+
+    if (wResult && wResult.pixels instanceof ArrayBuffer) {
+      _hasAlpha = _sampleHasAlpha(wResult.pixels);
+      DT().validate('bg-remover-alpha', { attempt: 1, hasTransparent: _hasAlpha, threshold: threshold });
+    }
+
+    // Pass 2: relax threshold by 25 if no transparent pixels found
+    if (!_hasAlpha) {
+      DT().log('bg-remover-retry', { reason: 'no_alpha', pass: 2 });
+      onStep(2, 'active', 58, 'Adjusting settings\u2026');
+      var relaxThresh  = Math.max(100, threshold - 25);
+      var retryBuf     = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
+      var retryResult  = removeBgInline(retryBuf, drawW, drawH, relaxThresh);
+      retryBuf = null;
+      if (retryResult && retryResult.pixels instanceof ArrayBuffer) {
+        _hasAlpha = _sampleHasAlpha(retryResult.pixels);
+        DT().validate('bg-remover-alpha', { attempt: 2, hasTransparent: _hasAlpha, threshold: relaxThresh });
+        if (_hasAlpha) {
+          wResult = retryResult;
+          DT().log('bg-remover-retry-ok', { threshold: relaxThresh });
+        }
+      }
     }
 
     if (!wResult || !(wResult.pixels instanceof ArrayBuffer)) {
-      DT().error('bg-remover-result', 'no pixels in output');
+      DT().error('bg-remover-result', 'no pixels in output after all attempts');
       throw AEError(ERR.WORKER, 'bg_remove_failed');
     }
 
-    // Phase 2 (v5): alpha channel validation — sample the pixel buffer
-    var _pxSample   = new Uint8ClampedArray(wResult.pixels, 0, Math.min(wResult.pixels.byteLength, 40000));
-    var _hasAlpha   = false;
-    var _sampleStep = Math.max(1, Math.floor(_pxSample.length / (4 * 500)));
-    for (var _ai = 3; _ai < _pxSample.length; _ai += 4 * _sampleStep) {
-      if (_pxSample[_ai] < 200) { _hasAlpha = true; break; }
-    }
-    DT().validate('bg-remover-alpha', { hasTransparent: _hasAlpha, sampleBytes: _pxSample.length });
+    // v5.1 RULE 1: Hard fail if no background was actually removed
     if (!_hasAlpha) {
-      DT().log('bg-remover-quality-note', 'no transparent pixels in sample — threshold may need adjusting');
+      DT().error('bg-remover-no-alpha', { attempts: 2 });
+      throw new Error('No background detected. Please try with an image that has a solid or uniform background.');
     }
-    _pxSample = null;
 
     onStep(2, 'done', 80);
     onStep(3, 'active', 83, 'Saving result\u2026');
@@ -2149,8 +2228,22 @@
     // Fall back to browser-tools.js repairPdf when all passes failed
     if (!resultBuf) throw new Error(ERR.ORIG);
 
-    onStep(2, 'done', 78);
-    onStep(3, 'active', 82, 'Finalizing output\u2026');
+    // v5.1: Integrity verification — confirm the repaired PDF can actually be opened
+    onStep(2, 'done', 75);
+    onStep(3, 'active', 78, 'Verifying document\u2026');
+    try {
+      var verifyLib = await loadPdfJs();
+      var verifyDoc = await verifyLib.getDocument({ data: resultBuf.slice(0) }).promise;
+      var repPages  = verifyDoc.numPages;
+      await verifyDoc.destroy();
+      DT().log('repair-integrity-ok', { pages: repPages });
+      if (repPages < 1) throw new Error('repaired_pdf_empty');
+    } catch (intErr) {
+      DT().error('repair-integrity-fail', intErr);
+      throw new Error('The document could not be fully repaired. It may be too severely damaged to recover. Please try re-downloading the original file.');
+    }
+
+    onStep(3, 'active', 92, 'Finalizing output\u2026');
     var blob = new Blob([resultBuf], { type: 'application/pdf' });
     resultBuf = null;
     onStep(3, 'done', 100);
@@ -2633,9 +2726,10 @@
       }
     }
 
-    // ── Phase 2 (v5): Strict Blob Validation + Phase 12: Quality Analysis ───
-    // validateBlob — catches empty/corrupt outputs BEFORE any download trigger.
-    // analyzeResultQuality — logs quality score to DebugTrace (never throws).
+    // ── v5.1: Full Validation Pipeline ──────────────────────────────────────
+    // Step 1: validateBlob  — hard size gate (catches empty/corrupt)
+    // Step 2: analyzeResultQuality — enforced quality score gate (< 0.40 throws)
+    // RULE 1: NO FAKE SUCCESS — block download on any validation failure.
     if (result) {
       var _rb = (result && result.blob) ? result.blob : result;
       if (_rb instanceof Blob) {
@@ -2647,7 +2741,14 @@
           throw new Error('The result appears empty. Please try again with a different file.');
         }
       }
-      analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
+      // Quality gate — enforced, not optional
+      try {
+        analyzeResultQuality(toolId, result, result && result._quality ? result._quality : {});
+      } catch (qualErr) {
+        LiveFeed.hide();
+        vanish();
+        throw new Error(qualErr.message || 'low_quality_output');
+      }
     }
 
     LiveFeed.done();
