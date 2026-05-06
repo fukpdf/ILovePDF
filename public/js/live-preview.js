@@ -139,7 +139,7 @@
     wireCtrlSync(host, state);
   }
 
-  // ── EXCEL → PDF PREVIEW ──────────────────────────────────────────────────
+  // ── EXCEL → PDF PREVIEW (v3.0 — margins + scaling controls) ─────────────
   async function mountExcelToPdf(file, host) {
     host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Generating spreadsheet preview…</div>';
 
@@ -148,7 +148,21 @@
     var wb   = XLSX.read(buf, { type: 'array', cellStyles: true });
     if (!wb.SheetNames.length) { host.innerHTML = ''; return; }
 
-    var state = { sheet: 0, size: 'A4', orient: 'landscape' };
+    // Auto-detect orientation from column count
+    var firstWs   = wb.Sheets[wb.SheetNames[0]];
+    var firstRows = XLSX.utils.sheet_to_json(firstWs, { header: 1, defval: '' });
+    var maxCols   = firstRows.length ? Math.max.apply(null, firstRows.map(function (r) { return r.length; })) : 1;
+    var autoOrient = maxCols > 6 ? 'landscape' : 'portrait';
+
+    var state = { sheet: 0, size: 'A4', orient: autoOrient, margins: 'normal', scaling: 'fit-page' };
+
+    function syncOpts() {
+      var el;
+      el = document.getElementById('opt-pageSize');    if (el) el.value = state.size;
+      el = document.getElementById('opt-orientation'); if (el) el.value = state.orient;
+      el = document.getElementById('opt-margins');     if (el) el.value = state.margins;
+      el = document.getElementById('opt-scaling');     if (el) el.value = state.scaling;
+    }
 
     function renderSheet() {
       var ws  = wb.Sheets[wb.SheetNames[state.sheet]];
@@ -158,8 +172,41 @@
       host.querySelectorAll('[data-sheet]').forEach(function (b) {
         b.classList.toggle('active', parseInt(b.dataset.sheet, 10) === state.sheet);
       });
+      // update page boundary indicator
+      var wrap = host.querySelector('.lp-xlsx-page-wrap');
+      if (wrap) {
+        var isLand = state.orient === 'landscape';
+        var isA3   = state.size === 'A3';
+        var marginMap = { none: '4px', narrow: '12px', normal: '20px' };
+        var m = marginMap[state.margins] || '20px';
+        wrap.style.padding = m;
+        wrap.style.maxWidth = isLand ? (isA3 ? '900px' : '780px') : (isA3 ? '640px' : '540px');
+      }
+      syncOpts();
     }
     state.onchange = renderSheet;
+
+    function marginBtns(active) {
+      return [
+        { id: 'none',   label: 'None' },
+        { id: 'narrow', label: 'Narrow' },
+        { id: 'normal', label: 'Normal' },
+      ].map(function (o) {
+        return '<button type="button" class="lp-ctrl-btn' + (o.id === active ? ' active' : '') +
+               '" data-margin="' + o.id + '">' + o.label + '</button>';
+      }).join('');
+    }
+
+    function scalingBtns(active) {
+      return [
+        { id: 'fit-page',  label: 'Fit page' },
+        { id: 'fit-width', label: 'Fit width' },
+        { id: 'actual',    label: 'Actual' },
+      ].map(function (o) {
+        return '<button type="button" class="lp-ctrl-btn' + (o.id === active ? ' active' : '') +
+               '" data-scaling="' + o.id + '">' + o.label + '</button>';
+      }).join('');
+    }
 
     var sheetTabsHtml = wb.SheetNames.length > 1
       ? '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Sheet</span><div class="lp-ctrl-row">' +
@@ -169,35 +216,71 @@
           }).join('') + '</div></div>'
       : '';
 
+    // Dimension badge
+    var dimBadge = '<span class="lp-dim-badge">' + firstRows.length + ' rows × ' + maxCols + ' cols</span>';
+
     host.innerHTML =
       '<div class="lp-panel">' +
         '<div class="lp-header">' +
           '<span class="lp-title">' +
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>' +
-            ' Spreadsheet Preview' +
+            ' Spreadsheet Preview ' + dimBadge +
           '</span>' +
           '<div class="lp-controls">' +
-            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Page size</span><div class="lp-ctrl-row">' + pageSizeBtns('A4') + '</div></div>' +
-            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Orientation</span><div class="lp-ctrl-row">' + orientBtns('landscape') + '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Page size</span><div class="lp-ctrl-row">' + pageSizeBtns('A4') +
+              '<button type="button" class="lp-ctrl-btn" data-size="A3">A3</button>' +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Orientation</span><div class="lp-ctrl-row">' + orientBtns(autoOrient) + '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Margins</span><div class="lp-ctrl-row">' + marginBtns('normal') + '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Scaling</span><div class="lp-ctrl-row">' + scalingBtns('fit-page') + '</div></div>' +
             sheetTabsHtml +
           '</div>' +
         '</div>' +
-        '<div class="lp-scroll lp-scroll--wide"><div class="lp-xlsx-canvas"></div></div>' +
-        '<div class="lp-footer">Tables will be auto-scaled to fit the selected page size</div>' +
+        '<div class="lp-scroll lp-scroll--wide"><div class="lp-xlsx-page-wrap"><div class="lp-xlsx-canvas"></div></div></div>' +
+        '<div class="lp-footer">Wide tables auto-switch to landscape · scaling controls affect PDF output</div>' +
       '</div>';
 
     wireCtrlSync(host, state);
+
+    // Wire margin buttons
+    host.querySelectorAll('[data-margin]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.margins = b.dataset.margin;
+        host.querySelectorAll('[data-margin]').forEach(function (x) {
+          x.classList.toggle('active', x.dataset.margin === state.margins);
+        });
+        var el = document.getElementById('opt-margins');
+        if (el) el.value = state.margins;
+        if (state.onchange) state.onchange();
+      });
+    });
+
+    // Wire scaling buttons
+    host.querySelectorAll('[data-scaling]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.scaling = b.dataset.scaling;
+        host.querySelectorAll('[data-scaling]').forEach(function (x) {
+          x.classList.toggle('active', x.dataset.scaling === state.scaling);
+        });
+        var el = document.getElementById('opt-scaling');
+        if (el) el.value = state.scaling;
+        if (state.onchange) state.onchange();
+      });
+    });
+
     host.querySelectorAll('[data-sheet]').forEach(function (b) {
       b.addEventListener('click', function () {
         state.sheet = parseInt(b.dataset.sheet, 10);
         renderSheet();
       });
     });
+
     renderSheet();
   }
 
-  // ── PDF → WORD / EXCEL PREVIEW ───────────────────────────────────────────
-  // Shows page thumbnails + detected document structure (headings, tables, paragraphs)
+  // ── PDF → WORD / EXCEL PREVIEW (v3.0 — scanned PDF badge, richer structure) ──
+  // Shows page thumbnails + detected document structure (headings, tables, paragraphs).
+  // Adds a "Scanned PDF — OCR will run" badge when no text is found.
   async function mountPdfExtract(file, host, toolId) {
     host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing document structure…</div>';
 
@@ -216,18 +299,22 @@
 
     var headingCount = 0, tableCount = 0, paraCount = 0;
     var structLines  = [];
+    var totalRawChars = 0;
+    var isScanned     = false;
 
     if (window.pdfjsLib) {
       try {
         var buf = await file.arrayBuffer();
         var pdf = await window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
         var checkPages = Math.min(pdf.numPages, 5);
+
         for (var p = 1; p <= checkPages; p++) {
           var pg  = await pdf.getPage(p);
           var tc  = await pg.getTextContent();
           var buckets = {};
           tc.items.forEach(function (it) {
             if (!it.str || !it.str.trim()) return;
+            totalRawChars += it.str.replace(/\s/g, '').length;
             var yKey = Math.round(it.transform[5] / 5) * 5;
             if (!buckets[yKey]) buckets[yKey] = { text: '', fontSize: 0 };
             buckets[yKey].text += it.str + ' ';
@@ -239,7 +326,7 @@
             var t   = l.text.trim();
             if (!t || t.length < 3) return;
             var isHeading = (l.fontSize > 12) ||
-                            (t === t.toUpperCase() && t.length >= 3 && t.length < 80 && /[A-Z]/.test(t));
+                            (t === t.toUpperCase() && t.length >= 3 && t.length < 80 && /[A-Z]/.test(t) && !/^\d/.test(t));
             var isTable   = /\s{3,}/.test(t) && t.split(/\s{3,}/).length >= 3;
             if (isHeading) {
               headingCount++;
@@ -255,7 +342,42 @@
           pg.cleanup();
         }
         await pdf.destroy();
+
+        // Scanned PDF = very little extractable text
+        isScanned = totalRawChars < 50;
       } catch (_) {}
+    }
+
+    // Scanned PDF notice (shown when OCR will be needed)
+    var scannedBadge = isScanned
+      ? '<div class="lp-scanned-notice">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          ' Scanned PDF detected — OCR will run automatically to extract text' +
+        '</div>'
+      : '';
+
+    // Structure panel: show "No digital text" hint when scanned
+    var structPanel = '';
+    if (isScanned) {
+      structPanel = '<div class="lp-struct">' +
+        '<div class="lp-struct-title">OCR mode</div>' +
+        '<div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">🔍</span>' +
+          '<span class="lp-struct-text">No selectable text found. Tesseract OCR will analyse each page and extract content into your ' +
+          (toolId === 'pdf-to-excel' ? 'spreadsheet' : 'document') + '.</span>' +
+        '</div></div>';
+    } else if (structLines.length) {
+      structPanel = '<div class="lp-struct">' +
+        '<div class="lp-struct-title">Detected structure</div>' +
+        structLines.map(function (l) {
+          var cls  = 'lp-struct-' + l.type;
+          var icon = l.type === 'heading' ? '📌' : l.type === 'table' ? '📊' : '¶';
+          return '<div class="lp-struct-line ' + cls + '">' +
+                   '<span class="lp-struct-icon">' + icon + '</span>' +
+                   '<span class="lp-struct-text">' + esc(l.text) + '</span>' +
+                 '</div>';
+        }).join('') +
+      '</div>';
     }
 
     host.innerHTML =
@@ -267,26 +389,18 @@
           '</span>' +
           '<div class="lp-stats">' +
             '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages === 1 ? '' : 's') + '</span>' +
-            '<span class="lp-stat"><b>' + headingCount + '</b> heading' + (headingCount === 1 ? '' : 's') + '</span>' +
-            '<span class="lp-stat"><b>' + tableCount + '</b> table' + (tableCount === 1 ? '' : 's') + '</span>' +
-            '<span class="lp-stat"><b>' + paraCount + '</b> paragraph' + (paraCount === 1 ? '' : 's') + '</span>' +
+            (isScanned
+              ? '<span class="lp-stat lp-stat--warn"><b>Scanned</b> — OCR</span>'
+              : '<span class="lp-stat"><b>' + headingCount + '</b> heading' + (headingCount === 1 ? '' : 's') + '</span>' +
+                '<span class="lp-stat"><b>' + tableCount + '</b> table' + (tableCount === 1 ? '' : 's') + '</span>' +
+                '<span class="lp-stat"><b>' + paraCount + '</b> para' + (paraCount === 1 ? '' : 's') + '</span>'
+            ) +
           '</div>' +
         '</div>' +
+        (scannedBadge ? '<div class="lp-scanned-wrap">' + scannedBadge + '</div>' : '') +
         '<div class="lp-extract-body">' +
           '<div class="lp-thumbs" id="lp-thumbs-host"></div>' +
-          (structLines.length
-            ? '<div class="lp-struct">' +
-                '<div class="lp-struct-title">Detected structure</div>' +
-                structLines.map(function (l) {
-                  var cls  = 'lp-struct-' + l.type;
-                  var icon = l.type === 'heading' ? '📌' : l.type === 'table' ? '📊' : '¶';
-                  return '<div class="lp-struct-line ' + cls + '">' +
-                           '<span class="lp-struct-icon">' + icon + '</span>' +
-                           '<span class="lp-struct-text">' + esc(l.text) + '</span>' +
-                         '</div>';
-                }).join('') +
-              '</div>'
-            : '') +
+          structPanel +
         '</div>' +
         '<div class="lp-footer">Preview shows what will be extracted into your ' +
           (toolId === 'pdf-to-excel' ? 'spreadsheet' : 'document') + '</div>' +

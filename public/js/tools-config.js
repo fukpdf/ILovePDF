@@ -206,7 +206,13 @@ const TOOLS = [
     description: 'Convert Excel spreadsheets to PDF',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/excel-to-pdf', acceptedFiles: '.xls,.xlsx',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize',    label: 'Page Size',   type: 'select', options: [{ value:'A4', label:'A4' }, { value:'Letter', label:'Letter' }, { value:'A3', label:'A3' }] },
+      { id: 'orientation', label: 'Orientation', type: 'select', options: [{ value:'', label:'Auto' }, { value:'portrait', label:'Portrait' }, { value:'landscape', label:'Landscape' }] },
+      { id: 'margins',     label: 'Margins',     type: 'select', options: [{ value:'normal', label:'Normal' }, { value:'narrow', label:'Narrow' }, { value:'none', label:'None' }] },
+      { id: 'scaling',     label: 'Scaling',     type: 'select', options: [{ value:'fit-page', label:'Fit Page' }, { value:'fit-width', label:'Fit Width' }, { value:'actual', label:'Actual Size' }] },
+    ]
   },
   {
     id: 'jpg-to-pdf', name: 'JPG to PDF', icon: 'file-image', clientSide: true,

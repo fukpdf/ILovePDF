@@ -2019,3 +2019,42 @@ a{ color:var(--brand-text); }
   border-top: 1px solid #e2e8f0;
   background: #fff;
 }
+
+/* ── Scanned PDF badge (pdf-to-word / pdf-to-excel) ─────────────────────── */
+.lp-scanned-wrap {
+  padding: 0 16px 12px;
+}
+.lp-scanned-notice {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: #fffbeb; border: 1px solid #fcd34d;
+  border-radius: 8px; font-size: .8rem; color: #92400e;
+}
+.lp-scanned-notice svg { flex-shrink: 0; color: #f59e0b; }
+
+/* Warn stat pill */
+.lp-stat--warn {
+  background: #fef3c7; color: #92400e;
+}
+.lp-stat--warn b { color: #78350f; }
+
+/* Dimension badge in title */
+.lp-dim-badge {
+  font-size: .72rem; font-weight: 400;
+  background: #f1f5f9; color: #64748b;
+  border-radius: 10px; padding: 1px 8px;
+  margin-left: 4px;
+}
+
+/* Excel page boundary wrapper */
+.lp-xlsx-page-wrap {
+  transition: padding .2s, max-width .2s;
+  background: #f8fafc;
+  min-height: 80px;
+}
+.lp-xlsx-page-wrap .lp-xlsx-canvas {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.07);
+  overflow-x: auto;
+}

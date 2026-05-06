@@ -711,32 +711,249 @@
     return finalBlob;
   }
 
-  // ── PHASE 3: PDF TO WORD ─────────────────────────────────────────────────
-  // Extracts text via pdfjs and packages it into a minimal valid DOCX.
+  // ── PHASE 3: PDF TO WORD (v3.0 — structure-aware, table detection, OCR fallback) ──
+  // Pipeline: extract text w/ font metadata → detect headings/tables/paragraphs
+  // → build rich DOCX. Auto-triggers Tesseract OCR for scanned/image-only PDFs.
+  // Validates output and retries with forced OCR if first pass yields sparse content.
   async function pdfToWord(files) {
     const pdfjsLib = await loadPdfJs();
     const JSZip    = await loadJsZip();
-    const data = await readFileBytes(files[0]);
-    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page    = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += `\n\n[Page ${i}]\n` + content.items.map(it => it.str).join(' ');
+    const data     = await readFileBytes(files[0]);
+    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+
+    // ── XML helper ────────────────────────────────────────────────────────
+    function escXml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-    const escaped = fullText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const paragraphs = escaped.split('\n').map(line =>
-      `<w:p><w:r><w:t xml:space="preserve">${line}</w:t></w:r></w:p>`
-    ).join('');
-    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs}<w:sectPr/></w:body></w:document>`;
-    const ctXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
-    const relsXml= `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
-    const zip = new JSZip();
-    zip.file('[Content_Types].xml', ctXml);
-    zip.file('_rels/.rels', relsXml);
-    zip.file('word/document.xml', docXml);
-    zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
-    const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+    // ── Step 1: extract all pages with per-item font size + x/y coords ────
+    async function extractPages() {
+      const pages = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page    = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        pages.push({ items: content.items, pageNumber: i });
+        page.cleanup();
+      }
+      return pages;
+    }
+
+    // ── Step 2: scanned PDF detection ─────────────────────────────────────
+    function detectScanned(pages) {
+      const total = pages.reduce((s, p) =>
+        s + p.items.map(it => it.str).join('').replace(/\s/g, '').length, 0);
+      return total < 50;
+    }
+
+    // ── Step 3: group items into visual lines (bucket by Y position) ───────
+    function groupIntoLines(items) {
+      const buckets = {};
+      for (const item of items) {
+        if (!item.str || !item.str.trim()) continue;
+        const yKey = Math.round(item.transform[5] / 3) * 3;
+        if (!buckets[yKey]) buckets[yKey] = { parts: [], fontSize: 0 };
+        buckets[yKey].parts.push({ text: item.str, x: item.transform[4] });
+        const fs = item.height || 0;
+        if (fs > buckets[yKey].fontSize) buckets[yKey].fontSize = fs;
+      }
+      return Object.keys(buckets).map(Number).sort((a, b) => b - a).map(y => {
+        const bucket = buckets[y];
+        const sorted = bucket.parts.sort((a, b) => a.x - b.x);
+        return {
+          text:       sorted.map(p => p.text).join(' ').trim(),
+          fontSize:   bucket.fontSize,
+          xPositions: sorted.map(p => p.x),
+        };
+      }).filter(l => l.text.length > 0);
+    }
+
+    // ── Step 4: classify each visual line ─────────────────────────────────
+    function classifyLine(line) {
+      const t  = line.text;
+      const fs = line.fontSize || 0;
+      // Heading 1: large font or short ALL-CAPS line
+      if (fs > 14 || (t === t.toUpperCase() && t.length >= 3 && t.length < 80 && /[A-Z]/.test(t) && !/^\d/.test(t))) return 'h1';
+      // Heading 2: numbered outline (1. or 1.1 )
+      if (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) return 'h2';
+      // Table row: two or more column positions with a gap ≥ 60 pts
+      if (line.xPositions.length >= 2) {
+        for (let k = 1; k < line.xPositions.length; k++) {
+          if (line.xPositions[k] - line.xPositions[k - 1] > 60) return 'table-row';
+        }
+      }
+      // Table row by multi-space pattern (common in copy-text tables)
+      if (line.text.split(/\s{2,}/).length >= 3) return 'table-row';
+      return 'p';
+    }
+
+    // ── Step 5: merge consecutive table-rows into table blocks ────────────
+    function buildStructure(lines) {
+      const blocks   = [];
+      let tableRows  = [];
+      const flushTable = () => {
+        if (tableRows.length >= 2) { blocks.push({ type: 'table', rows: tableRows }); }
+        else if (tableRows.length === 1) { blocks.push({ type: 'p', text: tableRows[0].text }); }
+        tableRows = [];
+      };
+      for (const line of lines) {
+        const type = classifyLine(line);
+        if (type === 'table-row') {
+          tableRows.push(line);
+        } else {
+          flushTable();
+          blocks.push({ type, text: line.text });
+        }
+      }
+      flushTable();
+      return blocks;
+    }
+
+    // ── Step 6: build table XML with borders ──────────────────────────────
+    function buildTableXml(rows) {
+      const border = (side) =>
+        `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
+      const borders = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(border).join('')}</w:tblBorders>`;
+      const tRows = rows.map(row => {
+        const cols = row.text.split(/\s{2,}/).filter(Boolean);
+        const cells = cols.map(c =>
+          `<w:tc><w:tcPr><w:tcBorders>${['top','left','bottom','right'].map(border).join('')}</w:tcBorders></w:tcPr>` +
+          `<w:p><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c.trim())}</w:t></w:r></w:p></w:tc>`
+        ).join('');
+        return `<w:tr>${cells}</w:tr>`;
+      }).join('');
+      return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/>${borders}</w:tblPr>${tRows}</w:tbl>`;
+    }
+
+    // ── Step 7: build document.xml body ───────────────────────────────────
+    function buildDocXml(structure) {
+      const parts = structure.map(block => {
+        if (block.type === 'table') return buildTableXml(block.rows);
+        if (block.type === 'h1') {
+          return `<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="240" w:after="60"/></w:pPr>` +
+                 `<w:r><w:rPr><w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr>` +
+                 `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+        }
+        if (block.type === 'h2') {
+          return `<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:spacing w:before="160" w:after="60"/></w:pPr>` +
+                 `<w:r><w:rPr><w:b/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>` +
+                 `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+        }
+        return `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr>` +
+               `<w:r><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr>` +
+               `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+      });
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+             `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+             `<w:body>${parts.join('')}` +
+             `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080" w:header="720" w:footer="720"/></w:sectPr>` +
+             `</w:body></w:document>`;
+    }
+
+    // ── Step 8: OCR path (for scanned/image PDFs) ─────────────────────────
+    async function runOcr() {
+      const Tesseract = await loadTesseract();
+      const ocrLines  = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page     = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas   = document.createElement('canvas');
+        canvas.width   = Math.floor(viewport.width);
+        canvas.height  = Math.floor(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const dataUrl = canvas.toDataURL('image/png');
+        canvas.width = 0; canvas.height = 0;
+        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
+        ocrLines.push(`[Page ${i}]`, text.trim());
+        page.cleanup();
+      }
+      return ocrLines.join('\n');
+    }
+
+    // ── Step 9: package everything into a DOCX zip ─────────────────────────
+    async function buildDocxBlob(structure) {
+      if (!structure || !structure.length) throw new Error('No content extracted from document.');
+      const docXml = buildDocXml(structure);
+
+      const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/>` +
+        `<w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>` +
+        `<w:basedOn w:val="Normal"/>` +
+        `<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="60"/></w:pPr>` +
+        `<w:rPr><w:b/><w:color w:val="1F3864"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/>` +
+        `<w:basedOn w:val="Normal"/>` +
+        `<w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/></w:pPr>` +
+        `<w:rPr><w:b/><w:color w:val="2E4057"/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr></w:style>` +
+        `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/></w:style>` +
+        `</w:styles>`;
+
+      const ctXml   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+        `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+        `<Default Extension="xml" ContentType="application/xml"/>` +
+        `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
+        `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
+        `</Types>`;
+
+      const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+        `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>` +
+        `</Relationships>`;
+
+      const wRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+        `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+        `</Relationships>`;
+
+      const zip = new JSZip();
+      zip.file('[Content_Types].xml', ctXml);
+      zip.file('_rels/.rels', relsXml);
+      zip.file('word/document.xml', docXml);
+      zip.file('word/styles.xml', stylesXml);
+      zip.file('word/_rels/document.xml.rels', wRelsXml);
+      return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    }
+
+    // ── Step 10: main processing with retry ────────────────────────────────
+    async function processPass(forceOcr) {
+      if (forceOcr) {
+        const rawText  = await runOcr();
+        const lines    = rawText.split('\n').map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0] })).filter(l => l.text);
+        return buildDocxBlob(buildStructure(lines));
+      }
+      const pages   = await extractPages();
+      const scanned = detectScanned(pages);
+      if (scanned) {
+        const rawText = await runOcr();
+        const lines   = rawText.split('\n').map(l => ({ text: l.trim(), fontSize: 11, xPositions: [0] })).filter(l => l.text);
+        return buildDocxBlob(buildStructure(lines));
+      }
+      const allLines  = pages.flatMap(p => groupIntoLines(p.items));
+      const structure = buildStructure(allLines);
+      return buildDocxBlob(structure);
+    }
+
+    let docxBlob;
+    try {
+      docxBlob = await processPass(false);
+    } catch (_) {
+      docxBlob = await processPass(true);
+    }
+
+    if (!docxBlob || docxBlob.size < 1200) {
+      // retry with OCR if output is suspiciously tiny
+      try { docxBlob = await processPass(true); } catch (_) {}
+    }
+    if (!docxBlob || docxBlob.size < 500) {
+      throw new Error('Could not extract content from this document. It may be encrypted, corrupted, or in an unsupported format.');
+    }
+
+    await pdf.destroy();
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
@@ -1180,48 +1397,147 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── PHASE 6: EXCEL TO PDF (XLSX parse → pdf-lib table) ───────────────────
-  async function excelToPdf(files) {
+  // ── PHASE 6: EXCEL TO PDF (v3.0 — smart scaling, options-aware, auto-layout) ──
+  // Accepts opts: pageSize ('A4'|'Letter'|'A3'), orientation ('portrait'|'landscape'),
+  // margins ('none'|'narrow'|'normal'), scaling ('fit-page'|'fit-width'|'actual').
+  // Auto-switches to landscape when col count > 6. Dynamic column widths.
+  // Validates output; throws on empty/corrupt result.
+  async function excelToPdf(files, opts) {
     const XLSX = await loadXlsx();
     const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
 
-    const ab  = await files[0].arrayBuffer();
-    const wb  = XLSX.read(ab, { type: 'array' });
+    const ab = await files[0].arrayBuffer();
+    const wb = XLSX.read(ab, { type: 'array' });
+    if (!wb.SheetNames.length) throw new Error('No sheets found in this spreadsheet.');
+
+    // ── Page size definitions (in points: 1 pt = 1/72 inch) ──────────────
+    const PAGE_SIZES = {
+      A4:     [595, 842],
+      Letter: [612, 792],
+      A3:     [842, 1191],
+    };
+    const MARGIN_SIZES = { none: 10, narrow: 25, normal: 40 };
+
+    // ── Determine dimensions from options ─────────────────────────────────
+    const psSrc    = PAGE_SIZES[opts.pageSize] || PAGE_SIZES.A4;
+    const scaling  = opts.scaling    || 'fit-page';
+    const marginPt = MARGIN_SIZES[opts.margins] || MARGIN_SIZES.normal;
+
+    // ── Analyse sheet to decide orientation ───────────────────────────────
+    const firstSheet = wb.Sheets[wb.SheetNames[0]];
+    const firstRows  = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+    const maxCols    = firstRows.length ? Math.max(...firstRows.map(r => r.length)) : 1;
+
+    let orient = opts.orientation || '';
+    if (!orient) orient = maxCols > 6 ? 'landscape' : 'portrait';
+    const [PW, PH] = orient === 'landscape' ? [psSrc[1], psSrc[0]] : [psSrc[0], psSrc[1]];
+
     const doc  = await PDFDoc.create();
     const font = await doc.embedFont(SF.Helvetica);
     const bold = await doc.embedFont(SF.HelveticaBold);
-    const PW   = 842, PH = 595; // landscape A4
-    const margin = 40, fontSize = 10, lineH = fontSize * 1.7, colW = 95;
 
     for (const sheetName of wb.SheetNames) {
       const sheet = wb.Sheets[sheetName];
       const rows  = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       if (!rows.length) continue;
 
+      // ── Dimension analysis: calculate ideal column widths ─────────────
+      const numCols    = Math.max(...rows.map(r => r.length));
+      const usableW    = PW - marginPt * 2;
+      const usableH    = PH - marginPt * 2;
+      const fontSize   = Math.max(7, Math.min(10, Math.floor(usableW / numCols / 6)));
+      const lineH      = fontSize * 1.8;
+
+      // Measure max content width per column (sample first 30 rows for speed)
+      const sample = rows.slice(0, 30);
+      const colMaxW = Array.from({ length: numCols }, (_, ci) => {
+        const maxStr = Math.max(...sample.map(r => String(r[ci] ?? '').length), 3);
+        return Math.min(maxStr * (fontSize * 0.6), 200);
+      });
+      const rawTotal = colMaxW.reduce((s, w) => s + w, 0);
+
+      // ── Scaling: fit-page or fit-width ────────────────────────────────
+      let scale = 1;
+      if (rawTotal > usableW) {
+        if (scaling === 'fit-page' || scaling === 'fit-width') {
+          scale = usableW / rawTotal;
+        }
+      }
+      const colWidths = colMaxW.map(w => w * scale);
+      const actualFontSize = Math.max(6, fontSize * scale);
+      const actualLineH    = actualFontSize * 1.8;
+
+      // ── Render sheet ──────────────────────────────────────────────────
       let page = doc.addPage([PW, PH]);
-      page.drawText(`Sheet: ${sheetName}`, { x: margin, y: PH - margin, size: 14, font: bold, color: RGB(0.15, 0.15, 0.5) });
-      let y = PH - margin - 20;
-      const maxCols = Math.min(9, Math.max(...rows.map(r => r.length)));
+      const titleY = PH - marginPt;
+      page.drawText(`Sheet: ${sheetName}`, {
+        x: marginPt, y: titleY - actualFontSize,
+        size: Math.min(12, actualFontSize + 2), font: bold,
+        color: RGB(0.15, 0.15, 0.5),
+      });
+      let y = titleY - actualFontSize * 2 - 4;
 
       for (let ri = 0; ri < rows.length; ri++) {
-        if (y < margin + lineH) { page = doc.addPage([PW, PH]); y = PH - margin; }
+        if (y < marginPt + actualLineH) {
+          page = doc.addPage([PW, PH]);
+          y    = PH - marginPt;
+        }
         const row      = rows[ri];
         const isHeader = ri === 0;
         const usedFont = isHeader ? bold : font;
+
+        // Header row background
         if (isHeader) {
-          page.drawRectangle({ x: margin, y: y - lineH + 2, width: PW - margin * 2, height: lineH, color: RGB(0.92, 0.92, 0.96) });
+          page.drawRectangle({
+            x: marginPt, y: y - actualLineH + 2,
+            width: Math.min(colWidths.reduce((s, w) => s + w, 0), usableW),
+            height: actualLineH,
+            color: RGB(0.91, 0.91, 0.97),
+          });
         }
-        for (let ci = 0; ci < maxCols; ci++) {
-          const x = margin + ci * colW;
-          if (x + colW > PW - margin) break;
-          const cell = String(row[ci] ?? '').substring(0, 13);
-          page.drawText(cell, { x: x + 3, y: y - lineH + 4, size: fontSize, font: usedFont, color: RGB(0, 0, 0) });
+
+        // Draw cells
+        let x = marginPt;
+        for (let ci = 0; ci < numCols; ci++) {
+          const colW = colWidths[ci] || 0;
+          if (x + colW > PW - marginPt + 1) break;
+          const rawCell  = String(row[ci] ?? '');
+          const maxChars = Math.max(1, Math.floor(colW / (actualFontSize * 0.55)));
+          const cell     = rawCell.length > maxChars ? rawCell.slice(0, maxChars - 1) + '…' : rawCell;
+          if (cell) {
+            page.drawText(cell, {
+              x: x + 2, y: y - actualLineH + 4,
+              size: actualFontSize, font: usedFont,
+              color: RGB(0, 0, 0),
+            });
+          }
+          // Vertical divider (skip first)
+          if (ci > 0) {
+            page.drawLine({
+              start: { x, y: y + 2 }, end: { x, y: y - actualLineH + 1 },
+              thickness: 0.25, color: RGB(0.8, 0.8, 0.8),
+            });
+          }
+          x += colW;
         }
-        page.drawLine({ start: { x: margin, y: y - lineH }, end: { x: PW - margin, y: y - lineH }, thickness: 0.25, color: RGB(0.75, 0.75, 0.75) });
-        y -= lineH;
+
+        // Horizontal row divider
+        const rowWidth = Math.min(x - marginPt, usableW);
+        page.drawLine({
+          start: { x: marginPt, y: y - actualLineH },
+          end:   { x: marginPt + rowWidth, y: y - actualLineH },
+          thickness: isHeader ? 0.75 : 0.25,
+          color: isHeader ? RGB(0.55, 0.55, 0.75) : RGB(0.82, 0.82, 0.82),
+        });
+
+        y -= actualLineH;
       }
     }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
+
+    const pdfBytes = await doc.save();
+    const blob     = new Blob([pdfBytes], { type: 'application/pdf' });
+    if (blob.size < 500) throw new Error('Generated PDF appears empty. Please check the spreadsheet and try again.');
+    return blob;
   }
 
   // ── DISPATCH TABLE ───────────────────────────────────────────────────────
