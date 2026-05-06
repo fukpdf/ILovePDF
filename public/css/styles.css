@@ -2058,3 +2058,55 @@ a{ color:var(--brand-text); }
   box-shadow: 0 2px 10px rgba(0,0,0,.07);
   overflow-x: auto;
 }
+
+/* ── PDF → Excel table preview ────────────────────────────────────────────── */
+.lp-tbl-page {
+  margin-bottom: 16px;
+}
+.lp-tbl-page-label {
+  font-size: .78rem; font-weight: 600; color: #475569;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 6px;
+}
+.lp-tbl-scroll {
+  overflow-x: auto;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.lp-tbl {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+.lp-tbl th {
+  background: #f1f5f9; color: #64748b;
+  font-weight: 600; text-align: left;
+  padding: 5px 10px;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+.lp-tbl td {
+  padding: 4px 10px;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1e293b;
+}
+.lp-tbl tr:nth-child(even) td { background: #f8fafc; }
+.lp-tbl tr:hover td { background: #eff6ff; }
+.lp-tbl-more {
+  font-size: .75rem; color: #94a3b8; padding: 4px 2px;
+}
+.lp-tbl-ocr-badge {
+  font-size: .8rem; color: #7c3aed; padding: 6px 0;
+}
+.lp-scanned-wrap {
+  padding: 0 0 10px;
+}

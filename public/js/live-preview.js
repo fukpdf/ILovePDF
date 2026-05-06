@@ -534,6 +534,167 @@
     }
   }
 
+  // ── PDF → EXCEL LIVE PREVIEW ─────────────────────────────────────────────
+  // Shows a real HTML table preview with per-page rows/columns, OCR badge when
+  // scanned, and stats header. Non-blocking — failure silently clears host.
+  async function mountPdfExcelPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing table structure…</div>';
+
+    // Use pdfjsLib if already initialised; otherwise try dynamic import
+    var pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      try {
+        var mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+        if (!mod.GlobalWorkerOptions.workerSrc) {
+          mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+        }
+        pdfjsLib = mod; window.pdfjsLib = mod;
+      } catch (_) { pdfjsLib = null; }
+    }
+    if (!pdfjsLib) throw new Error('PDF library not available');
+
+    var buf         = await file.arrayBuffer();
+    var pdf         = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    var numPages    = pdf.numPages;
+    var previewPgs  = Math.min(numPages, 3);
+    var totalRawChars = 0;
+    var allPageData = [];  // [{ rows, numCols, isOcr, pageNum }]
+
+    for (var pg = 1; pg <= previewPgs; pg++) {
+      var page     = await pdf.getPage(pg);
+      var viewport = page.getViewport({ scale: 1 });
+      var content  = await page.getTextContent();
+      var pageWidth = viewport.width || 612;
+      var colGap    = Math.max(12, Math.min(35, pageWidth * 0.04));
+
+      var items = content.items
+        .filter(function (it) { return it.str && it.str.trim(); })
+        .map(function (it) {
+          totalRawChars += it.str.replace(/\s/g, '').length;
+          return { x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), text: it.str.trim() };
+        });
+      page.cleanup();
+
+      if (items.length >= 3) {
+        // ── Digital extraction: cluster X → cols, bucket Y → rows ──────
+        var xVals  = items.map(function (it) { return it.x; });
+        var xUniq  = xVals.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; });
+        var clusters = [];
+        xUniq.forEach(function (x) {
+          var last = clusters[clusters.length - 1];
+          if (!last || x - last.max > colGap) { clusters.push({ min: x, max: x, center: x }); }
+          else { last.max = x; last.center = Math.round((last.min + last.max) / 2); }
+        });
+        var numCols = clusters.length;
+
+        function findC(x) {
+          var best = 0, bd = Infinity;
+          for (var c = 0; c < clusters.length; c++) {
+            var d = Math.abs(x - clusters[c].center);
+            if (d < bd) { bd = d; best = c; }
+          }
+          return best;
+        }
+
+        var rowMap = {};
+        items.forEach(function (it) {
+          var yKey = Math.round(it.y / 10) * 10;
+          if (!rowMap[yKey]) rowMap[yKey] = {};
+          var col = findC(it.x);
+          rowMap[yKey][col] = (rowMap[yKey][col] ? rowMap[yKey][col] + ' ' : '') + it.text;
+        });
+
+        var sortedYs = Object.keys(rowMap).map(Number).sort(function (a, b) { return b - a; });
+        var rows = sortedYs.map(function (y) {
+          var row = new Array(numCols).fill('');
+          Object.keys(rowMap[y]).forEach(function (col) { row[parseInt(col, 10)] = String(rowMap[y][col]).trim(); });
+          return row;
+        });
+        allPageData.push({ rows: rows, numCols: numCols, isOcr: false, pageNum: pg });
+      } else {
+        // Scanned page — mark for OCR during conversion; no OCR in preview
+        allPageData.push({ rows: [], numCols: 0, isOcr: true, pageNum: pg });
+      }
+    }
+
+    await pdf.destroy();
+
+    var isScanned  = totalRawChars < 50;
+    var willUseOcr = isScanned || allPageData.some(function (d) { return d.isOcr; });
+    var totalRows  = allPageData.reduce(function (s, d) { return s + d.rows.length; }, 0);
+    var maxCols    = allPageData.reduce(function (s, d) { return Math.max(s, d.numCols); }, 0);
+
+    var ocrBadge = willUseOcr
+      ? '<div class="lp-scanned-notice">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+          ' OCR mode — scanned or image PDF. Tesseract will extract table data during conversion.' +
+        '</div>'
+      : '';
+
+    var tableHtml = '';
+    if (totalRows > 0) {
+      tableHtml = allPageData.map(function (pd) {
+        if (!pd.rows.length) {
+          return '<div class="lp-tbl-page">' +
+            '<div class="lp-tbl-page-label">Page ' + pd.pageNum + ' — scanned (OCR during conversion)</div>' +
+            '<div class="lp-tbl-ocr-badge">🔍 OCR will process this page</div>' +
+          '</div>';
+        }
+        var displayRows = pd.rows.slice(0, 40);
+        var tHead = '<thead><tr>' + pd.rows[0].map(function (_, ci) {
+          return '<th>Col&nbsp;' + (ci + 1) + '</th>';
+        }).join('') + '</tr></thead>';
+        var tBody = '<tbody>' + displayRows.map(function (row) {
+          return '<tr>' + row.map(function (cell) {
+            return '<td>' + esc(String(cell === 0 ? '0' : (cell || ''))) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody>';
+        var more = pd.rows.length > 40
+          ? '<div class="lp-tbl-more">+' + (pd.rows.length - 40) + ' more rows (not shown)</div>' : '';
+        return '<div class="lp-tbl-page">' +
+          '<div class="lp-tbl-page-label">Page ' + pd.pageNum +
+            ' &mdash; <b>' + pd.rows.length + '</b> rows &times; <b>' + pd.numCols + '</b> cols</div>' +
+          '<div class="lp-tbl-scroll"><table class="lp-tbl">' + tHead + tBody + '</table></div>' +
+          more +
+        '</div>';
+      }).join('');
+    } else if (willUseOcr) {
+      tableHtml = '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
+        '<span class="lp-struct-icon">🔍</span>' +
+        '<span class="lp-struct-text">No digital table found. Tesseract OCR will extract table structure during conversion.</span>' +
+        '</div></div>';
+    } else {
+      tableHtml = '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
+        '<span class="lp-struct-icon">⚠️</span>' +
+        '<span class="lp-struct-text">No structured table detected. Conversion may produce limited results.</span>' +
+        '</div></div>';
+    }
+
+    host.innerHTML =
+      '<div class="lp-panel">' +
+        '<div class="lp-header">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>' +
+            ' Table Preview' +
+          '</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages === 1 ? '' : 's') + '</span>' +
+            (totalRows > 0
+              ? '<span class="lp-stat"><b>' + totalRows + '</b> rows</span>' +
+                '<span class="lp-stat"><b>' + maxCols + '</b> cols</span>'
+              : '') +
+            (willUseOcr
+              ? '<span class="lp-stat lp-stat--warn"><b>OCR</b> mode</span>'
+              : '<span class="lp-stat"><b>Digital</b> text</span>') +
+          '</div>' +
+        '</div>' +
+        (ocrBadge ? '<div class="lp-scanned-wrap">' + ocrBadge + '</div>' : '') +
+        '<div class="lp-extract-body">' + tableHtml + '</div>' +
+        '<div class="lp-footer">Preview shows up to 3 pages and 40 rows per page. OCR runs automatically during full conversion.</div>' +
+      '</div>';
+  }
+
   // ── MOUNT DISPATCHER ─────────────────────────────────────────────────────
   async function mount(toolId, files, host) {
     if (!host || !SUPPORTED.has(toolId)) return;
@@ -543,8 +704,8 @@
     try {
       if (toolId === 'word-to-pdf')                         await mountWordToPdf(file, host);
       else if (toolId === 'excel-to-pdf')                   await mountExcelToPdf(file, host);
-      else if (toolId === 'pdf-to-word' ||
-               toolId === 'pdf-to-excel')                   await mountPdfExtract(file, host, toolId);
+      else if (toolId === 'pdf-to-word')                    await mountPdfExtract(file, host, toolId);
+      else if (toolId === 'pdf-to-excel')                   await mountPdfExcelPreview(file, host);
       else if (toolId === 'background-remover')             await mountBgRemover(file, host);
     } catch (err) {
       host.innerHTML = '';

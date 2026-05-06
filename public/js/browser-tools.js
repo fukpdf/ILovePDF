@@ -1087,42 +1087,25 @@
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
-  // ── PDF TO EXCEL (v4.0 — adaptive gap, 10px Y buckets, auto col widths) ────
-  // Column gap = pageWidth * 0.04 (adaptive, replaces fixed 15px).
-  // Y row tolerance = 10px (improved grouping vs 4px).
-  // Auto column widths written via XLSX !cols (maxLen * 1.2, capped at 60).
-  // Numeric cells coerced to numbers for live Excel formulas.
-  // Validation: throw if zero rows extracted across all pages.
+  // ── PDF TO EXCEL (v4.1 — hybrid OCR/digital, per-page fallback) ────────────
+  // Column gap = pageWidth * 0.04 (adaptive, min 12 / max 35 pts).
+  // Y row tolerance = 10px. Auto column widths via XLSX !cols.
+  // Per-page hybrid: digital if ≥ 3 text items found, else Tesseract OCR.
+  // OCR uses word.bbox coordinates (not paragraph logic) → real column grid.
+  // Validation: blob > 800 bytes, totalRows > 0, or throw user-visible error.
   async function pdfToExcel(files) {
     const XLSX     = await loadXlsx();
     const pdfjsLib = await loadPdfJs();
-    const data = await readFileBytes(files[0]);
-    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    const wb   = XLSX.utils.book_new();
-    let totalRows = 0;
+    const data     = await readFileBytes(files[0]);
+    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const wb       = XLSX.utils.book_new();
+    let totalRows  = 0;
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page     = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1 });
-      const content  = await page.getTextContent();
-
-      const items = content.items
-        .filter(it => it.str && it.str.trim())
-        .map(it => ({ x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), text: it.str.trim() }));
-
-      if (items.length === 0) {
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([]), `Page ${i}`);
-        page.cleanup(); continue;
-      }
-
-      // ── Adaptive column gap: 4% of page width (min 12, max 35 pts) ─────
-      const pageWidth = viewport.width || 612;
-      const colGap    = Math.max(12, Math.min(35, pageWidth * 0.04));
-
-      // ── Column clustering with adaptive gap ──────────────────────────────
-      const xSorted = [...new Set(items.map(it => it.x))].sort((a, b) => a - b);
+    // ── Shared helpers ────────────────────────────────────────────────────────
+    function clusterCols(xValues, colGap) {
+      const sorted   = [...new Set(xValues)].sort((a, b) => a - b);
       const clusters = [];
-      for (const x of xSorted) {
+      for (const x of sorted) {
         const last = clusters[clusters.length - 1];
         if (!last || x - last.max > colGap) {
           clusters.push({ min: x, max: x, center: x });
@@ -1131,43 +1114,99 @@
           last.center = Math.round((last.min + last.max) / 2);
         }
       }
-      const numCols = clusters.length;
+      return clusters;
+    }
 
-      function findCol(x) {
-        let best = 0, bestDist = Infinity;
-        for (let c = 0; c < clusters.length; c++) {
-          const dist = Math.abs(x - clusters[c].center);
-          if (dist < bestDist) { bestDist = dist; best = c; }
-        }
-        return best;
+    function findCol(x, clusters) {
+      let best = 0, bestDist = Infinity;
+      for (let c = 0; c < clusters.length; c++) {
+        const dist = Math.abs(x - clusters[c].center);
+        if (dist < bestDist) { bestDist = dist; best = c; }
       }
+      return best;
+    }
 
-      // ── Row clustering: 10px Y tolerance ────────────────────────────────
-      const rowMap = {};
+    function coerceNum(raw) {
+      const num = parseFloat(raw.replace(/[$,%\s]/g, ''));
+      return (!isNaN(num) && /^-?[\d,.$% ]+$/.test(raw)) ? num : raw;
+    }
+
+    // ── Digital path: build grid from pdfjs text items ───────────────────────
+    function buildSheetFromItems(items, pageWidth) {
+      const colGap   = Math.max(12, Math.min(35, pageWidth * 0.04));
+      const clusters = clusterCols(items.map(it => it.x), colGap);
+      const numCols  = clusters.length;
+      const rowMap   = {};
       for (const it of items) {
         const yKey = Math.round(it.y / 10) * 10;
         if (!rowMap[yKey]) rowMap[yKey] = {};
-        const col = findCol(it.x);
+        const col = findCol(it.x, clusters);
         rowMap[yKey][col] = (rowMap[yKey][col] ? rowMap[yKey][col] + ' ' : '') + it.text;
       }
-
-      const sortedYs  = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
+      const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
       const sheetData = sortedYs.map(y => {
         const row = new Array(numCols).fill('');
         for (const [col, val] of Object.entries(rowMap[y])) {
-          const ci  = parseInt(col, 10);
-          const raw = String(val).trim();
-          // Coerce obvious numeric cells so Excel formulas work
-          const num = parseFloat(raw.replace(/[$,%\s]/g, ''));
-          row[ci]   = (!isNaN(num) && /^-?[\d,.$% ]+$/.test(raw)) ? num : raw;
+          row[parseInt(col, 10)] = coerceNum(String(val).trim());
         }
         return row;
       });
+      return { sheetData, numCols };
+    }
 
-      totalRows += sheetData.length;
+    // ── OCR path: Tesseract word bboxes → coordinate-based column grid ────────
+    // Uses word.bbox (x0,y0,x1,y1) pixel centers, scaled from 2× canvas back to
+    // PDF point space. Same adaptive colGap + Y-bucket logic as digital path.
+    async function ocrPageToGrid(page, pageWidth) {
+      const Tesseract = await loadTesseract();
+      const viewport  = page.getViewport({ scale: 2.0 });
+      const canvas    = document.createElement('canvas');
+      canvas.width    = Math.floor(viewport.width);
+      canvas.height   = Math.floor(viewport.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      canvas.width = 0; canvas.height = 0;
 
-      // ── Auto column widths (maxCellLength * 1.2, capped at 60) ──────────
-      const ws   = XLSX.utils.aoa_to_sheet(sheetData);
+      const { data: { words } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
+      if (!words || !words.length) return { sheetData: [], numCols: 0 };
+
+      // Map from 2× canvas pixel space → 1× PDF point space
+      const wordItems = words
+        .filter(w => w.text && w.text.trim() && w.confidence > 30)
+        .map(w => ({
+          text: w.text.trim(),
+          x:    Math.round((w.bbox.x0 + w.bbox.x1) / 4),  // center / 2× scale
+          y:    Math.round((w.bbox.y0 + w.bbox.y1) / 4),
+        }));
+
+      if (!wordItems.length) return { sheetData: [], numCols: 0 };
+
+      const colGap   = Math.max(12, Math.min(35, pageWidth * 0.04));
+      const clusters = clusterCols(wordItems.map(w => w.x), colGap);
+      const numCols  = clusters.length;
+      const rowMap   = {};
+      for (const w of wordItems) {
+        const yKey = Math.round(w.y / 10) * 10;
+        if (!rowMap[yKey]) rowMap[yKey] = {};
+        const col = findCol(w.x, clusters);
+        rowMap[yKey][col] = (rowMap[yKey][col] ? rowMap[yKey][col] + ' ' : '') + w.text;
+      }
+      const sortedYs  = Object.keys(rowMap).map(Number).sort((a, b) => a - b); // top→bottom for OCR
+      const sheetData = sortedYs.map(y => {
+        const row = new Array(numCols).fill('');
+        for (const [col, val] of Object.entries(rowMap[y])) {
+          row[parseInt(col, 10)] = coerceNum(String(val).trim());
+        }
+        return row;
+      });
+      return { sheetData, numCols };
+    }
+
+    // ── Apply column widths to a sheet ───────────────────────────────────────
+    function applyColWidths(ws, sheetData, numCols) {
       const cols = [];
       for (let c = 0; c < numCols; c++) {
         let maxLen = 8;
@@ -1178,18 +1217,53 @@
         cols.push({ wch: Math.min(Math.ceil(maxLen * 1.2), 60) });
       }
       ws['!cols'] = cols;
+    }
 
-      XLSX.utils.book_append_sheet(wb, ws, `Page ${i}`);
-      page.cleanup();
+    // ── Per-page processing: digital first, OCR fallback if sparse ───────────
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page      = await pdf.getPage(i);
+      const viewport  = page.getViewport({ scale: 1 });
+      const content   = await page.getTextContent();
+      const pageWidth = viewport.width || 612;
+
+      const items = content.items
+        .filter(it => it.str && it.str.trim())
+        .map(it => ({ x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), text: it.str.trim() }));
+
+      let sheetData, numCols, isOcr = false;
+
+      if (items.length >= 3) {
+        // ── Digital path ──────────────────────────────────────────────────
+        ({ sheetData, numCols } = buildSheetFromItems(items, pageWidth));
+        page.cleanup();
+      } else {
+        // ── OCR fallback for this page (scanned / image-only) ─────────────
+        isOcr = true;
+        try {
+          ({ sheetData, numCols } = await ocrPageToGrid(page, pageWidth));
+        } catch (_) {
+          sheetData = []; numCols = 0;
+        }
+        page.cleanup();
+      }
+
+      if (!sheetData.length) continue;
+
+      totalRows += sheetData.length;
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      applyColWidths(ws, sheetData, numCols);
+      XLSX.utils.book_append_sheet(wb, ws, `Page ${i}${isOcr ? ' (OCR)' : ''}`);
     }
 
     await pdf.destroy();
 
-    if (totalRows === 0) throw new Error('No table content could be extracted from this PDF. The file may be scanned or image-based.');
+    if (totalRows === 0) {
+      throw new Error('This PDF does not contain usable table data. If it is a scanned document, try the OCR PDF tool first.');
+    }
 
     const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
     const blob  = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    if (blob.size < 500) throw new Error('Could not extract any table data from this PDF');
+    if (blob.size < 800) throw new Error('This PDF does not contain usable table data.');
     return { blob, ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
   }
 
