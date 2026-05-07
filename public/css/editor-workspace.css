@@ -1,40 +1,39 @@
 /* ============================================================
-   ILovePDF — Editor Workspace System v2.0
-   Phase 13: Enterprise UI + Premium Preview Engine Rebuild
+   ILovePDF — Editor Workspace CSS  (Phase 16: Unified)
+   Single source of truth — no layered overrides, no phase stacking.
+   All final values from Phases 13-15C consolidated here.
+   Target: iLovePDF / SmallPDF / Adobe lightweight tool feel.
    ============================================================
-   Extends (never replaces) existing styles.css and home.css.
-   All workspace classes are namespaced .ew-* to avoid collisions.
-   Overrides use specificity, not blanket !important abuse.
+   Extends (never replaces) styles.css and home.css.
+   Namespaced: .ew-* (workspace), .lp-* (live-preview panels).
    ============================================================ */
 
-/* ── Design Token System ──────────────────────────────────── */
+
+/* ── Design Tokens ──────────────────────────────────────────── */
 :root {
   /* Accent palette */
   --ew-accent:        #5b3df5;
   --ew-accent-mid:    #7c3aed;
   --ew-accent-light:  #a855f7;
   --ew-accent-soft:   #eef0ff;
-  --ew-accent-glow:   0 0 24px rgba(91,61,245,.3);
   --ew-grad:          linear-gradient(135deg,#4338ca 0%,#7c3aed 55%,#a855f7 100%);
 
   /* Surfaces */
-  --ew-canvas-bg:     #1a1a2e;
   --ew-panel-bg:      #ffffff;
   --ew-toolbar-bg:    rgba(255,255,255,.97);
   --ew-surface-sub:   #fafbff;
   --ew-surface-2:     #f4f6fb;
-  --ew-editor-bg:     #f1f3f8;
 
   /* Borders */
   --ew-border:        #e2e8f0;
   --ew-border-sub:    #ecedf5;
   --ew-border-focus:  #818cf8;
 
-  /* Shadows */
-  --ew-shadow-card:   0 2px 12px rgba(0,0,0,.055), 0 1px 3px rgba(0,0,0,.04);
-  --ew-shadow-float:  0 8px 32px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.07);
-  --ew-shadow-deep:   0 20px 60px rgba(0,0,0,.22), 0 6px 20px rgba(0,0,0,.12);
-  --ew-shadow-accent: 0 4px 18px rgba(91,61,245,.32);
+  /* Shadows — lightweight, professional */
+  --ew-shadow-card:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --ew-shadow-float:  0 2px 8px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  --ew-shadow-deep:   0 8px 24px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --ew-shadow-accent: 0 2px 10px rgba(91,61,245,.22);
 
   /* Radii */
   --ew-radius-xl:     20px;
@@ -51,14 +50,14 @@
 
   /* Workspace geometry */
   --ew-aside-w:       300px;
-  --ew-preview-max:   1160px;
-  --ew-workspace-gap: 24px;
+  --ew-preview-max:   1280px;
+  --ew-workspace-gap: 20px;
   --ew-header-h:      72px;
 }
 
+
 /* ============================================================
    LAYOUT: Wide mode — removes 780px constraint from #tool-content
-   Applied by JS via container.classList.add('ew-wide')
    ============================================================ */
 #tool-content.ew-wide {
   max-width: 100%;
@@ -71,19 +70,20 @@
   padding: 0;
 }
 
-/* ============================================================
-   PHASE 13: PREVIEW WORKSPACE CONTAINER
-   Standard tool preview step: widens to 1160px with centered margin
-   ============================================================ */
-.ew-preview-page {
-  max-width: var(--ew-preview-max) !important;
-  margin: 0 auto !important;
-  padding: 28px 28px 48px !important;
-}
 
 /* ============================================================
-   PHASE 13: TWO-COLUMN WORKSPACE GRID
-   Left (main): live preview + file list | Right (aside): options + process
+   PREVIEW PAGE CONTAINER
+   ============================================================ */
+.ew-preview-page {
+  max-width: var(--ew-preview-max);
+  margin: 0 auto;
+  padding: 20px 24px 36px;
+}
+
+
+/* ============================================================
+   TWO-COLUMN WORKSPACE GRID
+   Left (main): live preview | Right (aside): options + process
    ============================================================ */
 .ew-preview-workspace {
   display: grid;
@@ -91,45 +91,44 @@
   grid-template-areas: "main aside";
   gap: var(--ew-workspace-gap);
   align-items: start;
-  margin-top: 0;
 }
 
-/* Main column: live preview panel + selected files */
 .ew-preview-main {
   grid-area: main;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) .05s both;
 }
 
-/* Strip the old margin from live-preview-host when inside workspace */
 .ew-preview-main #live-preview-host {
   margin: 0 !important;
 }
 
-/* Aside: options + process + trust — sticky on desktop */
 .ew-preview-aside {
   grid-area: aside;
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: sticky;
-  top: calc(var(--ew-header-h) + 8px);
-  max-height: calc(100vh - var(--ew-header-h) - 32px);
+  top: calc(var(--ew-header-h) + 4px);
+  max-height: calc(100vh - var(--ew-header-h) - 24px);
   overflow-y: auto;
   scrollbar-width: none;
   padding-bottom: 16px;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) .1s both;
 }
 
 .ew-preview-aside::-webkit-scrollbar { display: none; }
 
-/* ── File section in main column ─────────────────────────── */
+
+/* ── File section ────────────────────────────────────────────── */
 .ew-file-section {
   background: #fff;
   border: 1px solid var(--ew-border);
   border-radius: var(--ew-radius-md);
-  padding: 16px 18px;
+  padding: 14px 16px;
   box-shadow: var(--ew-shadow-card);
   margin-bottom: 0 !important;
   animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
@@ -144,7 +143,6 @@
   letter-spacing: .06em;
 }
 
-/* Premium file list items */
 .ew-file-section .upload-file-item {
   background: var(--ew-surface-sub);
   border: 1px solid var(--ew-border-sub);
@@ -157,18 +155,16 @@
   border-color: #c4b5fd;
 }
 
-/* ============================================================
-   PHASE 13: PROCESS ACTION PANEL
-   Premium sidebar card for the main CTA
-   ============================================================ */
+
+/* ── Process action panel ────────────────────────────────────── */
 .ew-process-panel {
   background: #fff;
   border: 1px solid var(--ew-border);
   border-radius: var(--ew-radius-md);
-  padding: 18px 18px 16px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   box-shadow: var(--ew-shadow-card);
   animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
@@ -180,16 +176,16 @@
   padding: 13px 20px;
   border-radius: var(--ew-radius-md) !important;
   background: var(--ew-grad) !important;
-  box-shadow: var(--ew-shadow-accent) !important;
+  box-shadow: 0 2px 10px rgba(91,61,245,.22) !important;
   transition: filter .15s var(--ew-ease), transform .15s var(--ew-ease),
               box-shadow .15s var(--ew-ease) !important;
   letter-spacing: .01em;
 }
 
 .ew-process-panel .btn-primary:hover {
-  filter: brightness(1.08) !important;
+  filter: brightness(1.06) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 8px 24px rgba(91,61,245,.48) !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.28) !important;
 }
 
 .ew-process-panel .btn-outline {
@@ -206,7 +202,7 @@
   color: var(--ew-accent) !important;
 }
 
-/* ── Trust strip inside aside ────────────────────────────── */
+/* ── Trust strip inside aside ────────────────────────────────── */
 .ew-preview-aside .trust-strip {
   padding: 12px 14px !important;
   border-radius: var(--ew-radius-sm) !important;
@@ -214,36 +210,31 @@
   border: 1px solid var(--ew-border-sub) !important;
 }
 
-/* ── Options section inside aside ────────────────────────── */
-.ew-preview-aside .options-section {
+/* ── Options / compress sections inside aside ────────────────── */
+.ew-preview-aside .options-section,
+.ew-preview-aside .compress-options-section {
   border-radius: var(--ew-radius-md) !important;
   box-shadow: var(--ew-shadow-card) !important;
   animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
 
-/* ── Compress-specific options inside aside ──────────────── */
-.ew-preview-aside .compress-options-section {
-  border-radius: var(--ew-radius-md) !important;
-  box-shadow: var(--ew-shadow-card) !important;
-}
-
-/* ── Premium form fields in options ─────────────────────── */
+/* ── Focus rings for aside form fields ───────────────────────── */
 .ew-preview-aside .form-input:focus,
 .ew-preview-aside .form-select:focus {
   border-color: var(--ew-border-focus) !important;
   box-shadow: 0 0 0 3px rgba(91,61,245,.12) !important;
 }
 
+
 /* ============================================================
-   PHASE 13: STEP INDICATOR — PREMIUM REDESIGN
-   Overrides home.css step-indicator (same selector, higher specificity)
+   STEP INDICATOR — PREMIUM REDESIGN
    ============================================================ */
 .step-indicator {
   background: #fff !important;
   border: 1px solid var(--ew-border-sub) !important;
   border-radius: var(--ew-radius-md) !important;
   box-shadow: var(--ew-shadow-card) !important;
-  margin-bottom: 24px !important;
+  margin-bottom: 18px !important;
   overflow: hidden;
 }
 
@@ -264,7 +255,6 @@
   min-width: 0;
 }
 
-/* Current step: gradient fill */
 .step-indicator .step.is-current {
   background: var(--ew-grad) !important;
   color: #fff !important;
@@ -284,7 +274,6 @@
   border-radius: 50% !important;
 }
 
-/* Past step: clickable, accent tint */
 .step-indicator .step.is-past {
   color: var(--ew-accent) !important;
   padding: 11px 18px !important;
@@ -309,7 +298,6 @@
   border-radius: 50% !important;
 }
 
-/* Future step: muted */
 .step-indicator .step.is-future {
   color: #94a3b8 !important;
   padding: 11px 18px !important;
@@ -326,7 +314,6 @@
   border-radius: 50% !important;
 }
 
-/* Separator between steps */
 .step-indicator .step-sep {
   width: 1px !important;
   background: var(--ew-border-sub) !important;
@@ -336,847 +323,62 @@
   align-self: center;
 }
 
+
 /* ============================================================
-   LIVE PREVIEW PANELS: Bigger, more immersive
+   LIVE PREVIEW PANELS — unified sizing & styling
    ============================================================ */
-/* Taller scroll area — viewport-relative */
+
+/* Scroll areas */
 .lp-scroll {
-  max-height: calc(100vh - 260px) !important;
-  min-height: 440px;
+  max-height: calc(100vh - 310px);
+  min-height: 300px;
 }
 
 .lp-scroll--page {
-  max-height: calc(100vh - 220px) !important;
-  min-height: 500px;
-  background: #dde1ea !important;
-  padding: 32px !important;
-}
-
-/* Panel: elevated card with smooth entrance */
-.lp-panel {
-  border-radius: var(--ew-radius-lg) !important;
-  border: 1px solid var(--ew-border) !important;
-  box-shadow: var(--ew-shadow-float) !important;
-  overflow: hidden;
-  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
-}
-
-.lp-header {
-  padding: 13px 18px !important;
-  background: #fff !important;
-  border-bottom: 1px solid var(--ew-border-sub) !important;
-}
-
-/* True A4/document page shadow */
-.lp-page-content {
-  box-shadow: 0 6px 40px rgba(0,0,0,.2), 0 1px 4px rgba(0,0,0,.08) !important;
-  border-radius: 2px !important;
-  padding: 52px 60px !important;
-}
-
-.lp-word-content {
-  box-shadow: 0 6px 40px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.07) !important;
-}
-
-/* ── Slide grid: premium depth ── */
-.lp-slide-grid {
-  gap: 16px !important;
+  max-height: calc(100vh - 270px);
+  min-height: 340px;
+  background: #f3f4f6 !important;
   padding: 20px !important;
-  align-items: flex-start;
 }
 
-.lp-slide-card {
-  border-radius: 8px !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,.32), 0 1px 4px rgba(0,0,0,.18) !important;
-  transition: transform var(--ew-dur) var(--ew-ease),
-              box-shadow var(--ew-dur) var(--ew-ease) !important;
-  overflow: hidden;
+.lp-scroll--wide {
+  max-height: calc(100vh - 310px);
+  min-height: 280px;
+  overflow: auto !important;
 }
 
-.lp-slide-card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 3px 10px rgba(0,0,0,.22) !important;
-}
-
-.lp-panel--pptx-from,
-.lp-panel--pptx-to {
-  min-height: 480px !important;
-}
-
-/* Scrollable slide strip */
-.lp-ppt-strip-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 20px;
-  background: var(--ew-canvas-bg);
-  border-radius: 0 0 var(--ew-radius-lg) var(--ew-radius-lg);
-  min-height: 480px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
-  background-image:
-    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-/* ── Skeleton shimmer — UPGRADED Phase 13 ── */
-.lp-skel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 24px;
-}
-
-.lp-skel-line {
-  height: 14px;
-  border-radius: 6px;
-  background: linear-gradient(90deg,
-    #eef0f6 0%,
-    #f8f9fc 40%,
-    #eef0f6 80%,
-    #eef0f6 100%);
-  background-size: 200% 100%;
-  animation: ew-shimmer 1.6s ease-in-out infinite;
-}
-
-@keyframes ew-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Stagger shimmer lines */
-.lp-skel-line:nth-child(2) { animation-delay: .12s; }
-.lp-skel-line:nth-child(3) { animation-delay: .24s; }
-.lp-skel-line:nth-child(4) { animation-delay: .36s; }
-.lp-skel-line:nth-child(5) { animation-delay: .48s; }
-
-/* ── Quality badge colours ── */
-.lp-quality {
-  font-size: .72rem;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 20px;
-  letter-spacing: .03em;
-}
-
-.lp-q-excellent { background: #d1fae5; color: #065f46; }
-.lp-q-good      { background: #dbeafe; color: #1e40af; }
-.lp-q-review    { background: #fef3c7; color: #92400e; }
-.lp-q-ocr       { background: #fee2e2; color: #991b1b; }
-
-/* Control row inside lp-header */
-.lp-ctrl-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.lp-ctrl-btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--ew-border);
-  border-radius: var(--ew-radius-xs);
-  font-size: .78rem;
-  font-weight: 600;
-  background: #fff;
-  color: #64748b;
-  cursor: pointer;
-  transition: all .14s var(--ew-ease);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.lp-ctrl-btn:hover {
-  background: var(--ew-accent-soft);
-  border-color: #c4b5fd;
-  color: var(--ew-accent);
-}
-
-.lp-ctrl-btn.active {
-  background: var(--ew-grad);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(91,61,245,.3);
-}
-
-/* Error state */
-.lp-error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 20px;
-  color: #64748b;
-  text-align: center;
-}
-
-.lp-error-icon {
-  font-size: 2rem;
-  opacity: .6;
-}
-
-.lp-error-msg {
-  font-size: .84rem;
-  line-height: 1.5;
-}
-
-.lp-retry-btn {
-  padding: 7px 18px;
-  border: 1px solid var(--ew-border);
-  border-radius: var(--ew-radius-sm);
-  font-size: .82rem;
-  font-weight: 600;
-  color: var(--ew-accent);
-  background: var(--ew-accent-soft);
-  cursor: pointer;
-  transition: all .15s var(--ew-ease);
-}
-
-.lp-retry-btn:hover {
-  background: #ede9fe;
-  border-color: #a78bfa;
-}
-
-/* ============================================================
-   ANIMATIONS: Smooth entrance for workspace panels
-   ============================================================ */
-@keyframes ew-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes ew-scale-in {
-  from { opacity: 0; transform: scale(.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-.lp-panel,
-.bgpro,
-.epro,
-.ew-process-panel,
-.ew-file-section {
-  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
-}
-
-/* Stagger workspace panels */
-.ew-preview-main  { animation: ew-fade-up var(--ew-dur) var(--ew-ease) .05s both; }
-.ew-preview-aside { animation: ew-fade-up var(--ew-dur) var(--ew-ease) .1s both; }
-
-/* ============================================================
-   BACKGROUND REMOVER PRO: Immersive full-height editor
-   ============================================================ */
-.bgpro {
-  height: calc(100vh - 116px) !important;
-  min-height: 560px !important;
-  border-radius: 0 !important;
-  border: none !important;
-  border-top: 1px solid var(--ew-border) !important;
-  background: var(--ew-canvas-bg) !important;
-}
-
-/* Glassmorphism toolbar */
-.bgpro-toolbar {
-  background: var(--ew-toolbar-bg) !important;
-  backdrop-filter: blur(16px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
-  border-bottom: 1px solid rgba(226,232,240,.8) !important;
-  box-shadow: 0 1px 16px rgba(0,0,0,.06) !important;
-  min-height: 52px !important;
-  padding: 8px 16px !important;
-  gap: 6px !important;
-}
-
-.bgpro-tb {
-  height: 34px !important;
-  min-width: 34px !important;
-  border-radius: var(--ew-radius-sm) !important;
-  font-size: 13px !important;
-  transition: all .14s var(--ew-ease) !important;
-}
-
-.bgpro-tb:hover {
-  background: #f5f3ff !important;
-  border-color: #c4b5fd !important;
-  color: var(--ew-accent) !important;
-}
-
-.bgpro-tb.bgpro-on {
-  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
-  border-color: #818cf8 !important;
-  color: #4338ca !important;
-  font-weight: 700 !important;
-}
-
-/* Download button in toolbar */
-.bgpro-dl-tb {
-  background: var(--ew-grad) !important;
-  border: none !important;
-  border-radius: var(--ew-radius-sm) !important;
-  font-weight: 700 !important;
-  padding: 0 18px !important;
-  letter-spacing: .015em !important;
-  box-shadow: 0 4px 14px rgba(91,61,245,.38) !important;
-  transition: filter .14s, transform .14s, box-shadow .14s !important;
-}
-
-.bgpro-dl-tb:hover {
-  filter: brightness(1.1) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 7px 22px rgba(91,61,245,.48) !important;
-}
-
-/* Center canvas: dark immersive background with subtle grid */
-.bgpro-panel-work .bgpro-scroll {
-  background: var(--ew-canvas-bg) !important;
-  background-image:
-    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px) !important;
-  background-size: 32px 32px !important;
-}
-
-/* Original preview panel */
-.bgpro-panel-orig {
-  width: 210px !important;
-  background: #f4f5fa !important;
-  border-right: 1px solid #e0e2ed !important;
-}
-
-.bgpro-plabel {
-  background: rgba(255,255,255,.95) !important;
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  letter-spacing: .09em !important;
-  color: #64748b !important;
-  padding: 8px 12px 6px !important;
-}
-
-/* Controls panel */
-.bgpro-panel-ctrl {
-  width: 244px !important;
-  background: var(--ew-surface-sub) !important;
-  border-left: 1px solid #e0e2ed !important;
-}
-
-.bgpro-section {
-  padding: 12px 14px !important;
-  border-bottom: 1px solid var(--ew-border-sub) !important;
-}
-
-.bgpro-slbl {
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  letter-spacing: .10em !important;
-  color: #94a3b8 !important;
-  margin-bottom: 8px !important;
-}
-
-/* Brush tool buttons */
-.bgpro-tool {
-  border-radius: var(--ew-radius-sm) !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  padding: 7px 5px !important;
-  transition: all .14s var(--ew-ease) !important;
-}
-
-.bgpro-tool:hover {
-  background: #ede9fe !important;
-  border-color: #a78bfa !important;
-  color: #5b21b6 !important;
-}
-
-.bgpro-tool.bgpro-on {
-  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
-  border-color: #818cf8 !important;
-  color: #4338ca !important;
-  font-weight: 700 !important;
-}
-
-/* Range sliders */
-.bgpro-srow input[type="range"] {
-  accent-color: var(--ew-accent) !important;
-}
-
-/* Quality meter card */
-.bgpro-qmeter {
-  background: #fff !important;
-  border: 1px solid var(--ew-border) !important;
-  border-radius: var(--ew-radius-sm) !important;
-  padding: 10px 12px !important;
-}
-
-/* Export download button */
-.bgpro-btn-primary {
-  background: var(--ew-grad) !important;
-  border-radius: var(--ew-radius-md) !important;
-  font-weight: 700 !important;
-  letter-spacing: .02em !important;
-  box-shadow: 0 4px 14px rgba(91,61,245,.32) !important;
-  transition: filter .14s, transform .14s, box-shadow .14s !important;
-}
-
-.bgpro-btn-primary:hover {
-  filter: brightness(1.1) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 7px 24px rgba(91,61,245,.45) !important;
-}
-
-/* Status bar */
-.bgpro-status {
-  background: rgba(255,255,255,.97) !important;
-  border-top: 1px solid #e0e2ed !important;
-  font-size: 11px !important;
-  padding: 5px 16px !important;
-}
-
-/* Pro editor header */
-.tool-page--pro .tool-header {
-  padding: 20px 24px 14px;
-  margin-bottom: 0;
-}
-
-.tool-page--pro .step-indicator-wrap {
-  padding: 0 24px;
-}
-
-.tool-page--pro .tool-header-icon {
-  box-shadow: 0 4px 18px rgba(91,61,245,.22);
-}
-
-/* ── Edit PDF Pro: same surface treatment ── */
-.epro {
-  height: calc(100vh - 116px) !important;
-  min-height: 560px !important;
-  border-radius: 0 !important;
-  border: none !important;
-  border-top: 1px solid var(--ew-border) !important;
-}
-
-.epro-toolbar {
-  background: var(--ew-toolbar-bg) !important;
-  backdrop-filter: blur(16px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
-  box-shadow: 0 1px 16px rgba(0,0,0,.06) !important;
-  min-height: 52px !important;
-}
-
-.epro-canvas-scroll {
-  background: var(--ew-canvas-bg) !important;
-  background-image:
-    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px) !important;
-  background-size: 32px 32px !important;
-}
-
-/* ============================================================
-   MOBILE DRAWER: bgpro controls as a bottom sheet
-   ============================================================ */
-.bgpro-drawer-handle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 14px 16px 10px;
-  cursor: pointer;
-  background: var(--ew-surface-sub);
-  border-radius: 20px 20px 0 0;
-  border-bottom: 1px solid var(--ew-border-sub);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.bgpro-drawer-handle::before {
-  content: '';
-  width: 42px;
-  height: 4px;
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-.bgpro-drawer-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #64748b;
-  margin-left: 10px;
-  letter-spacing: .04em;
-}
-
-/* ============================================================
-   UPLOAD STEP: Premium drop zone
-   ============================================================ */
-.upload-area--hero {
-  border-radius: var(--ew-radius-xl) !important;
-  border: 2px dashed #c4b5fd !important;
-  background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%) !important;
-  transition: all var(--ew-dur) var(--ew-ease) !important;
-}
-
-.upload-area--hero:hover,
-.upload-area--hero.dragover {
-  border-color: var(--ew-accent-mid) !important;
-  background: linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%) !important;
-  box-shadow: 0 8px 36px rgba(91,61,245,.14) !important;
-}
-
-/* ============================================================
-   RESULT / DOWNLOAD STEP
-   ============================================================ */
-.download-step {
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-.download-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-/* ============================================================
-   POPULAR TOOLS CARDS: Hover lift
-   ============================================================ */
-.popular-card {
-  transition: transform var(--ew-dur) var(--ew-ease),
-              box-shadow var(--ew-dur) var(--ew-ease),
-              border-color var(--ew-dur) var(--ew-ease) !important;
-}
-
-.popular-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 28px rgba(91,61,245,.14) !important;
-  border-color: #c4b5fd !important;
-}
-
-/* ============================================================
-   HTML-to-PDF: iframe preview
-   ============================================================ */
-.lp-html-scroll {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: flex-start;
-  background: #d8dde6;
-  padding: 12px;
-  min-height: 120px;
-}
-
-.lp-html-iframe {
-  border: 0;
-  display: block;
-  background: #fff;
-  box-shadow: 0 2px 20px rgba(0,0,0,.18);
-  transform-origin: top left;
-  flex-shrink: 0;
-}
-
-/* ============================================================
-   SCROLLBAR: Thin polish for editor panels
-   ============================================================ */
-.bgpro-scroll::-webkit-scrollbar,
-.bgpro-panel-ctrl::-webkit-scrollbar,
-.epro-canvas-scroll::-webkit-scrollbar,
-.epro-thumbs-list::-webkit-scrollbar,
-.lp-scroll::-webkit-scrollbar,
-.lp-ppt-strip-scroll::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.bgpro-scroll::-webkit-scrollbar-track,
-.epro-canvas-scroll::-webkit-scrollbar-track,
-.lp-scroll::-webkit-scrollbar-track { background: transparent; }
-
-.bgpro-scroll::-webkit-scrollbar-thumb,
-.epro-canvas-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.14);
-  border-radius: 4px;
-}
-
-.bgpro-panel-ctrl::-webkit-scrollbar-thumb,
-.epro-thumbs-list::-webkit-scrollbar-thumb,
-.lp-scroll::-webkit-scrollbar-thumb,
-.lp-ppt-strip-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-/* ============================================================
-   TABLET (1024px): Tighten bgpro panels
-   ============================================================ */
-@media (max-width: 1024px) {
-  .bgpro-panel-orig {
-    width: 160px !important;
-  }
-  .bgpro-panel-ctrl {
-    width: 210px !important;
-  }
-}
-
-/* ============================================================
-   TABLET (900px): Preview workspace collapses to single column
-   ============================================================ */
-@media (max-width: 900px) {
-  .ew-preview-workspace {
-    grid-template-columns: 1fr;
-    grid-template-areas: "aside" "main";
-    gap: 18px;
-  }
-
-  .ew-preview-main {
-    grid-area: main;
-  }
-
-  .ew-preview-aside {
-    grid-area: aside;
-    position: static;
-    max-height: none;
-    overflow-y: visible;
-    padding-bottom: 0;
-  }
-
-  /* Options + process side by side on tablet when small */
-  .ew-preview-aside .ew-process-panel {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .ew-preview-aside .ew-process-panel .btn-primary,
-  .ew-preview-aside .ew-process-panel .btn-outline {
-    flex: 1;
-    min-width: 120px;
-  }
-
-  .ew-preview-page {
-    padding: 20px 20px 40px !important;
-  }
-}
-
-/* ============================================================
-   MOBILE (768px): Full mobile editor UX
-   ============================================================ */
-@media (max-width: 768px) {
-  .bgpro {
-    height: calc(100vh - 96px) !important;
-    min-height: 380px !important;
-  }
-
-  .bgpro-panel-orig {
-    display: none !important;
-  }
-
-  .bgpro-toolbar {
-    overflow-x: auto !important;
-    flex-wrap: nowrap !important;
-    -webkit-overflow-scrolling: touch;
-    gap: 4px !important;
-    padding: 6px 10px !important;
-  }
-
-  /* Controls become fixed bottom drawer */
-  .bgpro-panel-ctrl {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    max-height: 58vh !important;
-    border-left: none !important;
-    border-top: 1px solid var(--ew-border) !important;
-    border-radius: 20px 20px 0 0 !important;
-    box-shadow: 0 -8px 36px rgba(0,0,0,.18) !important;
-    transform: translateY(calc(100% - 46px)) !important;
-    transition: transform .32s var(--ew-ease) !important;
-    overflow-y: auto !important;
-    z-index: 500 !important;
-    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
-    will-change: transform;
-  }
-
-  .bgpro-panel-ctrl.bgpro-drawer-open {
-    transform: translateY(0) !important;
-  }
-
-  .bgpro-drawer-handle {
-    display: flex !important;
-  }
-
-  .bgpro-body {
-    padding-bottom: 46px;
-  }
-
-  .ew-preview-page {
-    padding: 16px 16px 32px !important;
-  }
-
-  .lp-scroll {
-    max-height: calc(100vh - 220px) !important;
-    min-height: 300px !important;
-  }
-}
-
-/* ============================================================
-   MOBILE SMALL (640px): Sticky process button
-   ============================================================ */
-@media (max-width: 640px) {
-  /* On very small screens, process panel becomes sticky footer */
-  .ew-process-panel {
-    position: sticky;
-    bottom: 0;
-    background: rgba(255,255,255,.97);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: none;
-    border-top: 1px solid var(--ew-border);
-    border-radius: 0;
-    margin: 0 -16px;
-    padding: 12px 16px env(safe-area-inset-bottom, 12px);
-    box-shadow: 0 -6px 24px rgba(0,0,0,.09);
-    z-index: 100;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .ew-process-panel .btn-primary {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .ew-process-panel .btn-outline {
-    flex: 0 0 auto;
-    width: auto;
-  }
-
-  /* Trust strip hidden on tiny mobile */
-  .ew-preview-aside .trust-strip {
-    display: none !important;
-  }
-
-  .lp-slide-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
-  }
-
-  .lp-page-content {
-    padding: 32px 24px !important;
-  }
-
-  .tool-header-name {
-    font-size: 1.2rem !important;
-  }
-}
-
-/* ============================================================
-   MOBILE (480px): Override bgpro panel width
-   ============================================================ */
-@media (max-width: 480px) {
-  .bgpro-panel-ctrl {
-    width: 100% !important;
-  }
-
-  .lp-scroll--page {
-    padding: 16px !important;
-  }
-
-  .lp-ppt-strip-scroll {
-    min-height: 320px;
-  }
-}
-
-/* ============================================================
-   PHASE 14: ENTERPRISE VISUAL SYSTEM + PREMIUM TOOL EXPERIENCE
-   Surgical upgrades — never rewrites. Extends Phase 13 system.
-   ============================================================ */
-
-/* ── Workspace context banner ──────────────────────────────── */
-.ew-context-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #f8f6ff 0%, #f3f0ff 100%);
-  border: 1px solid #e4dcff;
-  border-radius: var(--ew-radius-md);
-  margin-bottom: 16px;
-  font-size: .82rem;
-  color: #4c3db5;
-  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
-  min-width: 0;
-}
-
-.ew-context-icon {
-  width: 30px;
-  height: 30px;
-  background: var(--ew-grad);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(91,61,245,.3);
-}
-
-.ew-context-icon [data-lucide] {
-  width: 15px;
-  height: 15px;
-}
-
-.ew-context-label {
-  font-weight: 700;
-  color: #3730a3;
-  white-space: nowrap;
-}
-
-.ew-context-file {
-  font-weight: 500;
-  color: #6b7280;
-  margin-left: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.ew-context-chip {
-  margin-left: auto;
-  background: var(--ew-grad);
-  color: #fff;
-  font-size: .66rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* ── Premium panel: gradient accent top border ─────────────── */
+/* Panel card */
 .lp-panel {
+  border-radius: var(--ew-radius-md) !important;
+  border: 1px solid var(--ew-border) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04) !important;
+  overflow: hidden;
   position: relative;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
 
+/* Gradient accent bar on panel top */
 .lp-panel::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
   background: var(--ew-grad);
-  border-radius: var(--ew-radius-lg) var(--ew-radius-lg) 0 0;
+  border-radius: var(--ew-radius-md) var(--ew-radius-md) 0 0;
   z-index: 2;
   pointer-events: none;
 }
 
-/* ── Sticky header: glassmorphism upgrade ──────────────────── */
+/* Panel header */
+.lp-header {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 13px 18px 11px !important;
+  background: #fff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
 .lp-header--sticky {
   position: sticky !important;
   top: 0 !important;
@@ -1185,14 +387,6 @@
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
   background: rgba(255,255,255,.97) !important;
   box-shadow: 0 1px 0 var(--ew-border-sub) !important;
-}
-
-/* ── Header layout: flex column for title+stats+controls ───── */
-.lp-header {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  padding: 13px 18px 11px !important;
 }
 
 /* Title row */
@@ -1221,7 +415,7 @@
   flex-wrap: wrap !important;
 }
 
-/* Individual stat pill */
+/* Stat pill */
 .lp-stat {
   font-size: .71rem !important;
   font-weight: 500 !important;
@@ -1281,259 +475,75 @@
   letter-spacing: .07em !important;
 }
 
-/* ── Warning banners: premium treatment ────────────────────── */
-.lp-warn-banner {
-  display: flex !important;
-  align-items: flex-start !important;
-  gap: 10px !important;
-  padding: 10px 16px !important;
-  background: #fffbeb !important;
-  border-left: 3px solid #f59e0b !important;
-  border-bottom: 1px solid #fde68a !important;
-  font-size: .8rem !important;
-  color: #78350f !important;
-  line-height: 1.5 !important;
+/* Document page card */
+.lp-page-content {
+  box-shadow: 0 2px 12px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05) !important;
+  border-radius: 2px !important;
+  padding: 40px 48px !important;
 }
 
-.lp-warn-stack {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
+.lp-word-content {
+  box-shadow: 0 2px 10px rgba(0,0,0,.08) !important;
 }
 
-.lp-warn-icon {
-  flex-shrink: 0 !important;
-  font-size: 1rem !important;
-  line-height: 1 !important;
+/* Slide grid */
+.lp-slide-grid {
+  gap: 12px !important;
+  padding: 16px !important;
+  align-items: flex-start;
 }
 
-/* ── Footer: elegant metadata bar ─────────────────────────── */
-.lp-footer {
-  padding: 9px 18px !important;
-  font-size: .71rem !important;
-  color: #94a3b8 !important;
-  background: #fafbff !important;
-  border-top: 1px solid var(--ew-border-sub) !important;
-  text-align: center !important;
-  letter-spacing: .01em !important;
-  line-height: 1.6 !important;
-}
-
-/* ── Loading state: branded spinner ────────────────────────── */
-.lp-loading {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 14px !important;
-  padding: 52px 24px !important;
-  font-size: .84rem !important;
-  color: #64748b !important;
-  font-weight: 500 !important;
-  min-height: 260px !important;
-  justify-content: center !important;
-}
-
-.lp-spinner {
-  width: 36px !important;
-  height: 36px !important;
-  border: 3px solid #e2e8f0 !important;
-  border-top-color: var(--ew-accent) !important;
-  border-radius: 50% !important;
-  animation: lp-spin .75s linear infinite !important;
-}
-
-@keyframes lp-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Before/After: upgraded panel ─────────────────────────── */
-.lp-before-after {
-  display: flex !important;
-  gap: 0 !important;
-  padding: 24px !important;
-  background: #e8eaef !important;
-  min-height: 280px !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.lp-ba-col {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 10px !important;
-}
-
-.lp-ba-label {
-  font-size: .7rem !important;
-  font-weight: 700 !important;
-  color: #475569 !important;
-  text-transform: uppercase !important;
-  letter-spacing: .06em !important;
-  background: rgba(255,255,255,.92) !important;
-  padding: 3px 10px !important;
-  border-radius: 20px !important;
-  border: 1px solid rgba(226,232,240,.8) !important;
-}
-
-.lp-ba-canvas canvas {
+/* Slide cards */
+.lp-slide-card {
   border-radius: 8px !important;
-  box-shadow: 0 6px 24px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.09) !important;
-  display: block !important;
-  max-width: 240px !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.07) !important;
+  transition: transform var(--ew-dur) var(--ew-ease),
+              box-shadow var(--ew-dur) var(--ew-ease) !important;
+  overflow: hidden;
+  cursor: pointer !important;
 }
 
-.lp-ba-canvas--after canvas {
-  background: repeating-conic-gradient(#d4d4d4 0% 25%, #fff 0% 50%) 0 0 / 14px 14px !important;
+.lp-slide-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.08) !important;
 }
 
-.lp-ba-divider {
-  font-size: 1.6rem !important;
-  color: var(--ew-accent) !important;
-  padding: 0 18px !important;
-  align-self: center !important;
-  filter: drop-shadow(0 0 6px rgba(91,61,245,.35)) !important;
+/* PPT slide panels */
+.lp-panel--pptx-from,
+.lp-panel--pptx-to {
+  min-height: 340px !important;
 }
 
-/* ── Edge quality meter: premium ──────────────────────────── */
-.lp-eq-meter {
-  padding: 10px 18px !important;
-  background: #fff !important;
-  border-top: 1px solid var(--ew-border-sub) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  flex-wrap: wrap !important;
+/* PPT slide strip — dark but not cinematic */
+.lp-ppt-strip-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 16px;
+  background: #2a2e42;
+  border-radius: 0 0 var(--ew-radius-md) var(--ew-radius-md);
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
 }
 
-.lp-eq-label {
-  font-size: .7rem !important;
-  font-weight: 700 !important;
-  color: #94a3b8 !important;
-  text-transform: uppercase !important;
-  letter-spacing: .06em !important;
-  white-space: nowrap !important;
-}
-
-.lp-eq-bar {
-  flex: 1 !important;
-  min-width: 80px !important;
-  height: 6px !important;
-  background: #e2e8f0 !important;
-  border-radius: 4px !important;
-  overflow: hidden !important;
-}
-
-.lp-eq-fill {
-  height: 100% !important;
-  border-radius: 4px !important;
-  background: var(--ew-grad) !important;
-  transition: width .4s var(--ew-ease) !important;
-}
-
-.lp-eq-hint {
-  font-size: .7rem !important;
-  color: #94a3b8 !important;
-  white-space: nowrap !important;
-}
-
-.lp-eq-badge {
-  font-size: .7rem !important;
-  font-weight: 700 !important;
-  padding: 2px 8px !important;
-  border-radius: 20px !important;
-}
-
-/* ── Swipe compare: upgraded ───────────────────────────────── */
-.lp-swipe-wrap {
-  padding: 24px !important;
-  background: #e8eaef !important;
-  min-height: 280px !important;
+/* "More slides" overflow pill */
+.lp-sc-more {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-}
-
-.lp-swipe-container {
-  position: relative !important;
-  display: inline-block !important;
-  border-radius: 10px !important;
-  overflow: hidden !important;
-  box-shadow: 0 6px 28px rgba(0,0,0,.18) !important;
-  user-select: none !important;
-  touch-action: none !important;
-}
-
-/* ── Page map: premium ─────────────────────────────────────── */
-.lp-page-map {
-  padding: 12px 18px !important;
-  background: var(--ew-surface-sub) !important;
-  border-top: 1px solid var(--ew-border-sub) !important;
-}
-
-.lp-page-map-label {
-  font-size: .68rem !important;
+  background: rgba(255,255,255,.1) !important;
+  border-radius: 8px !important;
+  color: rgba(255,255,255,.7) !important;
+  font-size: .78rem !important;
   font-weight: 700 !important;
-  color: #94a3b8 !important;
-  text-transform: uppercase !important;
-  letter-spacing: .06em !important;
-  margin-bottom: 8px !important;
+  width: 162px !important;
+  height: 100px !important;
+  border: 1px dashed rgba(255,255,255,.2) !important;
 }
 
-.lp-page-map-cell {
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 6px !important;
-  background: #fff !important;
-  border: 1px solid var(--ew-border) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: .68rem !important;
-  font-weight: 700 !important;
-  color: #64748b !important;
-  transition: all .14s var(--ew-ease) !important;
-}
-
-.lp-page-map-cell--active {
-  background: var(--ew-grad) !important;
-  border-color: transparent !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px rgba(91,61,245,.3) !important;
-}
-
-/* ── Struct lines: upgraded ────────────────────────────────── */
-.lp-struct-line {
-  display: flex !important;
-  align-items: flex-start !important;
-  gap: 8px !important;
-  padding: 8px 12px !important;
-  border-radius: var(--ew-radius-sm) !important;
-  font-size: .81rem !important;
-}
-
-.lp-struct-heading {
-  border-left: 3px solid var(--ew-accent) !important;
-  background: #f0f0ff !important;
-}
-
-.lp-struct-table {
-  border-left: 3px solid #f59e0b !important;
-  background: #fffbeb !important;
-}
-
-.lp-struct-para {
-  border-left: 3px solid #818cf8 !important;
-}
-
-/* ── Extract body layout ───────────────────────────────────── */
-.lp-extract-body {
-  padding: 16px 20px !important;
-  overflow-x: auto !important;
-}
-
-/* ── PPT legend pills ──────────────────────────────────────── */
+/* PPT legend pills */
 .lp-ppt-legend {
   display: flex !important;
   flex-wrap: wrap !important;
@@ -1550,278 +560,7 @@
   border-radius: 20px !important;
 }
 
-/* ── Slide cards: deeper shadow on hover ───────────────────── */
-.lp-slide-card {
-  cursor: pointer !important;
-}
-
-/* ── Quality badge colour system ───────────────────────────── */
-.lp-quality {
-  font-size: .71rem !important;
-  font-weight: 700 !important;
-  padding: 3px 9px !important;
-  border-radius: 20px !important;
-  letter-spacing: .03em !important;
-}
-
-/* ── Scanned badge: more premium ───────────────────────────── */
-.lp-scanned-wrap {
-  background: linear-gradient(135deg,#fffbeb,#fef3c7) !important;
-  border-bottom: 1px solid #fde68a !important;
-}
-
-/* ── Repair analysis panel ─────────────────────────────────── */
-.lp-repair-analysis {
-  padding: 18px 20px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-}
-
-.lp-repair-row {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  font-size: .84rem !important;
-}
-
-.lp-repair-label {
-  color: #64748b !important;
-  font-weight: 500 !important;
-}
-
-.lp-repair-val {
-  font-size: .84rem !important;
-}
-
-.lp-repair-conf-bar {
-  height: 6px !important;
-  background: #e2e8f0 !important;
-  border-radius: 4px !important;
-  overflow: hidden !important;
-  margin-top: 4px !important;
-}
-
-.lp-repair-conf-fill {
-  height: 100% !important;
-  border-radius: 4px !important;
-  transition: width .4s var(--ew-ease) !important;
-}
-
-/* ── OCR analysis layout ───────────────────────────────────── */
-.lp-ocr-split {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 0 !important;
-  min-height: 320px !important;
-}
-
-.lp-ocr-col {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important;
-  padding: 18px !important;
-}
-
-.lp-ocr-col:first-child {
-  border-right: 1px solid var(--ew-border-sub) !important;
-  background: #fff !important;
-}
-
-.lp-ocr-col:last-child {
-  background: var(--ew-surface-sub) !important;
-}
-
-.lp-split-label {
-  font-size: .7rem !important;
-  font-weight: 700 !important;
-  color: #94a3b8 !important;
-  text-transform: uppercase !important;
-  letter-spacing: .06em !important;
-}
-
-.lp-ocr-orig-img {
-  max-width: 100% !important;
-  border-radius: 6px !important;
-  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
-  display: block !important;
-}
-
-.lp-ocr-text-preview {
-  flex: 1 !important;
-  background: #fff !important;
-  border: 1px solid var(--ew-border-sub) !important;
-  border-radius: var(--ew-radius-sm) !important;
-  padding: 14px !important;
-  font-size: .8rem !important;
-  color: #374151 !important;
-  line-height: 1.7 !important;
-  overflow-y: auto !important;
-  max-height: 320px !important;
-}
-
-.lp-ocr-text-content {
-  white-space: pre-wrap !important;
-  word-break: break-word !important;
-}
-
-.lp-ocr-text-placeholder {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 10px !important;
-  text-align: center !important;
-  color: #64748b !important;
-  padding: 20px 0 !important;
-}
-
-.lp-ocr-scan-icon {
-  font-size: 2rem !important;
-}
-
-.lp-ocr-hint {
-  font-size: .75rem !important;
-  color: #94a3b8 !important;
-}
-
-/* ── Confidence meter ──────────────────────────────────────── */
-.lp-conf-meter-wrap {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 10px 18px !important;
-  background: #fafbff !important;
-  border-bottom: 1px solid var(--ew-border-sub) !important;
-}
-
-.lp-conf-meter-label {
-  font-size: .7rem !important;
-  font-weight: 700 !important;
-  color: #94a3b8 !important;
-  text-transform: uppercase !important;
-  letter-spacing: .06em !important;
-  white-space: nowrap !important;
-}
-
-.lp-conf-meter-bar {
-  flex: 1 !important;
-  height: 6px !important;
-  background: #e2e8f0 !important;
-  border-radius: 4px !important;
-  overflow: hidden !important;
-}
-
-.lp-conf-meter-fill {
-  height: 100% !important;
-  border-radius: 4px !important;
-  transition: width .4s var(--ew-ease) !important;
-}
-
-.lp-conf-meter-pct {
-  font-size: .78rem !important;
-  font-weight: 700 !important;
-  color: #0f172a !important;
-  white-space: nowrap !important;
-}
-
-/* ── OCR feature badges ────────────────────────────────────── */
-.lp-ocr-badges,
-.lp-scan-badges {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  padding: 10px 18px !important;
-  background: #fafbff !important;
-  border-bottom: 1px solid var(--ew-border-sub) !important;
-}
-
-.lp-ocr-badge,
-.lp-scan-badge {
-  font-size: .72rem !important;
-  font-weight: 600 !important;
-  padding: 3px 10px !important;
-  border-radius: 20px !important;
-  background: #f1f5f9 !important;
-  color: #475569 !important;
-  border: 1px solid #e2e8f0 !important;
-}
-
-.lp-ocr-badge--active,
-.lp-scan-badge--active {
-  background: #ede9fe !important;
-  color: var(--ew-accent) !important;
-  border-color: #c4b5fd !important;
-}
-
-/* ── Scan compare ──────────────────────────────────────────── */
-.lp-scan-compare {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 0 !important;
-}
-
-.lp-scan-col {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  padding: 18px !important;
-  align-items: center !important;
-}
-
-.lp-scan-col:first-child {
-  background: #fff !important;
-  border-right: 1px solid var(--ew-border-sub) !important;
-}
-
-.lp-scan-col:last-child {
-  background: var(--ew-surface-sub) !important;
-}
-
-.lp-scan-img {
-  max-width: 100% !important;
-  max-height: 300px !important;
-  border-radius: 6px !important;
-  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
-  display: block !important;
-  object-fit: contain !important;
-}
-
-/* ── Repair thumbnail ──────────────────────────────────────── */
-.lp-repair-thumb-wrap {
-  padding: 16px 20px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-.lp-repair-thumb {
-  max-width: 100% !important;
-  max-height: 260px !important;
-  border-radius: 6px !important;
-  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
-  display: block !important;
-  object-fit: contain !important;
-}
-
-.lp-repair-no-preview {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 32px 20px !important;
-  text-align: center !important;
-  font-size: .84rem !important;
-  color: #64748b !important;
-}
-
-/* ── Scroll: wider view for OCR split ─────────────────────── */
-.lp-scroll--wide {
-  max-height: calc(100vh - 300px) !important;
-  min-height: 320px !important;
-  overflow: auto !important;
-}
-
-/* ── PPT powerpoint-to-pdf card ────────────────────────────── */
+/* PPT-to-PDF content card */
 .lp-pptpdf-card {
   background: #fff !important;
   border: 1px solid var(--ew-border) !important;
@@ -1907,7 +646,605 @@
   text-transform: uppercase !important;
 }
 
-/* ── Table styles upgrade ──────────────────────────────────── */
+/* Panel footer */
+.lp-footer {
+  padding: 9px 18px !important;
+  font-size: .71rem !important;
+  color: #94a3b8 !important;
+  background: #fafbff !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+  text-align: center !important;
+  letter-spacing: .01em !important;
+  line-height: 1.6 !important;
+}
+
+/* Loading state */
+.lp-loading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 48px 24px !important;
+  font-size: .84rem !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  min-height: 260px !important;
+  justify-content: center !important;
+}
+
+.lp-spinner {
+  width: 36px !important;
+  height: 36px !important;
+  border: 3px solid #e2e8f0 !important;
+  border-top-color: var(--ew-accent) !important;
+  border-radius: 50% !important;
+  animation: lp-spin .75s linear infinite !important;
+}
+
+@keyframes lp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton shimmer */
+.lp-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+}
+
+.lp-skel-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    #eef0f6 0%, #f8f9fc 40%, #eef0f6 80%, #eef0f6 100%);
+  background-size: 200% 100%;
+  animation: ew-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes ew-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.lp-skel-line:nth-child(2) { animation-delay: .12s; }
+.lp-skel-line:nth-child(3) { animation-delay: .24s; }
+.lp-skel-line:nth-child(4) { animation-delay: .36s; }
+.lp-skel-line:nth-child(5) { animation-delay: .48s; }
+
+/* Quality badges */
+.lp-quality {
+  font-size: .71rem !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  border-radius: 20px !important;
+  letter-spacing: .03em !important;
+}
+
+.lp-q-excellent { background: #d1fae5; color: #065f46; }
+.lp-q-good      { background: #dbeafe; color: #1e40af; }
+.lp-q-review    { background: #fef3c7; color: #92400e; }
+.lp-q-ocr       { background: #fee2e2; color: #991b1b; }
+
+/* Inline control buttons */
+.lp-ctrl-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lp-ctrl-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-xs);
+  font-size: .78rem;
+  font-weight: 600;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all .14s var(--ew-ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-ctrl-btn:hover {
+  background: var(--ew-accent-soft);
+  border-color: #c4b5fd;
+  color: var(--ew-accent);
+}
+
+.lp-ctrl-btn.active {
+  background: var(--ew-grad);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3);
+}
+
+/* Error state */
+.lp-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.lp-error-icon { font-size: 2rem; opacity: .6; }
+.lp-error-msg  { font-size: .84rem; line-height: 1.5; }
+
+.lp-retry-btn {
+  padding: 7px 18px;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-sm);
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ew-accent);
+  background: var(--ew-accent-soft);
+  cursor: pointer;
+  transition: all .15s var(--ew-ease);
+}
+
+.lp-retry-btn:hover {
+  background: #ede9fe;
+  border-color: #a78bfa;
+}
+
+/* Warning banner */
+.lp-warn-banner {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  padding: 10px 16px !important;
+  background: #fffbeb !important;
+  border-left: 3px solid #f59e0b !important;
+  border-bottom: 1px solid #fde68a !important;
+  font-size: .8rem !important;
+  color: #78350f !important;
+  line-height: 1.5 !important;
+}
+
+.lp-warn-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+.lp-warn-icon {
+  flex-shrink: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
+}
+
+/* Before / After panel */
+.lp-before-after {
+  display: flex !important;
+  gap: 0 !important;
+  padding: 24px !important;
+  background: #e8eaef !important;
+  min-height: 280px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lp-ba-col {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.lp-ba-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  background: rgba(255,255,255,.92) !important;
+  padding: 3px 10px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(226,232,240,.8) !important;
+}
+
+.lp-ba-canvas canvas {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14), 0 1px 4px rgba(0,0,0,.08) !important;
+  display: block !important;
+  max-width: 240px !important;
+}
+
+.lp-ba-canvas--after canvas {
+  background: repeating-conic-gradient(#d4d4d4 0% 25%, #fff 0% 50%) 0 0 / 14px 14px !important;
+}
+
+.lp-ba-divider {
+  font-size: 1.6rem !important;
+  color: var(--ew-accent) !important;
+  padding: 0 18px !important;
+  align-self: center !important;
+}
+
+/* Edge quality meter */
+.lp-eq-meter {
+  padding: 10px 18px !important;
+  background: #fff !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.lp-eq-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  white-space: nowrap !important;
+}
+
+.lp-eq-bar {
+  flex: 1 !important;
+  min-width: 80px !important;
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.lp-eq-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  background: var(--ew-grad) !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+.lp-eq-hint {
+  font-size: .7rem !important;
+  color: #94a3b8 !important;
+  white-space: nowrap !important;
+}
+
+.lp-eq-badge {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 20px !important;
+}
+
+/* Swipe compare */
+.lp-swipe-wrap {
+  padding: 24px !important;
+  background: #e8eaef !important;
+  min-height: 280px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lp-swipe-container {
+  position: relative !important;
+  display: inline-block !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.14) !important;
+  user-select: none !important;
+  touch-action: none !important;
+}
+
+/* Page map */
+.lp-page-map {
+  padding: 12px 18px !important;
+  background: var(--ew-surface-sub) !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-page-map-label {
+  font-size: .68rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  margin-bottom: 8px !important;
+}
+
+.lp-page-map-cell {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  border: 1px solid var(--ew-border) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: .68rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  transition: all .14s var(--ew-ease) !important;
+}
+
+.lp-page-map-cell--active {
+  background: var(--ew-grad) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3) !important;
+}
+
+/* Struct lines */
+.lp-struct-line {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: .81rem !important;
+}
+
+.lp-struct-heading {
+  border-left: 3px solid var(--ew-accent) !important;
+  background: #f0f0ff !important;
+}
+
+.lp-struct-table {
+  border-left: 3px solid #f59e0b !important;
+  background: #fffbeb !important;
+}
+
+.lp-struct-para {
+  border-left: 3px solid #818cf8 !important;
+}
+
+/* Extract body */
+.lp-extract-body {
+  padding: 16px 20px !important;
+  overflow-x: auto !important;
+}
+
+/* Scanned badge */
+.lp-scanned-wrap {
+  background: linear-gradient(135deg,#fffbeb,#fef3c7) !important;
+  border-bottom: 1px solid #fde68a !important;
+}
+
+/* Repair analysis */
+.lp-repair-analysis {
+  padding: 18px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.lp-repair-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-size: .84rem !important;
+}
+
+.lp-repair-label { color: #64748b !important; font-weight: 500 !important; }
+.lp-repair-val   { font-size: .84rem !important; }
+
+.lp-repair-conf-bar {
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  margin-top: 4px !important;
+}
+
+.lp-repair-conf-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+/* Repair thumbnail */
+.lp-repair-thumb-wrap {
+  padding: 16px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.lp-repair-thumb {
+  max-width: 100% !important;
+  max-height: 260px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+.lp-repair-no-preview {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 32px 20px !important;
+  text-align: center !important;
+  font-size: .84rem !important;
+  color: #64748b !important;
+}
+
+/* OCR split layout */
+.lp-ocr-split {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0 !important;
+  min-height: 280px !important;
+}
+
+.lp-ocr-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  padding: 18px !important;
+}
+
+.lp-ocr-col:first-child {
+  border-right: 1px solid var(--ew-border-sub) !important;
+  background: #fff !important;
+}
+
+.lp-ocr-col:last-child {
+  background: var(--ew-surface-sub) !important;
+}
+
+.lp-split-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+}
+
+.lp-ocr-orig-img {
+  max-width: 100% !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+}
+
+.lp-ocr-text-preview {
+  flex: 1 !important;
+  background: #fff !important;
+  border: 1px solid var(--ew-border-sub) !important;
+  border-radius: var(--ew-radius-sm) !important;
+  padding: 14px !important;
+  font-size: .8rem !important;
+  color: #374151 !important;
+  line-height: 1.7 !important;
+  overflow-y: auto !important;
+  max-height: 320px !important;
+}
+
+.lp-ocr-text-content {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+.lp-ocr-text-placeholder {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-align: center !important;
+  color: #64748b !important;
+  padding: 20px 0 !important;
+}
+
+.lp-ocr-scan-icon { font-size: 2rem !important; }
+.lp-ocr-hint      { font-size: .75rem !important; color: #94a3b8 !important; }
+
+/* Confidence meter */
+.lp-conf-meter-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 18px !important;
+  background: #fafbff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-conf-meter-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  white-space: nowrap !important;
+}
+
+.lp-conf-meter-bar {
+  flex: 1 !important;
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.lp-conf-meter-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+.lp-conf-meter-pct {
+  font-size: .78rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+}
+
+/* OCR / Scan badges */
+.lp-ocr-badges,
+.lp-scan-badges {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  padding: 10px 18px !important;
+  background: #fafbff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-ocr-badge,
+.lp-scan-badge {
+  font-size: .72rem !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  border-radius: 20px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.lp-ocr-badge--active,
+.lp-scan-badge--active {
+  background: #ede9fe !important;
+  color: var(--ew-accent) !important;
+  border-color: #c4b5fd !important;
+}
+
+/* Scan compare */
+.lp-scan-compare {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0 !important;
+}
+
+.lp-scan-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 18px !important;
+  align-items: center !important;
+}
+
+.lp-scan-col:first-child {
+  background: #fff !important;
+  border-right: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-scan-col:last-child {
+  background: var(--ew-surface-sub) !important;
+}
+
+.lp-scan-img {
+  max-width: 100% !important;
+  max-height: 300px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+/* Table styles */
 .lp-tbl {
   border-collapse: collapse !important;
   width: 100% !important;
@@ -1937,7 +1274,6 @@
   background: #f8f6ff !important;
 }
 
-/* ── More rows pill ────────────────────────────────────────── */
 .lp-tbl-more {
   text-align: center !important;
   padding: 10px !important;
@@ -1947,283 +1283,511 @@
   border-top: 1px solid var(--ew-border-sub) !important;
 }
 
-/* ── sc-more pill in slide grid ────────────────────────────── */
-.lp-sc-more {
+/* HTML iframe preview */
+.lp-html-scroll {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+  background: #d8dde6;
+  padding: 12px;
+  min-height: 120px;
+}
+
+.lp-html-iframe {
+  border: 0;
+  display: block;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.14);
+  transform-origin: top left;
+  flex-shrink: 0;
+}
+
+
+/* ============================================================
+   WORKSPACE CONTEXT BANNER
+   ============================================================ */
+.ew-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #f8f6ff 0%, #f3f0ff 100%);
+  border: 1px solid #e4dcff;
+  border-radius: var(--ew-radius-md);
+  margin-bottom: 14px;
+  font-size: .82rem;
+  color: #4c3db5;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+  min-width: 0;
+}
+
+.ew-context-icon {
+  width: 30px;
+  height: 30px;
+  background: var(--ew-grad);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3);
+}
+
+.ew-context-icon [data-lucide] {
+  width: 15px;
+  height: 15px;
+}
+
+.ew-context-label {
+  font-weight: 700;
+  color: #3730a3;
+  white-space: nowrap;
+}
+
+.ew-context-file {
+  font-weight: 500;
+  color: #6b7280;
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.ew-context-chip {
+  margin-left: auto;
+  background: var(--ew-grad);
+  color: #fff;
+  font-size: .66rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+
+/* ============================================================
+   BACKGROUND REMOVER (bgpro) — light workspace, centered canvas
+   ============================================================ */
+.bgpro {
+  height: calc(100vh - 116px);
+  min-height: 480px;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--ew-border) !important;
+  background: #f0f2f5 !important;
+}
+
+/* Toolbar */
+.bgpro-toolbar {
+  background: var(--ew-toolbar-bg) !important;
+  backdrop-filter: blur(16px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
+  border-bottom: 1px solid rgba(226,232,240,.8) !important;
+  box-shadow: 0 1px 8px rgba(0,0,0,.05) !important;
+  min-height: 48px !important;
+  padding: 6px 14px !important;
+  gap: 6px !important;
+}
+
+.bgpro-tb {
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: 13px !important;
+  transition: all .14s var(--ew-ease) !important;
+}
+
+.bgpro-tb:hover {
+  background: #f5f3ff !important;
+  border-color: #c4b5fd !important;
+  color: var(--ew-accent) !important;
+}
+
+.bgpro-tb.bgpro-on {
+  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
+  border-color: #818cf8 !important;
+  color: #4338ca !important;
+  font-weight: 700 !important;
+}
+
+/* Toolbar download button */
+.bgpro-dl-tb {
+  background: var(--ew-grad) !important;
+  border: none !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-weight: 700 !important;
+  padding: 0 18px !important;
+  letter-spacing: .015em !important;
+  box-shadow: 0 2px 10px rgba(91,61,245,.3) !important;
+  transition: filter .14s, box-shadow .14s !important;
+}
+
+.bgpro-dl-tb:hover {
+  filter: brightness(1.06) !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.36) !important;
+}
+
+/* Canvas work area — light, centered */
+.bgpro-panel-work .bgpro-scroll {
+  background: #eceff4 !important;
+  background-image: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: rgba(255,255,255,.1) !important;
-  border-radius: 8px !important;
-  color: rgba(255,255,255,.7) !important;
-  font-size: .78rem !important;
-  font-weight: 700 !important;
-  width: 162px !important;
-  height: 100px !important;
-  border: 1px dashed rgba(255,255,255,.2) !important;
+  overflow: auto !important;
 }
+
+/* Canvas auto-fits — no giant empty void */
+.bgpro-panel-work .bgpro-scroll canvas {
+  max-width: 100% !important;
+  max-height: calc(100vh - 170px) !important;
+  height: auto !important;
+  display: block !important;
+  margin: auto !important;
+}
+
+/* Original preview sidebar */
+.bgpro-panel-orig {
+  width: 210px !important;
+  background: #f4f5fa !important;
+  border-right: 1px solid #e0e2ed !important;
+}
+
+.bgpro-plabel {
+  background: rgba(255,255,255,.95) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .09em !important;
+  color: #64748b !important;
+  padding: 8px 12px 6px !important;
+}
+
+/* Controls panel */
+.bgpro-panel-ctrl {
+  width: 244px !important;
+  background: var(--ew-surface-sub) !important;
+  border-left: 1px solid #e0e2ed !important;
+}
+
+.bgpro-section {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.bgpro-slbl {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .10em !important;
+  color: #94a3b8 !important;
+  margin-bottom: 8px !important;
+}
+
+/* Brush tools */
+.bgpro-tool {
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 7px 5px !important;
+  transition: all .14s var(--ew-ease) !important;
+}
+
+.bgpro-tool:hover {
+  background: #ede9fe !important;
+  border-color: #a78bfa !important;
+  color: #5b21b6 !important;
+}
+
+.bgpro-tool.bgpro-on {
+  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
+  border-color: #818cf8 !important;
+  color: #4338ca !important;
+  font-weight: 700 !important;
+}
+
+.bgpro-srow input[type="range"] {
+  accent-color: var(--ew-accent) !important;
+}
+
+/* Quality meter */
+.bgpro-qmeter {
+  background: #fff !important;
+  border: 1px solid var(--ew-border) !important;
+  border-radius: var(--ew-radius-sm) !important;
+  padding: 10px 12px !important;
+}
+
+/* Export button */
+.bgpro-btn-primary {
+  background: var(--ew-grad) !important;
+  border-radius: var(--ew-radius-md) !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em !important;
+  box-shadow: 0 2px 10px rgba(91,61,245,.28) !important;
+  transition: filter .14s, box-shadow .14s !important;
+}
+
+.bgpro-btn-primary:hover {
+  filter: brightness(1.06) !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.36) !important;
+}
+
+/* Status bar */
+.bgpro-status {
+  background: rgba(255,255,255,.97) !important;
+  border-top: 1px solid #e0e2ed !important;
+  font-size: 11px !important;
+  padding: 5px 16px !important;
+}
+
+/* Mobile drawer handle */
+.bgpro-drawer-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  cursor: pointer;
+  background: var(--ew-surface-sub);
+  border-radius: 20px 20px 0 0;
+  border-bottom: 1px solid var(--ew-border-sub);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.bgpro-drawer-handle::before {
+  content: '';
+  width: 42px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.bgpro-drawer-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-left: 10px;
+  letter-spacing: .04em;
+}
+
 
 /* ============================================================
-   PHASE 15C: DESKTOP PREVIEW CLEANUP & PROFESSIONAL LAYOUT RESET
-   Surgical desktop-only overrides — removes cinematic overdesign.
-   Mobile rules (Phase 15B) are protected via min-width guard.
-   Target: iLovePDF / SmallPDF / Adobe lightweight tool feel.
+   EDIT PDF PRO (epro) — light canvas workspace
    ============================================================ */
-
-/* ── Universal: soften tokens & animations (all breakpoints) ─ */
-:root {
-  --ew-shadow-card:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --ew-shadow-float:  0 2px 8px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
-  --ew-shadow-deep:   0 8px 24px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
-  --ew-shadow-accent: 0 2px 10px rgba(91,61,245,.22);
-  --ew-preview-max:   1280px;
+.epro {
+  height: calc(100vh - 116px);
+  min-height: 480px;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--ew-border) !important;
 }
 
-/* Entrance animation: subtle, not cinematic */
+.epro-toolbar {
+  background: var(--ew-toolbar-bg) !important;
+  backdrop-filter: blur(16px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
+  box-shadow: 0 1px 8px rgba(0,0,0,.05) !important;
+  min-height: 52px !important;
+}
+
+.epro-canvas-scroll {
+  background: #eceff4 !important;
+  background-image: none !important;
+}
+
+/* Pro page header */
+.tool-page--pro .tool-header {
+  padding: 20px 24px 14px;
+  margin-bottom: 0;
+}
+
+.tool-page--pro .step-indicator-wrap {
+  padding: 0 24px;
+}
+
+.tool-page--pro .tool-header-icon {
+  box-shadow: 0 4px 18px rgba(91,61,245,.22);
+}
+
+
+/* ============================================================
+   UPLOAD STEP — drop zone
+   ============================================================ */
+.upload-area--hero {
+  border-radius: var(--ew-radius-xl) !important;
+  border: 2px dashed #c4b5fd !important;
+  background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%) !important;
+  transition: all var(--ew-dur) var(--ew-ease) !important;
+}
+
+.upload-area--hero:hover,
+.upload-area--hero.dragover {
+  border-color: var(--ew-accent-mid) !important;
+  background: linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%) !important;
+  box-shadow: 0 6px 24px rgba(91,61,245,.12) !important;
+}
+
+
+/* ============================================================
+   DOWNLOAD / RESULT STEP
+   ============================================================ */
+.download-step {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+
+/* ============================================================
+   POPULAR TOOL CARDS
+   ============================================================ */
+.popular-card {
+  transition: transform var(--ew-dur) var(--ew-ease),
+              box-shadow var(--ew-dur) var(--ew-ease),
+              border-color var(--ew-dur) var(--ew-ease) !important;
+}
+
+.popular-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(91,61,245,.12) !important;
+  border-color: #c4b5fd !important;
+}
+
+
+/* ============================================================
+   SCROLLBARS — thin, neutral
+   ============================================================ */
+.bgpro-scroll::-webkit-scrollbar,
+.bgpro-panel-ctrl::-webkit-scrollbar,
+.epro-canvas-scroll::-webkit-scrollbar,
+.epro-thumbs-list::-webkit-scrollbar,
+.lp-scroll::-webkit-scrollbar,
+.lp-ppt-strip-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.bgpro-scroll::-webkit-scrollbar-track,
+.epro-canvas-scroll::-webkit-scrollbar-track,
+.lp-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.bgpro-scroll::-webkit-scrollbar-thumb,
+.epro-canvas-scroll::-webkit-scrollbar-thumb,
+.bgpro-panel-ctrl::-webkit-scrollbar-thumb,
+.epro-thumbs-list::-webkit-scrollbar-thumb,
+.lp-scroll::-webkit-scrollbar-thumb,
+.lp-ppt-strip-scroll::-webkit-scrollbar-thumb {
+  background: #b0bac5;
+  border-radius: 4px;
+}
+
+
+/* ============================================================
+   ANIMATIONS — subtle, professional
+   ============================================================ */
 @keyframes ew-fade-up {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Slide card: professional hover, not dramatic lift */
-.lp-slide-card {
-  box-shadow: 0 1px 6px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.07) !important;
+@keyframes ew-scale-in {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.lp-slide-card:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.08) !important;
+.lp-panel,
+.bgpro,
+.epro,
+.ew-process-panel,
+.ew-file-section {
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
 
-/* Process button: lighter accent shadow */
-.ew-process-panel .btn-primary {
-  box-shadow: 0 2px 10px rgba(91,61,245,.22) !important;
-}
-
-.ew-process-panel .btn-primary:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(91,61,245,.28) !important;
-  filter: brightness(1.06) !important;
-}
-
-/* Toolbar download button: no dramatic lift */
-.bgpro-dl-tb:hover,
-.bgpro-btn-primary:hover {
-  transform: none !important;
-  filter: brightness(1.06) !important;
-  box-shadow: 0 4px 12px rgba(91,61,245,.28) !important;
-}
-
-/* ── Desktop only: min-width 769px ────────────────────────── */
-@media (min-width: 769px) {
-
-  /* 1. Preview page container: compact, balanced */
-  .ew-preview-page {
-    padding: 20px 24px 36px !important;
-  }
-
-  /* 2. Workspace grid: tighter gap */
-  .ew-preview-workspace {
-    gap: 20px !important;
-  }
-
-  /* 3. Preview scroll: realistic proportions */
-  .lp-scroll {
-    max-height: calc(100vh - 310px) !important;
-    min-height: 300px !important;
-  }
-
-  /* 4. Page-mode scroll: lighter bg, less padding, less tall */
-  .lp-scroll--page {
-    max-height: calc(100vh - 270px) !important;
-    min-height: 340px !important;
-    background: #f3f4f6 !important;
-    padding: 20px !important;
-  }
-
-  /* 5. Wide scroll (OCR/translate) */
-  .lp-scroll--wide {
-    max-height: calc(100vh - 310px) !important;
-    min-height: 280px !important;
-  }
-
-  /* 6. Panel: lighter card, smaller radius */
-  .lp-panel {
-    box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04) !important;
-    border-radius: var(--ew-radius-md) !important;
-  }
-
-  /* 7. Document page: less padding, softer shadow */
-  .lp-page-content {
-    padding: 40px 48px !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05) !important;
-  }
-
-  .lp-word-content {
-    box-shadow: 0 2px 10px rgba(0,0,0,.08) !important;
-  }
-
-  /* 8. PPT slide strip: lighter bg, no decorative grid, less tall */
-  .lp-ppt-strip-scroll {
-    background: #2a2e42 !important;
-    background-image: none !important;
-    min-height: 300px !important;
-    padding: 16px !important;
-    gap: 12px !important;
-  }
-
-  .lp-panel--pptx-from,
-  .lp-panel--pptx-to {
-    min-height: 340px !important;
-  }
-
-  /* 9. Slide grid: tighter spacing */
-  .lp-slide-grid {
-    gap: 12px !important;
-    padding: 16px !important;
-  }
-
-  /* 10. BG Remover: light workspace, canvas auto-centered */
-  /*     Keep full-height editor UX but remove giant dark void  */
-  .bgpro {
-    background: #f0f2f5 !important;
-  }
-
-  .bgpro-panel-work .bgpro-scroll {
-    background: #eceff4 !important;
-    background-image: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: auto !important;
-  }
-
-  /* Canvas auto-fits — no giant empty space beside small images */
-  .bgpro-panel-work .bgpro-scroll canvas {
-    max-width: 100% !important;
-    max-height: calc(100vh - 170px) !important;
-    height: auto !important;
-    display: block !important;
-    margin: auto !important;
-  }
-
-  /* 11. Edit PDF canvas: same light treatment */
-  .epro-canvas-scroll {
-    background: #eceff4 !important;
-    background-image: none !important;
-  }
-
-  /* 12. Step indicator: compact margin */
-  .step-indicator {
-    margin-bottom: 18px !important;
-  }
-
-  /* 13. Context banner: compact */
-  .ew-context-banner {
-    margin-bottom: 14px !important;
-  }
-
-  /* 14. File section: tighter */
-  .ew-file-section {
-    padding: 14px 16px !important;
-  }
-
-  /* 15. Loading state: proportional on desktop */
-  .lp-loading {
-    min-height: 260px !important;
-    padding: 48px 24px !important;
-  }
-
-  /* 16. Aside: slightly narrower sticky viewport calc */
-  .ew-preview-aside {
-    top: calc(var(--ew-header-h) + 4px) !important;
-    max-height: calc(100vh - var(--ew-header-h) - 24px) !important;
-  }
-
-  /* 17. Process panel: compact */
-  .ew-process-panel {
-    padding: 16px !important;
-    gap: 8px !important;
-  }
-
-  /* 18. BGpro toolbar: slightly more compact */
-  .bgpro-toolbar {
-    min-height: 48px !important;
-    padding: 6px 14px !important;
-  }
-
-  /* 19. Before/after: lighter bg */
-  .lp-before-after {
-    background: #e8eaef !important;
-    padding: 20px !important;
-    min-height: 260px !important;
-  }
-
-  /* 20. Swipe compare: lighter bg */
-  .lp-swipe-wrap {
-    background: #e8eaef !important;
-    padding: 20px !important;
-  }
-
-  /* 21. Repair/OCR: proportional panels */
-  .lp-ocr-split {
-    min-height: 280px !important;
-  }
-}
-
-/* ── Phase 14: responsive tweaks ───────────────────────────── */
-@media (max-width: 640px) {
-  .lp-ocr-split,
-  .lp-scan-compare {
-    grid-template-columns: 1fr !important;
-  }
-  .lp-ocr-col:first-child,
-  .lp-scan-col:first-child {
-    border-right: none !important;
-    border-bottom: 1px solid var(--ew-border-sub) !important;
-  }
-  .ew-context-banner {
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-  }
-  .ew-context-file {
-    display: none !important;
-  }
-}
 
 /* ============================================================
-   PHASE 15B: MOBILE PREVIEW CLEANUP & SIMPLE PROFESSIONAL LAYOUT
-   Surgical reduction — removes overdesign, restores clean mobile UX.
-   Target: iLovePDF / SmallPDF / Adobe mobile feel.
+   RESPONSIVE SYSTEM
+   One breakpoint per logical tier — no conflicting overrides.
    ============================================================ */
 
-/* ── 900px: Fix workspace column order (preview FIRST on mobile) */
+/* ── 1024px: Tablet — tighten bgpro panels ─────────────────── */
+@media (max-width: 1024px) {
+  .bgpro-panel-orig { width: 160px !important; }
+  .bgpro-panel-ctrl { width: 210px !important; }
+}
+
+/* ── 900px: Workspace collapses to single column ───────────── */
 @media (max-width: 900px) {
   .ew-preview-workspace {
-    grid-template-areas: "main" "aside" !important;
+    grid-template-columns: 1fr;
+    grid-template-areas: "main" "aside";
+    gap: 16px;
+  }
+
+  .ew-preview-aside {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    padding-bottom: 0;
+  }
+
+  /* Tablet: process buttons side-by-side */
+  .ew-preview-aside .ew-process-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ew-preview-aside .ew-process-panel .btn-primary,
+  .ew-preview-aside .ew-process-panel .btn-outline {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .ew-preview-page {
+    padding: 16px 16px 32px;
   }
 }
 
-/* ── 768px: Main mobile overrides ─────────────────────────── */
+/* ── 768px: Mobile — compact, bgpro drawer ─────────────────── */
 @media (max-width: 768px) {
 
-  /* 1. Page container: compact, room for sticky bar */
+  /* Page container */
   .ew-preview-page {
     padding: 12px 12px 88px !important;
   }
 
-  /* 2. Context banner: tighter */
+  /* Context banner */
   .ew-context-banner {
     padding: 8px 12px !important;
     margin-bottom: 10px !important;
     font-size: .79rem !important;
   }
 
-  /* 3. Step indicator: less bottom margin */
+  /* Step indicator */
   .step-indicator {
     margin-bottom: 14px !important;
   }
 
-  /* 4. Preview scroll areas: realistic mobile heights */
+  /* Aside: compact gap on mobile */
+  .ew-preview-aside {
+    gap: 12px !important;
+  }
+
+  /* Scroll areas */
   .lp-scroll {
     max-height: 56vh !important;
     min-height: 210px !important;
@@ -2233,7 +1797,6 @@
     max-height: 52vh !important;
     min-height: 220px !important;
     padding: 14px !important;
-    background: #f3f4f6 !important;
   }
 
   .lp-scroll--wide {
@@ -2241,7 +1804,7 @@
     min-height: 190px !important;
   }
 
-  /* 5. Document page: compact padding */
+  /* Document page */
   .lp-page-content {
     padding: 28px 22px !important;
     box-shadow: 0 2px 10px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.05) !important;
@@ -2251,11 +1814,10 @@
     box-shadow: 0 2px 10px rgba(0,0,0,.09) !important;
   }
 
-  /* 6. PPT slide strip: less dark, less tall, no decorative grid */
+  /* PPT strip */
   .lp-ppt-strip-scroll {
     min-height: 200px !important;
     background: #23263a !important;
-    background-image: none !important;
     padding: 14px !important;
   }
 
@@ -2264,25 +1826,19 @@
     min-height: 260px !important;
   }
 
-  /* 7. Slide cards: reduce dramatic hover/shadows */
-  .lp-slide-card {
-    box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12) !important;
-  }
-
+  /* Slide cards: disable hover effects on touch */
   .lp-slide-card:hover {
     transform: none !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12) !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.07) !important;
   }
 
-  /* 8. Panel: softer elevation on mobile */
+  /* Panel */
   .lp-panel {
     box-shadow: 0 1px 4px rgba(0,0,0,.07) !important;
     border-radius: var(--ew-radius-md) !important;
   }
 
-  /* Panel accent bar already in Phase 14 via ::before */
-
-  /* 9. BG Remover: auto-fit, light workspace background */
+  /* BG Remover: auto-height, light bg */
   .bgpro {
     height: auto !important;
     min-height: 0 !important;
@@ -2290,31 +1846,24 @@
     background: #f0f1f5 !important;
   }
 
-  /* Work area: light background, centered canvas */
   .bgpro-panel-work .bgpro-scroll {
     background: #f0f1f5 !important;
-    background-image: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: auto !important;
     max-height: calc(65vh - 52px) !important;
     min-height: 160px !important;
   }
 
-  /* Auto-fit canvas to mobile viewport */
   .bgpro-panel-work .bgpro-scroll canvas {
     max-width: 88vw !important;
-    height: auto !important;
-    display: block !important;
-    margin: auto !important;
+    max-height: none !important;
   }
 
-  /* Toolbar: more compact on mobile */
   .bgpro-toolbar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px !important;
     min-height: 44px !important;
     padding: 5px 10px !important;
-    gap: 4px !important;
   }
 
   .bgpro-tb {
@@ -2323,7 +1872,32 @@
     font-size: 12px !important;
   }
 
-  /* 10. Edit PDF canvas: auto-fit */
+  /* Controls become fixed bottom drawer */
+  .bgpro-panel-ctrl {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 58vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--ew-border) !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -8px 36px rgba(0,0,0,.18) !important;
+    transform: translateY(calc(100% - 46px)) !important;
+    transition: transform .32s var(--ew-ease) !important;
+    overflow-y: auto !important;
+    z-index: 500 !important;
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+    will-change: transform;
+  }
+
+  .bgpro-panel-orig { display: none !important; }
+  .bgpro-panel-ctrl.bgpro-drawer-open { transform: translateY(0) !important; }
+  .bgpro-drawer-handle { display: flex !important; }
+  .bgpro-body { padding-bottom: 46px; }
+
+  /* Edit PDF */
   .epro {
     height: auto !important;
     min-height: 0 !important;
@@ -2332,11 +1906,10 @@
 
   .epro-canvas-scroll {
     background: #f0f1f5 !important;
-    background-image: none !important;
     max-height: calc(68vh - 52px) !important;
   }
 
-  /* 11. Repair/OCR analysis sections: compact */
+  /* Repair / OCR */
   .lp-repair-analysis {
     padding: 14px 16px !important;
     gap: 8px !important;
@@ -2348,57 +1921,44 @@
     gap: 8px !important;
   }
 
-  /* 12. Before/after: compact bg */
+  /* Before/After */
   .lp-before-after {
     padding: 16px !important;
     min-height: 220px !important;
-    background: #e8eaef !important;
   }
 
-  .lp-ba-canvas canvas {
-    max-width: 130px !important;
-  }
+  .lp-ba-canvas canvas { max-width: 130px !important; }
 
-  /* 13. Swipe compare: compact */
+  /* Swipe compare */
   .lp-swipe-wrap {
     padding: 14px !important;
     min-height: 220px !important;
   }
 
-  /* 14. Loading: more compact */
+  /* Loading */
   .lp-loading {
     padding: 36px 16px !important;
     min-height: 180px !important;
     gap: 12px !important;
   }
 
-  /* 15. File section: compact */
-  .ew-file-section {
-    padding: 12px 14px !important;
-  }
+  /* File section */
+  .ew-file-section { padding: 12px 14px !important; }
 
-  /* 16. Options/process aside: no sticky, compact gap */
-  .ew-preview-aside {
-    gap: 12px !important;
-  }
+  /* Skeleton */
+  .lp-skel { padding: 16px !important; gap: 8px !important; }
 
-  /* 17. Skeleton: compact */
-  .lp-skel {
-    padding: 16px !important;
-    gap: 8px !important;
-  }
-
-  /* 18. Reduce excessive entrance animations on mobile */
+  /* Reduce entrance animations on mobile */
   .ew-preview-main,
   .ew-preview-aside {
     animation-duration: .18s !important;
   }
 }
 
-/* ── 640px: Small phone polish ─────────────────────────────── */
+/* ── 640px: Small phone — sticky CTA, compact scrolls ──────── */
 @media (max-width: 640px) {
 
-  /* Process panel: sticky bottom CTA — clean pill style */
+  /* Fixed bottom process CTA */
   .ew-process-panel {
     position: fixed !important;
     bottom: 0 !important;
@@ -2435,171 +1995,94 @@
     width: auto !important;
   }
 
-  /* Hide trust strip on mobile — saves real estate */
-  .ew-preview-aside .trust-strip {
-    display: none !important;
-  }
+  /* Hide trust strip */
+  .ew-preview-aside .trust-strip { display: none !important; }
 
-  /* Scroll areas: even smaller on tiny screens */
-  .lp-scroll {
-    max-height: 46vh !important;
-    min-height: 170px !important;
-  }
+  /* Scroll areas */
+  .lp-scroll        { max-height: 46vh !important; min-height: 170px !important; }
+  .lp-scroll--page  { max-height: 43vh !important; min-height: 180px !important; padding: 10px !important; }
+  .lp-scroll--wide  { max-height: 42vh !important; min-height: 160px !important; }
 
-  .lp-scroll--page {
-    max-height: 43vh !important;
-    min-height: 180px !important;
-    padding: 10px !important;
-  }
+  /* bgpro */
+  .bgpro                           { max-height: 58vh !important; }
+  .bgpro-panel-work .bgpro-scroll  { max-height: calc(58vh - 44px) !important; }
+  .bgpro-panel-work .bgpro-scroll canvas { max-width: 85vw !important; }
 
-  .lp-scroll--wide {
-    max-height: 42vh !important;
-    min-height: 160px !important;
-  }
+  /* Header */
+  .lp-header  { padding: 10px 14px !important; gap: 5px !important; }
+  .lp-title   { font-size: .8rem !important; }
+  .lp-stat    { font-size: .68rem !important; padding: 1px 6px !important; }
+  .lp-footer  { padding: 7px 14px !important; font-size: .68rem !important; }
 
-  /* bgpro: tighter on small phones */
-  .bgpro {
-    max-height: 58vh !important;
-  }
-
-  .bgpro-panel-work .bgpro-scroll {
-    max-height: calc(58vh - 44px) !important;
-  }
-
-  .bgpro-panel-work .bgpro-scroll canvas {
-    max-width: 85vw !important;
-  }
-
-  /* Header stats: wrap tighter */
-  .lp-header {
-    padding: 10px 14px !important;
-    gap: 5px !important;
-  }
-
-  .lp-title {
-    font-size: .8rem !important;
-  }
-
-  .lp-stat {
-    font-size: .68rem !important;
-    padding: 1px 6px !important;
-  }
-
-  /* Footer: minimal */
-  .lp-footer {
-    padding: 7px 14px !important;
-    font-size: .68rem !important;
-  }
-
-  /* Slide grid: 2 col always */
+  /* Slide grid */
   .lp-slide-grid {
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
     padding: 10px !important;
   }
 
-  /* PPT panel: even shorter */
-  .lp-ppt-strip-scroll {
-    min-height: 160px !important;
-    padding: 10px !important;
-  }
-
+  /* PPT */
+  .lp-ppt-strip-scroll         { min-height: 160px !important; padding: 10px !important; }
   .lp-panel--pptx-from,
-  .lp-panel--pptx-to {
-    min-height: 200px !important;
-  }
+  .lp-panel--pptx-to           { min-height: 200px !important; }
 
-  /* OCR/Scan: single column already (Phase 14) */
+  /* Before/After */
+  .lp-before-after              { padding: 12px !important; min-height: 180px !important; }
+  .lp-ba-canvas canvas          { max-width: 110px !important; }
 
-  /* Before/after: very compact */
-  .lp-before-after {
-    padding: 12px !important;
-    min-height: 180px !important;
-  }
+  /* Page content */
+  .lp-page-content              { padding: 20px 16px !important; }
 
-  .lp-ba-canvas canvas {
-    max-width: 110px !important;
-  }
-
-  /* Page content: less padding */
-  .lp-page-content {
-    padding: 20px 16px !important;
-  }
-
-  /* Loading state: minimal */
+  /* Loading */
   .lp-loading {
     padding: 28px 16px !important;
     min-height: 150px !important;
     font-size: .8rem !important;
   }
 
-  /* Context banner: single-line on small screens */
-  .ew-context-banner {
-    padding: 7px 10px !important;
-    margin-bottom: 8px !important;
+  /* Context banner */
+  .ew-context-banner  { padding: 7px 10px !important; margin-bottom: 8px !important; }
+  .ew-context-label   { font-size: .78rem !important; }
+  .ew-context-chip    { font-size: .62rem !important; padding: 2px 7px !important; }
+
+  /* OCR/Scan: single column */
+  .lp-ocr-split,
+  .lp-scan-compare {
+    grid-template-columns: 1fr !important;
   }
 
-  .ew-context-label {
-    font-size: .78rem !important;
+  .lp-ocr-col:first-child,
+  .lp-scan-col:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--ew-border-sub) !important;
   }
 
-  .ew-context-chip {
-    font-size: .62rem !important;
-    padding: 2px 7px !important;
-  }
+  /* Context banner: wrap on small */
+  .ew-context-banner  { flex-wrap: wrap !important; gap: 6px !important; }
+  .ew-context-file    { display: none !important; }
 
-  /* Tool header: compact */
-  .tool-header-name {
-    font-size: 1.15rem !important;
-  }
-
-  /* File section: tight */
-  .ew-file-section {
-    padding: 10px 12px !important;
-  }
+  /* Tool header */
+  .tool-header-name   { font-size: 1.15rem !important; }
+  .ew-file-section    { padding: 10px 12px !important; }
 }
 
-/* ── 480px: Tiny phone final pass ──────────────────────────── */
+/* ── 480px: Tiny phone — final pass ─────────────────────────── */
 @media (max-width: 480px) {
 
-  /* Reduce all gaps further */
-  .ew-preview-workspace {
-    gap: 10px !important;
-  }
+  .ew-preview-workspace { gap: 10px !important; }
+  .ew-preview-page      { padding: 10px 10px 82px !important; }
 
-  .ew-preview-page {
-    padding: 10px 10px 82px !important;
-  }
+  .lp-scroll       { min-height: 150px !important; max-height: 44vh !important; }
+  .lp-scroll--page { min-height: 160px !important; max-height: 40vh !important; padding: 8px !important; }
 
-  /* Scroll: minimum viable */
-  .lp-scroll {
-    min-height: 150px !important;
-    max-height: 44vh !important;
-  }
+  .bgpro                          { max-height: 54vh !important; }
+  .bgpro-panel-work .bgpro-scroll { max-height: calc(54vh - 44px) !important; }
+  .bgpro-panel-ctrl               { width: 100% !important; }
 
-  .lp-scroll--page {
-    min-height: 160px !important;
-    max-height: 40vh !important;
-    padding: 8px !important;
-  }
+  .lp-panel { border-radius: 10px !important; }
 
-  /* bgpro: very compact */
-  .bgpro {
-    max-height: 54vh !important;
-  }
-
-  .bgpro-panel-work .bgpro-scroll {
-    max-height: calc(54vh - 44px) !important;
-  }
-
-  /* Panels: minimal radius on tiny screens */
-  .lp-panel {
-    border-radius: 10px !important;
-  }
-
-  /* Stats: wrap gracefully */
   .lp-header-stats,
-  .lp-stats {
-    gap: 4px !important;
-  }
+  .lp-stats { gap: 4px !important; }
+
+  .lp-ppt-strip-scroll { min-height: 160px !important; }
 }
