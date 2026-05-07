@@ -593,6 +593,64 @@ function renderUploadStep(tool) {
   wireStepNav();
 }
 
+// ── STEP 2b — PRO MAX EDITOR STEP ─────────────────────────────────────────
+// Mounts a full interactive editor (BgRemoverPro / EditPdfPro) in place of
+// the standard preview+process flow. The editor's onResult callback fires
+// showStatus('success', …) which commits the Flow and navigates to download.
+function renderProPreviewStep(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="tool-page" style="padding-bottom:0">
+      ${toolHeaderBlock(tool, {
+        heading: tool.name + ' — PRO Editor',
+        desc: 'Edit your file in the interactive editor below, then click Download when done.',
+        icon: tool.icon || 'edit-3',
+        hideStatus: true,
+        back: { href: '#step:upload', label: 'Back to upload' },
+      })}
+      ${stepIndicatorHtml('preview')}
+      <div id="pro-editor-mount" style="margin-top:12px;flex:1;min-height:520px;"></div>
+      <div id="result-area" style="margin-top:12px;"></div>
+    </div>`;
+
+  if (window.lucide) lucide.createIcons();
+  wireStepNav();
+
+  const mount = document.getElementById('pro-editor-mount');
+  const file  = selectedFiles[0] && selectedFiles[0].file;
+  if (!file || !mount) { Flow.navTo('upload'); return; }
+
+  function onResult(blob, filename, mime) {
+    if (!blob || blob.size < 10) {
+      showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
+    // Auto-trigger download
+    try {
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (_) {}
+    showStatus(
+      'success',
+      'Your file is ready',
+      filename + ' has been downloaded. Use the button below if it didn\'t start automatically.',
+      url,
+      filename
+    );
+  }
+
+  if (tool.id === 'background-remover' && window.BgRemoverPro) {
+    window.BgRemoverPro.mount(file, mount, onResult);
+  } else if (tool.id === 'edit' && window.EditPdfPro) {
+    window.EditPdfPro.mount(file, mount, onResult);
+  }
+}
+
 // ── STEP 2 — PREVIEW + PROCESS ────────────────────────────────────────────
 // Shows the selected file(s), the tool's options, and a single Process CTA.
 // Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
@@ -600,6 +658,14 @@ function renderUploadStep(tool) {
 function renderPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+
+  // PRO MAX intercept — tools with dedicated interactive editors skip the
+  // standard preview/process flow entirely and mount their own editor UI.
+  if ((tool.id === 'background-remover' && window.BgRemoverPro) ||
+      (tool.id === 'edit' && window.EditPdfPro)) {
+    renderProPreviewStep(tool);
+    return;
+  }
 
   const optionsHtml = buildOptionsHtml(tool);
 
