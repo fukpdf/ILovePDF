@@ -1471,25 +1471,39 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
 
-      // ── Preprocessing pipeline ─────────────────────────────────────────
-      if (preproc === 'auto' || preproc === 'contrast' || preproc === 'bw') {
+      // ── Enhanced preprocessing pipeline ────────────────────────────────
+      if (preproc !== 'none') {
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const d = imgData.data;
-        const doContrast = preproc === 'auto' || preproc === 'contrast';
-        const doBW       = preproc === 'bw';
-        for (let px = 0; px < d.length; px += 4) {
-          const gray = 0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2];
-          let val    = doContrast ? Math.min(255, Math.max(0, (gray - 128) * 1.4 + 128)) : gray;
-          if (doBW) val = val > 127 ? 255 : 0;
-          d[px] = d[px + 1] = d[px + 2] = val;
+        const N = d.length;
+
+        // Pass 1: Grayscale + histogram scan for auto-level
+        let minV = 255, maxV = 0;
+        for (let px = 0; px < N; px += 4) {
+          const g = Math.round(0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2]);
+          d[px] = d[px + 1] = d[px + 2] = g;
+          if (g < minV) minV = g;
+          if (g > maxV) maxV = g;
+        }
+
+        // Pass 2: Auto-level stretch + contrast boost
+        const range  = Math.max(1, maxV - minV);
+        const isBW   = preproc === 'bw';
+        const factor = preproc === 'contrast' ? 1.8 : preproc === 'auto' ? 1.5 : 1.0;
+        for (let px = 0; px < N; px += 4) {
+          let v = Math.round((d[px] - minV) * 255 / range); // auto-level
+          v = Math.min(255, Math.max(0, Math.round((v - 128) * factor + 128))); // contrast curve
+          if (isBW) v = v > 127 ? 255 : 0;
+          d[px] = d[px + 1] = d[px + 2] = v;
         }
         ctx.putImageData(imgData, 0, 0);
       }
 
+      const canvasW = canvas.width;
       const dataUrl = canvas.toDataURL('image/png');
       canvas.width = 0; canvas.height = 0;
 
-      // ── Run Tesseract ──────────────────────────────────────────────────
+      // ── AI OCR Engine ──────────────────────────────────────────────────
       const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
         logger: () => {},
         tessedit_pageseg_mode: psm,
@@ -1502,6 +1516,7 @@
         words:      ocrData.words || [],
         confidence: pageConf,
         pageIdx:    i - 1,
+        pageW:      canvasW,
       });
       page.cleanup();
     }
@@ -1510,9 +1525,8 @@
     const avgConf = numPages > 0 ? totalConfidence / numPages : 0;
     if (avgConf < 5 && !hasDigitalText) {
       throw new Error(
-        'OCR confidence too low (' + Math.round(avgConf) + '%). ' +
-        'The scan may be too blurry or the language may not match. ' +
-        'Try a different language or preprocessing mode.'
+        'Low scan quality detected. The document may be too blurry or the selected language may not match. ' +
+        'Try switching to a different language or image enhancement mode.'
       );
     }
 
@@ -1575,36 +1589,107 @@
       return { blob: new Blob([pdfBytes], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
     }
 
-    // ── DOCX output with layout reconstruction ────────────────────────────
-    const JSZip    = await loadJsZip();
-    const allLines = allPageData.flatMap(p => p.text.split('\n').map(l => l.trim()).filter(Boolean));
+    // ── DOCX output with word-bbox layout reconstruction ──────────────────
+    const JSZip = await loadJsZip();
+
+    // Group Tesseract word objects into lines using Y-midpoint proximity,
+    // then sort each line by X — giving proper spatial reconstruction.
+    function reconstructOcrLines(words, pageW) {
+      if (!words || !words.length) return [];
+      const valid = words.filter(function (w) {
+        return w && w.text && w.text.trim() &&
+          w.bbox && typeof w.bbox.x0 === 'number' && typeof w.bbox.y0 === 'number';
+      });
+      if (!valid.length) return [];
+      valid.sort(function (a, b) { return a.bbox.y0 - b.bbox.y0; });
+
+      const lineGroups = [];
+      let cur = [valid[0]];
+      for (let i = 1; i < valid.length; i++) {
+        const w     = valid[i];
+        const prev  = cur[cur.length - 1];
+        const maxH  = Math.max(prev.bbox.y1 - prev.bbox.y0, w.bbox.y1 - w.bbox.y0, 6);
+        const midPr = (prev.bbox.y0 + prev.bbox.y1) / 2;
+        const midCu = (w.bbox.y0  + w.bbox.y1)  / 2;
+        if (Math.abs(midCu - midPr) < maxH * 0.65) {
+          cur.push(w);
+        } else {
+          lineGroups.push(cur);
+          cur = [w];
+        }
+      }
+      if (cur.length) lineGroups.push(cur);
+
+      return lineGroups.map(function (grp) {
+        grp.sort(function (a, b) { return a.bbox.x0 - b.bbox.x0; });
+        const totalChars = grp.reduce(function (s, w) { return s + (w.text.length || 1); }, 0);
+        const totalW     = grp.reduce(function (s, w) { return s + (w.bbox.x1 - w.bbox.x0); }, 0);
+        const avgCharW   = totalW / Math.max(totalChars, 1);
+        const avgH       = grp.reduce(function (s, w) { return s + (w.bbox.y1 - w.bbox.y0); }, 0) / grp.length;
+
+        let text = '', lastX1 = grp[0].bbox.x0;
+        grp.forEach(function (w, i) {
+          if (i > 0) {
+            // Preserve wide gaps (table columns) as double-space
+            text += (w.bbox.x0 - lastX1 > avgCharW * 3.5) ? '  ' : ' ';
+          }
+          text += w.text;
+          lastX1 = w.bbox.x1;
+        });
+        text = text.trim();
+        if (!text) return null;
+
+        // Type detection from bbox metrics
+        const centerX  = (grp[0].bbox.x0 + grp[grp.length - 1].bbox.x1) / 2;
+        const isCenter = pageW > 0 && Math.abs(centerX - pageW / 2) < pageW * 0.2;
+        const isAllCap = text === text.toUpperCase() && /[A-Z]/.test(text);
+        const isShort  = text.split(/\s+/).length <= 10;
+        const hasWideGap = grp.some(function (w, i) {
+          return i > 0 && (w.bbox.x0 - grp[i - 1].bbox.x1) > avgCharW * 3.5;
+        });
+
+        let type = 'normal';
+        if      (avgH > 18 || (isCenter && isShort && (isAllCap || avgH > 13))) type = 'h1';
+        else if (isShort && isAllCap && avgH > 10)                              type = 'h2';
+        else if (hasWideGap && grp.length >= 3)                                 type = 'table';
+        return { text: text, type: type };
+      }).filter(Boolean);
+    }
+
+    // Prefer word-bbox reconstruction; fall back to plain text-split
+    const allReconstructed = allPageData.flatMap(function (pd) {
+      const lines = (pd.words && pd.words.length > 2)
+        ? reconstructOcrLines(pd.words, pd.pageW || 0)
+        : pd.text.split('\n').map(function (t) {
+            t = t.trim(); if (!t) return null;
+            const isH1 = t === t.toUpperCase() && /[A-Z]/.test(t) && t.length >= 3 && t.length <= 70;
+            return { text: t, type: isH1 ? 'h1' : 'normal' };
+          }).filter(Boolean);
+      return lines;
+    });
 
     const docXmlParts = [];
-    for (const line of allLines) {
-      const escaped    = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const isH1       = line === line.toUpperCase() && line.length >= 4 && line.length <= 70 && /[A-Z]/.test(line);
-      const isH2       = !isH1 && /^(\d+\.)+\s+\S/.test(line) && line.length <= 80;
-      const isTableRow = !isH1 && !isH2 && (line.split('\t').length >= 3 || line.split('|').length >= 3);
-      const pStyle = isH1 ? 'Heading1' : isH2 ? 'Heading2' : 'Normal';
-      const rStyle = isH1       ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
-                     isH2       ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
-                     isTableRow ? '<w:sz><w:val>20</w:val></w:sz>' :
-                                  '<w:sz><w:val>24</w:val></w:sz>';
+    for (const rl of allReconstructed) {
+      const escaped = rl.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pStyle  = rl.type === 'h1' ? 'Heading1' : rl.type === 'h2' ? 'Heading2' : 'Normal';
+      const rStyle  = rl.type === 'h1'    ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
+                      rl.type === 'h2'    ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
+                      rl.type === 'table' ? '<w:sz><w:val>20</w:val></w:sz>' :
+                                           '<w:sz><w:val>24</w:val></w:sz>';
       docXmlParts.push(
         '<w:p><w:pPr><w:pStyle w:val="' + pStyle + '"/></w:pPr>' +
         '<w:r><w:rPr>' + rStyle + '</w:rPr><w:t xml:space="preserve">' + escaped + '</w:t></w:r></w:p>'
       );
     }
 
-    // Confidence footer
-    const confNote = 'OCR Confidence: ' + Math.round(avgConf) + '% | ' +
-      numPages + ' page' + (numPages > 1 ? 's' : '') +
-      ' | Mode: ' + ocrMode + ' | Lang: ' + lang;
+    // Professional confidence footer (no internal engine or mode names exposed)
+    const confNote = 'AI OCR Engine \u00b7 ' + Math.round(avgConf) + '% confidence \u00b7 ' +
+      numPages + ' page' + (numPages > 1 ? 's' : '') + ' processed';
     const footEsc = confNote.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     docXmlParts.push(
       '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>' +
       '<w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr>' +
-      '<w:t xml:space="preserve">─────────────────────────────────────────────────</w:t></w:r></w:p>',
+      '<w:t xml:space="preserve">\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500</w:t></w:r></w:p>',
       '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>' +
       '<w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr>' +
       '<w:t xml:space="preserve">' + footEsc + '</w:t></w:r></w:p>'

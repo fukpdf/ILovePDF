@@ -2886,3 +2886,109 @@ a{ color:var(--brand-text); }
 }
 
 /* .lp-warn-stack / .lp-warn-banner / .lp-warn-icon — defined at lines 2362-2370 */
+
+/* ── OCR feature badges ──────────────────────────────────────── */
+.lp-ocr-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 4px;
+}
+.lp-ocr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.lp-ocr-badge--active {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+/* ── Confidence meter ────────────────────────────────────────── */
+.lp-conf-meter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 8px;
+}
+.lp-conf-meter-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lp-conf-meter-bar {
+  flex: 1;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.lp-conf-meter-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.lp-conf-meter-pct {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #374151;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Mobile: live-preview controls wrap ──────────────────────── */
+@media (max-width: 600px) {
+  .lp-controls {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+  .lp-ctrl-group {
+    width: 100%;
+  }
+  .lp-ctrl-row {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .lp-ctrl-btn {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    min-height: 32px;
+    touch-action: manipulation;
+  }
+  .lp-header-stats {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .lp-ocr-split {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .lp-ocr-col {
+    width: 100%;
+  }
+  .lp-html-page-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .lp-panel {
+    border-radius: 0;
+  }
+  .lp-ocr-badges {
+    padding: 6px 8px 2px;
+  }
+  .lp-conf-meter-wrap {
+    padding: 4px 8px 6px;
+  }
+}

@@ -693,7 +693,7 @@
     var ocrBadge = isScanned
       ? '<div class="lp-scanned-notice">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-          ' Scanned PDF — Tesseract OCR will reconstruct headings, paragraphs and tables.' +
+          ' Scanned PDF — AI OCR Engine will reconstruct headings, paragraphs and tables.' +
         '</div>'
       : '';
 
@@ -717,7 +717,7 @@
         '<div class="lp-struct-title">OCR mode</div>' +
         '<div class="lp-struct-line lp-struct-para">' +
           '<span class="lp-struct-icon">🔍</span>' +
-          '<span class="lp-struct-text">Tesseract will process each page using word bounding boxes to detect headings, paragraphs and tables.</span>' +
+          '<span class="lp-struct-text">AI OCR Engine will process each page using word positions to detect headings, paragraphs and tables. Enhanced automatically.</span>' +
         '</div></div>';
     } else if (!structLines.length) {
       structPanel = '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
@@ -879,7 +879,7 @@
     var ocrBadge = willUseOcr
       ? '<div class="lp-scanned-notice">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-          ' OCR mode — Tesseract will extract table data during conversion.' +
+          ' OCR mode — AI OCR Engine will extract table data during conversion.' +
         '</div>'
       : '';
 
@@ -953,7 +953,7 @@
     } else if (willUseOcr) {
       tableHtml = '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
         '<span class="lp-struct-icon">🔍</span>' +
-        '<span class="lp-struct-text">No digital table found. Tesseract OCR will extract table structure during conversion.</span>' +
+        '<span class="lp-struct-text">No digital table found. AI OCR Engine will extract table structure during conversion.</span>' +
       '</div></div>';
     } else {
       tableHtml = '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
@@ -1271,7 +1271,7 @@
     var ocrBadge = isScanned
       ? '<div class="lp-scanned-notice">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-          ' Scanned PDF — Tesseract OCR will extract text before translating.' +
+          ' Scanned PDF — AI OCR Engine will extract text before translating.' +
         '</div>'
       : '';
 
@@ -2354,13 +2354,40 @@
     // Scan quality estimate
     var isScanned  = !hasDigital;
     var qualScore  = isScanned ? 55 : 90;
+    var qualLabel  = isScanned ? 'OCR Required' : 'Text Ready';
     var statusMsg  = isScanned
-      ? '\u26A0 Scanned / image-based PDF \u2014 Tesseract OCR will extract text on Process'
-      : '\u2713 Selectable text found \u2014 OCR will also enhance and reconstruct layout';
+      ? '\u26A0\uFE0F Image-based PDF detected \u2014 AI OCR Engine will extract text when you click Process'
+      : '\u2713 Selectable text found \u2014 AI OCR Engine will enhance and reconstruct layout';
+
+    // Estimate digital text statistics for the indicators panel
+    var digitalLines    = digitalText ? digitalText.split('\n').filter(function (l) { return l.trim(); }).length : 0;
+    var estTables       = (digitalText.match(/\t{2,}|[ ]{4,}/g) || []).length > 2 ? 1 : 0;
+    var estHeadings     = (digitalText.match(/\n[A-Z][A-Z ]{3,}\n/g) || []).length;
 
     // Convert canvas to data URL, then free
     var thumbUrl = canvas.toDataURL('image/jpeg', 0.82);
     canvas.width = 0; canvas.height = 0;
+
+    // Confidence meter bar (visual estimate before real OCR runs)
+    var confEst     = isScanned ? 65 : 92;
+    var confColor   = confEst >= 80 ? '#22c55e' : confEst >= 60 ? '#f59e0b' : '#ef4444';
+    var confMeterHtml =
+      '<div class="lp-conf-meter-wrap">' +
+        '<div class="lp-conf-meter-label">Estimated quality</div>' +
+        '<div class="lp-conf-meter-bar">' +
+          '<div class="lp-conf-meter-fill" style="width:' + confEst + '%;background:' + confColor + '"></div>' +
+        '</div>' +
+        '<div class="lp-conf-meter-pct">' + confEst + '%</div>' +
+      '</div>';
+
+    // Feature badges row
+    var featureBadges =
+      '<div class="lp-ocr-badges">' +
+        '<span class="lp-ocr-badge lp-ocr-badge--active">\u2728 Enhanced automatically</span>' +
+        (isScanned ? '<span class="lp-ocr-badge lp-ocr-badge--active">\uD83E\uDD16 Deep OCR active</span>' : '') +
+        (estTables > 0 ? '<span class="lp-ocr-badge">\uD83D\uDCCA Table reconstruction enabled</span>' : '') +
+        (langHint ? '<span class="lp-ocr-badge">' + langHint.flag + ' ' + esc(langHint.label) + ' detected</span>' : '') +
+      '</div>';
 
     host.innerHTML =
       '<div class="lp-panel lp-panel--ocr">' +
@@ -2375,14 +2402,16 @@
           '</span>' +
           '<div class="lp-header-stats">' +
             '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages > 1 ? 's' : '') + '</span>' +
-            (digitalWc > 0 ? '<span class="lp-stat"><b>' + fmtNum(digitalWc) + '</b> words found</span>' : '') +
-            (langHint ? '<span class="lp-stat">' + langHint.flag + ' ' + esc(langHint.label) + '</span>' : '') +
+            (digitalWc > 0 ? '<span class="lp-stat"><b>' + fmtNum(digitalWc) + '</b> words</span>' : '') +
+            (estHeadings > 0 ? '<span class="lp-stat"><b>' + estHeadings + '</b> heading' + (estHeadings > 1 ? 's' : '') + '</span>' : '') +
             qualityBadge(qualScore) +
           '</div>' +
         '</div>' +
         '<div class="lp-warn-stack">' +
           '<div class="lp-warn-banner lp-ocr-status-banner">' + esc(statusMsg) + '</div>' +
         '</div>' +
+        featureBadges +
+        confMeterHtml +
         '<div class="lp-scroll lp-scroll--wide">' +
           '<div class="lp-ocr-split">' +
             '<div class="lp-ocr-col">' +
@@ -2396,8 +2425,8 @@
                   ? '<div class="lp-ocr-text-content">' + esc(digitalText.slice(0, 900)) + (digitalText.length > 900 ? '\u2026' : '') + '</div>'
                   : '<div class="lp-ocr-text-placeholder">' +
                       '<div class="lp-ocr-scan-icon">\uD83D\uDD0D</div>' +
-                      '<div>Tesseract OCR will extract text when you click <strong>Process</strong></div>' +
-                      '<div class="lp-ocr-hint">OCR Mode, Language and Output Format options below control the result quality.</div>' +
+                      '<div><strong>AI OCR Engine</strong> will extract text when you click <strong>Process</strong></div>' +
+                      '<div class="lp-ocr-hint">Adjust OCR Mode, Language and Output Format below to control result quality.</div>' +
                     '</div>'
                 ) +
               '</div>' +
@@ -2406,7 +2435,7 @@
         '</div>' +
         '<div class="lp-footer">' +
           'Scan analysis \xb7 ' +
-          (isScanned ? 'image-based PDF \u2014 Tesseract OCR required' : 'text-based PDF \u2014 fast extraction mode') +
+          (isScanned ? 'image-based PDF \u2014 AI OCR Engine active' : 'text-based PDF \u2014 fast extraction mode') +
           ' \xb7 all ' + numPages + ' page' + (numPages > 1 ? 's' : '') + ' will be processed' +
         '</div>' +
       '</div>';
