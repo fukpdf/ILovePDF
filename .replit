@@ -87,7 +87,6 @@ localPort = 9010
 
 [userenv.shared]
 R2_ACCOUNT_ID = "a1fbd4659b273ef75414f02cc29acaf5"
-R2_ACCESS_KEY_ID = "8c83dd15d210b407fcf5ca1ca8844254"
 R2_BUCKET = "ilovepdf"
 HF_SPACE_URL = "https://ilovepdf-ilovepdf.hf.space"
 FIREBASE_AUTH_DOMAIN = "ilovepdf-web.firebaseapp.com"
@@ -97,4 +96,3 @@ FIREBASE_APP_ID = "1:220495273530:web:68068202e588705e989f03"
 MAX_UPLOAD_MB = "200"
 ALLOWED_ORIGINS = "*"
 PORT = "5000"
-JWT_SECRET = "b01d8323580a712eb54fa4ee2f5be0bb337bb66cdebe3073e273eeb7908a38cb65695e1e885d9088cd5f42a8ac0d8a56"
