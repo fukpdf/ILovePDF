@@ -29,6 +29,7 @@
     'translate', 'ai-summarize',
     'edit',
     'pdf-to-powerpoint', 'powerpoint-to-pdf',
+    'html-to-pdf', 'ocr',
   ]);
 
   // ── JSZip loader ─────────────────────────────────────────────────────────
@@ -2127,6 +2128,291 @@
   }
 
   // ======================================================================
+  // HTML → PDF PRO MAX PREVIEW  (.lp-html-*)
+  // Renders the HTML in an isolated iframe showing real CSS/layout.
+  // Controls: Page Size, Orientation, Margins, Zoom — all sync with opts.
+  // ======================================================================
+  async function mountHtmlToPdfPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Loading HTML preview\u2026' + skeletonHtml(4) + '</div>';
+
+    var text;
+    try { text = await file.text(); }
+    catch (_) { host.innerHTML = errorHtml('Could not read HTML file.'); return; }
+    if (!text.trim()) { host.innerHTML = errorHtml('HTML file appears empty.'); return; }
+
+    // Analyse for stats and warnings
+    var parser    = new DOMParser();
+    var inputDoc  = parser.parseFromString(text, 'text/html');
+    var bodyText  = inputDoc.body ? inputDoc.body.innerText : text;
+    var wc        = (bodyText.match(/\b\w+\b/g) || []).length;
+    var tableCount = (text.match(/<table/gi) || []).length;
+    var imgCount   = (text.match(/<img/gi)   || []).length;
+    var hasCustomFonts = /font-family\s*:/i.test(text);
+    var hasGridFlex    = /display\s*:\s*(grid|flex)/i.test(text);
+    var hasExternalCSS = /<link[^>]+stylesheet/i.test(text);
+
+    var warnings = [];
+    if (tableCount > 0)    warnings.push({ icon: '\uD83D\uDCB3', msg: tableCount + ' table' + (tableCount > 1 ? 's' : '') + ' detected \u2014 may reflow across pages' });
+    if (imgCount > 5)      warnings.push({ icon: '\uD83D\uDDBC', msg: imgCount + ' images \u2014 ensure they use accessible URLs' });
+    if (hasCustomFonts)    warnings.push({ icon: '\uD83D\uDD24', msg: 'Custom fonts may fall back to system fonts in PDF' });
+    if (hasGridFlex)       warnings.push({ icon: '\uD83D\uDCE6', msg: 'CSS Grid/Flexbox may render differently in print' });
+    if (hasExternalCSS)    warnings.push({ icon: '\uD83D\uDD17', msg: 'External stylesheets loaded \u2014 cross-origin sheets may be blocked' });
+
+    var qualScore = Math.max(25, 100 - warnings.length * 15);
+
+    // Page-size constants (mm)
+    var PS_W = { A4: 210, Letter: 216, A3: 297, A5: 148, Legal: 216, Tabloid: 279 };
+    var PS_H = { A4: 297, Letter: 279, A3: 420, A5: 210, Legal: 356, Tabloid: 432 };
+
+    function pxFromMm(mm) { return mm * 96 / 25.4 * 0.62; }
+
+    var state = { size: 'A4', orient: 'portrait', zoom: 'fit', margins: 'normal' };
+    var MARGIN_MM = { none: 0, narrow: 5, normal: 10, wide: 20 };
+
+    // Extract all inline styles + cross-origin-safe external links
+    var headStyles = Array.from(inputDoc.querySelectorAll('style')).map(function (s) { return s.outerHTML; }).join('');
+    var linkStyles = Array.from(inputDoc.querySelectorAll('link[rel="stylesheet"][href]'))
+      .filter(function (l) { return /^https?:\/\//i.test(l.getAttribute('href') || ''); })
+      .map(function (l) { return l.outerHTML; }).join('');
+    var bodyHtml   = inputDoc.body ? inputDoc.body.innerHTML : text;
+
+    function buildIframeDoc() {
+      var mPx = pxFromMm(MARGIN_MM[state.margins] !== undefined ? MARGIN_MM[state.margins] : 10);
+      return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+        linkStyles + headStyles +
+        '<style>' +
+        '*{box-sizing:border-box;}' +
+        'body{margin:' + mPx + 'px;font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.55;color:#111;word-wrap:break-word;}' +
+        'img{max-width:100%;height:auto;}table{max-width:100%;border-collapse:collapse;}' +
+        'pre,code{white-space:pre-wrap;word-break:break-all;}svg{max-width:100%;}' +
+        'h1,h2,h3{page-break-after:avoid;}table,figure,img{page-break-inside:avoid;}' +
+        '</style>' +
+        '</head><body>' + bodyHtml + '</body></html>';
+    }
+
+    function applyIframe() {
+      var wMm = state.orient === 'landscape' ? (PS_H[state.size] || 297) : (PS_W[state.size] || 210);
+      var hMm = state.orient === 'landscape' ? (PS_W[state.size] || 210) : (PS_H[state.size] || 297);
+      var wPx = pxFromMm(wMm);
+      var hPx = pxFromMm(hMm);
+
+      var iframe = host.querySelector('.lp-html-iframe');
+      var wrap   = host.querySelector('.lp-html-page-wrap');
+      if (!iframe || !wrap) return;
+
+      iframe.srcdoc = buildIframeDoc();
+      iframe.style.width  = wPx + 'px';
+      iframe.style.height = hPx + 'px';
+
+      var availW = wrap.offsetWidth || 600;
+      var scl    = 1;
+      if (state.zoom === 'fit' && wPx > availW - 24) scl = (availW - 24) / wPx;
+      else if (state.zoom === '75')  scl = 0.75;
+      else if (state.zoom === '50')  scl = 0.5;
+      iframe.style.transform       = scl < 1 ? 'scale(' + scl.toFixed(3) + ')' : 'none';
+      iframe.style.transformOrigin = 'top left';
+      wrap.style.height            = Math.round(hPx * scl + 8) + 'px';
+    }
+
+    var warnHtml = warnings.map(function (w) {
+      return '<div class="lp-warn-banner"><span class="lp-warn-icon">' + w.icon + '</span> ' + esc(w.msg) + '</div>';
+    }).join('');
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--html-pdf">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' +
+            ' HTML Preview' +
+          '</span>' +
+          '<div class="lp-header-stats">' +
+            (wc ? '<span class="lp-stat"><b>' + fmtNum(wc) + '</b> words</span>' : '') +
+            (tableCount ? '<span class="lp-stat"><b>' + tableCount + '</b> table' + (tableCount > 1 ? 's' : '') + '</span>' : '') +
+            (imgCount   ? '<span class="lp-stat"><b>' + imgCount   + '</b> image' + (imgCount   > 1 ? 's' : '') + '</span>' : '') +
+            qualityBadge(qualScore) +
+          '</div>' +
+          '<div class="lp-controls">' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Page</span>' +
+              '<div class="lp-ctrl-row">' + pageSizeBtns(state.size, ['A3', 'A5', 'Legal', 'Tabloid']) + '</div>' +
+            '</div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Orientation</span>' +
+              '<div class="lp-ctrl-row">' + orientBtns(state.orient) + '</div>' +
+            '</div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Margins</span>' +
+              '<div class="lp-ctrl-row">' +
+                ['none', 'narrow', 'normal', 'wide'].map(function (m) {
+                  return '<button type="button" class="lp-ctrl-btn' + (m === state.margins ? ' active' : '') +
+                    '" data-margin="' + m + '">' + (m.charAt(0).toUpperCase() + m.slice(1)) + '</button>';
+                }).join('') +
+              '</div>' +
+            '</div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Zoom</span>' +
+              '<div class="lp-ctrl-row">' +
+                ['fit', '75', '50'].map(function (z) {
+                  return '<button type="button" class="lp-ctrl-btn' + (z === state.zoom ? ' active' : '') +
+                    '" data-zoom="' + z + '">' + (z === 'fit' ? 'Fit' : z + '%') + '</button>';
+                }).join('') +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        (warnHtml ? '<div class="lp-warn-stack">' + warnHtml + '</div>' : '') +
+        '<div class="lp-scroll lp-scroll--page">' +
+          '<div class="lp-page-wrap lp-page-wrap--print lp-html-page-wrap" style="overflow:hidden;">' +
+            '<iframe class="lp-html-iframe" sandbox="allow-same-origin allow-scripts" ' +
+              'style="border:0;display:block;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,0.14);transform-origin:top left;">' +
+            '</iframe>' +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-footer">Live HTML preview \xb7 page boundaries shown \xb7 actual PDF may vary slightly</div>' +
+      '</div>';
+
+    // Wire page-size + orientation buttons (existing helpers)
+    wireCtrlSync(host, state);
+    state.onchange = function () {
+      var ps = document.getElementById('opt-pageSize');    if (ps) ps.value = state.size.toLowerCase();
+      var or = document.getElementById('opt-orientation'); if (or) or.value = state.orient;
+      requestAnimationFrame(applyIframe);
+    };
+
+    // Wire margin buttons
+    host.querySelectorAll('[data-margin]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.margins = b.dataset.margin;
+        host.querySelectorAll('[data-margin]').forEach(function (x) {
+          x.classList.toggle('active', x.dataset.margin === state.margins);
+        });
+        var el = document.getElementById('opt-margins'); if (el) el.value = state.margins;
+        requestAnimationFrame(applyIframe);
+      });
+    });
+
+    // Wire zoom buttons
+    host.querySelectorAll('[data-zoom]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.zoom = b.dataset.zoom;
+        host.querySelectorAll('[data-zoom]').forEach(function (x) {
+          x.classList.toggle('active', x.dataset.zoom === state.zoom);
+        });
+        requestAnimationFrame(applyIframe);
+      });
+    });
+
+    // Initial render after layout settles
+    requestAnimationFrame(function () { setTimeout(applyIframe, 80); });
+  }
+
+  // ======================================================================
+  // OCR PRO MAX PREVIEW  (.lp-ocr-*)
+  // Split view: original page (pdfjs canvas) left, extracted text right.
+  // Shows scan quality, language hint, page count, confidence estimate.
+  // ======================================================================
+  async function mountOcrPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analyzing PDF\u2026' + skeletonHtml(4) + '</div>';
+
+    var pdfjsLib;
+    try { pdfjsLib = await loadPdfJs(); }
+    catch (_) { host.innerHTML = errorHtml('Could not load PDF renderer. Check your connection.'); return; }
+
+    var buf, pdf;
+    try {
+      buf = await file.arrayBuffer();
+      pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+    } catch (_) { host.innerHTML = errorHtml('Could not open this PDF. Is it a valid PDF file?'); return; }
+
+    var numPages = pdf.numPages;
+
+    // Render page 1 at moderate scale for preview
+    var page, viewport, canvas, ctx;
+    try {
+      page     = await pdf.getPage(1);
+      viewport = page.getViewport({ scale: 1.5 });
+      canvas   = document.createElement('canvas');
+      canvas.width  = Math.min(Math.floor(viewport.width),  1600);
+      canvas.height = Math.min(Math.floor(viewport.height), 2200);
+      ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    } catch (_) {
+      host.innerHTML = errorHtml('Could not render PDF page.', function () { mountOcrPreview(file, host); });
+      await pdf.destroy();
+      return;
+    }
+
+    // Extract digital text from page 1 for preview
+    var content     = await page.getTextContent();
+    var digitalText = content.items.map(function (it) { return it.str; }).join(' ').trim();
+    var hasDigital  = digitalText.replace(/\s/g, '').length >= 30;
+    var digitalWc   = (digitalText.match(/\b\w+\b/g) || []).length;
+    page.cleanup();
+    await pdf.destroy();
+
+    // Language hint from digital text
+    var langHint = detectLanguage(digitalText);
+
+    // Scan quality estimate
+    var isScanned  = !hasDigital;
+    var qualScore  = isScanned ? 55 : 90;
+    var statusMsg  = isScanned
+      ? '\u26A0 Scanned / image-based PDF \u2014 Tesseract OCR will extract text on Process'
+      : '\u2713 Selectable text found \u2014 OCR will also enhance and reconstruct layout';
+
+    // Convert canvas to data URL, then free
+    var thumbUrl = canvas.toDataURL('image/jpeg', 0.82);
+    canvas.width = 0; canvas.height = 0;
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--ocr">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+              '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>' +
+              '<polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>' +
+              '<line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>' +
+            '</svg>' +
+            ' OCR Analysis' +
+          '</span>' +
+          '<div class="lp-header-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages > 1 ? 's' : '') + '</span>' +
+            (digitalWc > 0 ? '<span class="lp-stat"><b>' + fmtNum(digitalWc) + '</b> words found</span>' : '') +
+            (langHint ? '<span class="lp-stat">' + langHint.flag + ' ' + esc(langHint.label) + '</span>' : '') +
+            qualityBadge(qualScore) +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-warn-stack">' +
+          '<div class="lp-warn-banner lp-ocr-status-banner">' + esc(statusMsg) + '</div>' +
+        '</div>' +
+        '<div class="lp-scroll lp-scroll--wide">' +
+          '<div class="lp-ocr-split">' +
+            '<div class="lp-ocr-col">' +
+              '<div class="lp-split-label">Original \u2014 Page 1 of ' + numPages + '</div>' +
+              '<img class="lp-ocr-orig-img" src="' + thumbUrl + '" alt="PDF page 1 preview">' +
+            '</div>' +
+            '<div class="lp-ocr-col">' +
+              '<div class="lp-split-label">Text Extraction Preview</div>' +
+              '<div class="lp-ocr-text-preview">' +
+                (hasDigital
+                  ? '<div class="lp-ocr-text-content">' + esc(digitalText.slice(0, 900)) + (digitalText.length > 900 ? '\u2026' : '') + '</div>'
+                  : '<div class="lp-ocr-text-placeholder">' +
+                      '<div class="lp-ocr-scan-icon">\uD83D\uDD0D</div>' +
+                      '<div>Tesseract OCR will extract text when you click <strong>Process</strong></div>' +
+                      '<div class="lp-ocr-hint">OCR Mode, Language and Output Format options below control the result quality.</div>' +
+                    '</div>'
+                ) +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-footer">' +
+          'Scan analysis \xb7 ' +
+          (isScanned ? 'image-based PDF \u2014 Tesseract OCR required' : 'text-based PDF \u2014 fast extraction mode') +
+          ' \xb7 all ' + numPages + ' page' + (numPages > 1 ? 's' : '') + ' will be processed' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ======================================================================
   // MOUNT DISPATCHER
   // ======================================================================
   async function mount(toolId, files, host) {
@@ -2147,6 +2433,8 @@
       else if (toolId === 'edit')                await mountEditPdfPreview(file, host);
       else if (toolId === 'pdf-to-powerpoint')   await mountPdfPowerPointPreview(file, host);
       else if (toolId === 'powerpoint-to-pdf')   await mountPowerPointPdfPreview(file, host);
+      else if (toolId === 'html-to-pdf')         await mountHtmlToPdfPreview(file, host);
+      else if (toolId === 'ocr')                 await mountOcrPreview(file, host);
     } catch (err) {
       // Never blank-screen — show recovery UI
       host.innerHTML = errorHtml(

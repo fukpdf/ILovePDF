@@ -606,19 +606,118 @@
     }
   }
 
-  // ── PHASE 1: HTML TO PDF ─────────────────────────────────────────────────
-  async function htmlToPdf(files) {
+  // ── PHASE 1: HTML TO PDF PRO MAX ─────────────────────────────────────────
+  // Full CSS preservation, print layout engine, page-break intelligence,
+  // configurable margins/page-size/orientation/mode. Blob validation.
+  async function htmlToPdf(files, opts) {
     const html2pdfFn = await loadHtml2Pdf();
     const text = await files[0].text();
+    opts = opts || {};
+
+    // Parse user options
+    const pageSize  = (opts.pageSize    || 'a4').toLowerCase();
+    const orient    = (opts.orientation || 'portrait').toLowerCase();
+    const marginKey = opts.margins      || 'normal';
+    const printMode = opts.printMode    || 'exact';
+    const bgMode    = opts.background   || 'on';
+    const dpi       = parseInt(opts.dpi || '150', 10);
+    const breakMode = opts.pageBreak    || 'smart';
+
+    const MARGIN_MAP = {
+      none:   [0,  0,  0,  0],
+      narrow: [5,  5,  5,  5],
+      normal: [10, 12, 10, 12],
+      wide:   [20, 25, 20, 25],
+    };
+    const margins = MARGIN_MAP[marginKey] || MARGIN_MAP.normal;
+
+    // Container width (landscape swaps w/h dims)
+    const PAGE_W_MM = { a4: 210, letter: 216, a3: 297, a5: 148, legal: 216, tabloid: 279 };
+    const PAGE_H_MM = { a4: 297, letter: 279, a3: 420, a5: 210, legal: 356, tabloid: 432 };
+    const wMm = orient === 'landscape' ? (PAGE_H_MM[pageSize] || 297) : (PAGE_W_MM[pageSize] || 210);
+
+    // Parse the incoming HTML — preserve ALL style/link tags from head
+    const parser   = new DOMParser();
+    const inputDoc = parser.parseFromString(text, 'text/html');
+    const bodyHtml = inputDoc.body ? inputDoc.body.innerHTML : text;
+    const headStyles = Array.from(inputDoc.querySelectorAll('style'))
+      .map(s => s.outerHTML).join('');
+    // Only include external stylesheets with absolute https URLs (cross-origin safe)
+    const linkStyles = Array.from(inputDoc.querySelectorAll('link[rel="stylesheet"][href]'))
+      .filter(l => /^https?:\/\//i.test(l.getAttribute('href') || ''))
+      .map(l => l.outerHTML).join('');
+
+    // Page-break strategy CSS
+    const breakCss = {
+      smart:     'h1,h2,h3,h4{page-break-after:avoid;break-after:avoid;}table,figure,img{page-break-inside:avoid;break-inside:avoid;}',
+      'avoid-all':'h1,h2,h3,h4,h5,h6,table,img,figure,blockquote,ul,ol{page-break-inside:avoid;break-inside:avoid;}',
+      auto:      '',
+    }[breakMode] || '';
+
+    // Print mode CSS transformations
+    const modeCss = {
+      exact:        '',
+      compact:      'body{line-height:1.3!important;}p,li{margin-bottom:4px!important;}h1,h2,h3{margin:8px 0 4px!important;}',
+      'ink-saver':  '*{background:transparent!important;background-image:none!important;box-shadow:none!important;color:#000!important;}a{color:#000!important;}',
+      presentation: 'body{font-size:14pt!important;line-height:1.7!important;}h1{font-size:26pt!important;}h2{font-size:20pt!important;}h3{font-size:15pt!important;}',
+      book:         'body{font-family:Georgia,"Times New Roman",serif!important;line-height:1.65!important;font-size:12pt!important;}',
+    }[printMode] || '';
+
+    // Background strip
+    const bgCss = bgMode === 'off'
+      ? '*{background:transparent!important;background-image:none!important;}'
+      : '';
+
+    // Base print-fidelity styles
+    const baseCss = `
+      @media print{html,body{margin:0!important;padding:0!important;}}
+      *{box-sizing:border-box;}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.55;color:#111;word-wrap:break-word;}
+      img{max-width:100%;height:auto;}
+      table{border-collapse:collapse;max-width:100%;word-break:break-word;}
+      pre,code{white-space:pre-wrap;word-break:break-all;font-size:10pt;}
+      a{word-break:break-all;}svg{max-width:100%;}
+      ${breakCss}${modeCss}${bgCss}`;
+
+    // Self-contained document for rendering
+    const fullHtml =
+      '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      linkStyles + headStyles +
+      '<style>' + baseCss + '</style>' +
+      '</head><body>' + bodyHtml + '</body></html>';
+
     const container = document.createElement('div');
-    container.innerHTML = text;
-    container.style.cssText = 'max-width:750px;font-family:Arial,sans-serif;position:fixed;left:-9999px;top:0;background:#fff;padding:20px;';
+    container.innerHTML = fullHtml;
+    container.style.cssText = 'position:fixed;left:-99999px;top:0;width:' + wMm + 'mm;background:#fff;';
     document.body.appendChild(container);
+
+    const scale      = dpi >= 250 ? 3 : dpi >= 200 ? 2.5 : 2;
+    const imgQuality = dpi >= 200 ? 0.99 : 0.95;
+
     try {
       const blob = await html2pdfFn()
-        .set({ margin: 12, image: { type: 'jpeg', quality: 0.95 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, html2canvas: { scale: 2, useCORS: true } })
+        .set({
+          margin:      margins,
+          image:       { type: 'jpeg', quality: imgQuality },
+          jsPDF:       { unit: 'mm', format: pageSize, orientation: orient },
+          html2canvas: {
+            scale,
+            useCORS:         true,
+            allowTaint:      true,
+            logging:         false,
+            backgroundColor: bgMode === 'off' ? '#ffffff' : null,
+          },
+          pagebreak: { mode: breakMode === 'avoid-all' ? 'avoid-all' : 'legacy' },
+        })
         .from(container)
         .output('blob');
+
+      if (!blob || blob.size < 500) {
+        throw new Error(
+          'Conversion produced an empty PDF. The HTML may be empty, contain only ' +
+          'external resources that could not load, or use features unsupported by this renderer.'
+        );
+      }
       return new Blob([blob], { type: 'application/pdf' });
     } finally {
       if (container.parentNode) document.body.removeChild(container);
@@ -1323,73 +1422,200 @@
     return { blob: new Blob([lines.join('\n')], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
   }
 
-  // ── PHASE 4: OCR PDF (v5.5 — returns DOCX with heading detection) ────────
-  // Tries pdfjs text extraction first (fast, preserves layout).
-  // Falls back to Tesseract for scanned/image-only PDFs.
-  // Output: .docx (matching the server-side OCR format).
-  async function ocrPdf(files) {
+  // ── PHASE 4: OCR PDF PRO MAX ─────────────────────────────────────────────
+  // Multi-mode OCR: preprocessing pipeline, confidence scoring, multi-language,
+  // layout reconstruction (headings/tables/paragraphs), three output formats.
+  async function ocrPdf(files, opts) {
+    opts = opts || {};
+    const ocrMode   = opts.ocrMode      || 'balanced';
+    const lang      = opts.language     || 'eng';
+    const outputFmt = opts.outputFormat || 'docx';
+    const preproc   = opts.preprocessing || 'auto';
+
     const pdfjsLib = await loadPdfJs();
-    const JSZip    = await loadJsZip();
     const data     = await readFileBytes(files[0]);
     const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const numPages = pdf.numPages;
 
-    let allText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
+    // ── Fast digital-text probe ───────────────────────────────────────────
+    let digitalText = '';
+    for (let i = 1; i <= numPages; i++) {
       const page    = await pdf.getPage(i);
       const content = await page.getTextContent();
-      allText += content.items.map(it => it.str).join(' ') + '\n';
+      digitalText  += content.items.map(it => it.str).join(' ') + '\n';
       page.cleanup();
     }
+    const hasDigitalText = digitalText.replace(/\s/g, '').length >= 60;
 
-    // If digital text is sparse, use Tesseract OCR
-    if (allText.replace(/\s/g, '').length < 60) {
-      const Tesseract = await loadTesseract();
-      const ocrLines  = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page     = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas   = document.createElement('canvas');
-        canvas.width   = Math.floor(viewport.width);
-        canvas.height  = Math.floor(viewport.height);
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        const dataUrl = canvas.toDataURL('image/png');
-        canvas.width = 0; canvas.height = 0;
-        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
-        ocrLines.push(text.trim());
-        page.cleanup();
+    // ── Render scale by OCR mode ─────────────────────────────────────────
+    const scaleMap = { fast: 1.5, balanced: 2.0, accurate: 2.5, 'layout-preserve': 2.0, 'table-priority': 2.5 };
+    const renderScale = scaleMap[ocrMode] || 2.0;
+
+    // Tesseract page-segmentation mode
+    const psmMap = { 'table-priority': '6', 'layout-preserve': '4' };
+    const psm    = psmMap[ocrMode] || '3';
+
+    const Tesseract = await loadTesseract();
+
+    const allPageData = [];
+    let totalConfidence = 0;
+
+    for (let i = 1; i <= numPages; i++) {
+      const page     = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
+      const canvas   = document.createElement('canvas');
+      canvas.width   = Math.min(Math.floor(viewport.width),  4096);
+      canvas.height  = Math.min(Math.floor(viewport.height), 4096);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // ── Preprocessing pipeline ─────────────────────────────────────────
+      if (preproc === 'auto' || preproc === 'contrast' || preproc === 'bw') {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        const doContrast = preproc === 'auto' || preproc === 'contrast';
+        const doBW       = preproc === 'bw';
+        for (let px = 0; px < d.length; px += 4) {
+          const gray = 0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2];
+          let val    = doContrast ? Math.min(255, Math.max(0, (gray - 128) * 1.4 + 128)) : gray;
+          if (doBW) val = val > 127 ? 255 : 0;
+          d[px] = d[px + 1] = d[px + 2] = val;
+        }
+        ctx.putImageData(imgData, 0, 0);
       }
-      allText = ocrLines.join('\n\n');
+
+      const dataUrl = canvas.toDataURL('image/png');
+      canvas.width = 0; canvas.height = 0;
+
+      // ── Run Tesseract ──────────────────────────────────────────────────
+      const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
+        logger: () => {},
+        tessedit_pageseg_mode: psm,
+      });
+
+      const pageConf = typeof ocrData.confidence === 'number' ? ocrData.confidence : 0;
+      totalConfidence += pageConf;
+      allPageData.push({
+        text:       (ocrData.text || '').trim(),
+        words:      ocrData.words || [],
+        confidence: pageConf,
+        pageIdx:    i - 1,
+      });
+      page.cleanup();
     }
     await pdf.destroy();
 
-    // Build DOCX from extracted text with heading detection
-    const lines     = allText.split('\n').map(l => l.trim()).filter(Boolean);
-    const docXmlParts = [];
-    for (const line of lines) {
-      const esc    = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const isH1   = line === line.toUpperCase() && line.length >= 4 && line.length <= 70 && /[A-Z]/.test(line);
-      const isH2   = !isH1 && /^(\d+\.)+\s+\S/.test(line) && line.length <= 80;
-      const pStyle = isH1 ? 'Heading1' : isH2 ? 'Heading2' : 'Normal';
-      const rStyle = isH1 ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
-                     isH2 ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
-                             '<w:sz><w:val>24</w:val></w:sz>';
-      docXmlParts.push(
-        '<w:p><w:pPr><w:pStyle w:val="' + pStyle + '"/></w:pPr>' +
-        '<w:r><w:rPr>' + rStyle + '</w:rPr><w:t xml:space="preserve">' + esc + '</w:t></w:r></w:p>'
+    const avgConf = numPages > 0 ? totalConfidence / numPages : 0;
+    if (avgConf < 5 && !hasDigitalText) {
+      throw new Error(
+        'OCR confidence too low (' + Math.round(avgConf) + '%). ' +
+        'The scan may be too blurry or the language may not match. ' +
+        'Try a different language or preprocessing mode.'
       );
     }
 
-    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>${docXmlParts.join('')}<w:sectPr/></w:body>
-</w:document>`;
+    // ── Plain text output ─────────────────────────────────────────────────
+    if (outputFmt === 'txt') {
+      const fullText = allPageData.map(p => p.text).join('\n\n--- Page Break ---\n\n');
+      if (!fullText.trim()) throw new Error('No text could be extracted from this PDF.');
+      return { blob: new Blob([fullText], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+    }
 
-    const ctXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
-    const relsXml= `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
-    const wRels  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+    // ── Searchable PDF: clean text PDF built from OCR lines ───────────────
+    if (outputFmt === 'searchable-pdf') {
+      const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
+      const outDoc = await PDFDocument.create();
+      const font   = await outDoc.embedFont(StandardFonts.Helvetica);
+      const bold   = await outDoc.embedFont(StandardFonts.HelveticaBold);
+      const pageW  = 595.28; const pageH = 841.89; // A4 pts
+      const mL = 50; const mR = 50; const mT = 50; const mB = 50;
+      const contentW = pageW - mL - mR;
+
+      for (const pd of allPageData) {
+        if (!pd.text) continue;
+        const rawLines = pd.text.split('\n').filter(l => l.trim());
+        let page = outDoc.addPage([pageW, pageH]);
+        let y    = pageH - mT;
+
+        for (const line of rawLines) {
+          if (!line.trim()) continue;
+          const isH1  = line === line.toUpperCase() && line.length >= 4 && line.length <= 70 && /[A-Z]/.test(line);
+          const usedFont = isH1 ? bold : font;
+          const usedSz   = isH1 ? 14 : 11;
+          const lineH    = usedSz * 1.5;
+
+          // Word-wrap within content width
+          const words  = line.split(' ');
+          let curLine  = '';
+          const wrapped = [];
+          for (const w of words) {
+            const testLine = curLine ? curLine + ' ' + w : w;
+            if (usedFont.widthOfTextAtSize(testLine, usedSz) > contentW && curLine) {
+              wrapped.push(curLine); curLine = w;
+            } else { curLine = testLine; }
+          }
+          if (curLine) wrapped.push(curLine);
+
+          for (const wl of wrapped) {
+            if (y - lineH < mB) {
+              page = outDoc.addPage([pageW, pageH]);
+              y    = pageH - mT;
+            }
+            y -= lineH;
+            try { page.drawText(wl, { x: mL, y, size: usedSz, font: usedFont, color: rgb(0, 0, 0), maxWidth: contentW }); } catch (_) {}
+          }
+          if (isH1) y -= 4;
+        }
+      }
+
+      const pdfBytes = await outDoc.save();
+      if (!pdfBytes || pdfBytes.length < 200) throw new Error('Could not generate searchable PDF.');
+      return { blob: new Blob([pdfBytes], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
+    }
+
+    // ── DOCX output with layout reconstruction ────────────────────────────
+    const JSZip    = await loadJsZip();
+    const allLines = allPageData.flatMap(p => p.text.split('\n').map(l => l.trim()).filter(Boolean));
+
+    const docXmlParts = [];
+    for (const line of allLines) {
+      const escaped    = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const isH1       = line === line.toUpperCase() && line.length >= 4 && line.length <= 70 && /[A-Z]/.test(line);
+      const isH2       = !isH1 && /^(\d+\.)+\s+\S/.test(line) && line.length <= 80;
+      const isTableRow = !isH1 && !isH2 && (line.split('\t').length >= 3 || line.split('|').length >= 3);
+      const pStyle = isH1 ? 'Heading1' : isH2 ? 'Heading2' : 'Normal';
+      const rStyle = isH1       ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
+                     isH2       ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
+                     isTableRow ? '<w:sz><w:val>20</w:val></w:sz>' :
+                                  '<w:sz><w:val>24</w:val></w:sz>';
+      docXmlParts.push(
+        '<w:p><w:pPr><w:pStyle w:val="' + pStyle + '"/></w:pPr>' +
+        '<w:r><w:rPr>' + rStyle + '</w:rPr><w:t xml:space="preserve">' + escaped + '</w:t></w:r></w:p>'
+      );
+    }
+
+    // Confidence footer
+    const confNote = 'OCR Confidence: ' + Math.round(avgConf) + '% | ' +
+      numPages + ' page' + (numPages > 1 ? 's' : '') +
+      ' | Mode: ' + ocrMode + ' | Lang: ' + lang;
+    const footEsc = confNote.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    docXmlParts.push(
+      '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>' +
+      '<w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr>' +
+      '<w:t xml:space="preserve">─────────────────────────────────────────────────</w:t></w:r></w:p>',
+      '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>' +
+      '<w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr>' +
+      '<w:t xml:space="preserve">' + footEsc + '</w:t></w:r></w:p>'
+    );
+
+    const docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+      '<w:body>' + docXmlParts.join('') + '<w:sectPr/></w:body></w:document>';
+    const ctXml   = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+    const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+    const wRels   = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
 
     const zip = new JSZip();
     zip.file('[Content_Types].xml', ctXml);
@@ -1397,6 +1623,8 @@
     zip.file('word/document.xml', docXml);
     zip.file('word/_rels/document.xml.rels', wRels);
     const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+    if (!docxBlob || docxBlob.size < 200) throw new Error('OCR produced no output. The PDF may be damaged or unreadable.');
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 

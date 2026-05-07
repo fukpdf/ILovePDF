@@ -2790,3 +2790,99 @@ a{ color:var(--brand-text); }
   color: #b45309 !important;
   background: #fef9c3 !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Live Preview: HTML → PDF PRO MAX  (.lp-html-*)
+   ═══════════════════════════════════════════════════════════════════════ */
+.lp-panel--html-pdf {}
+
+.lp-html-page-wrap {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+  background: #e2e8f0;
+  padding: 12px;
+  min-height: 120px;
+}
+
+.lp-html-iframe {
+  border: 0;
+  display: block;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.14);
+  transform-origin: top left;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Live Preview: OCR PRO MAX  (.lp-ocr-*)
+   ═══════════════════════════════════════════════════════════════════════ */
+.lp-panel--ocr {}
+
+.lp-ocr-split {
+  display: flex;
+  gap: 16px;
+  min-width: 580px;
+  padding: 12px;
+  align-items: flex-start;
+}
+
+.lp-ocr-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-ocr-orig-img {
+  max-width: 100%;
+  display: block;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+}
+
+.lp-ocr-text-preview {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 12px;
+  min-height: 220px;
+  max-height: 520px;
+  overflow-y: auto;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.lp-ocr-text-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Inter', sans-serif;
+}
+
+.lp-ocr-text-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.lp-ocr-scan-icon {
+  font-size: 2.2rem;
+}
+
+.lp-ocr-hint {
+  font-size: 0.76rem;
+  color: #9ca3af;
+  max-width: 260px;
+  line-height: 1.5;
+}
+
+.lp-ocr-status-banner {
+  font-size: 0.84rem;
+}
+
+/* .lp-warn-stack / .lp-warn-banner / .lp-warn-icon — defined at lines 2362-2370 */

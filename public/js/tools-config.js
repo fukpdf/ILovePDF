@@ -311,7 +311,48 @@ const TOOLS = [
     description: 'Convert HTML files into PDF documents',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/html-to-pdf', acceptedFiles: '.html,.htm',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize', label: 'Page Size', type: 'select', options: [
+        { value: 'a4',      label: 'A4 (210 × 297 mm)' },
+        { value: 'letter',  label: 'Letter (8.5 × 11 in)' },
+        { value: 'a3',      label: 'A3 (297 × 420 mm)' },
+        { value: 'a5',      label: 'A5 (148 × 210 mm)' },
+        { value: 'legal',   label: 'Legal (8.5 × 14 in)' },
+        { value: 'tabloid', label: 'Tabloid (11 × 17 in)' },
+      ]},
+      { id: 'orientation', label: 'Orientation', type: 'select', options: [
+        { value: 'portrait',  label: 'Portrait' },
+        { value: 'landscape', label: 'Landscape' },
+      ]},
+      { id: 'margins', label: 'Margins', type: 'select', options: [
+        { value: 'none',   label: 'None' },
+        { value: 'narrow', label: 'Narrow (5 mm)' },
+        { value: 'normal', label: 'Normal (10 mm)' },
+        { value: 'wide',   label: 'Wide (20 mm)' },
+      ]},
+      { id: 'printMode', label: 'Print Mode', type: 'select', options: [
+        { value: 'exact',        label: 'Exact Layout' },
+        { value: 'compact',      label: 'Compact (tight spacing)' },
+        { value: 'ink-saver',    label: 'Ink Saver (strip backgrounds)' },
+        { value: 'presentation', label: 'Presentation (larger text)' },
+        { value: 'book',         label: 'Book Layout (serif font)' },
+      ]},
+      { id: 'background', label: 'Background Graphics', type: 'select', options: [
+        { value: 'on',  label: 'Include backgrounds' },
+        { value: 'off', label: 'No backgrounds' },
+      ]},
+      { id: 'pageBreak', label: 'Page Break Strategy', type: 'select', options: [
+        { value: 'smart',     label: 'Smart (protect headings & tables)' },
+        { value: 'auto',      label: 'Auto (browser default)' },
+        { value: 'avoid-all', label: 'Avoid breaks inside all elements' },
+      ]},
+      { id: 'dpi', label: 'Render Quality', type: 'select', options: [
+        { value: '150', label: 'Standard (150 DPI)' },
+        { value: '200', label: 'High (200 DPI)' },
+        { value: '250', label: 'Ultra (250 DPI — slower)' },
+      ]},
+    ]
   },
 
   // ── EDIT & ANNOTATE ───────────────────────────────────────────────────────
@@ -433,7 +474,39 @@ const TOOLS = [
     description: 'Extract and copy text from your PDF document',
     category: 'Advanced Tools', group: 'pdf', badge: 'AI',
     apiEndpoint: '/api/ocr', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'balanced',        label: 'Balanced (Recommended)' },
+        { value: 'fast',            label: 'Fast OCR' },
+        { value: 'accurate',        label: 'Accurate (slower)' },
+        { value: 'layout-preserve', label: 'Layout Preserve' },
+        { value: 'table-priority',  label: 'Table Priority' },
+      ]},
+      { id: 'language', label: 'Language', type: 'select', options: [
+        { value: 'eng', label: 'English' },
+        { value: 'fra', label: 'French' },
+        { value: 'deu', label: 'German' },
+        { value: 'spa', label: 'Spanish' },
+        { value: 'ita', label: 'Italian' },
+        { value: 'por', label: 'Portuguese' },
+        { value: 'rus', label: 'Russian' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'jpn', label: 'Japanese' },
+        { value: 'ara', label: 'Arabic' },
+      ]},
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'docx',           label: 'Word Document (.docx)' },
+        { value: 'searchable-pdf', label: 'Searchable PDF' },
+        { value: 'txt',            label: 'Plain Text (.txt)' },
+      ]},
+      { id: 'preprocessing', label: 'Image Enhancement', type: 'select', options: [
+        { value: 'auto',     label: 'Auto (Recommended)' },
+        { value: 'contrast', label: 'Contrast Boost' },
+        { value: 'bw',       label: 'Black & White' },
+        { value: 'none',     label: 'None (raw scan)' },
+      ]},
+    ]
   },
   {
     id: 'compare', name: 'Compare', icon: 'columns',
