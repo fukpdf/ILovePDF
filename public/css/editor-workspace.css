@@ -1089,3 +1089,895 @@
     min-height: 320px;
   }
 }
+
+/* ============================================================
+   PHASE 14: ENTERPRISE VISUAL SYSTEM + PREMIUM TOOL EXPERIENCE
+   Surgical upgrades — never rewrites. Extends Phase 13 system.
+   ============================================================ */
+
+/* ── Workspace context banner ──────────────────────────────── */
+.ew-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #f8f6ff 0%, #f3f0ff 100%);
+  border: 1px solid #e4dcff;
+  border-radius: var(--ew-radius-md);
+  margin-bottom: 16px;
+  font-size: .82rem;
+  color: #4c3db5;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+  min-width: 0;
+}
+
+.ew-context-icon {
+  width: 30px;
+  height: 30px;
+  background: var(--ew-grad);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3);
+}
+
+.ew-context-icon [data-lucide] {
+  width: 15px;
+  height: 15px;
+}
+
+.ew-context-label {
+  font-weight: 700;
+  color: #3730a3;
+  white-space: nowrap;
+}
+
+.ew-context-file {
+  font-weight: 500;
+  color: #6b7280;
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.ew-context-chip {
+  margin-left: auto;
+  background: var(--ew-grad);
+  color: #fff;
+  font-size: .66rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Premium panel: gradient accent top border ─────────────── */
+.lp-panel {
+  position: relative;
+}
+
+.lp-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--ew-grad);
+  border-radius: var(--ew-radius-lg) var(--ew-radius-lg) 0 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Sticky header: glassmorphism upgrade ──────────────────── */
+.lp-header--sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  background: rgba(255,255,255,.97) !important;
+  box-shadow: 0 1px 0 var(--ew-border-sub) !important;
+}
+
+/* ── Header layout: flex column for title+stats+controls ───── */
+.lp-header {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 13px 18px 11px !important;
+}
+
+/* Title row */
+.lp-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: .84rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: .01em !important;
+  white-space: nowrap !important;
+}
+
+.lp-title svg {
+  color: var(--ew-accent) !important;
+  flex-shrink: 0 !important;
+}
+
+/* Stats row */
+.lp-stats,
+.lp-header-stats {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Individual stat pill */
+.lp-stat {
+  font-size: .71rem !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  background: #f1f5f9 !important;
+  padding: 2px 8px !important;
+  border-radius: 20px !important;
+  white-space: nowrap !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.lp-stat b {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.lp-stat--warn {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border-color: #fed7aa !important;
+}
+
+.lp-stat--num {
+  background: #eff6ff !important;
+  color: #1e40af !important;
+  border-color: #bfdbfe !important;
+}
+
+.lp-stat--pages {
+  background: #f0fdf4 !important;
+  color: #166534 !important;
+  border-color: #bbf7d0 !important;
+}
+
+/* Controls row */
+.lp-controls {
+  display: flex !important;
+  align-items: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-top: 4px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-ctrl-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.lp-ctrl-label {
+  font-size: .67rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .07em !important;
+}
+
+/* ── Warning banners: premium treatment ────────────────────── */
+.lp-warn-banner {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  padding: 10px 16px !important;
+  background: #fffbeb !important;
+  border-left: 3px solid #f59e0b !important;
+  border-bottom: 1px solid #fde68a !important;
+  font-size: .8rem !important;
+  color: #78350f !important;
+  line-height: 1.5 !important;
+}
+
+.lp-warn-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+.lp-warn-icon {
+  flex-shrink: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
+}
+
+/* ── Footer: elegant metadata bar ─────────────────────────── */
+.lp-footer {
+  padding: 9px 18px !important;
+  font-size: .71rem !important;
+  color: #94a3b8 !important;
+  background: #fafbff !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+  text-align: center !important;
+  letter-spacing: .01em !important;
+  line-height: 1.6 !important;
+}
+
+/* ── Loading state: branded spinner ────────────────────────── */
+.lp-loading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 52px 24px !important;
+  font-size: .84rem !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  min-height: 260px !important;
+  justify-content: center !important;
+}
+
+.lp-spinner {
+  width: 36px !important;
+  height: 36px !important;
+  border: 3px solid #e2e8f0 !important;
+  border-top-color: var(--ew-accent) !important;
+  border-radius: 50% !important;
+  animation: lp-spin .75s linear infinite !important;
+}
+
+@keyframes lp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Before/After: upgraded panel ─────────────────────────── */
+.lp-before-after {
+  display: flex !important;
+  gap: 0 !important;
+  padding: 24px !important;
+  background: #e8eaef !important;
+  min-height: 280px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lp-ba-col {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.lp-ba-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  background: rgba(255,255,255,.92) !important;
+  padding: 3px 10px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(226,232,240,.8) !important;
+}
+
+.lp-ba-canvas canvas {
+  border-radius: 8px !important;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.09) !important;
+  display: block !important;
+  max-width: 240px !important;
+}
+
+.lp-ba-canvas--after canvas {
+  background: repeating-conic-gradient(#d4d4d4 0% 25%, #fff 0% 50%) 0 0 / 14px 14px !important;
+}
+
+.lp-ba-divider {
+  font-size: 1.6rem !important;
+  color: var(--ew-accent) !important;
+  padding: 0 18px !important;
+  align-self: center !important;
+  filter: drop-shadow(0 0 6px rgba(91,61,245,.35)) !important;
+}
+
+/* ── Edge quality meter: premium ──────────────────────────── */
+.lp-eq-meter {
+  padding: 10px 18px !important;
+  background: #fff !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.lp-eq-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  white-space: nowrap !important;
+}
+
+.lp-eq-bar {
+  flex: 1 !important;
+  min-width: 80px !important;
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.lp-eq-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  background: var(--ew-grad) !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+.lp-eq-hint {
+  font-size: .7rem !important;
+  color: #94a3b8 !important;
+  white-space: nowrap !important;
+}
+
+.lp-eq-badge {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 20px !important;
+}
+
+/* ── Swipe compare: upgraded ───────────────────────────────── */
+.lp-swipe-wrap {
+  padding: 24px !important;
+  background: #e8eaef !important;
+  min-height: 280px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lp-swipe-container {
+  position: relative !important;
+  display: inline-block !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 6px 28px rgba(0,0,0,.18) !important;
+  user-select: none !important;
+  touch-action: none !important;
+}
+
+/* ── Page map: premium ─────────────────────────────────────── */
+.lp-page-map {
+  padding: 12px 18px !important;
+  background: var(--ew-surface-sub) !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-page-map-label {
+  font-size: .68rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  margin-bottom: 8px !important;
+}
+
+.lp-page-map-cell {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  border: 1px solid var(--ew-border) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: .68rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  transition: all .14s var(--ew-ease) !important;
+}
+
+.lp-page-map-cell--active {
+  background: var(--ew-grad) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3) !important;
+}
+
+/* ── Struct lines: upgraded ────────────────────────────────── */
+.lp-struct-line {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: .81rem !important;
+}
+
+.lp-struct-heading {
+  border-left: 3px solid var(--ew-accent) !important;
+  background: #f0f0ff !important;
+}
+
+.lp-struct-table {
+  border-left: 3px solid #f59e0b !important;
+  background: #fffbeb !important;
+}
+
+.lp-struct-para {
+  border-left: 3px solid #818cf8 !important;
+}
+
+/* ── Extract body layout ───────────────────────────────────── */
+.lp-extract-body {
+  padding: 16px 20px !important;
+  overflow-x: auto !important;
+}
+
+/* ── PPT legend pills ──────────────────────────────────────── */
+.lp-ppt-legend {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  padding: 10px 18px !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+  background: #fafbff !important;
+}
+
+.lp-legend-pill {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  border-radius: 20px !important;
+}
+
+/* ── Slide cards: deeper shadow on hover ───────────────────── */
+.lp-slide-card {
+  cursor: pointer !important;
+}
+
+/* ── Quality badge colour system ───────────────────────────── */
+.lp-quality {
+  font-size: .71rem !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  border-radius: 20px !important;
+  letter-spacing: .03em !important;
+}
+
+/* ── Scanned badge: more premium ───────────────────────────── */
+.lp-scanned-wrap {
+  background: linear-gradient(135deg,#fffbeb,#fef3c7) !important;
+  border-bottom: 1px solid #fde68a !important;
+}
+
+/* ── Repair analysis panel ─────────────────────────────────── */
+.lp-repair-analysis {
+  padding: 18px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.lp-repair-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-size: .84rem !important;
+}
+
+.lp-repair-label {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+.lp-repair-val {
+  font-size: .84rem !important;
+}
+
+.lp-repair-conf-bar {
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  margin-top: 4px !important;
+}
+
+.lp-repair-conf-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+/* ── OCR analysis layout ───────────────────────────────────── */
+.lp-ocr-split {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0 !important;
+  min-height: 320px !important;
+}
+
+.lp-ocr-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  padding: 18px !important;
+}
+
+.lp-ocr-col:first-child {
+  border-right: 1px solid var(--ew-border-sub) !important;
+  background: #fff !important;
+}
+
+.lp-ocr-col:last-child {
+  background: var(--ew-surface-sub) !important;
+}
+
+.lp-split-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+}
+
+.lp-ocr-orig-img {
+  max-width: 100% !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+}
+
+.lp-ocr-text-preview {
+  flex: 1 !important;
+  background: #fff !important;
+  border: 1px solid var(--ew-border-sub) !important;
+  border-radius: var(--ew-radius-sm) !important;
+  padding: 14px !important;
+  font-size: .8rem !important;
+  color: #374151 !important;
+  line-height: 1.7 !important;
+  overflow-y: auto !important;
+  max-height: 320px !important;
+}
+
+.lp-ocr-text-content {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+.lp-ocr-text-placeholder {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-align: center !important;
+  color: #64748b !important;
+  padding: 20px 0 !important;
+}
+
+.lp-ocr-scan-icon {
+  font-size: 2rem !important;
+}
+
+.lp-ocr-hint {
+  font-size: .75rem !important;
+  color: #94a3b8 !important;
+}
+
+/* ── Confidence meter ──────────────────────────────────────── */
+.lp-conf-meter-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 18px !important;
+  background: #fafbff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-conf-meter-label {
+  font-size: .7rem !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  white-space: nowrap !important;
+}
+
+.lp-conf-meter-bar {
+  flex: 1 !important;
+  height: 6px !important;
+  background: #e2e8f0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.lp-conf-meter-fill {
+  height: 100% !important;
+  border-radius: 4px !important;
+  transition: width .4s var(--ew-ease) !important;
+}
+
+.lp-conf-meter-pct {
+  font-size: .78rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+}
+
+/* ── OCR feature badges ────────────────────────────────────── */
+.lp-ocr-badges,
+.lp-scan-badges {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  padding: 10px 18px !important;
+  background: #fafbff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-ocr-badge,
+.lp-scan-badge {
+  font-size: .72rem !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  border-radius: 20px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.lp-ocr-badge--active,
+.lp-scan-badge--active {
+  background: #ede9fe !important;
+  color: var(--ew-accent) !important;
+  border-color: #c4b5fd !important;
+}
+
+/* ── Scan compare ──────────────────────────────────────────── */
+.lp-scan-compare {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0 !important;
+}
+
+.lp-scan-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 18px !important;
+  align-items: center !important;
+}
+
+.lp-scan-col:first-child {
+  background: #fff !important;
+  border-right: 1px solid var(--ew-border-sub) !important;
+}
+
+.lp-scan-col:last-child {
+  background: var(--ew-surface-sub) !important;
+}
+
+.lp-scan-img {
+  max-width: 100% !important;
+  max-height: 300px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+/* ── Repair thumbnail ──────────────────────────────────────── */
+.lp-repair-thumb-wrap {
+  padding: 16px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.lp-repair-thumb {
+  max-width: 100% !important;
+  max-height: 260px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,.12) !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+.lp-repair-no-preview {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 32px 20px !important;
+  text-align: center !important;
+  font-size: .84rem !important;
+  color: #64748b !important;
+}
+
+/* ── Scroll: wider view for OCR split ─────────────────────── */
+.lp-scroll--wide {
+  max-height: calc(100vh - 300px) !important;
+  min-height: 320px !important;
+  overflow: auto !important;
+}
+
+/* ── PPT powerpoint-to-pdf card ────────────────────────────── */
+.lp-pptpdf-card {
+  background: #fff !important;
+  border: 1px solid var(--ew-border) !important;
+  border-radius: var(--ew-radius-sm) !important;
+  padding: 12px !important;
+  position: relative !important;
+  transition: box-shadow var(--ew-dur) var(--ew-ease),
+              transform var(--ew-dur) var(--ew-ease) !important;
+  overflow: hidden !important;
+}
+
+.lp-pptpdf-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.1) !important;
+  transform: translateY(-1px) !important;
+}
+
+.lp-pptpdf-card--ov {
+  border-color: #fde68a !important;
+  background: #fffbeb !important;
+}
+
+.lp-pptpdf-title {
+  font-size: .82rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1.3 !important;
+  margin-bottom: 6px !important;
+}
+
+.lp-pptpdf-title--empty {
+  color: #94a3b8 !important;
+  font-style: italic !important;
+  font-weight: 500 !important;
+}
+
+.lp-pptpdf-body {
+  font-size: .75rem !important;
+  color: #64748b !important;
+  line-height: 1.5 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.lp-pptpdf-notes {
+  font-size: .72rem !important;
+  color: #7c3aed !important;
+  background: #f5f3ff !important;
+  border-radius: 4px !important;
+  padding: 4px 6px !important;
+  margin-top: 6px !important;
+  font-style: italic !important;
+}
+
+.lp-pptpdf-num {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  font-size: .68rem !important;
+  font-weight: 700 !important;
+  color: #cbd5e1 !important;
+}
+
+.lp-pptpdf-ov-badge {
+  position: absolute !important;
+  bottom: 6px !important;
+  right: 6px !important;
+  font-size: .75rem !important;
+}
+
+.lp-pptpdf-wm {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: .9rem !important;
+  font-weight: 900 !important;
+  color: rgba(0,0,0,.08) !important;
+  letter-spacing: .08em !important;
+  transform: rotate(-30deg) !important;
+  pointer-events: none !important;
+  text-transform: uppercase !important;
+}
+
+/* ── Table styles upgrade ──────────────────────────────────── */
+.lp-tbl {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  font-size: .8rem !important;
+}
+
+.lp-tbl th {
+  background: linear-gradient(135deg, #f8f9ff, #eef0ff) !important;
+  color: var(--ew-accent) !important;
+  font-weight: 700 !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+  border-bottom: 2px solid #d8dafd !important;
+  white-space: nowrap !important;
+  font-size: .75rem !important;
+  letter-spacing: .02em !important;
+}
+
+.lp-tbl td {
+  padding: 7px 12px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #374151 !important;
+  vertical-align: middle !important;
+}
+
+.lp-tbl tr:hover td {
+  background: #f8f6ff !important;
+}
+
+/* ── More rows pill ────────────────────────────────────────── */
+.lp-tbl-more {
+  text-align: center !important;
+  padding: 10px !important;
+  font-size: .75rem !important;
+  color: #94a3b8 !important;
+  background: #fafbff !important;
+  border-top: 1px solid var(--ew-border-sub) !important;
+}
+
+/* ── sc-more pill in slide grid ────────────────────────────── */
+.lp-sc-more {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255,255,255,.1) !important;
+  border-radius: 8px !important;
+  color: rgba(255,255,255,.7) !important;
+  font-size: .78rem !important;
+  font-weight: 700 !important;
+  width: 162px !important;
+  height: 100px !important;
+  border: 1px dashed rgba(255,255,255,.2) !important;
+}
+
+/* ── Phase 14: responsive tweaks ───────────────────────────── */
+@media (max-width: 640px) {
+  .lp-ocr-split,
+  .lp-scan-compare {
+    grid-template-columns: 1fr !important;
+  }
+  .lp-ocr-col:first-child,
+  .lp-scan-col:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--ew-border-sub) !important;
+  }
+  .ew-context-banner {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .ew-context-file {
+    display: none !important;
+  }
+}

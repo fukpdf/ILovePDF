@@ -672,6 +672,10 @@ function renderPreviewStep(tool) {
 
   const optionsHtml = buildOptionsHtml(tool);
 
+  const _ctxFile = selectedFiles.length === 1
+    ? selectedFiles[0].file.name
+    : `${selectedFiles.length} files selected`;
+
   container.innerHTML = `
     <div class="tool-page ew-preview-page">
       ${toolHeaderBlock(tool, {
@@ -682,6 +686,13 @@ function renderPreviewStep(tool) {
         back: { href: '#step:upload', label: 'Back to upload' },
       })}
       ${stepIndicatorHtml('preview')}
+
+      <div class="ew-context-banner">
+        <div class="ew-context-icon"><i data-lucide="${tool.icon || 'file'}"></i></div>
+        <span class="ew-context-label">${tool.name}</span>
+        <span class="ew-context-file">— ${_ctxFile}</span>
+        <span class="ew-context-chip">Preview Ready</span>
+      </div>
 
       <div class="ew-preview-workspace">
         <div class="ew-preview-main">
