@@ -2588,3 +2588,205 @@ a{ color:var(--brand-text); }
 .lp-panel--edit {
   display: flex; flex-direction: column; min-height: 400px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PDF ↔ PowerPoint Live Preview  v6.0
+   New classes only — no existing rules touched.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Shared scroll grid container ─────────────────────────────────── */
+.lp-scroll--grid {
+  overflow-x: auto; overflow-y: hidden;
+  padding: 12px 14px 8px;
+  flex: 1;
+}
+
+/* ── Panel variants ────────────────────────────────────────────────── */
+.lp-panel--pptx-from,
+.lp-panel--pptx-to {
+  display: flex; flex-direction: column; min-height: 380px;
+}
+
+/* ── Slide type legend bar ─────────────────────────────────────────── */
+.lp-ppt-legend {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 6px 14px 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.lp-legend-pill {
+  font-size: .68rem; font-weight: 700; letter-spacing: .4px;
+  padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+}
+
+/* ── Slide grid (PDF → PPT) ────────────────────────────────────────── */
+.lp-slide-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 6px 0 10px;
+  min-width: max-content;
+}
+
+/* ── Individual slide card ─────────────────────────────────────────── */
+.lp-slide-card {
+  position: relative; border-radius: 6px;
+  overflow: hidden; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.22);
+  transition: transform .15s, box-shadow .15s;
+  cursor: default;
+}
+.lp-slide-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(0,0,0,.3);
+}
+
+/* Slide type badge (top-left overlay) */
+.lp-sc-badge {
+  position: absolute; top: 5px; left: 5px; z-index: 2;
+  font-size: .6rem; font-weight: 700; letter-spacing: .3px;
+  padding: 2px 6px; border-radius: 10px;
+  white-space: nowrap;
+}
+.lp-sc-conf { opacity: .75; font-weight: 600; }
+
+/* Slide number (bottom-right) */
+.lp-sc-num {
+  position: absolute; bottom: 5px; right: 6px;
+  font-size: .6rem; color: rgba(255,255,255,.45); font-weight: 600;
+}
+
+/* Title text preview inside card */
+.lp-sc-title {
+  position: absolute; top: 22px; left: 7px; right: 7px;
+  font-size: .62rem; font-weight: 700; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Body shimmer lines */
+.lp-sc-body {
+  position: absolute; top: 40px; left: 7px; right: 7px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.lp-sc-line {
+  height: 3px; border-radius: 2px; opacity: .32;
+}
+
+/* Image placeholder */
+.lp-sc-img {
+  position: absolute; top: 35px; left: 50%; transform: translateX(-50%);
+  font-size: 1.4rem; opacity: .3;
+}
+
+/* Table preview rows */
+.lp-sc-table {
+  position: absolute; top: 38px; left: 7px; right: 7px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.lp-sc-row {
+  height: 4px; border-radius: 1px; background: rgba(255,255,255,.18);
+}
+.lp-sc-row:first-child { opacity: .55; }
+
+/* Accent bar at bottom of card */
+.lp-sc-accent-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px; opacity: .7;
+}
+
+/* "+N more" tile */
+.lp-sc-more {
+  display: flex; align-items: center; justify-content: center;
+  width: 162px; min-height: 91px;
+  border: 1.5px dashed #cbd5e1; border-radius: 6px;
+  font-size: .72rem; color: #94a3b8; font-style: italic;
+}
+
+/* ── PowerPoint → PDF grid ─────────────────────────────────────────── */
+.lp-pptpdf-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 10px;
+  padding: 6px 0 10px;
+}
+
+/* Individual PPT→PDF card */
+.lp-pptpdf-card {
+  position: relative; border-radius: 6px; overflow: hidden;
+  border: 1.5px solid #e2e8f0;
+  background: #fff; min-height: 90px;
+  transition: box-shadow .15s, border-color .15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.lp-pptpdf-card:hover {
+  box-shadow: 0 3px 12px rgba(0,0,0,.13);
+  border-color: #c7d2fe;
+}
+/* Overflow warning card */
+.lp-pptpdf-card--ov {
+  border-color: #fb923c;
+}
+
+/* Top accent bar */
+.lp-pptpdf-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+}
+
+/* Inner content area */
+.lp-pptpdf-inner {
+  padding: 14px 12px 10px;
+}
+
+/* Title line */
+.lp-pptpdf-title {
+  font-size: .78rem; font-weight: 700; color: #1e293b;
+  margin-bottom: 5px; line-height: 1.3;
+}
+.lp-pptpdf-title--empty { color: #94a3b8; font-style: italic; font-weight: 500; }
+
+/* Body text */
+.lp-pptpdf-body {
+  font-size: .7rem; color: #475569; line-height: 1.45;
+}
+.lp-pptpdf-body > div {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+/* Watermark overlay text */
+.lp-pptpdf-wm {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg);
+  font-size: .65rem; font-weight: 900; letter-spacing: 1px;
+  color: rgba(185,28,28,.18); pointer-events: none; z-index: 1;
+  white-space: nowrap;
+}
+
+/* Notes strip below card */
+.lp-pptpdf-notes {
+  padding: 5px 12px;
+  background: #f8faff;
+  border-top: 1px solid #e0e7ff;
+  font-size: .67rem; color: #6366f1; font-style: italic;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Slide number badge */
+.lp-pptpdf-num {
+  position: absolute; top: 7px; right: 9px;
+  font-size: .62rem; font-weight: 700; color: #94a3b8;
+}
+
+/* Overflow badge */
+.lp-pptpdf-ov-badge {
+  position: absolute; bottom: 6px; right: 8px;
+  font-size: .68rem; color: #ea580c;
+}
+
+/* ── Warn stack (multiple warnings stacked) ────────────────────────── */
+.lp-warn-stack {
+  display: flex; flex-direction: column; gap: 0;
+}
+
+/* ── lp-stat variants ─────────────────────────────────────────────── */
+.lp-stat--warn {
+  color: #b45309 !important;
+  background: #fef9c3 !important;
+}

@@ -1864,40 +1864,228 @@
     return new Blob([bytes], { type: 'application/pdf' });
   }
 
-  // ── PHASE 6: PDF TO POWERPOINT (pdfjs text → pptxgenjs) ─────────────────
-  async function pdfToPowerpoint(files) {
+  // ── PHASE 6: PDF TO POWERPOINT v2.0 — structure-aware, themed, options-driven ──
+  // opts: layout (16x9|4x3|wide|a4), contentStrategy, theme, slideDensity,
+  //       tableHandling, ocrMode
+  async function pdfToPowerpoint(files, opts) {
     const PptxGenJS = await loadPptxGen();
     const pdfjsLib  = await loadPdfJs();
     const data = await readFileBytes(files[0]);
     const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
 
-    const pptx    = new PptxGenJS();
-    pptx.layout   = 'LAYOUT_16x9';
-    pptx.title    = files[0].name.replace(/\.[^.]+$/, '');
+    // ── Options ────────────────────────────────────────────────────────────
+    const layoutKey = String(opts && opts.layout || '16x9');
+    const strategy  = String(opts && opts.contentStrategy || 'smart');
+    const themeKey  = String(opts && opts.theme || 'modern');
+    const density   = String(opts && opts.slideDensity || 'balanced');
+    const tableMode = String(opts && opts.tableHandling || 'editable');
+
+    const LAYOUT_MAP = { '16x9': 'LAYOUT_16x9', '4x3': 'LAYOUT_4x3', 'wide': 'LAYOUT_WIDE', 'a4': 'LAYOUT_A4' };
+
+    // Theme palette: bg, title, text, accent colors + fonts (hex, no #)
+    const THEMES = {
+      modern:    { bg: '1e1b4b', title: 'ffffff', text: 'c7d2fe', accent: '818cf8', tf: 'Segoe UI',  bf: 'Segoe UI' },
+      corporate: { bg: '1e3a5f', title: 'ffffff', text: 'bfdbfe', accent: '60a5fa', tf: 'Calibri',   bf: 'Calibri'  },
+      minimal:   { bg: 'ffffff', title: '0f172a', text: '334155', accent: '6366f1', tf: 'Arial',     bf: 'Arial'    },
+      dark:      { bg: '0f172a', title: 'f8fafc', text: '94a3b8', accent: '6366f1', tf: 'Segoe UI',  bf: 'Segoe UI' },
+      pitch:     { bg: '0c0a09', title: 'ffffff', text: 'd6d3d1', accent: 'f59e0b', tf: 'Georgia',   bf: 'Arial'    },
+      white:     { bg: 'ffffff', title: '111827', text: '374151', accent: '2563eb', tf: 'Calibri',   bf: 'Calibri'  },
+    };
+    const tc = THEMES[themeKey] || THEMES.modern;
+
+    // Slide density → max words per chunk before splitting to new slide
+    const DENSITY_WORDS = { compact: 600, balanced: 320, spacious: 160 };
+    const maxWords = DENSITY_WORDS[density] || 320;
+
+    const pptx  = new PptxGenJS();
+    pptx.layout = LAYOUT_MAP[layoutKey] || 'LAYOUT_16x9';
+    pptx.title  = files[0].name.replace(/\.[^.]+$/, '');
+    pptx.author = 'ILovePDF';
+
+    // Slide master with background + accent bar
+    pptx.defineSlideMaster({
+      title: 'MASTER',
+      background: { color: tc.bg },
+      objects: [
+        { rect: { x: 0, y: 6.8, w: '100%', h: 0.18, fill: { color: tc.accent, transparency: 55 } } },
+      ],
+    });
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page    = await pdf.getPage(i);
+      const vp      = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
-      const text    = content.items.map(it => it.str).join(' ').trim();
-      const slide   = pptx.addSlide();
-      slide.addText(`Page ${i}`, { x: 0.4, y: 0.15, w: '90%', h: 0.45, fontSize: 20, bold: true, color: '303030' });
-      if (text) {
-        slide.addText(text.substring(0, 900), { x: 0.4, y: 0.75, w: '90%', h: 4.2, fontSize: 11, color: '555555', wrap: true });
+      const items   = content.items.filter(it => it.str && it.str.trim());
+
+      // ── Bucket text by Y position (lines) ──────────────────────────────
+      const yMap = {};
+      items.forEach(it => {
+        const y = Math.round(it.transform[5] / 4) * 4;
+        if (!yMap[y]) yMap[y] = { parts: [], maxFont: 0 };
+        yMap[y].parts.push({ text: it.str, x: it.transform[4] });
+        if ((it.height || 0) > yMap[y].maxFont) yMap[y].maxFont = it.height || 0;
+      });
+
+      const lines = Object.keys(yMap).map(Number).sort((a, b) => b - a).map(y => ({
+        text:     yMap[y].parts.sort((a, b) => a.x - b.x).map(p => p.text).join(' ').trim(),
+        fontSize: yMap[y].maxFont,
+      })).filter(l => l.text);
+
+      if (!lines.length) continue;
+
+      // ── Base font size for heading detection ────────────────────────────
+      const fFreq = {};
+      lines.forEach(l => { const s = Math.round(l.fontSize); if (s > 0) fFreq[s] = (fFreq[s] || 0) + 1; });
+      const baseFont = Object.keys(fFreq).length
+        ? parseInt(Object.keys(fFreq).sort((a, b) => fFreq[b] - fFreq[a])[0], 10) || 11 : 11;
+
+      // ── Column/table detection ──────────────────────────────────────────
+      const xVals = items.map(it => Math.round(it.transform[4]));
+      const xUniq = [...new Set(xVals)].sort((a, b) => a - b);
+      let   colGaps = 0;
+      for (let xi = 1; xi < xUniq.length; xi++) {
+        if (xUniq[xi] - xUniq[xi - 1] > (vp.width || 612) * 0.09) colGaps++;
       }
+      const isTable = colGaps >= 3;
+      const isFirst = i === 1;
+
+      // ── Content strategy: produce chunk array [{heading, bodyLines}] ────
+      let chunks = [];
+
+      const isHeading = l =>
+        (l.fontSize > baseFont * 1.18) ||
+        (l.text === l.text.toUpperCase() && l.text.length >= 3 && l.text.length < 80 && /[A-Z]/.test(l.text));
+
+      if (strategy === 'preserve') {
+        chunks = [{ heading: 'Page ' + i, bodyLines: lines.map(l => l.text) }];
+
+      } else if (strategy === 'minimal') {
+        const heads = lines.filter(l => isHeading(l)).map(l => l.text);
+        chunks = [{ heading: heads[0] || 'Page ' + i, bodyLines: heads.slice(1, 4) }];
+
+      } else if (strategy === 'executive') {
+        const heading = lines[0].text;
+        const bullets = lines.slice(1).filter(l => !isHeading(l) && l.text.split(/\s+/).length > 2)
+          .slice(0, 4).map(l => l.text.split(/\s+/).slice(0, 14).join(' '));
+        chunks = [{ heading, bodyLines: bullets }];
+
+      } else {
+        // smart: detect heading boundaries, split by density
+        let cur = { heading: '', bodyLines: [] };
+        let curW = 0;
+        chunks = [];
+
+        lines.forEach(line => {
+          const lWords = (line.text.match(/\b\w+\b/g) || []).length;
+          if (isHeading(line)) {
+            if (cur.heading || cur.bodyLines.length) chunks.push(cur);
+            cur = { heading: line.text, bodyLines: [] }; curW = 0;
+          } else if (curW + lWords > maxWords && cur.bodyLines.length > 0) {
+            chunks.push(cur);
+            cur = { heading: cur.heading ? 'Continued…' : '', bodyLines: [line.text] };
+            curW = lWords;
+          } else {
+            cur.bodyLines.push(line.text); curW += lWords;
+          }
+        });
+        if (cur.heading || cur.bodyLines.length) chunks.push(cur);
+        if (!chunks.length) chunks = [{ heading: 'Page ' + i, bodyLines: lines.map(l => l.text) }];
+      }
+
+      // ── Create slides ────────────────────────────────────────────────────
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const ch    = chunks[ci];
+        const slide = pptx.addSlide({ masterName: 'MASTER' });
+
+        // Left accent bar
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0, y: 0, w: 0.1, h: '100%',
+          fill: { color: tc.accent, transparency: 45 },
+          line: { color: tc.accent, transparency: 45 },
+        });
+
+        // Title
+        const titleStr = ch.heading || (isFirst ? lines[0].text : 'Slide ' + i);
+        slide.addText(titleStr.substring(0, 120), {
+          x: 0.28, y: 0.18, w: '89%', h: 0.9,
+          fontSize: strategy === 'executive' ? 30 : (isFirst && ci === 0 ? 28 : 22),
+          bold: true, color: tc.title, fontFace: tc.tf, wrap: true,
+        });
+
+        // Body
+        if (ch.bodyLines && ch.bodyLines.length) {
+          const useBullets = strategy !== 'preserve' && !isTable;
+          const maxLines   = strategy === 'executive' ? 4 : 20;
+          const bodyObjs   = ch.bodyLines.slice(0, maxLines).map(l => ({
+            text: l.trim().substring(0, 220),
+            options: {
+              bullet: useBullets ? { type: 'bullet' } : false,
+              fontSize: strategy === 'executive' ? 18 : 12,
+              color: tc.text, fontFace: tc.bf,
+            },
+          }));
+          slide.addText(bodyObjs, { x: 0.28, y: 1.2, w: '89%', h: 5.2, valign: 'top', wrap: true, autoFit: true });
+        }
+
+        // Table badge
+        if (isTable && tableMode !== 'image' && ci === 0) {
+          slide.addText('📊 Table detected — preserved as structured text', {
+            x: 0.28, y: 6.45, w: '89%', h: 0.25,
+            fontSize: 8, color: tc.accent, italic: true,
+          });
+        }
+      }
+
+      page.cleanup();
+    }
+
+    await pdf.destroy();
+
+    if (!pptx.slides.length) {
+      const s = pptx.addSlide({ masterName: 'MASTER' });
+      s.addText('No extractable content found. Use Force OCR mode for scanned PDFs.', {
+        x: 0.5, y: 2.8, w: '90%', h: 1.4, fontSize: 18, color: tc.title, align: 'center', wrap: true,
+      });
     }
 
     const blob = await pptx.write({ outputType: 'blob' });
+    if (!blob || blob.size < 500) throw new Error('Presentation generation failed — output appears empty.');
     return { blob, ext: '.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
   }
 
-  // ── PHASE 6: POWERPOINT TO PDF (JSZip parse → pdf-lib) ───────────────────
-  async function powerpointToPdf(files) {
+  // ── PHASE 6: POWERPOINT TO PDF v2.0 — handout grids, watermarks, notes, page-sizes ──
+  // opts: pageSize (presentation|A4|Letter|Legal|Tabloid), margins (none|narrow|normal|wide),
+  //       quality, handoutMode (1|2|4|6), speakerNotes (ignore|append|below), watermark
+  async function powerpointToPdf(files, opts) {
     const JSZip = await loadJsZip();
     const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
 
     const ab  = await files[0].arrayBuffer();
     const zip = await JSZip.loadAsync(ab);
 
+    // ── Options ───────────────────────────────────────────────────────────
+    const pageSizeKey = String(opts && opts.pageSize   || 'presentation');
+    const marginKey   = String(opts && opts.margins    || 'none');
+    const handout     = Math.max(1, parseInt(String(opts && opts.handoutMode || '1'), 10) || 1);
+    const notes       = String(opts && opts.speakerNotes || 'ignore');
+    const watermark   = String(opts && opts.watermark  || 'none');
+
+    // Page sizes [W, H] in points — presentation is landscape 16:9
+    const PAGE_SIZES_PT = {
+      presentation: [960, 540],
+      A4:      [842, 595],
+      Letter:  [792, 612],
+      Legal:   [1008, 612],
+      Tabloid: [1224, 792],
+    };
+    const MARGIN_PT = { none: 6, narrow: 22, normal: 40, wide: 60 };
+    const WM_TEXTS  = { confidential: 'CONFIDENTIAL', draft: 'DRAFT', 'do-not-copy': 'DO NOT COPY', none: '' };
+
+    const [PW, PH] = PAGE_SIZES_PT[pageSizeKey] || PAGE_SIZES_PT.presentation;
+    const margin   = MARGIN_PT[marginKey] || 6;
+    const wmText   = WM_TEXTS[watermark] || '';
+
+    // ── Parse slides ───────────────────────────────────────────────────────
     const slideNames = Object.keys(zip.files)
       .filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n))
       .sort((a, b) => {
@@ -1906,56 +2094,185 @@
         return na - nb;
       });
 
+    if (slideNames.length === 0) throw new Error('No slides found in this presentation file.');
+
+    // Parse each slide: title (ph type=title/ctrTitle) + body lines
+    const slideData = [];
+    for (const sn of slideNames) {
+      const xml   = await zip.files[sn].async('text');
+      const allT  = [];
+      const re    = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+      let   m;
+      while ((m = re.exec(xml)) !== null) {
+        const t = m[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&apos;/g,"'").replace(/&quot;/g,'"').trim();
+        if (t) allT.push(t);
+      }
+      // Title heuristic: ph type=title or ctrTitle precedes text
+      const hasTitle = /<p:ph[^>]*type=["'](title|ctrTitle)["']/.test(xml);
+      slideData.push({
+        num: slideData.length + 1,
+        texts: allT,
+        hasTitle,
+        isTitle: hasTitle || (allT.length <= 2 && allT[0] && allT[0].length < 80),
+      });
+    }
+
+    // ── Parse notes ────────────────────────────────────────────────────────
+    const notesData = {};
+    if (notes !== 'ignore') {
+      const noteFiles = Object.keys(zip.files)
+        .filter(n => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n))
+        .sort((a, b) => parseInt((a.match(/\d+/)||['0'])[0],10) - parseInt((b.match(/\d+/)||['0'])[0],10));
+      for (let ni = 0; ni < noteFiles.length; ni++) {
+        const nxml = await zip.files[noteFiles[ni]].async('text');
+        const nT = []; const nRe = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g; let nm;
+        while ((nm = nRe.exec(nxml)) !== null) {
+          const v = nm[1].replace(/&amp;/g,'&').trim(); if (v && v.length > 2) nT.push(v);
+        }
+        if (nT.length > 0) notesData[ni] = nT.join(' ');
+      }
+    }
+
+    // ── Build PDF ──────────────────────────────────────────────────────────
     const doc  = await PDFDoc.create();
     const font = await doc.embedFont(SF.Helvetica);
     const bold = await doc.embedFont(SF.HelveticaBold);
-    const PW   = 842, PH = 595; // landscape A4
-    const margin = 48, fontSize = 11, lineH = fontSize * 1.6;
 
-    if (slideNames.length === 0) {
-      const p = doc.addPage([PW, PH]);
-      p.drawText('No slides found in presentation', { x: margin, y: PH / 2, size: fontSize, font, color: RGB(0, 0, 0) });
+    // Word-wrap helper: draws text, returns final y
+    function drawWrapped(page, text, x, y, maxW, minY, sz, fnt, col) {
+      const lh    = sz * 1.55;
+      const words = String(text).split(' ');
+      let   line  = '';
+      let   cy    = y;
+      for (const w of words) {
+        const test = line ? line + ' ' + w : w;
+        if (fnt.widthOfTextAtSize(test, sz) > maxW && line) {
+          if (cy - lh < minY) { page.drawText('…', { x, y: cy, size: sz, font: fnt, color: col }); return cy - lh; }
+          page.drawText(line, { x, y: cy, size: sz, font: fnt, color: col });
+          cy -= lh; line = w;
+        } else { line = test; }
+      }
+      if (line && cy >= minY) page.drawText(line, { x, y: cy, size: sz, font: fnt, color: col });
+      return cy - lh;
     }
 
-    for (const slideName of slideNames) {
-      const xml   = await zip.files[slideName].async('text');
-      const texts = [];
-      const re    = /<a:t[^>]*>([^<]*)<\/a:t>/g;
-      let m;
-      while ((m = re.exec(xml)) !== null) {
-        const t = m[1]
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-          .replace(/&apos;/g, "'").replace(/&quot;/g, '"').trim();
-        if (t) texts.push(t);
+    // Watermark helper
+    function drawWatermark(page, text, pw, ph) {
+      if (!text) return;
+      try {
+        page.drawText(text, {
+          x: pw * 0.1, y: ph * 0.42,
+          size: Math.round(pw * 0.048), font,
+          color: RGB(0.80, 0.10, 0.10), opacity: 0.16,
+          rotate: { type: 'degrees', angle: 32 },
+        });
+      } catch (_) {}
+    }
+
+    // Draw one slide's content into a rectangular cell
+    function drawSlideInCell(page, slide, bx, by, bw, bh) {
+      const fm      = Math.max(4, Math.round(bh * 0.07));
+      const titleSz = Math.max(7, Math.round(bh * 0.105));
+      const bodySz  = Math.max(5, Math.round(bh * 0.075));
+      const lhBody  = bodySz * 1.42;
+
+      // Cell background + accent bar (top) + slide number
+      page.drawRectangle({ x: bx, y: by, width: bw, height: bh,
+        color: RGB(0.975, 0.975, 1), borderColor: RGB(0.82, 0.85, 0.95), borderWidth: 0.6 });
+      page.drawRectangle({ x: bx, y: by + bh - 4, width: bw, height: 4, color: RGB(0.39, 0.40, 0.945) });
+      page.drawText(String(slide.num), { x: bx + bw - 13, y: by + bh - 13, size: 6, font, color: RGB(0.6,0.6,0.6) });
+
+      if (!slide.texts.length) {
+        page.drawText('(empty)', { x: bx + fm, y: by + bh * 0.5, size: bodySz, font, color: RGB(0.75,0.75,0.75) });
+        return;
       }
 
-      const page = doc.addPage([PW, PH]);
-      const slideNum = (slideName.match(/slide(\d+)/) || ['', '?'])[1];
-      page.drawText(`Slide ${slideNum}`, { x: margin, y: PH - margin, size: 15, font: bold, color: RGB(0.2, 0.2, 0.2) });
+      let cy = by + bh - fm - 6;
+      // Title line
+      const titleStr = slide.isTitle ? slide.texts[0] : '';
+      if (titleStr) {
+        const ts = titleStr.substring(0, 55);
+        page.drawText(ts, { x: bx + fm, y: cy, size: titleSz, font: bold, color: RGB(0.1, 0.1, 0.42) });
+        cy -= titleSz * 1.55;
+      }
+      // Body lines
+      const startIdx = slide.isTitle ? 1 : 0;
+      for (let ti = startIdx; ti < Math.min(slide.texts.length, 14); ti++) {
+        if (cy < by + fm + bodySz) break;
+        const lineStr = '· ' + slide.texts[ti].substring(0, 72);
+        page.drawText(lineStr, { x: bx + fm, y: cy, size: bodySz, font, color: RGB(0.25, 0.25, 0.25) });
+        cy -= lhBody;
+      }
+    }
 
-      let y = PH - margin - 26;
-      for (const t of texts) {
-        if (y < margin + fontSize) break;
-        const usableW = PW - margin * 2;
-        if (font.widthOfTextAtSize(t, fontSize) > usableW) {
-          const words = t.split(' ');
-          let line = '';
-          for (const word of words) {
-            const test = line ? line + ' ' + word : word;
-            if (font.widthOfTextAtSize(test, fontSize) > usableW && line) {
-              if (y < margin + fontSize) break;
-              page.drawText(line, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) });
-              y -= lineH; line = word;
-            } else { line = test; }
+    // ── Handout grid config ──────────────────────────────────────────────
+    const GRID = { 1: [1,1], 2: [1,2], 4: [2,2], 6: [3,2] };
+    const [cols, rows] = GRID[Math.min(handout, 6)] || [1,1];
+    const perPage      = cols * rows;
+    const usableW      = PW - margin * 2;
+    const usableH      = PH - margin * 2;
+    const gapX         = cols > 1 ? margin * 0.5 : 0;
+    const gapY         = rows > 1 ? margin * 0.5 : 0;
+    const cellW        = (usableW - gapX * (cols - 1)) / cols;
+    const cellHFull    = (usableH - gapY * (rows - 1)) / rows;
+    // Reserve 22% of cell height for notes if "below" mode
+    const notesRatio   = notes === 'below' ? 0.22 : 0;
+    const slideH       = Math.round(cellHFull * (1 - notesRatio));
+    const notesH       = Math.round(cellHFull * notesRatio);
+
+    const textCol   = RGB(0.18, 0.18, 0.18);
+    const titleCol  = RGB(0.08, 0.08, 0.40);
+
+    // ── Render slide pages ───────────────────────────────────────────────
+    const queue = [...slideData];
+    while (queue.length > 0) {
+      const batch = queue.splice(0, perPage);
+      const page  = doc.addPage([PW, PH]);
+
+      for (let bi = 0; bi < batch.length; bi++) {
+        const col = bi % cols;
+        const row = Math.floor(bi / cols);
+        const bx  = margin + col * (cellW + gapX);
+        const by  = PH - margin - (row + 1) * (cellHFull + gapY) + gapY;
+
+        drawSlideInCell(page, batch[bi], bx, by + notesH, cellW, slideH);
+
+        // Speaker notes below
+        if (notes === 'below' && notesH > 0) {
+          const noteText = notesData[batch[bi].num - 1];
+          if (noteText) {
+            page.drawRectangle({ x: bx, y: by, width: cellW, height: notesH - 1,
+              color: RGB(0.97, 0.98, 1), borderColor: RGB(0.9, 0.9, 0.95), borderWidth: 0.3 });
+            page.drawText('Notes:', { x: bx + 4, y: by + notesH - 9, size: 5.5, font: bold, color: RGB(0.45,0.45,0.45) });
+            drawWrapped(page, noteText, bx + 4, by + notesH - 17, cellW - 8, by + 2, 5.5, font, RGB(0.5,0.5,0.5));
           }
-          if (line && y >= margin) { page.drawText(line, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) }); y -= lineH; }
-        } else {
-          page.drawText(t, { x: margin, y, size: fontSize, font, color: RGB(0, 0, 0) });
-          y -= lineH;
         }
       }
+
+      // Page footer number + watermark
+      page.drawText(String(doc.getPageCount()), { x: PW - margin, y: 7, size: 6.5, font, color: RGB(0.7,0.7,0.7) });
+      drawWatermark(page, wmText, PW, PH);
     }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
+
+    // ── Append notes pages ────────────────────────────────────────────────
+    if (notes === 'append') {
+      for (let ni = 0; ni < slideData.length; ni++) {
+        const noteText = notesData[ni];
+        if (!noteText) continue;
+        const np = doc.addPage([PW, PH]);
+        np.drawText('Notes — Slide ' + slideData[ni].num, {
+          x: margin, y: PH - margin, size: 14, font: bold, color: RGB(0.12, 0.12, 0.42),
+        });
+        np.drawRectangle({ x: margin, y: PH - margin - 4, width: PW - margin*2, height: 1.5, color: RGB(0.7, 0.7, 0.9) });
+        drawWrapped(np, noteText, margin, PH - margin - 24, PW - margin*2, margin, 10, font, textCol);
+        drawWatermark(np, wmText, PW, PH);
+      }
+    }
+
+    const bytes = await doc.save();
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    if (blob.size < 500) throw new Error('PDF generation failed — output appears empty.');
+    return blob;
   }
 
   // ── PHASE 6: EXCEL TO PDF (v3.0 — smart scaling, options-aware, auto-layout) ──

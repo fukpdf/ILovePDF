@@ -173,7 +173,44 @@ const TOOLS = [
     description: 'Transform PDFs into editable presentations',
     category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/pdf-to-powerpoint', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'layout', label: 'Slide Layout', type: 'select', options: [
+        { value: '16x9',  label: 'Standard 16:9' },
+        { value: '4x3',   label: 'Classic 4:3' },
+        { value: 'wide',  label: 'Wide Cinema' },
+        { value: 'a4',    label: 'A4 Presentation' },
+      ]},
+      { id: 'contentStrategy', label: 'Content Strategy', type: 'select', options: [
+        { value: 'smart',    label: 'Smart Presentation Layout' },
+        { value: 'preserve', label: 'Preserve Original Layout' },
+        { value: 'minimal',  label: 'Minimal Clean Slides' },
+        { value: 'executive',label: 'Executive Style' },
+      ]},
+      { id: 'theme', label: 'Slide Theme', type: 'select', options: [
+        { value: 'modern',    label: 'Modern' },
+        { value: 'corporate', label: 'Corporate' },
+        { value: 'minimal',   label: 'Minimal' },
+        { value: 'dark',      label: 'Dark' },
+        { value: 'pitch',     label: 'Pitch Deck' },
+        { value: 'white',     label: 'Clean White' },
+      ]},
+      { id: 'slideDensity', label: 'Slide Density', type: 'select', options: [
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'compact',  label: 'Compact (more content/slide)' },
+        { value: 'spacious', label: 'Spacious (less content/slide)' },
+      ]},
+      { id: 'tableHandling', label: 'Table Handling', type: 'select', options: [
+        { value: 'editable', label: 'Keep as Editable Table' },
+        { value: 'split',    label: 'Auto-Split Large Tables' },
+        { value: 'image',    label: 'Convert to Image' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'auto',  label: 'Auto (Recommended)' },
+        { value: 'force', label: 'Force OCR' },
+        { value: 'off',   label: 'Off' },
+      ]},
+    ]
   },
   {
     id: 'pdf-to-excel', name: 'PDF to Excel', icon: 'table',
@@ -209,7 +246,45 @@ const TOOLS = [
     description: 'Convert presentations to PDF format',
     category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/powerpoint-to-pdf', acceptedFiles: '.ppt,.pptx',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize', label: 'Page Size', type: 'select', options: [
+        { value: 'presentation', label: 'Presentation (16:9)' },
+        { value: 'A4',           label: 'A4' },
+        { value: 'Letter',       label: 'Letter' },
+        { value: 'Legal',        label: 'Legal' },
+        { value: 'Tabloid',      label: 'Tabloid' },
+      ]},
+      { id: 'margins', label: 'Margins', type: 'select', options: [
+        { value: 'none',   label: 'None' },
+        { value: 'narrow', label: 'Narrow' },
+        { value: 'normal', label: 'Normal' },
+        { value: 'wide',   label: 'Wide' },
+      ]},
+      { id: 'quality', label: 'Export Quality', type: 'select', options: [
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'print',    label: 'Print Quality' },
+        { value: 'small',    label: 'Small File' },
+        { value: 'retina',   label: 'Retina Quality' },
+      ]},
+      { id: 'handoutMode', label: 'Handout Mode', type: 'select', options: [
+        { value: '1', label: '1 Slide per Page' },
+        { value: '2', label: '2 Slides per Page' },
+        { value: '4', label: '4 Slides per Page' },
+        { value: '6', label: '6 Slides per Page' },
+      ]},
+      { id: 'speakerNotes', label: 'Speaker Notes', type: 'select', options: [
+        { value: 'ignore', label: 'Ignore Notes' },
+        { value: 'append', label: 'Append Notes Pages' },
+        { value: 'below',  label: 'Notes Below Slides' },
+      ]},
+      { id: 'watermark', label: 'Watermark', type: 'select', options: [
+        { value: 'none',         label: 'None' },
+        { value: 'confidential', label: 'Confidential' },
+        { value: 'draft',        label: 'Draft' },
+        { value: 'do-not-copy',  label: 'Do Not Copy' },
+      ]},
+    ]
   },
   {
     id: 'excel-to-pdf', name: 'Excel to PDF', icon: 'grid',

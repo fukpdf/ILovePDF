@@ -20,6 +20,7 @@
   var XLSX_URL    = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
   var PDFJS_MOD   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
   var PDFJS_WRK   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  var JSZIP_URL   = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 
   var SUPPORTED = new Set([
     'word-to-pdf', 'excel-to-pdf',
@@ -27,7 +28,11 @@
     'background-remover',
     'translate', 'ai-summarize',
     'edit',
+    'pdf-to-powerpoint', 'powerpoint-to-pdf',
   ]);
+
+  // ── JSZip loader ─────────────────────────────────────────────────────────
+  function loadJsZip() { return loadScript(JSZIP_URL, 'JSZip'); }
 
   // ── Script loader ──────────────────────────────────────────────────────────
   var _slots = {};
@@ -1691,6 +1696,437 @@
   }
 
   // ======================================================================
+  // PDF → POWERPOINT  v6.0
+  // Slide structure analysis, type classification, theme/layout preview
+  // ======================================================================
+  async function mountPdfPowerPointPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing slide structure…' + skeletonHtml(6) + '</div>';
+
+    var pdfjsLib;
+    try { pdfjsLib = await loadPdfJs(); }
+    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+
+    var pdf;
+    try {
+      var buf = await file.arrayBuffer();
+      pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF. It may be corrupted or encrypted.'); return; }
+
+    var numPages   = pdf.numPages;
+    var prevPgs    = Math.min(numPages, 8);
+    var totalChars = 0;
+    var pageData   = [];
+
+    // ── Analyse pages ─────────────────────────────────────────────────
+    for (var pg = 1; pg <= prevPgs; pg++) {
+      var page    = await pdf.getPage(pg);
+      var vp      = page.getViewport({ scale: 1 });
+      var content = await page.getTextContent();
+      var items   = content.items.filter(function (it) { return it.str && it.str.trim(); });
+      var pgText  = items.map(function (it) { return it.str; }).join(' ').trim();
+      var chars   = pgText.replace(/\s/g, '').length;
+      totalChars += chars;
+
+      // Base font size
+      var fSizes = items.map(function (it) { return Math.round(it.height || 0); }).filter(function (s) { return s > 0; });
+      var fFreq  = {};
+      fSizes.forEach(function (s) { fFreq[s] = (fFreq[s] || 0) + 1; });
+      var baseFont = fSizes.length ? parseInt(Object.keys(fFreq).sort(function (a,b) { return fFreq[b]-fFreq[a]; })[0],10) || 11 : 11;
+      var maxFont  = fSizes.length ? Math.max.apply(null, fSizes) : 0;
+
+      // Column / table gaps
+      var xVals = items.map(function (it) { return Math.round(it.transform[4]); });
+      var xUniq = xVals.filter(function (v,i,a) { return a.indexOf(v)===i; }).sort(function (a,b) { return a-b; });
+      var colGaps = 0;
+      var pgW     = vp.width || 612;
+      for (var xi = 1; xi < xUniq.length; xi++) {
+        if (xUniq[xi] - xUniq[xi-1] > pgW * 0.09) colGaps++;
+      }
+
+      // Line count
+      var yVals = items.map(function (it) { return Math.round(it.transform[5] / 5) * 5; });
+      var yUniq = yVals.filter(function (v,i,a) { return a.indexOf(v)===i; });
+
+      // Top line text (title candidate)
+      var yMapT = {};
+      items.forEach(function (it) {
+        var y = Math.round(it.transform[5] / 5) * 5;
+        if (!yMapT[y]) yMapT[y] = [];
+        yMapT[y].push(it.str);
+      });
+      var topY    = Object.keys(yMapT).map(Number).sort(function (a,b) { return b-a; })[0];
+      var topLine = topY !== undefined ? yMapT[topY].join(' ').trim() : '';
+
+      // Classify slide type
+      var type = 'content', conf = 70;
+      if (pg === 1 && chars < 420 && (maxFont > baseFont * 1.35 || yUniq.length <= 5)) {
+        type = 'title'; conf = 92;
+      } else if (chars < 200 && maxFont > baseFont * 1.22 && yUniq.length <= 6) {
+        type = 'section'; conf = 85;
+      } else if (colGaps >= 3) {
+        type = 'table'; conf = 83;
+      } else if (chars < 55 && pg > 1) {
+        type = 'image'; conf = 76;
+      } else {
+        conf = yUniq.length > 10 ? 88 : 72;
+      }
+
+      page.cleanup();
+      pageData.push({ pg: pg, type: type, conf: conf, title: topLine.slice(0,56), chars: chars, colGaps: colGaps, lines: yUniq.length });
+    }
+
+    await pdf.destroy();
+
+    var isScanned  = totalChars < 50;
+    var tablePages = pageData.filter(function (p) { return p.type === 'table'; });
+    var imagePages = pageData.filter(function (p) { return p.type === 'image'; });
+    var qualScore  = isScanned ? 28 : Math.min(100, Math.round(
+      (totalChars > 100 ? 32 : totalChars > 0 ? 14 : 0) +
+      (pageData.some(function (p) { return p.type === 'title'; }) ? 14 : 0) +
+      (pageData.some(function (p) { return p.type === 'section'; }) ? 14 : 0) +
+      (numPages <= 50 ? 20 : 10) + 20
+    ));
+
+    var THEME_COLORS = {
+      modern:    { bg: '#1e1b4b', title: '#ffffff', text: '#c7d2fe', accent: '#818cf8' },
+      corporate: { bg: '#1e3a5f', title: '#ffffff', text: '#bfdbfe', accent: '#60a5fa' },
+      minimal:   { bg: '#ffffff', title: '#0f172a', text: '#334155', accent: '#6366f1' },
+      dark:      { bg: '#0f172a', title: '#f8fafc', text: '#94a3b8', accent: '#6366f1' },
+      pitch:     { bg: '#0c0a09', title: '#ffffff', text: '#d6d3d1', accent: '#f59e0b' },
+      white:     { bg: '#ffffff', title: '#111827', text: '#374151', accent: '#2563eb' },
+    };
+    var LAYOUT_AR = { '16x9': 16/9, '4x3': 4/3, 'wide': 2.0, 'a4': 297/210 };
+    var TYPE_META = {
+      title:   { label: 'Title',   col: '#4f46e5', bg: '#ede9fe' },
+      section: { label: 'Section', col: '#0891b2', bg: '#e0f2fe' },
+      content: { label: 'Content', col: '#059669', bg: '#d1fae5' },
+      table:   { label: 'Table',   col: '#b45309', bg: '#fef3c7' },
+      image:   { label: 'Image',   col: '#7c3aed', bg: '#f3e8ff' },
+    };
+    var state = { layout: '16x9', strategy: 'smart', theme: 'modern' };
+
+    function makeSlideCard(pa, themeKey, layoutKey) {
+      var tc  = THEME_COLORS[themeKey] || THEME_COLORS.modern;
+      var ar  = LAYOUT_AR[layoutKey]  || 16/9;
+      var W   = 162;
+      var H   = Math.round(W / ar);
+      var tm  = TYPE_META[pa.type] || TYPE_META.content;
+      var titlePart = pa.title
+        ? '<div class="lp-sc-title" style="color:' + tc.title + '">' + esc(pa.title.slice(0,36)) + '</div>' : '';
+      var bodyPart  = pa.chars > 0 && pa.type !== 'image'
+        ? '<div class="lp-sc-body">' +
+            [0,1,2].map(function (_,i) {
+              return '<div class="lp-sc-line" style="background:' + tc.accent + ';width:' + [82,66,74][i] + '%"></div>';
+            }).join('') +
+          '</div>'
+        : (pa.type === 'image' ? '<div class="lp-sc-img" style="background:' + tc.accent + '">🖼</div>' : '');
+      var tablePart = pa.type === 'table'
+        ? '<div class="lp-sc-table"><div class="lp-sc-row" style="background:' + tc.accent + '"></div><div class="lp-sc-row"></div><div class="lp-sc-row"></div></div>'
+        : '';
+      return '<div class="lp-slide-card" style="width:' + W + 'px;height:' + H + 'px;background:' + tc.bg + '">' +
+        '<div class="lp-sc-badge" style="background:' + tm.bg + ';color:' + tm.col + '">' + tm.label + ' <span class="lp-sc-conf">' + pa.conf + '%</span></div>' +
+        '<div class="lp-sc-num">' + pa.pg + '</div>' +
+        titlePart + bodyPart + tablePart +
+        '<div class="lp-sc-accent-bar" style="background:' + tc.accent + '"></div>' +
+      '</div>';
+    }
+
+    function renderGrid() {
+      var el = host.querySelector('.lp-slide-grid');
+      if (!el) return;
+      el.innerHTML = pageData.map(function (pa) { return makeSlideCard(pa, state.theme, state.layout); }).join('');
+      if (numPages > prevPgs) {
+        el.innerHTML += '<div class="lp-sc-more">+' + (numPages - prevPgs) + ' more</div>';
+      }
+    }
+
+    function updateEstSlides() {
+      var el = host.querySelector('.lp-ppt-est');
+      if (!el) return;
+      var mult = state.strategy === 'spacious' ? 1.5 : state.strategy === 'minimal' ? 0.65 : 1;
+      el.textContent = '~' + Math.max(numPages, Math.round(numPages * mult)) + ' slides';
+    }
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--pptx-from">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">Slide Structure Preview</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages !== 1 ? 's' : '') + '</span>' +
+            '<span class="lp-stat lp-ppt-est"><b>~' + numPages + '</b> slides</span>' +
+            (tablePages.length ? '<span class="lp-stat lp-stat--warn"><b>' + tablePages.length + '</b> table</span>' : '') +
+            (imagePages.length ? '<span class="lp-stat"><b>' + imagePages.length + '</b> image</span>' : '') +
+            (isScanned ? '<span class="lp-stat lp-stat--warn"><b>OCR</b></span>' : '') +
+            qualityBadge(qualScore) +
+          '</div>' +
+          '<div class="lp-controls">' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Layout</span><div class="lp-ctrl-row">' +
+              [['16x9','16:9'],['4x3','4:3'],['wide','Wide'],['a4','A4']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='16x9'?' active':'') + '" data-pptlay="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Strategy</span><div class="lp-ctrl-row">' +
+              [['smart','Smart'],['preserve','Preserve'],['minimal','Minimal'],['executive','Executive']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='smart'?' active':'') + '" data-pptstr="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Theme</span><div class="lp-ctrl-row">' +
+              [['modern','Modern'],['corporate','Corp.'],['minimal','Minimal'],['dark','Dark'],['pitch','Pitch'],['white','White']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='modern'?' active':'') + '" data-pptthm="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+          '</div>' +
+        '</div>' +
+        (isScanned ? '<div class="lp-warn-banner"><span class="lp-warn-icon">⚠</span> Scanned PDF detected — OCR-enhanced mode will extract text before building slides</div>' : '') +
+        (tablePages.length ? '<div class="lp-warn-banner"><span class="lp-warn-icon">📊</span> ' + tablePages.length + ' table slide' + (tablePages.length>1?'s':'') + ' detected — use "Table Handling" option for best quality</div>' : '') +
+        '<div class="lp-ppt-legend">' +
+          Object.keys(TYPE_META).map(function (k) {
+            var tm = TYPE_META[k];
+            return '<span class="lp-legend-pill" style="background:' + tm.bg + ';color:' + tm.col + '">' + tm.label + '</span>';
+          }).join('') +
+        '</div>' +
+        '<div class="lp-scroll lp-scroll--grid"><div class="lp-slide-grid"></div></div>' +
+        '<div class="lp-footer">' + prevPgs + ' of ' + numPages + ' pages analysed · type badges show slide classification confidence · theme controls mirror output colors</div>' +
+      '</div>';
+
+    // ── Wire controls ────────────────────────────────────────────────
+    host.querySelectorAll('[data-pptlay]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.layout = b.dataset.pptlay;
+        host.querySelectorAll('[data-pptlay]').forEach(function (x) { x.classList.toggle('active', x.dataset.pptlay === state.layout); });
+        var el = document.getElementById('opt-layout'); if (el) el.value = state.layout;
+        renderGrid();
+      });
+    });
+    host.querySelectorAll('[data-pptstr]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.strategy = b.dataset.pptstr;
+        host.querySelectorAll('[data-pptstr]').forEach(function (x) { x.classList.toggle('active', x.dataset.pptstr === state.strategy); });
+        var el = document.getElementById('opt-contentStrategy'); if (el) el.value = state.strategy;
+        updateEstSlides();
+      });
+    });
+    host.querySelectorAll('[data-pptthm]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.theme = b.dataset.pptthm;
+        host.querySelectorAll('[data-pptthm]').forEach(function (x) { x.classList.toggle('active', x.dataset.pptthm === state.theme); });
+        var el = document.getElementById('opt-theme'); if (el) el.value = state.theme;
+        renderGrid();
+      });
+    });
+
+    renderGrid();
+    updateEstSlides();
+  }
+
+  // ======================================================================
+  // POWERPOINT → PDF  v6.0
+  // Slide grid, handout modes, font warnings, overflow detection, notes
+  // ======================================================================
+  async function mountPowerPointPdfPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Parsing presentation…' + skeletonHtml(5) + '</div>';
+
+    var JSZip;
+    try { JSZip = await loadJsZip(); }
+    catch (_) { host.innerHTML = errorHtml('Could not load presentation parser. Check your connection.'); return; }
+
+    var zip;
+    try {
+      var ab = await file.arrayBuffer();
+      zip = await JSZip.loadAsync(ab);
+    } catch (_) { host.innerHTML = errorHtml('Could not parse this file. Please use a valid .pptx file.'); return; }
+
+    var slideNames = Object.keys(zip.files)
+      .filter(function (n) { return /^ppt\/slides\/slide\d+\.xml$/.test(n); })
+      .sort(function (a, b) {
+        var na = parseInt((a.match(/\d+/)||['0'])[0],10);
+        var nb = parseInt((b.match(/\d+/)||['0'])[0],10);
+        return na - nb;
+      });
+
+    if (!slideNames.length) { host.innerHTML = errorHtml('No slides found. Is this a valid .pptx file?'); return; }
+
+    var slides   = [];
+    var allFonts = [];
+    var SAFE_FONTS = ['calibri','arial','helvetica','times new roman','georgia','trebuchet ms','verdana','tahoma','courier new','sans-serif','serif','monospace'];
+
+    for (var si = 0; si < slideNames.length; si++) {
+      var xml   = await zip.files[slideNames[si]].async('text');
+      var allT  = [];
+      var tRe   = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+      var tM;
+      while ((tM = tRe.exec(xml)) !== null) {
+        var tv = tM[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&apos;/g,"'").replace(/&quot;/g,'"').trim();
+        if (tv) allT.push(tv);
+      }
+      // Title heuristic
+      var isTitle = /<p:ph[^>]*type=["'](title|ctrTitle)["']/.test(xml) || (allT.length <= 2 && allT[0] && allT[0].length < 80);
+      // Fonts
+      var fRe = /typeface=["']([^"']+)["']/g;
+      var fM;
+      while ((fM = fRe.exec(xml)) !== null) {
+        var fn = fM[1];
+        if (fn && fn[0] !== '+' && allFonts.indexOf(fn.toLowerCase()) < 0) allFonts.push(fn.toLowerCase());
+      }
+      slides.push({ num: si+1, isTitle: isTitle, texts: allT, chars: allT.join(' ').length, notes: null });
+    }
+
+    // Notes
+    var noteFiles = Object.keys(zip.files)
+      .filter(function (n) { return /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n); })
+      .sort(function (a, b) { return parseInt((a.match(/\d+/)||['0'])[0],10) - parseInt((b.match(/\d+/)||['0'])[0],10); });
+
+    for (var ni = 0; ni < noteFiles.length; ni++) {
+      var nxml = await zip.files[noteFiles[ni]].async('text');
+      var nT   = [];
+      var nRe  = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+      var nM;
+      while ((nM = nRe.exec(nxml)) !== null) {
+        var nv = nM[1].replace(/&amp;/g,'&').trim();
+        if (nv && nv.length > 2) nT.push(nv);
+      }
+      if (slides[ni] && nT.length) slides[ni].notes = nT.join(' ').slice(0, 90);
+    }
+
+    var totalSlides    = slides.length;
+    var notesCount     = slides.filter(function (s) { return s.notes; }).length;
+    var overflowSlides = slides.filter(function (s) { return s.chars > 750; });
+    var nonSafe        = allFonts.filter(function (f) { return SAFE_FONTS.indexOf(f) < 0; });
+    var qualScore      = Math.min(100, Math.round(
+      (totalSlides > 0 ? 28 : 0) +
+      (totalSlides > 5 ? 20 : totalSlides * 4) +
+      (nonSafe.length === 0 ? 20 : 10) +
+      (overflowSlides.length === 0 ? 22 : 12) + 10
+    ));
+
+    var state = { size: 'presentation', handout: '1', notesMode: 'ignore', watermark: 'none' };
+
+    var WM_LABELS = { none: '', confidential: 'CONFIDENTIAL', draft: 'DRAFT', 'do-not-copy': 'DO NOT COPY' };
+
+    function makeSlideCard(slide, showNotes, wmLabel) {
+      var overflow = slide.chars > 750;
+      var titleStr = slide.isTitle && slide.texts[0] ? slide.texts[0] : '';
+      var bodyTexts = slide.texts.slice(slide.isTitle ? 1 : 0, 4);
+      return '<div class="lp-pptpdf-card' + (overflow ? ' lp-pptpdf-card--ov' : '') + '">' +
+        (wmLabel ? '<div class="lp-pptpdf-wm">' + esc(wmLabel) + '</div>' : '') +
+        '<div class="lp-pptpdf-inner">' +
+          (titleStr ? '<div class="lp-pptpdf-title">' + esc(titleStr.slice(0,44)) + '</div>'
+                    : '<div class="lp-pptpdf-title lp-pptpdf-title--empty">Slide ' + slide.num + '</div>') +
+          (bodyTexts.length ? '<div class="lp-pptpdf-body">' + bodyTexts.map(function (t) { return '<div>' + esc(t.slice(0,52)) + '</div>'; }).join('') + '</div>' : '') +
+        '</div>' +
+        (overflow ? '<div class="lp-pptpdf-ov-badge">⚠</div>' : '') +
+        (showNotes && slide.notes ? '<div class="lp-pptpdf-notes">' + esc(slide.notes.slice(0,55)) + '</div>' : '') +
+        '<div class="lp-pptpdf-num">' + slide.num + '</div>' +
+      '</div>';
+    }
+
+    function renderSlideGrid() {
+      var el = host.querySelector('.lp-pptpdf-grid');
+      if (!el) return;
+      var cols = { '1':1, '2':1, '4':2, '6':3 }[state.handout] || 1;
+      el.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+      var showNotes = state.notesMode !== 'ignore' && notesCount > 0;
+      var wm = WM_LABELS[state.watermark] || '';
+      el.innerHTML = slides.map(function (s) { return makeSlideCard(s, showNotes, wm); }).join('');
+    }
+
+    function updatePageCount() {
+      var el = host.querySelector('.lp-pptpdf-pgcount');
+      if (!el) return;
+      var perPage = parseInt(state.handout, 10) || 1;
+      var pgCount = Math.ceil(totalSlides / perPage);
+      if (state.notesMode === 'append') pgCount += notesCount;
+      el.textContent = '~' + pgCount + ' page' + (pgCount !== 1 ? 's' : '');
+    }
+
+    var fontWarnHtml = nonSafe.length
+      ? '<div class="lp-warn-banner"><span class="lp-warn-icon">🔤</span> Non-standard fonts: ' +
+          nonSafe.slice(0,4).map(function (f) { return '<b>' + esc(f) + '</b>'; }).join(', ') +
+          (nonSafe.length > 4 ? ' +' + (nonSafe.length - 4) + ' more' : '') + ' — may substitute in PDF</div>'
+      : '';
+    var ovWarnHtml = overflowSlides.length
+      ? '<div class="lp-warn-banner"><span class="lp-warn-icon">📐</span> ' + overflowSlides.length + ' slide' + (overflowSlides.length>1?'s':'') + ' may have overflow in PDF output</div>'
+      : '';
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--pptx-to">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">Presentation Export Preview</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + totalSlides + '</b> slide' + (totalSlides!==1?'s':'') + '</span>' +
+            '<span class="lp-stat lp-pptpdf-pgcount"><b>~' + totalSlides + '</b> pages</span>' +
+            (notesCount ? '<span class="lp-stat"><b>' + notesCount + '</b> notes</span>' : '') +
+            (nonSafe.length ? '<span class="lp-stat lp-stat--warn"><b>' + nonSafe.length + '</b> font' + (nonSafe.length>1?'s':'') + '</span>' : '') +
+            (overflowSlides.length ? '<span class="lp-stat lp-stat--warn"><b>' + overflowSlides.length + '</b> overflow</span>' : '') +
+            qualityBadge(qualScore) +
+          '</div>' +
+          '<div class="lp-controls">' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Page size</span><div class="lp-ctrl-row">' +
+              [['presentation','16:9'],['A4','A4'],['Letter','Letter'],['Legal','Legal'],['Tabloid','Tabloid']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='presentation'?' active':'') + '" data-pdfsize="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Handout</span><div class="lp-ctrl-row">' +
+              [['1','1/pg'],['2','2/pg'],['4','4/pg'],['6','6/pg']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='1'?' active':'') + '" data-handout="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Notes</span><div class="lp-ctrl-row">' +
+              [['ignore','None'],['append','Append'],['below','Below']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='ignore'?' active':'') + '" data-notesm="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+            '<div class="lp-ctrl-group"><span class="lp-ctrl-label">Watermark</span><div class="lp-ctrl-row">' +
+              [['none','None'],['confidential','Confidential'],['draft','Draft'],['do-not-copy','Do Not Copy']].map(function (o) {
+                return '<button type="button" class="lp-ctrl-btn' + (o[0]==='none'?' active':'') + '" data-wm="' + o[0] + '">' + o[1] + '</button>';
+              }).join('') +
+            '</div></div>' +
+          '</div>' +
+        '</div>' +
+        (fontWarnHtml || ovWarnHtml ? '<div class="lp-warn-stack">' + fontWarnHtml + ovWarnHtml + '</div>' : '') +
+        '<div class="lp-scroll lp-scroll--grid"><div class="lp-pptpdf-grid"></div></div>' +
+        '<div class="lp-footer">Slide grid reflects actual content · orange border = overflow risk · handout mode mirrors PDF layout · notes shown when enabled</div>' +
+      '</div>';
+
+    // ── Wire controls ────────────────────────────────────────────────
+    host.querySelectorAll('[data-pdfsize]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.size = b.dataset.pdfsize;
+        host.querySelectorAll('[data-pdfsize]').forEach(function (x) { x.classList.toggle('active', x.dataset.pdfsize === state.size); });
+        var el = document.getElementById('opt-pageSize'); if (el) el.value = state.size;
+        updatePageCount();
+      });
+    });
+    host.querySelectorAll('[data-handout]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.handout = b.dataset.handout;
+        host.querySelectorAll('[data-handout]').forEach(function (x) { x.classList.toggle('active', x.dataset.handout === state.handout); });
+        var el = document.getElementById('opt-handoutMode'); if (el) el.value = state.handout;
+        renderSlideGrid(); updatePageCount();
+      });
+    });
+    host.querySelectorAll('[data-notesm]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.notesMode = b.dataset.notesm;
+        host.querySelectorAll('[data-notesm]').forEach(function (x) { x.classList.toggle('active', x.dataset.notesm === state.notesMode); });
+        var el = document.getElementById('opt-speakerNotes'); if (el) el.value = state.notesMode;
+        renderSlideGrid(); updatePageCount();
+      });
+    });
+    host.querySelectorAll('[data-wm]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.watermark = b.dataset.wm;
+        host.querySelectorAll('[data-wm]').forEach(function (x) { x.classList.toggle('active', x.dataset.wm === state.watermark); });
+        var el = document.getElementById('opt-watermark'); if (el) el.value = state.watermark;
+        renderSlideGrid();
+      });
+    });
+
+    renderSlideGrid();
+    updatePageCount();
+  }
+
+  // ======================================================================
   // MOUNT DISPATCHER
   // ======================================================================
   async function mount(toolId, files, host) {
@@ -1701,14 +2137,16 @@
     cleanupHost(host);
 
     try {
-      if      (toolId === 'word-to-pdf')      await mountWordToPdf(file, host);
-      else if (toolId === 'excel-to-pdf')     await mountExcelToPdf(file, host);
-      else if (toolId === 'pdf-to-word')      await mountPdfWordPreview(file, host);
-      else if (toolId === 'pdf-to-excel')     await mountPdfExcelPreview(file, host);
-      else if (toolId === 'background-remover') await mountBgRemover(file, host);
-      else if (toolId === 'translate')        await mountTranslatePreview(file, host);
-      else if (toolId === 'ai-summarize')     await mountSummarizePreview(file, host);
-      else if (toolId === 'edit')             await mountEditPdfPreview(file, host);
+      if      (toolId === 'word-to-pdf')         await mountWordToPdf(file, host);
+      else if (toolId === 'excel-to-pdf')        await mountExcelToPdf(file, host);
+      else if (toolId === 'pdf-to-word')         await mountPdfWordPreview(file, host);
+      else if (toolId === 'pdf-to-excel')        await mountPdfExcelPreview(file, host);
+      else if (toolId === 'background-remover')  await mountBgRemover(file, host);
+      else if (toolId === 'translate')           await mountTranslatePreview(file, host);
+      else if (toolId === 'ai-summarize')        await mountSummarizePreview(file, host);
+      else if (toolId === 'edit')                await mountEditPdfPreview(file, host);
+      else if (toolId === 'pdf-to-powerpoint')   await mountPdfPowerPointPreview(file, host);
+      else if (toolId === 'powerpoint-to-pdf')   await mountPowerPointPdfPreview(file, host);
     } catch (err) {
       // Never blank-screen — show recovery UI
       host.innerHTML = errorHtml(
