@@ -1962,6 +1962,214 @@
   border: 1px dashed rgba(255,255,255,.2) !important;
 }
 
+/* ============================================================
+   PHASE 15C: DESKTOP PREVIEW CLEANUP & PROFESSIONAL LAYOUT RESET
+   Surgical desktop-only overrides — removes cinematic overdesign.
+   Mobile rules (Phase 15B) are protected via min-width guard.
+   Target: iLovePDF / SmallPDF / Adobe lightweight tool feel.
+   ============================================================ */
+
+/* ── Universal: soften tokens & animations (all breakpoints) ─ */
+:root {
+  --ew-shadow-card:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --ew-shadow-float:  0 2px 8px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  --ew-shadow-deep:   0 8px 24px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --ew-shadow-accent: 0 2px 10px rgba(91,61,245,.22);
+  --ew-preview-max:   1280px;
+}
+
+/* Entrance animation: subtle, not cinematic */
+@keyframes ew-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Slide card: professional hover, not dramatic lift */
+.lp-slide-card {
+  box-shadow: 0 1px 6px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.07) !important;
+}
+
+.lp-slide-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.08) !important;
+}
+
+/* Process button: lighter accent shadow */
+.ew-process-panel .btn-primary {
+  box-shadow: 0 2px 10px rgba(91,61,245,.22) !important;
+}
+
+.ew-process-panel .btn-primary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.28) !important;
+  filter: brightness(1.06) !important;
+}
+
+/* Toolbar download button: no dramatic lift */
+.bgpro-dl-tb:hover,
+.bgpro-btn-primary:hover {
+  transform: none !important;
+  filter: brightness(1.06) !important;
+  box-shadow: 0 4px 12px rgba(91,61,245,.28) !important;
+}
+
+/* ── Desktop only: min-width 769px ────────────────────────── */
+@media (min-width: 769px) {
+
+  /* 1. Preview page container: compact, balanced */
+  .ew-preview-page {
+    padding: 20px 24px 36px !important;
+  }
+
+  /* 2. Workspace grid: tighter gap */
+  .ew-preview-workspace {
+    gap: 20px !important;
+  }
+
+  /* 3. Preview scroll: realistic proportions */
+  .lp-scroll {
+    max-height: calc(100vh - 310px) !important;
+    min-height: 300px !important;
+  }
+
+  /* 4. Page-mode scroll: lighter bg, less padding, less tall */
+  .lp-scroll--page {
+    max-height: calc(100vh - 270px) !important;
+    min-height: 340px !important;
+    background: #f3f4f6 !important;
+    padding: 20px !important;
+  }
+
+  /* 5. Wide scroll (OCR/translate) */
+  .lp-scroll--wide {
+    max-height: calc(100vh - 310px) !important;
+    min-height: 280px !important;
+  }
+
+  /* 6. Panel: lighter card, smaller radius */
+  .lp-panel {
+    box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04) !important;
+    border-radius: var(--ew-radius-md) !important;
+  }
+
+  /* 7. Document page: less padding, softer shadow */
+  .lp-page-content {
+    padding: 40px 48px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05) !important;
+  }
+
+  .lp-word-content {
+    box-shadow: 0 2px 10px rgba(0,0,0,.08) !important;
+  }
+
+  /* 8. PPT slide strip: lighter bg, no decorative grid, less tall */
+  .lp-ppt-strip-scroll {
+    background: #2a2e42 !important;
+    background-image: none !important;
+    min-height: 300px !important;
+    padding: 16px !important;
+    gap: 12px !important;
+  }
+
+  .lp-panel--pptx-from,
+  .lp-panel--pptx-to {
+    min-height: 340px !important;
+  }
+
+  /* 9. Slide grid: tighter spacing */
+  .lp-slide-grid {
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  /* 10. BG Remover: light workspace, canvas auto-centered */
+  /*     Keep full-height editor UX but remove giant dark void  */
+  .bgpro {
+    background: #f0f2f5 !important;
+  }
+
+  .bgpro-panel-work .bgpro-scroll {
+    background: #eceff4 !important;
+    background-image: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: auto !important;
+  }
+
+  /* Canvas auto-fits — no giant empty space beside small images */
+  .bgpro-panel-work .bgpro-scroll canvas {
+    max-width: 100% !important;
+    max-height: calc(100vh - 170px) !important;
+    height: auto !important;
+    display: block !important;
+    margin: auto !important;
+  }
+
+  /* 11. Edit PDF canvas: same light treatment */
+  .epro-canvas-scroll {
+    background: #eceff4 !important;
+    background-image: none !important;
+  }
+
+  /* 12. Step indicator: compact margin */
+  .step-indicator {
+    margin-bottom: 18px !important;
+  }
+
+  /* 13. Context banner: compact */
+  .ew-context-banner {
+    margin-bottom: 14px !important;
+  }
+
+  /* 14. File section: tighter */
+  .ew-file-section {
+    padding: 14px 16px !important;
+  }
+
+  /* 15. Loading state: proportional on desktop */
+  .lp-loading {
+    min-height: 260px !important;
+    padding: 48px 24px !important;
+  }
+
+  /* 16. Aside: slightly narrower sticky viewport calc */
+  .ew-preview-aside {
+    top: calc(var(--ew-header-h) + 4px) !important;
+    max-height: calc(100vh - var(--ew-header-h) - 24px) !important;
+  }
+
+  /* 17. Process panel: compact */
+  .ew-process-panel {
+    padding: 16px !important;
+    gap: 8px !important;
+  }
+
+  /* 18. BGpro toolbar: slightly more compact */
+  .bgpro-toolbar {
+    min-height: 48px !important;
+    padding: 6px 14px !important;
+  }
+
+  /* 19. Before/after: lighter bg */
+  .lp-before-after {
+    background: #e8eaef !important;
+    padding: 20px !important;
+    min-height: 260px !important;
+  }
+
+  /* 20. Swipe compare: lighter bg */
+  .lp-swipe-wrap {
+    background: #e8eaef !important;
+    padding: 20px !important;
+  }
+
+  /* 21. Repair/OCR: proportional panels */
+  .lp-ocr-split {
+    min-height: 280px !important;
+  }
+}
+
 /* ── Phase 14: responsive tweaks ───────────────────────────── */
 @media (max-width: 640px) {
   .lp-ocr-split,
