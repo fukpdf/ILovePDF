@@ -144,6 +144,9 @@
     </div>
     <!-- Right: controls -->
     <div class="bgpro-panel bgpro-panel-ctrl" id="bgpro-ctrl">
+      <div class="bgpro-drawer-handle" id="bgpro-drawer-handle">
+        <span class="bgpro-drawer-label">Controls</span>
+      </div>
 
       <div class="bgpro-section">
         <div class="bgpro-slbl">Brush Tool</div>
@@ -906,6 +909,17 @@
       };
       _b(container, '#bgpro-dl', doDownload);
       _b(container, '#bgpro-dl-tb', doDownload);
+
+      // Mobile drawer: tap handle to expand/collapse controls panel
+      const drawerHandle = container.querySelector('#bgpro-drawer-handle');
+      const ctrl = container.querySelector('#bgpro-ctrl');
+      if (drawerHandle && ctrl) {
+        drawerHandle.addEventListener('click', () => {
+          ctrl.classList.toggle('bgpro-drawer-open');
+          const lbl = drawerHandle.querySelector('.bgpro-drawer-label');
+          if (lbl) lbl.textContent = ctrl.classList.contains('bgpro-drawer-open') ? 'Close Controls' : 'Controls';
+        });
+      }
     }, 50);
   }
 

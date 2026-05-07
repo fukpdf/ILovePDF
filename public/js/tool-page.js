@@ -551,6 +551,7 @@ function popularToolsHtml(currentToolId) {
 function renderUploadStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+  container.classList.remove('ew-wide');
 
   const fileLabel = tool.multipleFiles ? 'Upload Files' : 'Upload File';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
@@ -600,9 +601,10 @@ function renderUploadStep(tool) {
 function renderProPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+  container.classList.add('ew-wide');
 
   container.innerHTML = `
-    <div class="tool-page" style="padding-bottom:0">
+    <div class="tool-page tool-page--pro" style="padding-bottom:0">
       ${toolHeaderBlock(tool, {
         heading: tool.name + ' — PRO Editor',
         desc: 'Edit your file in the interactive editor below, then click Download when done.',
@@ -612,7 +614,7 @@ function renderProPreviewStep(tool) {
       })}
       ${stepIndicatorHtml('preview')}
       <div id="pro-editor-mount" style="margin-top:12px;flex:1;min-height:520px;"></div>
-      <div id="result-area" style="margin-top:12px;"></div>
+      <div id="result-area" style="margin-top:12px;padding:0 24px;"></div>
     </div>`;
 
   if (window.lucide) lucide.createIcons();
@@ -658,6 +660,7 @@ function renderProPreviewStep(tool) {
 function renderPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+  container.classList.remove('ew-wide');
 
   // PRO MAX intercept — tools with dedicated interactive editors skip the
   // standard preview/process flow entirely and mount their own editor UI.
@@ -728,6 +731,7 @@ function renderPreviewStep(tool) {
 function renderDownloadStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+  container.classList.remove('ew-wide');
   const slug = Flow.baseSlug();
 
   container.innerHTML = `

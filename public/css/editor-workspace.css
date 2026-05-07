@@ -1,0 +1,608 @@
+/* ============================================================
+   ILovePDF — Editor Workspace System v1.0
+   Phase 12: Global UI/UX Rebuild + Professional Preview System
+   ============================================================
+   CSS-only additions that extend (never replace) existing styles.
+   All workspace classes are namespaced .ew-* to avoid collisions.
+   Overrides use specificity, not blanket !important abuse.
+   ============================================================ */
+
+/* ── Extended Design Tokens ───────────────────────────────── */
+:root {
+  --ew-accent:        #5b3df5;
+  --ew-accent-mid:    #7c3aed;
+  --ew-accent-light:  #a855f7;
+  --ew-accent-soft:   #eef0ff;
+  --ew-accent-glow:   0 0 24px rgba(91,61,245,.3);
+  --ew-grad:          linear-gradient(135deg,#4338ca 0%,#7c3aed 55%,#a855f7 100%);
+
+  --ew-canvas-bg:     #1e1e2e;
+  --ew-panel-bg:      #ffffff;
+  --ew-toolbar-bg:    rgba(255,255,255,.97);
+  --ew-surface-sub:   #fafbff;
+
+  --ew-border:        #e2e8f0;
+  --ew-border-sub:    #f0f1f8;
+
+  --ew-shadow-card:   0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+  --ew-shadow-float:  0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
+  --ew-shadow-deep:   0 20px 60px rgba(0,0,0,.25), 0 6px 20px rgba(0,0,0,.14);
+
+  --ew-radius-xl:     20px;
+  --ew-radius-lg:     16px;
+  --ew-radius-md:     12px;
+  --ew-radius-sm:     8px;
+
+  --ew-ease:          cubic-bezier(0.4,0,0.2,1);
+  --ew-dur:           0.2s;
+}
+
+/* ============================================================
+   TOOL-CONTENT: Wide mode — removes the 780px constraint
+   Applied by JS when a PRO editor or wide layout is mounted.
+   ============================================================ */
+#tool-content.ew-wide {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* Inner .tool-page inside a wide container should also expand */
+#tool-content.ew-wide > .tool-page,
+#tool-content.ew-wide > .tool-page--pro {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* Pro editor header keeps a comfortable padding */
+.tool-page--pro .tool-header {
+  padding: 20px 24px 14px;
+  margin-bottom: 0;
+}
+
+.tool-page--pro .step-indicator-wrap {
+  padding: 0 24px;
+}
+
+/* ============================================================
+   FADE-IN: Smooth entrance for all major panels
+   ============================================================ */
+@keyframes ew-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lp-panel,
+.bgpro,
+.epro {
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+}
+
+/* ============================================================
+   LIVE PREVIEW PANEL: Bigger, more immersive
+   ============================================================ */
+
+/* Taller scroll area — was 360px, now viewport-relative */
+.lp-scroll {
+  max-height: calc(100vh - 340px) !important;
+  min-height: 420px;
+}
+
+.lp-scroll--page {
+  max-height: calc(100vh - 300px) !important;
+  min-height: 460px;
+  background: #e4e8ee !important;
+  padding: 28px !important;
+}
+
+/* Panel: elevated card feel */
+.lp-panel {
+  border-radius: var(--ew-radius-lg) !important;
+  border: 1px solid var(--ew-border) !important;
+  box-shadow: var(--ew-shadow-card) !important;
+}
+
+.lp-header {
+  padding: 14px 18px !important;
+}
+
+/* Doc preview: true A4-page shadow */
+.lp-page-content {
+  box-shadow: 0 6px 40px rgba(0,0,0,.2), 0 1px 4px rgba(0,0,0,.08) !important;
+  border-radius: 2px !important;
+  padding: 48px 56px !important;
+}
+
+.lp-word-content {
+  box-shadow: 0 6px 40px rgba(0,0,0,.2), 0 1px 4px rgba(0,0,0,.08) !important;
+}
+
+/* ── PDF → PowerPoint slide grid improvements ── */
+.lp-slide-grid {
+  gap: 14px !important;
+  padding: 16px !important;
+  align-items: flex-start;
+}
+
+.lp-slide-card {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.16) !important;
+  transition: transform var(--ew-dur) var(--ew-ease),
+              box-shadow var(--ew-dur) var(--ew-ease) !important;
+}
+
+.lp-slide-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.2) !important;
+}
+
+.lp-panel--pptx-from,
+.lp-panel--pptx-to {
+  min-height: 440px !important;
+}
+
+/* Scrollable slide strip */
+.lp-ppt-strip-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 16px;
+  background: #1e1e2e;
+  border-radius: 0 0 var(--ew-radius-lg) var(--ew-radius-lg);
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+}
+
+/* Scrollbar: thin dark style for canvas areas */
+.lp-ppt-strip-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+.lp-ppt-strip-scroll::-webkit-scrollbar-track { background: transparent; }
+.lp-ppt-strip-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 4px; }
+
+/* ============================================================
+   BACKGROUND REMOVER PRO: Immersive editor upgrades
+   ============================================================ */
+
+/* Full-height, edge-to-edge */
+.bgpro {
+  height: calc(100vh - 116px) !important;
+  min-height: 560px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--ew-border) !important;
+  background: var(--ew-canvas-bg) !important;
+}
+
+/* Glassmorphism toolbar */
+.bgpro-toolbar {
+  background: var(--ew-toolbar-bg) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(226,232,240,.85) !important;
+  box-shadow: 0 1px 14px rgba(0,0,0,.07) !important;
+  min-height: 52px !important;
+  padding: 8px 16px !important;
+  gap: 6px !important;
+}
+
+/* Toolbar buttons */
+.bgpro-tb {
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: 13px !important;
+  transition: all .15s var(--ew-ease) !important;
+}
+
+.bgpro-tb:hover {
+  background: #f5f3ff !important;
+  border-color: #c4b5fd !important;
+  color: var(--ew-accent) !important;
+}
+
+.bgpro-tb.bgpro-on {
+  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
+  border-color: #818cf8 !important;
+  color: #4338ca !important;
+  font-weight: 700 !important;
+}
+
+/* Download button in toolbar — gradient pill */
+.bgpro-dl-tb {
+  background: var(--ew-grad) !important;
+  border: none !important;
+  border-radius: var(--ew-radius-sm) !important;
+  font-weight: 700 !important;
+  padding: 0 18px !important;
+  letter-spacing: .015em !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.38) !important;
+  transition: filter .15s, transform .15s, box-shadow .15s !important;
+}
+
+.bgpro-dl-tb:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 7px 22px rgba(91,61,245,.48) !important;
+}
+
+/* Center canvas: dark immersive background with subtle grid */
+.bgpro-panel-work .bgpro-scroll {
+  background: var(--ew-canvas-bg) !important;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+}
+
+/* Original panel */
+.bgpro-panel-orig {
+  width: 210px !important;
+  background: #f4f5fa !important;
+  border-right: 1px solid #e0e2ed !important;
+}
+
+.bgpro-plabel {
+  background: rgba(255,255,255,.95) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .09em !important;
+  color: #64748b !important;
+  padding: 8px 12px 6px !important;
+}
+
+/* Controls panel */
+.bgpro-panel-ctrl {
+  width: 244px !important;
+  background: var(--ew-surface-sub) !important;
+  border-left: 1px solid #e0e2ed !important;
+}
+
+.bgpro-section {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+.bgpro-slbl {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .10em !important;
+  color: #94a3b8 !important;
+  margin-bottom: 8px !important;
+}
+
+/* Brush tool buttons */
+.bgpro-tool {
+  border-radius: var(--ew-radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 7px 5px !important;
+  transition: all .15s var(--ew-ease) !important;
+}
+
+.bgpro-tool:hover {
+  background: #ede9fe !important;
+  border-color: #a78bfa !important;
+  color: #5b21b6 !important;
+}
+
+.bgpro-tool.bgpro-on {
+  background: linear-gradient(135deg,#eef0ff,#e8e4ff) !important;
+  border-color: #818cf8 !important;
+  color: #4338ca !important;
+  font-weight: 700 !important;
+}
+
+/* Range sliders */
+.bgpro-srow input[type="range"] {
+  accent-color: var(--ew-accent) !important;
+}
+
+/* Quality meter card */
+.bgpro-qmeter {
+  background: #fff !important;
+  border: 1px solid var(--ew-border) !important;
+  border-radius: var(--ew-radius-sm) !important;
+  padding: 10px 12px !important;
+}
+
+/* Export download button */
+.bgpro-btn-primary {
+  background: var(--ew-grad) !important;
+  border-radius: var(--ew-radius-md) !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em !important;
+  box-shadow: 0 4px 14px rgba(91,61,245,.32) !important;
+  transition: filter .15s, transform .15s, box-shadow .15s !important;
+}
+
+.bgpro-btn-primary:hover {
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 7px 24px rgba(91,61,245,.45) !important;
+}
+
+/* Status bar */
+.bgpro-status {
+  background: rgba(255,255,255,.97) !important;
+  border-top: 1px solid #e0e2ed !important;
+  font-size: 11px !important;
+  padding: 5px 16px !important;
+}
+
+/* ── Edit PDF Pro: same upgrades ── */
+.epro {
+  height: calc(100vh - 116px) !important;
+  min-height: 560px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--ew-border) !important;
+}
+
+.epro-toolbar {
+  background: var(--ew-toolbar-bg) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  box-shadow: 0 1px 14px rgba(0,0,0,.07) !important;
+  min-height: 52px !important;
+}
+
+.epro-canvas-scroll {
+  background: var(--ew-canvas-bg) !important;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+}
+
+/* ============================================================
+   MOBILE DRAWER: bgpro controls as a bottom sheet
+   ============================================================ */
+
+/* Drawer handle (hidden on desktop) */
+.bgpro-drawer-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  cursor: pointer;
+  background: var(--ew-surface-sub);
+  border-radius: 20px 20px 0 0;
+  border-bottom: 1px solid var(--ew-border-sub);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.bgpro-drawer-handle::before {
+  content: '';
+  width: 42px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.bgpro-drawer-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-left: 10px;
+  letter-spacing: .04em;
+}
+
+@media (max-width: 768px) {
+  .bgpro {
+    height: calc(100vh - 96px) !important;
+    min-height: 380px !important;
+  }
+
+  .bgpro-panel-orig {
+    display: none !important;
+  }
+
+  .bgpro-toolbar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Controls become a fixed bottom drawer */
+  .bgpro-panel-ctrl {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 58vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--ew-border) !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -8px 36px rgba(0,0,0,.18) !important;
+    transform: translateY(calc(100% - 46px)) !important;
+    transition: transform .32s var(--ew-ease) !important;
+    overflow-y: auto !important;
+    z-index: 500 !important;
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+    will-change: transform;
+  }
+
+  .bgpro-panel-ctrl.bgpro-drawer-open {
+    transform: translateY(0) !important;
+  }
+
+  .bgpro-drawer-handle {
+    display: flex !important;
+  }
+
+  /* Push canvas up so it's not hidden behind collapsed drawer */
+  .bgpro-body {
+    padding-bottom: 46px;
+  }
+}
+
+@media (max-width: 700px) {
+  /* Override the existing 180px rule */
+  .bgpro-panel-ctrl {
+    width: 100% !important;
+  }
+}
+
+/* ============================================================
+   TABLET: tighten panels
+   ============================================================ */
+@media (max-width: 1024px) {
+  .bgpro-panel-orig {
+    width: 160px !important;
+  }
+  .bgpro-panel-ctrl {
+    width: 210px !important;
+  }
+}
+
+/* ============================================================
+   SCROLLBAR: thin polish for editor panels
+   ============================================================ */
+.bgpro-scroll::-webkit-scrollbar,
+.bgpro-panel-ctrl::-webkit-scrollbar,
+.epro-canvas-scroll::-webkit-scrollbar,
+.epro-thumbs-list::-webkit-scrollbar,
+.lp-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.bgpro-scroll::-webkit-scrollbar-track,
+.epro-canvas-scroll::-webkit-scrollbar-track,
+.lp-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bgpro-scroll::-webkit-scrollbar-thumb,
+.epro-canvas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.14);
+  border-radius: 4px;
+}
+
+.bgpro-panel-ctrl::-webkit-scrollbar-thumb,
+.epro-thumbs-list::-webkit-scrollbar-thumb,
+.lp-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   UPLOAD STEP: Enhanced drop zone
+   ============================================================ */
+.upload-area--hero {
+  border-radius: var(--ew-radius-xl) !important;
+  border: 2px dashed #c4b5fd !important;
+  background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%) !important;
+  transition: all var(--ew-dur) var(--ew-ease) !important;
+}
+
+.upload-area--hero:hover,
+.upload-area--hero.dragover {
+  border-color: var(--ew-accent-mid) !important;
+  background: linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%) !important;
+  box-shadow: 0 8px 36px rgba(91,61,245,.14) !important;
+}
+
+/* ============================================================
+   PREVIEW STEP: Better live preview host spacing
+   ============================================================ */
+#live-preview-host {
+  margin: 0 0 22px !important;
+}
+
+/* ============================================================
+   PROCESS BUTTON: Sticky on mobile
+   ============================================================ */
+@media (max-width: 640px) {
+  .process-btn-wrap {
+    position: sticky;
+    bottom: 0;
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 10px 16px env(safe-area-inset-bottom, 10px);
+    margin: 8px -16px 0;
+    border-top: 1px solid var(--ew-border);
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    display: flex;
+    gap: 10px;
+  }
+
+  .process-btn-wrap .btn-primary {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* ============================================================
+   TOOL HEADER: Premium look on pro editor
+   ============================================================ */
+.tool-page--pro .tool-header-icon {
+  box-shadow: 0 4px 18px rgba(91,61,245,.22);
+}
+
+/* ============================================================
+   POPULAR TOOLS CARDS: Lift on hover
+   ============================================================ */
+.popular-card {
+  transition: transform var(--ew-dur) var(--ew-ease),
+              box-shadow var(--ew-dur) var(--ew-ease),
+              border-color var(--ew-dur) var(--ew-ease) !important;
+}
+
+.popular-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 28px rgba(91,61,245,.14) !important;
+  border-color: #c4b5fd !important;
+}
+
+/* ============================================================
+   RESULT / DOWNLOAD STEP: Centered card
+   ============================================================ */
+.download-step {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ============================================================
+   STEP INDICATOR: Elevated card feel
+   ============================================================ */
+.step-indicator {
+  background: #fff !important;
+  border: 1px solid #eaecf4 !important;
+  border-radius: var(--ew-radius-md) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04) !important;
+}
+
+/* ============================================================
+   MOBILE SMALL: General polish
+   ============================================================ */
+@media (max-width: 480px) {
+  .lp-scroll {
+    max-height: calc(100vh - 260px) !important;
+    min-height: 280px !important;
+  }
+
+  .lp-page-content {
+    padding: 28px 22px !important;
+  }
+
+  .tool-header-name {
+    font-size: 1.25rem !important;
+  }
+}
