@@ -21,6 +21,7 @@
     'word-to-pdf', 'excel-to-pdf',
     'pdf-to-word', 'pdf-to-excel',
     'background-remover',
+    'translate', 'ai-summarize',
   ]);
 
   // ── Tiny script loader (shared CDN cache with browser-tools.js slots) ────
@@ -861,6 +862,209 @@
       '</div>';
   }
 
+  // ── TRANSLATE LIVE PREVIEW ────────────────────────────────────────────────
+  // Shows before-translate: page count, word estimate, detected mode (digital/OCR),
+  // and a snippet of extracted text so the user knows what will be translated.
+  async function mountTranslatePreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing document…</div>';
+
+    var pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      try {
+        var mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+        if (!mod.GlobalWorkerOptions.workerSrc)
+          mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+        pdfjsLib = mod; window.pdfjsLib = mod;
+      } catch (_) { pdfjsLib = null; }
+    }
+    if (!pdfjsLib) throw new Error('PDF library not available');
+
+    var buf        = await file.arrayBuffer();
+    var pdf        = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    var numPages   = pdf.numPages;
+    var checkPages = Math.min(numPages, 2);
+    var totalChars = 0;
+    var textSnippet = '';
+
+    for (var pg = 1; pg <= checkPages; pg++) {
+      var page    = await pdf.getPage(pg);
+      var content = await page.getTextContent();
+      var pageText = content.items.map(function (it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim();
+      totalChars += pageText.replace(/\s/g, '').length;
+      if (!textSnippet && pageText.length > 30) textSnippet = pageText.slice(0, 220);
+      page.cleanup();
+    }
+    await pdf.destroy();
+
+    var isScanned  = totalChars < 50;
+    // Estimate full-doc word count from sampled pages
+    var estWords   = isScanned ? 0 : Math.round(totalChars * (numPages / checkPages) / 5);
+
+    var ocrBadge = isScanned
+      ? '<div class="lp-scanned-notice">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+          ' Scanned PDF — Tesseract OCR will extract the text automatically before translating.' +
+        '</div>'
+      : '';
+
+    var snippetHtml = textSnippet
+      ? '<div class="lp-struct"><div class="lp-struct-title">Extracted text (preview)</div>' +
+          '<div class="lp-struct-line lp-struct-para">' +
+            '<span class="lp-struct-icon">¶</span>' +
+            '<span class="lp-struct-text">' + esc(textSnippet) + (textSnippet.length >= 220 ? '…' : '') + '</span>' +
+          '</div></div>'
+      : '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">⚠️</span>' +
+          '<span class="lp-struct-text">No selectable text found — OCR will extract text automatically before translating.</span>' +
+        '</div></div>';
+
+    host.innerHTML =
+      '<div class="lp-panel">' +
+        '<div class="lp-header">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<path d="M5 8l6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/>' +
+            '<path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>' +
+            ' Translation Preview' +
+          '</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages === 1 ? '' : 's') + '</span>' +
+            (isScanned
+              ? '<span class="lp-stat lp-stat--warn"><b>Scanned</b> — OCR</span>'
+              : '<span class="lp-stat"><b>~' + estWords.toLocaleString() + '</b> words</span>') +
+            '<span class="lp-stat"><b>' + (isScanned ? 'OCR' : 'Digital') + '</b> mode</span>' +
+          '</div>' +
+        '</div>' +
+        (ocrBadge ? '<div class="lp-scanned-wrap">' + ocrBadge + '</div>' : '') +
+        '<div class="lp-extract-body">' + snippetHtml + '</div>' +
+        '<div class="lp-footer">Full document will be translated. Large PDFs may take a moment.</div>' +
+      '</div>';
+  }
+
+  // ── AI SUMMARIZER LIVE PREVIEW ────────────────────────────────────────────
+  // Shows before-summarize: page count, estimated word count, reading time,
+  // heading count, and a structure preview of the first 3 pages.
+  async function mountSummarizePreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analysing document…</div>';
+
+    var pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      try {
+        var mod = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
+        if (!mod.GlobalWorkerOptions.workerSrc)
+          mod.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+        pdfjsLib = mod; window.pdfjsLib = mod;
+      } catch (_) { pdfjsLib = null; }
+    }
+    if (!pdfjsLib) throw new Error('PDF library not available');
+
+    var buf        = await file.arrayBuffer();
+    var pdf        = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+    var numPages   = pdf.numPages;
+    var checkPages = Math.min(numPages, 3);
+    var totalChars = 0;
+    var allLines   = [];
+
+    for (var pg = 1; pg <= checkPages; pg++) {
+      var page      = await pdf.getPage(pg);
+      var viewport  = page.getViewport({ scale: 1 });
+      var content   = await page.getTextContent();
+      var buckets   = {};
+
+      content.items.forEach(function (it) {
+        if (!it.str || !it.str.trim()) return;
+        totalChars += it.str.replace(/\s/g, '').length;
+        var yKey = Math.round(it.transform[5] / 3) * 3;
+        if (!buckets[yKey]) buckets[yKey] = { parts: [], fontSize: 0 };
+        buckets[yKey].parts.push({ text: it.str });
+        if ((it.height || 0) > buckets[yKey].fontSize) buckets[yKey].fontSize = it.height || 0;
+      });
+      page.cleanup();
+
+      // Modal font size for heading detection
+      var pageSizes = Object.values(buckets).map(function (b) { return Math.round(b.fontSize); }).filter(function (s) { return s > 0; });
+      var freq = {};
+      pageSizes.forEach(function (s) { freq[s] = (freq[s] || 0) + 1; });
+      var baseFs = pageSizes.length
+        ? parseInt(Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; })[0], 10) || 11 : 11;
+
+      Object.keys(buckets).map(Number).sort(function (a, b) { return b - a; }).forEach(function (y) {
+        var bucket = buckets[y];
+        var text   = bucket.parts.map(function (p) { return p.text; }).join(' ').trim();
+        if (!text) return;
+        var isHeading =
+          (bucket.fontSize > 0 && bucket.fontSize > baseFs * 1.2) ||
+          (text === text.toUpperCase() && text.length >= 3 && text.length < 80 && /[A-Z]/.test(text) && !/^\d/.test(text)) ||
+          (/^(\d+\.)+\s+\S/.test(text) && text.length <= 80);
+        allLines.push({ text: text, isHeading: isHeading });
+      });
+    }
+    await pdf.destroy();
+
+    var isScanned   = totalChars < 50;
+    var estWords    = isScanned ? 0 : Math.round(totalChars * (numPages / checkPages) / 5);
+    var readingMins = Math.max(1, Math.ceil(estWords / 200));
+    var headCount   = allLines.filter(function (l) { return l.isHeading; }).length;
+
+    var ocrBadge = isScanned
+      ? '<div class="lp-scanned-notice">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+          ' Scanned PDF — OCR will extract the text automatically before summarizing.' +
+        '</div>'
+      : '';
+
+    var structPanel = '';
+    if (isScanned) {
+      structPanel =
+        '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">🔍</span>' +
+          '<span class="lp-struct-text">No selectable text found. OCR will process each page automatically during summarization.</span>' +
+        '</div></div>';
+    } else if (allLines.length) {
+      var preview = allLines.slice(0, 12);
+      structPanel =
+        '<div class="lp-struct"><div class="lp-struct-title">Document structure (first ' + checkPages + ' pages)</div>' +
+        preview.map(function (l) {
+          var icon = l.isHeading ? '📌' : '¶';
+          var cls  = l.isHeading ? 'lp-struct-heading' : 'lp-struct-para';
+          return '<div class="lp-struct-line ' + cls + '">' +
+            '<span class="lp-struct-icon">' + icon + '</span>' +
+            '<span class="lp-struct-text">' + esc(l.text.slice(0, 72)) + '</span>' +
+          '</div>';
+        }).join('') +
+        '</div>';
+    } else {
+      structPanel =
+        '<div class="lp-struct"><div class="lp-struct-line lp-struct-para">' +
+          '<span class="lp-struct-icon">⚠️</span>' +
+          '<span class="lp-struct-text">No readable content detected in the first 3 pages. OCR will be attempted during summarization.</span>' +
+        '</div></div>';
+    }
+
+    host.innerHTML =
+      '<div class="lp-panel">' +
+        '<div class="lp-header">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>' +
+            '<polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+            ' Document Analysis' +
+          '</span>' +
+          '<div class="lp-stats">' +
+            '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages === 1 ? '' : 's') + '</span>' +
+            (isScanned
+              ? '<span class="lp-stat lp-stat--warn"><b>Scanned</b> — OCR</span>'
+              : '<span class="lp-stat"><b>~' + estWords.toLocaleString() + '</b> words</span>' +
+                '<span class="lp-stat"><b>~' + readingMins + '</b> min read</span>' +
+                '<span class="lp-stat"><b>' + headCount + '</b> heading' + (headCount === 1 ? '' : 's') + '</span>') +
+          '</div>' +
+        '</div>' +
+        (ocrBadge ? '<div class="lp-scanned-wrap">' + ocrBadge + '</div>' : '') +
+        '<div class="lp-extract-body">' + structPanel + '</div>' +
+        '<div class="lp-footer">Structure preview — first ' + checkPages + ' pages. Summary covers the full document.</div>' +
+      '</div>';
+  }
+
   // ── MOUNT DISPATCHER ─────────────────────────────────────────────────────
   async function mount(toolId, files, host) {
     if (!host || !SUPPORTED.has(toolId)) return;
@@ -873,6 +1077,8 @@
       else if (toolId === 'pdf-to-word')                    await mountPdfWordPreview(file, host);
       else if (toolId === 'pdf-to-excel')                   await mountPdfExcelPreview(file, host);
       else if (toolId === 'background-remover')             await mountBgRemover(file, host);
+      else if (toolId === 'translate')                      await mountTranslatePreview(file, host);
+      else if (toolId === 'ai-summarize')                   await mountSummarizePreview(file, host);
     } catch (err) {
       host.innerHTML = '';
       if (window.DebugTrace) {

@@ -1421,76 +1421,232 @@
     return { blob, ext: '.png', mime: 'image/png' };
   }
 
-  // ── PHASE 5: AI SUMMARIZER (extractive, browser-only) ────────────────────
-  // Uses pdfjs to extract text, then applies a TF-IDF-style extractive
-  // summarization. Fast, privacy-preserving, no upload needed.
+  // ── PHASE 5: AI SUMMARIZER v4.0 (TF-IDF, heading boost, Jaccard dedup) ──────
+  // Structured extraction with font-based heading detection. Proper TF-IDF scoring
+  // with IDF weighting. Heading proximity 2× boost. Position weight (early/late).
+  // Jaccard deduplication (threshold 0.6). Summary types: short/detailed/bullets/
+  // insights/executive. Output: TXT or DOCX. OCR fallback for scanned PDFs.
   async function aiSummarize(files, opts) {
+    opts = opts || {};
+    const summaryType  = String(opts.summaryType  || 'short').toLowerCase();
+    const outputFormat = String(opts.outputFormat || 'txt').toLowerCase();
+
     const pdfjsLib = await loadPdfJs();
     const data     = await readFileBytes(files[0]);
     const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page    = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += content.items.map(it => it.str).join(' ') + ' ';
-    }
-    if (!fullText.trim()) throw new Error('no_text');
-    const maxSentences = Math.min(20, Math.max(3, parseInt(opts.sentences || '7', 10)));
-    const sentences = (fullText.match(/[^.!?]{15,}[.!?]+/g) || [fullText]).map(s => s.trim()).filter(Boolean);
-    const words     = fullText.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
-    const freq      = {};
-    words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
-    const scored = sentences.map(s => ({
-      s,
-      score: (s.toLowerCase().match(/\b[a-z]{3,}\b/g) || []).reduce((sum, w) => sum + (freq[w] || 0), 0),
-    }));
-    const topSentences = scored
-      .slice()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxSentences)
-      .map(x => x.s);
-    const wordCount     = words.length;
-    const sentenceCount = sentences.length;
-    const summary = [
-      `Document Summary`,
-      `${'─'.repeat(40)}`,
-      topSentences.join(' '),
-      `${'─'.repeat(40)}`,
-      `Stats: ~${wordCount.toLocaleString()} words · ~${sentenceCount} sentences`,
-    ].join('\n');
-    return { blob: new Blob([summary], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
-  }
+    const numPages = pdf.numPages;
 
-  // ── PHASE 6: TRANSLATE PDF (MyMemory API, no upload) ─────────────────────
-  function chunkText(text, size) {
-    const chunks = [];
-    let i = 0;
-    while (i < text.length) {
-      let end = Math.min(i + size, text.length);
-      if (end < text.length) {
-        const ls = text.lastIndexOf(' ', end);
-        if (ls > i) end = ls;
+    // ── Structured extraction: Y-bucketed lines with heading detection ─────────
+    const allLines    = []; // [{ text, isHeading, pageNum }]
+    let totalRawChars = 0;
+
+    for (let i = 1; i <= numPages; i++) {
+      const page     = await pdf.getPage(i);
+      const content  = await page.getTextContent();
+      const buckets  = {};
+      for (const item of content.items) {
+        if (!item.str || !item.str.trim()) continue;
+        totalRawChars += item.str.replace(/\s/g, '').length;
+        const yKey = Math.round(item.transform[5] / 3) * 3;
+        if (!buckets[yKey]) buckets[yKey] = { parts: [], fontSize: 0 };
+        buckets[yKey].parts.push({ text: item.str });
+        const fs = item.height || 0;
+        if (fs > buckets[yKey].fontSize) buckets[yKey].fontSize = fs;
       }
-      chunks.push(text.slice(i, end).trim());
-      i = end + 1;
+      page.cleanup();
+
+      // Modal base font size for heading ratio detection
+      const pageSizes = Object.values(buckets).map(b => Math.round(b.fontSize)).filter(s => s > 0);
+      const fsFreq    = {};
+      for (const s of pageSizes) fsFreq[s] = (fsFreq[s] || 0) + 1;
+      const baseFs    = pageSizes.length
+        ? parseInt(Object.keys(fsFreq).sort((a, b) => fsFreq[b] - fsFreq[a])[0], 10) || 11 : 11;
+
+      for (const y of Object.keys(buckets).map(Number).sort((a, b) => b - a)) {
+        const bucket = buckets[y];
+        const text   = bucket.parts.map(p => p.text).join(' ').trim();
+        if (!text) continue;
+        const isHeading =
+          (bucket.fontSize > 0 && bucket.fontSize > baseFs * 1.2) ||
+          (text === text.toUpperCase() && text.length >= 3 && text.length < 80 && /[A-Z]/.test(text) && !/^\d/.test(text)) ||
+          (/^(\d+\.)+\s+\S/.test(text) && text.length <= 80);
+        allLines.push({ text, isHeading, pageNum: i });
+      }
     }
-    return chunks.filter(c => c);
+
+    // ── OCR fallback for scanned PDFs ────────────────────────────────────────
+    if (totalRawChars < 50) {
+      const Tesseract = await loadTesseract();
+      for (let i = 1; i <= numPages; i++) {
+        const page     = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas   = document.createElement('canvas');
+        canvas.width   = Math.floor(viewport.width);
+        canvas.height  = Math.floor(viewport.height);
+        const ctx      = canvas.getContext('2d');
+        ctx.fillStyle  = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const { data: { text } } = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng', { logger: () => {} });
+        canvas.width = 0; canvas.height = 0;
+        page.cleanup();
+        text.split('\n').filter(l => l.trim()).forEach(l =>
+          allLines.push({ text: l.trim(), isHeading: l === l.toUpperCase() && l.length > 3 && l.length < 80, pageNum: i }));
+      }
+    }
+
+    await pdf.destroy();
+
+    const headingSet = new Set(allLines.filter(l => l.isHeading).map(l => l.text));
+    const fullText   = allLines.map(l => l.text).join(' ');
+    if (!fullText.replace(/\s/g, '')) {
+      throw new Error('We couldn\'t extract readable text from this PDF. If it\'s a scanned document, OCR will be used during processing.');
+    }
+
+    // ── Sentence extraction ───────────────────────────────────────────────────
+    const rawSents  = fullText.match(/[^.!?]{15,}[.!?]+(?:\s|$)|[^.!?]{20,}$/g) || [fullText];
+    const sentences = rawSents.map(s => s.trim()).filter(s => s.length >= 15);
+    if (sentences.length < 3) throw new Error('Not enough content to generate a meaningful summary.');
+
+    // ── TF-IDF scoring ────────────────────────────────────────────────────────
+    const words = fullText.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+    const tf    = {};
+    words.forEach(w => { tf[w] = (tf[w] || 0) + 1; });
+
+    const docFreq = {};
+    for (const s of sentences) {
+      const sw = new Set(s.toLowerCase().match(/\b[a-z]{3,}\b/g) || []);
+      for (const w of sw) docFreq[w] = (docFreq[w] || 0) + 1;
+    }
+    const N   = sentences.length;
+    const idf = w => Math.log((N + 1) / (1 + (docFreq[w] || 0)));
+
+    const scored = sentences.map((s, idx) => {
+      const sw    = s.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+      let score   = sw.reduce((sum, w) => sum + (tf[w] || 0) * idf(w), 0) / Math.max(1, sw.length);
+
+      // Heading proximity boost (2×): within 2 lines of a heading
+      const nearbyIdx = Math.max(0, Math.floor(idx * allLines.length / sentences.length) - 2);
+      const nearby    = allLines.slice(nearbyIdx, nearbyIdx + 3);
+      if (nearby.some(l => l.isHeading) || headingSet.has(s)) score *= 2;
+
+      // Position boost: first 20% get 1.5×, last 10% get 1.2×
+      const pos = idx / sentences.length;
+      if (pos < 0.20) score *= 1.5;
+      else if (pos > 0.88) score *= 1.2;
+
+      // Length penalty
+      if (s.length < 30) score *= 0.7;
+
+      return { s, score, idx };
+    });
+
+    // ── Jaccard deduplication ─────────────────────────────────────────────────
+    function jaccard(a, b) {
+      const sa = new Set(a.toLowerCase().match(/\b[a-z]{3,}\b/g) || []);
+      const sb = new Set(b.toLowerCase().match(/\b[a-z]{3,}\b/g) || []);
+      const inter = [...sa].filter(w => sb.has(w)).length;
+      const union = sa.size + sb.size - inter;
+      return union > 0 ? inter / union : 0;
+    }
+
+    const typeCounts = { short: 6, detailed: 13, bullets: 9, insights: 8, executive: 11 };
+    const count      = typeCounts[summaryType] || 6;
+    const byScore    = [...scored].sort((a, b) => b.score - a.score);
+    const selected   = [];
+    for (const item of byScore) {
+      if (selected.length >= count) break;
+      if (!selected.some(sel => jaccard(sel.s, item.s) > 0.6)) selected.push(item);
+    }
+    selected.sort((a, b) => a.idx - b.idx); // restore document order
+
+    const topSentences    = selected.map(x => x.s);
+    const wordCount       = words.length;
+    const readingMinutes  = Math.max(1, Math.ceil(wordCount / 200));
+    const headCount       = allLines.filter(l => l.isHeading).length;
+
+    // ── Format output ─────────────────────────────────────────────────────────
+    let bodyText = '';
+    if (summaryType === 'bullets') {
+      bodyText = topSentences.map(s => `• ${s}`).join('\n');
+    } else if (summaryType === 'insights') {
+      bodyText = 'Key Insights\n' + '─'.repeat(40) + '\n' +
+        topSentences.map((s, i) => `${i + 1}. ${s}`).join('\n');
+    } else if (summaryType === 'executive') {
+      bodyText = 'EXECUTIVE SUMMARY\n' + '═'.repeat(40) + '\n\n' +
+        topSentences.join(' ') + '\n\n' + '─'.repeat(40) + '\n' +
+        `${numPages} pages · ~${wordCount.toLocaleString()} words · ~${readingMinutes} min read`;
+    } else {
+      bodyText = topSentences.join(' ');
+    }
+
+    const statsLine  = `${'─'.repeat(40)}\nStats: ${numPages} pages · ~${wordCount.toLocaleString()} words · ~${readingMinutes} min read · ${headCount} sections`;
+    const fullOutput = `Document Summary\n${'═'.repeat(40)}\n\n${bodyText}\n\n${statsLine}`;
+
+    // ── DOCX output ───────────────────────────────────────────────────────────
+    if (outputFormat === 'docx') {
+      const JSZip = await loadJsZip();
+      function escX(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      const docParts = [];
+      docParts.push(`<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Document Summary</w:t></w:r></w:p>`);
+
+      if (summaryType === 'bullets') {
+        for (const s of topSentences)
+          docParts.push(`<w:p><w:pPr><w:spacing w:after="60"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">${escX(s)}</w:t></w:r></w:p>`);
+      } else if (summaryType === 'insights') {
+        docParts.push(`<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Key Insights</w:t></w:r></w:p>`);
+        topSentences.forEach((s, i) =>
+          docParts.push(`<w:p><w:pPr><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${i + 1}. </w:t></w:r><w:r><w:t xml:space="preserve">${escX(s)}</w:t></w:r></w:p>`));
+      } else if (summaryType === 'executive') {
+        docParts.push(`<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Executive Summary</w:t></w:r></w:p>`);
+        docParts.push(`<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:t xml:space="preserve">${escX(topSentences.join(' '))}</w:t></w:r></w:p>`);
+      } else {
+        docParts.push(`<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:t xml:space="preserve">${escX(topSentences.join(' '))}</w:t></w:r></w:p>`);
+      }
+      docParts.push(`<w:p><w:pPr><w:spacing w:before="200"/></w:pPr><w:r><w:rPr><w:color w:val="888888"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${escX(`${numPages} pages · ~${wordCount.toLocaleString()} words · ~${readingMinutes} min read`)}</w:t></w:r></w:p>`);
+
+      const docXml    = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${docParts.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080"/></w:sectPr></w:body></w:document>`;
+      const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="22"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="26"/></w:rPr></w:style></w:styles>`;
+      const ctXml     = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
+      const relsXml   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+      const wRelsXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+
+      const zip = new JSZip();
+      zip.file('[Content_Types].xml', ctXml);
+      zip.file('_rels/.rels', relsXml);
+      zip.file('word/document.xml', docXml);
+      zip.file('word/styles.xml', stylesXml);
+      zip.file('word/_rels/document.xml.rels', wRelsXml);
+      const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      if (docxBlob.size < 500) throw new Error('Summary generation failed. Please try a different file.');
+      return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+    }
+
+    // Default: TXT output
+    const txtBlob = new Blob([fullOutput], { type: 'text/plain' });
+    if (txtBlob.size < 20) throw new Error('We couldn\'t extract readable text from this PDF. Try a different file.');
+    return { blob: txtBlob, ext: '.txt', mime: 'text/plain' };
   }
 
-  // ── TRANSLATE PDF (v3.0 — OCR fallback, sentence chunking, reject identical) ─
-  // 1. Extract text via pdfjs; if sparse (<60 chars) auto-trigger Tesseract OCR
-  // 2. Chunk by sentence boundaries (not arbitrary char positions)
-  // 3. Translate each chunk via MyMemory API with 8s timeout
-  // 4. Reject chunks where translation === source (API echo) — fall back to source
-  // 5. If ALL chunks failed, surface a clear error
-  // 6. Build paginated output PDF with pdf-lib word-wrap
+  // ── PHASE 6: TRANSLATE PDF v4.0 ──────────────────────────────────────────────
+  // CRITICAL FIX v4.0: sourceLang was hardcoded as 'en' in v3.x — now reads opts.sourceLang.
+  // 1. Hybrid extraction: digital pdfjs text; OCR if sparse (< 60 non-ws chars)
+  // 2. Sentence-aware chunking (≤ 400 chars/chunk — MyMemory sweet spot)
+  // 3. Context carry-over: last sentence of prev chunk prepended to API query (not output)
+  // 4. Quality gate: reject if translated length < 30% of source
+  // 5. Output formats: PDF (default), TXT (.txt), DOCX (.docx)
   async function translatePdf(files, opts) {
-    const targetLang = opts.targetLang || 'es';
-    const pdfjsLib   = await loadPdfJs();
-    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
+    opts = opts || {};
+    // CRITICAL: sourceLang was hardcoded 'en' in v3 — now correctly reads from opts
+    const sourceLang   = String(opts.sourceLang  || 'en').split('-')[0]; // zh-TW → zh for API
+    const targetLang   = String(opts.targetLang  || 'es');
+    const outputFormat = String(opts.outputFormat || 'pdf').toLowerCase();
 
-    const data = await readFileBytes(files[0]);
-    const pdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    const pdfjsLib = await loadPdfJs();
+    const data     = await readFileBytes(files[0]);
+    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page    = await pdf.getPage(i);
@@ -1522,14 +1678,16 @@
     }
 
     await pdf.destroy();
-    if (!fullText.trim()) throw new Error('No text found in this PDF. Please try a different file.');
+    if (!fullText.trim()) {
+      throw new Error('We couldn\'t extract any text from this PDF. If it\'s a scanned document, OCR will run automatically — please try again.');
+    }
 
-    // Sentence-aware chunking (respect sentence boundaries, max 450 chars/chunk)
+    // Sentence-aware chunking (≤ 400 chars — MyMemory optimal range)
     function sentenceChunks(text, maxLen) {
-      const out = [];
-      let cur = '';
-      const sentences = text.match(/[^.!?]{3,}[.!?]+(?:\s|$)|[^.!?]{3,}$/g) || [text];
-      for (const s of sentences) {
+      const out   = [];
+      let cur     = '';
+      const sents = text.match(/[^.!?]{3,}[.!?]+(?:\s|$)|[^.!?]{3,}$/g) || [text];
+      for (const s of sents) {
         const candidate = cur ? cur + ' ' + s.trim() : s.trim();
         if (candidate.length > maxLen && cur) { out.push(cur.trim()); cur = s.trim(); }
         else { cur = candidate; }
@@ -1538,32 +1696,73 @@
       return out.filter(c => c.length > 0);
     }
 
-    const chunks      = sentenceChunks(fullText, 450);
-    const translated  = [];
-    let   failCount   = 0;
+    const chunks       = sentenceChunks(fullText, 400);
+    const translated   = [];
+    let   failCount    = 0;
+    let   lastSentence = ''; // context carry-over: last sentence of previous chunk
+
     for (const chunk of chunks) {
       try {
-        const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${targetLang}`;
-        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        const json = await resp.json();
-        const t    = String(json?.responseData?.translatedText || '').trim();
-        // Reject identical output (API returned the original text unchanged)
+        // Prepend context for better coherence (MyMemory uses full query for translation)
+        const ctxQuery = lastSentence ? lastSentence + ' ' + chunk : chunk;
+        const apiQuery = ctxQuery.slice(0, 490); // MyMemory hard limit ~500 chars
+        const langpair = `${sourceLang}|${targetLang}`;
+        const url      = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(apiQuery)}&langpair=${encodeURIComponent(langpair)}`;
+        const resp     = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const json     = await resp.json();
+        const t        = String(json?.responseData?.translatedText || '').trim();
+
         if (t && t.toLowerCase() !== chunk.trim().toLowerCase()) {
           translated.push(t);
         } else {
-          translated.push(chunk);
-          failCount++;
+          translated.push(chunk); failCount++;
         }
       } catch { translated.push(chunk); failCount++; }
+
+      // Update context: last sentence (max 120 chars) for next chunk
+      const sents = chunk.match(/[^.!?]+[.!?]+/g);
+      lastSentence = sents && sents.length ? sents[sents.length - 1].trim().slice(-120) : chunk.slice(-120);
     }
 
     if (failCount === chunks.length) {
-      throw new Error('Translation service is temporarily unavailable. Please try again in a moment.');
+      throw new Error('Translation is temporarily unavailable. Please check your connection and try again in a moment.');
     }
 
     const translatedText = translated.join(' ');
 
-    // Build output PDF (pdf-lib word-wrap)
+    // Quality gate: output must be ≥ 30% as long as source (catches truncated API returns)
+    if (fullText.length > 100 && translatedText.replace(/\s/g, '').length < fullText.replace(/\s/g, '').length * 0.3) {
+      throw new Error('The translation result appears incomplete. Please try again or select a different target language.');
+    }
+
+    // ── Output: TXT ────────────────────────────────────────────────────────────
+    if (outputFormat === 'txt') {
+      return { blob: new Blob([translatedText], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+    }
+
+    // ── Output: DOCX ───────────────────────────────────────────────────────────
+    if (outputFormat === 'docx') {
+      const JSZip = await loadJsZip();
+      function escXml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+      const paras    = translatedText.split(/\n{2,}/).filter(p => p.trim());
+      const docParts = paras.map(p =>
+        `<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:t xml:space="preserve">${escXml(p.trim())}</w:t></w:r></w:p>`);
+      const docXml    = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${docParts.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080"/></w:sectPr></w:body></w:document>`;
+      const ctXml     = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+      const relsXml   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+      const wRelsXml  = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+      const zip = new JSZip();
+      zip.file('[Content_Types].xml', ctXml);
+      zip.file('_rels/.rels', relsXml);
+      zip.file('word/document.xml', docXml);
+      zip.file('word/_rels/document.xml.rels', wRelsXml);
+      const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      if (docxBlob.size < 500) throw new Error('DOCX generation failed. Please try TXT or PDF output.');
+      return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+    }
+
+    // ── Output: PDF (default) — pdf-lib word-wrap ─────────────────────────────
+    const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
     const doc      = await PDFDoc.create();
     const font     = await doc.embedFont(SF.Helvetica);
     const fontSize = 11;
@@ -1572,14 +1771,13 @@
     const PW = 595, PH = 842;
     const usableW  = PW - margin * 2;
 
-    const words = translatedText.split(/\s+/);
+    const lineWords = translatedText.split(/\s+/);
     const lines = [];
     let cur = '';
-    for (const word of words) {
+    for (const word of lineWords) {
       const test = cur ? cur + ' ' + word : word;
-      if (font.widthOfTextAtSize(test, fontSize) > usableW && cur) {
-        lines.push(cur); cur = word;
-      } else { cur = test; }
+      if (font.widthOfTextAtSize(test, fontSize) > usableW && cur) { lines.push(cur); cur = word; }
+      else { cur = test; }
     }
     if (cur) lines.push(cur);
 
@@ -1591,9 +1789,9 @@
       y -= lineH;
     }
 
-    const blob = new Blob([await doc.save()], { type: 'application/pdf' });
-    if (blob.size < 500) throw new Error('Translation produced no valid output. Please try a different file.');
-    return blob;
+    const pdfBlob = new Blob([await doc.save()], { type: 'application/pdf' });
+    if (pdfBlob.size < 500) throw new Error('Translation produced no valid output. Please try a different file.');
+    return { blob: pdfBlob, ext: '.pdf', mime: 'application/pdf' };
   }
 
   // ── PHASE 6: WORKFLOW BUILDER (chained pdf-lib operations) ────────────────

@@ -374,7 +374,17 @@ const TOOLS = [
     apiEndpoint: '/api/ai-summarize', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
     options: [
-      { id: 'sentences', label: 'Summary Length (number of key sentences)', type: 'number', placeholder: '7' }
+      { id: 'summaryType', label: 'Summary Type', type: 'select', options: [
+        { value: 'short',     label: 'Short Summary (5–6 key sentences)' },
+        { value: 'detailed',  label: 'Detailed Summary (10–13 sentences)' },
+        { value: 'bullets',   label: 'Bullet Points' },
+        { value: 'insights',  label: 'Key Insights (numbered list)' },
+        { value: 'executive', label: 'Executive Summary (pro format)' },
+      ]},
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'txt',  label: 'Plain Text (.txt)' },
+        { value: 'docx', label: 'Word Document (.docx)' },
+      ]},
     ]
   },
   {
@@ -384,6 +394,11 @@ const TOOLS = [
     apiEndpoint: '/api/translate', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
     options: [
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'pdf',  label: 'PDF Document (.pdf)' },
+        { value: 'txt',  label: 'Plain Text (.txt)' },
+        { value: 'docx', label: 'Word Document (.docx)' },
+      ]},
       { id: 'sourceLang', label: 'Source Language (language of your PDF)', type: 'select', options: [
         { value: 'en', label: 'English' },
         { value: 'ar', label: 'Arabic' },
