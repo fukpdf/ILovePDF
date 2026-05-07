@@ -460,14 +460,60 @@ const TOOLS = [
     description: 'Fix corrupted or damaged PDF files',
     category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
     apiEndpoint: '/api/repair', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true, options: []
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'repairDepth', label: 'Repair Depth', type: 'select', options: [
+        { value: 'standard', label: 'Standard (Recommended)' },
+        { value: 'fast',     label: 'Fast Repair' },
+        { value: 'deep',     label: 'Deep Recovery' },
+        { value: 'maximum',  label: 'Maximum Recovery' },
+      ]},
+      { id: 'outputMode', label: 'Output Optimization', type: 'select', options: [
+        { value: 'preserve',      label: 'Preserve Original' },
+        { value: 'compatibility', label: 'Max Compatibility' },
+        { value: 'print-safe',    label: 'Print Safe' },
+        { value: 'reduce-size',   label: 'Reduce File Size' },
+      ]},
+    ]
   },
   {
     id: 'scan-to-pdf', name: 'Scan', icon: 'scan-line',
     description: 'Convert scanned images into a PDF document',
     category: 'Advanced Tools', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/scan-to-pdf', acceptedFiles: '.jpg,.jpeg,.png',
-    multipleFiles: true, working: true, clientSide: true, options: []
+    multipleFiles: true, working: true, clientSide: true,
+    options: [
+      { id: 'outputFormat', label: 'Output', type: 'select', options: [
+        { value: 'pdf',            label: 'Enhanced PDF (image)' },
+        { value: 'searchable-pdf', label: 'Searchable PDF' },
+        { value: 'docx',           label: 'Word Document (.docx)' },
+        { value: 'txt',            label: 'Plain Text (.txt)' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'balanced',       label: 'Balanced (Recommended)' },
+        { value: 'fast',           label: 'Fast OCR' },
+        { value: 'accurate',       label: 'Deep OCR (accurate)' },
+        { value: 'table-priority', label: 'Table OCR' },
+      ]},
+      { id: 'enhancement', label: 'Enhancement', type: 'select', options: [
+        { value: 'auto',     label: 'Auto (Recommended)' },
+        { value: 'strong',   label: 'Strong Cleanup' },
+        { value: 'contrast', label: 'High Contrast' },
+        { value: 'table',    label: 'Table Focus' },
+        { value: 'light',    label: 'Light Cleanup' },
+        { value: 'none',     label: 'No Enhancement' },
+      ]},
+      { id: 'language', label: 'Language', type: 'select', options: [
+        { value: 'eng',     label: 'English' },
+        { value: 'fra',     label: 'French' },
+        { value: 'deu',     label: 'German' },
+        { value: 'spa',     label: 'Spanish' },
+        { value: 'ara',     label: 'Arabic' },
+        { value: 'urd',     label: 'Urdu' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'jpn',     label: 'Japanese' },
+      ]},
+    ]
   },
   {
     id: 'ocr', name: 'OCR', icon: 'type',

@@ -315,6 +315,283 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
+  // ── SCAN PDF PRO MAX ──────────────────────────────────────────────────────
+  // Accepts image files (jpg/png). Applies deskew + auto-level + contrast
+  // enhancement, then either embeds into an enhanced image PDF or runs AI
+  // OCR Engine to produce Searchable PDF, DOCX, or TXT output.
+  async function scanPdf(files, opts) {
+    opts = opts || {};
+    const outputFmt   = opts.outputFormat || 'pdf';
+    const ocrMode     = opts.ocrMode      || 'balanced';
+    const enhancement = opts.enhancement  || 'auto';
+    const lang        = opts.language     || 'eng';
+
+    const scaleMap  = { fast: 1.5, balanced: 2.0, accurate: 2.5, 'table-priority': 2.5 };
+    const psmMap    = { 'table-priority': '6' };
+    const renderScale = scaleMap[ocrMode] || 2.0;
+    const psm         = psmMap[ocrMode]   || '3';
+
+    const factorMap = { auto: 1.5, strong: 1.9, contrast: 1.8, table: 1.6, light: 1.2, none: 0 };
+    const enhFactor = factorMap[enhancement] !== undefined ? factorMap[enhancement] : 1.5;
+    const doBW      = enhancement === 'table' || enhancement === 'strong';
+
+    // Convert base64 dataUrl → Uint8Array (for pdf-lib embedJpg)
+    function dataUrlToBytes(dataUrl) {
+      const b64 = dataUrl.split(',')[1];
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    // Grayscale + histogram auto-level + contrast curve
+    function applyEnhancement(ctx, w, h) {
+      if (enhFactor === 0) return;
+      const id = ctx.getImageData(0, 0, w, h);
+      const d = id.data, N = d.length;
+      let minV = 255, maxV = 0;
+      for (let px = 0; px < N; px += 4) {
+        const g = Math.round(0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2]);
+        d[px] = d[px + 1] = d[px + 2] = g;
+        if (g < minV) minV = g;
+        if (g > maxV) maxV = g;
+      }
+      const range = Math.max(1, maxV - minV);
+      for (let px = 0; px < N; px += 4) {
+        let v = Math.round((d[px] - minV) * 255 / range);
+        v = Math.min(255, Math.max(0, Math.round((v - 128) * enhFactor + 128)));
+        if (doBW) v = v > 140 ? 255 : 0;
+        d[px] = d[px + 1] = d[px + 2] = v;
+      }
+      ctx.putImageData(id, 0, 0);
+    }
+
+    // Deskew: horizontal projection variance over ±8° test angles on a
+    // 320px-wide thumbnail to find the best rotation without heavy computation.
+    function detectSkewAngle(canvas) {
+      const sw = Math.min(canvas.width, 320);
+      const sh = Math.round(canvas.height * sw / canvas.width);
+      const sc = document.createElement('canvas');
+      sc.width = sw; sc.height = sh;
+      sc.getContext('2d').drawImage(canvas, 0, 0, sw, sh);
+      const sd = sc.getContext('2d').getImageData(0, 0, sw, sh).data;
+      sc.width = 0; sc.height = 0;
+      const bw = new Uint8Array(sw * sh);
+      for (let i = 0, px = 0; px < sd.length; px += 4, i++) {
+        bw[i] = (0.299 * sd[px] + 0.587 * sd[px + 1] + 0.114 * sd[px + 2]) < 128 ? 1 : 0;
+      }
+      const DEG = Math.PI / 180;
+      const angles = [-8, -5, -3, -2, -1, 0, 1, 2, 3, 5, 8];
+      let bestAngle = 0, bestVar = -1;
+      for (const deg of angles) {
+        const cos = Math.cos(deg * DEG), sin = Math.sin(deg * DEG);
+        const rows = new Float32Array(sh);
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            if (!bw[y * sw + x]) continue;
+            const ry = Math.round((x - sw / 2) * sin + (y - sh / 2) * cos + sh / 2);
+            if (ry >= 0 && ry < sh) rows[ry]++;
+          }
+        }
+        let mean = 0;
+        for (let i = 0; i < sh; i++) mean += rows[i];
+        mean /= sh;
+        let v = 0;
+        for (let i = 0; i < sh; i++) v += (rows[i] - mean) ** 2;
+        if (v > bestVar) { bestVar = v; bestAngle = deg; }
+      }
+      return Math.abs(bestAngle) >= 1 ? bestAngle : 0;
+    }
+
+    function rotateCanvas(src, deg) {
+      const W = src.width, H = src.height;
+      const RAD = deg * Math.PI / 180;
+      const cos = Math.abs(Math.cos(RAD)), sin = Math.abs(Math.sin(RAD));
+      const nW = Math.round(W * cos + H * sin);
+      const nH = Math.round(H * cos + W * sin);
+      const nc = document.createElement('canvas');
+      nc.width = nW; nc.height = nH;
+      const nctx = nc.getContext('2d');
+      nctx.fillStyle = '#fff';
+      nctx.fillRect(0, 0, nW, nH);
+      nctx.translate(nW / 2, nH / 2);
+      nctx.rotate(-RAD);
+      nctx.drawImage(src, -W / 2, -H / 2);
+      return nc;
+    }
+
+    async function loadImageCanvas(file) {
+      return new Promise(function (resolve, reject) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = function () {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          const cx = c.getContext('2d');
+          cx.fillStyle = '#fff';
+          cx.fillRect(0, 0, c.width, c.height);
+          cx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve({ c, cx });
+        };
+        img.onerror = function () {
+          URL.revokeObjectURL(url);
+          reject(new Error('Could not load image: ' + file.name));
+        };
+        img.src = url;
+      });
+    }
+
+    // ── Process each image: deskew → enhance ─────────────────────────────
+    const pageCanvases = [];
+    for (const file of files) {
+      let { c, cx } = await loadImageCanvas(file);
+      if (enhancement !== 'none') {
+        const skew = detectSkewAngle(c);
+        if (skew !== 0) {
+          const rotated = rotateCanvas(c, skew);
+          c.width = 0; c.height = 0;
+          c = rotated; cx = c.getContext('2d');
+        }
+      }
+      applyEnhancement(cx, c.width, c.height);
+      pageCanvases.push(c);
+    }
+
+    // ── PDF-only output (enhanced image PDF, no OCR) ──────────────────────
+    if (outputFmt === 'pdf') {
+      const { PDFDocument } = await loadPdfLib();
+      const doc = await PDFDocument.create();
+      for (const c of pageCanvases) {
+        const bytes = dataUrlToBytes(c.toDataURL('image/jpeg', 0.92));
+        c.width = 0; c.height = 0;
+        const img  = await doc.embedJpg(bytes);
+        const page = doc.addPage([img.width, img.height]);
+        page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+      }
+      const pdfBytes = await doc.save();
+      if (!pdfBytes || pdfBytes.length < 200) throw new Error('Could not create PDF from images.');
+      return new Blob([pdfBytes], { type: 'application/pdf' });
+    }
+
+    // ── OCR path ──────────────────────────────────────────────────────────
+    const Tesseract = await loadTesseract();
+    const allPageData = [];
+    let totalConf = 0;
+
+    for (const c of pageCanvases) {
+      const canvasW = c.width;
+      let ocrC = c;
+      if (renderScale > 1.05) {
+        const sc = document.createElement('canvas');
+        sc.width  = Math.min(Math.round(c.width  * renderScale), 4096);
+        sc.height = Math.min(Math.round(c.height * renderScale), 4096);
+        sc.getContext('2d').drawImage(c, 0, 0, sc.width, sc.height);
+        ocrC = sc;
+      }
+      const dataUrl = ocrC.toDataURL('image/png');
+      if (ocrC !== c) { ocrC.width = 0; ocrC.height = 0; }
+      c.width = 0; c.height = 0;
+
+      const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
+        logger: () => {},
+        tessedit_pageseg_mode: psm,
+      });
+      const conf = typeof ocrData.confidence === 'number' ? ocrData.confidence : 0;
+      totalConf += conf;
+      allPageData.push({ text: (ocrData.text || '').trim(), words: ocrData.words || [], confidence: conf, pageW: canvasW });
+    }
+
+    const avgConf = allPageData.length > 0 ? totalConf / allPageData.length : 0;
+    if (avgConf < 5) {
+      throw new Error('Low scan quality detected. Try switching to a different enhancement mode or language setting.');
+    }
+
+    // ── TXT output ────────────────────────────────────────────────────────
+    if (outputFmt === 'txt') {
+      const full = allPageData.map(function (p, i) {
+        return (allPageData.length > 1 ? '--- Page ' + (i + 1) + ' ---\n' : '') + p.text;
+      }).join('\n\n');
+      return { blob: new Blob([full], { type: 'text/plain' }), ext: '.txt', mime: 'text/plain' };
+    }
+
+    // ── Searchable PDF output ─────────────────────────────────────────────
+    if (outputFmt === 'searchable-pdf') {
+      const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
+      const outDoc = await PDFDocument.create();
+      const font   = await outDoc.embedFont(StandardFonts.Helvetica);
+      const bold   = await outDoc.embedFont(StandardFonts.HelveticaBold);
+      const mL = 50, mR = 50, mT = 50, mB = 50;
+      const pW = 595.28, pH = 841.89, cW = pW - mL - mR;
+      for (const pd of allPageData) {
+        const lines = _reconstructOcrLines(pd.words, pd.pageW || 0).map(function (l) { return l.text; });
+        if (!lines.length) continue;
+        let page = outDoc.addPage([pW, pH]);
+        let y    = pH - mT;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const sz  = (line.toUpperCase() === line && /[A-Z]/.test(line) && line.length <= 60) ? 13 : 11;
+          const fnt = sz === 13 ? bold : font;
+          const lh  = sz * 1.5;
+          const ws  = line.split(' ');
+          let cur = '', wrapped = [];
+          for (const w of ws) {
+            const t = cur ? cur + ' ' + w : w;
+            if (fnt.widthOfTextAtSize(t, sz) > cW && cur) { wrapped.push(cur); cur = w; } else cur = t;
+          }
+          if (cur) wrapped.push(cur);
+          for (const wl of wrapped) {
+            if (y - lh < mB) { page = outDoc.addPage([pW, pH]); y = pH - mT; }
+            y -= lh;
+            try { page.drawText(wl, { x: mL, y, size: sz, font: fnt, color: rgb(0, 0, 0), maxWidth: cW }); } catch (_) {}
+          }
+        }
+      }
+      const pdfBytes = await outDoc.save();
+      if (!pdfBytes || pdfBytes.length < 200) throw new Error('Could not generate searchable PDF.');
+      return { blob: new Blob([pdfBytes], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
+    }
+
+    // ── DOCX output ───────────────────────────────────────────────────────
+    const JSZip = await loadJsZip();
+    const allReconstructed = allPageData.flatMap(function (pd) {
+      return (pd.words && pd.words.length > 2)
+        ? _reconstructOcrLines(pd.words, pd.pageW || 0)
+        : pd.text.split('\n').map(function (t) {
+            t = t.trim(); if (!t) return null;
+            return { text: t, type: (t === t.toUpperCase() && /[A-Z]/.test(t)) ? 'h1' : 'normal' };
+          }).filter(Boolean);
+    });
+    const xmlParts = [];
+    for (const rl of allReconstructed) {
+      const escaped = rl.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pStyle  = rl.type === 'h1' ? 'Heading1' : rl.type === 'h2' ? 'Heading2' : 'Normal';
+      const rStyle  = rl.type === 'h1'    ? '<w:b/><w:sz><w:val>32</w:val></w:sz>' :
+                      rl.type === 'h2'    ? '<w:b/><w:sz><w:val>28</w:val></w:sz>' :
+                      rl.type === 'table' ? '<w:sz><w:val>20</w:val></w:sz>' :
+                                           '<w:sz><w:val>24</w:val></w:sz>';
+      xmlParts.push('<w:p><w:pPr><w:pStyle w:val="' + pStyle + '"/></w:pPr><w:r><w:rPr>' + rStyle + '</w:rPr><w:t xml:space="preserve">' + escaped + '</w:t></w:r></w:p>');
+    }
+    const scanFootNote = 'AI OCR Engine \u00b7 ' + Math.round(avgConf) + '% confidence \u00b7 ' + allPageData.length + ' image' + (allPageData.length > 1 ? 's' : '') + ' processed';
+    const scanFootEsc  = scanFootNote.replace(/&/g, '&amp;');
+    xmlParts.push(
+      '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr><w:t xml:space="preserve">\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500</w:t></w:r></w:p>',
+      '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:rPr><w:color w:val="888888"/><w:sz><w:val>18</w:val></w:sz></w:rPr><w:t xml:space="preserve">' + scanFootEsc + '</w:t></w:r></w:p>'
+    );
+    const docXml  = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + xmlParts.join('') + '<w:sectPr/></w:body></w:document>';
+    const ctXml   = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+    const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+    const wRels   = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', ctXml);
+    zip.file('_rels/.rels', relsXml);
+    zip.file('word/document.xml', docXml);
+    zip.file('word/_rels/document.xml.rels', wRels);
+    const docxBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    if (!docxBlob || docxBlob.size < 200) throw new Error('Scan OCR produced no output. Try a different enhancement mode.');
+    return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+  }
+
   // ── COMPRESS (basic, browser-side) ───────────────────────────────────────
   // Re-saves the PDF using object streams + metadata strip. Returns the best
   // result available — if no size improvement is possible, the original bytes
@@ -785,60 +1062,151 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── PHASE 3: REPAIR PDF (multi-pass v5.5) ───────────────────────────────
-  // Pass 1: Lenient load → save uncompressed streams (fixes object corruption)
-  // Pass 2: Re-open to verify page count is preserved
-  // Pass 3: Rebuild metadata + resave with object streams for size efficiency
-  async function repairPdf(files) {
+  // ── Shared OCR line reconstructor ────────────────────────────────────────
+  // Groups Tesseract word objects by Y-midpoint proximity into visual lines,
+  // sorts each line by X, then classifies type (h1/h2/table/normal) from
+  // bbox metrics. Used by scanPdf DOCX/searchable-PDF paths.
+  function _reconstructOcrLines(words, pageW) {
+    if (!words || !words.length) return [];
+    const valid = words.filter(function (w) {
+      return w && w.text && w.text.trim() &&
+        w.bbox && typeof w.bbox.x0 === 'number' && typeof w.bbox.y0 === 'number';
+    });
+    if (!valid.length) return [];
+    valid.sort(function (a, b) { return a.bbox.y0 - b.bbox.y0; });
+    const lineGroups = [];
+    let cur = [valid[0]];
+    for (let i = 1; i < valid.length; i++) {
+      const w    = valid[i];
+      const prev = cur[cur.length - 1];
+      const maxH = Math.max(prev.bbox.y1 - prev.bbox.y0, w.bbox.y1 - w.bbox.y0, 6);
+      const midP = (prev.bbox.y0 + prev.bbox.y1) / 2;
+      const midC = (w.bbox.y0  + w.bbox.y1)  / 2;
+      if (Math.abs(midC - midP) < maxH * 0.65) {
+        cur.push(w);
+      } else {
+        lineGroups.push(cur); cur = [w];
+      }
+    }
+    if (cur.length) lineGroups.push(cur);
+    return lineGroups.map(function (grp) {
+      grp.sort(function (a, b) { return a.bbox.x0 - b.bbox.x0; });
+      const totalChars = grp.reduce(function (s, w) { return s + (w.text.length || 1); }, 0);
+      const totalW     = grp.reduce(function (s, w) { return s + (w.bbox.x1 - w.bbox.x0); }, 0);
+      const avgCharW   = totalW / Math.max(totalChars, 1);
+      const avgH       = grp.reduce(function (s, w) { return s + (w.bbox.y1 - w.bbox.y0); }, 0) / grp.length;
+      let text = '', lastX1 = grp[0].bbox.x0;
+      grp.forEach(function (w, i) {
+        if (i > 0) text += (w.bbox.x0 - lastX1 > avgCharW * 3.5) ? '  ' : ' ';
+        text += w.text;
+        lastX1 = w.bbox.x1;
+      });
+      text = text.trim();
+      if (!text) return null;
+      const centerX  = (grp[0].bbox.x0 + grp[grp.length - 1].bbox.x1) / 2;
+      const isCenter = pageW > 0 && Math.abs(centerX - pageW / 2) < pageW * 0.2;
+      const isAllCap = text === text.toUpperCase() && /[A-Z]/.test(text);
+      const isShort  = text.split(/\s+/).length <= 10;
+      const hasWide  = grp.some(function (w, i) {
+        return i > 0 && (w.bbox.x0 - grp[i - 1].bbox.x1) > avgCharW * 3.5;
+      });
+      let type = 'normal';
+      if      (avgH > 18 || (isCenter && isShort && (isAllCap || avgH > 13))) type = 'h1';
+      else if (isShort && isAllCap && avgH > 10)                              type = 'h2';
+      else if (hasWide && grp.length >= 3)                                    type = 'table';
+      return { text, type };
+    }).filter(Boolean);
+  }
+
+  // ── REPAIR PDF PRO MAX ────────────────────────────────────────────────────
+  // Depth-aware multi-pass repair: lenient load → page-by-page copy into
+  // fresh document → metadata rebuild → mode-specific save. Opts-aware so
+  // users can choose Fast / Standard / Deep / Maximum recovery.
+  async function repairPdf(files, opts) {
+    opts = opts || {};
+    const depth   = opts.repairDepth || 'standard';
+    const outMode = opts.outputMode  || 'preserve';
+
     const { PDFDocument } = await loadPdfLib();
     const bytes = await readFileBytes(files[0]);
 
-    // Pass 1: Try increasingly lenient load options
-    const loadStrategies = [
+    // ── Analysis: try increasingly lenient load strategies ────────────────
+    let doc = null;
+    const strategies = [
       { ignoreEncryption: true, throwOnInvalidObject: false },
       { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false },
     ];
-
-    let doc = null;
-    for (const opts of loadStrategies) {
+    for (const s of strategies) {
       try {
-        doc = await PDFDocument.load(bytes, opts);
+        doc = await PDFDocument.load(bytes, s);
         if (doc && doc.getPageCount() > 0) break;
         doc = null;
       } catch (_) { doc = null; }
     }
 
     if (!doc) {
-      throw new Error('The PDF is too severely damaged to repair. Please try with a different file.');
+      throw new Error(
+        'This PDF is too severely damaged to repair in the browser. ' +
+        'The file structure may be completely corrupted. Try Maximum Recovery mode or a desktop PDF repair tool.'
+      );
     }
 
-    // Pass 1 output — uncompressed streams (most compatible)
-    const pass1Bytes = await doc.save({ useObjectStreams: false });
+    // ── Fast mode: quick uncompressed save ───────────────────────────────
+    if (depth === 'fast') {
+      const fastBytes = await doc.save({ useObjectStreams: false });
+      return new Blob([fastBytes], { type: 'application/pdf' });
+    }
 
-    // Pass 2: Re-open the repaired bytes to verify integrity
-    let verifiedDoc;
+    // ── Standard / Deep / Maximum: page-by-page copy into fresh document ─
+    let bestDoc = doc;
     try {
-      verifiedDoc = await PDFDocument.load(pass1Bytes, { throwOnInvalidObject: false });
-      if (!verifiedDoc || verifiedDoc.getPageCount() === 0) throw new Error('no pages');
+      const freshDoc  = await PDFDocument.create();
+      const pageCount = doc.getPageCount();
+      for (let i = 0; i < pageCount; i++) {
+        try {
+          const [copied] = await freshDoc.copyPagesFrom(doc, [i]);
+          freshDoc.addPage(copied);
+        } catch (_) { /* skip unrecoverable page */ }
+      }
+      if (freshDoc.getPageCount() > 0) bestDoc = freshDoc;
+    } catch (_) { /* keep original doc */ }
+
+    // ── Maximum: second rebuild pass from intermediate ────────────────────
+    if (depth === 'maximum' && bestDoc !== doc) {
+      try {
+        const pass2 = await PDFDocument.create();
+        for (let i = 0; i < bestDoc.getPageCount(); i++) {
+          try {
+            const [copied] = await pass2.copyPagesFrom(bestDoc, [i]);
+            pass2.addPage(copied);
+          } catch (_) {}
+        }
+        if (pass2.getPageCount() > 0) bestDoc = pass2;
+      } catch (_) {}
+    }
+
+    // ── Rebuild metadata ──────────────────────────────────────────────────
+    try {
+      bestDoc.setTitle(bestDoc.getTitle() || 'Repaired Document');
+      bestDoc.setProducer('ILovePDF Repair');
+      bestDoc.setModificationDate(new Date());
+    } catch (_) {}
+
+    // ── Save with output-mode options ─────────────────────────────────────
+    const useObjStreams = (outMode === 'compatibility' || outMode === 'print-safe') ? false : true;
+    let finalBytes;
+    try {
+      finalBytes = await bestDoc.save({ useObjectStreams: useObjStreams });
     } catch (_) {
-      // Pass 2 failed — return pass 1 output (still better than nothing)
-      return new Blob([pass1Bytes], { type: 'application/pdf' });
+      finalBytes = await bestDoc.save({ useObjectStreams: false });
     }
 
-    // Pass 3: Rebuild metadata + resave with object streams
-    try {
-      const existingTitle = verifiedDoc.getTitle();
-      verifiedDoc.setTitle(existingTitle || 'Repaired Document');
-      verifiedDoc.setProducer('ILovePDF Repair Tool');
-      verifiedDoc.setModificationDate(new Date());
-    } catch (_) { /* metadata rebuild is best-effort */ }
+    const finalBlob = new Blob([finalBytes], { type: 'application/pdf' });
 
-    const finalBytes = await verifiedDoc.save({ useObjectStreams: true });
-    const finalBlob  = new Blob([finalBytes], { type: 'application/pdf' });
-
-    // Sanity: don't return a blob that's suspiciously small vs original
+    // ── Sanity: output suspiciously small? fall back to pass-1 bytes ─────
     if (finalBlob.size < 500 && bytes.byteLength > 1000) {
-      return new Blob([pass1Bytes], { type: 'application/pdf' });
+      const fallback = await doc.save({ useObjectStreams: false });
+      return new Blob([fallback], { type: 'application/pdf' });
     }
 
     return finalBlob;
@@ -2774,13 +3142,13 @@
     'pdf-to-powerpoint':  pdfToPowerpoint,
     'powerpoint-to-pdf':  powerpointToPdf,
     'excel-to-pdf':       excelToPdf,
-    'scan-to-pdf':        imagesToPdf,
+    'scan-to-pdf':        scanPdf,
   };
 
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
-    'compress', 'repair', 'workflow', 'merge', 'rotate',
+    'compress', 'workflow', 'merge', 'rotate',
     'page-numbers', 'watermark', 'sign', 'redact', 'edit',
   ]);
 

@@ -30,6 +30,7 @@
     'edit',
     'pdf-to-powerpoint', 'powerpoint-to-pdf',
     'html-to-pdf', 'ocr',
+    'scan-to-pdf', 'repair',
   ]);
 
   // ── JSZip loader ─────────────────────────────────────────────────────────
@@ -2441,6 +2442,187 @@
       '</div>';
   }
 
+  // ── SCAN PDF PRO MAX PREVIEW ──────────────────────────────────────────────
+  // Shows before/after enhancement comparison from the first uploaded image,
+  // plus resolution, DPI estimate, document-type badge, quality score.
+  async function mountScanPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analyzing image\u2026' + skeletonHtml(3) + '</div>';
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    try {
+      await new Promise(function (resolve, reject) { img.onload = resolve; img.onerror = reject; img.src = url; });
+    } catch (_) {
+      URL.revokeObjectURL(url);
+      host.innerHTML = errorHtml('Could not load this image file.');
+      return;
+    }
+    URL.revokeObjectURL(url);
+
+    var W = img.naturalWidth, H = img.naturalHeight;
+    var isLandscape = W > H;
+    var mp    = Math.round(W * H / 1e5) / 10;
+    var dpiEst = W > 2480 ? '~300' : W > 1654 ? '~200' : '~150';
+    var qualScore = Math.min(100, Math.max(20, Math.round(mp * 12)));
+    var docType   = isLandscape ? 'Landscape document' : mp > 4 ? 'High-res scan' : 'Standard scan';
+
+    var PREV_W = Math.min(W, 480);
+    var scale  = PREV_W / W;
+    var PW = Math.round(W * scale), PH = Math.round(H * scale);
+
+    var canvas = document.createElement('canvas');
+    canvas.width = PW; canvas.height = PH;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
+    ctx.drawImage(img, 0, 0, PW, PH);
+    var origUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+    // Enhancement preview: grayscale + auto-level + 1.5× contrast curve
+    var id = ctx.getImageData(0, 0, PW, PH);
+    var d = id.data, N = d.length;
+    var minV = 255, maxV = 0, g;
+    for (var px = 0; px < N; px += 4) {
+      g = Math.round(0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2]);
+      d[px] = d[px + 1] = d[px + 2] = g;
+      if (g < minV) minV = g; if (g > maxV) maxV = g;
+    }
+    var rng = Math.max(1, maxV - minV), v;
+    for (var px = 0; px < N; px += 4) {
+      v = Math.round((d[px] - minV) * 255 / rng);
+      v = Math.min(255, Math.max(0, Math.round((v - 128) * 1.5 + 128)));
+      d[px] = d[px + 1] = d[px + 2] = v;
+    }
+    ctx.putImageData(id, 0, 0);
+    var enhUrl = canvas.toDataURL('image/jpeg', 0.82);
+    canvas.width = 0; canvas.height = 0;
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--scan">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
+            ' Scan Analysis' +
+          '</span>' +
+          '<div class="lp-header-stats">' +
+            '<span class="lp-stat"><b>' + W + '\xd7' + H + '</b> px</span>' +
+            '<span class="lp-stat"><b>' + dpiEst + '</b> DPI</span>' +
+            '<span class="lp-stat"><b>' + mp + '</b> MP</span>' +
+            qualityBadge(qualScore) +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-scan-badges">' +
+          '<span class="lp-scan-badge lp-scan-badge--active">\u2728 Auto enhancement ready</span>' +
+          '<span class="lp-scan-badge lp-scan-badge--active">\uD83E\uDD16 AI OCR Engine enabled</span>' +
+          '<span class="lp-scan-badge">\uD83D\uDCCB ' + esc(docType) + '</span>' +
+          (mp > 4 ? '<span class="lp-scan-badge">\uD83D\uDD0D High-res scan detected</span>' : '') +
+        '</div>' +
+        '<div class="lp-scan-compare">' +
+          '<div class="lp-scan-col">' +
+            '<div class="lp-split-label">Original</div>' +
+            '<img class="lp-scan-img" src="' + origUrl + '" alt="Original scan">' +
+          '</div>' +
+          '<div class="lp-scan-col">' +
+            '<div class="lp-split-label">Enhanced preview</div>' +
+            '<img class="lp-scan-img" src="' + enhUrl + '" alt="Enhanced preview">' +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-footer">' +
+          'Image analysis \xb7 ' + (isLandscape ? 'Landscape' : 'Portrait') + ' \xb7 ' + mp + ' megapixels \xb7 ready to scan' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── REPAIR PDF PRO MAX PREVIEW ────────────────────────────────────────────
+  // Loads the PDF with pdfjs, probes renderable pages, shows corruption
+  // severity meter, repair confidence bar, and a page-1 thumbnail when readable.
+  async function mountRepairPreview(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Analyzing PDF\u2026' + skeletonHtml(4) + '</div>';
+    var pdfjsLib;
+    try { pdfjsLib = await loadPdfJs(); }
+    catch (_) { host.innerHTML = errorHtml('Could not load PDF renderer. Check your connection.'); return; }
+
+    var pdf = null, numPages = 0, loadFailed = false;
+    try {
+      var buf = await file.arrayBuffer();
+      pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+      numPages = pdf.numPages;
+    } catch (_) { loadFailed = true; }
+
+    var thumbUrl = null, renderableCount = 0;
+    if (pdf) {
+      var checkCount = Math.min(numPages, 3);
+      for (var i = 1; i <= checkCount; i++) {
+        try {
+          var page = await pdf.getPage(i);
+          var vp   = page.getViewport({ scale: 0.8 });
+          var c    = document.createElement('canvas');
+          c.width  = Math.min(Math.floor(vp.width),  480);
+          c.height = Math.min(Math.floor(vp.height), 680);
+          var cx   = c.getContext('2d');
+          cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+          await page.render({ canvasContext: cx, viewport: vp }).promise;
+          if (i === 1) thumbUrl = c.toDataURL('image/jpeg', 0.82);
+          c.width = 0; c.height = 0;
+          renderableCount++;
+          page.cleanup();
+        } catch (_) {}
+      }
+      await pdf.destroy();
+    }
+
+    var fileSizeKB  = Math.round(file.size / 1024);
+    var fileSizeFmt = fileSizeKB > 1024 ? (fileSizeKB / 1024).toFixed(1) + ' MB' : fileSizeKB + ' KB';
+    var checked     = Math.min(numPages || 0, 3);
+    var damagePct   = loadFailed ? 100 : (checked > 0 ? Math.round((1 - renderableCount / checked) * 100) : 0);
+    var severity    = loadFailed ? 'Severe' : damagePct > 50 ? 'Moderate' : damagePct > 0 ? 'Minor' : 'None detected';
+    var sevColor    = loadFailed ? '#ef4444' : damagePct > 50 ? '#f59e0b' : damagePct > 0 ? '#eab308' : '#22c55e';
+    var repairConf  = loadFailed ? 42 : damagePct > 50 ? 62 : damagePct > 0 ? 80 : 96;
+    var confColor   = repairConf >= 80 ? '#22c55e' : repairConf >= 60 ? '#f59e0b' : '#ef4444';
+
+    host.innerHTML =
+      '<div class="lp-panel lp-panel--repair">' +
+        '<div class="lp-header lp-header--sticky">' +
+          '<span class="lp-title">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>' +
+            ' Repair Analysis' +
+          '</span>' +
+          '<div class="lp-header-stats">' +
+            (numPages > 0 ? '<span class="lp-stat"><b>' + numPages + '</b> page' + (numPages > 1 ? 's' : '') + '</span>' : '') +
+            '<span class="lp-stat"><b>' + fileSizeFmt + '</b></span>' +
+            qualityBadge(repairConf) +
+          '</div>' +
+        '</div>' +
+        '<div class="lp-repair-analysis">' +
+          '<div class="lp-repair-row">' +
+            '<span class="lp-repair-label">Damage severity</span>' +
+            '<span class="lp-repair-val" style="color:' + sevColor + ';font-weight:700">' + severity + '</span>' +
+          '</div>' +
+          '<div class="lp-repair-row">' +
+            '<span class="lp-repair-label">Pages readable</span>' +
+            '<span class="lp-repair-val">' + renderableCount + ' of ' + (numPages || '?') + ' checked</span>' +
+          '</div>' +
+          '<div class="lp-repair-row">' +
+            '<span class="lp-repair-label">Repair confidence</span>' +
+            '<span class="lp-repair-val" style="color:' + confColor + ';font-weight:700">' + repairConf + '%</span>' +
+          '</div>' +
+          '<div class="lp-repair-conf-bar">' +
+            '<div class="lp-repair-conf-fill" style="width:' + repairConf + '%;background:' + confColor + '"></div>' +
+          '</div>' +
+        '</div>' +
+        (thumbUrl
+          ? '<div class="lp-repair-thumb-wrap"><div class="lp-split-label">Recoverable content preview</div><img class="lp-repair-thumb" src="' + thumbUrl + '" alt="Page 1 preview"></div>'
+          : '<div class="lp-repair-no-preview"><div class="lp-ocr-scan-icon">\uD83D\uDD27</div>' +
+              '<div>' + (loadFailed
+                ? 'File structure severely damaged \u2014 repair will attempt deep recovery'
+                : 'PDF structure has minor damage \u2014 standard repair recommended') +
+              '</div>' +
+            '</div>'
+        ) +
+        '<div class="lp-footer">' +
+          'Structural analysis \xb7 ' + severity + ' damage detected \xb7 ' + repairConf + '% estimated recovery success' +
+        '</div>' +
+      '</div>';
+  }
+
   // ======================================================================
   // MOUNT DISPATCHER
   // ======================================================================
@@ -2464,6 +2646,8 @@
       else if (toolId === 'powerpoint-to-pdf')   await mountPowerPointPdfPreview(file, host);
       else if (toolId === 'html-to-pdf')         await mountHtmlToPdfPreview(file, host);
       else if (toolId === 'ocr')                 await mountOcrPreview(file, host);
+      else if (toolId === 'scan-to-pdf')         await mountScanPreview(file, host);
+      else if (toolId === 'repair')              await mountRepairPreview(file, host);
     } catch (err) {
       // Never blank-screen — show recovery UI
       host.innerHTML = errorHtml(

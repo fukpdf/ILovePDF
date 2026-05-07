@@ -2992,3 +2992,151 @@ a{ color:var(--brand-text); }
     padding: 4px 8px 6px;
   }
 }
+
+/* ── Scan PDF Preview ────────────────────────────────────────────────────── */
+.lp-panel--scan,
+.lp-panel--repair { font-family: inherit; }
+
+.lp-scan-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: #fafafa;
+}
+
+.lp-scan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.lp-scan-badge--active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.lp-scan-compare {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lp-scan-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-scan-img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: block;
+}
+
+/* ── Repair PDF Preview ──────────────────────────────────────────────────── */
+.lp-repair-analysis {
+  padding: 10px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.lp-repair-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.lp-repair-label {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.lp-repair-val {
+  font-size: 13px;
+  text-align: right;
+}
+
+.lp-repair-conf-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.lp-repair-conf-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.lp-repair-thumb-wrap {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-repair-thumb {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  display: block;
+}
+
+.lp-repair-no-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Scan / Repair mobile breakpoint ─────────────────────────────────────── */
+@media (max-width: 600px) {
+  .lp-scan-compare {
+    flex-direction: column;
+  }
+  .lp-scan-col {
+    width: 100%;
+  }
+  .lp-scan-badges {
+    padding: 6px 8px;
+  }
+  .lp-scan-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+  .lp-repair-row {
+    font-size: 12px;
+  }
+  .lp-repair-thumb-wrap {
+    padding: 6px 8px;
+  }
+}
