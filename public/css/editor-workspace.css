@@ -1,14 +1,15 @@
 /* ============================================================
-   ILovePDF — Editor Workspace System v1.0
-   Phase 12: Global UI/UX Rebuild + Professional Preview System
+   ILovePDF — Editor Workspace System v2.0
+   Phase 13: Enterprise UI + Premium Preview Engine Rebuild
    ============================================================
-   CSS-only additions that extend (never replace) existing styles.
+   Extends (never replaces) existing styles.css and home.css.
    All workspace classes are namespaced .ew-* to avoid collisions.
    Overrides use specificity, not blanket !important abuse.
    ============================================================ */
 
-/* ── Extended Design Tokens ───────────────────────────────── */
+/* ── Design Token System ──────────────────────────────────── */
 :root {
+  /* Accent palette */
   --ew-accent:        #5b3df5;
   --ew-accent-mid:    #7c3aed;
   --ew-accent-light:  #a855f7;
@@ -16,154 +17,558 @@
   --ew-accent-glow:   0 0 24px rgba(91,61,245,.3);
   --ew-grad:          linear-gradient(135deg,#4338ca 0%,#7c3aed 55%,#a855f7 100%);
 
-  --ew-canvas-bg:     #1e1e2e;
+  /* Surfaces */
+  --ew-canvas-bg:     #1a1a2e;
   --ew-panel-bg:      #ffffff;
   --ew-toolbar-bg:    rgba(255,255,255,.97);
   --ew-surface-sub:   #fafbff;
+  --ew-surface-2:     #f4f6fb;
+  --ew-editor-bg:     #f1f3f8;
 
+  /* Borders */
   --ew-border:        #e2e8f0;
-  --ew-border-sub:    #f0f1f8;
+  --ew-border-sub:    #ecedf5;
+  --ew-border-focus:  #818cf8;
 
-  --ew-shadow-card:   0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
-  --ew-shadow-float:  0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
-  --ew-shadow-deep:   0 20px 60px rgba(0,0,0,.25), 0 6px 20px rgba(0,0,0,.14);
+  /* Shadows */
+  --ew-shadow-card:   0 2px 12px rgba(0,0,0,.055), 0 1px 3px rgba(0,0,0,.04);
+  --ew-shadow-float:  0 8px 32px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.07);
+  --ew-shadow-deep:   0 20px 60px rgba(0,0,0,.22), 0 6px 20px rgba(0,0,0,.12);
+  --ew-shadow-accent: 0 4px 18px rgba(91,61,245,.32);
 
+  /* Radii */
   --ew-radius-xl:     20px;
   --ew-radius-lg:     16px;
   --ew-radius-md:     12px;
   --ew-radius-sm:     8px;
+  --ew-radius-xs:     6px;
 
+  /* Motion */
   --ew-ease:          cubic-bezier(0.4,0,0.2,1);
+  --ew-spring:        cubic-bezier(0.34,1.56,0.64,1);
   --ew-dur:           0.2s;
+  --ew-dur-lg:        0.32s;
+
+  /* Workspace geometry */
+  --ew-aside-w:       300px;
+  --ew-preview-max:   1160px;
+  --ew-workspace-gap: 24px;
+  --ew-header-h:      72px;
 }
 
 /* ============================================================
-   TOOL-CONTENT: Wide mode — removes the 780px constraint
-   Applied by JS when a PRO editor or wide layout is mounted.
+   LAYOUT: Wide mode — removes 780px constraint from #tool-content
+   Applied by JS via container.classList.add('ew-wide')
    ============================================================ */
 #tool-content.ew-wide {
   max-width: 100%;
   padding: 0;
 }
 
-/* Inner .tool-page inside a wide container should also expand */
 #tool-content.ew-wide > .tool-page,
 #tool-content.ew-wide > .tool-page--pro {
   max-width: 100%;
   padding: 0;
 }
 
-/* Pro editor header keeps a comfortable padding */
-.tool-page--pro .tool-header {
-  padding: 20px 24px 14px;
-  margin-bottom: 0;
-}
-
-.tool-page--pro .step-indicator-wrap {
-  padding: 0 24px;
+/* ============================================================
+   PHASE 13: PREVIEW WORKSPACE CONTAINER
+   Standard tool preview step: widens to 1160px with centered margin
+   ============================================================ */
+.ew-preview-page {
+  max-width: var(--ew-preview-max) !important;
+  margin: 0 auto !important;
+  padding: 28px 28px 48px !important;
 }
 
 /* ============================================================
-   FADE-IN: Smooth entrance for all major panels
+   PHASE 13: TWO-COLUMN WORKSPACE GRID
+   Left (main): live preview + file list | Right (aside): options + process
    ============================================================ */
-@keyframes ew-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+.ew-preview-workspace {
+  display: grid;
+  grid-template-columns: 1fr var(--ew-aside-w);
+  grid-template-areas: "main aside";
+  gap: var(--ew-workspace-gap);
+  align-items: start;
+  margin-top: 0;
 }
 
-.lp-panel,
-.bgpro,
-.epro {
+/* Main column: live preview panel + selected files */
+.ew-preview-main {
+  grid-area: main;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Strip the old margin from live-preview-host when inside workspace */
+.ew-preview-main #live-preview-host {
+  margin: 0 !important;
+}
+
+/* Aside: options + process + trust — sticky on desktop */
+.ew-preview-aside {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: calc(var(--ew-header-h) + 8px);
+  max-height: calc(100vh - var(--ew-header-h) - 32px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-bottom: 16px;
+}
+
+.ew-preview-aside::-webkit-scrollbar { display: none; }
+
+/* ── File section in main column ─────────────────────────── */
+.ew-file-section {
+  background: #fff;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--ew-shadow-card);
+  margin-bottom: 0 !important;
   animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
 
+.ew-file-section .upload-label {
+  margin-bottom: 10px;
+  font-size: .75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* Premium file list items */
+.ew-file-section .upload-file-item {
+  background: var(--ew-surface-sub);
+  border: 1px solid var(--ew-border-sub);
+  border-radius: var(--ew-radius-sm);
+  padding: 9px 12px;
+  transition: border-color var(--ew-dur) var(--ew-ease);
+}
+
+.ew-file-section .upload-file-item:hover {
+  border-color: #c4b5fd;
+}
+
 /* ============================================================
-   LIVE PREVIEW PANEL: Bigger, more immersive
+   PHASE 13: PROCESS ACTION PANEL
+   Premium sidebar card for the main CTA
    ============================================================ */
-
-/* Taller scroll area — was 360px, now viewport-relative */
-.lp-scroll {
-  max-height: calc(100vh - 340px) !important;
-  min-height: 420px;
+.ew-process-panel {
+  background: #fff;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-md);
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--ew-shadow-card);
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
 }
 
-.lp-scroll--page {
-  max-height: calc(100vh - 300px) !important;
-  min-height: 460px;
-  background: #e4e8ee !important;
-  padding: 28px !important;
+.ew-process-panel .btn-primary {
+  width: 100%;
+  justify-content: center;
+  font-size: .95rem;
+  padding: 13px 20px;
+  border-radius: var(--ew-radius-md) !important;
+  background: var(--ew-grad) !important;
+  box-shadow: var(--ew-shadow-accent) !important;
+  transition: filter .15s var(--ew-ease), transform .15s var(--ew-ease),
+              box-shadow .15s var(--ew-ease) !important;
+  letter-spacing: .01em;
 }
 
-/* Panel: elevated card feel */
-.lp-panel {
-  border-radius: var(--ew-radius-lg) !important;
-  border: 1px solid var(--ew-border) !important;
+.ew-process-panel .btn-primary:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 24px rgba(91,61,245,.48) !important;
+}
+
+.ew-process-panel .btn-outline {
+  width: 100%;
+  justify-content: center;
+  font-size: .85rem;
+  color: #64748b !important;
+  border-color: var(--ew-border) !important;
+}
+
+.ew-process-panel .btn-outline:hover {
+  background: var(--ew-surface-2) !important;
+  border-color: #c4b5fd !important;
+  color: var(--ew-accent) !important;
+}
+
+/* ── Trust strip inside aside ────────────────────────────── */
+.ew-preview-aside .trust-strip {
+  padding: 12px 14px !important;
+  border-radius: var(--ew-radius-sm) !important;
+  background: var(--ew-surface-sub) !important;
+  border: 1px solid var(--ew-border-sub) !important;
+}
+
+/* ── Options section inside aside ────────────────────────── */
+.ew-preview-aside .options-section {
+  border-radius: var(--ew-radius-md) !important;
+  box-shadow: var(--ew-shadow-card) !important;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+}
+
+/* ── Compress-specific options inside aside ──────────────── */
+.ew-preview-aside .compress-options-section {
+  border-radius: var(--ew-radius-md) !important;
   box-shadow: var(--ew-shadow-card) !important;
 }
 
-.lp-header {
-  padding: 14px 18px !important;
+/* ── Premium form fields in options ─────────────────────── */
+.ew-preview-aside .form-input:focus,
+.ew-preview-aside .form-select:focus {
+  border-color: var(--ew-border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(91,61,245,.12) !important;
 }
 
-/* Doc preview: true A4-page shadow */
+/* ============================================================
+   PHASE 13: STEP INDICATOR — PREMIUM REDESIGN
+   Overrides home.css step-indicator (same selector, higher specificity)
+   ============================================================ */
+.step-indicator {
+  background: #fff !important;
+  border: 1px solid var(--ew-border-sub) !important;
+  border-radius: var(--ew-radius-md) !important;
+  box-shadow: var(--ew-shadow-card) !important;
+  margin-bottom: 24px !important;
+  overflow: hidden;
+}
+
+.step-indicator ol {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  flex-wrap: nowrap !important;
+}
+
+.step-indicator .step-item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Current step: gradient fill */
+.step-indicator .step.is-current {
+  background: var(--ew-grad) !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  padding: 11px 18px !important;
+  font-weight: 700 !important;
+  flex: 1;
+  gap: 8px;
+}
+
+.step-indicator .step.is-current .step-num {
+  background: rgba(255,255,255,.22) !important;
+  color: #fff !important;
+  border: none !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+}
+
+/* Past step: clickable, accent tint */
+.step-indicator .step.is-past {
+  color: var(--ew-accent) !important;
+  padding: 11px 18px !important;
+  font-weight: 600 !important;
+  flex: 1;
+  gap: 8px;
+  opacity: 1 !important;
+  cursor: pointer;
+  transition: background var(--ew-dur) var(--ew-ease);
+}
+
+.step-indicator .step.is-past:hover {
+  background: var(--ew-accent-soft) !important;
+}
+
+.step-indicator .step.is-past .step-num {
+  background: #ede9fe !important;
+  color: var(--ew-accent) !important;
+  border: none !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+}
+
+/* Future step: muted */
+.step-indicator .step.is-future {
+  color: #94a3b8 !important;
+  padding: 11px 18px !important;
+  flex: 1;
+  gap: 8px;
+  opacity: .75 !important;
+}
+
+.step-indicator .step.is-future .step-num {
+  background: #f1f5f9 !important;
+  border: none !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+}
+
+/* Separator between steps */
+.step-indicator .step-sep {
+  width: 1px !important;
+  background: var(--ew-border-sub) !important;
+  height: 32px !important;
+  flex-shrink: 0;
+  margin: 0 !important;
+  align-self: center;
+}
+
+/* ============================================================
+   LIVE PREVIEW PANELS: Bigger, more immersive
+   ============================================================ */
+/* Taller scroll area — viewport-relative */
+.lp-scroll {
+  max-height: calc(100vh - 260px) !important;
+  min-height: 440px;
+}
+
+.lp-scroll--page {
+  max-height: calc(100vh - 220px) !important;
+  min-height: 500px;
+  background: #dde1ea !important;
+  padding: 32px !important;
+}
+
+/* Panel: elevated card with smooth entrance */
+.lp-panel {
+  border-radius: var(--ew-radius-lg) !important;
+  border: 1px solid var(--ew-border) !important;
+  box-shadow: var(--ew-shadow-float) !important;
+  overflow: hidden;
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+}
+
+.lp-header {
+  padding: 13px 18px !important;
+  background: #fff !important;
+  border-bottom: 1px solid var(--ew-border-sub) !important;
+}
+
+/* True A4/document page shadow */
 .lp-page-content {
   box-shadow: 0 6px 40px rgba(0,0,0,.2), 0 1px 4px rgba(0,0,0,.08) !important;
   border-radius: 2px !important;
-  padding: 48px 56px !important;
+  padding: 52px 60px !important;
 }
 
 .lp-word-content {
-  box-shadow: 0 6px 40px rgba(0,0,0,.2), 0 1px 4px rgba(0,0,0,.08) !important;
+  box-shadow: 0 6px 40px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.07) !important;
 }
 
-/* ── PDF → PowerPoint slide grid improvements ── */
+/* ── Slide grid: premium depth ── */
 .lp-slide-grid {
-  gap: 14px !important;
-  padding: 16px !important;
+  gap: 16px !important;
+  padding: 20px !important;
   align-items: flex-start;
 }
 
 .lp-slide-card {
   border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.16) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.32), 0 1px 4px rgba(0,0,0,.18) !important;
   transition: transform var(--ew-dur) var(--ew-ease),
               box-shadow var(--ew-dur) var(--ew-ease) !important;
+  overflow: hidden;
 }
 
 .lp-slide-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 10px 28px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.2) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 3px 10px rgba(0,0,0,.22) !important;
 }
 
 .lp-panel--pptx-from,
 .lp-panel--pptx-to {
-  min-height: 440px !important;
+  min-height: 480px !important;
 }
 
 /* Scrollable slide strip */
 .lp-ppt-strip-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 16px;
-  background: #1e1e2e;
+  padding: 20px;
+  background: var(--ew-canvas-bg);
   border-radius: 0 0 var(--ew-radius-lg) var(--ew-radius-lg);
-  min-height: 440px;
+  min-height: 480px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
-/* Scrollbar: thin dark style for canvas areas */
-.lp-ppt-strip-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-.lp-ppt-strip-scroll::-webkit-scrollbar-track { background: transparent; }
-.lp-ppt-strip-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 4px; }
+/* ── Skeleton shimmer — UPGRADED Phase 13 ── */
+.lp-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+}
+
+.lp-skel-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    #eef0f6 0%,
+    #f8f9fc 40%,
+    #eef0f6 80%,
+    #eef0f6 100%);
+  background-size: 200% 100%;
+  animation: ew-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes ew-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Stagger shimmer lines */
+.lp-skel-line:nth-child(2) { animation-delay: .12s; }
+.lp-skel-line:nth-child(3) { animation-delay: .24s; }
+.lp-skel-line:nth-child(4) { animation-delay: .36s; }
+.lp-skel-line:nth-child(5) { animation-delay: .48s; }
+
+/* ── Quality badge colours ── */
+.lp-quality {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: .03em;
+}
+
+.lp-q-excellent { background: #d1fae5; color: #065f46; }
+.lp-q-good      { background: #dbeafe; color: #1e40af; }
+.lp-q-review    { background: #fef3c7; color: #92400e; }
+.lp-q-ocr       { background: #fee2e2; color: #991b1b; }
+
+/* Control row inside lp-header */
+.lp-ctrl-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lp-ctrl-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-xs);
+  font-size: .78rem;
+  font-weight: 600;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all .14s var(--ew-ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-ctrl-btn:hover {
+  background: var(--ew-accent-soft);
+  border-color: #c4b5fd;
+  color: var(--ew-accent);
+}
+
+.lp-ctrl-btn.active {
+  background: var(--ew-grad);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(91,61,245,.3);
+}
+
+/* Error state */
+.lp-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.lp-error-icon {
+  font-size: 2rem;
+  opacity: .6;
+}
+
+.lp-error-msg {
+  font-size: .84rem;
+  line-height: 1.5;
+}
+
+.lp-retry-btn {
+  padding: 7px 18px;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-sm);
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ew-accent);
+  background: var(--ew-accent-soft);
+  cursor: pointer;
+  transition: all .15s var(--ew-ease);
+}
+
+.lp-retry-btn:hover {
+  background: #ede9fe;
+  border-color: #a78bfa;
+}
 
 /* ============================================================
-   BACKGROUND REMOVER PRO: Immersive editor upgrades
+   ANIMATIONS: Smooth entrance for workspace panels
    ============================================================ */
+@keyframes ew-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-/* Full-height, edge-to-edge */
+@keyframes ew-scale-in {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.lp-panel,
+.bgpro,
+.epro,
+.ew-process-panel,
+.ew-file-section {
+  animation: ew-fade-up var(--ew-dur) var(--ew-ease) both;
+}
+
+/* Stagger workspace panels */
+.ew-preview-main  { animation: ew-fade-up var(--ew-dur) var(--ew-ease) .05s both; }
+.ew-preview-aside { animation: ew-fade-up var(--ew-dur) var(--ew-ease) .1s both; }
+
+/* ============================================================
+   BACKGROUND REMOVER PRO: Immersive full-height editor
+   ============================================================ */
 .bgpro {
   height: calc(100vh - 116px) !important;
   min-height: 560px !important;
@@ -176,22 +581,21 @@
 /* Glassmorphism toolbar */
 .bgpro-toolbar {
   background: var(--ew-toolbar-bg) !important;
-  backdrop-filter: blur(14px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
-  border-bottom: 1px solid rgba(226,232,240,.85) !important;
-  box-shadow: 0 1px 14px rgba(0,0,0,.07) !important;
+  backdrop-filter: blur(16px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
+  border-bottom: 1px solid rgba(226,232,240,.8) !important;
+  box-shadow: 0 1px 16px rgba(0,0,0,.06) !important;
   min-height: 52px !important;
   padding: 8px 16px !important;
   gap: 6px !important;
 }
 
-/* Toolbar buttons */
 .bgpro-tb {
   height: 34px !important;
   min-width: 34px !important;
   border-radius: var(--ew-radius-sm) !important;
   font-size: 13px !important;
-  transition: all .15s var(--ew-ease) !important;
+  transition: all .14s var(--ew-ease) !important;
 }
 
 .bgpro-tb:hover {
@@ -207,7 +611,7 @@
   font-weight: 700 !important;
 }
 
-/* Download button in toolbar — gradient pill */
+/* Download button in toolbar */
 .bgpro-dl-tb {
   background: var(--ew-grad) !important;
   border: none !important;
@@ -216,7 +620,7 @@
   padding: 0 18px !important;
   letter-spacing: .015em !important;
   box-shadow: 0 4px 14px rgba(91,61,245,.38) !important;
-  transition: filter .15s, transform .15s, box-shadow .15s !important;
+  transition: filter .14s, transform .14s, box-shadow .14s !important;
 }
 
 .bgpro-dl-tb:hover {
@@ -234,7 +638,7 @@
   background-size: 32px 32px !important;
 }
 
-/* Original panel */
+/* Original preview panel */
 .bgpro-panel-orig {
   width: 210px !important;
   background: #f4f5fa !important;
@@ -276,7 +680,7 @@
   font-size: 12px !important;
   font-weight: 500 !important;
   padding: 7px 5px !important;
-  transition: all .15s var(--ew-ease) !important;
+  transition: all .14s var(--ew-ease) !important;
 }
 
 .bgpro-tool:hover {
@@ -312,7 +716,7 @@
   font-weight: 700 !important;
   letter-spacing: .02em !important;
   box-shadow: 0 4px 14px rgba(91,61,245,.32) !important;
-  transition: filter .15s, transform .15s, box-shadow .15s !important;
+  transition: filter .14s, transform .14s, box-shadow .14s !important;
 }
 
 .bgpro-btn-primary:hover {
@@ -329,7 +733,21 @@
   padding: 5px 16px !important;
 }
 
-/* ── Edit PDF Pro: same upgrades ── */
+/* Pro editor header */
+.tool-page--pro .tool-header {
+  padding: 20px 24px 14px;
+  margin-bottom: 0;
+}
+
+.tool-page--pro .step-indicator-wrap {
+  padding: 0 24px;
+}
+
+.tool-page--pro .tool-header-icon {
+  box-shadow: 0 4px 18px rgba(91,61,245,.22);
+}
+
+/* ── Edit PDF Pro: same surface treatment ── */
 .epro {
   height: calc(100vh - 116px) !important;
   min-height: 560px !important;
@@ -340,9 +758,9 @@
 
 .epro-toolbar {
   background: var(--ew-toolbar-bg) !important;
-  backdrop-filter: blur(14px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
-  box-shadow: 0 1px 14px rgba(0,0,0,.07) !important;
+  backdrop-filter: blur(16px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(200%) !important;
+  box-shadow: 0 1px 16px rgba(0,0,0,.06) !important;
   min-height: 52px !important;
 }
 
@@ -357,8 +775,6 @@
 /* ============================================================
    MOBILE DRAWER: bgpro controls as a bottom sheet
    ============================================================ */
-
-/* Drawer handle (hidden on desktop) */
 .bgpro-drawer-handle {
   display: none;
   align-items: center;
@@ -391,6 +807,160 @@
   letter-spacing: .04em;
 }
 
+/* ============================================================
+   UPLOAD STEP: Premium drop zone
+   ============================================================ */
+.upload-area--hero {
+  border-radius: var(--ew-radius-xl) !important;
+  border: 2px dashed #c4b5fd !important;
+  background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%) !important;
+  transition: all var(--ew-dur) var(--ew-ease) !important;
+}
+
+.upload-area--hero:hover,
+.upload-area--hero.dragover {
+  border-color: var(--ew-accent-mid) !important;
+  background: linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%) !important;
+  box-shadow: 0 8px 36px rgba(91,61,245,.14) !important;
+}
+
+/* ============================================================
+   RESULT / DOWNLOAD STEP
+   ============================================================ */
+.download-step {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ============================================================
+   POPULAR TOOLS CARDS: Hover lift
+   ============================================================ */
+.popular-card {
+  transition: transform var(--ew-dur) var(--ew-ease),
+              box-shadow var(--ew-dur) var(--ew-ease),
+              border-color var(--ew-dur) var(--ew-ease) !important;
+}
+
+.popular-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 28px rgba(91,61,245,.14) !important;
+  border-color: #c4b5fd !important;
+}
+
+/* ============================================================
+   HTML-to-PDF: iframe preview
+   ============================================================ */
+.lp-html-scroll {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+  background: #d8dde6;
+  padding: 12px;
+  min-height: 120px;
+}
+
+.lp-html-iframe {
+  border: 0;
+  display: block;
+  background: #fff;
+  box-shadow: 0 2px 20px rgba(0,0,0,.18);
+  transform-origin: top left;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   SCROLLBAR: Thin polish for editor panels
+   ============================================================ */
+.bgpro-scroll::-webkit-scrollbar,
+.bgpro-panel-ctrl::-webkit-scrollbar,
+.epro-canvas-scroll::-webkit-scrollbar,
+.epro-thumbs-list::-webkit-scrollbar,
+.lp-scroll::-webkit-scrollbar,
+.lp-ppt-strip-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.bgpro-scroll::-webkit-scrollbar-track,
+.epro-canvas-scroll::-webkit-scrollbar-track,
+.lp-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.bgpro-scroll::-webkit-scrollbar-thumb,
+.epro-canvas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.14);
+  border-radius: 4px;
+}
+
+.bgpro-panel-ctrl::-webkit-scrollbar-thumb,
+.epro-thumbs-list::-webkit-scrollbar-thumb,
+.lp-scroll::-webkit-scrollbar-thumb,
+.lp-ppt-strip-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   TABLET (1024px): Tighten bgpro panels
+   ============================================================ */
+@media (max-width: 1024px) {
+  .bgpro-panel-orig {
+    width: 160px !important;
+  }
+  .bgpro-panel-ctrl {
+    width: 210px !important;
+  }
+}
+
+/* ============================================================
+   TABLET (900px): Preview workspace collapses to single column
+   ============================================================ */
+@media (max-width: 900px) {
+  .ew-preview-workspace {
+    grid-template-columns: 1fr;
+    grid-template-areas: "aside" "main";
+    gap: 18px;
+  }
+
+  .ew-preview-main {
+    grid-area: main;
+  }
+
+  .ew-preview-aside {
+    grid-area: aside;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    padding-bottom: 0;
+  }
+
+  /* Options + process side by side on tablet when small */
+  .ew-preview-aside .ew-process-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ew-preview-aside .ew-process-panel .btn-primary,
+  .ew-preview-aside .ew-process-panel .btn-outline {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .ew-preview-page {
+    padding: 20px 20px 40px !important;
+  }
+}
+
+/* ============================================================
+   MOBILE (768px): Full mobile editor UX
+   ============================================================ */
 @media (max-width: 768px) {
   .bgpro {
     height: calc(100vh - 96px) !important;
@@ -409,7 +979,7 @@
     padding: 6px 10px !important;
   }
 
-  /* Controls become a fixed bottom drawer */
+  /* Controls become fixed bottom drawer */
   .bgpro-panel-ctrl {
     position: fixed !important;
     bottom: 0 !important;
@@ -437,172 +1007,85 @@
     display: flex !important;
   }
 
-  /* Push canvas up so it's not hidden behind collapsed drawer */
   .bgpro-body {
     padding-bottom: 46px;
   }
-}
 
-@media (max-width: 700px) {
-  /* Override the existing 180px rule */
-  .bgpro-panel-ctrl {
-    width: 100% !important;
+  .ew-preview-page {
+    padding: 16px 16px 32px !important;
+  }
+
+  .lp-scroll {
+    max-height: calc(100vh - 220px) !important;
+    min-height: 300px !important;
   }
 }
 
 /* ============================================================
-   TABLET: tighten panels
-   ============================================================ */
-@media (max-width: 1024px) {
-  .bgpro-panel-orig {
-    width: 160px !important;
-  }
-  .bgpro-panel-ctrl {
-    width: 210px !important;
-  }
-}
-
-/* ============================================================
-   SCROLLBAR: thin polish for editor panels
-   ============================================================ */
-.bgpro-scroll::-webkit-scrollbar,
-.bgpro-panel-ctrl::-webkit-scrollbar,
-.epro-canvas-scroll::-webkit-scrollbar,
-.epro-thumbs-list::-webkit-scrollbar,
-.lp-scroll::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.bgpro-scroll::-webkit-scrollbar-track,
-.epro-canvas-scroll::-webkit-scrollbar-track,
-.lp-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.bgpro-scroll::-webkit-scrollbar-thumb,
-.epro-canvas-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.14);
-  border-radius: 4px;
-}
-
-.bgpro-panel-ctrl::-webkit-scrollbar-thumb,
-.epro-thumbs-list::-webkit-scrollbar-thumb,
-.lp-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-/* ============================================================
-   UPLOAD STEP: Enhanced drop zone
-   ============================================================ */
-.upload-area--hero {
-  border-radius: var(--ew-radius-xl) !important;
-  border: 2px dashed #c4b5fd !important;
-  background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%) !important;
-  transition: all var(--ew-dur) var(--ew-ease) !important;
-}
-
-.upload-area--hero:hover,
-.upload-area--hero.dragover {
-  border-color: var(--ew-accent-mid) !important;
-  background: linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%) !important;
-  box-shadow: 0 8px 36px rgba(91,61,245,.14) !important;
-}
-
-/* ============================================================
-   PREVIEW STEP: Better live preview host spacing
-   ============================================================ */
-#live-preview-host {
-  margin: 0 0 22px !important;
-}
-
-/* ============================================================
-   PROCESS BUTTON: Sticky on mobile
+   MOBILE SMALL (640px): Sticky process button
    ============================================================ */
 @media (max-width: 640px) {
-  .process-btn-wrap {
+  /* On very small screens, process panel becomes sticky footer */
+  .ew-process-panel {
     position: sticky;
     bottom: 0;
-    background: rgba(255,255,255,.96);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 10px 16px env(safe-area-inset-bottom, 10px);
-    margin: 8px -16px 0;
+    background: rgba(255,255,255,.97);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: none;
     border-top: 1px solid var(--ew-border);
+    border-radius: 0;
+    margin: 0 -16px;
+    padding: 12px 16px env(safe-area-inset-bottom, 12px);
+    box-shadow: 0 -6px 24px rgba(0,0,0,.09);
     z-index: 100;
-    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
-    display: flex;
-    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .process-btn-wrap .btn-primary {
+  .ew-process-panel .btn-primary {
     flex: 1;
-    justify-content: center;
+    min-width: 0;
   }
-}
 
-/* ============================================================
-   TOOL HEADER: Premium look on pro editor
-   ============================================================ */
-.tool-page--pro .tool-header-icon {
-  box-shadow: 0 4px 18px rgba(91,61,245,.22);
-}
+  .ew-process-panel .btn-outline {
+    flex: 0 0 auto;
+    width: auto;
+  }
 
-/* ============================================================
-   POPULAR TOOLS CARDS: Lift on hover
-   ============================================================ */
-.popular-card {
-  transition: transform var(--ew-dur) var(--ew-ease),
-              box-shadow var(--ew-dur) var(--ew-ease),
-              border-color var(--ew-dur) var(--ew-ease) !important;
-}
+  /* Trust strip hidden on tiny mobile */
+  .ew-preview-aside .trust-strip {
+    display: none !important;
+  }
 
-.popular-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 28px rgba(91,61,245,.14) !important;
-  border-color: #c4b5fd !important;
-}
-
-/* ============================================================
-   RESULT / DOWNLOAD STEP: Centered card
-   ============================================================ */
-.download-step {
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-.download-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-/* ============================================================
-   STEP INDICATOR: Elevated card feel
-   ============================================================ */
-.step-indicator {
-  background: #fff !important;
-  border: 1px solid #eaecf4 !important;
-  border-radius: var(--ew-radius-md) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04) !important;
-}
-
-/* ============================================================
-   MOBILE SMALL: General polish
-   ============================================================ */
-@media (max-width: 480px) {
-  .lp-scroll {
-    max-height: calc(100vh - 260px) !important;
-    min-height: 280px !important;
+  .lp-slide-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
   }
 
   .lp-page-content {
-    padding: 28px 22px !important;
+    padding: 32px 24px !important;
   }
 
   .tool-header-name {
-    font-size: 1.25rem !important;
+    font-size: 1.2rem !important;
+  }
+}
+
+/* ============================================================
+   MOBILE (480px): Override bgpro panel width
+   ============================================================ */
+@media (max-width: 480px) {
+  .bgpro-panel-ctrl {
+    width: 100% !important;
+  }
+
+  .lp-scroll--page {
+    padding: 16px !important;
+  }
+
+  .lp-ppt-strip-scroll {
+    min-height: 320px;
   }
 }

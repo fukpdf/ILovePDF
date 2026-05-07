@@ -660,7 +660,7 @@ function renderProPreviewStep(tool) {
 function renderPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
-  container.classList.remove('ew-wide');
+  container.classList.add('ew-wide');
 
   // PRO MAX intercept — tools with dedicated interactive editors skip the
   // standard preview/process flow entirely and mount their own editor UI.
@@ -673,7 +673,7 @@ function renderPreviewStep(tool) {
   const optionsHtml = buildOptionsHtml(tool);
 
   container.innerHTML = `
-    <div class="tool-page">
+    <div class="tool-page ew-preview-page">
       ${toolHeaderBlock(tool, {
         heading: `Preview & Process — ${tool.name}`,
         desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
@@ -683,28 +683,31 @@ function renderPreviewStep(tool) {
       })}
       ${stepIndicatorHtml('preview')}
 
-      <section class="preview-step upload-section" aria-label="Selected files">
-        <span class="upload-label">
-          <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
-          Selected ${tool.multipleFiles ? 'files' : 'file'}
-        </span>
-        <div class="upload-files-list" id="files-list"></div>
-      </section>
+      <div class="ew-preview-workspace">
+        <div class="ew-preview-main">
+          <div id="live-preview-host"></div>
+          <section class="preview-step upload-section ew-file-section" aria-label="Selected files">
+            <span class="upload-label">
+              <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
+              Selected ${tool.multipleFiles ? 'files' : 'file'}
+            </span>
+            <div class="upload-files-list" id="files-list"></div>
+          </section>
+        </div>
 
-      <div id="live-preview-host"></div>
-
-      ${optionsHtml}
-
-      <div class="process-btn-wrap">
-        <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
-          <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
-        </button>
-        <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
-          <i data-lucide="x"></i> Clear &amp; restart
-        </button>
+        <aside class="ew-preview-aside">
+          ${optionsHtml}
+          <div class="ew-process-panel">
+            <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
+              <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
+            </button>
+            <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
+              <i data-lucide="x"></i> Clear &amp; restart
+            </button>
+          </div>
+          ${trustStripHtml()}
+        </aside>
       </div>
-
-      ${trustStripHtml()}
 
       <div id="result-area"></div>
     </div>`;
