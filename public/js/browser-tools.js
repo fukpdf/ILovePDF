@@ -731,6 +731,7 @@
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const { mime, ext, q } = pickOutFormat(files[0]);
     const blob = await canvasToBlob(canvas, mime, q);
+    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
     return { blob, ext, mime };
   }
 
@@ -757,6 +758,7 @@
     ctx.drawImage(img, 0, 0, w, h);
     const { mime, ext, q } = pickOutFormat(files[0]);
     const blob = await canvasToBlob(canvas, mime, q);
+    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
     return { blob, ext, mime };
   }
 
@@ -811,6 +813,7 @@
     }
     const { mime, ext, q } = pickOutFormat(files[0]);
     const blob = await canvasToBlob(canvas, mime, q);
+    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
     return { blob, ext, mime };
   }
 
@@ -1515,6 +1518,7 @@
           } catch (_) {}
           page.cleanup();
         }
+        await new Promise(r => setTimeout(r, 0)); // Phase 21: yield to main thread between pages
       }
       return allLines;
     }
@@ -1531,6 +1535,7 @@
           allLines.push(...ocrLines);
         } catch (_) {}
         page.cleanup();
+        await new Promise(r => setTimeout(r, 0)); // Phase 21: yield between pages
       }
       return allLines;
     }
@@ -1716,12 +1721,18 @@
 
       let sheetData, numCols, isOcr = false;
 
-      if (items.length >= 3) {
+      // Phase 21: garbled-text gate — if digital items exist but contain junk chars, force OCR
+      const _itemText  = items.map(it => it.text).join('');
+      const _printable = (_itemText.match(/[\x20-\x7E]/g) || []).length;
+      const _garbled   = items.length >= 3 && _itemText.length > 5 &&
+                         (_printable / Math.max(_itemText.length, 1)) < 0.60;
+
+      if (items.length >= 3 && !_garbled) {
         // ── Digital path ──────────────────────────────────────────────────
         ({ sheetData, numCols } = buildSheetFromItems(items, pageWidth));
         page.cleanup();
       } else {
-        // ── OCR fallback for this page (scanned / image-only) ─────────────
+        // ── OCR fallback for this page (scanned / image-only / garbled) ───
         isOcr = true;
         try {
           ({ sheetData, numCols } = await ocrPageToGrid(page, pageWidth));
@@ -1887,6 +1898,7 @@
         pageW:      canvasW,
       });
       page.cleanup();
+      await new Promise(r => setTimeout(r, 0)); // Phase 21: yield to main thread between pages
     }
     await pdf.destroy();
 
@@ -2099,6 +2111,7 @@
     }
     ctx.putImageData(imgData, 0, 0);
     const blob = await canvasToBlob(canvas, 'image/png');
+    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
     return { blob, ext: '.png', mime: 'image/png' };
   }
 

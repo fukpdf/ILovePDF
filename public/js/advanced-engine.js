@@ -2439,6 +2439,31 @@
       });
     }
 
+    // Phase 21: Garbled-font quality check — trigger OCR if extracted text is garbled
+    if (!_allSheetsEmpty) {
+      var _excelRawText = sheets.map(function (s) {
+        return s.rows.map(function (r) { return r.join(' '); }).join(' ');
+      }).join(' ');
+      var _excelScore = (typeof _scoreTextQuality === 'function') ? _scoreTextQuality(_excelRawText) : 1;
+      DT().log('pdf-to-excel-quality', { score: _excelScore, chars: _excelRawText.length });
+      if (_excelScore < 0.35 && _excelRawText.length > 10) {
+        DT().log('pdf-to-excel-ocr-trigger', { reason: 'garbled_text', score: _excelScore });
+        var ocrEGPages = await autoOcrFallback(file, onStep, 35, 1);
+        var ocrEGChars = ocrEGPages.reduce(function (s, p) { return s + p.text.length; }, 0);
+        DT().log('pdf-to-excel-garbled-ocr', { chars: ocrEGChars });
+        if (ocrEGChars >= 5) {
+          sheets = ocrEGPages.map(function (p) {
+            var rows = p.text.split('\n')
+              .map(function (l) { return l.trim(); })
+              .filter(Boolean)
+              .map(function (l) { return [l]; });
+            return { name: 'Page ' + p.pageNum, rows: rows.length ? rows : [['(empty)']] };
+          });
+        }
+      }
+      _excelRawText = null;
+    }
+
     // Phase 2 (v5): content-level validation — ensure real data rows exist
     var _xRealRows = sheets.reduce(function (s, sh) {
       return s + sh.rows.filter(function (r) {
@@ -2550,6 +2575,32 @@
         var lines = p.text.split('\n').filter(function (l) { return l.trim(); });
         return { pageNum: p.pageNum, title: (lines[0] || 'Slide ' + p.pageNum).slice(0, 120), text: lines.slice(1).join('\n') };
       });
+    }
+
+    // Phase 21: Garbled-font quality check — trigger OCR if extracted slide text is garbled
+    if (!_allSlidesEmpty) {
+      var _pptxRawText = slides.map(function (s) {
+        return (s.title || '') + ' ' + (s.text || '');
+      }).join(' ');
+      var _pptxScore = (typeof _scoreTextQuality === 'function') ? _scoreTextQuality(_pptxRawText) : 1;
+      DT().log('pdf-to-pptx-quality', { score: _pptxScore, chars: _pptxRawText.length });
+      if (_pptxScore < 0.35 && _pptxRawText.length > 10) {
+        DT().log('pdf-to-pptx-ocr-trigger', { reason: 'garbled_text', score: _pptxScore });
+        var ocrPGPages = await autoOcrFallback(file, onStep, 35, 1);
+        var ocrPGChars = ocrPGPages.reduce(function (s, p) { return s + p.text.length; }, 0);
+        DT().log('pdf-to-pptx-garbled-ocr', { chars: ocrPGChars });
+        if (ocrPGChars >= 10) {
+          slides = ocrPGPages.map(function (p) {
+            var lines = p.text.split('\n').filter(function (l) { return l.trim(); });
+            return {
+              pageNum: p.pageNum,
+              title:   (lines[0] || 'Slide ' + p.pageNum).slice(0, 120),
+              text:    lines.slice(1).join('\n'),
+            };
+          });
+        }
+      }
+      _pptxRawText = null;
     }
 
     // v5.3: Filter individually blank slides — slides with no body text AND a
@@ -3551,6 +3602,19 @@
       } finally {
         await pdf.destroy();
         pdfSource.cleanup(); // Revoke OPFS blob URL only after PDF is fully done
+      }
+      // Phase 21: OCR fallback for scanned documents — if text is sparse, use Tesseract
+      var _cmpChars = pages.join('').replace(/\s/g, '').length;
+      DT().log('compare-extract', { file: file.name, chars: _cmpChars, pages: pages.length });
+      if (_cmpChars < 30) {
+        DT().log('compare-ocr-trigger', { file: file.name, reason: 'sparse_text', chars: _cmpChars });
+        try {
+          var ocrCPages = await autoOcrFallback(file, onStep, base, 1);
+          if (ocrCPages.length > 0) {
+            pages = ocrCPages.map(function (p) { return p.text || ''; });
+            DT().log('compare-ocr-result', { file: file.name, chars: pages.join('').length });
+          }
+        } catch (_) {}
       }
       return pages;
     }
