@@ -165,7 +165,7 @@
       'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'compress', 'ocr',
       'translate', 'ai-summarize', 'compare', 'repair', 'workflow', 'split',
       'merge', 'rotate', 'organize', 'page-numbers', 'watermark', 'crop',
-      'protect', 'unlock',
+      'protect', 'unlock', 'pdf-to-jpg', 'edit', 'sign', 'redact',
     ]);
 
     // Magic byte signatures for file type detection (ignore extension/MIME)
@@ -2198,6 +2198,25 @@
     'ai-summarize':       ['Analyzing document',    'Processing content',    'Generating summary',     'Preparing result'],
     'translate':          ['Analyzing document',    'Processing content',    'Translating document',   'Preparing result'],
     'workflow':           ['Analyzing document',    'Applying operations',   'Processing steps',       'Preparing download'],
+    // Phase 22: Global Advanced Engine Integration — remaining 18 tools
+    'merge':              ['Loading documents',     'Combining pages',       'Building result',        'Preparing download'],
+    'split':              ['Analyzing document',    'Selecting pages',       'Building result',        'Preparing download'],
+    'rotate':             ['Analyzing document',    'Rotating pages',        'Saving changes',         'Preparing download'],
+    'organize':           ['Analyzing document',    'Reordering pages',      'Building result',        'Preparing download'],
+    'page-numbers':       ['Analyzing document',    'Preparing layout',      'Adding page numbers',    'Preparing download'],
+    'watermark':          ['Analyzing document',    'Preparing layout',      'Applying watermark',     'Preparing download'],
+    'crop':               ['Analyzing document',    'Calculating crop',      'Applying crop',          'Preparing download'],
+    'jpg-to-pdf':         ['Loading images',        'Embedding content',     'Building PDF',           'Preparing download'],
+    'protect':            ['Analyzing document',    'Applying encryption',   'Securing document',      'Preparing download'],
+    'unlock':             ['Analyzing document',    'Removing protection',   'Saving document',        'Preparing download'],
+    'pdf-to-jpg':         ['Analyzing document',    'Rendering pages',       'Processing images',      'Preparing download'],
+    'crop-image':         ['Loading image',         'Analyzing dimensions',  'Applying crop',          'Preparing download'],
+    'resize-image':       ['Loading image',         'Calculating resize',    'Applying resize',        'Preparing download'],
+    'image-filters':      ['Loading image',         'Analyzing image',       'Applying filters',       'Preparing download'],
+    'edit':               ['Analyzing document',    'Processing layout',     'Applying edits',         'Preparing download'],
+    'sign':               ['Analyzing document',    'Processing signature',  'Applying signature',     'Preparing download'],
+    'redact':             ['Analyzing document',    'Locating content',      'Applying redaction',     'Preparing download'],
+    'powerpoint-to-pdf':  ['Analyzing document',    'Processing slides',     'Generating result',      'Preparing download'],
   };
 
   var ADVANCED_IDS = new Set(Object.keys(TOOL_STEPS));
@@ -2679,6 +2698,206 @@
         throw new Error('The combined image size (' + totalMB.toFixed(0) + ' MB) is too large. Please use fewer or smaller images.');
       }
     }
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  // ─── PHASE 22: GLOBAL ADVANCED ENGINE INTEGRATION ────────────────────────
+  // Thin sentinel processors for the remaining 18 tools.
+  // Each routes through the full Advanced Engine pipeline — Input Intelligence
+  // pre-check, memory guard, LiveFeed, DT logging, yieldToMain — then hands
+  // off to browser-tools.js via ERR.ORIG for the actual pdf-lib / canvas work.
+  // This preserves all existing functionality while adding Phase 18-21 infra.
+
+  // ── PDF restructuring tools (pure pdf-lib, no canvas) ────────────────────
+
+  processors['merge'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Loading documents\u2026');
+    var files = f || [];
+    if (files.length < 2) throw new Error('Please upload at least two PDF files to merge.');
+    var totalMB = files.reduce(function (sum, fi) { return sum + (fi.size || 0); }, 0) / 1048576;
+    DT().log('merge-prep', { files: files.length, totalMB: totalMB.toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['split'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('split-prep', { sizeMB: (file.size / 1048576).toFixed(1), range: (o && o.range) || 'all' });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['rotate'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('rotate-prep', { sizeMB: (file.size / 1048576).toFixed(1), degrees: (o && o.degrees) || 90 });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['organize'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('organize-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['page-numbers'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('page-numbers-prep', { sizeMB: (file.size / 1048576).toFixed(1), position: (o && o.position) || 'bottom-center' });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['watermark'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('watermark-prep', { sizeMB: (file.size / 1048576).toFixed(1), text: (o && o.text) || 'WATERMARK' });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['crop'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('crop-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['protect'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('protect-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['unlock'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('unlock-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['edit'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('edit-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['sign'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('sign-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['redact'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('redact-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  // ── Image and conversion tools (canvas-heavy / CDN-dependent) ────────────
+
+  processors['pdf-to-jpg'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    var sizeMB = file.size / 1048576;
+    if (sizeMB > 80) {
+      DT().log('pdf-to-jpg-large', { sizeMB: sizeMB.toFixed(1), note: 'canvas_memory_intensive' });
+    }
+    DT().log('pdf-to-jpg-prep', { sizeMB: sizeMB.toFixed(1) });
+    await yieldToMain(8);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['jpg-to-pdf'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Loading images\u2026');
+    var files = f || [];
+    if (!files.length) throw new Error('Please upload at least one image.');
+    var totalMB = files.reduce(function (sum, fi) { return sum + (fi.size || 0); }, 0) / 1048576;
+    DT().log('jpg-to-pdf-prep', { files: files.length, totalMB: totalMB.toFixed(1) });
+    if (totalMB > 200) {
+      throw new Error('The combined image size (' + totalMB.toFixed(0) + ' MB) is too large. Please use fewer or smaller images.');
+    }
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['crop-image'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Loading image\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('crop-image-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['resize-image'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Loading image\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('resize-image-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['image-filters'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Loading image\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('image-filters-prep', { sizeMB: (file.size / 1048576).toFixed(1), filter: (o && o.filter) || 'none' });
+    await yieldToMain(5);
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+
+  processors['powerpoint-to-pdf'] = async function (f, o, s) {
+    s(0, 'active', 8, 'Analyzing document\u2026');
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+    DT().log('powerpoint-to-pdf-prep', { sizeMB: (file.size / 1048576).toFixed(1) });
+    await yieldToMain(5);
     s(0, 'done', 15);
     throw new Error(ERR.ORIG);
   };
