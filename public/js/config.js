@@ -1,14 +1,13 @@
 /* Runtime config — loaded on every page BEFORE any other script. */
 (function () {
-  const REMOTE_API = 'https://ilovepdf-queue.safderkhan318.workers.dev';
-
   function resolveBase() {
     if (typeof window.API_BASE_OVERRIDE === 'string') return window.API_BASE_OVERRIDE;
     try {
       const ls = localStorage.getItem('ilovepdf:api_base');
       if (ls !== null) return ls;
     } catch (_) {}
-    return REMOTE_API;
+    // Default to same origin (works both in Replit dev and when deployed)
+    return window.location.origin;
   }
 
   const base = resolveBase().replace(/\/+$/, '');
@@ -20,7 +19,8 @@
       const ls = localStorage.getItem('ilovepdf:queue_api_base');
       if (ls !== null) return ls;
     } catch (_) {}
-    return REMOTE_API;
+    // Default to same origin (no separate Cloudflare worker needed)
+    return window.location.origin;
   }
   window.QUEUE_API_BASE = resolveQueueBase().replace(/\/+$/, '');
 
@@ -28,10 +28,7 @@
   // Pings the API every 3 minutes so the upstream processing service does
   // not idle/sleep between user requests. Errors are swallowed silently.
   (function startKeepAlive() {
-    const url = window.QUEUE_API_BASE
-      ? window.QUEUE_API_BASE + '/api/health'
-      : null;
-    if (!url) return;
+    const url = window.location.origin + '/api/health';
     const ping = () => {
       try {
         fetch(url, { method: 'GET', cache: 'no-store', credentials: 'omit' })
