@@ -1253,6 +1253,7 @@
       if (window.WorkerPool) {
         window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/pdf-worker.js');
         window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/advanced-worker.js');
+        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/ocr-preprocessor-worker.js');
       }
     }, 800);
   }
@@ -2486,11 +2487,106 @@
   processors['html-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your document\u2026'); throw new Error(ERR.ORIG); };
   processors['scan-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing images\u2026'); throw new Error(ERR.ORIG); };
 
-  // ─── OCR (Phase 7: pipeline + Phase 10: streaming strict for 400MB+) ──────
+  // ─── OCR Engine v3 — Phase 18: Preprocessing + Confidence Retry ────────────
+  //
+  // Three-layer hybrid pipeline for the OCR PDF tool:
+  //   1. Native text fast-path  (unchanged from v2)
+  //   2. Per-page preprocessing via ocr-preprocessor-worker (new)
+  //      — grayscale → normalize → adaptive/Otsu threshold → deskew
+  //   3. Confidence-based retry:
+  //      attempt A: 'auto' preprocessing  (adaptive threshold + deskew)
+  //      attempt B: 'strong' preprocessing (Otsu + deskew) if conf < 45
+  //      attempt C: raw pixels, no preprocessing            if conf < 25
+  //      → best result (highest confidence) is kept
+  //   4. Page-batch yielding (every OCR_BATCH_SIZE pages) — prevents UI freeze
+  //   5. Aggressive intermediate-buffer nulling for large-file safety
+
+  var OCR_PREPROCESSOR_URL  = '/workers/ocr-preprocessor-worker.js';
+  var OCR_CONF_RETRY        = 45;  // re-preprocess if first-pass confidence < this
+  var OCR_CONF_RAW_FALLBACK = 25;  // also try raw pixels if still < this
+  var OCR_BATCH_YIELD       = 5;   // yield to event loop every N pages
+
+  // ── Helper: send pixels to the preprocessor worker via WorkerPool ──────────
+  // Returns { pixels: ArrayBuffer, width, height } or null on any failure.
+  // rawPixelsBuf is TRANSFERRED (detached after call) — caller must pass a .slice().
+  async function _ocrPreprocessPage(rawPixelsBuf, w, h, mode) {
+    if (!window.WorkerPool) return null;
+    try {
+      var result = await window.WorkerPool.run(
+        OCR_PREPROCESSOR_URL,
+        { pixels: rawPixelsBuf, width: w, height: h, mode: mode },
+        [rawPixelsBuf]  // transferable — detaches rawPixelsBuf in main thread
+      );
+      if (!result || !result.pixels) return null;
+      return result; // { pixels: ArrayBuffer (RGBA), width, height }
+    } catch (_) {
+      return null; // preprocessor unavailable → caller uses raw path
+    }
+  }
+
+  // ── Helper: RGBA ArrayBuffer → JPEG dataURL via a temporary canvas ─────────
+  function _ocrPixelsToDataUrl(pixelsBuf, w, h) {
+    var c   = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    ctx.putImageData(new ImageData(new Uint8ClampedArray(pixelsBuf), w, h), 0, 0);
+    var url = c.toDataURL('image/jpeg', 0.92);
+    c.width = 0; c.height = 0; // free GPU backing store
+    return url;
+  }
+
+  // ── Helper: recognize one page with up to 3 confidence-ranked attempts ──────
+  // rawPixels: ArrayBuffer (RGBA, owned by caller — NOT transferred here)
+  // Returns { text: string, confidence: number }
+  async function _ocrRecognizePage(tesseractWorker, rawPixels, w, h) {
+    var bestText = '', bestConf = -1;
+
+    // Attempt A — 'auto' adaptive preprocessing (best default quality)
+    var resA = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'auto');
+    if (resA && resA.pixels) {
+      var urlA = _ocrPixelsToDataUrl(resA.pixels, resA.width, resA.height);
+      resA.pixels = null;
+      var rA = await tesseractWorker.recognize(urlA);
+      urlA = null;
+      var cA = (rA.data && typeof rA.data.confidence === 'number') ? rA.data.confidence : 0;
+      var tA = (rA.data && rA.data.text) ? rA.data.text.trim() : '';
+      if (cA > bestConf) { bestConf = cA; bestText = tA; }
+    }
+
+    // Attempt B — 'strong' Otsu binarization if confidence is still low
+    if (bestConf < OCR_CONF_RETRY) {
+      var resB = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'strong');
+      if (resB && resB.pixels) {
+        var urlB = _ocrPixelsToDataUrl(resB.pixels, resB.width, resB.height);
+        resB.pixels = null;
+        var rB = await tesseractWorker.recognize(urlB);
+        urlB = null;
+        var cB = (rB.data && typeof rB.data.confidence === 'number') ? rB.data.confidence : 0;
+        var tB = (rB.data && rB.data.text) ? rB.data.text.trim() : '';
+        if (cB > bestConf) { bestConf = cB; bestText = tB; }
+      }
+    }
+
+    // Attempt C — raw JPEG (no preprocessing) as final fallback
+    // rawPixels still valid here (only .slice() copies were transferred above)
+    if (bestConf < OCR_CONF_RAW_FALLBACK) {
+      var urlC = _ocrPixelsToDataUrl(rawPixels, w, h);
+      var rC   = await tesseractWorker.recognize(urlC);
+      urlC = null;
+      var cC = (rC.data && typeof rC.data.confidence === 'number') ? rC.data.confidence : 0;
+      var tC = (rC.data && rC.data.text) ? rC.data.text.trim() : '';
+      if (cC > bestConf) { bestConf = cC; bestText = tC; }
+    }
+
+    return { text: bestText, confidence: Math.max(0, bestConf) };
+  }
+
   processors['ocr'] = async function (files, opts, onStep) {
     var file  = files[0];
     var fHash = _fileHash(file);
     onStep(0, 'active', 5, 'Preparing your file\u2026');
+
+    DT().log('ocr-v3-start', { name: file.name, sizeMB: +(file.size / 1048576).toFixed(1) });
 
     var pdfjsLib  = await loadPdfJs();
     var pdfSource = await loadPdfSource(file);
@@ -2502,7 +2598,7 @@
     // Phase 8: live preview for OCR
     LivePreview.show(pdf, pdfjsLib);
 
-    // Fast path: check for native text layer
+    // ── Fast path: check for a native text layer ────────────────────────────
     onStep(1, 'active', 15, 'Analyzing document structure\u2026');
     var nativeText  = '';
     var nativeChars = 0;
@@ -2517,17 +2613,20 @@
     }
 
     if (nativeChars > 60) {
+      // Native text is sufficient — skip Tesseract entirely
       await pdf.destroy();
-      pdfSource.cleanup(); // Safe to revoke now — PDF is fully done
+      pdfSource.cleanup();
       onStep(1, 'done', 50, 'Content ready');
       onStep(2, 'active', 60, 'Building document\u2026');
 
-      // Build structured paragraphs from native text, one per page
       var nativePageTexts = nativeText.split('\n');
       var nativeParas = nativePageTexts.filter(function (l) { return l.trim(); }).map(function (l) {
         return { text: l.trim(), isHeading: false };
       });
-      var nativeDocPages = [{ pageNum: 1, paragraphs: nativeParas.length ? nativeParas : [{ text: nativeText.trim(), isHeading: false }] }];
+      var nativeDocPages = [{
+        pageNum: 1,
+        paragraphs: nativeParas.length ? nativeParas : [{ text: nativeText.trim(), isHeading: false }],
+      }];
 
       try {
         var nWResult = await runAdvancedWorker({ op: 'build-docx', pages: nativeDocPages });
@@ -2542,7 +2641,7 @@
         }
       } catch (_) {}
 
-      // Fallback: return plain text
+      // Fallback: plain text
       onStep(2, 'done', 90);
       onStep(3, 'active', 93, 'Preparing result\u2026');
       var nTxtBlob = new Blob([nativeText.trim()], { type: 'text/plain;charset=utf-8' });
@@ -2550,7 +2649,7 @@
       return { blob: nTxtBlob, filename: brandedFilename(file.name, '.txt') };
     }
 
-    // Image-based: Tesseract OCR
+    // ── Image-based path: Tesseract + Phase 18 preprocessing pipeline ────────
     onStep(1, 'done', 22);
     onStep(2, 'active', 25, 'Processing content\u2026');
 
@@ -2559,16 +2658,15 @@
     }
     if (!window.Tesseract) throw AEError(ERR.NETWORK, 'engine_load_failed');
 
-    // v5.3: auto-detect language from native text sample (even if sparse);
-    // falls back to 'eng'. Allows override via opts.language if user specified.
     var lang   = (opts && opts.language) || _detectOcrLanguage(nativeText);
     var worker = await window.Tesseract.createWorker(lang, 1, { logger: function () {} });
     var scale  = DEVICE.ocrScale;
 
-    // Resume support
+    // ── Resume support (unchanged from v2) ───────────────────────────────────
     var savedProg = await ProgressStore.load('ocr', fHash);
     var startPage = 1;
     var allLines  = [];
+    var totalConf = 0; // for diagnostic logging
 
     if (savedProg && savedProg.pagesDone > 0 && savedProg.pagesDone < total) {
       if (window._aeResumeOcr === fHash) {
@@ -2579,12 +2677,17 @@
       }
     }
 
-    // Phase 10: streaming strict mode for large files
-    var strictStream = pdfSource.strictStreaming;
+    var strictStream = pdfSource.strictStreaming; // Phase 10
 
     try {
       for (var i = startPage; i <= total; i++) {
-        var pg       = await pdf.getPage(i);
+
+        // ── Batch yield: keeps browser responsive on large docs ─────────────
+        if (i > startPage && (i - startPage) % OCR_BATCH_YIELD === 0) {
+          await new Promise(function (r) { setTimeout(r, 0); });
+        }
+
+        var pg        = await pdf.getPage(i);
         var pgContent = await pg.getTextContent();
 
         if (isPageBlank(pgContent)) {
@@ -2593,6 +2696,7 @@
           continue;
         }
 
+        // ── Render page to canvas ────────────────────────────────────────────
         var viewport = pg.getViewport({ scale: scale });
         var capW     = Math.min(Math.floor(viewport.width),  HARD_MAX_IMG_DIM);
         var capH     = Math.min(Math.floor(viewport.height), HARD_MAX_IMG_DIM);
@@ -2606,14 +2710,22 @@
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, cvs.width, cvs.height);
         await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
-        pg.cleanup(); // Phase 2: release page immediately
+        pg.cleanup(); // Phase 2: release PDF page resources immediately
 
-        var dataUrl = cvs.toDataURL('image/jpeg', 0.92);
-        cvs.width = 0; cvs.height = 0; cvs = null;
+        // ── Capture raw RGBA pixels then free the canvas immediately ─────────
+        var rawW      = cvs.width;
+        var rawH      = cvs.height;
+        var rawPixels = ctx.getImageData(0, 0, rawW, rawH).data.buffer.slice(0);
+        cvs.width = 0; cvs.height = 0; cvs = null; // free GPU backing store
 
-        var ocrResult = await worker.recognize(dataUrl);
-        dataUrl = null;
-        allLines.push('=== Page ' + i + ' ===\n' + ocrResult.data.text);
+        // ── Phase 18: preprocess + confidence-ranked recognition ─────────────
+        var pageResult = await _ocrRecognizePage(worker, rawPixels, rawW, rawH);
+        rawPixels = null; // free after recognition is done
+
+        DT().log('ocr-v3-page', { page: i, conf: pageResult.confidence });
+        totalConf += pageResult.confidence;
+
+        allLines.push('=== Page ' + i + ' ===\n' + pageResult.text);
 
         await ProgressStore.save('ocr', fHash, {
           pagesDone: i, totalPages: total, lines: allLines.slice(),
@@ -2622,23 +2734,25 @@
         var pct = 25 + Math.round((i / total) * 55);
         onStep(2, 'active', pct, 'Page ' + i + ' of ' + total);
 
-        // Phase 10: in strict streaming mode, GC hint after each page
+        // Phase 10: GC hint in strict streaming mode
         if (strictStream && typeof gc === 'function') { try { gc(); } catch (_) {} }
       }
     } finally {
-      // Always clean up — even if recognition throws or user navigates away
       try { await worker.terminate(); } catch (_) {}
-      await pdf.destroy(); // Phase 2: full destroy before revoking source URL
-      pdfSource.cleanup(); // Safe to revoke OPFS blob URL now
+      await pdf.destroy();      // Phase 2: full destroy before revoking source
+      pdfSource.cleanup();      // Safe to revoke OPFS blob URL now
       await ProgressStore.clear('ocr', fHash);
     }
+
+    var pagesProcessed = allLines.length;
+    var avgConf = pagesProcessed > 0 ? Math.round(totalConf / pagesProcessed) : 0;
+    DT().log('ocr-v3-complete', { pages: pagesProcessed, avgConfidence: avgConf });
 
     onStep(2, 'done', 80);
     onStep(3, 'active', 84, 'Building document\u2026');
 
-    // Build pages structure for DOCX output
     var ocrPages = allLines.map(function (lineStr, idx) {
-      var text = lineStr.replace(/^=== Page \d+ ===\n?/, '').trim();
+      var text       = lineStr.replace(/^=== Page \d+ ===\n?/, '').trim();
       var paragraphs = text.split('\n').filter(Boolean).map(function (t) {
         return { text: t.trim(), isHeading: false };
       });
@@ -2657,7 +2771,7 @@
       }
     } catch (_) {}
 
-    // Fallback: plain text
+    // Final fallback: plain text
     var ocrTxtBlob = new Blob([allLines.join('\n\n').trim()], { type: 'text/plain;charset=utf-8' });
     onStep(3, 'done', 100);
     return { blob: ocrTxtBlob, filename: brandedFilename(file.name, '.txt') };
