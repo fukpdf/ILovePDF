@@ -4535,7 +4535,7 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:              '5.5',
+    version:              '5.6',
     InputAnalyzer:        InputAnalyzer,
     TOOL_IDS:             ADVANCED_IDS,
     LiveFeed:             LiveFeed,
@@ -4565,8 +4565,8 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.5 — Audit Report');
-      console.log('Version: 5.5 (Phase 19A — OCR v4)');
+      console.group('AdvancedEngine v5.6 — Audit Report');
+      console.log('Version: 5.6 (Phase 23 — Stream Architecture)');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);

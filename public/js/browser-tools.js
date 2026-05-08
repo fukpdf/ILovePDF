@@ -301,16 +301,67 @@
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
 
-  // ── JPG/PNG -> PDF ───────────────────────────────────────────────────────
+  // ── JPG/PNG -> PDF (Phase 23B: EXIF orientation correction) ─────────────
+  // JPEG images from phones/cameras often carry an EXIF Orientation tag that
+  // tells viewers to rotate/flip the image. pdf-lib embeds raw pixel data and
+  // ignores EXIF, so landscape shots appear sideways. We read the tag with
+  // StreamHelpers.readExifOrientation, then re-draw on a corrected canvas
+  // before embedding — ensuring upright images in the resulting PDF.
   async function imagesToPdf(files) {
     const { PDFDocument } = await loadPdfLib();
     const doc = await PDFDocument.create();
+    const sh  = window.StreamHelpers; // Phase 23B helpers (graceful if absent)
+
     for (const f of files) {
       const bytes = await readFileBytes(f);
       const isPng = /png$/i.test(f.type) || /\.png$/i.test(f.name);
-      const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-      const page = doc.addPage([img.width, img.height]);
-      page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+
+      if (!isPng && sh) {
+        // JPEG path: check EXIF orientation and correct if needed
+        const orientation = sh.readExifOrientation(bytes.buffer);
+
+        if (orientation > 1) {
+          // Need to rotate/flip — draw through a canvas with the correct transform
+          const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+          try {
+            const htmlImg = await new Promise((res, rej) => {
+              const img = new Image();
+              img.onload  = () => res(img);
+              img.onerror = () => rej(new Error('EXIF img load failed'));
+              img.src = blobUrl;
+            });
+            const corrected = sh.applyExifOrientation(htmlImg, orientation);
+            // Encode the corrected canvas as JPEG bytes for pdf-lib
+            const correctedBytes = await new Promise((res, rej) => {
+              corrected.toBlob(b => {
+                if (!b) { rej(new Error('canvas encode failed')); return; }
+                b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
+              }, 'image/jpeg', 0.92);
+            });
+            corrected.width = 0; corrected.height = 0; // release canvas
+            const img = await doc.embedJpg(correctedBytes);
+            const page = doc.addPage([img.width, img.height]);
+            page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+          } catch (_) {
+            // Fallback: embed raw bytes without orientation correction
+            const img = await doc.embedJpg(bytes);
+            const page = doc.addPage([img.width, img.height]);
+            page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
+        } else {
+          // orientation === 1 (or absent) — no correction needed
+          const img = await doc.embedJpg(bytes);
+          const page = doc.addPage([img.width, img.height]);
+          page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+        }
+      } else {
+        // PNG path (or no StreamHelpers) — embed directly
+        const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+        const page = doc.addPage([img.width, img.height]);
+        page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+      }
     }
     return new Blob([await doc.save()], { type: 'application/pdf' });
   }
@@ -678,8 +729,13 @@
     const total = pdf.numPages;
     // Quality preset → render scale. 150 DPI ≈ scale 2.0; 200 DPI ≈ scale 2.7
     const quality = String(opts.quality || 'standard').toLowerCase();
-    const scale   = quality === 'high' ? 2.7 : 2.0;
     const jpegQ   = quality === 'high' ? 0.92 : 0.85;
+
+    // Phase 23B: Adaptive render scale — respects MemPressure tier and page count.
+    // StreamHelpers.adaptivePdfScale handles graceful fallback when MemPressure is absent.
+    const baseScale  = quality === 'high' ? 2.7 : 2.0;
+    const sh         = window.StreamHelpers;
+    const scale      = sh ? sh.adaptivePdfScale(baseScale, total) : (quality === 'high' ? 2.7 : 2.0);
 
     const pages = [];
     for (let i = 1; i <= total; i++) {
@@ -697,6 +753,8 @@
       pages.push(await canvasToBlob(canvas, 'image/jpeg', jpegQ));
       // Free the canvas explicitly to keep memory bounded on big PDFs.
       canvas.width = 0; canvas.height = 0;
+      // Phase 23B: yield to main thread every 3 pages to keep UI responsive.
+      if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
     }
     await pdf.destroy(); // Release PDF document resources
 
