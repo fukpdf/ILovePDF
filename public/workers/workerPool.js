@@ -1,7 +1,12 @@
-// Worker Pool v4.0 — Phase 23A enhancement of v3.2.
-// v3.x: persistent workers, idle TTL, crash recovery, slot rotation.
-// v4.0 NEW: priority queues (high/normal/low), task cancellation tokens,
-//           worker heartbeat monitoring, richer stats API.
+// Worker Pool v5.0 — Phase 24 upgrade from v4.0.
+// v4.x: priority queues (high/normal/low), CancelToken, heartbeat, slot rotation.
+// v5.0 NEW:
+//   — 4th queue tier: 'background' (AI batch jobs, prewarm, cleanup)
+//   — Starvation prevention: tasks waiting > STARVATION_MS are promoted
+//     to the front regardless of lower-priority siblings still queued.
+//     Algorithm: scan tiers high→background; first tier whose oldest task
+//     has waited > threshold is served immediately, breaking normal order.
+//   — Per-tier queue depth in getStats() diagnostics.
 (function () {
   'use strict';
 
@@ -12,8 +17,11 @@
   var MAX_QUEUE          = 50;     // reject tasks beyond this queue depth
   var MAX_TASKS_PER_SLOT = 60;     // rotate slot after N tasks to avoid accumulation
   var HEARTBEAT_MS       = 30000;  // check for stuck workers every 30 s
+  // Phase 24: tasks waiting longer than this in any queue tier are promoted
+  // and served immediately regardless of higher-tier backlog.
+  var STARVATION_MS      = 8000;   // 8 seconds anti-starvation threshold
 
-  // Map<workerUrl, { url, queues: {high,normal,low}, slots[] }>
+  // Map<workerUrl, { url, queues: {high,normal,low,background}, slots[] }>
   var pools = {};
 
   // ── Token factory for task cancellation ───────────────────────────────────
@@ -40,28 +48,49 @@
       pools[url] = {
         url:    url,
         slots:  [],
-        queues: { high: [], normal: [], low: [] },
+        // Phase 24: 4-tier queues — background is the lowest tier
+        queues: { high: [], normal: [], low: [], background: [] },
       };
     }
     return pools[url];
   }
 
   // ── Queue helpers ─────────────────────────────────────────────────────────
+  var TIER_ORDER = ['high', 'normal', 'low', 'background'];
+
   function queueLength(pool) {
-    return pool.queues.high.length + pool.queues.normal.length + pool.queues.low.length;
+    return pool.queues.high.length + pool.queues.normal.length +
+           pool.queues.low.length  + pool.queues.background.length;
   }
 
+  // Phase 24: starvation-aware dequeue.
+  // Scans tiers in priority order; if the oldest item in any tier has waited
+  // longer than STARVATION_MS, serve it immediately (breaks strict priority
+  // order only when necessary to prevent indefinite starvation of lower tiers).
   function dequeueNext(pool) {
-    if (pool.queues.high.length)   return pool.queues.high.shift();
-    if (pool.queues.normal.length) return pool.queues.normal.shift();
-    if (pool.queues.low.length)    return pool.queues.low.shift();
+    var now = Date.now();
+    var queues = pool.queues;
+
+    // Pass 1: find the highest-priority tier whose head task is starving
+    for (var si = 0; si < TIER_ORDER.length; si++) {
+      var sq = queues[TIER_ORDER[si]];
+      if (sq.length > 0 && (now - sq[0].queued) > STARVATION_MS) {
+        return sq.shift(); // serve this starving task ahead of schedule
+      }
+    }
+
+    // Pass 2: no starvation detected — strict priority order
+    for (var ni = 0; ni < TIER_ORDER.length; ni++) {
+      if (queues[TIER_ORDER[ni]].length) return queues[TIER_ORDER[ni]].shift();
+    }
     return null;
   }
 
   function rejectAllQueued(pool, err) {
-    ['high', 'normal', 'low'].forEach(function (p) {
-      while (pool.queues[p].length > 0) {
-        var t = pool.queues[p].shift();
+    TIER_ORDER.forEach(function (tier) {
+      var q = pool.queues[tier];
+      while (q.length > 0) {
+        var t = q.shift();
         try { t.reject(err); } catch (_) {}
       }
     });
@@ -263,11 +292,14 @@
 
   // ── PUBLIC API ─────────────────────────────────────────────────────────────
 
-  // opts: { priority?: 'high'|'normal'|'low', token?: CancelToken }
+  // opts: { priority?: 'high'|'normal'|'low'|'background', token?: CancelToken }
   function run(workerUrl, message, transferables, opts) {
     opts = opts || {};
     var priority = opts.priority || 'normal';
     var token    = opts.token    || null;
+
+    // Phase 24: validate priority — unknown tiers fall back to 'normal'
+    if (!pool_proto_queues[priority]) priority = 'normal';
 
     var pool = getPool(workerUrl);
 
@@ -312,19 +344,33 @@
     });
   }
 
+  // Phase 24: sentinel used for priority validation in run()
+  var pool_proto_queues = { high: 1, normal: 1, low: 1, background: 1 };
+
   function getStats() {
     var out = {};
     Object.keys(pools).forEach(function (url) {
       var p = pools[url];
       out[url] = {
-        total:      p.slots.length,
-        busy:       p.slots.filter(function (s) { return s.busy; }).length,
-        queued:     queueLength(p),
-        queuedHigh:   p.queues.high.length,
-        queuedNormal: p.queues.normal.length,
-        queuedLow:    p.queues.low.length,
-        crashed:    p.slots.filter(function (s) { return s.crashes >= MAX_CRASHES; }).length,
-        taskCounts: p.slots.map(function (s) { return s.taskCount; }),
+        total:            p.slots.length,
+        busy:             p.slots.filter(function (s) { return s.busy; }).length,
+        queued:           queueLength(p),
+        queuedHigh:       p.queues.high.length,
+        queuedNormal:     p.queues.normal.length,
+        queuedLow:        p.queues.low.length,
+        queuedBackground: p.queues.background.length,  // Phase 24
+        crashed:          p.slots.filter(function (s) { return s.crashes >= MAX_CRASHES; }).length,
+        taskCounts:       p.slots.map(function (s) { return s.taskCount; }),
+        // Phase 24: starvation diagnostics — oldest wait per tier (ms)
+        oldestWaitMs: (function () {
+          var now = Date.now();
+          var result = {};
+          TIER_ORDER.forEach(function (tier) {
+            var q = p.queues[tier];
+            result[tier] = q.length > 0 ? (now - q[0].queued) : 0;
+          });
+          return result;
+        }()),
       };
     });
     return out;
@@ -365,6 +411,9 @@
     terminatePool: terminatePool,
     CancelToken:   CancelToken,   // v4.0
     MAX_WORKERS:   MAX_PER_URL,
+    // Phase 24: expose tier list for diagnostics
+    TIERS:         TIER_ORDER,
+    STARVATION_MS: STARVATION_MS,
   };
 
 }());

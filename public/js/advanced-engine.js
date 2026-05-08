@@ -668,17 +668,74 @@
   // ── WORKER BRIDGE (Phase 1: uses persistent pool for BOTH workers) ────────
   // Phase 1: advanced-worker now runs via persistent pool — importScripts
   // runs once per slot, libraries cached in worker memory across tasks.
+  //
+  // Phase 24: Priority routing.
+  // _currentWorkerPriority is set by runTool() before invoking each processor
+  // and reset to 'normal' in the finally block.  All WorkerPool.run() calls
+  // in this file read this variable so every worker dispatch automatically
+  // inherits the correct tier without touching individual processor code.
+  //
+  // Tier table (_TOOL_PRIORITY):
+  //   high       — ocr, compare, repair, scan-to-pdf  (user-blocking, time-critical)
+  //   normal     — all PDF/image conversion tools      (standard interactive ops)
+  //   low        — restructure/annotate/security tools (lighter, background-tolerant)
+  //   background — ai-summarize, translate             (heavy batch / async chunks)
+  var _TOOL_PRIORITY = {
+    // HIGH — interactive, user-blocking
+    'ocr':               'high',
+    'compare':           'high',
+    'repair':            'high',
+    'scan-to-pdf':       'high',
+    // NORMAL — standard conversion pipeline
+    'pdf-to-word':       'normal',
+    'pdf-to-excel':      'normal',
+    'pdf-to-powerpoint': 'normal',
+    'pdf-to-jpg':        'normal',
+    'jpg-to-pdf':        'normal',
+    'word-to-pdf':       'normal',
+    'excel-to-pdf':      'normal',
+    'html-to-pdf':       'normal',
+    'powerpoint-to-pdf': 'normal',
+    // LOW — restructure / annotate / security (less time-critical)
+    'compress':          'low',
+    'merge':             'low',
+    'split':             'low',
+    'rotate':            'low',
+    'organize':          'low',
+    'page-numbers':      'low',
+    'watermark':         'low',
+    'crop':              'low',
+    'protect':           'low',
+    'unlock':            'low',
+    'edit':              'low',
+    'sign':              'low',
+    'redact':            'low',
+    'workflow':          'low',
+    'background-remover':'low',
+    'crop-image':        'low',
+    'resize-image':      'low',
+    'image-filters':     'low',
+    // BACKGROUND — async/batch AI operations
+    'ai-summarize':      'background',
+    'translate':         'background',
+  };
+
+  // Module-level current priority — set by runTool(), read by worker bridges.
+  var _currentWorkerPriority = 'normal';
+
   function runAdvancedWorker(message, transferables) {
     var pool = window.WorkerPool;
     if (!pool) return Promise.reject(AEError(ERR.WORKER, 'pool_unavailable'));
-    return pool.run('/workers/advanced-worker.js', message, transferables || []);
+    return pool.run('/workers/advanced-worker.js', message, transferables || [],
+      { priority: _currentWorkerPriority });
   }
 
   function runPdfWorker(toolId, buffers, options) {
     var pool = window.WorkerPool;
     if (!pool) return Promise.reject(AEError(ERR.WORKER, 'pool_unavailable'));
     return pool.run('/workers/pdf-worker.js',
-      { tool: toolId, buffers: buffers, options: options || {} }, buffers);
+      { tool: toolId, buffers: buffers, options: options || {} }, buffers,
+      { priority: _currentWorkerPriority });
   }
 
   // ── VANISH SYSTEM ─────────────────────────────────────────────────────────
@@ -4353,6 +4410,13 @@
     // Phase 9: show estimator after feed renders
     setTimeout(function () { OutputEstimator.show(toolId, totalBytes); }, 300);
 
+    // Phase 24: Set worker priority tier for all WorkerPool.run() calls made
+    // by this tool's processor (runAdvancedWorker / runPdfWorker both read
+    // _currentWorkerPriority).  Reset in finally to avoid bleed-over.
+    var _prevPriority = _currentWorkerPriority;
+    _currentWorkerPriority = _TOOL_PRIORITY[toolId] || 'normal';
+    DT().log('runTool-priority', { toolId: toolId, priority: _currentWorkerPriority });
+
     // v5.4: Smart Retry Engine (enhanced)
     // Re-runs with upgraded options on: low_quality_output, invalid_output.
     // New retry strategies: OCR hybrid boost, structure rebuild, micro-chunks.
@@ -4371,6 +4435,8 @@
     var result       = null;
 
     var _onStep = function (idx, state, pct, hint) { LiveFeed.update(idx, state, pct, hint); };
+
+    try { // Phase 24: priority reset guard — wraps entire retry loop
 
     for (var _attempt = 1; _attempt <= _maxAttempts; _attempt++) {
       var _curOpts = (_attempt === 1)
@@ -4472,6 +4538,12 @@
       break; // success — exit retry loop
     }
 
+    } finally {
+      // Phase 24: always restore priority tier — prevents bleed into the next
+      // tool invocation if this one threw, was cancelled, or hit ERR.ORIG.
+      _currentWorkerPriority = _prevPriority;
+    }
+
     LiveFeed.done();
     vanish();
     return result;
@@ -4535,7 +4607,7 @@
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
   window.AdvancedEngine = {
-    version:              '5.6',
+    version:              '5.7',
     InputAnalyzer:        InputAnalyzer,
     TOOL_IDS:             ADVANCED_IDS,
     LiveFeed:             LiveFeed,
@@ -4565,8 +4637,8 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.6 — Audit Report');
-      console.log('Version: 5.6 (Phase 23 — Stream Architecture)');
+      console.group('AdvancedEngine v5.7 — Audit Report');
+      console.log('Version: 5.7 (Phase 24 — Priority Routing + Background Queue)');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
