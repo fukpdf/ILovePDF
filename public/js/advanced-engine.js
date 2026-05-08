@@ -713,6 +713,82 @@
   }
   setInterval(backgroundClean, 60000);
 
+  // ── PHASE 20F: GLOBAL MEMORY SAFETY HELPERS ──────────────────────────────
+  // Reusable cleanup utilities following OCR engine patterns (Phase 19B).
+  // All helpers are intentionally silent on error — never propagate cleanup failures.
+  function safeCanvasCleanup(cvs) {
+    try { if (cvs) { cvs.width = 0; cvs.height = 0; } } catch (_) {}
+  }
+  function safeBitmapClose(bmp) {
+    try { if (bmp && typeof bmp.close === 'function') bmp.close(); } catch (_) {}
+  }
+  function safeObjectUrl(url) {
+    try { if (url) URL.revokeObjectURL(url); } catch (_) {}
+  }
+  async function safeWorkerTerminate(w) {
+    if (!w) return;
+    try { await w.terminate(); } catch (_) {}
+  }
+  function safeArrayNull(arr) {
+    if (!arr) return;
+    try { for (var i = 0; i < arr.length; i++) arr[i] = null; arr.length = 0; } catch (_) {}
+  }
+  // Async yield — lets the browser paint/handle events between heavy iterations.
+  function yieldToMain(ms) {
+    return new Promise(function (r) { setTimeout(r, ms || 0); });
+  }
+
+  // ── PHASE 20B: TEXT QUALITY SCORER ───────────────────────────────────────
+  // Detects garbled text extraction: broken fonts, missing cmap, private-use
+  // character floods, replacement chars, extreme symbol noise.
+  // Called by pdf-to-word/excel/pptx before committing to native extraction.
+  //
+  // Returns: { score: 0-1, issues: string[], needsOcr: bool }
+  //   score >= 0.60 → text is usable
+  //   score <  0.40 → text is garbled, OCR should be attempted automatically
+  function _scoreTextQuality(text) {
+    if (!text || text.length < 10) return { score: 0, issues: ['too_short'], needsOcr: true };
+    var issues     = [];
+    var score      = 1.0;
+    var totalChars = Math.max(1, text.replace(/\s/g, '').length);
+
+    // 1. Replacement character ratio (U+FFFD = broken font encoding)
+    var replacements = (text.match(/\ufffd/g) || []).length;
+    var replRatio    = replacements / totalChars;
+    if (replRatio > 0.05) {
+      issues.push('replacement_chars:' + (replRatio * 100).toFixed(0) + '%');
+      score -= 0.40;
+    }
+
+    // 2. Private Use Area characters (PUA — garbled glyph mapping)
+    var privateUse = (text.match(/[\ue000-\uf8ff]/g) || []).length;
+    var privRatio  = privateUse / totalChars;
+    if (privRatio > 0.08) {
+      issues.push('private_use_chars:' + (privRatio * 100).toFixed(0) + '%');
+      score -= 0.30;
+    }
+
+    // 3. Readable word ratio — words >=2 letters vs. total whitespace-delimited tokens
+    var words     = (text.match(/\b[a-z\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]{2,}\b/gi) || []);
+    var tokens    = text.split(/\s+/).filter(function (t) { return t.trim().length > 0; });
+    var readRatio = tokens.length > 0 ? words.length / tokens.length : 0;
+    if (tokens.length > 8 && readRatio < 0.25) {
+      issues.push('low_word_ratio:' + readRatio.toFixed(2));
+      score -= 0.30;
+    }
+
+    // 4. Symbol noise ratio (extreme non-alphanumeric density)
+    var nonAlpha  = (text.replace(/\s/g, '').match(/[^a-z0-9.,;:!?'"()\-\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]/gi) || []).length;
+    var noisRatio = nonAlpha / totalChars;
+    if (totalChars > 40 && noisRatio > 0.55) {
+      issues.push('high_symbol_noise:' + noisRatio.toFixed(2));
+      score -= 0.20;
+    }
+
+    score = Math.max(0, Math.min(1, score));
+    return { score: score, issues: issues, needsOcr: score < 0.40 };
+  }
+
   // ── PROCESSING TIMEOUT ────────────────────────────────────────────────────
   function withTimeout(promise, ms) {
     return Promise.race([
@@ -2046,13 +2122,18 @@
         cvs2.width  = Math.floor(capVp2.width);
         cvs2.height = Math.floor(capVp2.height);
         var ctx2    = cvs2.getContext('2d');
-        ctx2.fillStyle = '#ffffff';
-        ctx2.fillRect(0, 0, cvs2.width, cvs2.height);
-        await pg2.render({ canvasContext: ctx2, viewport: capVp2 }).promise;
-        pg2.cleanup();
-
-        var dataUrl2 = cvs2.toDataURL('image/jpeg', 0.92);
-        cvs2.width = 0; cvs2.height = 0; cvs2 = null;
+        var dataUrl2;
+        try {
+          // Phase 20F: render inside try/finally so canvas is freed even if
+          // pg2.render() or toDataURL() throws (prevents silent canvas leak).
+          ctx2.fillStyle = '#ffffff';
+          ctx2.fillRect(0, 0, cvs2.width, cvs2.height);
+          await pg2.render({ canvasContext: ctx2, viewport: capVp2 }).promise;
+          pg2.cleanup();
+          dataUrl2 = cvs2.toDataURL('image/jpeg', 0.92);
+        } finally {
+          safeCanvasCleanup(cvs2); cvs2 = null;
+        }
 
         var ocrRes2    = await worker2.recognize(dataUrl2);
         dataUrl2       = null;
@@ -2124,44 +2205,71 @@
   // ── TOOL PROCESSORS ───────────────────────────────────────────────────────
   var processors = {};
 
-  // ─── COMPRESS (Phase 3: enhanced multi-pass) ───────────────────────────────
+  // ─── COMPRESS (Phase 20D: adaptive quality + large-file defence) ──────────
   processors['compress'] = async function (files, opts, onStep) {
-    var file = files[0];
+    var file   = files[0];
+    var fileMB = file.size / 1048576;
     onStep(0, 'active', 5, 'Preparing your file\u2026');
 
-    var buf = await file.arrayBuffer();
+    // Phase 20D: adaptive compression quality based on file size.
+    // Larger files get more aggressive image down-scaling to stay within
+    // worker memory limits and to maximise byte savings.
+    var compressOpts = Object.assign({}, opts || {});
+    if (fileMB > 200) {
+      compressOpts._qualityTier = 'aggressive';
+      compressOpts._imgScale    = 0.65;
+    } else if (fileMB > 80) {
+      compressOpts._qualityTier = 'moderate';
+      compressOpts._imgScale    = 0.80;
+    } else {
+      compressOpts._qualityTier = 'standard';
+      compressOpts._imgScale    = 1.0;
+    }
+    DT().log('compress-start', { sizeMB: fileMB.toFixed(1), tier: compressOpts._qualityTier });
+
+    var buf = null;
+    try {
+      buf = await file.arrayBuffer();
+    } catch (memErr) {
+      DT().error('compress-load', memErr);
+      throw new Error('The file is too large to load into memory. Please try with a smaller file.');
+    }
     onStep(0, 'done', 15);
     onStep(1, 'active', 18, 'Optimizing content\u2026');
+
+    // Phase 20F: yield before dispatching to worker so the UI stays responsive
+    await yieldToMain(5);
 
     var resultBuf = null;
     try {
       if (window.WorkerPool) {
         onStep(1, 'done', 25);
         onStep(2, 'active', 30, 'Applying improvements\u2026');
-        var wRes = await runPdfWorker('compress', [buf], opts);
+        var wRes = await runPdfWorker('compress', [buf], compressOpts);
+        buf = null; // Phase 20F: null immediately (ArrayBuffer may have been transferred)
         if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) {
           resultBuf = wRes.buffer;
         }
       }
-    } catch (e) { /* silent — fallback below */ }
-    buf = null;
+    } catch (e) {
+      DT().error('compress-worker', e);
+    } finally {
+      buf = null; // Phase 20F: guaranteed release even if worker threw
+    }
 
     if (!resultBuf || resultBuf.byteLength >= file.size) {
       // PDF is already well-optimised — return the original with a clear message.
       onStep(2, 'done', 85);
       onStep(3, 'active', 90, 'File is already well\u2011optimised\u2026');
-      var origBufFallback = await file.arrayBuffer();
-      var origBlob = new Blob([origBufFallback], { type: 'application/pdf' });
-      origBufFallback = null;
+      var origBuf = await file.arrayBuffer();
+      var origBlob = new Blob([origBuf], { type: 'application/pdf' });
+      origBuf = null;
       onStep(3, 'done', 100);
-      return {
-        blob: origBlob,
-        filename: brandedFilename(file.name, '.pdf'),
-        alreadyOptimized: true,
-      };
+      return { blob: origBlob, filename: brandedFilename(file.name, '.pdf'), alreadyOptimized: true };
     }
 
     var saved = Math.round((1 - resultBuf.byteLength / file.size) * 100);
+    DT().result('compress-done', { savedPct: saved, sizeMB: (resultBuf.byteLength / 1048576).toFixed(1) });
     onStep(2, 'done', 85);
     onStep(3, 'active', 88, 'Saved ' + saved + '% \u2014 finalizing\u2026');
     var blob = new Blob([resultBuf], { type: 'application/pdf' });
@@ -2214,9 +2322,18 @@
     }, 0);
     DT().log('pdf-to-word-extract', { pages: pages.length, chars: _totalWordChars, totalPdfPages: total });
 
-    // Phase 3: Auto-OCR trigger — when the PDF has no/sparse selectable text
-    // (scanned document), automatically run Tesseract instead of throwing.
-    if (!pages.length || _totalWordChars < Math.max(8, total * 2)) {
+    // Phase 20B: Text quality scoring — detect garbled unicode even when char
+    // count looks sufficient (broken fonts, PUA encoding, replacement chars).
+    var _wSampleText = pages.slice(0, 3).map(function (p) {
+      return p.paragraphs.map(function (para) { return para.text; }).join(' ');
+    }).join(' ');
+    var _wQuality = _scoreTextQuality(_wSampleText.length > 0 ? _wSampleText : '');
+    DT().log('pdf-to-word-quality', {
+      score: _wQuality.score, issues: _wQuality.issues, needsOcr: _wQuality.needsOcr,
+    });
+
+    // Phase 3 + 20B: Auto-OCR trigger — sparse text OR garbled/unreadable content.
+    if (!pages.length || _totalWordChars < Math.max(8, total * 2) || _wQuality.needsOcr) {
       DT().log('pdf-to-word-ocr-trigger', { reason: 'sparse_text', chars: _totalWordChars });
       var ocrWPages = await autoOcrFallback(file, onStep, 35, 1);
       var ocrWChars = ocrWPages.reduce(function (s, p) { return s + p.text.length; }, 0);
@@ -2484,8 +2601,36 @@
     throw new Error(ERR.ORIG);
   };
   processors['excel-to-pdf'] = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
-  processors['html-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Preparing your document\u2026'); throw new Error(ERR.ORIG); };
-  processors['scan-to-pdf']  = async function (f, o, s) { s(0, 'active', 10, 'Analyzing images\u2026'); throw new Error(ERR.ORIG); };
+  processors['html-to-pdf'] = async function (f, o, s) {
+    s(0, 'active', 10, 'Preparing your document\u2026');
+    // Phase 20E: wait for web fonts to finish loading before handing off to
+    // the browser renderer — prevents missing-glyph or invisible-text artifacts.
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise(function (r) { setTimeout(r, 3000); }), // 3 s timeout
+        ]);
+      }
+    } catch (_) {}
+    DT().log('html-to-pdf-prep', { fontsStatus: document.fonts ? document.fonts.status : 'n/a' });
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
+  processors['scan-to-pdf'] = async function (f, o, s) {
+    s(0, 'active', 10, 'Analyzing images\u2026');
+    // Phase 20E: validate combined image size before delegating to browser engine.
+    var files = f || [];
+    if (files.length > 0) {
+      var totalMB = files.reduce(function (sum, fi) { return sum + (fi.size || 0); }, 0) / 1048576;
+      DT().log('scan-to-pdf-prep', { files: files.length, totalMB: totalMB.toFixed(1) });
+      if (totalMB > 400) {
+        throw new Error('The combined image size (' + totalMB.toFixed(0) + ' MB) is too large. Please use fewer or smaller images.');
+      }
+    }
+    s(0, 'done', 15);
+    throw new Error(ERR.ORIG);
+  };
 
   // ─── OCR Engine v4 — Phase 19A: OffscreenCanvas + Denoise Mode + Pool Cleanup ─
   //
@@ -2962,7 +3107,34 @@
     return { blob: ocrTxtBlob, filename: brandedFilename(file.name, '.txt') };
   };
 
-  // ─── BACKGROUND REMOVER (Phase 5: WebGPU in worker) ──────────────────────
+  // ── PHASE 20C: ALPHA EDGE SMOOTHER ───────────────────────────────────────
+  // Applies a 3×3 box-blur to transitional alpha pixels only (50–220 range).
+  // Fully opaque (>220) and fully transparent (<50) pixels are left alone so
+  // the sharp object boundaries stay clean while jagged staircase edges caused
+  // by threshold-based segmentation are softened.
+  // Input / output: raw RGBA ArrayBuffer; returns a new ArrayBuffer.
+  function _smoothAlphaEdges(pixelsBuf, w, h) {
+    var rgba = new Uint8ClampedArray(pixelsBuf);
+    var out  = new Uint8ClampedArray(rgba.length);
+    out.set(rgba); // start with a full copy — only alpha channel will be modified
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var ai       = (y * w + x) * 4 + 3;
+        var curAlpha = rgba[ai];
+        if (curAlpha > 220 || curAlpha < 50) continue; // skip non-edge pixels
+        var sum = 0;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            sum += rgba[((y + dy) * w + (x + dx)) * 4 + 3];
+          }
+        }
+        out[ai] = (sum / 9) | 0;
+      }
+    }
+    return out.buffer;
+  }
+
+  // ─── BACKGROUND REMOVER (Phase 20C: edge smoothing + memory hardening) ───
   processors['background-remover'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 5, 'Loading image\u2026');
@@ -3075,65 +3247,262 @@
     onStep(2, 'done', 80);
     onStep(3, 'active', 83, 'Saving result\u2026');
 
-    var outCvs   = document.createElement('canvas');
-    outCvs.width  = wResult.width; outCvs.height = wResult.height;
-    var outCtx   = outCvs.getContext('2d');
-    var outData  = outCtx.createImageData(wResult.width, wResult.height);
-    outData.data.set(new Uint8ClampedArray(wResult.pixels));
-    outCtx.putImageData(outData, 0, 0);
-    outData = null;
+    // Phase 20C: apply alpha edge smoothing before rendering to output canvas.
+    // Softens jagged staircase edges from threshold-based background removal
+    // while preserving fully-opaque object pixels and fully-transparent background.
+    var outW = wResult.width, outH = wResult.height;
+    var finalPixels = wResult.pixels;
+    try {
+      var smoothed = _smoothAlphaEdges(wResult.pixels, outW, outH);
+      if (smoothed && smoothed.byteLength === wResult.pixels.byteLength) {
+        finalPixels = smoothed;
+        DT().log('bg-remover-smooth', { pixels: smoothed.byteLength });
+      }
+    } catch (smoothErr) {
+      DT().log('bg-remover-smooth-skip', { err: String(smoothErr).slice(0, 40) });
+    }
+    wResult = null;
 
-    var blob = await new Promise(function (res, rej) {
-      outCvs.toBlob(function (b) {
-        if (b && b.size > 0) res(b);
-        else rej(AEError(ERR.WORKER, 'canvas_export_empty'));
-      }, 'image/png');
-    });
+    // Phase 20F: release source canvas once it is no longer needed
+    safeCanvasCleanup(cvs); cvs = null;
 
-    cvs.width = 0; cvs.height = 0;
-    outCvs.width = 0; outCvs.height = 0;
+    // Phase 20F: wrap output canvas in try/finally to guarantee cleanup
+    // even if toBlob() throws or the ImageData write fails.
+    var blob;
+    var outCvs = document.createElement('canvas');
+    try {
+      outCvs.width  = outW;
+      outCvs.height = outH;
+      var outCtx  = outCvs.getContext('2d');
+      var outData = outCtx.createImageData(outW, outH);
+      outData.data.set(new Uint8ClampedArray(finalPixels));
+      finalPixels = null;
+      outCtx.putImageData(outData, 0, 0);
+      outData = null;
+
+      blob = await new Promise(function (res, rej) {
+        outCvs.toBlob(function (b) {
+          if (b && b.size > 0) res(b);
+          else rej(AEError(ERR.WORKER, 'canvas_export_empty'));
+        }, 'image/png');
+      });
+    } finally {
+      safeCanvasCleanup(outCvs); // Phase 20F: guaranteed cleanup
+    }
 
     onStep(3, 'done', 100);
     return { blob: blob, filename: brandedFilename(file.name, '.png') };
   };
 
-  // ─── REPAIR (v5: multi-pass repair) ──────────────────────────────────────
+  // ── PHASE 20A: PDF RAW BYTE RECOVERY SCANNER ─────────────────────────────
+  // Emergency diagnostic for severely corrupted PDFs where pdfjs / pdf-lib
+  // both fail.  Scans raw bytes for structural markers to estimate how much
+  // of the file is recoverable, then returns a report used by the repair
+  // processor to choose between a "partially recovered" message and a hard
+  // "too damaged" error.
+  //
+  // Algorithm:
+  //   1. Locate %PDF- header  — confirms this is a real PDF
+  //   2. Count obj / endobj pairs (matched) — each is a recoverable object
+  //   3. Count stream / endstream pairs  — each is a page/resource stream
+  //   4. Search for /Type /Page markers  — estimates page count
+  //   5. Check xref + trailer presence  — structural completeness signals
+  //
+  // Scans at most 8 MB of the file for speed (covers most corrupt cases).
+  function _repairRawByteScan(buf) {
+    var report = {
+      hasPdfHeader:   false,
+      headerVersion:  null,
+      objPairs:       0,
+      streamPairs:    0,
+      xrefFound:      false,
+      trailerFound:   false,
+      estimatedPages: 0,
+      confidence:     0,   // 0–1: fraction of expected structure found
+      scanBytes:      0,
+    };
+    try {
+      var bytes   = new Uint8Array(buf);
+      var len     = bytes.length;
+      report.scanBytes = len;
+
+      // Helper: find ASCII string in byte array (coarse scan, no RegExp)
+      function findStr(str, startOff, maxSearch) {
+        var target = [];
+        for (var ci = 0; ci < str.length; ci++) target.push(str.charCodeAt(ci));
+        var end = Math.min(len, startOff + (maxSearch || len));
+        outer: for (var i = startOff; i < end - target.length + 1; i++) {
+          for (var j = 0; j < target.length; j++) {
+            if (bytes[i + j] !== target[j]) continue outer;
+          }
+          return i;
+        }
+        return -1;
+      }
+
+      // 1. PDF header (first 1 KB)
+      var hdrPos = findStr('%PDF-', 0, 1024);
+      if (hdrPos >= 0) {
+        report.hasPdfHeader = true;
+        var vStart = hdrPos + 5, vEnd = Math.min(vStart + 5, len), vStr = '';
+        for (var vi = vStart; vi < vEnd; vi++) {
+          var vc = bytes[vi];
+          if (vc === 10 || vc === 13) break;
+          vStr += String.fromCharCode(vc);
+        }
+        report.headerVersion = vStr.trim().slice(0, 5);
+      } else {
+        return report; // Not a PDF — nothing to recover
+      }
+
+      // 2. Count structural markers (scan up to 8 MB)
+      var scanEnd = Math.min(len, 8 * 1024 * 1024);
+      var objCount = 0, endobjCount = 0, streamCount = 0, endstreamCount = 0;
+      for (var si = 0; si < scanEnd - 9; si++) {
+        var b = bytes[si];
+        if (b === 111 && bytes[si+1] === 98 && bytes[si+2] === 106) { // "obj"
+          var pre = si > 0 ? bytes[si-1] : 32;
+          if (pre === 32 || pre === 10 || pre === 13) objCount++;
+        } else if (b === 101 && bytes[si+1] === 110 && bytes[si+2] === 100) { // "end…"
+          if (bytes[si+3] === 111) endobjCount++;    // "endobj"
+          if (bytes[si+3] === 115) endstreamCount++; // "endstream"
+        } else if (b === 115 && bytes[si+1] === 116 && bytes[si+2] === 114 &&
+                   bytes[si+3] === 101 && bytes[si+4] === 97  && bytes[si+5] === 109) { // "stream"
+          var spre = si > 0 ? bytes[si-1] : 32;
+          if (spre === 10 || spre === 13 || spre === 32) streamCount++;
+        }
+      }
+      report.objPairs    = Math.min(objCount, endobjCount);
+      report.streamPairs = Math.min(streamCount, endstreamCount);
+
+      // 3. xref / trailer presence
+      report.xrefFound    = findStr('xref',    0, scanEnd) >= 0;
+      report.trailerFound = findStr('trailer', 0, scanEnd) >= 0;
+
+      // 4. Estimate page count via /Type /Page markers (up to 4 MB)
+      var pageCount = 0, peEnd = Math.min(len, 4 * 1024 * 1024);
+      for (var pi = 0; pi < peEnd - 14; pi++) {
+        if (bytes[pi]    === 47  && bytes[pi+1]  === 84  && bytes[pi+2]  === 121 &&
+            bytes[pi+3]  === 112 && bytes[pi+4]  === 101 && bytes[pi+5]  === 32  &&
+            bytes[pi+6]  === 47  && bytes[pi+7]  === 80  && bytes[pi+8]  === 97  &&
+            bytes[pi+9]  === 103 && bytes[pi+10] === 101 && bytes[pi+11] !== 115) { // /Type /Page (not /Pages)
+          pageCount++;
+        }
+      }
+      report.estimatedPages = pageCount;
+
+      // 5. Confidence composite
+      var conf = 0;
+      if (report.hasPdfHeader)    conf += 0.25;
+      if (report.objPairs    > 0) conf += 0.25;
+      if (report.streamPairs > 0) conf += 0.20;
+      if (report.xrefFound)       conf += 0.15;
+      if (report.trailerFound)    conf += 0.15;
+      report.confidence = Math.min(1, conf);
+
+      DT().log('repair-raw-scan', {
+        version:    report.headerVersion,
+        objPairs:   report.objPairs,
+        streams:    report.streamPairs,
+        xref:       report.xrefFound,
+        trailer:    report.trailerFound,
+        pages:      report.estimatedPages,
+        confidence: report.confidence.toFixed(2),
+        scannedMB:  (scanEnd / 1048576).toFixed(1),
+      });
+    } catch (scanErr) {
+      DT().log('repair-raw-scan-err', { err: String(scanErr).slice(0, 60) });
+    }
+    return report;
+  }
+
+  // ─── REPAIR (Phase 20A: raw-byte scan + confidence tracking) ────────────
   processors['repair'] = async function (files, opts, onStep) {
     var file = files[0];
     onStep(0, 'active', 8, 'Preparing your file\u2026');
-    var buf = await file.arrayBuffer();
+
+    var buf = null;
+    try {
+      buf = await file.arrayBuffer();
+    } catch (loadErr) {
+      DT().error('repair-load', loadErr);
+      throw new Error('The file is too large to load. Please try a smaller file.');
+    }
     onStep(0, 'done', 18);
     onStep(1, 'active', 22, 'Checking integrity\u2026');
+
+    // Phase 20A: pre-scan the raw bytes to record baseline structural confidence.
+    // We keep a copy of the scan report so that if both repair passes fail we can
+    // give a precise error message instead of a generic one.
+    var rawScan = null;
+    try {
+      rawScan = _repairRawByteScan(buf);
+      DT().log('repair-prescan', {
+        hasPdf:     rawScan.hasPdfHeader,
+        version:    rawScan.headerVersion,
+        confidence: rawScan.confidence.toFixed(2),
+        estPages:   rawScan.estimatedPages,
+      });
+    } catch (_) {}
+
+    // Hard-reject files that don't look like PDFs at all (no %PDF- header)
+    if (rawScan && !rawScan.hasPdfHeader) {
+      throw new Error('This file does not appear to be a valid PDF. Please check that you uploaded the correct file.');
+    }
 
     var resultBuf  = null;
     var repairPass = 0;
 
+    // Phase 20A: confidence tracking — record pass results for diagnostics
+    var repairLog = [];
+
     // v5: Multi-pass repair — try progressively deeper passes (up to 2)
-    while (!resultBuf && repairPass < 2) {
-      repairPass++;
-      try {
-        if (window.WorkerPool) {
-          if (repairPass === 1) {
-            onStep(1, 'done', 30);
-            onStep(2, 'active', 34, 'Restoring document\u2026');
-          } else {
-            onStep(2, 'active', 52, 'Trying deeper repair\u2026');
+    try {
+      while (!resultBuf && repairPass < 2) {
+        repairPass++;
+        try {
+          if (window.WorkerPool) {
+            if (repairPass === 1) {
+              onStep(1, 'done', 30);
+              onStep(2, 'active', 34, 'Restoring document\u2026');
+            } else {
+              onStep(2, 'active', 52, 'Trying deeper repair\u2026');
+            }
+            var passOpts = Object.assign({}, opts || {}, { repairPass: repairPass });
+            var wRes = await runPdfWorker('repair', [buf.slice(0)], passOpts);
+            if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) {
+              resultBuf = wRes.buffer;
+              repairLog.push({ pass: repairPass, ok: true, size: resultBuf.byteLength });
+              DT().log('repair-pass-ok', { pass: repairPass, size: resultBuf.byteLength });
+            } else {
+              repairLog.push({ pass: repairPass, ok: false, reason: 'empty_result' });
+            }
           }
-          var passOpts = Object.assign({}, opts || {}, { repairPass: repairPass });
-          var wRes = await runPdfWorker('repair', [buf.slice(0)], passOpts);
-          if (wRes && wRes.buffer && wRes.buffer.byteLength > 0) {
-            resultBuf = wRes.buffer;
-            DT().log('repair-pass-ok', { pass: repairPass, size: resultBuf.byteLength });
-          }
+        } catch (repairErr) {
+          repairLog.push({ pass: repairPass, ok: false, reason: String(repairErr).slice(0, 60) });
+          DT().error('repair-pass-' + repairPass, repairErr);
         }
-      } catch (repairErr) {
-        DT().error('repair-pass-' + repairPass, repairErr);
       }
+    } finally {
+      buf = null; // Phase 20F: guaranteed release
     }
 
-    buf = null;
-    // Fall back to browser-tools.js repairPdf when all passes failed
-    if (!resultBuf) throw new Error(ERR.ORIG);
+    if (!resultBuf) {
+      // Phase 20A: use scan confidence to choose the right error path
+      if (rawScan && rawScan.confidence < 0.30) {
+        // Very little recoverable structure — nothing to fall back to
+        DT().error('repair-unrecoverable', { confidence: rawScan.confidence, log: repairLog });
+        throw new Error(
+          'This PDF appears to be severely damaged (less than 30% recoverable structure detected). ' +
+          'It may not be possible to recover this file.'
+        );
+      }
+      // Some structure remains — try browser-tools.js repairPdf as last resort
+      DT().log('repair-fallback-orig', { confidence: rawScan ? rawScan.confidence : 'n/a', log: repairLog });
+      throw new Error(ERR.ORIG);
+    }
+
+    DT().result('repair-passes', { passes: repairLog, rawConfidence: rawScan ? rawScan.confidence : 'n/a' });
 
     // v5.1: Integrity verification — confirm the repaired PDF can actually be opened
     onStep(2, 'done', 75);
