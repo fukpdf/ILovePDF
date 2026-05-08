@@ -2508,13 +2508,38 @@
   //      — Post-OCR WorkerPool.terminatePool() for immediate memory reclaim
 
   var OCR_PREPROCESSOR_URL  = '/workers/ocr-preprocessor-worker.js';
-  var OCR_CONF_RETRY        = 45;  // re-preprocess if first-pass confidence < this
-  var OCR_CONF_DENOISE      = 35;  // Phase 19A: try denoise mode if still < this
-  var OCR_CONF_RAW_FALLBACK = 25;  // also try raw pixels if still < this
+  // Phase 19B: retry thresholds widened — catches more borderline pages
+  //   RETRY:        45 → 50  (strong mode triggers sooner for marginal pages)
+  //   DENOISE:      35 → 40  (blur+Otsu activated earlier for noisy mid-range pages)
+  //   RAW_FALLBACK: 25       (unchanged — last resort for very poor results)
+  var OCR_CONF_RETRY        = 50;
+  var OCR_CONF_DENOISE      = 40;
+  var OCR_CONF_RAW_FALLBACK = 25;
   // Phase 19A: adaptive batch yield — lower-end devices get smaller batches + explicit yield time
   var _ocrPerfMode      = (typeof PERF_MODE !== 'undefined') ? PERF_MODE : 'medium';
   var OCR_BATCH_YIELD   = _ocrPerfMode === 'low' ? 3 : _ocrPerfMode === 'high' ? 8 : 5;
-  var OCR_BATCH_YIELD_MS = _ocrPerfMode === 'low' ? 20 : 0;
+  var OCR_BATCH_YIELD_MS = _ocrPerfMode === 'low' ? 20 : 5; // Phase 19B: min 5ms yield on all tiers
+
+  // ── Helper: detect already-binarized / digitally-clean images (Phase 19B) ────
+  // Samples ~4000 pixels from the RGBA buffer. If ≥87% of pixels are either
+  // near-white (luma > 240) or near-black (luma < 15), the image is already
+  // essentially binary — running adaptive/Otsu preprocessing would add no value
+  // and wastes CPU. The caller can skip attempts A-C and jump straight to raw.
+  function _isEssentiallyBinary(pixelsBuf, w, h) {
+    try {
+      var rgba     = new Uint8ClampedArray(pixelsBuf);
+      var n        = w * h;
+      var step     = Math.max(1, Math.floor(n / 4000)); // ~4000 samples
+      var binary   = 0, sampled = 0;
+      for (var i = 0; i < n; i += step) {
+        var px  = i * 4;
+        var lum = (0.299 * rgba[px] + 0.587 * rgba[px + 1] + 0.114 * rgba[px + 2]) | 0;
+        if (lum < 15 || lum > 240) binary++;
+        sampled++;
+      }
+      return sampled > 0 && (binary / sampled) > 0.87;
+    } catch (_) { return false; }
+  }
 
   // ── Helper: send pixels to the preprocessor worker via WorkerPool ──────────
   // Returns { pixels: ArrayBuffer, width, height } or null on any failure.
@@ -2560,74 +2585,137 @@
   }
 
   // ── Helper: recognize one page with up to 4 confidence-ranked attempts ──────
-  // Phase 19A: added denoise mode (attempt C) + try/finally cleanup safety.
+  // Phase 19B: hardened cleanup + retry reason logging + binary skip optimization.
+  //
+  //   Attempt A: 'auto'    adaptive threshold + deskew       (always, unless already binary)
+  //   Attempt B: 'strong'  Otsu global threshold             (if conf < OCR_CONF_RETRY=50)
+  //   Attempt C: 'denoise' 5×5 blur + Otsu                  (if conf < OCR_CONF_DENOISE=40)
+  //   Attempt D: raw pixels (no preprocessing)              (if conf < OCR_CONF_RAW_FALLBACK=25)
+  //
+  // Binary-skip optimization (Phase 19B): if the page render is already
+  // essentially binary (digital PDF rendered at high quality), attempts A-C are
+  // skipped entirely — saves preprocessor worker round-trips and ~50ms CPU per page.
+  //
+  // Memory safety (Phase 19B):
+  //   — All ImageBitmaps are tracked in bitmapsToClose[] and closed in finally.
+  //   — Worker pixel buffers are nulled in finally even on thrown errors.
+  //
   // rawPixels: ArrayBuffer (RGBA, owned by caller — NOT transferred here)
-  // Returns { text: string, confidence: number }
+  // Returns { text: string, confidence: number, attempts: number, skippedPreprocess: bool }
   async function _ocrRecognizePage(tesseractWorker, rawPixels, w, h) {
     var bestText = '', bestConf = -1;
     var resA = null, resB = null, resC = null;
+    // Phase 19B: track every ImageBitmap so they are closed in finally even on error
+    var bitmapsToClose  = [];
+    // Phase 19B: record why each retry was triggered (logged at end for diagnostics)
+    var retryReasons    = [];
+    var attemptCount    = 0;
+    var skippedPreprocess = false;
+
+    // Phase 19B: binary-skip optimization
+    // If ≥87% of sampled pixels are near-white or near-black, the image is already
+    // binarized — skip A/B/C and go straight to raw for fastest/cleanest result.
+    var alreadyBinary = _isEssentiallyBinary(rawPixels, w, h);
+    if (alreadyBinary) {
+      skippedPreprocess = true;
+      bestConf = 0; // force attempt D below
+    }
 
     try {
-      // Attempt A — 'auto' adaptive preprocessing (best default quality)
-      resA = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'auto');
-      if (resA && resA.pixels) {
-        var inpA = await _ocrPixelsToInput(resA.pixels, resA.width, resA.height);
-        resA.pixels = null; resA = null;
-        var rA = await tesseractWorker.recognize(inpA.input);
-        if (inpA.isImageBitmap && inpA.input && inpA.input.close) inpA.input.close();
-        var cA = (rA.data && typeof rA.data.confidence === 'number') ? rA.data.confidence : 0;
-        var tA = (rA.data && rA.data.text) ? rA.data.text.trim() : '';
-        if (cA > bestConf) { bestConf = cA; bestText = tA; }
-      }
-
-      // Attempt B — 'strong' Otsu binarization if confidence is still low
-      if (bestConf < OCR_CONF_RETRY) {
-        resB = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'strong');
-        if (resB && resB.pixels) {
-          var inpB = await _ocrPixelsToInput(resB.pixels, resB.width, resB.height);
-          resB.pixels = null; resB = null;
-          var rB = await tesseractWorker.recognize(inpB.input);
-          if (inpB.isImageBitmap && inpB.input && inpB.input.close) inpB.input.close();
-          var cB = (rB.data && typeof rB.data.confidence === 'number') ? rB.data.confidence : 0;
-          var tB = (rB.data && rB.data.text) ? rB.data.text.trim() : '';
-          if (cB > bestConf) { bestConf = cB; bestText = tB; }
+      if (!alreadyBinary) {
+        // Attempt A — 'auto' adaptive preprocessing (best default quality)
+        attemptCount++;
+        resA = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'auto');
+        if (resA && resA.pixels) {
+          var inpA = await _ocrPixelsToInput(resA.pixels, resA.width, resA.height);
+          resA.pixels = null; resA = null;
+          if (inpA.isImageBitmap) bitmapsToClose.push(inpA.input);
+          var rA = await tesseractWorker.recognize(inpA.input);
+          var cA = (rA.data && typeof rA.data.confidence === 'number') ? rA.data.confidence : 0;
+          var tA = (rA.data && rA.data.text) ? rA.data.text.trim() : '';
+          if (cA > bestConf) { bestConf = cA; bestText = tA; }
         }
-      }
 
-      // Attempt C — 'denoise' (box blur + Otsu) for persistent noise artifacts
-      // Phase 19A: sits between 'strong' and raw — targets low-quality scans
-      if (bestConf < OCR_CONF_DENOISE) {
-        resC = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'denoise');
-        if (resC && resC.pixels) {
-          var inpC = await _ocrPixelsToInput(resC.pixels, resC.width, resC.height);
-          resC.pixels = null; resC = null;
-          var rC = await tesseractWorker.recognize(inpC.input);
-          if (inpC.isImageBitmap && inpC.input && inpC.input.close) inpC.input.close();
-          var cC = (rC.data && typeof rC.data.confidence === 'number') ? rC.data.confidence : 0;
-          var tC = (rC.data && rC.data.text) ? rC.data.text.trim() : '';
-          if (cC > bestConf) { bestConf = cC; bestText = tC; }
+        // Attempt B — 'strong' Otsu binarization if confidence is still borderline
+        if (bestConf < OCR_CONF_RETRY) {
+          retryReasons.push('A_conf=' + bestConf.toFixed(0) + '<' + OCR_CONF_RETRY + '→strong');
+          attemptCount++;
+          resB = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'strong');
+          if (resB && resB.pixels) {
+            var inpB = await _ocrPixelsToInput(resB.pixels, resB.width, resB.height);
+            resB.pixels = null; resB = null;
+            if (inpB.isImageBitmap) bitmapsToClose.push(inpB.input);
+            var rB = await tesseractWorker.recognize(inpB.input);
+            var cB = (rB.data && typeof rB.data.confidence === 'number') ? rB.data.confidence : 0;
+            var tB = (rB.data && rB.data.text) ? rB.data.text.trim() : '';
+            if (cB > bestConf) { bestConf = cB; bestText = tB; }
+          }
+        }
+
+        // Attempt C — 'denoise' (5×5 blur + Otsu) for persistent noise artifacts
+        if (bestConf < OCR_CONF_DENOISE) {
+          retryReasons.push('B_conf=' + bestConf.toFixed(0) + '<' + OCR_CONF_DENOISE + '→denoise');
+          attemptCount++;
+          resC = await _ocrPreprocessPage(rawPixels.slice(0), w, h, 'denoise');
+          if (resC && resC.pixels) {
+            var inpC = await _ocrPixelsToInput(resC.pixels, resC.width, resC.height);
+            resC.pixels = null; resC = null;
+            if (inpC.isImageBitmap) bitmapsToClose.push(inpC.input);
+            var rC = await tesseractWorker.recognize(inpC.input);
+            var cC = (rC.data && typeof rC.data.confidence === 'number') ? rC.data.confidence : 0;
+            var tC = (rC.data && rC.data.text) ? rC.data.text.trim() : '';
+            if (cC > bestConf) { bestConf = cC; bestText = tC; }
+          }
         }
       }
 
       // Attempt D — raw input (no preprocessing) as final fallback
-      // rawPixels still valid here (only .slice() copies were transferred above)
-      if (bestConf < OCR_CONF_RAW_FALLBACK) {
+      // Also the only attempt when alreadyBinary is true (binary-skip optimization).
+      // rawPixels still valid here — only .slice() copies were transferred above.
+      if (bestConf < OCR_CONF_RAW_FALLBACK || alreadyBinary) {
+        if (!alreadyBinary) {
+          retryReasons.push('C_conf=' + bestConf.toFixed(0) + '<' + OCR_CONF_RAW_FALLBACK + '→raw');
+        }
+        attemptCount++;
         var inpD = await _ocrPixelsToInput(rawPixels, w, h);
-        var rD   = await tesseractWorker.recognize(inpD.input);
-        if (inpD.isImageBitmap && inpD.input && inpD.input.close) inpD.input.close();
+        if (inpD.isImageBitmap) bitmapsToClose.push(inpD.input);
+        var rD = await tesseractWorker.recognize(inpD.input);
         var cD = (rD.data && typeof rD.data.confidence === 'number') ? rD.data.confidence : 0;
         var tD = (rD.data && rD.data.text) ? rD.data.text.trim() : '';
         if (cD > bestConf) { bestConf = cD; bestText = tD; }
       }
 
     } finally {
-      // Phase 19A: cleanup safety — null intermediate results even on early error
+      // Phase 19B: guaranteed ImageBitmap cleanup — prevents GPU memory leaks
+      // even when Tesseract throws mid-recognition.
+      for (var bi = 0; bi < bitmapsToClose.length; bi++) {
+        try {
+          var bmp = bitmapsToClose[bi];
+          if (bmp && typeof bmp.close === 'function') bmp.close();
+        } catch (_) {}
+      }
+      // Null any pixel buffers that weren't consumed by the worker
       if (resA && resA.pixels) { resA.pixels = null; }
       if (resB && resB.pixels) { resB.pixels = null; }
       if (resC && resC.pixels) { resC.pixels = null; }
     }
 
-    return { text: bestText, confidence: Math.max(0, bestConf) };
+    // Phase 19B: emit diagnostic log when retries occurred or preprocessing was skipped
+    if (retryReasons.length || skippedPreprocess) {
+      DT().log('ocr-v4-retries', {
+        skippedPreprocess: skippedPreprocess,
+        attempts: attemptCount,
+        reasons:  retryReasons,
+        finalConf: bestConf.toFixed(0),
+      });
+    }
+
+    return {
+      text:              bestText,
+      confidence:        Math.max(0, bestConf),
+      attempts:          attemptCount,
+      skippedPreprocess: skippedPreprocess,
+    };
   }
 
   processors['ocr'] = async function (files, opts, onStep) {
@@ -2766,28 +2854,45 @@
         var capScale = scale * Math.min(capW / viewport.width, capH / viewport.height);
         var capVp    = pg.getViewport({ scale: capScale });
 
-        var cvs    = document.createElement('canvas');
-        cvs.width  = Math.floor(capVp.width);
-        cvs.height = Math.floor(capVp.height);
-        var ctx    = cvs.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, cvs.width, cvs.height);
-        await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
-        pg.cleanup(); // Phase 2: release PDF page resources immediately
+        // ── Render page → capture raw RGBA pixels with guaranteed canvas cleanup ─
+        // Phase 19B: try/finally ensures the GPU-backed canvas store is always
+        // freed even when pg.render() or getImageData() throws (e.g. OOM, abort).
+        var rawW = 0, rawH = 0, rawPixels = null;
+        var _cvs = null;
+        try {
+          _cvs = document.createElement('canvas');
+          _cvs.width  = Math.floor(capVp.width);
+          _cvs.height = Math.floor(capVp.height);
+          var ctx = _cvs.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, _cvs.width, _cvs.height);
+          await pg.render({ canvasContext: ctx, viewport: capVp }).promise;
+          pg.cleanup(); // Phase 2: release PDF page resources immediately
+          rawW      = _cvs.width;
+          rawH      = _cvs.height;
+          rawPixels = ctx.getImageData(0, 0, rawW, rawH).data.buffer.slice(0);
+        } finally {
+          if (_cvs) { _cvs.width = 0; _cvs.height = 0; _cvs = null; } // free GPU backing store
+        }
 
-        // ── Capture raw RGBA pixels then free the canvas immediately ─────────
-        var rawW      = cvs.width;
-        var rawH      = cvs.height;
-        var rawPixels = ctx.getImageData(0, 0, rawW, rawH).data.buffer.slice(0);
-        cvs.width = 0; cvs.height = 0; cvs = null; // free GPU backing store
+        // Skip page if render failed (rawPixels will be null)
+        if (!rawPixels) {
+          allLines.push('=== Page ' + i + ' ===\n(render failed)');
+          continue;
+        }
 
-        // ── Phase 19A: preprocess + 4-attempt confidence-ranked recognition ───
+        // ── Phase 19B: preprocess + 4-attempt confidence-ranked recognition ───
         var pageResult = await _ocrRecognizePage(worker, rawPixels, rawW, rawH);
         rawPixels = null; // free after recognition is done
 
-        // Phase 19A: accumulate per-page confidence stats
+        // Phase 19A/19B: accumulate per-page confidence stats + attempt count
         var pageConf = pageResult.confidence;
-        DT().log('ocr-v4-page', { page: i, conf: pageConf });
+        DT().log('ocr-v4-page', {
+          page:     i,
+          conf:     pageConf,
+          attempts: pageResult.attempts,
+          skipPrep: pageResult.skippedPreprocess,
+        });
         totalConf += pageConf;
         confPages++;
         if (pageConf < minConf) minConf = pageConf;
