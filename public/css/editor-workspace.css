@@ -2086,3 +2086,72 @@
 
   .lp-ppt-strip-scroll { min-height: 160px !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phase 17 — Editor-Workspace Interaction Polish
+   Appended only — no existing rules touched.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Fix 3: File-item entrance animation (stagger) ───────────────────── */
+@keyframes p17-item-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.upload-files-list .upload-file-item,
+.ew-file-section   .upload-file-item {
+  animation: p17-item-enter .18s cubic-bezier(.4,0,.2,1) both;
+}
+.upload-files-list .upload-file-item:nth-child(2),
+.ew-file-section   .upload-file-item:nth-child(2) { animation-delay: .04s; }
+.upload-files-list .upload-file-item:nth-child(3),
+.ew-file-section   .upload-file-item:nth-child(3) { animation-delay: .08s; }
+.upload-files-list .upload-file-item:nth-child(4),
+.ew-file-section   .upload-file-item:nth-child(4) { animation-delay: .12s; }
+.upload-files-list .upload-file-item:nth-child(n+5),
+.ew-file-section   .upload-file-item:nth-child(n+5) { animation-delay: .15s; }
+
+/* ── Fix 5: Process button loading/disabled state ────────────────────── */
+@keyframes p17-btn-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.ew-process-panel .btn-primary:disabled {
+  background: linear-gradient(
+    90deg,
+    #6366f1 0%,
+    #818cf8 40%,
+    #6366f1 70%
+  ) !important;
+  background-size: 250% auto !important;
+  animation: p17-btn-shimmer 1.5s linear infinite !important;
+  cursor: not-allowed !important;
+  opacity: .85 !important;
+  filter: none !important;
+}
+
+/* Active press override for the process panel (beats hover !important) */
+.ew-process-panel .btn-primary:active:not(:disabled) {
+  transform: translateY(1px) !important;
+  box-shadow: 0 1px 4px rgba(91,61,245,.15) !important;
+  transition-duration: .06s !important;
+}
+
+/* Focus-visible inside the workspace panel */
+.ew-process-panel .btn-primary:focus-visible,
+.ew-process-panel .btn-outline:focus-visible {
+  outline: 2px solid var(--ew-accent, #5b3df5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(91,61,245,.16) !important;
+}
+
+/* ── Fix 7: Reduced-motion for new editor-workspace additions ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  .upload-files-list .upload-file-item,
+  .ew-file-section   .upload-file-item {
+    animation: none !important;
+  }
+  .ew-process-panel .btn-primary:disabled {
+    animation: none !important;
+    background: #818cf8 !important;
+  }
+}

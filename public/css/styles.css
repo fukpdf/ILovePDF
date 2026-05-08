@@ -3140,3 +3140,95 @@ a{ color:var(--brand-text); }
     padding: 6px 8px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phase 17 — Interaction Polish & Accessibility
+   Appended only — no existing rules touched.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Fix 1: Focus-visible rings ─────────────────────────────────────── */
+.btn:focus-visible {
+  outline: 2px solid var(--brand, #5b3df5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(91,61,245,.13);
+}
+.btn-primary:focus-visible {
+  outline-color: var(--brand, #5b3df5);
+  box-shadow: 0 0 0 4px rgba(91,61,245,.2);
+}
+.btn-outline:focus-visible {
+  outline-color: var(--brand, #5b3df5);
+  box-shadow: 0 0 0 4px rgba(91,61,245,.11);
+}
+.v2-nav-btn:focus-visible {
+  outline: 2px solid var(--brand, #5b3df5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(91,61,245,.12);
+}
+.v2-auth .btn-login:focus-visible {
+  outline: 2px solid var(--brand, #5b3df5);
+  outline-offset: 2px;
+}
+.v2-auth .btn-signup:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(91,61,245,.3);
+}
+.po-btn:focus-visible,
+.lp-ctrl-btn:focus-visible,
+.hs-mob-btn:focus-visible {
+  outline: 2px solid var(--brand, #5b3df5);
+  outline-offset: 1px;
+}
+
+/* ── Fix 2: Active / pressed states ─────────────────────────────────── */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: .06s;
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 4px rgba(91,61,245,.18);
+  transition-duration: .06s;
+}
+.btn-outline:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: .06s;
+}
+.v2-nav-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  opacity: .82;
+  transition-duration: .06s;
+}
+.v2-auth .btn-signup:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: .06s;
+}
+.po-btn:active:not(:disabled),
+.lp-ctrl-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: .06s;
+}
+
+/* ── Fix 6: Global form-control brand accent ─────────────────────────── */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--brand, #5b3df5);
+}
+input[type="range"] {
+  accent-color: var(--brand, #5b3df5);
+}
+
+/* ── Fix 7: Reduced-motion — kill non-essential transitions/animations ── */
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn-primary,
+  .btn-outline,
+  .v2-nav-btn,
+  .v2-auth .btn-login,
+  .v2-auth .btn-signup,
+  .po-btn,
+  .lp-ctrl-btn {
+    transition-duration: .01ms !important;
+  }
+}

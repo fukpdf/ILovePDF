@@ -806,6 +806,13 @@ function setupFileInput() {
     e.preventDefault(); area.classList.remove('dragover');
     handleFiles(e.dataTransfer.files);
   });
+  // Phase 17 Fix 4: keyboard activation (Enter / Space) for upload area
+  area.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      input.click();
+    }
+  });
 }
 
 function handleFiles(fileList) {
