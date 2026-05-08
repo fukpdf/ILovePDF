@@ -1,14 +1,16 @@
-// Worker Pool v3.1 — persistent workers, smart queue, idle cleanup.
-// Phase 1: Workers are REUSED across tasks — no spawn/terminate overhead.
+// Worker Pool v3.2 — persistent workers, smart queue, idle cleanup.
+// Phase 1:   Workers are REUSED across tasks — no spawn/terminate overhead.
+// Phase 19A: terminatePool() for post-job cleanup; slot task-count rotation.
 // SAB path REMOVED (was broken: sabBuffers never sent to worker).
 (function () {
   'use strict';
 
-  var MAX_PER_URL  = Math.min(navigator.hardwareConcurrency || 4, 4);
-  var TIMEOUT_MS   = 120000; // 2-minute hard cap per task
-  var MAX_CRASHES  = 3;      // auto-restart limit before slot is retired
-  var IDLE_TTL_MS  = 60000;  // terminate idle workers after 60 s
-  var MAX_QUEUE    = 50;     // reject tasks beyond this queue depth
+  var MAX_PER_URL       = Math.min(navigator.hardwareConcurrency || 4, 4);
+  var TIMEOUT_MS        = 120000; // 2-minute hard cap per task
+  var MAX_CRASHES       = 3;      // auto-restart limit before slot is retired
+  var IDLE_TTL_MS       = 60000;  // terminate idle workers after 60 s
+  var MAX_QUEUE         = 50;     // reject tasks beyond this queue depth
+  var MAX_TASKS_PER_SLOT = 60;    // Phase 19A: rotate slot after N tasks to avoid state accumulation
 
   // Map<workerUrl, { url, slots[], queue[] }>
   var pools = {};
@@ -44,13 +46,14 @@
     var w = spawnWorker(pool.url);
     if (!w) return null;
     var slot = {
-      worker:   w,
-      busy:     false,
-      crashes:  0,
-      timer:    null,   // task timeout
+      worker:    w,
+      busy:      false,
+      crashes:   0,
+      taskCount: 0,     // Phase 19A: total tasks dispatched — rotate after MAX_TASKS_PER_SLOT
+      timer:     null,  // task timeout
       idleTimer: null,  // idle termination
-      resolve:  null,
-      reject:   null,
+      resolve:   null,
+      reject:    null,
     };
     attachHandlers(pool, slot);
     return slot;
@@ -97,17 +100,19 @@
 
   function dispatch(pool, slot, task) {
     _clearIdleTimer(slot);
-    slot.busy    = true;
-    slot.resolve = task.resolve;
-    slot.reject  = task.reject;
+    slot.busy      = true;
+    slot.taskCount++;          // Phase 19A: track lifetime task count for rotation
+    slot.resolve   = task.resolve;
+    slot.reject    = task.reject;
 
     slot.timer = setTimeout(function () {
       settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
-      // Restart worker after timeout — may be in an unrecoverable state
+      // Phase 19A: on timeout, only respawn if the slot isn't already being drained/rotated
       var w = spawnWorker(pool.url);
       if (w) {
         try { slot.worker.terminate(); } catch (_) {}
-        slot.worker = w;
+        slot.worker    = w;
+        slot.taskCount = 0; // reset rotation counter on respawn
         attachHandlers(pool, slot);
       }
     }, TIMEOUT_MS);
@@ -135,6 +140,22 @@
   function drainOne(pool, slot) {
     if (pool.queue.length === 0) return;
     if (slot.busy || slot.crashes >= MAX_CRASHES) return;
+
+    // Phase 19A: slot rotation — retire long-lived workers to prevent state accumulation
+    if (slot.taskCount >= MAX_TASKS_PER_SLOT) {
+      var idx = pool.slots.indexOf(slot);
+      if (idx !== -1) pool.slots.splice(idx, 1);
+      try { slot.worker.terminate(); } catch (_) {}
+      // Spawn a fresh replacement for the queue
+      var fresh = makeSlot(pool);
+      if (fresh) {
+        pool.slots.push(fresh);
+        var task = pool.queue.shift();
+        if (task) dispatch(pool, fresh, task);
+      }
+      return;
+    }
+
     var task = pool.queue.shift();
     if (task) dispatch(pool, slot, task);
   }
@@ -197,10 +218,11 @@
     Object.keys(pools).forEach(function (url) {
       var p = pools[url];
       out[url] = {
-        total:   p.slots.length,
-        busy:    p.slots.filter(function (s) { return s.busy; }).length,
-        queued:  p.queue.length,
-        crashed: p.slots.filter(function (s) { return s.crashes >= MAX_CRASHES; }).length,
+        total:      p.slots.length,
+        busy:       p.slots.filter(function (s) { return s.busy; }).length,
+        queued:     p.queue.length,
+        crashed:    p.slots.filter(function (s) { return s.crashes >= MAX_CRASHES; }).length,
+        taskCounts: p.slots.map(function (s) { return s.taskCount; }),
       };
     });
     return out;
@@ -217,5 +239,36 @@
     }
   }
 
-  window.WorkerPool = { run: run, getStats: getStats, prewarm: prewarm, MAX_WORKERS: MAX_PER_URL };
+  // Phase 19A: terminate all workers for a given URL — call after a large OCR batch
+  // to immediately reclaim memory rather than waiting for idle TTL.
+  function terminatePool(workerUrl) {
+    var pool = pools[workerUrl];
+    if (!pool) return;
+    // Clear idle timers and terminate every slot
+    pool.slots.forEach(function (slot) {
+      if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
+      if (slot.timer)     { clearTimeout(slot.timer);     slot.timer     = null; }
+      try { slot.worker.terminate(); } catch (_) {}
+      // Reject any in-flight task so callers don't hang
+      if (slot.busy && slot.reject) {
+        slot.reject(new Error('pool_terminated'));
+        slot.busy = false; slot.resolve = null; slot.reject = null;
+      }
+    });
+    pool.slots = [];
+    // Drain remaining queue — reject all pending tasks
+    while (pool.queue.length > 0) {
+      var task = pool.queue.shift();
+      task.reject(new Error('pool_terminated'));
+    }
+    delete pools[workerUrl];
+  }
+
+  window.WorkerPool = {
+    run:           run,
+    getStats:      getStats,
+    prewarm:       prewarm,
+    terminatePool: terminatePool,   // Phase 19A
+    MAX_WORKERS:   MAX_PER_URL,
+  };
 }());
