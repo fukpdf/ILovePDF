@@ -1025,6 +1025,10 @@
 
   /* ---- Bootstrap ---- */
   function init() {
+    // Suppress old widget when the modern blue LabaAiChat panel is present
+    if (window.LABA_AI_INITIALIZED) return;
+    if (document.getElementById('laba-ai-chat-panel')) return;
+    if (document.getElementById('laba-ai-chat-toggle')) return;
     if (document.getElementById('laba-launcher')) return;
     window.__labaWidget = new LabaWidget();
   }

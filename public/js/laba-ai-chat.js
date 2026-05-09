@@ -10,6 +10,10 @@
 (function () {
   'use strict';
 
+  // ── Singleton guard: suppress old laba-widget when this module loads ─────
+  if (window.LABA_AI_INITIALIZED) return;
+  window.LABA_AI_INITIALIZED = true;
+
   var VERSION = '1.0';
   var LOG = '[LAC]';
 
@@ -280,9 +284,45 @@
       return 'general';
     }
 
+    // General conversational knowledge (no document needed)
+    var _generalKB = {
+      'hello|hi|hey|greetings': 'Hello! I\'m Laba, your AI assistant for ILovePDF. I can answer questions about your documents, help you process files, and guide you through PDF and image tools. How can I help?',
+      'how are you|how do you do': 'I\'m doing great, thanks for asking! Ready to help with your documents and files. What would you like to work on?',
+      'what can you do|help|features|capabilities': 'I can:\n\n• **Answer questions** about your documents\n• **Summarize** PDFs and extract key points\n• **Execute tools** — just upload a file and tell me what you want (compress, convert, OCR, merge, etc.)\n• **Guide you** through all 33+ PDF and image tools\n\nYou can also drag & drop a file into this chat!',
+      'compress|reduce.*size|shrink': 'To compress a PDF: drop your file here and say "compress this" — or go to the **Compress PDF** tool. It reduces file size while keeping quality.',
+      'merge|combine|join': 'To merge PDFs: drop 2+ PDF files here and say "merge these" — or use the **Merge PDF** tool.',
+      'split|separate|divide': 'To split a PDF: drop your file and say "split this" — or use the **Split PDF** tool to extract specific pages.',
+      'ocr|extract.*text|text.*from': 'To extract text from a scanned PDF or image: drop your file and say "extract text" or "run OCR" — or use the **OCR PDF** tool.',
+      'convert|word|excel|powerpoint|ppt|docx|xlsx': 'I can convert between many formats! Drop your file and tell me the target format (e.g. "convert to Word"), or browse the conversion tools in the sidebar.',
+      'pdf to word|pdf.*word': 'Drop your PDF here and say "convert to Word" — or use the **PDF to Word** tool directly.',
+      'remove.*background|background.*remov|bg.*remov': 'Drop your image here and say "remove background" — or use the **Background Remover** tool.',
+      'protect|password|encrypt': 'Drop your PDF and say "protect with password" — or use the **Protect PDF** tool.',
+      'watermark|stamp': 'Drop your PDF and say "add watermark" — or use the **Watermark PDF** tool.',
+      'sign|signature|esign': 'Use the **Sign PDF** tool to add electronic signatures to your document.',
+      'free|cost|price|pricing': 'ILovePDF tools are free for most tasks! Some advanced features require a free account. Sign up to unlock larger file sizes and more.',
+      'thank|thanks|appreciate': 'You\'re welcome! Let me know if there\'s anything else I can help with.',
+      'bye|goodbye|see you': 'Goodbye! Feel free to come back whenever you need help with your documents.',
+    };
+
+    function _conversationalReply(text) {
+      var lower = text.toLowerCase();
+      for (var pattern in _generalKB) {
+        if (new RegExp(pattern, 'i').test(lower)) return _generalKB[pattern];
+      }
+      return null;
+    }
+
     function _heuristicAnswer(ctx, intent) {
       var doc = ctx.docCtx || '';
-      if (!doc) return 'No document is currently loaded. Please process a file first, then ask questions about it.';
+      var query = (ctx.query || '').trim();
+
+      // No document — try conversational reply first
+      if (!doc) {
+        var conv = _conversationalReply(query);
+        if (conv) return conv;
+        // Generic helpful reply
+        return 'I\'m here to help! You can:\n\n• **Upload a file** (drag & drop into this chat) and ask me to process it\n• **Ask about any tool** — compress, convert, OCR, merge, sign, watermark, and more\n• **Browse tools** in the sidebar\n\nWhat would you like to do?';
+      }
 
       switch (intent) {
         case 'summarize':
@@ -319,7 +359,18 @@
             'Assistant:',
           ].filter(Boolean).join('\n\n');
 
-          var result = await GAE.generate(prompt, { stream: !!onChunk, onChunk: onChunk, intent: intent });
+              var result = await GAE.generate(prompt, { stream: !!onChunk, onChunk: onChunk, intent: intent });
+          // Echo-detection: discard if GAE echoed the system prompt / raw context back
+          if (result && (
+            result.startsWith('You are a ') ||
+            result.startsWith('Document context:') ||
+            result.startsWith('Conversation history:') ||
+            result.indexOf('User: ' + text + '\nAssistant:') !== -1 ||
+            (result.length > 300 && result.slice(0, 100).indexOf('---') !== -1)
+          )) {
+            warn('GAE echo detected — discarding, using heuristic');
+            result = null;
+          }
           if (result) return result;
         } catch (e) { warn('GAE failed', e.message); }
       }
