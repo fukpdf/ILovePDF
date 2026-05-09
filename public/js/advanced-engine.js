@@ -2520,15 +2520,22 @@
       var ocrEChars = ocrEPages.reduce(function (s, p) { return s + p.text.length; }, 0);
       DT().log('pdf-to-excel-ocr-result', { chars: ocrEChars });
       if (ocrEChars < 5) {
+        ocrEPages = null;
         throw new Error('No data could be extracted from this PDF. For scanned documents, try the OCR tool first.');
       }
       sheets = ocrEPages.map(function (p) {
+        // Bug fix: use 2+-space whitespace split to reconstruct table columns from OCR text.
+        // Plain \n→[l] single-column mapping destroys all tabular structure (invoices, statements).
         var rows = p.text.split('\n')
           .map(function (l) { return l.trim(); })
           .filter(Boolean)
-          .map(function (l) { return [l]; });
+          .map(function (l) {
+            var cols = l.split(/\s{2,}/).map(function (c) { return c.trim(); }).filter(Boolean);
+            return cols.length >= 2 ? cols : [l];
+          });
         return { name: 'Page ' + p.pageNum, rows: rows.length ? rows : [['(empty)']] };
       });
+      ocrEPages = null; // release OCR result array — can be large for multi-page docs
     }
 
     // Phase 21: Garbled-font quality check — trigger OCR if extracted text is garbled
@@ -2545,13 +2552,18 @@
         DT().log('pdf-to-excel-garbled-ocr', { chars: ocrEGChars });
         if (ocrEGChars >= 5) {
           sheets = ocrEGPages.map(function (p) {
+            // Bug fix: same whitespace-split column reconstruction as the all-empty OCR path.
             var rows = p.text.split('\n')
               .map(function (l) { return l.trim(); })
               .filter(Boolean)
-              .map(function (l) { return [l]; });
+              .map(function (l) {
+                var cols = l.split(/\s{2,}/).map(function (c) { return c.trim(); }).filter(Boolean);
+                return cols.length >= 2 ? cols : [l];
+              });
             return { name: 'Page ' + p.pageNum, rows: rows.length ? rows : [['(empty)']] };
           });
         }
+        ocrEGPages = null; // release OCR result array
       }
       _excelRawText = null;
     }
@@ -2566,6 +2578,8 @@
       return Math.max(s, sh.rows.reduce(function (rs, r) { return Math.max(rs, r.length); }, 0));
     }, 0);
     DT().validate('pdf-to-excel-content', { realRows: _xRealRows, maxCols: _xMaxCols });
+    // Bug fix: validateContent() was never called — only DT().validate() (a log) ran, bypassing the gate.
+    validateContent('pdf-to-excel', { rows: _xRealRows, cols: _xMaxCols });
 
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building spreadsheet\u2026');
@@ -2573,7 +2587,10 @@
     var wResult;
     try {
       wResult = await runAdvancedWorker({ op: 'build-xlsx', sheets: sheets });
-    } catch (_) {}
+    } catch (xlsxWorkerErr) {
+      // Bug fix: log the worker failure for DebugTrace visibility before falling through to ERR.ORIG
+      DT().error('build-xlsx-worker-fail', { err: String(xlsxWorkerErr).slice(0, 120) });
+    }
     sheets = null;
     if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
@@ -2583,7 +2600,13 @@
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '.xlsx') };
+    // Bug fix: attach _quality metadata so analyzeResultQuality (dispatch loop) has structural data
+    // to produce a meaningful hybrid score — not just blob-size-only scoring.
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.xlsx'),
+      _quality: { rows: _xRealRows, chars: _xRealRows * 10, pages: total },
+    };
   };
 
   // ─── PDF → POWERPOINT (v5: heading-based titles + auto-OCR trigger) ────────

@@ -1,8 +1,10 @@
-// Advanced Worker v3.2 — persistent off-thread document builder + pixel processor.
+// Advanced Worker v3.3 — persistent off-thread document builder + pixel processor.
 // Phase 1: Persistent (handles multiple tasks, no re-spawn).
 // Phase 5: CPU pixel processing for remove-bg (WebGPU removed — broken dispatch math).
 // v3.2: buildDocx — H1-H4 heading levels, bullet + numbered list support,
 //       Calibri default fonts, word/numbering.xml in output ZIP.
+// v3.3: buildXlsx — sheet name sanitization (strip / \ ? * [ ] :), numeric type coercion,
+//       adaptive column widths (content-length based, 8–60 chars), freeze pane on row 1.
 // Operations: build-docx | build-xlsx | build-pptx | remove-bg | chunk-text-score
 
 // ── LAZY LIBRARY LOADING ───────────────────────────────────────────────────────
@@ -234,17 +236,78 @@ async function buildDocx(pages) {
 }
 
 // ── BUILD XLSX ─────────────────────────────────────────────────────────────────
+// v3.3 fixes:
+//   (1) Sheet name: strip Excel-forbidden chars (/ \ ? * [ ] :) before 31-char cap.
+//   (2) Numeric coercion: currency/percent/plain number strings → JS numbers so
+//       Excel stores them as numeric cells (sortable, summable, right-aligned).
+//   (3) Adaptive column widths: measure max rendered cell length per column
+//       (capped 8–60 chars) instead of uniform wch:18.
+//   (4) Freeze pane: freeze row 1 so the header stays visible while scrolling.
+
+// Strip characters Excel forbids in sheet names: / \ ? * [ ] :
+function _sanitizeSheetName(name) {
+  return (name || 'Sheet')
+    .replace(/[/\\?*[\]:]/g, '_')  // replace forbidden chars with underscore
+    .slice(0, 31)
+    .trim() || 'Sheet';
+}
+
+// Coerce a cell value: if it looks like a number (including $1,234.56 / 12% / -3.5)
+// return a JS number so SheetJS encodes it as a numeric cell type.
+function _coerceCell(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v !== 'string') return v;
+  var s = v.trim();
+  if (!s) return s;
+  // Strip leading/trailing currency symbols, commas, percent sign
+  var cleaned = s.replace(/^[$€£¥\s]+/, '').replace(/[,\s]+/g, '').replace(/%$/, '');
+  var n = parseFloat(cleaned);
+  if (!isNaN(n) && isFinite(n) && /^-?[\d.,]+%?$/.test(s.replace(/[$€£¥\s,]/g, ''))) {
+    // Preserve percent as fraction if original had % suffix
+    return s.endsWith('%') ? n / 100 : n;
+  }
+  return v;
+}
+
 function buildXlsx(sheets) {
   ensureXlsx();
   var wb = self.XLSX.utils.book_new();
+
   for (var i = 0; i < sheets.length; i++) {
-    var s  = sheets[i];
-    var ws = self.XLSX.utils.aoa_to_sheet(s.rows && s.rows.length ? s.rows : [['(empty)']]);
+    var s    = sheets[i];
+    var rows = (s.rows && s.rows.length) ? s.rows : [['(empty)']];
+
+    // (2) Numeric coercion — convert all cells before building the sheet
+    var coercedRows = rows.map(function (r) {
+      return r.map(function (cell) { return _coerceCell(cell); });
+    });
+
+    var ws     = self.XLSX.utils.aoa_to_sheet(coercedRows);
     var maxCol = 0;
-    (s.rows || []).forEach(function (r) { maxCol = Math.max(maxCol, r.length); });
-    ws['!cols'] = Array.from({ length: maxCol }, function () { return { wch: 18 }; });
-    self.XLSX.utils.book_append_sheet(wb, ws, (s.name || 'Sheet').slice(0, 31));
+    coercedRows.forEach(function (r) { maxCol = Math.max(maxCol, r.length); });
+
+    // (3) Adaptive column widths — measure max rendered cell length per column
+    var colWidths = [];
+    for (var ci = 0; ci < maxCol; ci++) {
+      var maxLen = 8; // minimum width
+      for (var ri = 0; ri < coercedRows.length; ri++) {
+        var cellVal = coercedRows[ri][ci];
+        var cellStr = (cellVal === undefined || cellVal === null) ? '' : String(cellVal);
+        if (cellStr.length > maxLen) maxLen = cellStr.length;
+      }
+      colWidths.push({ wch: Math.min(60, Math.ceil(maxLen * 1.1)) }); // cap at 60, add 10% buffer
+    }
+    ws['!cols'] = colWidths;
+
+    // (4) Freeze pane on row 1 — keeps header visible during scroll
+    if (coercedRows.length > 1) {
+      ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' };
+    }
+
+    // (1) Sanitize sheet name — strip Excel-forbidden chars, then cap at 31
+    self.XLSX.utils.book_append_sheet(wb, ws, _sanitizeSheetName(s.name));
   }
+
   var arr = self.XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   return new Uint8Array(arr).buffer;
 }
