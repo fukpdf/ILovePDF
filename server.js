@@ -14,6 +14,7 @@ import advancedRouter from './routes/advanced.js';
 import imageRouter from './routes/image.js';
 import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
+import searchRouter from './routes/search.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
@@ -145,8 +146,9 @@ app.get('/api/health', (_req, res) => {
     },
   });
 });
-app.use('/api', authRouter); // auth routes are NOT subject to usage limits
-app.use('/api', r2Router);   // R2 upload/download/list (own auth checks inside)
+app.use('/api', authRouter);  // auth routes are NOT subject to usage limits
+app.use('/api', r2Router);    // R2 upload/download/list (own auth checks inside)
+app.use('/api', searchRouter); // web search + weather proxy (no auth, GET only)
 
 // Pre-flight quota check on every other POST (before multer parses the body)
 app.use('/api', (req, res, next) => {

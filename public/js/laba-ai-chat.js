@@ -378,9 +378,38 @@
       return t || null;
     }
 
+    // Stream a plain-string answer word-by-word to onChunk, then return it.
+    async function _streamAnswer(answer, onChunk) {
+      if (!onChunk) return answer;
+      var words = answer.split(' ');
+      for (var wi = 0; wi < words.length; wi++) {
+        onChunk(words[wi] + (wi < words.length - 1 ? ' ' : ''));
+        await new Promise(function (r) { setTimeout(r, 8); });
+      }
+      return answer;
+    }
+
     async function query(sessionId, text, onChunk) {
       var ctx    = ChatContextAssembler.build(sessionId, text);
       var intent = _detectIntent(text);
+
+      // ── § A  LabaConversationalAI — multilingual + realtime (Phase 1) ─────
+      // Handles: greetings, Roman Urdu, typos, weather, news, search,
+      // tool guidance, grammar, email writing, calculations.
+      // Returns null when no confident match → falls through to GAE / heuristic.
+      var LCAI = window.LabaConversationalAI;
+      if (LCAI && typeof LCAI.respond === 'function') {
+        try {
+          var lcaiResult = await LCAI.respond(text, {
+            sessionId: sessionId,
+            docCtx:    ctx.docCtx || '',
+          });
+          if (lcaiResult && lcaiResult.answer) {
+            var lcAnswer = sanitizeAiResponse(lcaiResult.answer) || lcaiResult.answer;
+            return await _streamAnswer(lcAnswer, onChunk);
+          }
+        } catch (lcErr) { warn('LCAI:', lcErr.message); }
+      }
 
       // Try GenerativeAiEngine with buffered chunk-level echo guard.
       // Only the latest user message + document context go into the prompt —
