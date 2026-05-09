@@ -1861,6 +1861,13 @@
         softLog.push('high_duplicate_sentences:' + _rawSents.length + '_unique:' + _sentSet.size);
       }
     }
+    else if (toolId === 'pdf-to-powerpoint') {
+      // Gate: at least 1 slide with real content (title or body text)
+      var pptxSlides = data.slides !== undefined ? data.slides : 0;
+      var pptxChars  = data.chars  !== undefined ? data.chars  : 0;
+      if (pptxSlides < 1) issues.push('no_slides_generated');
+      if (pptxChars  < 5) issues.push('no_extractable_text:' + pptxChars);
+    }
     else if (toolId === 'background-remover') {
       if (data.hasTransparent === false) issues.push('no_transparent_pixels');
     }
@@ -2684,12 +2691,14 @@
       var ocrPChars = ocrPPages.reduce(function (s, p) { return s + p.text.length; }, 0);
       DT().log('pdf-to-pptx-ocr-result', { chars: ocrPChars });
       if (ocrPChars < 10) {
+        ocrPPages = null;
         throw new Error('No content could be extracted from this PDF. Please check the file and try again.');
       }
       slides = ocrPPages.map(function (p) {
         var lines = p.text.split('\n').filter(function (l) { return l.trim(); });
         return { pageNum: p.pageNum, title: (lines[0] || 'Slide ' + p.pageNum).slice(0, 120), text: lines.slice(1).join('\n') };
       });
+      ocrPPages = null; // release OCR result array — can be large for multi-page docs
     }
 
     // Phase 21: Garbled-font quality check — trigger OCR if extracted slide text is garbled
@@ -2714,6 +2723,7 @@
             };
           });
         }
+        ocrPGPages = null; // release OCR result array
       }
       _pptxRawText = null;
     }
@@ -2738,14 +2748,26 @@
       }
     }
 
+    // Content-level validation gate — ensures we have at least 1 real slide with text.
+    // validateContent has a pdf-to-powerpoint branch; this call activates it.
+    var _pptxTotalChars = slides.reduce(function (s, sl) {
+      return s + (sl.title || '').length + (sl.text || '').length;
+    }, 0);
+    DT().validate('pdf-to-pptx-content', { slides: slides.length, chars: _pptxTotalChars });
+    validateContent('pdf-to-powerpoint', { slides: slides.length, chars: _pptxTotalChars });
+
     onStep(1, 'done', 55);
     onStep(2, 'active', 58, 'Building presentation\u2026');
 
-    var docTitle = file.name.replace(/\.[^.]+$/, '');
+    var docTitle      = file.name.replace(/\.[^.]+$/, '');
+    var _pptxSlideCount = slides.length; // capture before slides=null
     var wResult;
     try {
       wResult = await runAdvancedWorker({ op: 'build-pptx', slides: slides, docTitle: docTitle });
-    } catch (_) {}
+    } catch (pptxWorkerErr) {
+      // Bug fix: log worker failure for DebugTrace visibility before falling through to ERR.ORIG
+      DT().error('build-pptx-worker-fail', { err: String(pptxWorkerErr).slice(0, 120) });
+    }
     slides = null;
     if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
@@ -2755,7 +2777,13 @@
       type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '.pptx') };
+    // Bug fix: attach _quality so analyzeResultQuality has structural data (slides + chars),
+    // not just blob size for scoring. _pptxSlideCount captured before slides=null.
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.pptx'),
+      _quality: { chars: _pptxTotalChars, paras: _pptxSlideCount, pages: total },
+    };
   };
 
   // ─── SENTINEL DELEGATORS ──────────────────────────────────────────────────

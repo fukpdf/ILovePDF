@@ -312,38 +312,88 @@ function buildXlsx(sheets) {
   return new Uint8Array(arr).buffer;
 }
 
-// ── BUILD PPTX ─────────────────────────────────────────────────────────────────
+// ── BUILD PPTX (v3.4) ──────────────────────────────────────────────────────────
+// Fixes (v3.4):
+//   1. Title truncated at 80 chars → now 120 (matches processor limit)
+//   2. Body hard-truncated at 1200 chars → now line-aware: up to 22 lines,
+//      each capped at 220 chars, matching browser-tools fallback layout
+//   3. No visual styling → professional dark-blue theme with accent bar,
+//      white title, light-gray body — visually consistent with browser-tools path
+//   4. No slide master defined → defineSlideMaster() now wires background and
+//      accent bar so all slides inherit the same layout
+//   5. pptx.author added for metadata completeness
 async function buildPptx(slides, docTitle) {
   ensurePptx();
   var pptx     = new self.PptxGenJS();
   pptx.layout  = 'LAYOUT_16x9';
   pptx.subject = docTitle || 'Converted Presentation';
+  pptx.author  = 'ILovePDF';
+  pptx.title   = docTitle || 'Converted Presentation';
+
+  // Professional dark-blue theme matching browser-tools corporate palette
+  var TC = { bg: '1E3A5F', title: 'FFFFFF', text: 'BFDBFE', accent: '60A5FA', muted: '7BA5C9' };
+
+  pptx.defineSlideMaster({
+    title: 'MASTER',
+    background: { color: TC.bg },
+    objects: [
+      // Left accent bar (4px visual anchor)
+      { rect: { x: 0, y: 0, w: 0.08, h: '100%', fill: { color: TC.accent } } },
+      // Bottom accent line
+      { rect: { x: 0, y: 6.82, w: '100%', h: 0.12, fill: { color: TC.accent, transparency: 55 } } },
+    ],
+  });
 
   for (var i = 0; i < slides.length; i++) {
     var s     = slides[i];
-    var slide = pptx.addSlide();
+    var slide = pptx.addSlide({ masterName: 'MASTER' });
 
-    slide.addText(String(s.title || 'Slide ' + s.pageNum).substring(0, 80), {
-      x: 0.4, y: 0.15, w: 9.2, h: 0.65,
-      fontSize: 20, bold: true, color: '1E293B', wrap: true,
+    // Bug fix 1: was substring(0,80) — raised to 120 to match processor limit
+    slide.addText(String(s.title || 'Slide ' + s.pageNum).substring(0, 120), {
+      x: 0.28, y: 0.14, w: 9.3, h: 0.72,
+      fontSize: 22, bold: true, color: TC.title, fontFace: 'Calibri',
+      wrap: true, charSpacing: 0.5,
     });
 
+    // Bug fix 2: was bodyText.substring(0,1200) — now line-aware, up to 22 lines,
+    // each line capped at 220 chars to prevent horizontal overflow.
     var bodyText = (s.text || '').trim();
     if (bodyText) {
-      slide.addText(bodyText.substring(0, 1200), {
-        x: 0.4, y: 0.9, w: 9.2, h: 4.4,
-        fontSize: 11, color: '475569', wrap: true, valign: 'top',
+      var bodyLines = bodyText.split('\n')
+        .map(function (l) { return l.trim(); })
+        .filter(function (l) { return l.length > 0; });
+
+      // If content fits in 22 lines keep all of them; otherwise take first 22
+      var maxLines    = 22;
+      var usedLines   = bodyLines.slice(0, maxLines);
+      var wasTruncated = bodyLines.length > maxLines;
+
+      var bodyObjs = usedLines.map(function (line) {
+        return {
+          text: line.substring(0, 220),
+          options: { bullet: { type: 'bullet' }, fontSize: 11, color: TC.text, fontFace: 'Calibri' },
+        };
       });
+
+      if (wasTruncated) {
+        bodyObjs.push({
+          text: '\u2026 (' + (bodyLines.length - maxLines) + ' more lines)',
+          options: { fontSize: 9, color: TC.muted, italic: true, fontFace: 'Calibri' },
+        });
+      }
+
+      slide.addText(bodyObjs, { x: 0.28, y: 1.05, w: 9.3, h: 5.5, valign: 'top', wrap: true, autoFit: true });
     } else {
       slide.addText('(No text content)', {
-        x: 0.4, y: 2.5, w: 9.2, h: 0.5,
-        fontSize: 11, color: '94A3B8', italic: true,
+        x: 0.28, y: 3.0, w: 9.3, h: 0.5,
+        fontSize: 11, color: TC.muted, italic: true, fontFace: 'Calibri', align: 'center',
       });
     }
 
+    // Page number bottom-right
     slide.addText(String(s.pageNum), {
-      x: 9.2, y: 5.15, w: 0.4, h: 0.25,
-      fontSize: 9, color: 'CBD5E1', align: 'right',
+      x: 9.1, y: 6.6, w: 0.55, h: 0.25,
+      fontSize: 8, color: TC.muted, align: 'right', fontFace: 'Calibri',
     });
   }
 
