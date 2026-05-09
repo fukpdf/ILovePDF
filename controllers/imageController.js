@@ -2,6 +2,13 @@ import sharp from 'sharp';
 import fs from 'fs';
 import { cleanupFiles } from '../utils/cleanup.js';
 
+// Accepted image MIME types for background removal / image tools
+const ALLOWED_IMAGE_FORMATS = new Set([
+  'jpeg', 'jpg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif', 'heif',
+]);
+// Hard cap: refuse images whose pixel count exceeds this to prevent OOM
+const MAX_PIXELS = 50_000_000; // 50 MP
+
 function sendImage(res, buffer, mimeType, filename) {
   res.setHeader('Content-Type', mimeType);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -23,10 +30,29 @@ export async function backgroundRemove(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an image.' });
 
-    const buffer    = fs.readFileSync(req.file.path);
+    // ── Async read — non-blocking ───────────────────────────────────────
+    const buffer = await fs.promises.readFile(req.file.path);
+
+    // ── Format validation via Sharp metadata ────────────────────────────
+    const meta = await sharp(buffer).metadata();
+    if (!meta.format || !ALLOWED_IMAGE_FORMATS.has(meta.format)) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: `Unsupported image format: ${meta.format || 'unknown'}. Use JPG, PNG, WebP, GIF, or BMP.` });
+    }
+
+    // ── Pixel-count guard (OOM protection) ─────────────────────────────
+    const rawPixels = (meta.width || 0) * (meta.height || 0);
+    if (rawPixels > MAX_PIXELS) {
+      cleanupFiles(req.file);
+      return res.status(413).json({ error: `Image too large (${meta.width}×${meta.height} = ${(rawPixels / 1e6).toFixed(1)} MP). Maximum is ${MAX_PIXELS / 1e6} MP.` });
+    }
+
     const threshold = Math.min(255, Math.max(140, parseInt(req.body.threshold) || 240));
 
+    // ── Auto-rotate from EXIF, then extract RGBA pixels ────────────────
+    // .rotate() corrects phone-photo orientation before pixel manipulation.
     const { data, info } = await sharp(buffer)
+      .rotate()
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
@@ -106,7 +132,7 @@ export async function cropImage(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an image.' });
 
-    const buffer = fs.readFileSync(req.file.path);
+    const buffer = await fs.promises.readFile(req.file.path);
     const meta = await sharp(buffer).metadata();
 
     const xPct   = Math.max(0, Math.min(100, parseFloat(req.body.x)      || 0));
@@ -146,7 +172,7 @@ export async function resizeImage(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an image.' });
 
-    const buffer = fs.readFileSync(req.file.path);
+    const buffer = await fs.promises.readFile(req.file.path);
     const meta   = await sharp(buffer).metadata();
     const preset = req.body.preset || 'custom';
     let targetW, targetH, fitMode;
@@ -186,7 +212,7 @@ export async function applyFilters(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an image.' });
 
-    const buffer = fs.readFileSync(req.file.path);
+    const buffer = await fs.promises.readFile(req.file.path);
     const meta   = await sharp(buffer).metadata();
     const filter = req.body.filter || 'grayscale';
 

@@ -4,7 +4,16 @@
 (function () {
   'use strict';
 
+  // ── Constants ─────────────────────────────────────────────────────────────
+  const MAX_DIM = 4096;
+  const ALLOWED_MIME = new Set([
+    'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+    'image/gif', 'image/bmp', 'image/tiff',
+  ]);
+
   // ── State ─────────────────────────────────────────────────────────────────
+  let _container = null;
+  let _evCleanup = [];
   let _file = null;
   let _img = null;
   let _W = 0, _H = 0;
@@ -58,23 +67,61 @@
   async function mount(file, container, onResult) {
     _file = file; _onResult = onResult;
     _reset();
+    _container = container;
+
+    // ── Validate file type ───────────────────────────────────────────────
+    const mimeType = (file.type || '').toLowerCase();
+    if (mimeType && !ALLOWED_MIME.has(mimeType)) {
+      container.innerHTML = `<div style="padding:24px;color:#b91c1c;background:#fef2f2;border-radius:8px;margin:16px">
+        <strong>Unsupported format:</strong> ${file.type || 'unknown'}.<br>
+        Please use JPG, PNG, WebP, GIF, BMP, or TIFF.
+      </div>`;
+      return;
+    }
 
     container.innerHTML = _html();
+
+    // GIF warning — only first frame is processed
+    if (mimeType === 'image/gif') {
+      const warn = document.createElement('div');
+      warn.style.cssText = 'background:#fef3c7;border-radius:8px;padding:8px 14px;margin:8px 0;font-size:13px;color:#92400e;';
+      warn.textContent = '\u26a0\ufe0f Animated GIF detected — only the first frame will be processed.';
+      container.insertBefore(warn, container.firstChild);
+    }
+
     _bindControls(container);
 
     try {
       _img = await _loadImg(file);
     } catch (e) {
-      container.innerHTML = `<div style="padding:24px;color:red">Cannot load image: ${e.message}</div>`;
+      container.innerHTML = `<div style="padding:24px;color:#b91c1c;background:#fef2f2;border-radius:8px;margin:16px">
+        Cannot load image: ${e.message || 'Unknown error'}.<br>
+        Supported formats: JPG, PNG, WebP, GIF, BMP.
+      </div>`;
       return;
     }
-    _W = _img.naturalWidth;
-    _H = _img.naturalHeight;
 
-    // Grab original pixels from off-screen canvas
+    // ── Dimension cap (OOM guard) ────────────────────────────────────────
+    const srcW = _img.naturalWidth;
+    const srcH = _img.naturalHeight;
+    if (srcW === 0 || srcH === 0) {
+      container.innerHTML = `<div style="padding:24px;color:#b91c1c">Image has zero dimensions and cannot be processed.</div>`;
+      return;
+    }
+    if (srcW > MAX_DIM || srcH > MAX_DIM) {
+      const ratio = Math.min(MAX_DIM / srcW, MAX_DIM / srcH);
+      _W = Math.round(srcW * ratio);
+      _H = Math.round(srcH * ratio);
+    } else {
+      _W = srcW;
+      _H = srcH;
+    }
+
+    // Grab original pixels from off-screen canvas (then release the canvas)
     const offCtx = _offCanvas(_W, _H);
-    offCtx.drawImage(_img, 0, 0);
+    offCtx.drawImage(_img, 0, 0, _W, _H);
     _origPixels = offCtx.getImageData(0, 0, _W, _H).data;
+    offCtx.canvas.width = 0; offCtx.canvas.height = 0;
 
     // Setup canvases
     _workCtx = container.querySelector('#bgpro-work').getContext('2d');
@@ -84,7 +131,7 @@
 
     const origC = container.querySelector('#bgpro-orig');
     origC.width = _W; origC.height = _H;
-    origC.getContext('2d').drawImage(_img, 0, 0);
+    origC.getContext('2d').drawImage(_img, 0, 0, _W, _H);
 
     // Init mask to fully opaque, then apply removal
     _mask = new Float32Array(_W * _H).fill(1);
@@ -379,7 +426,7 @@
   }
 
   function _redrawBgCanvas() {
-    const bgC = document.getElementById('bgpro-bg-canvas');
+    const bgC = (_container || document).querySelector('#bgpro-bg-canvas');
     if (!bgC) return;
     bgC.width = _W; bgC.height = _H;
     const ctx = bgC.getContext('2d');
@@ -397,12 +444,19 @@
 
   function _drawCheckered(ctx, W, H) {
     const size = Math.max(8, Math.min(24, Math.round(Math.min(W, H) / 40)));
-    for (let y = 0; y < H; y += size) {
-      for (let x = 0; x < W; x += size) {
-        ctx.fillStyle = ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) ? '#c8c8c8' : '#f0f0f0';
-        ctx.fillRect(x, y, Math.min(size, W - x), Math.min(size, H - y));
-      }
-    }
+    const patCanvas = document.createElement('canvas');
+    patCanvas.width = size * 2; patCanvas.height = size * 2;
+    const pCtx = patCanvas.getContext('2d');
+    pCtx.fillStyle = '#c8c8c8';
+    pCtx.fillRect(0, 0, size, size);
+    pCtx.fillRect(size, size, size, size);
+    pCtx.fillStyle = '#f0f0f0';
+    pCtx.fillRect(size, 0, size, size);
+    pCtx.fillRect(0, size, size, size);
+    const pat = ctx.createPattern(patCanvas, 'repeat');
+    patCanvas.width = 0; patCanvas.height = 0;
+    ctx.fillStyle = pat;
+    ctx.fillRect(0, 0, W, H);
   }
 
   // ── Brush painting ────────────────────────────────────────────────────
@@ -670,12 +724,12 @@
     mCtx.putImageData(id, 0, 0);
     ctx.drawImage(masked, 0, 0, W, H);
 
-    // Validate
+    // Validate — only block if essentially nothing was removed (0 transparent pixels)
     const pixels = ctx.getImageData(0, 0, W, H).data;
     let transPixels = 0;
     for (let i = 3; i < pixels.length; i += 4) if (pixels[i] < 128) transPixels++;
     const transRatio = transPixels / (W * H);
-    if (transRatio < 0.03) throw new Error('Less than 3% of the image was removed. Adjust threshold or quality mode, then re-apply.');
+    if (transRatio < 0.001) throw new Error('No background was removed. Try adjusting the threshold or quality mode, then click Re-apply.');
 
     const mime = fmt === 'jpeg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
     const ext  = fmt === 'jpeg' ? '.jpg' : fmt === 'webp' ? '.webp' : '.png';
@@ -795,18 +849,38 @@
       }, { passive: false });
     }
 
-    // Space pan
-    window.addEventListener('keydown', e => {
+    // Space pan — named handlers so they can be removed on unmount
+    const _onKeyDown = e => {
       if (e.code === 'Space' && !e.target.matches('input,textarea,select')) {
         _spaceDown = true;
         overlay.style.cursor = 'grab';
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); _undo(); }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); _redo(); }
-    });
-    window.addEventListener('keyup', e => {
+    };
+    const _onKeyUp = e => {
       if (e.code === 'Space') { _spaceDown = false; overlay.style.cursor = 'crosshair'; }
-    });
+    };
+    const _onWinMouseMove = e => {
+      if (!_isPanning) return;
+      _panX = e.clientX - _panStartX;
+      _panY = e.clientY - _panStartY;
+      _applyZoomPan();
+    };
+    const _onWinMouseUp = () => { _isPanning = false; };
+
+    window.addEventListener('keydown', _onKeyDown);
+    window.addEventListener('keyup', _onKeyUp);
+    window.addEventListener('mousemove', _onWinMouseMove);
+    window.addEventListener('mouseup', _onWinMouseUp);
+
+    // Register cleanup so re-mount / navigation removes these listeners
+    _evCleanup.push(
+      () => window.removeEventListener('keydown', _onKeyDown),
+      () => window.removeEventListener('keyup', _onKeyUp),
+      () => window.removeEventListener('mousemove', _onWinMouseMove),
+      () => window.removeEventListener('mouseup', _onWinMouseUp),
+    );
 
     // Pan drag on scroll area when space held
     scroll && scroll.addEventListener('mousedown', e => {
@@ -815,13 +889,12 @@
       _panStartX = e.clientX - _panX;
       _panStartY = e.clientY - _panY;
     });
-    window.addEventListener('mousemove', e => {
-      if (!_isPanning) return;
-      _panX = e.clientX - _panStartX;
-      _panY = e.clientY - _panStartY;
-      _applyZoomPan();
+
+    // touchcancel — reset paint/pinch state when touch is interrupted
+    overlay.addEventListener('touchcancel', () => {
+      _pinchDist = null;
+      if (_isPainting) { _isPainting = false; _updateQuality(container); }
     });
-    window.addEventListener('mouseup', () => { _isPanning = false; });
   }
 
   function _moveCursor(cursor, x, y) {
@@ -845,7 +918,6 @@
 
   // ── Bind control panel events ────────────────────────────────────────
   function _bindControls(container) {
-    // Deferred — called after innerHTML set, before image load
     setTimeout(() => {
       _b(container, '#bgpro-undo', () => _undo());
       _b(container, '#bgpro-redo', () => _redo());
@@ -904,7 +976,7 @@
         } catch (err) {
           alert('Export failed: ' + (err.message || 'Unknown error'));
         } finally {
-          if (btn) { btn.disabled = false; btn.textContent = '⬇ Download'; }
+              if (btn) { btn.disabled = false; btn.textContent = '⬇ Download'; }
         }
       };
       _b(container, '#bgpro-dl', doDownload);
@@ -928,7 +1000,21 @@
   function _on(c, sel, ev, fn) { const el = c.querySelector(sel); if (el) el.addEventListener(ev, fn); }
   function _q(c, sel, val) { const el = c.querySelector(sel); if (el) el.textContent = val; }
   function _toggleClass(c, sel, cls, force) { const el = c.querySelector(sel); if (el) el.classList.toggle(cls, force); }
-  function _reset() { _mask = null; _origPixels = null; _undoStack = []; _redoStack = []; _zoom = 1; _panX = 0; _panY = 0; _isPainting = false; }
+  function _reset() {
+    // Remove any window-level event listeners from the previous mount
+    _evCleanup.forEach(fn => fn());
+    _evCleanup = [];
+    // Reset all pixel/mask state
+    _mask = null; _origPixels = null; _undoStack = []; _redoStack = [];
+    // Reset view state
+    _zoom = 1; _panX = 0; _panY = 0; _isPainting = false;
+    _isPanning = false; _pinchDist = null; _spaceDown = false;
+    // Reset tool/mode defaults
+    _activeTool = 'erase'; _qualityMode = 'balanced';
+    _bgOption = 'transparent'; _exportFmt = 'png';
+    _exportQuality = 0.92; _exportResolution = 'original';
+    _showBA = false; _showGrid = true;
+  }
   function _offCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c.getContext('2d'); }
   function _loadImg(file) {
     return new Promise((res, rej) => {
