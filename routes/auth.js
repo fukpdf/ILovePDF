@@ -6,7 +6,7 @@ import db from '../utils/db.js';
 import { verifyIdToken, isFirebaseConfigured } from '../utils/firebase-admin.js';
 
 const router = express.Router();
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-change-me';
 const COOKIE = 'ilovepdf_token';
 const QUOTA = 2 * 1024 * 1024 * 1024; // 2 GB
 const VERIFY_TTL_MS = 30 * 60 * 1000; // confirmation link valid 30 min

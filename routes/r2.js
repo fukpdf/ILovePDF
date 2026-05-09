@@ -8,7 +8,7 @@ import {
 } from '../utils/r2.js';
 
 const router = express.Router();
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-change-me';
 const COOKIE = 'ilovepdf_token';
 
 const upload = multer({

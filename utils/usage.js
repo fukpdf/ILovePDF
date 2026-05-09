@@ -6,7 +6,7 @@
 import jwt from 'jsonwebtoken';
 import db from './db.js';
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-change-me';
 const COOKIE = 'ilovepdf_token';
 
 // Tiered usage limits.
