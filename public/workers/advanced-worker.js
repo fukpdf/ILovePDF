@@ -1,6 +1,8 @@
-// Advanced Worker v3.1 — persistent off-thread document builder + pixel processor.
+// Advanced Worker v3.2 — persistent off-thread document builder + pixel processor.
 // Phase 1: Persistent (handles multiple tasks, no re-spawn).
 // Phase 5: CPU pixel processing for remove-bg (WebGPU removed — broken dispatch math).
+// v3.2: buildDocx — H1-H4 heading levels, bullet + numbered list support,
+//       Calibri default fonts, word/numbering.xml in output ZIP.
 // Operations: build-docx | build-xlsx | build-pptx | remove-bg | chunk-text-score
 
 // ── LAZY LIBRARY LOADING ───────────────────────────────────────────────────────
@@ -17,6 +19,16 @@ function esc(s) {
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
+// Strip leading list markers so Word's own numbering renders cleanly.
+// isNum=true → strip "1. " / "a. " / "i. " style prefixes
+// isNum=false → strip bullet chars like "- ", "• ", "✓ " etc.
+function _stripListMarker(text, isNum) {
+  if (isNum) {
+    return text.replace(/^\s*(?:\d+|[a-zA-Z]|[ivxlcdmIVXLCDM]+)[.)]\s+/, '');
+  }
+  return text.replace(/^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s*/, '');
+}
+
 // ── BUILD DOCX ────────────────────────────────────────────────────────────────
 async function buildDocx(pages) {
   ensureJszip();
@@ -27,6 +39,7 @@ async function buildDocx(pages) {
     var rawText    = (p.text || '').trim();
     var paragraphs = p.paragraphs;
 
+    // Page separator label
     paras.push(
       '<w:p><w:pPr><w:spacing w:before="320" w:after="80"/></w:pPr>' +
       '<w:r><w:rPr><w:b/><w:sz w:val="24"/><w:color w:val="374151"/></w:rPr>' +
@@ -37,14 +50,43 @@ async function buildDocx(pages) {
       for (var qi = 0; qi < paragraphs.length; qi++) {
         var para = paragraphs[qi];
         if (!para.text) continue;
+
         if (para.isHeading) {
-          var hStyle = (para.level === 2) ? 'Heading2' : 'Heading1';
-          var hSz    = (para.level === 2) ? '24' : '28';
-          var hColor = (para.level === 2) ? '2C4A7A' : '1E3A5F';
+          // Map extracted heading levels 1-4 to Word heading styles
+          var lvl    = para.level || 1;
+          var hStyle, hSz, hColor;
+          if      (lvl <= 1) { hStyle = 'Heading1'; hSz = '28'; hColor = '1E3A5F'; }
+          else if (lvl === 2) { hStyle = 'Heading2'; hSz = '24'; hColor = '2C4A7A'; }
+          else if (lvl === 3) { hStyle = 'Heading3'; hSz = '22'; hColor = '374151'; }
+          else                { hStyle = 'Heading4'; hSz = '21'; hColor = '4B5563'; }
           paras.push(
             '<w:p><w:pPr><w:pStyle w:val="' + hStyle + '"/><w:spacing w:before="200" w:after="80"/></w:pPr>' +
             '<w:r><w:rPr><w:b/><w:sz w:val="' + hSz + '"/><w:color w:val="' + hColor + '"/></w:rPr>' +
             '<w:t xml:space="preserve">' + esc(para.text) + '</w:t></w:r></w:p>'
+          );
+        } else if (para.isNumList) {
+          // Numbered list — strip leading "1. " marker; Word adds its own counter
+          var numText = _stripListMarker(para.text, true);
+          paras.push(
+            '<w:p><w:pPr>' +
+              '<w:pStyle w:val="ListParagraph"/>' +
+              '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr>' +
+              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' +
+            '</w:pPr>' +
+            '<w:r><w:rPr><w:sz w:val="22"/><w:color w:val="374151"/></w:rPr>' +
+            '<w:t xml:space="preserve">' + esc(numText) + '</w:t></w:r></w:p>'
+          );
+        } else if (para.isList) {
+          // Bullet list — strip leading "• " marker; Word adds its own bullet
+          var listText = _stripListMarker(para.text, false);
+          paras.push(
+            '<w:p><w:pPr>' +
+              '<w:pStyle w:val="ListParagraph"/>' +
+              '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' +
+              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' +
+            '</w:pPr>' +
+            '<w:r><w:rPr><w:sz w:val="22"/><w:color w:val="374151"/></w:rPr>' +
+            '<w:t xml:space="preserve">' + esc(listText) + '</w:t></w:r></w:p>'
           );
         } else {
           paras.push(
@@ -88,6 +130,7 @@ async function buildDocx(pages) {
     '<Default Extension="xml" ContentType="application/xml"/>' +
     '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
     '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+    '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
     '</Types>';
 
   var rels =
@@ -100,37 +143,86 @@ async function buildDocx(pages) {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>' +
     '</Relationships>';
 
+  // styles.xml — Normal + H1-H4 + ListParagraph, Calibri as document default font
   var stylesXml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"' +
     ' xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml">' +
+    '<w:docDefaults>' +
+      '<w:rPrDefault><w:rPr>' +
+        '<w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>' +
+        '<w:sz w:val="22"/><w:lang w:val="en-US"/>' +
+      '</w:rPr></w:rPrDefault>' +
+    '</w:docDefaults>' +
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">' +
-    '<w:name w:val="Normal"/>' +
-    '<w:rPr><w:sz w:val="22"/><w:lang w:val="en-US"/></w:rPr>' +
+      '<w:name w:val="Normal"/>' +
+      '<w:rPr><w:sz w:val="22"/><w:lang w:val="en-US"/></w:rPr>' +
     '</w:style>' +
     '<w:style w:type="paragraph" w:styleId="Heading1">' +
-    '<w:name w:val="heading 1"/>' +
-    '<w:basedOn w:val="Normal"/>' +
-    '<w:next w:val="Normal"/>' +
-    '<w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="240" w:after="80"/></w:pPr>' +
-    '<w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="1E3A5F"/><w:lang w:val="en-US"/></w:rPr>' +
+      '<w:name w:val="heading 1"/>' +
+      '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
+      '<w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="240" w:after="80"/></w:pPr>' +
+      '<w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="1E3A5F"/><w:lang w:val="en-US"/></w:rPr>' +
     '</w:style>' +
     '<w:style w:type="paragraph" w:styleId="Heading2">' +
-    '<w:name w:val="heading 2"/>' +
-    '<w:basedOn w:val="Normal"/>' +
-    '<w:next w:val="Normal"/>' +
-    '<w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="200" w:after="60"/></w:pPr>' +
-    '<w:rPr><w:b/><w:sz w:val="24"/><w:color w:val="2C4A7A"/><w:lang w:val="en-US"/></w:rPr>' +
+      '<w:name w:val="heading 2"/>' +
+      '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
+      '<w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="200" w:after="60"/></w:pPr>' +
+      '<w:rPr><w:b/><w:sz w:val="24"/><w:color w:val="2C4A7A"/><w:lang w:val="en-US"/></w:rPr>' +
+    '</w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading3">' +
+      '<w:name w:val="heading 3"/>' +
+      '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
+      '<w:pPr><w:outlineLvl w:val="2"/><w:spacing w:before="160" w:after="60"/></w:pPr>' +
+      '<w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="374151"/><w:lang w:val="en-US"/></w:rPr>' +
+    '</w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading4">' +
+      '<w:name w:val="heading 4"/>' +
+      '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
+      '<w:pPr><w:outlineLvl w:val="3"/><w:spacing w:before="120" w:after="40"/></w:pPr>' +
+      '<w:rPr><w:b/><w:i/><w:sz w:val="21"/><w:color w:val="4B5563"/><w:lang w:val="en-US"/></w:rPr>' +
+    '</w:style>' +
+    '<w:style w:type="paragraph" w:styleId="ListParagraph">' +
+      '<w:name w:val="List Paragraph"/>' +
+      '<w:basedOn w:val="Normal"/>' +
+      '<w:pPr><w:ind w:left="720"/></w:pPr>' +
     '</w:style>' +
     '</w:styles>';
+
+  // numbering.xml — numId=1: bullet list, numId=2: decimal numbered list
+  var numberingXml =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:abstractNum w:abstractNumId="0">' +
+      '<w:lvl w:ilvl="0">' +
+        '<w:start w:val="1"/><w:numFmt w:val="bullet"/>' +
+        '<w:lvlText w:val="\u2022"/>' +
+        '<w:lvlJc w:val="left"/>' +
+        '<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>' +
+        '<w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/></w:rPr>' +
+      '</w:lvl>' +
+    '</w:abstractNum>' +
+    '<w:abstractNum w:abstractNumId="1">' +
+      '<w:lvl w:ilvl="0">' +
+        '<w:start w:val="1"/><w:numFmt w:val="decimal"/>' +
+        '<w:lvlText w:val="%1."/>' +
+        '<w:lvlJc w:val="left"/>' +
+        '<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>' +
+      '</w:lvl>' +
+    '</w:abstractNum>' +
+    '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>' +
+    '<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>' +
+    '</w:numbering>';
 
   var zip = new self.JSZip();
   zip.file('[Content_Types].xml', contentTypes);
   zip.file('_rels/.rels', rels);
   zip.file('word/document.xml', docXml);
   zip.file('word/styles.xml', stylesXml);
+  zip.file('word/numbering.xml', numberingXml);
   zip.file('word/_rels/document.xml.rels', wordRels);
 
   var ab = await zip.generateAsync({

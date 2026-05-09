@@ -1157,8 +1157,10 @@
           cleanup: staged.cleanup,
           strictStreaming: strictMode, // Phase 10: single-page mode flag
         };
-      } catch (_) {
-        // OPFS write failed — fall through to in-RAM
+      } catch (opfsErr) {
+        // OPFS write failed — log the failure (important for large files that may OOM)
+        // then fall through to in-RAM path.
+        DT().error('opfs-stage-failed', { sizeMB: (size / 1048576).toFixed(1), err: String(opfsErr).slice(0, 100) });
       }
     }
 
@@ -2424,7 +2426,16 @@
       }
       pages = ocrWPages.map(function (p) {
         var paras = p.text.split('\n').filter(function (l) { return l.trim(); }).map(function (l) {
-          return { text: l.trim(), isHeading: false };
+          var t = l.trim();
+          // Infer basic structure from OCR line text so the DOCX builder can
+          // apply correct heading / list styles even without a native text layer.
+          var isHeading = (t.length >= 3 && t.length <= 90 &&
+                           t === t.toUpperCase() && /[A-Z]/.test(t)) ||
+                          /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i.test(t);
+          var isNumList = !isHeading && /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/.test(t);
+          var isList    = !isHeading && !isNumList &&
+                          /^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s/.test(t);
+          return { text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, level: isHeading ? 1 : 0 };
         });
         if (!paras.length) paras = [{ text: '(no content)', isHeading: false }];
         return { pageNum: p.pageNum, paragraphs: paras };
