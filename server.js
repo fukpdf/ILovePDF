@@ -119,6 +119,9 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Rate limiter applied FIRST — before any /api/* handler
+app.use('/api', apiLimiter);
+
 // Public Firebase config (safe to expose — these are not secrets)
 app.get('/api/config/firebase', (_req, res) => {
   if (!isFirebaseConfigured()) return res.status(503).json({ error: 'firebase not configured' });
@@ -131,7 +134,7 @@ app.get('/api/config/firebase', (_req, res) => {
   });
 });
 
-// Health probe (used by Railway / uptime monitors)
+// Health probe (used by Railway / uptime monitors — no sensitive data)
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -142,8 +145,6 @@ app.get('/api/health', (_req, res) => {
     },
   });
 });
-
-app.use('/api', apiLimiter);
 app.use('/api', authRouter); // auth routes are NOT subject to usage limits
 app.use('/api', r2Router);   // R2 upload/download/list (own auth checks inside)
 

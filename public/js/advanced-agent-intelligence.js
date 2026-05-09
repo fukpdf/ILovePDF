@@ -408,9 +408,14 @@
             ]);
           } catch(e) {
             warn('step', i, 'failed:', e.message);
-            // Reflection + retry
+            // Reflection + retry (never decrement below 0; cap retries per step)
             var reflection = await ExecutionReflectionEngine.reflect(workflowId+'_step_'+i, step&&step.goal||String(step), '', opts);
-            if (reflection.action==='retry' && i>0) { i--; } // retry this step
+            if (reflection.action==='retry' && i>0 && (state.stepRetries||0)<3) {
+              state.stepRetries=(state.stepRetries||0)+1;
+              i--;
+            } else {
+              state.stepRetries=0;
+            }
             result = { error: e.message, step: i };
           }
           state.results.push(result);

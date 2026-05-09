@@ -18,6 +18,16 @@
   function warn() { var a = Array.prototype.slice.call(arguments); console.warn.apply(console, [LOG].concat(a)); }
   function sys(n) { return window[n] || null; }
 
+  // HTML-escape any user-controlled string before injecting into innerHTML
+  function _esc(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // § 1  PREVIEW SYSTEM DISABLER
   // Replaces LivePreview and PdfPreview mounts with no-ops.
@@ -302,7 +312,7 @@
       if (!container) return;
       if (!results.length) { container.innerHTML = '<div style="color:#9ca3af;font-size:11px;padding:4px">No results</div>'; return; }
       container.innerHTML = results.map(function (r) {
-        return '<div class="aosu-search-result" title="' + (r.docId || '') + '"><span class="asr-score">' + (r.score * 100).toFixed(0) + '%</span>' + (r.chunk || '').slice(0, 90) + '…</div>';
+        return '<div class="aosu-search-result" title="' + _esc(r.docId || '') + '"><span class="asr-score">' + (r.score * 100).toFixed(0) + '%</span>' + _esc((r.chunk || '').slice(0, 90)) + '…</div>';
       }).join('');
 
       // Click handler — open Laba AI chat with the result
@@ -439,13 +449,13 @@
       if (WGAE) { var pending = WGAE.audit().pending; if (pending) rows.push({ label:'GPU Tasks', status:'active', detail: pending + ' queued' }); }
 
       var AAS = sys('AiAgentSystem');
-      if (AAS) { var active = AAS.active(); active.forEach(function (wf) { rows.push({ label: 'Agent: ' + wf.query.slice(0,20), status:'active', detail: wf.status }); }); }
+      if (AAS) { var active = AAS.active(); active.forEach(function (wf) { rows.push({ label: 'Agent: ' + (wf.query||'').slice(0,20), status:'active', detail: String(wf.status||'') }); }); }
 
       if (badge) badge.textContent = rows.length;
       if (!rows.length) { body.innerHTML = '<div style="font-size:11px;color:#9ca3af">No active tasks</div>'; return; }
 
       body.innerHTML = rows.map(function (r) {
-        return '<div class="aosu-task-row"><div class="aosu-task-dot ' + r.status + '"></div><span style="flex:1">' + r.label + '</span><span style="opacity:.6;font-size:10px">' + r.detail + '</span></div>';
+        return '<div class="aosu-task-row"><div class="aosu-task-dot ' + _esc(r.status) + '"></div><span style="flex:1">' + _esc(r.label) + '</span><span style="opacity:.6;font-size:10px">' + _esc(r.detail) + '</span></div>';
       }).join('');
     }
 

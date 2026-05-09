@@ -100,7 +100,10 @@
         _sweepDead();
       }, HEARTBEAT_MS);
       announce();
-      window.addEventListener('beforeunload', function () { _send({ type: 'bye' }); });
+      window.addEventListener('beforeunload', function () {
+        clearInterval(_hb);
+        _send({ type: 'bye' });
+      });
     }
 
     return { announce: announce, getPeers: getPeers, getPeerCount: getPeerCount, TAB_ID: TAB_ID };
