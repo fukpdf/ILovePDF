@@ -38,9 +38,12 @@ async function buildDocx(pages) {
         var para = paragraphs[qi];
         if (!para.text) continue;
         if (para.isHeading) {
+          var hStyle = (para.level === 2) ? 'Heading2' : 'Heading1';
+          var hSz    = (para.level === 2) ? '24' : '28';
+          var hColor = (para.level === 2) ? '2C4A7A' : '1E3A5F';
           paras.push(
-            '<w:p><w:pPr><w:spacing w:before="200" w:after="80"/></w:pPr>' +
-            '<w:r><w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="1E3A5F"/></w:rPr>' +
+            '<w:p><w:pPr><w:pStyle w:val="' + hStyle + '"/><w:spacing w:before="200" w:after="80"/></w:pPr>' +
+            '<w:r><w:rPr><w:b/><w:sz w:val="' + hSz + '"/><w:color w:val="' + hColor + '"/></w:rPr>' +
             '<w:t xml:space="preserve">' + esc(para.text) + '</w:t></w:r></w:p>'
           );
         } else {
@@ -101,11 +104,27 @@ async function buildDocx(pages) {
 
   var stylesXml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"' +
+    ' xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml">' +
     '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">' +
     '<w:name w:val="Normal"/>' +
     '<w:rPr><w:sz w:val="22"/><w:lang w:val="en-US"/></w:rPr>' +
-    '</w:style></w:styles>';
+    '</w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading1">' +
+    '<w:name w:val="heading 1"/>' +
+    '<w:basedOn w:val="Normal"/>' +
+    '<w:next w:val="Normal"/>' +
+    '<w:pPr><w:outlineLvl w:val="0"/><w:spacing w:before="240" w:after="80"/></w:pPr>' +
+    '<w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="1E3A5F"/><w:lang w:val="en-US"/></w:rPr>' +
+    '</w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Heading2">' +
+    '<w:name w:val="heading 2"/>' +
+    '<w:basedOn w:val="Normal"/>' +
+    '<w:next w:val="Normal"/>' +
+    '<w:pPr><w:outlineLvl w:val="1"/><w:spacing w:before="200" w:after="60"/></w:pPr>' +
+    '<w:rPr><w:b/><w:sz w:val="24"/><w:color w:val="2C4A7A"/><w:lang w:val="en-US"/></w:rPr>' +
+    '</w:style>' +
+    '</w:styles>';
 
   var zip = new self.JSZip();
   zip.file('[Content_Types].xml', contentTypes);

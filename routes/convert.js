@@ -11,7 +11,7 @@ import JSZip from 'jszip';
 import { parse as parseHtml } from 'node-html-parser';
 import { createRequire } from 'module';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
-import { extractPdfText, wrapText, textToPdf } from '../utils/pdfText.js';
+import { extractPdfText, isPdfBuffer, wrapText, textToPdf } from '../utils/pdfText.js';
 import { createUpload } from '../utils/upload.js';
 import { magickImagesToPdf } from '../utils/pdfTools.js';
 
@@ -35,7 +35,7 @@ function sendFile(res, buffer, contentType, filename) {
 async function imagesToPdf(files, res, filename) {
   const doc = await PDFDocument.create();
   for (const file of files) {
-    const imgBytes = fs.readFileSync(file.path);
+    const imgBytes = await fs.promises.readFile(file.path);
     const mime = file.mimetype;
     let image;
     if (mime === 'image/jpeg' || mime === 'image/jpg') {
@@ -81,6 +81,23 @@ router.post('/scan-to-pdf', imgUpload.array('images'), async (req, res) => {
   } catch (err) { cleanupFiles(req.files); res.status(500).json({ error: err.message }); }
 });
 
+// ── SHARED HELPER: read buffer + validate PDF magic + extract text ──────────
+const EXTRACT_TIMEOUT_MS = 60000;
+
+async function readAndExtract(filePath) {
+  const buffer = await fs.promises.readFile(filePath);
+  if (!isPdfBuffer(buffer)) {
+    return { buffer, pdfData: null, notPdf: true };
+  }
+  const pdfData = await Promise.race([
+    extractPdfText(buffer),
+    new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('PDF text extraction timed out. The file may be too complex.')), EXTRACT_TIMEOUT_MS)
+    ),
+  ]);
+  return { buffer, pdfData, notPdf: false };
+}
+
 // ── PDF → WORD ─────────────────────────────────────────────────────────────
 // v2: heading detection via ALL-CAPS / numeric prefix / short-line heuristics
 
@@ -88,8 +105,16 @@ router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
-    const buffer = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(buffer);
+    const { buffer, pdfData, notPdf } = await readAndExtract(req.file.path);
+    if (notPdf) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'The uploaded file does not appear to be a valid PDF.' });
+    }
+    if (pdfData.isEncrypted) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'This PDF is password-protected. Please remove the password first using the Unlock PDF tool.' });
+    }
+    const text = pdfData.text;
     if (!text.trim()) {
       cleanupFiles(req.file);
       return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based or scanned.' });
@@ -153,8 +178,16 @@ router.post('/pdf-to-powerpoint', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
-    const buffer = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(buffer);
+    const { buffer, pdfData, notPdf } = await readAndExtract(req.file.path);
+    if (notPdf) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'The uploaded file does not appear to be a valid PDF.' });
+    }
+    if (pdfData.isEncrypted) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'This PDF is password-protected. Please remove the password first using the Unlock PDF tool.' });
+    }
+    const text = pdfData.text;
     if (!text.trim()) {
       cleanupFiles(req.file);
       return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based.' });
@@ -163,8 +196,8 @@ router.post('/pdf-to-powerpoint', upload.single('pdf'), async (req, res) => {
     const pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_WIDE';
 
-    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    const pageCount = pdfDoc.getPageCount();
+    // Use page count from pdf-parse — avoids double-loading the buffer via pdf-lib
+    const pageCount = pdfData.pageCount || 1;
 
     const paragraphs = text.split(/\n{2,}/).filter(p => p.trim());
     const chunksPerSlide = Math.max(1, Math.ceil(paragraphs.length / Math.max(1, pageCount)));
@@ -199,8 +232,16 @@ router.post('/pdf-to-excel', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
 
-    const buffer = fs.readFileSync(req.file.path);
-    const text = await extractPdfText(buffer);
+    const { pdfData, notPdf } = await readAndExtract(req.file.path);
+    if (notPdf) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'The uploaded file does not appear to be a valid PDF.' });
+    }
+    if (pdfData.isEncrypted) {
+      cleanupFiles(req.file);
+      return res.status(400).json({ error: 'This PDF is password-protected. Please remove the password first using the Unlock PDF tool.' });
+    }
+    const text = pdfData.text;
     if (!text.trim()) {
       cleanupFiles(req.file);
       return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based.' });
@@ -275,14 +316,17 @@ router.post('/pdf-to-jpg', upload.single('pdf'), async (req, res) => {
     if (files.length === 0) throw new Error('No pages could be converted.');
 
     if (files.length === 1) {
-      const imgBuf = fs.readFileSync(path.join(outputDir, files[0]));
+      const imgBuf = await fs.promises.readFile(path.join(outputDir, files[0]));
       fs.rmSync(outputDir, { recursive: true, force: true });
       cleanupFiles(req.file);
       return sendFile(res, imgBuf, 'image/jpeg', 'ilovepdf-pdf-to-jpg.jpg');
     }
 
     const zip = new JSZip();
-    files.forEach(f => zip.file(f, fs.readFileSync(path.join(outputDir, f))));
+    await Promise.all(files.map(async f => {
+      const buf = await fs.promises.readFile(path.join(outputDir, f));
+      zip.file(f, buf);
+    }));
     const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
     fs.rmSync(outputDir, { recursive: true, force: true });
@@ -533,7 +577,7 @@ router.post('/powerpoint-to-pdf', anyUpload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PowerPoint file.' });
 
-    const zip = await JSZip.loadAsync(fs.readFileSync(req.file.path));
+    const zip = await JSZip.loadAsync(await fs.promises.readFile(req.file.path));
     let allText = '';
 
     const slideFiles = Object.keys(zip.files)
@@ -702,7 +746,7 @@ router.post('/html-to-pdf', anyUpload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload an HTML file.' });
 
-    const html = fs.readFileSync(req.file.path, 'utf-8');
+    const html = await fs.promises.readFile(req.file.path, 'utf-8');
     const root = parseHtml(html);
 
     root.querySelectorAll('script, style, noscript').forEach(el => el.remove());

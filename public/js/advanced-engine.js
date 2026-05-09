@@ -2357,6 +2357,9 @@
   // ─── PDF → WORD (Phase 7: prefetch pipeline + Phase 8: live preview) ──────
   processors['pdf-to-word'] = async function (files, opts, onStep) {
     var file = files[0];
+    // _forceOcr: set by InputAnalyzer when PDF is detected as scanned.
+    // _retryForceOcr: set by smart-retry engine on attempt 2.
+    var _shouldForceOcr = !!(opts && (opts._forceOcr || opts._retryForceOcr));
     onStep(0, 'active', 5, 'Preparing your file\u2026');
 
     var pdfjsLib  = await loadPdfJs();
@@ -2409,7 +2412,9 @@
     });
 
     // Phase 3 + 20B: Auto-OCR trigger — sparse text OR garbled/unreadable content.
-    if (!pages.length || _totalWordChars < Math.max(8, total * 2) || _wQuality.needsOcr) {
+    // Also fires when InputAnalyzer flagged scanned PDF (_shouldForceOcr) or when
+    // the smart-retry engine requests OCR on attempt 2 (_retryForceOcr).
+    if (_shouldForceOcr || !pages.length || _totalWordChars < Math.max(8, total * 2) || _wQuality.needsOcr) {
       DT().log('pdf-to-word-ocr-trigger', { reason: 'sparse_text', chars: _totalWordChars });
       var ocrWPages = await autoOcrFallback(file, onStep, 35, 1);
       var ocrWChars = ocrWPages.reduce(function (s, p) { return s + p.text.length; }, 0);

@@ -1,13 +1,38 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+// PDF magic bytes: %PDF  (0x25 0x50 0x44 0x46)
+const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+
+/**
+ * Validate that a Buffer starts with the PDF magic bytes.
+ * Returns true when the buffer is a real PDF; false otherwise.
+ */
+export function isPdfBuffer(buffer) {
+  if (!buffer || buffer.length < 4) return false;
+  return buffer[0] === 0x25 && buffer[1] === 0x50 &&
+         buffer[2] === 0x44 && buffer[3] === 0x46;
+}
+
+/**
+ * Extract text from a PDF buffer.
+ *
+ * Returns { text, pageCount, isEncrypted, parseError }
+ *   text        — extracted text (may be empty for scanned/image PDFs)
+ *   pageCount   — number of pages reported by pdf-parse (0 on failure)
+ *   isEncrypted — true when pdf-parse threw an encryption-related error
+ *   parseError  — the raw error message when parsing failed, null on success
+ */
 export async function extractPdfText(buffer) {
   try {
     const pdfParse = require('pdf-parse/lib/pdf-parse.js');
     const data = await pdfParse(buffer);
-    return data.text || '';
-  } catch {
-    return '';
+    return { text: data.text || '', pageCount: data.numpages || 0, isEncrypted: false, parseError: null };
+  } catch (err) {
+    const msg = (err && err.message) || '';
+    const isEncrypted = /encrypt|password|protected/i.test(msg);
+    console.error('[extractPdfText] parse failed:', msg);
+    return { text: '', pageCount: 0, isEncrypted, parseError: msg || 'unknown' };
   }
 }
 
@@ -104,9 +129,9 @@ export function extractiveSummarize(text, maxSentences = 7) {
       .filter(l => {
         if (!l || l.length < 3 || l.length > 80) return false;
         return (
-          (l === l.toUpperCase() && /[A-Z]/.test(l)) ||         // ALL-CAPS
-          /^(\d+\.)+\s+\S/.test(l) ||                           // 1.2. Section
-          /^[A-Z][^.!?]{3,60}$/.test(l)                         // Title-case short line
+          (l === l.toUpperCase() && /[A-Z]/.test(l)) ||
+          /^(\d+\.)+\s+\S/.test(l) ||
+          /^[A-Z][^.!?]{3,60}$/.test(l)
         );
       })
       .map(l => l.toLowerCase())

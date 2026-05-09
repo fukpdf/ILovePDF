@@ -637,7 +637,7 @@
         });
       });
     }
-    await pdf.destroy();
+    try { await pdf.destroy(); } catch (_) {}
 
     var isScanned = totalRawChars < 50;
 
