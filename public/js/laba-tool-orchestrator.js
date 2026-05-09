@@ -629,5 +629,39 @@
     },
   };
 
+  // ── LabaToolRouter — canonical routing API ───────────────────────────
+  window.LabaToolRouter = {
+    version: '1.0',
+
+    // Detect intent label from a text message
+    detectIntent: function (message) {
+      return window.LabaToolRegistry.findByIntent(message, null);
+    },
+
+    // Detect best tool given files + message
+    detectTool: function (files, message) {
+      var ext = (files && files.length)
+        ? (function (n) { var d = n.lastIndexOf('.'); return d >= 0 ? n.slice(d).toLowerCase() : ''; })(files[0].name)
+        : null;
+      return window.LabaToolRegistry.findByIntent(message || '', ext);
+    },
+
+    // Execute a tool by id against an array of File objects
+    executeTool: function (toolId, files, options) {
+      var tool = window.LabaToolRegistry.findById(toolId);
+      if (!tool) return Promise.reject(new Error('Unknown tool: ' + toolId));
+      return _executeTool(tool, files, options || {}, _setProgress);
+    },
+
+    // Stream progress text into the chat progress strip
+    streamProgress: _setProgress,
+
+    // Dispatch files + message through the full intent→execute→result pipeline
+    dispatch: function (message, files) {
+      _stageFiles(files || []);
+      _dispatchWithFiles(message || '');
+    },
+  };
+
   log('LabaToolOrchestrator loaded — waiting for chat panel…');
 }());

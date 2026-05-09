@@ -10,9 +10,11 @@
 (function () {
   'use strict';
 
-  // ── Singleton guard: suppress old laba-widget when this module loads ─────
+  // ── Singleton guard ───────────────────────────────────────────────────────
   if (window.LABA_AI_INITIALIZED) return;
   window.LABA_AI_INITIALIZED = true;
+  if (window.LABA_CHAT_ACTIVE) return;
+  window.LABA_CHAT_ACTIVE = true;
 
   var VERSION = '1.0';
   var LOG = '[LAC]';
@@ -344,41 +346,78 @@
       }
     }
 
+    // ── Sanitise AI responses — block raw prompt echoes before any render ─────
+    function sanitizeAiResponse(text) {
+      if (!text) return null;
+      var t = (typeof text === 'string' ? text : String(text)).trim();
+      if (!t) return null;
+      var banned = [
+        /^you are a/i,
+        /^you are an/i,
+        /^conversation:/i,
+        /^conversation history:/i,
+        /^assistant:/i,
+        /^system:/i,
+        /^document context:/i,
+        /^user:/i,
+        /^context:/i,
+        /^instructions:/i,
+        /^here is the conversation/i,
+        /^the following is/i,
+        /^below is/i,
+      ];
+      if (banned.some(function (r) { return r.test(t); })) {
+        warn('sanitizeAiResponse: blocked prompt-echo starting with:', t.slice(0, 60));
+        return null;
+      }
+      // Discard full-prompt echoes that contain both User: and trailing Assistant:
+      if (/\bUser:\s/.test(t) && /\bAssistant:\s*$/.test(t)) {
+        warn('sanitizeAiResponse: blocked full-prompt echo');
+        return null;
+      }
+      return t || null;
+    }
+
     async function query(sessionId, text, onChunk) {
       var ctx    = ChatContextAssembler.build(sessionId, text);
       var intent = _detectIntent(text);
 
-      // Try GenerativeAiEngine first
+      // Try GenerativeAiEngine with buffered chunk-level echo guard.
+      // Only the latest user message + document context go into the prompt —
+      // never prior assistant replies — to minimise prompt-echo surface area.
       var GAE = sys('GenerativeAiEngine');
       if (GAE && GAE.generate) {
         try {
           var prompt = [
-            ctx.docCtx ? 'Document context:\n' + ctx.docCtx : '',
-            ctx.history ? 'Conversation:\n' + ctx.history : '',
+            ctx.docCtx ? 'Document context:\n' + ctx.docCtx.slice(0, 1000) : '',
             'User: ' + text,
             'Assistant:',
           ].filter(Boolean).join('\n\n');
 
-              var result = await GAE.generate(prompt, { stream: !!onChunk, onChunk: onChunk, intent: intent });
-          // Echo-detection: discard if GAE echoed the system prompt / raw context back
-          if (result && (
-            result.startsWith('You are a ') ||
-            result.startsWith('Document context:') ||
-            result.startsWith('Conversation history:') ||
-            result.indexOf('User: ' + text + '\nAssistant:') !== -1 ||
-            (result.length > 300 && result.slice(0, 100).indexOf('---') !== -1)
-          )) {
-            warn('GAE echo detected — discarding, using heuristic');
-            result = null;
-          }
+          // Chunk interceptor: buffers the first 120 chars before forwarding any
+          // content to the UI — lets us detect echoes without showing them.
+          var _buf = '', _passed = false, _dropped = false;
+          var _wrappedChunk = onChunk ? function (chunk) {
+            if (_dropped) return;
+            if (_passed)  { onChunk(chunk); return; }
+            _buf += (chunk || '');
+            if (_buf.length >= 120) {
+              if (!sanitizeAiResponse(_buf)) { _dropped = true; return; }
+              _passed = true;
+              onChunk(_buf); // flush buffered safe content
+            }
+          } : null;
+
+          var result = await GAE.generate(prompt, { stream: !!onChunk, onChunk: _wrappedChunk, intent: intent });
+          if (_dropped) result = null; // streaming was an echo — discard
+          result = sanitizeAiResponse(result);
           if (result) return result;
-        } catch (e) { warn('GAE failed', e.message); }
+        } catch (e) { warn('GAE failed:', e.message); }
       }
 
-      // Fallback: heuristic answer
+      // Heuristic fallback — uses only ctx.docCtx + ctx.query (never raw history)
       var answer = _heuristicAnswer(ctx, intent);
       if (onChunk) {
-        // Simulate streaming
         var words = answer.split(' ');
         for (var i = 0; i < words.length; i++) {
           onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
@@ -388,7 +427,7 @@
       return answer;
     }
 
-    return { query: query, detectIntent: _detectIntent };
+    return { query: query, detectIntent: _detectIntent, sanitize: sanitizeAiResponse };
   })();
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -482,7 +521,8 @@
       '.lac-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;color:#9ca3af;text-align:center;padding:20px;}',
       '.lac-empty-state .lac-es-icon{font-size:36px;}',
       '.lac-empty-state p{font-size:13px;line-height:1.5;max-width:240px;}',
-      '@media(max-width:480px){#laba-ai-chat-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 80px);}#laba-ai-chat-toggle{bottom:20px;right:16px;}}',
+      '@media(max-width:768px){#laba-ai-chat-toggle{bottom:90px;right:16px;}}',
+      '@media(max-width:480px){#laba-ai-chat-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 80px);}}',
     ].join('');
     document.head.appendChild(s);
   }
@@ -638,8 +678,17 @@
   // ═══════════════════════════════════════════════════════════════════════════
   // § 12  MESSAGE RENDERING
   // ═══════════════════════════════════════════════════════════════════════════
-  function _showPanel() { _open = true; _panel.classList.remove('lac-hidden'); _ensureSession(); }
-  function _hidePanel() { _open = false; _panel.classList.add('lac-hidden'); }
+  function _showPanel() {
+    _open = true;
+    _panel.classList.remove('lac-hidden');
+    if (_toggle) _toggle.style.display = 'none'; // hide launcher while panel is open
+    _ensureSession();
+  }
+  function _hidePanel() {
+    _open = false;
+    _panel.classList.add('lac-hidden');
+    if (_toggle) _toggle.style.display = ''; // restore launcher when panel closes
+  }
 
   function _ensureSession() {
     if (!_currentSession) {
