@@ -551,7 +551,19 @@
       '.lac-empty-state .lac-es-icon{font-size:36px;}',
       '.lac-empty-state p{font-size:13px;line-height:1.5;max-width:240px;}',
       '@media(max-width:768px){#laba-ai-chat-toggle{bottom:90px;right:16px;}}',
-      '@media(max-width:480px){#laba-ai-chat-panel{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 80px);}}',
+      '@media(max-width:480px){',
+        '#laba-ai-chat-panel{',
+          'right:8px;bottom:8px;',
+          'width:calc(100vw - 16px);',
+          'height:calc(100dvh - 72px);',
+          'max-height:calc(100dvh - 72px);',
+          'padding-bottom:env(safe-area-inset-bottom,0px);',
+        '}',
+        '.lac-messages{padding-bottom:6px;}',
+        '.lac-quick-btns{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:4px 10px 6px;gap:6px;}',
+        '.lac-quick-btns::-webkit-scrollbar{display:none;}',
+        '.lac-input-area{padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}',
+      '}',
     ].join('');
     document.head.appendChild(s);
   }

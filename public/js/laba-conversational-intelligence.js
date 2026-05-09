@@ -30,12 +30,16 @@
   // ═══════════════════════════════════════════════════════════════════
   var RomanUrduNorm = (function () {
     var _map = [
-      // Greetings
+      // Greetings — English, Roman Urdu, Pakistani
       { rx:/\b(assalam\s*o?\s*alaikum|aslam\s*o\s*alaikum|assalamualaikum|aolokom|walaikum\s*salam|adaab|adab)\b/i, en:'hello' },
-      { rx:/\b(kaise\s*ho|kaisi\s*ho|kia\s*haal|kya\s*haal|kaisa\s*hai|ap\s*kaisy\s*hain|aap\s*kaise)\b/i, en:'how are you' },
-      { rx:/\b(shukriya|shukrya|dhanyawad|meherbani|shukriya\s*bhai)\b/i, en:'thank you' },
+      { rx:/^(aoa|a\.o\.a|ao\s*bhai|ao\s*ji|aa\s*gaye|agaye|aagaye)\b/i, en:'hello' },
+      { rx:/\b(kaise\s*ho|kaisi\s*ho|kia\s*haal|kya\s*haal|kaisa\s*hai|ap\s*kaisy\s*hain|aap\s*kaise|kiya\s*hal|kia\s*hal|kya\s*hal|kiya\s*haal|kia\s*haal\s*hai)\b/i, en:'how are you' },
+      { rx:/\b(kya\s*scene|kia\s*scene|kya\s*chal\s*raha|kia\s*ho\s*rha|kia\s*ho\s*raha|kuch\s*khaas|sab\s*(theek|thik)|koi\s*kaam)\b/i, en:'how are you what is up' },
+      { rx:/\b(shukriya|shukrya|shukria|shukar|dhanyawad|meherbani|shukriya\s*bhai)\b/i, en:'thank you' },
       { rx:/\b(theek|theak|thik)\s*(hai|hain|ho)?\b/i, en:'fine good' },
       { rx:/\b(acha|accha|achha)\b/i, en:'good okay' },
+      { rx:/\b(ye\s*kaam\s*(nahi|nhi)|yeh\s*kaam\s*(nahi|nhi)|kaam\s*(nhi|nahi)\s*chal|nhi\s*(chal|ho)\s*(rha|raha)|problem\s*(aa|ho)\s*(rhi|raha))\b/i, en:'this is not working problem' },
+      { rx:/\b(joke|mazaak|mazak|funny\s*(baat|sunao|karo)|hasao\s*mujhe)\b/i, en:'tell me a joke' },
 
       // PDF tool intents — file size
       { rx:/\bpdf\s*(chota|chhota|chotay|chhota)\s*(kar|kr|karo|krdo|karna|krna)\b/i, en:'compress pdf' },
@@ -206,11 +210,24 @@
   var IntentEngine = (function () {
     var _defs = [
       { id:'greeting',
-        patterns:[/^(hi|hello|hey|howdy|yo|sup|hiya|heya|salaam|salam|adab|namaste|bonjour|hola|ciao|merhaba|ahlan|shalom)\b/i,
-                  /\b(good\s*(morning|afternoon|evening|night|day))\b/i] },
+        patterns:[/^(hi|hello|hey|howdy|yo|sup|hiya|heya|salaam|salam|adab|namaste|bonjour|hola|ciao|merhaba|ahlan|shalom|aoa|slm|helo|hellow|hullo|salam\s*bhai|hey\s*bhai)\b/i,
+                  /\b(good\s*(morning|afternoon|evening|night|day))\b/i,
+                  /^(aoa|assalam|salam\.?\s*alaikum|walaikum|walikum)\b/i] },
 
       { id:'how_are_you',
-        patterns:[/\b(how\s*are\s*you|how\s*r\s*u|u\s*ok|you\s*ok|you\s*good|you\s*alright|all\s*good)\b/i] },
+        patterns:[/\b(how\s*are\s*you|how\s*r\s*u|u\s*ok|you\s*ok|you\s*good|you\s*alright|all\s*good|how are you doing)\b/i,
+                  /\b(kiya\s*hal|kia\s*haal|kya\s*haal|kaisy\s*ho|kaise\s*ho|what.*up|whats\s*up)\b/i] },
+
+      { id:'small_talk',
+        patterns:[/\b(kya\s*scene|kia\s*scene|kya\s*chal\s*raha|kia\s*ho\s*rha|kuch\s*khaas|what.*up|wazzup|sup\b|koi\s*baat|koi\s*kaam|sab\s*theek)\b/i,
+                  /\b(bhai\s*(kya|kia)\s*(chal|ho)|yaar\s*(kya|kia)|dost\s*(kya|kia))\b/i] },
+
+      { id:'frustration',
+        patterns:[/\b(ye\s*kaam\s*nahi|nhi\s*chal\s*rha|problem\s*aa\s*rhi|is\s*not\s*working|not\s*working|doesn.*work|broken|nhi\s*ho\s*rha|kuch\s*nahi\s*ho\s*rha|kaam\s*nahi)\b/i,
+                  /\b(why\s*(is|isn.?t)\s*(it|this)\s*(not\s*)?working|kyun\s*nahi|kyon\s*nahi)\b/i] },
+
+      { id:'joke',
+        patterns:[/\b(tell.*joke|joke.*sunao|funny|make.*laugh|hasao|joke\s*(do|batao|sunao|please|suna))\b/i] },
 
       { id:'identity',
         patterns:[/\b(who\s*are\s*you|what\s*are\s*you|your\s*name|introduce\s*yourself|tum\s*kaun|aap\s*kaun|tell\s*me\s*about\s*yourself)\b/i] },
@@ -488,30 +505,91 @@
       'Hi! Anything I can help with today?',
     ];
     var _howAreYou = [
-      'I\'m doing great, thanks for asking! Ready to help with your documents, files, or anything else. What\'s on your mind?',
-      'All good! 😊 What can I help you with?',
-      'Doing well! What would you like to work on today?',
+      'Main theek hoon 😄 Aap sunao? Koi kaam hai?',
+      'All good! 😊 What can I help you with today?',
+      'Doing great, thanks for asking! What would you like to work on?',
+      'Theek hoon bhai! 😊 Aap kia karna chahte ho?',
+      'I\'m doing well! Ready to help with documents, images, or any questions. What\'s on your mind?',
     ];
-    function _r(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    var _lastReplies = {};
+    function _r(arr) {
+      if (arr.length === 1) return arr[0];
+      var key = arr[0].slice(0, 20);
+      var last = _lastReplies[key];
+      var idx;
+      do { idx = Math.floor(Math.random() * arr.length); } while (idx === last && arr.length > 1);
+      _lastReplies[key] = idx;
+      return arr[idx];
+    }
 
     function forIntent(intent, rawText, docCtx) {
       var e = intent.entities || {};
 
       switch (intent.intent) {
-        case 'greeting':
+        case 'greeting': {
+          if (/\b(aoa|a\.o\.a|assalam|salam\s*alaikum|assalamualaikum|slm)\b/i.test(rawText)) {
+            return _r(['Walikum Salam 😊 Kaisy ho?', 'Walikum Assalam! 😄 Kia haal hai?', 'Walikum Salam! Main theek hoon, aap batao?', 'Walikum Salam 😊 Kuch kaam hai?']);
+          }
+          if (/\b(salam|salaam)\b/i.test(rawText) && intent.isUrdu) {
+            return _r(['Salam! 👋 Kaisy ho?', 'Salam bhai! Kia kaam hai aaj?', 'Salam ji! 😊 Kuch madad chahiye?']);
+          }
+          if (intent.isUrdu) {
+            return _r(['Haan ji! 😊 Kaisy ho? Kuch kaam hai?', 'Aoa! Main Laba AI hoon — kuch kaam batao.', 'Hello! 👋 Kia haal hai? Kuch karna hai to batao.', 'Ji! 😊 Kia service chahiye aaj?']);
+          }
           return _r(_greetings);
+        }
 
         case 'how_are_you':
           return _r(_howAreYou);
 
+        case 'small_talk':
+          return _r([
+            'Sab theek! 😄 Aap sunao — koi kaam hai?',
+            'Theek chal raha hai! Kia karna chahte ho?',
+            'All good here! Kuch kaam ho to batao 👍',
+            'Main busy hoon helping people! 😄 Aap batao kya chahiye?',
+            'All systems go! 🚀 What would you like to do today?',
+          ]);
+
+        case 'frustration':
+          return _r([
+            'Samajh gaya 👍 Chalo check karte hain kya issue hai. Kya error aa raha hai?',
+            'Theek hai, dekhen kya ho raha hai. File upload kar ke batao kya problem hai.',
+            'Okay, no problem! Mujhe batao step by step — kya kar rahe ho aur kya ho raha hai?',
+            'Got it! Let\'s figure this out together. What\'s happening exactly?',
+            'Koi baat nahi! Agar koi error aa raha hai to screenshot share karo ya describe karo 😊',
+          ]);
+
+        case 'joke':
+          return _r([
+            '😄 Ek programmer ka joke:\n\n_Teen log ek bar mein gaye — HTML, CSS, aur JavaScript.\nHTML ne order diya. CSS ne dress code change kar diya. JavaScript ne bar crash kar diya._ 😂',
+            '😄 PDF joke:\n\n_Kyun PDF ne Word ko reject kiya?\nKehta tha: "Sorry, I don\'t accept changes." 😂_',
+            '😄 Classic one:\n\nWhy do programmers prefer **dark mode**?\n\n**Because light attracts bugs! 🐛**',
+            '😄 Roman Urdu mein:\n\n_Ek aadmi ne Google pe search kiya: "Meri biwi kab tak ghar aayegi?"\nGoogle ne kaha: "Map data unavailable." 😂_',
+          ]);
+
         case 'thanks':
-          return 'You\'re welcome! 😊 Let me know if there\'s anything else I can help with.';
+          return _r([
+            'You\'re welcome! 😊 Let me know if there\'s anything else I can help with.',
+            'Koi baat nahi! 😊 Kuch aur kaam ho to batao.',
+            'Happy to help! Anything else you need?',
+            'Khushi hui! 😄 Aur kuch chahiye to batao.',
+          ]);
 
         case 'bye':
-          return 'Goodbye! Feel free to come back anytime. Take care! 👋';
+          return _r([
+            'Goodbye! Feel free to come back anytime. Take care! 👋',
+            'Allah Hafiz! 😊 Kab bhi aao, main hoon yahan.',
+            'See you! Take care 👋',
+            'Khuda Hafiz! Koi bhi kaam ho to wapas aao 😊',
+          ]);
 
-        case 'identity':
+        case 'identity': {
+          if (intent.isUrdu || /\b(tum\s*kon|aap\s*kon|tum\s*kaun|aap\s*kaun|kon\s*ho|kaun\s*ho)\b/i.test(rawText)) {
+            return 'Main **Laba AI Assistant** hoon 😊\n\nMain yeh kaam kar sakta hoon:\n\n📄 **Files process karna** — compress, convert, merge, split, OCR, sign, watermark (33+ tools)\n🌐 **Web search** — mausam, khabar, realtime facts\n💬 **Chat** — English, Roman Urdu, mixed language\n✍️ **Writing help** — grammar, emails, summaries, translations\n\nFile upload karo ya kuch poocho — main hoon! 😊';
+          }
           return 'I\'m **Laba**, an AI assistant built into ILovePDF. Here\'s what I can do:\n\n📄 **Process files** — compress, convert, merge, split, OCR, sign, watermark 33+ tools\n🌐 **Search the web** — weather, news, realtime facts\n💬 **Chat naturally** — English, Roman Urdu, and mixed language\n✍️ **Writing help** — grammar, emails, summaries, translations\n\nJust ask, or drag & drop a file to get started!';
+        }
 
         case 'capabilities':
           return '**Here\'s everything I can help with:**\n\n**📄 PDF Tools**\nCompress · Merge · Split · Rotate · Watermark · Sign · Protect · Unlock · Repair · OCR · AI Summarize · Translate · Compare\n\n**🔄 Convert**\nPDF ↔ Word, Excel, PowerPoint, JPG · Image ↔ PDF · HTML to PDF\n\n**🖼️ Image Tools**\nRemove Background · Crop · Resize · Filters\n\n**🌐 Web Search**\nWeather · News · Realtime facts\n\n**✍️ Writing Help**\nGrammar check · Rewrite · Email drafting · Translation\n\nUpload a file and tell me what you need — or just ask!';
@@ -691,13 +769,27 @@
   // Called by laba-ai-chat.js AiQueryEngine before GAE / heuristic.
   // Returns { intent, answer } or null (caller falls through).
   // ═══════════════════════════════════════════════════════════════════
+  // Conversational intents that should ALWAYS return immediately — never fall through to generic fallback
+  var _CONV_INTENTS = ['greeting','how_are_you','small_talk','thanks','bye','identity','capabilities',
+                       'datetime','calculation','grammar','write_email','joke','frustration'];
+
   async function respond(rawText, context) {
     context = context || {};
+
+    // ── Step 1: normalize → typo-correct → classify ────────────────────
     var intent = IntentEngine.classify(rawText);
     log('intent:', intent.intent, '| conf:', intent.confidence.toFixed(2),
         '| web:', intent.requires_web, '| urdu:', intent.isUrdu);
 
-    // ── Weather ───────────────────────────────────────────────────────
+    // ── Step 2: Fast-path — confident conversational reply ──────────────
+    // If confidence > 0.55 for a known conversational intent, reply immediately.
+    // NEVER show tool-help fallback for greetings, small talk, jokes, etc.
+    if (_CONV_INTENTS.indexOf(intent.intent) >= 0 && intent.confidence > 0.55) {
+      var fastAnswer = ResponseGen.forIntent(intent, rawText, context.docCtx || '');
+      if (fastAnswer) return { intent: intent, answer: fastAnswer };
+    }
+
+    // ── Step 3: Weather ───────────────────────────────────────────────
     if (intent.intent === 'weather') {
       var loc = (intent.entities && intent.entities.location) || 'London';
       // Try to extract from raw text more aggressively

@@ -39,8 +39,10 @@
       intents:[/unlock/i,/remove.*password/i,/decrypt/i,/open.*lock/i,/unprotect/i] },
     { id:'repair',            name:'Repair PDF',           endpoint:'/api/repair',             accepts:['.pdf'],                               multiple:false,
       intents:[/repair/i,/fix.*pdf/i,/corrupt/i,/damaged/i,/broken.*pdf/i] },
-    { id:'ocr',               name:'OCR PDF',              endpoint:'/api/ocr',                accepts:['.pdf','.jpg','.jpeg','.png'],          multiple:false,
-      intents:[/\bocr\b/i,/extract.*text/i,/recogni[sz]e.*text/i,/text.*from.*image/i,/read.*scan/i,/scan.*text/i] },
+    { id:'ocr',               name:'OCR PDF',              endpoint:'/api/ocr',                accepts:['.pdf'],                               multiple:false,
+      intents:[/\bocr\b/i,/extract.*text/i,/recogni[sz]e.*text/i,/text.*from.*pdf/i,/read.*scan/i,/scan.*text/i] },
+    { id:'image-ocr',         name:'Image OCR',            endpoint:'/api/ocr',                accepts:['.jpg','.jpeg','.png','.webp'],         multiple:false,
+      intents:[/\bocr\b/i,/extract.*text/i,/recogni[sz]e.*text/i,/text.*from.*image/i,/text\s*nikalo/i,/read.*scan/i,/scan.*text/i,/get.*text/i] },
     { id:'compare',           name:'Compare PDFs',         endpoint:'/api/compare',            accepts:['.pdf'],                               multiple:true,
       intents:[/compar/i,/\bdiff\b/i,/difference/i,/versus/i,/\bvs\b/i] },
     { id:'ai-summarize',      name:'AI Summarize',         endpoint:'/api/ai-summarize',       accepts:['.pdf'],                               multiple:false,
@@ -92,7 +94,7 @@
   var _SLUG_MAP = {
     'compress':'compress-pdf','merge':'merge-pdf','split':'split-pdf','rotate':'rotate-pdf',
     'watermark':'watermark-pdf','protect':'protect-pdf','unlock':'unlock-pdf','repair':'repair-pdf',
-    'ocr':'ocr-pdf','compare':'compare-pdf','ai-summarize':'ai-summarizer','translate':'translate-pdf',
+    'ocr':'ocr-pdf','image-ocr':'ocr-image','compare':'compare-pdf','ai-summarize':'ai-summarizer','translate':'translate-pdf',
     'pdf-to-word':'pdf-to-word','pdf-to-excel':'pdf-to-excel','pdf-to-powerpoint':'pdf-to-powerpoint',
     'pdf-to-jpg':'pdf-to-jpg','word-to-pdf':'word-to-pdf','powerpoint-to-pdf':'powerpoint-to-pdf',
     'excel-to-pdf':'excel-to-pdf','jpg-to-pdf':'jpg-to-pdf','html-to-pdf':'html-to-pdf',
@@ -107,16 +109,26 @@
 
     findByIntent: function (text, fileExt) {
       var scored = [];
+      var ext = fileExt ? fileExt.toLowerCase() : '';
+      var isImage = /^\.(jpg|jpeg|png|webp|gif)$/.test(ext);
+      var isPdf   = ext === '.pdf';
+
       for (var i = 0; i < TOOLS.length; i++) {
         var tool  = TOOLS[i];
         var score = 0;
         for (var j = 0; j < tool.intents.length; j++) {
           if (tool.intents[j].test(text)) { score += 10 + tool.intents[j].toString().length; break; }
         }
-        if (fileExt) {
-          var ext = fileExt.toLowerCase();
+        if (ext) {
           if (tool.accepts.some(function (a) { return a === ext || a === '.' + ext.replace(/^\./, ''); })) score += 5;
         }
+        // MIME-aware bonus: strongly prefer image-ocr for images, ocr for PDFs
+        if (tool.id === 'image-ocr' && isImage) score += 25;
+        if (tool.id === 'ocr'       && isPdf)   score += 25;
+        // Penalise mismatches: never run OCR PDF on image files
+        if (tool.id === 'ocr'       && isImage) score -= 30;
+        if (tool.id === 'image-ocr' && isPdf)   score -= 30;
+
         if (score > 0) scored.push({ tool: tool, score: score });
       }
       scored.sort(function (a, b) { return b.score - a.score; });
@@ -503,7 +515,26 @@
       var body = d.summary || d.text || d.result || '';
       if (!body && d.similarity !== undefined) body = '**Similarity:** ' + (d.similarity * 100).toFixed(1) + '%\n\n' + (d.report || '');
       if (!body) body = '```json\n' + JSON.stringify(d, null, 2).slice(0, 800) + '\n```';
-      bubble.innerHTML = '<p>✅ <strong>' + _safe(tool.name) + ' complete!</strong></p><p style="margin:4px 0 0">' + _mdToHtml(body.slice(0, 2000)) + '</p>';
+
+      // OCR auto-understanding: detect document type and auto-summarize
+      var ocrInsight = '';
+      if ((tool.id === 'ocr' || tool.id === 'image-ocr') && body && body.length > 30) {
+        var bt = body.toLowerCase();
+        var docType = 'document';
+        if (/invoice|total\s*amount|bill\s*to|payment\s*due|subtotal/i.test(bt))            docType = 'invoice';
+        else if (/contract|agreement|parties|clause|hereby|obligations/i.test(bt))           docType = 'contract or agreement';
+        else if (/medical|diagnosis|patient|prescription|dosage|treatment/i.test(bt))        docType = 'medical report';
+        else if (/resume|curriculum\s*vitae|cv|work\s*experience|skills|references/i.test(bt)) docType = 'resume or CV';
+        else if (/certificate|certify|awarded|completion|training/i.test(bt))               docType = 'certificate';
+        else if (/dear|sincerely|regards|yours\s*faithfully|to\s*whom/i.test(bt))           docType = 'letter';
+        else if (/article|section|\d+\.\d+|whereas|provided\s*that/i.test(bt))              docType = 'legal document';
+        else if (/receipt|paid|transaction|order\s*number|purchase/i.test(bt))              docType = 'receipt';
+        var wordCount = body.split(/\s+/).length;
+        ocrInsight = '\n\n---\n📋 **Auto-analysis:** This appears to be a **' + docType + '** (' + wordCount + ' words extracted).';
+        if (wordCount > 200) ocrInsight += ' Would you like me to **summarize** or **extract key data** from it?';
+      }
+
+      bubble.innerHTML = '<p>✅ <strong>' + _safe(tool.name) + ' complete!</strong></p><p style="margin:4px 0 0">' + _mdToHtml(body.slice(0, 2000) + ocrInsight) + '</p>';
       if (LAC && LAC.Memory && sessId) LAC.Memory.add(sessId, 'assistant', '✅ ' + tool.name + ' complete. ' + body.slice(0, 200));
 
     } else {
