@@ -1023,14 +1023,13 @@
     _delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   }
 
-  /* ---- Bootstrap ---- */
+  /* ---- Bootstrap ----
+   * Visual mount disabled: LabaAiChat (laba-ai-chat.js) is the active
+   * AI assistant. The LabaWidget class is preserved for backward compatibility
+   * but the launcher / popup are never injected into the DOM.
+   */
   function init() {
-    // Suppress old widget when the modern blue LabaAiChat panel is present
-    if (window.LABA_AI_INITIALIZED) return;
-    if (document.getElementById('laba-ai-chat-panel')) return;
-    if (document.getElementById('laba-ai-chat-toggle')) return;
-    if (document.getElementById('laba-launcher')) return;
-    window.__labaWidget = new LabaWidget();
+    return; // replaced by LabaAiChat — no DOM mount
   }
 
   if (document.readyState === 'loading') {

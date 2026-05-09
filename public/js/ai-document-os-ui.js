@@ -545,23 +545,27 @@
   function _init() {
     _injectCSS();
 
-    // Disable preview systems first
+    // Disable preview systems first (essential — keeps tool processing intact)
     PreviewDisabler.disable();
     PreviewDisabler.watchAndSuppress();
 
-    // Build UI components
-    StatusBar.init();
-    SemanticSearchPanel.build();
-    WorkflowTimeline.build();
-    GpuStatusPanel.build();
-    LiveTaskMonitor.build();
-    AiMemoryExplorer.build();
+    // ── Visual debug panels DISABLED for production ──────────────────
+    // All backend telemetry objects (StatusBar, LiveTaskMonitor, etc.)
+    // remain fully functional and accessible via window.AiDocumentOSUI.
+    // Only the DOM mounts are skipped so no debug HUD appears in the UI.
+    //
+    // StatusBar.init();           — bottom debug HUD removed
+    // SemanticSearchPanel.build();— developer search panel removed
+    // WorkflowTimeline.build();   — developer timeline panel removed
+    // GpuStatusPanel.build();     — developer GPU panel removed
+    // LiveTaskMonitor.build();    — developer task panel removed
+    // AiMemoryExplorer.build();   — developer memory panel removed
+    // ─────────────────────────────────────────────────────────────────
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts (Ctrl+' still opens Laba AI chat)
     _bindShortcuts();
 
-    // Adjust body padding for status bar
-    document.body.style.paddingBottom = '28px';
+    // No body padding offset needed (status bar not mounted)
 
     log('AiDocumentOSUI v' + VERSION + ' ready — Ctrl+/ for search, Ctrl+\' for AI chat, Ctrl+W for workflow');
   }
