@@ -205,6 +205,11 @@ function renderHeader(){
       </div>
       <div class="hs-results" id="hs-results" role="listbox" hidden></div>
     </div>
+
+    <div class="v2-auth" id="header-auth-btns">
+      <button class="btn-login" type="button" data-auth="login">Log In</button>
+      <button class="btn-signup" type="button" data-auth="signup">Sign Up</button>
+    </div>
   `;
 
   const allItem = document.getElementById('all-tools-item');
