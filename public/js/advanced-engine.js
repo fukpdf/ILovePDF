@@ -2794,7 +2794,393 @@
     if (!file || file.size < 20) throw new Error('empty_input');
     throw new Error(ERR.ORIG);
   };
-  processors['excel-to-pdf'] = async function (f, o, s) { s(0, 'active', 10, 'Preparing your file\u2026'); throw new Error(ERR.ORIG); };
+  // ─── EXCEL TO PDF — Real Enterprise Pipeline v1.0 ────────────────────────
+  //
+  // Architecture:
+  //   Phase 0  (5-15%)  : Input validation + XLSX + pdf-lib load (IDB-cached)
+  //                        Hidden-sheet detection; workbook metadata
+  //   Phase 1  (15-42%) : Per-sheet metadata scan — first 30 rows each;
+  //                        column-width estimation, font/scale calc, range decode;
+  //                        XLSX range parameter limits row allocation upfront
+  //   Phase 2  (42-82%) : Chunked PDF rendering sheet-by-sheet, ROW_CHUNK rows
+  //                        per yieldToMain(); memTier abort with partial result;
+  //                        continuation headers on overflow pages
+  //   Phase 3  (82-100%): Finalize + DT quality validate
+  //
+  // Improvements over BrowserTools excelToPdf() fallback:
+  //   • XLSX range limiting — never allocates >MAX_RENDER_ROWS rows per sheet
+  //   • ROW_CHUNK batch yield (PERF_MODE-aware 80/200/500) — browser stays responsive
+  //   • rows array null'd immediately after each sheet — no cross-sheet RAM accumulation
+  //   • wb null'd after all sheets — workbook released before pdf.save()
+  //   • Hidden sheet detection (wb.Workbook.Sheets[i].Hidden)
+  //   • memTier() abort: returns partial PDF if device enters 'fallback' tier
+  //   • Per-sheet + per-batch progress via onStep()
+  //   • Math.max empty-array crash bug fixed (guard against empty rows/cols)
+  //   • Continuation page headers for multi-page sheets
+  //   • Full DT() DebugTrace + _quality for analyzeResultQuality scoring
+  //   • BrowserTools fallback PRESERVED — only fires on genuine library failure
+  //
+  processors['excel-to-pdf'] = async function (f, o, s) {
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+
+    var fileSizeMB = (file.size / 1048576).toFixed(1);
+    DT().log('excel-to-pdf-start', {
+      sizeMB: fileSizeMB,
+      opts:   o ? JSON.stringify(o).slice(0, 200) : '{}',
+    });
+
+    // ── Phase 0: load libraries ─────────────────────────────────────────────
+    s(0, 'active', 5, 'Loading engine\u2026');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    if (!window.XLSX) throw new Error('Spreadsheet parser unavailable. Check your connection and try again.');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+    if (!window.PDFLib) throw new Error('PDF engine unavailable. Check your connection and try again.');
+
+    var XLSX   = window.XLSX;
+    var PDFLib = window.PDFLib;
+
+    // ── Options ─────────────────────────────────────────────────────────────
+    var pageSizeKey = String((o && o.pageSize)    || 'A4');
+    var marginKey   = String((o && o.margins)     || 'normal');
+    var orientOpt   = String((o && o.orientation) || '');
+    var scalingOpt  = String((o && o.scaling)     || 'fit-page');
+
+    var PAGE_SIZES   = { A4: [595, 842], Letter: [612, 792], A3: [842, 1191] };
+    var MARGIN_SIZES = { none: 10, narrow: 25, normal: 40, wide: 55 };
+
+    var psSrc    = PAGE_SIZES[pageSizeKey] || PAGE_SIZES.A4;
+    var marginPt = MARGIN_SIZES[marginKey] || MARGIN_SIZES.normal;
+
+    // Safety caps
+    var MAX_RENDER_ROWS = 50000;
+    var MAX_SCAN_ROWS   = 30;
+    var MAX_SCAN_COLS   = 120;
+
+    // ── Phase 0: parse workbook ──────────────────────────────────────────────
+    s(0, 'active', 10, 'Parsing spreadsheet\u2026');
+
+    var ab = await file.arrayBuffer();
+    var wb;
+    try {
+      wb = XLSX.read(ab, { type: 'array' });
+    } finally {
+      ab = null;
+    }
+
+    if (!wb.SheetNames || !wb.SheetNames.length) {
+      throw new Error('No sheets found. Please check this is a valid .xlsx/.xls/.csv file.');
+    }
+
+    // Hidden-sheet detection (wb.Workbook.Sheets[i].Hidden: 0=visible,1=hidden,2=very hidden)
+    var sheetInfos = wb.SheetNames.map(function (name, idx) {
+      var hidden = false;
+      if (wb.Workbook && wb.Workbook.Sheets && wb.Workbook.Sheets[idx]) {
+        var h = wb.Workbook.Sheets[idx].Hidden;
+        hidden = (h === 1 || h === 2);
+      }
+      return { name: name, idx: idx, hidden: hidden };
+    }).filter(function (info) { return !info.hidden; });
+
+    // If all sheets were hidden, fall back to rendering all of them
+    if (!sheetInfos.length) {
+      sheetInfos = wb.SheetNames.map(function (name, idx) {
+        return { name: name, idx: idx, hidden: false };
+      });
+    }
+
+    var totalSheets = sheetInfos.length;
+    var hiddenCount = wb.SheetNames.length - totalSheets;
+    DT().log('excel-to-pdf-sheets', {
+      total: wb.SheetNames.length, active: totalSheets, hidden: hiddenCount,
+    });
+    s(0, 'done', 15);
+
+    // ── Phase 1: per-sheet metadata scan ────────────────────────────────────
+    s(1, 'active', 16, 'Analyzing sheets\u2026');
+
+    // Auto-detect orientation from first sheet column count
+    var firstWs  = wb.Sheets[sheetInfos[0].name];
+    var firstRef = firstWs['!ref'];
+    var firstRng = firstRef ? XLSX.utils.decode_range(firstRef) : null;
+    var firstCols = firstRng ? (firstRng.e.c - firstRng.s.c + 1) : 1;
+    var orient    = orientOpt || (firstCols > 6 ? 'landscape' : 'portrait');
+    var PW        = orient === 'landscape' ? psSrc[1] : psSrc[0];
+    var PH        = orient === 'landscape' ? psSrc[0] : psSrc[1];
+    var usableW   = PW - marginPt * 2;
+    var usableH   = PH - marginPt * 2;
+
+    var sheetMeta = [];
+
+    for (var mi = 0; mi < totalSheets; mi++) {
+      var mInfo  = sheetInfos[mi];
+      var ws     = wb.Sheets[mInfo.name];
+      var wsRef  = ws['!ref'];
+      var wsRng  = wsRef ? XLSX.utils.decode_range(wsRef) : null;
+
+      if (!wsRng) {
+        sheetMeta.push(null);
+        if ((mi + 1) % 10 === 0) await yieldToMain(2);
+        continue;
+      }
+
+      var sheetTotalRows = wsRng.e.r - wsRng.s.r + 1;
+      var sheetTotalCols = wsRng.e.c - wsRng.s.c + 1;
+      var cappedRows     = Math.min(sheetTotalRows, MAX_RENDER_ROWS);
+      var wasCapped      = sheetTotalRows > MAX_RENDER_ROWS;
+
+      // Scan first MAX_SCAN_ROWS rows for column-width estimation
+      var scanEndRow  = Math.min(wsRng.e.r, wsRng.s.r + MAX_SCAN_ROWS - 1);
+      var scanEndCol  = Math.min(wsRng.e.c, wsRng.s.c + MAX_SCAN_COLS - 1);
+      var scanRange   = { s: { r: wsRng.s.r, c: wsRng.s.c }, e: { r: scanEndRow, c: scanEndCol } };
+      var sample      = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', range: scanRange });
+      var numCols     = sample.length
+        ? Math.max.apply(null, sample.map(function (r) { return r.length || 0; }).concat([1]))
+        : Math.max(1, sheetTotalCols);
+
+      var fontSize = Math.max(6, Math.min(10, Math.floor(usableW / numCols / 6)));
+
+      var colMaxW = [];
+      for (var ci = 0; ci < numCols; ci++) {
+        var maxLen = 3;
+        for (var ri = 0; ri < sample.length; ri++) {
+          var cv = sample[ri][ci];
+          var cl = (cv !== undefined && cv !== null) ? String(cv).length : 0;
+          if (cl > maxLen) maxLen = cl;
+        }
+        colMaxW.push(Math.min(maxLen * (fontSize * 0.6), 200));
+      }
+      sample = null;
+
+      var rawTotal       = colMaxW.reduce(function (acc, w) { return acc + w; }, 0) || usableW;
+      var scale          = (rawTotal > usableW && scalingOpt !== 'actual') ? usableW / rawTotal : 1;
+      var colWidths      = colMaxW.map(function (w) { return w * scale; });
+      var actualFontSize = Math.max(6, fontSize * scale);
+      var actualLineH    = actualFontSize * 1.8;
+      var titleRows      = 2; // header label + gap
+      var rowsPerPage    = Math.max(1, Math.floor((usableH - actualLineH * titleRows) / actualLineH));
+
+      sheetMeta.push({
+        name:           mInfo.name,
+        wsRng:          wsRng,
+        totalRows:      cappedRows,
+        wasCapped:      wasCapped,
+        numCols:        numCols,
+        colWidths:      colWidths,
+        actualFontSize: actualFontSize,
+        actualLineH:    actualLineH,
+        rowsPerPage:    rowsPerPage,
+        scale:          scale,
+      });
+
+      var metaPct = 16 + Math.round(((mi + 1) / totalSheets) * 26);
+      s(1, 'active', metaPct, 'Sheet ' + (mi + 1) + ' of ' + totalSheets + '\u2026');
+      if ((mi + 1) % 5 === 0) await yieldToMain(3);
+    }
+
+    s(1, 'done', 42);
+
+    // ── Phase 2: build PDF sheet by sheet ────────────────────────────────────
+    s(2, 'active', 44, 'Building PDF\u2026');
+
+    var _PDFDocument   = PDFLib.PDFDocument;
+    var _StandardFonts = PDFLib.StandardFonts;
+    var _rgb           = PDFLib.rgb;
+
+    var doc  = await _PDFDocument.create();
+    var font = await doc.embedFont(_StandardFonts.Helvetica);
+    var bold = await doc.embedFont(_StandardFonts.HelveticaBold);
+
+    var ROW_CHUNK  = (PERF_MODE === 'high') ? 500 : (PERF_MODE === 'medium') ? 200 : 80;
+    var pagesDone  = 0;
+    var totalRows  = 0;
+    var charTotal  = 0;
+    var sheetsRendered = 0;
+
+    for (var si = 0; si < totalSheets; si++) {
+      if (memTier() === 'fallback') {
+        DT().error('excel-to-pdf-mem-abort', { si: si, pagesDone: pagesDone });
+        break;
+      }
+
+      var meta = sheetMeta[si];
+      if (!meta) continue;
+
+      // Load sheet rows with XLSX range cap — never allocates >MAX_RENDER_ROWS rows
+      var ws2      = wb.Sheets[meta.name];
+      var renderEndRow = Math.min(meta.wsRng.e.r, meta.wsRng.s.r + MAX_RENDER_ROWS - 1);
+      var renderRange  = {
+        s: { r: meta.wsRng.s.r, c: meta.wsRng.s.c },
+        e: { r: renderEndRow,   c: meta.wsRng.e.c  },
+      };
+      var rows = XLSX.utils.sheet_to_json(ws2, {
+        header: 1, defval: '', range: renderRange,
+      });
+      ws2 = null;
+
+      if (!rows.length) {
+        sheetMeta[si] = null;
+        continue;
+      }
+
+      totalRows  += rows.length;
+      sheetsRendered++;
+
+      var afs  = meta.actualFontSize;
+      var alh  = meta.actualLineH;
+      var cws  = meta.colWidths;
+      var nc   = meta.numCols;
+
+      var sheetLabel = 'Sheet: ' + meta.name +
+        (meta.wasCapped ? ' (first ' + MAX_RENDER_ROWS.toLocaleString() + ' rows)' : '');
+
+      // ── Start first page for this sheet ──────────────────────────────────
+      var page = doc.addPage([PW, PH]);
+      pagesDone++;
+      var pageInSheet = 1;
+      var titleY = PH - marginPt;
+
+      function _drawSheetHeader(pg, label) {
+        try { pg.drawText(label, {
+          x: marginPt, y: titleY - afs,
+          size: Math.min(12, afs + 2), font: bold, color: _rgb(0.15, 0.15, 0.5),
+        }); } catch (_) {}
+      }
+
+      _drawSheetHeader(page, sheetLabel);
+      var y = titleY - afs * 2 - 4;
+
+      // ── Render rows in ROW_CHUNK batches ──────────────────────────────────
+      for (var ri2 = 0; ri2 < rows.length; ri2++) {
+        // Page overflow check
+        if (y < marginPt + alh) {
+          page = doc.addPage([PW, PH]);
+          pagesDone++;
+          pageInSheet++;
+          _drawSheetHeader(page, 'Sheet: ' + meta.name + ' (cont. p' + pageInSheet + ')');
+          y = titleY - afs * 2 - 4;
+        }
+
+        var row    = rows[ri2];
+        var isHdr  = ri2 === 0;
+        var uFont  = isHdr ? bold : font;
+
+        // Header row background
+        if (isHdr) {
+          var hdrW = 0;
+          for (var hi = 0; hi < nc; hi++) hdrW += (cws[hi] || 0);
+          hdrW = Math.min(hdrW, usableW);
+          try { page.drawRectangle({
+            x: marginPt, y: y - alh + 2, width: hdrW, height: alh,
+            color: _rgb(0.91, 0.91, 0.97),
+          }); } catch (_) {}
+        }
+
+        // Draw cells
+        var x2 = marginPt;
+        for (var ci2 = 0; ci2 < nc; ci2++) {
+          var colW2 = cws[ci2] || 0;
+          if (x2 + colW2 > PW - marginPt + 1) break;
+          var rawCell  = (row[ci2] !== undefined && row[ci2] !== null) ? String(row[ci2]) : '';
+          var maxChars = Math.max(1, Math.floor(colW2 / (afs * 0.55)));
+          var cell     = rawCell.length > maxChars ? rawCell.slice(0, maxChars - 1) + '\u2026' : rawCell;
+          charTotal += rawCell.length;
+          if (cell) {
+            try { page.drawText(cell, {
+              x: x2 + 2, y: y - alh + 4, size: afs, font: uFont, color: _rgb(0, 0, 0),
+            }); } catch (_) {}
+          }
+          // Vertical column divider (skip leftmost)
+          if (ci2 > 0) {
+            try { page.drawLine({
+              start: { x: x2, y: y + 2 }, end: { x: x2, y: y - alh + 1 },
+              thickness: 0.25, color: _rgb(0.8, 0.8, 0.8),
+            }); } catch (_) {}
+          }
+          x2 += colW2;
+        }
+
+        // Horizontal row divider
+        var rowWidth = Math.min(x2 - marginPt, usableW);
+        try { page.drawLine({
+          start: { x: marginPt,             y: y - alh },
+          end:   { x: marginPt + rowWidth,  y: y - alh },
+          thickness: isHdr ? 0.75 : 0.25,
+          color:     isHdr ? _rgb(0.55, 0.55, 0.75) : _rgb(0.82, 0.82, 0.82),
+        }); } catch (_) {}
+
+        y -= alh;
+
+        // Yield + progress every ROW_CHUNK rows
+        if ((ri2 + 1) % ROW_CHUNK === 0) {
+          if (memTier() === 'fallback') {
+            DT().error('excel-to-pdf-row-mem-abort', { si: si, ri: ri2, pagesDone: pagesDone });
+            rows.length = ri2 + 1; // truncate — break outer for-of on next iteration
+            break;
+          }
+          var rowFrac    = (ri2 + 1) / Math.max(1, rows.length);
+          var sheetFrac  = (si + rowFrac) / totalSheets;
+          var renderPct  = 44 + Math.round(sheetFrac * 38);
+          s(2, 'active', Math.min(renderPct, 81),
+            'Sheet ' + (si + 1) + '/' + totalSheets + ' \u00b7 Row ' + (ri2 + 1) + '/' + rows.length);
+          await yieldToMain(6);
+        }
+      }
+
+      safeArrayNull(rows); rows = null;
+      sheetMeta[si] = null;
+
+      var sheetPct = 44 + Math.round(((si + 1) / totalSheets) * 38);
+      s(2, 'active', Math.min(sheetPct, 82), 'Sheet ' + (si + 1) + ' of ' + totalSheets + ' complete\u2026');
+      await yieldToMain(4);
+    }
+
+    // Release workbook — no longer needed
+    wb = null;
+    safeArrayNull(sheetMeta); sheetMeta = null;
+
+    s(2, 'done', 82);
+
+    // ── Phase 3: finalize + validate ─────────────────────────────────────────
+    s(3, 'active', 84, 'Finalizing output\u2026');
+
+    var pdfBytes = await doc.save();
+    doc = null;
+    var blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    pdfBytes = null;
+
+    if (blob.size < 500) {
+      throw new Error('PDF generation produced an empty result. Please try a different file.');
+    }
+
+    DT().validate('excel-to-pdf-quality', {
+      blobSize:      blob.size,
+      totalSheets:   sheetsRendered,
+      totalRows:     totalRows,
+      charTotal:     charTotal,
+      pagesDone:     pagesDone,
+      pageSizeKey:   pageSizeKey,
+      orient:        orient,
+      hiddenSkipped: hiddenCount,
+    });
+    DT().result('excel-to-pdf-complete', {
+      sizeMB:  (blob.size / 1048576).toFixed(2),
+      sheets:  sheetsRendered,
+      rows:    totalRows,
+      pages:   pagesDone,
+      chars:   charTotal,
+    });
+
+    s(3, 'done', 100);
+
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.pdf'),
+      _quality: { rows: totalRows, paras: pagesDone, pages: sheetsRendered, chars: charTotal },
+    };
+  };
   processors['html-to-pdf'] = async function (f, o, s) {
     s(0, 'active', 10, 'Preparing your document\u2026');
     // Phase 20E: wait for web fonts to finish loading before handing off to
