@@ -48,7 +48,10 @@ function _listLevel(text) {
 // rows       — string[][] (each row is an array of cell strings)
 // numCols    — (optional) override column count; auto-detected from rows if absent
 // isOcrTable — true when rows came from OCR (lighter borders, no header bold)
-function buildTableXml(rows, numCols, isOcrTable) {
+// colWidths  — (optional) number[] of proportional x-spans from clusterCellsByXandY
+//              If provided, widths are distributed proportionally instead of equally.
+//              Fix B4/B7: proportional column widths for forms and invoices.
+function buildTableXml(rows, numCols, isOcrTable, colWidths) {
   if (!rows || !rows.length) return '';
 
   // Normalise col count
@@ -57,13 +60,29 @@ function buildTableXml(rows, numCols, isOcrTable) {
 
   // Usable page width: A4-like (12240 twips) minus 1080+1080 margins = 10080 twips
   var USABLE = 10080;
-  var colW   = Math.max(600, Math.floor(USABLE / nc)); // min 600 per col
+
+  // Fix B4: compute per-column widths (twips) either from proportional spans or equal
+  var colW_arr;
+  if (colWidths && colWidths.length === nc) {
+    var spanTotal = colWidths.reduce(function(s, v) { return s + (v || 30); }, 0) || 1;
+    colW_arr = colWidths.map(function(span) {
+      return Math.max(600, Math.round(USABLE * (span || 30) / spanTotal));
+    });
+    // Adjust last column so total == USABLE exactly (rounding errors)
+    var assigned = colW_arr.reduce(function(s, v) { return s + v; }, 0);
+    if (assigned !== USABLE) colW_arr[colW_arr.length - 1] += (USABLE - assigned);
+  } else {
+    var eqW = Math.max(600, Math.floor(USABLE / nc));
+    colW_arr = [];
+    for (var ei = 0; ei < nc; ei++) colW_arr.push(eqW);
+  }
+  var totalW = colW_arr.reduce(function(s, v) { return s + v; }, 0);
 
   // ── Table properties ──────────────────────────────────────────────────────
   var xml = '<w:tbl>';
   xml += '<w:tblPr>' +
     '<w:tblStyle w:val="TableGrid"/>' +
-    '<w:tblW w:w="' + (colW * nc) + '" w:type="dxa"/>' +
+    '<w:tblW w:w="' + totalW + '" w:type="dxa"/>' +
     '<w:tblLayout w:type="fixed"/>' +
     '<w:tblCellMar>' +
       '<w:top w:w="80" w:type="dxa"/>' +
@@ -74,10 +93,10 @@ function buildTableXml(rows, numCols, isOcrTable) {
     '<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>' +
   '</w:tblPr>';
 
-  // ── Grid columns ──────────────────────────────────────────────────────────
+  // ── Grid columns (proportional widths) ────────────────────────────────────
   xml += '<w:tblGrid>';
   for (var gi = 0; gi < nc; gi++) {
-    xml += '<w:gridCol w:w="' + colW + '"/>';
+    xml += '<w:gridCol w:w="' + colW_arr[gi] + '"/>';
   }
   xml += '</w:tblGrid>';
 
@@ -99,16 +118,17 @@ function buildTableXml(rows, numCols, isOcrTable) {
     trPr += '</w:trPr>';
     xml  += trPr;
 
-    // Cells
+    // Cells — each with its own proportional width
     for (var ci = 0; ci < nc; ci++) {
       var cellVal = (row[ci] !== undefined && row[ci] !== null) ? String(row[ci]) : '';
-      var cellSz  = isHeader ? '20' : '20';
+      var cellSz  = '20';
       var cellClr = isHeader ? '1E3A5F' : '374151';
       var bold    = isHeader ? '<w:b/>' : '';
+      var cw      = colW_arr[ci] || Math.max(600, Math.floor(USABLE / nc));
 
       xml += '<w:tc>' +
         '<w:tcPr>' +
-          '<w:tcW w:w="' + colW + '" w:type="dxa"/>' +
+          '<w:tcW w:w="' + cw + '" w:type="dxa"/>' +
           '<w:shd w:val="clear" w:color="auto" w:fill="' + rowFill + '"/>' +
           '<w:tcBorders>' +
             '<w:top w:val="single" w:sz="4" w:space="0" w:color="9CA3AF"/>' +
@@ -171,8 +191,9 @@ async function buildDocx(pages) {
         var para = paragraphs[qi];
 
         // ── Real table ──────────────────────────────────────────────────────
+        // Fix B4/B7: pass colWidths for proportional column rendering
         if (para.isTable && para.rows && para.rows.length) {
-          body.push(buildTableXml(para.rows, para.colCount, para.isOcrTable));
+          body.push(buildTableXml(para.rows, para.colCount, para.isOcrTable, para.colWidths));
           continue;
         }
 
@@ -246,11 +267,16 @@ async function buildDocx(pages) {
         }
 
         // ── Normal paragraph ─────────────────────────────────────────────────
+        // Fix B5: apply <w:b/> and <w:i/> when the engine detected bold/italic
+        // font names on the PDF text items for this paragraph.
+        var pBold   = para.bold   ? '<w:b/><w:bCs/>'   : '';
+        var pItalic = para.italic ? '<w:i/><w:iCs/>'   : '';
         body.push(
           '<w:p><w:pPr>' +
             '<w:spacing w:line="276" w:lineRule="auto" w:after="100"/>' +
           '</w:pPr>' +
           '<w:r><w:rPr>' +
+            pBold + pItalic +
             '<w:sz w:val="22"/><w:color w:val="374151"/>' +
             '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
           '</w:rPr>' +

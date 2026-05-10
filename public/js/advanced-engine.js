@@ -1447,48 +1447,50 @@
     // We also try to separate header lines (above the table y-range) from table rows
     // so that headings above the table are still preserved as heading paragraphs.
     if (validItems.length >= 6 && detectTableGridByAlignment(items)) {
-      var tableRows = clusterCellsByXandY(items);
-      if (tableRows && tableRows.length >= 2 && tableRows[0] && tableRows[0].length >= 2) {
-        // Determine the y-range of items that were clustered into the table.
-        // Items whose y-coordinates are outside the table band are extracted as
-        // non-table paragraphs (headings, captions) so they are not lost.
-        var tableYs = {};
-        validItems.forEach(function(it) {
-          var yKey = Math.round(it.transform[5] / 6) * 6;
-          tableYs[yKey] = true;
-        });
+      // Fix B3/B8: Compute heading band FIRST from all valid items, then pass
+      // only non-heading items to clusterCellsByXandY to eliminate duplicates.
+      // In PDF.js coordinates y=0 is at the BOTTOM; higher y = higher on page.
+      var allYs = validItems.map(function(it) { return Math.round(it.transform[5] / 6) * 6; });
+      var yMin  = Math.min.apply(null, allYs);
+      var yMax  = Math.max.apply(null, allYs);
+      var yBand = (yMax - yMin) || 1;
 
+      // Items in the top 12% of y-range (highest y values) are headings/captions.
+      var headingYThreshold = yMax - yBand * 0.12;
+      var headingItems  = validItems.filter(function(it) {
+        return Math.round(it.transform[5] / 6) * 6 > headingYThreshold;
+      });
+      // Non-heading items go to the table clusterer — no overlap with headings
+      var tableItems = (headingItems.length > 0 && headingItems.length < validItems.length * 0.25)
+        ? validItems.filter(function(it) {
+            return Math.round(it.transform[5] / 6) * 6 <= headingYThreshold;
+          })
+        : validItems;
+
+      var tableRows = clusterCellsByXandY(tableItems.length >= 4 ? tableItems : validItems);
+      if (tableRows && tableRows.length >= 2 && tableRows[0] && tableRows[0].length >= 2) {
         var result = [];
 
-        // Extract any heading paragraphs that appear above the table cluster.
-        // Use a lighter heuristic: items with large font in the top 15% of the page.
-        var ys = Object.keys(tableYs).map(Number);
-        var yMin = Math.min.apply(null, ys);
-        var yMax = Math.max.apply(null, ys);
-        var yBand = (yMax - yMin) || 1;
-
-        // Items in the top 12% of y-range are treated as headings/captions outside the table
-        var headingItems = validItems.filter(function(it) {
-          var yKey = Math.round(it.transform[5] / 6) * 6;
-          return yKey > yMax - yBand * 0.12;
-        });
+        // Emit headings/captions that sit above the table band (deduplicated)
         if (headingItems.length > 0 && headingItems.length < validItems.length * 0.25) {
           var headerParas = _buildParaLines(headingItems, medianH, maxH);
           headerParas.forEach(function(hp) { result.push(hp); });
         }
 
-        // Emit the table
+        // Fix B4/B7: propagate proportional column widths to the worker
         result.push({
-          isTable:  true,
-          rows:     tableRows,
-          colCount: tableRows[0].length,
-          text:     '',   // no plain text for table items
+          isTable:   true,
+          rows:      tableRows,
+          colCount:  tableRows[0].length,
+          colWidths: tableRows._colWidths || null,
+          text:      '',
         });
 
         DT().log('doc-parser-v4-table', {
           rows: tableRows.length,
           cols: tableRows[0] ? tableRows[0].length : 0,
           items: validItems.length,
+          headingsSplit: headingItems.length,
         });
         return result;
       }
@@ -1568,8 +1570,10 @@
       var lineText = _reconstructLineText(lineItems);
       if (!lineText) return;
 
-      var lineMaxH = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
-      var lineBold = lineItems.some(function(it) { return it.fontName && /bold/i.test(it.fontName); });
+      var lineMaxH   = Math.max.apply(null, lineItems.map(function (it) { return Math.abs(it.transform[3]); }));
+      var lineBold   = lineItems.some(function(it) { return it.fontName && /bold/i.test(it.fontName); });
+      // Fix B5: detect italic runs so buildDocx can apply <w:i/> markup
+      var lineItalic = lineItems.some(function(it) { return it.fontName && /italic|oblique/i.test(it.fontName); });
 
       // Classify line — v5.4: richer detection
       var isList    = _LIST_RE.test(lineText);
@@ -1609,19 +1613,25 @@
           } else {
             last.text += ' ' + lineText;
           }
-          last.isList = last.isList || isList;
+          last.isList  = last.isList  || isList;
+          last.bold    = last.bold    || lineBold;
+          last.italic  = last.italic  || lineItalic;
         } else {
-          paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList, isNumList: isNumList });
+          paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList, isNumList: isNumList,
+            bold: lineBold, italic: lineItalic });
         }
       } else {
         // Group related blocks: if a list item follows a heading, tag them
+        // Fix B5: store bold/italic flags for buildDocx to apply run markup
         paragraphs.push({
-          text: lineText,
+          text:      lineText,
           isHeading: isHeading,
-          isList: isList,
+          isList:    isList,
           isNumList: isNumList,
           isSection: isSection,
-          level: isHeading ? _headingLevel(lineMaxH, medianH, maxH) : 0,
+          level:     isHeading ? _headingLevel(lineMaxH, medianH, maxH) : 0,
+          bold:      lineBold,
+          italic:    lineItalic,
         });
       }
 
@@ -1638,20 +1648,35 @@
   }
 
   // Reconstruct line text with intelligent spacing
+  // Fix B2: Stitch fragmented placeholder tokens (e.g. "D D - M M - Y Y Y Y")
+  // When consecutive items are short (≤2 chars) and the gap is tiny relative to
+  // font size, join without inserting a space — they are one logical token.
   function _reconstructLineText(lineItems) {
     if (!lineItems.length) return '';
     var parts = [];
-    var prevEnd = null;
+    var prevEnd  = null;
+    var prevItem = null;
     lineItems.forEach(function(it) {
       if (!it.str) return;
-      var x = it.transform[4];
-      if (prevEnd !== null && x - prevEnd > 3) {
-        // Gap between items: add space if missing
-        var lastPart = parts[parts.length - 1] || '';
-        if (lastPart && !lastPart.endsWith(' ')) parts.push(' ');
+      var x    = it.transform[4];
+      var gap  = prevEnd !== null ? x - prevEnd : 0;
+      var fontH = Math.abs(it.transform[3]) || 10;
+
+      if (prevEnd !== null && gap > 3) {
+        // Placeholder-stitching heuristic: if both this and the previous item
+        // are short (≤2 chars) and the gap is less than 1 character width,
+        // they are part of a fragmented placeholder — join without space.
+        var prevStr    = prevItem ? prevItem.str : '';
+        var isShortSeq = it.str.length <= 2 && prevStr.length <= 2;
+        var isNarrowGap = gap < fontH * 0.9; // less than ~0.9 char-widths
+        if (!(isShortSeq && isNarrowGap)) {
+          var lastPart = parts[parts.length - 1] || '';
+          if (lastPart && !lastPart.endsWith(' ')) parts.push(' ');
+        }
       }
       parts.push(it.str);
-      prevEnd = x + (it.width || it.str.length * Math.abs(it.transform[3]) * 0.5);
+      prevEnd  = x + (it.width || it.str.length * fontH * 0.5);
+      prevItem = it;
     });
     return parts.join('').replace(/\s+/g, ' ').trim();
   }
@@ -1671,6 +1696,9 @@
   // Rejects: single-column results, no numeric/text pattern (not real tables).
 
   // detectTableGridByAlignment: smart grid detection
+  // Fix B1/B6: Relax variance gate — only reject high-variance when 3+ column
+  // gaps exist. 2-column (label+value) forms have exactly 1 gap and are never
+  // rejected by variance. 3-column grids are still validated for regularity.
   function detectTableGridByAlignment(items) {
     if (!items || items.length < 6) return false;
     var filtered = items.filter(function (it) { return it.str.trim(); });
@@ -1682,15 +1710,19 @@
     var alignedCols = Object.keys(xFreq).filter(function (x) { return xFreq[x] >= 2; });
     if (alignedCols.length < 2) return false;
 
-    // Spacing consistency: check that x-gaps are regular (table-like)
+    // Spacing consistency: check that x-gaps are regular (table-like).
+    // Fix B6: Only apply variance rejection when there are 3+ columns (2+ gaps).
+    // For 2-column documents (1 gap) variance is always 0 — skip check entirely.
+    // For sparse label-value forms with irregular column spacing the CV threshold
+    // is raised from 1.5 → 2.2 to accept proportionally wider value columns.
     var colXs = alignedCols.map(Number).sort(function(a,b) { return a - b; });
-    if (colXs.length >= 2) {
+    if (colXs.length >= 3) {
       var gaps = [];
       for (var gi = 1; gi < colXs.length; gi++) gaps.push(colXs[gi] - colXs[gi-1]);
       var avgGap = gaps.reduce(function(s,g){return s+g;},0) / gaps.length;
       var gapVariance = gaps.reduce(function(s,g){return s+Math.pow(g-avgGap,2);},0) / gaps.length;
-      // High variance means irregular spacing — likely not a proper table
-      if (avgGap > 5 && Math.sqrt(gapVariance) / avgGap > 1.5) return false;
+      // Raised CV threshold (1.5 → 2.2) to accept real tables with uneven cols
+      if (avgGap > 5 && Math.sqrt(gapVariance) / avgGap > 2.2) return false;
     }
 
     var ys = filtered.map(function (it) { return Math.round(it.transform[5] / 6) * 6; });
@@ -1701,6 +1733,8 @@
   }
 
   // clusterCellsByXandY: precision cell clustering with consistent column enforcement
+  // Fix B4/B7: Compute per-column x-span proportions and attach as _colWidths[]
+  // so buildTableXml can produce proportional (non-equal) column widths.
   function clusterCellsByXandY(items) {
     if (!items || !items.length) return [];
 
@@ -1720,6 +1754,8 @@
       return i === 0 || b - xBoundaries[i-1] > 10;
     });
 
+    var nc = xBoundaries.length + 1; // total number of columns
+
     function getCol(x) {
       for (var bi = 0; bi < xBoundaries.length; bi++) {
         if (x < xBoundaries[bi]) return bi;
@@ -1729,12 +1765,21 @@
 
     var cells  = {};
     var maxCol = 0;
+    // Track min and max x seen per column for width estimation
+    var colXMin = {};
+    var colXMax = {};
     filtered.forEach(function (it) {
+      var rawX = Math.round(it.transform[4]);
       var yKey = Math.round(it.transform[5] / 6) * 6;
-      var col  = getCol(Math.round(it.transform[4]));
+      var col  = getCol(rawX);
       maxCol   = Math.max(maxCol, col);
       if (!cells[yKey]) cells[yKey] = {};
       cells[yKey][col] = (cells[yKey][col] ? cells[yKey][col] + ' ' : '') + it.str.trim();
+      // Accumulate x-extent per column for proportional width calc
+      if (colXMin[col] === undefined || rawX < colXMin[col]) colXMin[col] = rawX;
+      var itemW = it.width || it.str.length * (Math.abs(it.transform[3]) || 10) * 0.55;
+      var rawXEnd = rawX + itemW;
+      if (colXMax[col] === undefined || rawXEnd > colXMax[col]) colXMax[col] = rawXEnd;
     });
 
     var ys = Object.keys(cells).map(Number).sort(function (a, b) { return b - a; });
@@ -1761,6 +1806,18 @@
       });
       if (!allSingleWord && rows.length < 2) return []; // Not enough structure (only reject single-row results)
     }
+
+    // Fix B4/B7: Compute proportional column widths from actual x-extents.
+    // For each column, span = max(xEnd) - min(xStart), with a floor of 30px.
+    // Attach as _colWidths[] property on the rows array so callers can pass it
+    // to buildTableXml for proper proportional rendering.
+    var colSpans = [];
+    for (var cj = 0; cj <= maxCol; cj++) {
+      var lo  = colXMin[cj] !== undefined ? colXMin[cj] : 0;
+      var hi  = colXMax[cj] !== undefined ? colXMax[cj] : lo + 60;
+      colSpans.push(Math.max(30, hi - lo));
+    }
+    rows._colWidths = colSpans;
 
     return rows;
   }
