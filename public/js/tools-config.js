@@ -16,6 +16,7 @@ window.SLUG_MAP = {
   'word-to-pdf':       { id:'word-to-pdf'   },
   'powerpoint-to-pdf': { id:'powerpoint-to-pdf' },
   'excel-to-pdf':      { id:'excel-to-pdf'  },
+  'word-to-excel':     { id:'word-to-excel' },
   'jpg-to-pdf':        { id:'jpg-to-pdf'    },
   'html-to-pdf':       { id:'html-to-pdf'   },
   'edit-pdf':          { id:'edit'          },
@@ -298,6 +299,13 @@ const TOOLS = [
       { id: 'margins',     label: 'Margins',     type: 'select', options: [{ value:'normal', label:'Normal' }, { value:'narrow', label:'Narrow' }, { value:'none', label:'None' }] },
       { id: 'scaling',     label: 'Scaling',     type: 'select', options: [{ value:'fit-page', label:'Fit Page' }, { value:'fit-width', label:'Fit Width' }, { value:'actual', label:'Actual Size' }] },
     ]
+  },
+  {
+    id: 'word-to-excel', name: 'Word to Excel', icon: 'table',
+    description: 'Extract tables and structured data from Word documents into Excel',
+    category: 'Convert To PDF', group: 'pdf', badge: 'NEW',
+    apiEndpoint: '/api/word-to-excel', acceptedFiles: '.doc,.docx',
+    multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
     id: 'jpg-to-pdf', name: 'JPG to PDF', icon: 'file-image', clientSide: true,

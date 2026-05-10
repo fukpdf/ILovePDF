@@ -115,6 +115,7 @@ export const SLUG_MAP = {
   'word-to-pdf':       { id:'word-to-pdf',       name:'Word to PDF' },
   'powerpoint-to-pdf': { id:'powerpoint-to-pdf', name:'PowerPoint to PDF' },
   'excel-to-pdf':      { id:'excel-to-pdf',      name:'Excel to PDF' },
+  'word-to-excel':     { id:'word-to-excel',     name:'Word to Excel' },
   'jpg-to-pdf':        { id:'jpg-to-pdf',        name:'JPG to PDF' },
   'html-to-pdf':       { id:'html-to-pdf',       name:'HTML to PDF' },
   // ── Edit & Annotate ─────────────────────────────────────────────────────
@@ -157,6 +158,7 @@ const RELATED = {
   'word-to-pdf':     ['pdf-to-word','jpg-to-pdf','html-to-pdf','merge-pdf'],
   'powerpoint-to-pdf':['pdf-to-powerpoint','word-to-pdf','jpg-to-pdf','merge-pdf'],
   'excel-to-pdf':    ['pdf-to-excel','word-to-pdf','jpg-to-pdf','protect-pdf'],
+  'word-to-excel':   ['excel-to-pdf','pdf-to-excel','word-to-pdf','ocr-pdf'],
   'jpg-to-pdf':      ['pdf-to-jpg','word-to-pdf','crop-image','resize-image'],
   'html-to-pdf':     ['word-to-pdf','jpg-to-pdf','merge-pdf','protect-pdf'],
   'edit-pdf':        ['watermark-pdf','sign-pdf','add-page-numbers','redact-pdf'],

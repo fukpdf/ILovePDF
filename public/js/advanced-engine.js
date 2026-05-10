@@ -696,6 +696,7 @@
     'excel-to-pdf':      'normal',
     'html-to-pdf':       'normal',
     'powerpoint-to-pdf': 'normal',
+    'word-to-excel':     'normal',
     // LOW — restructure / annotate / security (less time-critical)
     'compress':          'low',
     'merge':             'low',
@@ -1786,6 +1787,7 @@
     'ai-summarize':       20,
     'translate':          20,
     'workflow':           200,
+    'word-to-excel':      1000,
   };
 
   // Tier 1: size gate on final Blob — catches truly empty/corrupt outputs
@@ -1876,6 +1878,12 @@
       var wpdfChars = data.chars      !== undefined ? data.chars      : 0;
       if (wpdfParas === 0 && wpdfChars < 10) issues.push('no_content_extracted');
     }
+    else if (toolId === 'word-to-excel') {
+      var w2xRows   = data.rows   !== undefined ? data.rows   : 0;
+      var w2xSheets = data.sheets !== undefined ? data.sheets : 0;
+      if (w2xRows < 1)   issues.push('no_data_rows');
+      if (w2xSheets < 1) issues.push('no_sheets_generated');
+    }
     else if (toolId === 'background-remover') {
       if (data.hasTransparent === false) issues.push('no_transparent_pixels');
     }
@@ -1897,6 +1905,7 @@
   //   < 0.40 → FAIL — binary tools throw 'low_quality_output'; text tools just log
   var _BINARY_TOOLS = new Set([
     'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
+    'word-to-excel',
     'background-remover', 'repair', 'compress',
   ]);
 
@@ -2291,6 +2300,7 @@
     'sign':               ['Analyzing document',    'Processing signature',  'Applying signature',     'Preparing download'],
     'redact':             ['Analyzing document',    'Locating content',      'Applying redaction',     'Preparing download'],
     'powerpoint-to-pdf':  ['Analyzing document',    'Processing slides',     'Generating result',      'Preparing download'],
+    'word-to-excel':      ['Analyzing document',    'Extracting content',    'Building spreadsheet',   'Preparing download'],
   };
 
   var ADVANCED_IDS = new Set(Object.keys(TOOL_STEPS));
@@ -3722,6 +3732,261 @@
       _quality: { rows: totalRows, paras: pagesDone, pages: sheetsRendered, chars: charTotal },
     };
   };
+  // ─── WORD TO EXCEL — Real Enterprise Pipeline v1.0 ───────────────────────
+  //
+  // Architecture:
+  //   Phase 0  (5-18%)  : Input validation + mammoth + XLSX load (IDB-cached)
+  //                        DOCX parsed → full HTML via mammoth
+  //   Phase 1  (18-55%) : HTML DOM walked → multi-strategy sheet extraction
+  //                        Strategy 1: native <table> elements (one sheet per table)
+  //                        Strategy 2: definition-list <dl> key-value pairs
+  //                        Strategy 3: heading-grouped paragraphs (Section|Content)
+  //                        Strategy 4: full-text fallback (row-per-paragraph)
+  //                        DOM released immediately after extraction
+  //   Phase 2  (55-90%) : Numeric coercion + buildXlsx via advanced-worker.js
+  //   Phase 3  (90-100%): blob finalize + DT quality validate
+  //
+  // Design rules (same as word-to-pdf / excel-to-pdf):
+  //   • ArrayBuffer null'd immediately after mammoth parse
+  //   • DOM released after element extraction
+  //   • Numeric coercion strips currency symbols / thousands commas
+  //   • Full DT() DebugTrace + _quality for analyzeResultQuality
+  //   • validateContent('word-to-excel') gate active
+  //   • brandedFilename + .xlsx MIME type
+  //
+  processors['word-to-excel'] = async function (f, o, s) {
+    var file = f && f[0];
+    if (!file || file.size < 20) throw new Error('empty_input');
+
+    var fileSizeMB = (file.size / 1048576).toFixed(1);
+    DT().log('word-to-excel-start', { sizeMB: fileSizeMB });
+
+    // ── Phase 0: load libraries ───────────────────────────────────────────
+    s(0, 'active', 5, 'Loading engine\u2026');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+    if (!window.mammoth) throw new Error('Document parser unavailable. Check your connection and try again.');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    if (!window.XLSX) throw new Error('Spreadsheet engine unavailable. Check your connection and try again.');
+
+    DT().log('word-to-excel-libs-ready', {});
+
+    // ── Phase 0b: DOCX → HTML via mammoth ────────────────────────────────
+    s(0, 'active', 12, 'Parsing document\u2026');
+
+    var ab = await file.arrayBuffer();
+    var mammothResult;
+    try {
+      mammothResult = await window.mammoth.convertToHtml({ arrayBuffer: ab });
+    } finally {
+      ab = null; // release ArrayBuffer immediately — mammoth holds internal copy
+    }
+
+    var htmlContent = (mammothResult && mammothResult.value) || '';
+    mammothResult = null;
+
+    if (!htmlContent.trim()) {
+      throw new Error('Could not extract content from this Word document. The file may be empty or in an unsupported format.');
+    }
+
+    DT().log('word-to-excel-html-ready', { htmlLen: htmlContent.length });
+    s(0, 'done', 18);
+
+    // ── Phase 1: HTML → structured sheets ────────────────────────────────
+    s(1, 'active', 20, 'Extracting content\u2026');
+
+    var parser  = new DOMParser();
+    var htmlDoc = parser.parseFromString('<div id="wr">' + htmlContent + '</div>', 'text/html');
+    htmlContent = null;
+
+    var rootEl   = htmlDoc.getElementById('wr') || htmlDoc.body;
+    var children = rootEl ? Array.from(rootEl.children) : [];
+
+    var sheets = [];
+
+    // ── Strategy 1: native <table> elements (highest fidelity) ───────────
+    var domTables = rootEl ? rootEl.querySelectorAll('table') : [];
+    DT().log('word-to-excel-tables', { count: domTables.length });
+
+    if (domTables && domTables.length > 0) {
+      var tableIdx = 0;
+      for (var ti = 0; ti < domTables.length; ti++) {
+        tableIdx++;
+        var tbl   = domTables[ti];
+        var rows  = [];
+        var trs   = tbl.querySelectorAll('tr');
+        var maxCols = 0;
+
+        for (var ri = 0; ri < trs.length; ri++) {
+          var cells = trs[ri].querySelectorAll('th, td');
+          var row   = [];
+          for (var di = 0; di < cells.length; di++) {
+            row.push((cells[di].textContent || '').trim());
+          }
+          if (row.length > maxCols) maxCols = row.length;
+          if (row.some(function (c) { return c; })) rows.push(row);
+        }
+
+        if (rows.length > 0 && maxCols > 0) {
+          // Normalize all rows to maxCols width
+          for (var nri = 0; nri < rows.length; nri++) {
+            while (rows[nri].length < maxCols) rows[nri].push('');
+          }
+          // Sheet name: prefer heading immediately before table, else "Table N"
+          var sheetName = 'Table ' + tableIdx;
+          var prevEl = tbl.previousElementSibling;
+          if (prevEl && /^h[1-6]$/i.test(prevEl.tagName || '')) {
+            var headingText = (prevEl.textContent || '').trim().slice(0, 31);
+            if (headingText) sheetName = headingText;
+          }
+          sheets.push({ name: sheetName, rows: rows });
+        }
+      }
+      DT().log('word-to-excel-strategy', { method: 'native-tables', sheets: sheets.length });
+    }
+
+    // ── Strategy 2: definition-list key-value pairs ───────────────────────
+    if (sheets.length === 0 && rootEl) {
+      var kvRows = [['Key', 'Value']];
+      var dls    = rootEl.querySelectorAll('dl');
+      for (var dli = 0; dli < dls.length; dli++) {
+        var dts = dls[dli].querySelectorAll('dt');
+        var dds = dls[dli].querySelectorAll('dd');
+        var pairLen = Math.max(dts.length, dds.length);
+        for (var pi = 0; pi < pairLen; pi++) {
+          kvRows.push([
+            dts[pi] ? (dts[pi].textContent || '').trim() : '',
+            dds[pi] ? (dds[pi].textContent || '').trim() : '',
+          ]);
+        }
+      }
+      if (kvRows.length >= 3) {
+        sheets.push({ name: 'Document Data', rows: kvRows });
+        DT().log('word-to-excel-strategy', { method: 'definition-list', rows: kvRows.length });
+      }
+    }
+
+    // ── Strategy 3: heading-grouped paragraphs → Section|Content ─────────
+    if (sheets.length === 0 && children.length > 0) {
+      var sectionRows   = [['Section', 'Content']];
+      var curSection    = 'Document';
+      var curLines      = [];
+
+      for (var ci = 0; ci < children.length; ci++) {
+        var ch  = children[ci];
+        var tag = (ch.tagName || '').toLowerCase();
+        if (/^h[1-6]$/.test(tag)) {
+          if (curLines.length > 0) {
+            sectionRows.push([curSection, curLines.join('\n')]);
+            curLines = [];
+          }
+          curSection = (ch.textContent || '').trim() || ('Section ' + (sectionRows.length));
+        } else {
+          var txt = (ch.textContent || '').trim();
+          if (txt) curLines.push(txt);
+        }
+      }
+      if (curLines.length > 0) sectionRows.push([curSection, curLines.join('\n')]);
+
+      if (sectionRows.length > 2) {
+        sheets.push({ name: 'Document Content', rows: sectionRows });
+        DT().log('word-to-excel-strategy', { method: 'heading-groups', rows: sectionRows.length });
+      }
+    }
+
+    // ── Strategy 4: flat fallback — one row per paragraph ────────────────
+    if (sheets.length === 0 && children.length > 0) {
+      var flatRows = [['#', 'Content']];
+      var rowNum   = 0;
+      for (var fi = 0; fi < children.length; fi++) {
+        var fch  = children[fi];
+        var ftag = (fch.tagName || '').toLowerCase();
+        if (ftag === 'table') continue;
+        var ftext = (fch.textContent || '').trim();
+        if (ftext) {
+          rowNum++;
+          flatRows.push([rowNum, ftext]);
+        }
+      }
+      if (flatRows.length > 1) {
+        sheets.push({ name: 'Document', rows: flatRows });
+        DT().log('word-to-excel-strategy', { method: 'flat-fallback', rows: flatRows.length });
+      }
+    }
+
+    // Release DOM — no longer needed
+    rootEl = null; children = null; htmlDoc = null;
+
+    if (sheets.length === 0) {
+      throw new Error('No extractable content was found in this document. Please check the file and try again.');
+    }
+
+    var totalRows   = sheets.reduce(function (acc, sh) { return acc + sh.rows.length; }, 0);
+    var totalSheets = sheets.length;
+    DT().log('word-to-excel-extract', { sheets: totalSheets, totalRows: totalRows });
+
+    s(1, 'active', 45, 'Processing ' + totalRows + ' rows\u2026');
+
+    // Phase 2 (v5): content-level validation gate
+    validateContent('word-to-excel', { rows: totalRows, sheets: totalSheets });
+
+    // ── Numeric coercion (mirrors buildXlsx in advanced-worker.js) ────────
+    var coercedSheets = sheets.map(function (sh) {
+      var coercedRows = sh.rows.map(function (row) {
+        return row.map(function (cell) {
+          if (cell === '' || cell === null || cell === undefined) return cell;
+          var str   = String(cell).trim();
+          // Strip currency symbols, thousands commas, whitespace
+          var clean = str.replace(/^[$\u20ac\u00a3\u00a5\u20b9\s]+/, '').replace(/[,\s]+$/, '').replace(/,/g, '');
+          var n     = Number(clean);
+          if (clean !== '' && !isNaN(n) && isFinite(n)) return n;
+          return str;
+        });
+      });
+      return { name: sh.name, rows: coercedRows };
+    });
+    sheets = null;
+
+    s(1, 'done', 55);
+
+    // ── Phase 2: build XLSX via advanced-worker.js buildXlsx ─────────────
+    s(2, 'active', 58, 'Building spreadsheet\u2026');
+
+    var wResult;
+    try {
+      wResult = await runAdvancedWorker({ op: 'build-xlsx', sheets: coercedSheets });
+    } catch (xlsxWorkerErr) {
+      DT().error('word-to-excel-worker-fail', { err: String(xlsxWorkerErr).slice(0, 120) });
+    }
+    coercedSheets = null;
+
+    if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
+
+    s(2, 'done', 90);
+    s(3, 'active', 93, 'Finalizing output\u2026');
+
+    var blob = new Blob([wResult.buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    wResult = null;
+
+    DT().validate('word-to-excel-quality', {
+      blobSize: blob.size, sheets: totalSheets, totalRows: totalRows,
+    });
+    DT().result('word-to-excel-complete', {
+      sizeMB: (blob.size / 1048576).toFixed(3), sheets: totalSheets, rows: totalRows,
+    });
+
+    s(3, 'done', 100);
+
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.xlsx'),
+      _quality: { rows: totalRows, sheets: totalSheets, chars: totalRows * 10, pages: totalSheets },
+    };
+  };
+
   processors['html-to-pdf'] = async function (f, o, s) {
     s(0, 'active', 10, 'Preparing your document\u2026');
     // Phase 20E: wait for web fonts to finish loading before handing off to

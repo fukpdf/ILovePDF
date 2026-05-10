@@ -31,6 +31,7 @@
     'pdf-to-powerpoint', 'powerpoint-to-pdf',
     'html-to-pdf', 'ocr',
     'scan-to-pdf', 'repair',
+    'word-to-excel',
   ]);
 
   // ── JSZip loader ─────────────────────────────────────────────────────────
@@ -2624,6 +2625,174 @@
   }
 
   // ======================================================================
+  // WORD → EXCEL  (v1.0 — mammoth parse → grid table preview)
+  // Shows parsed tables as interactive grid with sheet tabs.
+  // Falls back to paragraph list when no tables are present.
+  // ======================================================================
+  async function mountWordToExcel(file, host) {
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Generating spreadsheet preview\u2026' + skeletonHtml(5) + '</div>';
+
+    // Load mammoth for DOCX parsing
+    var mammoth;
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+      mammoth = window.mammoth;
+    } catch (_) {
+      host.innerHTML = errorHtml('Could not load document parser. Check your connection.');
+      return;
+    }
+    if (!mammoth) { host.innerHTML = errorHtml('Document parser unavailable.'); return; }
+
+    var htmlContent;
+    try {
+      var ab = await file.arrayBuffer();
+      var result = await mammoth.convertToHtml({ arrayBuffer: ab });
+      ab = null;
+      htmlContent = (result && result.value) || '';
+    } catch (_) {
+      host.innerHTML = errorHtml('Could not read this Word document. Is it a valid .docx file?');
+      return;
+    }
+
+    if (!htmlContent.trim()) {
+      host.innerHTML = errorHtml('This document appears to be empty.');
+      return;
+    }
+
+    // Parse HTML
+    var parser  = new DOMParser();
+    var htmlDoc = parser.parseFromString('<div id="wr">' + htmlContent + '</div>', 'text/html');
+    htmlContent = null;
+    var rootEl  = htmlDoc.getElementById('wr') || htmlDoc.body;
+
+    // Extract tables from the document
+    var domTables  = rootEl ? rootEl.querySelectorAll('table') : [];
+    var tableCount = domTables ? domTables.length : 0;
+    var sheets     = [];
+
+    if (tableCount > 0) {
+      for (var ti = 0; ti < domTables.length; ti++) {
+        var tbl   = domTables[ti];
+        var rows  = [];
+        var trs   = tbl.querySelectorAll('tr');
+        var maxCols = 0;
+        for (var ri = 0; ri < trs.length; ri++) {
+          var cells = trs[ri].querySelectorAll('th, td');
+          var row   = [];
+          for (var di = 0; di < cells.length; di++) row.push((cells[di].textContent || '').trim());
+          if (row.length > maxCols) maxCols = row.length;
+          if (row.some(function (c) { return c; })) rows.push(row);
+        }
+        if (rows.length > 0 && maxCols > 0) {
+          var sheetName = 'Table ' + (ti + 1);
+          var prev = tbl.previousElementSibling;
+          if (prev && /^h[1-6]$/i.test(prev.tagName || '')) {
+            var ht = (prev.textContent || '').trim().slice(0, 28);
+            if (ht) sheetName = ht;
+          }
+          sheets.push({ name: sheetName, rows: rows, maxCols: maxCols });
+        }
+      }
+    }
+
+    // Fallback: paragraph list as two-column preview
+    if (sheets.length === 0) {
+      var paras    = rootEl ? rootEl.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6') : [];
+      var flatRows = [];
+      var rowIdx   = 0;
+      for (var pi = 0; pi < paras.length && rowIdx < 60; pi++) {
+        var ptxt = (paras[pi].textContent || '').trim();
+        if (ptxt) { rowIdx++; flatRows.push([rowIdx, ptxt]); }
+      }
+      if (flatRows.length > 0) {
+        sheets.push({ name: 'Document', rows: flatRows, maxCols: 2 });
+      }
+    }
+
+    rootEl = null; htmlDoc = null;
+
+    if (sheets.length === 0) {
+      host.innerHTML = errorHtml('No content could be extracted from this document for preview.');
+      return;
+    }
+
+    var totalRows  = sheets.reduce(function (a, s) { return a + s.rows.length; }, 0);
+    var activeSheet = 0;
+
+    function buildTableHtml(sh) {
+      var maxDisplay = 80;
+      var display    = sh.rows.slice(0, maxDisplay);
+      var isHeaderRow = display.length > 0 && display[0].every(function (c) { return c !== ''; });
+      var thead = '';
+      var tbody = '';
+      if (isHeaderRow) {
+        thead = '<thead><tr>' + display[0].map(function (c) {
+          return '<th class="lp-w2x-th">' + _escHtml(c) + '</th>';
+        }).join('') + '</tr></thead>';
+        display = display.slice(1);
+      }
+      tbody = '<tbody>' + display.map(function (row, ri) {
+        return '<tr class="' + (ri % 2 === 0 ? 'lp-w2x-row-even' : 'lp-w2x-row-odd') + '">' +
+          row.map(function (c) { return '<td class="lp-w2x-td">' + _escHtml(String(c)) + '</td>'; }).join('') +
+          '</tr>';
+      }).join('') + '</tbody>';
+      var moreNote = sh.rows.length > maxDisplay
+        ? '<div class="lp-w2x-more">Showing first ' + maxDisplay + ' of ' + sh.rows.length + ' rows</div>'
+        : '';
+      return '<div class="lp-w2x-tbl-wrap"><table class="lp-w2x-tbl">' + thead + tbody + '</table>' + moreNote + '</div>';
+    }
+
+    function _escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function buildTabsHtml() {
+      return sheets.map(function (sh, i) {
+        return '<button type="button" class="lp-w2x-tab' + (i === activeSheet ? ' active' : '') + '" data-sheet="' + i + '">' +
+          _escHtml(sh.name) + '</button>';
+      }).join('');
+    }
+
+    function render() {
+      var sh = sheets[activeSheet];
+      var statsHtml =
+        '<span class="lp-stat"><b>' + sh.rows.length + '</b> rows</span>' +
+        '<span class="lp-stat"><b>' + sh.maxCols + '</b> col' + (sh.maxCols !== 1 ? 's' : '') + '</span>' +
+        '<span class="lp-stat"><b>' + totalRows + '</b> total rows</span>';
+
+      host.innerHTML =
+        '<div class="lp-panel lp-panel--w2x">' +
+          '<div class="lp-header lp-header--sticky">' +
+            '<span class="lp-title">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>' +
+              ' Spreadsheet Preview' +
+            '</span>' +
+            '<div class="lp-header-stats">' + statsHtml + '</div>' +
+          '</div>' +
+          (sheets.length > 1
+            ? '<div class="lp-w2x-tabs">' + buildTabsHtml() + '</div>'
+            : '') +
+          buildTableHtml(sh) +
+          '<div class="lp-footer">' +
+            'Live preview \xb7 ' + sheets.length + ' sheet' + (sheets.length !== 1 ? 's' : '') + ' detected' +
+            (tableCount > 0 ? ' \xb7 ' + tableCount + ' table' + (tableCount !== 1 ? 's' : '') + ' in document' : '') +
+            ' \xb7 numeric values will be auto-detected in output' +
+          '</div>' +
+        '</div>';
+
+      // Wire tab clicks
+      host.querySelectorAll('.lp-w2x-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          activeSheet = parseInt(btn.dataset.sheet, 10) || 0;
+          render();
+        });
+      });
+    }
+
+    render();
+  }
+
+  // ======================================================================
   // MOUNT DISPATCHER
   // ======================================================================
   async function mount(toolId, files, host) {
@@ -2648,6 +2817,7 @@
       else if (toolId === 'ocr')                 await mountOcrPreview(file, host);
       else if (toolId === 'scan-to-pdf')         await mountScanPreview(file, host);
       else if (toolId === 'repair')              await mountRepairPreview(file, host);
+      else if (toolId === 'word-to-excel')       await mountWordToExcel(file, host);
     } catch (err) {
       // Never blank-screen — show recovery UI
       host.innerHTML = errorHtml(

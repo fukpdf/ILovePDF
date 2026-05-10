@@ -69,6 +69,7 @@ window.TOOL_GROUPS = [
       { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
       { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
       { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
+      { tid:'word-to-excel',     slug:'word-to-excel',     name:'Word to Excel',     icon:'table',        desc:'Extract Word tables into .xlsx',   prio:'advanced' },
       { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
     ]
   },
