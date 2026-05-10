@@ -986,10 +986,11 @@
   }
 
   // ======================================================================
-  // BACKGROUND REMOVER  (v6.0 — swipe compare, alpha-mask, edge quality, export size)
+  // BACKGROUND REMOVER v7.0 — multi-background, quality modes, subject modes,
+  //   instant color switching, swipe compare, export presets, edge quality
   // ======================================================================
   async function mountBgRemover(file, host) {
-    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Loading image preview…</div>';
+    host.innerHTML = '<div class="lp-loading"><div class="lp-spinner"></div>Loading image preview\u2026</div>';
 
     var objUrl = URL.createObjectURL(file);
     var img    = new Image();
@@ -1006,6 +1007,8 @@
     var scale   = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight, 1));
     var W       = Math.max(1, Math.round(img.naturalWidth  * scale));
     var H       = Math.max(1, Math.round(img.naturalHeight * scale));
+    var origW   = img.naturalWidth;
+    var origH   = img.naturalHeight;
 
     var srcCanvas    = document.createElement('canvas');
     srcCanvas.width  = W; srcCanvas.height = H;
@@ -1017,27 +1020,57 @@
     afterCanvas.width = W; afterCanvas.height = H;
     var aCtx = afterCanvas.getContext('2d');
 
-    // Checkerboard
-    function drawCheckerboard() {
-      var SZ = 8;
-      for (var ry = 0; ry < H; ry += SZ) {
-        for (var rx = 0; rx < W; rx += SZ) {
-          aCtx.fillStyle = (((rx / SZ) + (ry / SZ)) % 2 === 0) ? '#d4d4d4' : '#ffffff';
-          aCtx.fillRect(rx, ry, SZ, SZ);
+    // ── background color definitions ──────────────────────────────────────
+    var BG_SWATCHES = [
+      { id: 'transparent', label: 'None',     fill: null,      isGrad: false },
+      { id: 'white',       label: 'White',    fill: '#ffffff', isGrad: false },
+      { id: '#f1f5f9',     label: 'Light',    fill: '#f1f5f9', isGrad: false },
+      { id: 'black',       label: 'Black',    fill: '#000000', isGrad: false },
+      { id: '#2563eb',     label: 'Blue',     fill: '#2563eb', isGrad: false },
+      { id: '#16a34a',     label: 'Green',    fill: '#16a34a', isGrad: false },
+      { id: '#dc2626',     label: 'Red',      fill: '#dc2626', isGrad: false },
+      { id: 'gradient-blue', label: 'Grad',   fill: null,      isGrad: true, grad: ['#1a56db','#4f46e5'] },
+    ];
+
+    var currentBg     = 'transparent';
+    var currentQmode  = 'hd';
+    var currentSmode  = 'auto';
+    var maskMode      = false;
+    var initThresh    = 240;
+
+    // ── Checkerboard / solid background on afterCanvas ────────────────────
+    function drawBgLayer(bgId) {
+      aCtx.clearRect(0, 0, W, H);
+      if (!bgId || bgId === 'transparent') {
+        var SZ = 8;
+        for (var ry = 0; ry < H; ry += SZ) {
+          for (var rx = 0; rx < W; rx += SZ) {
+            aCtx.fillStyle = (((rx / SZ) + (ry / SZ)) % 2 === 0) ? '#d4d4d4' : '#ffffff';
+            aCtx.fillRect(rx, ry, SZ, SZ);
+          }
         }
+      } else if (bgId === 'gradient-blue') {
+        var grd = aCtx.createLinearGradient(0, 0, W, H);
+        grd.addColorStop(0, '#1a56db'); grd.addColorStop(1, '#4f46e5');
+        aCtx.fillStyle = grd;
+        aCtx.fillRect(0, 0, W, H);
+      } else {
+        aCtx.fillStyle = bgId;
+        aCtx.fillRect(0, 0, W, H);
       }
     }
 
-    var DX = [-1, 1, 0, 0, -1, 1, -1, 1];
-    var DY = [0, 0, -1, 1, -1, -1, 1, 1];
+    // ── Build transparent result on a temp canvas, composite on afterCanvas ─
+    var DX8 = [-1, 1, 0, 0, -1, 1, -1, 1];
+    var DY8 = [0, 0, -1, 1, -1, -1, 1, 1];
 
-    function applyThreshold(threshold, maskMode) {
-      drawCheckerboard();
+    function applyThreshold(threshold, maskModeFlag, bgId) {
       var out = new ImageData(new Uint8ClampedArray(srcData.data), W, H);
       var d   = out.data;
 
+      // Simple luminance threshold for preview (fast)
       for (var i = 0; i < d.length; i += 4) {
-        if (d[i] >= threshold && d[i + 1] >= threshold && d[i + 2] >= threshold) d[i + 3] = 0;
+        if (d[i] >= threshold && d[i+1] >= threshold && d[i+2] >= threshold) d[i+3] = 0;
       }
 
       // Soft edge pass
@@ -1045,77 +1078,130 @@
       for (var ry = 1; ry < H - 1; ry++) {
         for (var rx = 1; rx < W - 1; rx++) {
           var idx = (ry * W + rx) * 4;
-          if (copy[idx + 3] === 0) continue;
+          if (copy[idx+3] === 0) continue;
           var transparent = 0;
           for (var n = 0; n < 8; n++) {
-            var ni = ((ry + DY[n]) * W + (rx + DX[n])) * 4;
-            if (ni >= 0 && ni < copy.length && copy[ni + 3] === 0) transparent++;
+            var ni = ((ry + DY8[n]) * W + (rx + DX8[n])) * 4;
+            if (ni >= 0 && ni < copy.length && copy[ni+3] === 0) transparent++;
           }
-          if (transparent > 0) d[idx + 3] = Math.round(copy[idx + 3] * (1 - transparent / 8));
+          if (transparent > 0) d[idx+3] = Math.round(copy[idx+3] * (1 - transparent / 8));
         }
       }
 
-      if (maskMode) {
-        // Alpha mask: show alpha channel as greyscale
+      if (maskModeFlag) {
         for (var mi = 0; mi < d.length; mi += 4) {
-          var a = out.data[mi + 3];
-          out.data[mi] = a; out.data[mi + 1] = a; out.data[mi + 2] = a; out.data[mi + 3] = 255;
+          var av = out.data[mi+3];
+          out.data[mi] = av; out.data[mi+1] = av; out.data[mi+2] = av; out.data[mi+3] = 255;
         }
       }
-      aCtx.putImageData(out, 0, 0);
+
+      // Draw bg layer, then composite transparent image on top
+      drawBgLayer(maskModeFlag ? 'white' : bgId);
+      var tmpCvs = document.createElement('canvas');
+      tmpCvs.width = W; tmpCvs.height = H;
+      tmpCvs.getContext('2d').putImageData(out, 0, 0);
+      if (!maskModeFlag) aCtx.drawImage(tmpCvs, 0, 0);
+      else { aCtx.clearRect(0, 0, W, H); aCtx.putImageData(out, 0, 0); }
     }
 
-    // Edge quality heuristic: count edge pixels (alpha transitions)
+    // ── Edge quality heuristic ────────────────────────────────────────────
     function computeEdgeQuality(threshold) {
-      var out = new ImageData(new Uint8ClampedArray(srcData.data), W, H);
-      var d   = out.data;
+      var d = new Uint8ClampedArray(srcData.data);
       for (var i = 0; i < d.length; i += 4) {
-        if (d[i] >= threshold && d[i + 1] >= threshold && d[i + 2] >= threshold) d[i + 3] = 0;
+        if (d[i] >= threshold && d[i+1] >= threshold && d[i+2] >= threshold) d[i+3] = 0;
       }
-      var edgeCount = 0, totalPx = W * H;
+      var edgeCount = 0;
       for (var ry = 1; ry < H - 1; ry++) {
         for (var rx = 1; rx < W - 1; rx++) {
-          var idx = (ry * W + rx) * 4;
-          var curA = d[idx + 3];
-          var rightA = d[(ry * W + rx + 1) * 4 + 3];
-          var downA  = d[((ry + 1) * W + rx) * 4 + 3];
-          if (Math.abs(curA - rightA) > 50 || Math.abs(curA - downA) > 50) edgeCount++;
+          var idx = (ry * W + rx) * 4 + 3;
+          if (Math.abs(d[idx] - d[(ry * W + rx + 1) * 4 + 3]) > 50 ||
+              Math.abs(d[idx] - d[((ry+1) * W + rx) * 4 + 3]) > 50) edgeCount++;
         }
       }
-      var ratio = edgeCount / totalPx;
-      if (ratio < 0.01) return { label: 'Clean edges', score: 95, cls: 'lp-eq-good' };
-      if (ratio < 0.04) return { label: 'Good edges', score: 78, cls: 'lp-eq-good' };
-      if (ratio < 0.1)  return { label: 'Jagged edges', score: 50, cls: 'lp-eq-med' };
-      return { label: 'Rough edges', score: 25, cls: 'lp-eq-bad' };
+      var ratio = edgeCount / (W * H);
+      if (ratio < 0.01) return { label: 'Clean', score: 95, cls: 'lp-eq-good' };
+      if (ratio < 0.04) return { label: 'Good',  score: 78, cls: 'lp-eq-good' };
+      if (ratio < 0.10) return { label: 'Jagged', score: 50, cls: 'lp-eq-med' };
+      return { label: 'Rough', score: 25, cls: 'lp-eq-bad' };
     }
 
-    // Estimate export size (PNG with transparency)
-    function estimateExportKB() {
-      return Math.round((W / scale) * (H / scale) * 4 / 1024 / 3); // rough PNG estimate
+    function estimateExportKB(bgId) {
+      var px = origW * origH;
+      return bgId && bgId !== 'transparent'
+        ? Math.round(px * 3 / 1024 / 5)   // JPEG estimate
+        : Math.round(px * 4 / 1024 / 3);  // PNG estimate
     }
 
-    var initThresh = 240;
-    var maskMode   = false;
-    applyThreshold(initThresh, maskMode);
-    var edgeQ      = computeEdgeQuality(initThresh);
+    // ── Sync opts to tool page selectors ─────────────────────────────────
+    function syncOpts() {
+      var tEl = document.getElementById('opt-threshold');
+      var qEl = document.getElementById('opt-qualityMode');
+      var sEl = document.getElementById('opt-subjectMode');
+      var bEl = document.getElementById('opt-bgColor');
+      if (tEl) tEl.value = initThresh;
+      if (qEl) qEl.value = currentQmode;
+      if (sEl) sEl.value = currentSmode;
+      if (bEl) bEl.value = currentBg;
+    }
+
+    // ── Initial render ────────────────────────────────────────────────────
+    applyThreshold(initThresh, false, currentBg);
+    var edgeQ = computeEdgeQuality(initThresh);
+
+    // ── Build swatches HTML ───────────────────────────────────────────────
+    var swatchHtml = BG_SWATCHES.map(function (s) {
+      var style = s.isGrad
+        ? 'background:linear-gradient(135deg,' + s.grad[0] + ',' + s.grad[1] + ')'
+        : (s.fill ? 'background:' + s.fill : 'background:repeating-conic-gradient(#ccc 0% 25%,#fff 0% 50%) 0 0/10px 10px');
+      var active = s.id === currentBg ? ' active' : '';
+      return '<button type="button" class="lp-swatch' + active + '" data-bgid="' + s.id + '" title="' + s.label + '" style="' + style + '"></button>';
+    }).join('');
 
     host.innerHTML =
       '<div class="lp-panel lp-panel--image">' +
         '<div class="lp-header lp-header--sticky">' +
           '<span class="lp-title">' +
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' +
-            ' Before / After Preview' +
+            ' Background Remover Preview' +
           '</span>' +
           '<div class="lp-stats">' +
-            '<span class="lp-stat"><b>' + img.naturalWidth + '×' + img.naturalHeight + '</b> px</span>' +
-            '<span class="lp-stat"><b>~' + estimateExportKB() + '</b> KB export</span>' +
+            '<span class="lp-stat"><b>' + origW + '\xd7' + origH + '</b> px</span>' +
+            '<span class="lp-stat lp-export-size"><b>~<span id="lp-expkb">' + estimateExportKB(currentBg) + '</span></b> KB</span>' +
             '<span class="lp-eq-badge ' + edgeQ.cls + '" id="lp-eq-badge">' + edgeQ.label + '</span>' +
           '</div>' +
+
           '<div class="lp-controls">' +
+            // Background swatches
             '<div class="lp-ctrl-group">' +
-              '<span class="lp-ctrl-label">Threshold: <b id="lp-thresh-val">' + initThresh + '</b></span>' +
+              '<span class="lp-ctrl-label">Background</span>' +
+              '<div class="lp-swatch-row" id="lp-swatch-row">' + swatchHtml + '</div>' +
+            '</div>' +
+            // Threshold slider
+            '<div class="lp-ctrl-group">' +
+              '<span class="lp-ctrl-label">Sensitivity: <b id="lp-thresh-val">' + initThresh + '</b></span>' +
               '<input type="range" class="lp-slider" id="lp-thresh" min="50" max="255" value="' + initThresh + '" aria-label="Background threshold">' +
             '</div>' +
+            // Quality + Subject mode
+            '<div class="lp-ctrl-group lp-ctrl-group--row">' +
+              '<div class="lp-ctrl-inline">' +
+                '<span class="lp-ctrl-label">Quality</span>' +
+                '<div class="lp-ctrl-row">' +
+                  '<button type="button" class="lp-ctrl-btn" data-qmode="fast">Fast</button>' +
+                  '<button type="button" class="lp-ctrl-btn active" data-qmode="hd">HD</button>' +
+                  '<button type="button" class="lp-ctrl-btn" data-qmode="ultra">Ultra</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="lp-ctrl-inline">' +
+                '<span class="lp-ctrl-label">Subject</span>' +
+                '<div class="lp-ctrl-row">' +
+                  '<button type="button" class="lp-ctrl-btn active" data-smode="auto">Auto</button>' +
+                  '<button type="button" class="lp-ctrl-btn" data-smode="portrait">Person</button>' +
+                  '<button type="button" class="lp-ctrl-btn" data-smode="product">Product</button>' +
+                  '<button type="button" class="lp-ctrl-btn" data-smode="logo">Logo</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            // View mode
             '<div class="lp-ctrl-group">' +
               '<span class="lp-ctrl-label">View</span>' +
               '<div class="lp-ctrl-row">' +
@@ -1126,9 +1212,10 @@
             '</div>' +
           '</div>' +
         '</div>' +
+
         '<div class="lp-before-after" id="lp-ba-wrap">' +
           '<div class="lp-ba-col"><div class="lp-ba-label">Original</div><div class="lp-ba-canvas" id="lp-before-host"></div></div>' +
-          '<div class="lp-ba-divider" id="lp-ba-divider" aria-hidden="true">→</div>' +
+          '<div class="lp-ba-divider" aria-hidden="true">\u2192</div>' +
           '<div class="lp-ba-col"><div class="lp-ba-label">Result preview</div><div class="lp-ba-canvas lp-ba-canvas--after" id="lp-after-host"></div></div>' +
         '</div>' +
         '<div class="lp-swipe-wrap" id="lp-swipe-wrap" style="display:none">' +
@@ -1138,12 +1225,14 @@
             '<div class="lp-swipe-handle" id="lp-swipe-handle"></div>' +
           '</div>' +
         '</div>' +
+
         '<div class="lp-eq-meter">' +
           '<div class="lp-eq-label">Edge quality</div>' +
           '<div class="lp-eq-bar"><div class="lp-eq-fill" id="lp-eq-fill" style="width:' + edgeQ.score + '%"></div></div>' +
-          '<div class="lp-eq-hint" id="lp-eq-hint">' + edgeQ.label + ' — ' + edgeQ.score + '/100</div>' +
+          '<div class="lp-eq-hint" id="lp-eq-hint">' + edgeQ.label + ' \u2014 ' + edgeQ.score + '/100</div>' +
         '</div>' +
-        '<div class="lp-footer">Adjust threshold to tune edge sensitivity · "Swipe" for side-by-side drag comparison · "Alpha mask" shows transparency map</div>' +
+
+        '<div class="lp-footer">Pick a background color · adjust sensitivity · choose quality &amp; subject mode · final result uses the selected settings</div>' +
       '</div>';
 
     var bHost = host.querySelector('#lp-before-host');
@@ -1156,43 +1245,94 @@
     var eqBadge = host.querySelector('#lp-eq-badge');
     var eqFill  = host.querySelector('#lp-eq-fill');
     var eqHint  = host.querySelector('#lp-eq-hint');
+    var expKb   = host.querySelector('#lp-expkb');
+
+    function refreshEdge(thresh) {
+      var eq = computeEdgeQuality(thresh);
+      if (eqBadge) { eqBadge.textContent = eq.label; eqBadge.className = 'lp-eq-badge ' + eq.cls; }
+      if (eqFill)  eqFill.style.width = eq.score + '%';
+      if (eqHint)  eqHint.textContent = eq.label + ' \u2014 ' + eq.score + '/100';
+    }
+
+    function refreshExportSize() {
+      if (expKb) expKb.textContent = estimateExportKB(currentBg);
+    }
 
     var rafPending = null;
-    function onSlider() {
-      var v = parseInt(slider.value, 10);
-      if (valLbl) valLbl.textContent = v;
-      var optEl = document.getElementById('opt-threshold'); if (optEl) optEl.value = v;
+    function scheduleUpdate() {
       if (rafPending) cancelAnimationFrame(rafPending);
       rafPending = requestAnimationFrame(function () {
-        applyThreshold(v, maskMode);
-        var eq = computeEdgeQuality(v);
-        if (eqBadge) { eqBadge.textContent = eq.label; eqBadge.className = 'lp-eq-badge ' + eq.cls; }
-        if (eqFill)  eqFill.style.width = eq.score + '%';
-        if (eqHint)  eqHint.textContent = eq.label + ' — ' + eq.score + '/100';
+        var v = slider ? parseInt(slider.value, 10) : initThresh;
+        applyThreshold(v, maskMode, currentBg);
+        refreshEdge(v);
         updateSwipeCanvases(v);
         rafPending = null;
       });
     }
-    if (slider) slider.addEventListener('input', onSlider);
 
-    // View mode toggle
+    // ── Threshold slider ──────────────────────────────────────────────────
+    if (slider) slider.addEventListener('input', function () {
+      var v = parseInt(slider.value, 10);
+      if (valLbl) valLbl.textContent = v;
+      var optEl = document.getElementById('opt-threshold'); if (optEl) optEl.value = v;
+      scheduleUpdate();
+    });
+
+    // ── Background swatches ───────────────────────────────────────────────
+    host.querySelectorAll('[data-bgid]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        currentBg = btn.dataset.bgid;
+        host.querySelectorAll('[data-bgid]').forEach(function (b) {
+          b.classList.toggle('active', b.dataset.bgid === currentBg);
+        });
+        refreshExportSize();
+        syncOpts();
+        scheduleUpdate();
+      });
+    });
+
+    // ── Quality mode buttons ──────────────────────────────────────────────
+    host.querySelectorAll('[data-qmode]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        currentQmode = btn.dataset.qmode;
+        host.querySelectorAll('[data-qmode]').forEach(function (b) {
+          b.classList.toggle('active', b.dataset.qmode === currentQmode);
+        });
+        syncOpts();
+      });
+    });
+
+    // ── Subject mode buttons ──────────────────────────────────────────────
+    host.querySelectorAll('[data-smode]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        currentSmode = btn.dataset.smode;
+        host.querySelectorAll('[data-smode]').forEach(function (b) {
+          b.classList.toggle('active', b.dataset.smode === currentSmode);
+        });
+        syncOpts();
+      });
+    });
+
+    // ── View mode toggle ──────────────────────────────────────────────────
     host.querySelectorAll('[data-bgview]').forEach(function (b) {
       b.addEventListener('click', function () {
         var mode2  = b.dataset.bgview;
         maskMode   = mode2 === 'mask';
-        host.querySelectorAll('[data-bgview]').forEach(function (x) { x.classList.toggle('active', x.dataset.bgview === mode2); });
+        host.querySelectorAll('[data-bgview]').forEach(function (x) {
+          x.classList.toggle('active', x.dataset.bgview === mode2);
+        });
         var baWrap    = host.querySelector('#lp-ba-wrap');
         var swipeWrap = host.querySelector('#lp-swipe-wrap');
         if (baWrap)    baWrap.style.display    = (mode2 === 'swipe') ? 'none' : '';
-        if (swipeWrap) swipeWrap.style.display = (mode2 === 'swipe') ? '' : 'none';
-        applyThreshold(parseInt(slider ? slider.value : initThresh, 10), maskMode);
+        if (swipeWrap) swipeWrap.style.display = (mode2 === 'swipe') ? ''    : 'none';
+        scheduleUpdate();
       });
     });
 
-    // Swipe compare setup
+    // ── Swipe compare ─────────────────────────────────────────────────────
     function updateSwipeCanvases(thresh) {
       var sc = host.querySelector('#lp-swipe-container');
-      if (!sc || sc.style.display === 'none') return;
+      if (!sc || sc.parentElement.style.display === 'none') return;
       var afterEl  = host.querySelector('#lp-swipe-after');
       var beforeEl = host.querySelector('#lp-swipe-before');
       if (!afterEl || !beforeEl) return;
@@ -1210,8 +1350,8 @@
         if (!dragging || !container) return;
         var rect = container.getBoundingClientRect();
         var pct  = clamp((e.clientX - rect.left) / rect.width * 100, 0, 100);
-        var beforeEl = host.querySelector('#lp-swipe-before');
-        if (beforeEl) beforeEl.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+        var bEl  = host.querySelector('#lp-swipe-before');
+        if (bEl) bEl.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
         swipeHandle.style.left = pct + '%';
       });
       swipeHandle.addEventListener('touchmove', function (e) {
@@ -1219,11 +1359,13 @@
         e.preventDefault();
         var rect = container.getBoundingClientRect();
         var pct  = clamp((e.touches[0].clientX - rect.left) / rect.width * 100, 0, 100);
-        var beforeEl = host.querySelector('#lp-swipe-before');
-        if (beforeEl) beforeEl.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+        var bEl  = host.querySelector('#lp-swipe-before');
+        if (bEl) bEl.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
         swipeHandle.style.left = pct + '%';
       }, { passive: false });
     }
+
+    syncOpts();
   }
 
   // ======================================================================

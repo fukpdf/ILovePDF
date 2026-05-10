@@ -2735,18 +2735,46 @@
     // If worker failed for any reason, fall back to browser-tools.js pdfToWord
     if (!wResult || !wResult.buffer) throw new Error(ERR.ORIG);
 
+    // Phase 25A: Confidence-based post-DOCX quality gate.
+    // Checks content density (chars/page, paras/page) after the document is built.
+    // If critically sparse AND OCR was not yet attempted, signals smart-retry engine
+    // to re-run with _retryForceOcr=true (attempt 2).
+    var _charsPerPage = total > 0 ? _wTotalChars / total : 0;
+    var _parasPerPage = total > 0 ? _wTotalParas / total : 0;
+    var _postQuality  = 0;
+    if (_charsPerPage >= 200) _postQuality += 0.50;
+    else if (_charsPerPage >= 60) _postQuality += 0.25;
+    else if (_charsPerPage >= 20) _postQuality += 0.10;
+    if (_parasPerPage >= 3) _postQuality += 0.30;
+    else if (_parasPerPage >= 1) _postQuality += 0.15;
+    if (_wQuality && _wQuality.score >= 0.60) _postQuality += 0.20;
+    DT().log('pdf-to-word-post-quality', {
+      postScore: _postQuality.toFixed(2),
+      charsPerPage: Math.round(_charsPerPage),
+      parasPerPage: _parasPerPage.toFixed(1),
+      ocrUsed: _shouldForceOcr,
+    });
+    if (_postQuality < 0.20 && !_shouldForceOcr) {
+      DT().log('pdf-to-word-retry-signal', { reason: 'low_density', score: _postQuality.toFixed(2) });
+      throw new Error('low_quality_output');
+    }
+
     onStep(2, 'done', 90);
     onStep(3, 'active', 93, 'Finalizing output\u2026');
     var blob = new Blob([wResult.buffer], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
     onStep(3, 'done', 100);
-    // v4.0: Attach _quality metadata so analyzeResultQuality (dispatch loop) has structural data
-    // to produce a meaningful hybrid score — not just blob-size-only scoring.
     return {
       blob:     blob,
       filename: brandedFilename(file.name, '.docx'),
-      _quality: { chars: _wTotalChars, paras: _wTotalParas, pages: total },
+      _quality: {
+        chars:   _wTotalChars,
+        paras:   _wTotalParas,
+        pages:   total,
+        ocrUsed: _shouldForceOcr,
+        postScore: _postQuality,
+      },
     };
   };
 
@@ -5330,30 +5358,55 @@
   // the sharp object boundaries stay clean while jagged staircase edges caused
   // by threshold-based segmentation are softened.
   // Input / output: raw RGBA ArrayBuffer; returns a new ArrayBuffer.
+  // Phase 25B: Two-pass Gaussian edge smoother — replaces basic 3×3 box blur.
+  // Pass 1: 5×5 Gaussian-weighted kernel on uncertain edge pixels (alpha 10–245).
+  // Pass 2: Gentle 3×3 cleanup pass to remove residual staircasing artifacts.
+  // Only the alpha channel is modified — RGB pixel colors are never touched.
   function _smoothAlphaEdges(pixelsBuf, w, h) {
     var rgba = new Uint8ClampedArray(pixelsBuf);
     var out  = new Uint8ClampedArray(rgba.length);
-    out.set(rgba); // start with a full copy — only alpha channel will be modified
-    for (var y = 1; y < h - 1; y++) {
-      for (var x = 1; x < w - 1; x++) {
-        var ai       = (y * w + x) * 4 + 3;
-        var curAlpha = rgba[ai];
-        if (curAlpha > 220 || curAlpha < 50) continue; // skip non-edge pixels
-        var sum = 0;
-        for (var dy = -1; dy <= 1; dy++) {
-          for (var dx = -1; dx <= 1; dx++) {
-            sum += rgba[((y + dy) * w + (x + dx)) * 4 + 3];
+    out.set(rgba);
+    var G5 = [1,4,7,4,1, 4,16,26,16,4, 7,26,41,26,7, 4,16,26,16,4, 1,4,7,4,1];
+    for (var y = 2; y < h - 2; y++) {
+      for (var x = 2; x < w - 2; x++) {
+        var ai   = (y * w + x) * 4 + 3;
+        var curA = rgba[ai];
+        if (curA > 245 || curA < 10) continue;
+        var sum = 0, wt = 0, k = 0;
+        for (var dy = -2; dy <= 2; dy++) {
+          for (var dx = -2; dx <= 2; dx++) {
+            var g = G5[k++];
+            sum += rgba[((y + dy) * w + (x + dx)) * 4 + 3] * g;
+            wt  += g;
           }
         }
-        out[ai] = (sum / 9) | 0;
+        out[ai] = Math.round(sum / wt);
       }
     }
-    return out.buffer;
+    var out2 = new Uint8ClampedArray(out);
+    for (var y2 = 1; y2 < h - 1; y2++) {
+      for (var x2 = 1; x2 < w - 1; x2++) {
+        var ai2  = (y2 * w + x2) * 4 + 3;
+        var curA2 = out[ai2];
+        if (curA2 > 245 || curA2 < 10) continue;
+        var sum2 = curA2 * 4 +
+          out[ai2 - 4] + out[ai2 + 4] +
+          out[ai2 - w * 4] + out[ai2 + w * 4];
+        out2[ai2] = Math.round(sum2 / 8);
+      }
+    }
+    return out2.buffer;
   }
 
-  // ─── BACKGROUND REMOVER (Phase 20C: edge smoothing + memory hardening) ───
+  // ─── BACKGROUND REMOVER v2.0 (Phase 25C) ────────────────────────────────────
+  // Accepts: qualityMode ('fast'|'hd'|'ultra'), subjectMode ('auto'|'portrait'|'product'|'logo'),
+  //          bgColor ('transparent'|'#rrggbb'|'white'|'black'|'gradient-blue'|'gradient-warm')
+  // Uses v2.0 worker algorithm: K-means color clustering + BFS flood-fill + trimap matting
   processors['background-remover'] = async function (files, opts, onStep) {
-    var file = files[0];
+    var file        = files[0];
+    var qualityMode = (opts && opts.qualityMode) || 'hd';
+    var subjectMode = (opts && opts.subjectMode) || 'auto';
+    var bgColor     = (opts && opts.bgColor)     || 'transparent';
     onStep(0, 'active', 5, 'Loading image\u2026');
 
     var objUrl = URL.createObjectURL(file);
@@ -5379,25 +5432,26 @@
       drawH = Math.round(srcH * ratio);
     }
 
-    var cvs   = document.createElement('canvas');
-    cvs.width  = drawW; cvs.height = drawH;
-    var ctx   = cvs.getContext('2d');
+    var cvs = document.createElement('canvas');
+    cvs.width = drawW; cvs.height = drawH;
+    var ctx = cvs.getContext('2d');
     ctx.drawImage(img, 0, 0, drawW, drawH);
     img = null;
 
     var imageData = ctx.getImageData(0, 0, drawW, drawH);
-    var threshold = Math.max(100, Math.min(255, parseInt((opts && opts.threshold) || '235', 10)));
+    var threshold = Math.max(50, Math.min(255, parseInt((opts && opts.threshold) || '235', 10)));
 
     onStep(1, 'done', 35);
-    // Phase 5: WebGPU hint in message (worker will try GPU first)
     onStep(2, 'active', 40, 'Processing image\u2026');
 
     var rawBuffer = imageData.data.buffer.slice(0);
     imageData = null;
 
-    DT().log('bg-remover-start', { width: drawW, height: drawH, threshold: threshold });
+    DT().log('bg-remover-start', {
+      width: drawW, height: drawH, threshold: threshold,
+      qualityMode: qualityMode, subjectMode: subjectMode, bgColor: bgColor,
+    });
 
-    // v5.1: Helper — sample alpha channel of a pixel buffer (RGBA)
     function _sampleHasAlpha(pixelsBuf) {
       var samp = new Uint8ClampedArray(pixelsBuf, 0, Math.min(pixelsBuf.byteLength, 40000));
       var step = Math.max(1, Math.floor(samp.length / (4 * 500)));
@@ -5407,23 +5461,22 @@
       return false;
     }
 
-    // v5.1: Retry chain — Worker → CPU inline → relaxed threshold → hard fail
     var wResult   = null;
     var _hasAlpha = false;
 
-    // Pass 1: worker path (transfers rawBuffer — detaches it in main thread)
+    // Pass 1: v2.0 worker — K-means + BFS + trimap matting
     try {
       wResult = await runAdvancedWorker(
-        { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH, threshold: threshold },
+        { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH,
+          threshold: threshold, qualityMode: qualityMode, subjectMode: subjectMode },
         [rawBuffer]
       );
     } catch (bgWorkerErr) {
       DT().error('bg-remover-worker', bgWorkerErr);
       onStep(2, 'active', 45, 'Processing image\u2026');
-      // rawBuffer may be detached after transfer attempt — re-read from canvas
       var fbBuf = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
       wResult = removeBgInline(fbBuf, drawW, drawH, threshold);
-      fbBuf   = null;
+      fbBuf = null;
     }
     rawBuffer = null;
 
@@ -5432,20 +5485,32 @@
       DT().validate('bg-remover-alpha', { attempt: 1, hasTransparent: _hasAlpha, threshold: threshold });
     }
 
-    // Pass 2: relax threshold by 25 if no transparent pixels found
+    // Pass 2: relax threshold by 30 + escalate to ultra quality if still no alpha
     if (!_hasAlpha) {
       DT().log('bg-remover-retry', { reason: 'no_alpha', pass: 2 });
-      onStep(2, 'active', 58, 'Adjusting settings\u2026');
-      var relaxThresh  = Math.max(100, threshold - 25);
-      var retryBuf     = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
-      var retryResult  = removeBgInline(retryBuf, drawW, drawH, relaxThresh);
-      retryBuf = null;
-      if (retryResult && retryResult.pixels instanceof ArrayBuffer) {
-        _hasAlpha = _sampleHasAlpha(retryResult.pixels);
-        DT().validate('bg-remover-alpha', { attempt: 2, hasTransparent: _hasAlpha, threshold: relaxThresh });
-        if (_hasAlpha) {
-          wResult = retryResult;
-          DT().log('bg-remover-retry-ok', { threshold: relaxThresh });
+      onStep(2, 'active', 56, 'Refining result\u2026');
+      var relaxThresh = Math.max(50, threshold - 30);
+      var retryBuf    = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
+      try {
+        var retryWRes = await runAdvancedWorker(
+          { op: 'remove-bg', pixels: retryBuf, width: drawW, height: drawH,
+            threshold: relaxThresh, qualityMode: 'ultra', subjectMode: subjectMode },
+          [retryBuf]
+        );
+        retryBuf = null;
+        if (retryWRes && retryWRes.pixels instanceof ArrayBuffer) {
+          _hasAlpha = _sampleHasAlpha(retryWRes.pixels);
+          DT().validate('bg-remover-alpha', { attempt: 2, hasTransparent: _hasAlpha, threshold: relaxThresh });
+          if (_hasAlpha) { wResult = retryWRes; DT().log('bg-remover-retry-ok', { threshold: relaxThresh }); }
+        }
+      } catch (_retErr) {
+        retryBuf = null;
+        var fallbackBuf = cvs.getContext('2d').getImageData(0, 0, drawW, drawH).data.buffer.slice(0);
+        var fallbackRes = removeBgInline(fallbackBuf, drawW, drawH, relaxThresh);
+        fallbackBuf = null;
+        if (fallbackRes && fallbackRes.pixels instanceof ArrayBuffer) {
+          _hasAlpha = _sampleHasAlpha(fallbackRes.pixels);
+          if (_hasAlpha) wResult = fallbackRes;
         }
       }
     }
@@ -5454,8 +5519,6 @@
       DT().error('bg-remover-result', 'no pixels in output after all attempts');
       throw AEError(ERR.WORKER, 'bg_remove_failed');
     }
-
-    // v5.1 RULE 1: Hard fail if no background was actually removed
     if (!_hasAlpha) {
       DT().error('bg-remover-no-alpha', { attempts: 2 });
       throw new Error('No background detected. Please try with an image that has a solid or uniform background.');
@@ -5464,9 +5527,6 @@
     onStep(2, 'done', 80);
     onStep(3, 'active', 83, 'Saving result\u2026');
 
-    // Phase 20C: apply alpha edge smoothing before rendering to output canvas.
-    // Softens jagged staircase edges from threshold-based background removal
-    // while preserving fully-opaque object pixels and fully-transparent background.
     var outW = wResult.width, outH = wResult.height;
     var finalPixels = wResult.pixels;
     try {
@@ -5480,12 +5540,10 @@
     }
     wResult = null;
 
-    // Phase 20F: release source canvas once it is no longer needed
     safeCanvasCleanup(cvs); cvs = null;
 
-    // Phase 20F: wrap output canvas in try/finally to guarantee cleanup
-    // even if toBlob() throws or the ImageData write fails.
     var blob;
+    var filename = brandedFilename(file.name, '.png');
     var outCvs = document.createElement('canvas');
     try {
       outCvs.width  = outW;
@@ -5497,18 +5555,55 @@
       outCtx.putImageData(outData, 0, 0);
       outData = null;
 
-      blob = await new Promise(function (res, rej) {
-        outCvs.toBlob(function (b) {
-          if (b && b.size > 0) res(b);
-          else rej(AEError(ERR.WORKER, 'canvas_export_empty'));
-        }, 'image/png');
-      });
+      if (bgColor && bgColor !== 'transparent') {
+        var bgCvs = document.createElement('canvas');
+        try {
+          bgCvs.width  = outW;
+          bgCvs.height = outH;
+          var bgCtx = bgCvs.getContext('2d');
+          if (bgColor === 'gradient-blue') {
+            var grd1 = bgCtx.createLinearGradient(0, 0, outW, outH);
+            grd1.addColorStop(0, '#1a56db'); grd1.addColorStop(1, '#4f46e5');
+            bgCtx.fillStyle = grd1;
+          } else if (bgColor === 'gradient-warm') {
+            var grd2 = bgCtx.createLinearGradient(0, 0, outW, outH);
+            grd2.addColorStop(0, '#f59e0b'); grd2.addColorStop(1, '#ef4444');
+            bgCtx.fillStyle = grd2;
+          } else {
+            bgCtx.fillStyle = bgColor;
+          }
+          bgCtx.fillRect(0, 0, outW, outH);
+          bgCtx.drawImage(outCvs, 0, 0);
+          var isJpegBg = !bgColor.startsWith('gradient');
+          var exportMime = isJpegBg ? 'image/jpeg' : 'image/png';
+          blob = await new Promise(function (res, rej) {
+            bgCvs.toBlob(function (b) {
+              if (b && b.size > 0) res(b);
+              else rej(AEError(ERR.WORKER, 'canvas_export_empty'));
+            }, exportMime, 0.92);
+          });
+          filename = brandedFilename(file.name, isJpegBg ? '.jpg' : '.png');
+        } finally {
+          safeCanvasCleanup(bgCvs);
+        }
+      } else {
+        blob = await new Promise(function (res, rej) {
+          outCvs.toBlob(function (b) {
+            if (b && b.size > 0) res(b);
+            else rej(AEError(ERR.WORKER, 'canvas_export_empty'));
+          }, 'image/png');
+        });
+      }
     } finally {
-      safeCanvasCleanup(outCvs); // Phase 20F: guaranteed cleanup
+      safeCanvasCleanup(outCvs);
     }
 
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '.png') };
+    return {
+      blob:     blob,
+      filename: filename,
+      _quality: { hasTransparent: _hasAlpha, qualityMode: qualityMode, subjectMode: subjectMode },
+    };
   };
 
   // ── PHASE 20A: PDF RAW BYTE RECOVERY SCANNER ─────────────────────────────
@@ -6317,7 +6412,7 @@
       'pdf-to-excel':       { _retryForceOcr: true },
       'pdf-to-powerpoint':  { _retryForceOcr: true },
       'ai-summarize':       { sentences: 14, _retryBoost: true },
-      'background-remover': { threshold: 200 },
+      'background-remover': { threshold: 200, qualityMode: 'ultra' },
       'compress':           { _retryDeep: true },
     };
     var _canRetry    = !!_SMART_RETRY_OPTS[toolId];

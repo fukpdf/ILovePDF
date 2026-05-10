@@ -899,82 +899,197 @@ async function buildPptx(slides, docTitle) {
   return await pptx.write({ outputType: 'arraybuffer' });
 }
 
-// ── REMOVE BACKGROUND (CPU path, enhanced feathering + multi-pass) ────────────
-function removeBg(pixelsBuf, width, height, threshold) {
-  var t = Math.max(60, Math.min(255, threshold || 240));
+// ── REMOVE BACKGROUND v2.0 — Enterprise Multi-Pass Algorithm ─────────────────
+// Stage 1: K-means border color clustering (k=4, 5 iters) — background color model
+// Stage 2: Per-pixel Euclidean RGB distance to nearest background centroid
+// Stage 3: BFS flood-fill from image borders — connected background region
+// Stage 4+5: Trimap generation + alpha matting on uncertain transition zone
+// Stage 6: Gaussian-weighted edge feathering (HD/Ultra only, 2–3 passes)
+// Stage 7: Color spill suppression at semi-transparent edges (Ultra only)
+// Stage 8: Morphological cleanup — remove isolated noise pixels (HD/Ultra)
+//
+// qualityMode: 'fast' | 'hd' | 'ultra'  (default: 'hd')
+// subjectMode: 'auto' | 'portrait' | 'product' | 'logo' | 'object' (default: 'auto')
+// threshold (50-255): higher = tighter (less aggressive), lower = looser (more aggressive)
+function removeBg(pixelsBuf, width, height, threshold, qualityMode, subjectMode) {
   var d = new Uint8ClampedArray(pixelsBuf);
+  var n = width * height;
+  qualityMode = qualityMode || 'hd';
+  subjectMode = subjectMode || 'auto';
 
-  var borderSum = 0, borderCount = 0;
-  var step = Math.max(1, Math.floor((width * 2 + height * 2) / 200));
-  for (var bx = 0; bx < width; bx += step) {
-    var bi0 = bx * 4;
-    borderSum += (d[bi0] + d[bi0+1] + d[bi0+2]) / 3; borderCount++;
-    var bi1 = ((height - 1) * width + bx) * 4;
-    borderSum += (d[bi1] + d[bi1+1] + d[bi1+2]) / 3; borderCount++;
+  // ── Stage 1: K-means border color clustering ─────────────────────────────
+  var bStep = Math.max(1, Math.floor((width * 2 + height * 2) / 600));
+  var bPx = [];
+  for (var bx = 0; bx < width; bx += bStep) {
+    var i0 = bx * 4;
+    bPx.push([d[i0], d[i0+1], d[i0+2]]);
+    var i1 = ((height-1)*width + bx) * 4;
+    bPx.push([d[i1], d[i1+1], d[i1+2]]);
   }
-  for (var by = 0; by < height; by += step) {
-    var bi2 = by * width * 4;
-    borderSum += (d[bi2] + d[bi2+1] + d[bi2+2]) / 3; borderCount++;
-    var bi3 = (by * width + width - 1) * 4;
-    borderSum += (d[bi3] + d[bi3+1] + d[bi3+2]) / 3; borderCount++;
+  for (var by = 0; by < height; by += bStep) {
+    var i2 = by * width * 4;
+    bPx.push([d[i2], d[i2+1], d[i2+2]]);
+    var i3 = (by * width + width - 1) * 4;
+    bPx.push([d[i3], d[i3+1], d[i3+2]]);
   }
-  var avgBorder = borderCount > 0 ? borderSum / borderCount : 200;
-  var isDark = avgBorder < 80;
-
-  var featherRange = 50;
-
-  for (var i = 0; i < d.length; i += 4) {
-    var r = d[i], g = d[i + 1], b = d[i + 2];
-    var lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    if (!isDark) {
-      if (r >= t && g >= t && b >= t) {
-        d[i + 3] = 0;
-      } else if (lum >= t - featherRange) {
-        var pct   = (lum - (t - featherRange)) / featherRange;
-        var alpha = Math.round(255 * (1 - Math.pow(pct, 0.7)));
-        alpha = Math.max(0, Math.min(255, alpha));
-        if (alpha < d[i + 3]) d[i + 3] = alpha;
+  var K = 4;
+  var centroids = [];
+  for (var ci0 = 0; ci0 < K; ci0++) {
+    centroids.push(bPx[Math.floor(ci0 * bPx.length / K)].slice());
+  }
+  for (var it = 0; it < 5; it++) {
+    var sums = [];
+    for (var si0 = 0; si0 < K; si0++) sums.push([0, 0, 0, 0]);
+    for (var pi = 0; pi < bPx.length; pi++) {
+      var px = bPx[pi];
+      var minDpi = Infinity, closest = 0;
+      for (var ki0 = 0; ki0 < K; ki0++) {
+        var dr0 = px[0]-centroids[ki0][0], dg0 = px[1]-centroids[ki0][1], db0 = px[2]-centroids[ki0][2];
+        var dist0 = dr0*dr0 + dg0*dg0 + db0*db0;
+        if (dist0 < minDpi) { minDpi = dist0; closest = ki0; }
       }
-    } else {
-      var tDark = 255 - t;
-      if (r <= tDark && g <= tDark && b <= tDark) {
-        d[i + 3] = 0;
-      } else if (lum <= tDark + featherRange) {
-        var pct2   = (tDark + featherRange - lum) / featherRange;
-        var alpha2 = Math.round(255 * (1 - Math.pow(pct2, 0.7)));
-        alpha2 = Math.max(0, Math.min(255, alpha2));
-        if (alpha2 < d[i + 3]) d[i + 3] = alpha2;
+      sums[closest][0] += px[0]; sums[closest][1] += px[1];
+      sums[closest][2] += px[2]; sums[closest][3]++;
+    }
+    for (var ci1 = 0; ci1 < K; ci1++) {
+      if (sums[ci1][3] > 0) {
+        centroids[ci1] = [sums[ci1][0]/sums[ci1][3], sums[ci1][1]/sums[ci1][3], sums[ci1][2]/sums[ci1][3]];
       }
     }
   }
+  bPx = null;
 
-  var d2 = new Uint8ClampedArray(d);
-  for (var py = 1; py < height - 1; py++) {
-    for (var px = 1; px < width - 1; px++) {
-      var idx = (py * width + px) * 4;
-      var a   = d[idx + 3];
-      if (a > 0 && a < 255) {
-        var sum = 0, cnt = 0;
+  // ── Stage 2: Per-pixel color distance to background clusters ─────────────
+  var colorDist = new Float32Array(n);
+  for (var i = 0; i < n; i++) {
+    var ri = i * 4;
+    var r = d[ri], g = d[ri+1], b = d[ri+2];
+    var minDist = Infinity;
+    for (var ki1 = 0; ki1 < K; ki1++) {
+      var dr1 = r-centroids[ki1][0], dg1 = g-centroids[ki1][1], db1 = b-centroids[ki1][2];
+      var dist1 = Math.sqrt(dr1*dr1 + dg1*dg1 + db1*db1);
+      if (dist1 < minDist) minDist = dist1;
+    }
+    colorDist[i] = minDist;
+  }
+
+  // ── Stage 3: BFS flood-fill from image borders ────────────────────────────
+  // Map threshold (50-255): higher → tighter (smaller distance tolerance)
+  var t = Math.max(50, Math.min(255, threshold || 235));
+  var bfsThresh = Math.round(35 + (255 - t) * 0.40);
+  if (subjectMode === 'portrait') bfsThresh = Math.round(bfsThresh * 1.18);
+  if (subjectMode === 'product')  bfsThresh = Math.round(bfsThresh * 0.88);
+  if (subjectMode === 'logo')     bfsThresh = Math.round(bfsThresh * 0.75);
+
+  var bgMask = new Uint8Array(n);
+  var queue  = new Int32Array(n);
+  var qHead  = 0, qTail = 0;
+
+  function seedBorder(idx) {
+    if (!bgMask[idx]) { bgMask[idx] = 1; queue[qTail++] = idx; }
+  }
+  for (var bx2 = 0; bx2 < width; bx2++) {
+    seedBorder(bx2); seedBorder((height-1)*width + bx2);
+  }
+  for (var by2 = 0; by2 < height; by2++) {
+    seedBorder(by2*width); seedBorder(by2*width + width-1);
+  }
+  var DX4 = [-1, 1, 0, 0], DY4 = [0, 0, -1, 1];
+  while (qHead < qTail) {
+    var qIdx = queue[qHead++];
+    var qx = qIdx % width, qy = (qIdx / width) | 0;
+    for (var n4 = 0; n4 < 4; n4++) {
+      var nx = qx + DX4[n4], ny = qy + DY4[n4];
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      var nidx = ny * width + nx;
+      if (bgMask[nidx]) continue;
+      if (colorDist[nidx] <= bfsThresh) { bgMask[nidx] = 1; queue[qTail++] = nidx; }
+    }
+  }
+
+  // ── Stage 4+5: Trimap + Alpha Matting ─────────────────────────────────────
+  var t1 = bfsThresh;         // ≤ t1: definite background
+  var t2 = bfsThresh * 3.5;   // ≥ t2: definite foreground
+  if (subjectMode === 'portrait') t2 = bfsThresh * 4.5;
+  if (subjectMode === 'product')  t2 = bfsThresh * 2.8;
+  if (subjectMode === 'logo')   { t1 = bfsThresh * 0.7; t2 = bfsThresh * 2.0; }
+
+  var alpha = new Uint8Array(n);
+  for (var i3 = 0; i3 < n; i3++) {
+    var cd = colorDist[i3];
+    if (bgMask[i3] || cd <= t1) {
+      alpha[i3] = 0;
+    } else if (cd >= t2) {
+      alpha[i3] = 255;
+    } else {
+      var ratio = (cd - t1) / (t2 - t1);
+      alpha[i3] = Math.round(Math.pow(ratio, 0.65) * 255);
+    }
+  }
+  colorDist = null; bgMask = null;
+
+  // ── Stage 6: Gaussian edge feathering (HD / Ultra) ───────────────────────
+  if (qualityMode === 'hd' || qualityMode === 'ultra') {
+    var featherPasses = (qualityMode === 'ultra') ? 3 : 2;
+    for (var fp = 0; fp < featherPasses; fp++) {
+      var alpha2 = new Uint8Array(alpha);
+      for (var fy = 1; fy < height - 1; fy++) {
+        for (var fx = 1; fx < width - 1; fx++) {
+          var fi = fy * width + fx;
+          var fa = alpha[fi];
+          if (fa === 0 || fa === 255) continue;
+          var gSum = fa * 4 +
+            (alpha[fi-1] + alpha[fi+1]) +
+            (alpha[fi-width] + alpha[fi+width]) +
+            (alpha[fi-width-1] + alpha[fi-width+1] + alpha[fi+width-1] + alpha[fi+width+1]) * 0.5;
+          alpha2[fi] = Math.min(255, Math.max(0, Math.round(gSum / 8)));
+        }
+      }
+      alpha = alpha2;
+    }
+  }
+
+  // ── Stage 7: Color spill suppression (Ultra only) ─────────────────────────
+  if (qualityMode === 'ultra') {
+    var bcR = centroids[0][0], bcG = centroids[0][1], bcB = centroids[0][2];
+    for (var si = 0; si < n; si++) {
+      var sa = alpha[si];
+      if (sa === 0 || sa === 255) continue;
+      var ri2 = si * 4;
+      var spillF = (1 - sa / 255) * 0.25;
+      d[ri2]   = Math.max(0, Math.min(255, Math.round(d[ri2]   - (bcR - 128) * spillF)));
+      d[ri2+1] = Math.max(0, Math.min(255, Math.round(d[ri2+1] - (bcG - 128) * spillF)));
+      d[ri2+2] = Math.max(0, Math.min(255, Math.round(d[ri2+2] - (bcB - 128) * spillF)));
+    }
+  }
+
+  // ── Apply alpha channel ───────────────────────────────────────────────────
+  for (var ai = 0; ai < n; ai++) d[ai * 4 + 3] = alpha[ai];
+  alpha = null;
+
+  // ── Stage 8: Morphological cleanup (HD / Ultra) ───────────────────────────
+  if (qualityMode !== 'fast') {
+    var d2 = new Uint8ClampedArray(d);
+    for (var py = 1; py < height - 1; py++) {
+      for (var px = 1; px < width - 1; px++) {
+        var pidx = (py * width + px) * 4 + 3;
+        var pa = d[pidx];
+        if (pa > 0 && pa < 255) continue;
+        var nsum = 0;
         for (var dy = -1; dy <= 1; dy++) {
           for (var dx = -1; dx <= 1; dx++) {
-            sum += d[((py + dy) * width + px + dx) * 4 + 3];
-            cnt++;
+            nsum += d[((py+dy)*width + (px+dx))*4+3];
           }
         }
-        d2[idx + 3] = Math.round((a * 0.6) + (sum / cnt) * 0.4);
-      } else if (a === 255) {
-        var above = d[((py - 1) * width + px) * 4 + 3];
-        var below = d[((py + 1) * width + px) * 4 + 3];
-        var left  = d[(py * width + px - 1) * 4 + 3];
-        var right = d[(py * width + px + 1) * 4 + 3];
-        var minN  = Math.min(above, below, left, right);
-        if (minN < 200) d2[idx + 3] = Math.round(a * 0.78 + minN * 0.22);
+        var navg = nsum / 9;
+        if (pa === 255 && navg < 85)  d2[pidx] = Math.round(navg);
+        if (pa === 0   && navg > 170) d2[pidx] = Math.round(navg);
       }
     }
+    d = d2;
   }
 
-  return { pixels: d2.buffer, width: width, height: height };
+  return { pixels: d.buffer, width: width, height: height };
 }
 
 // ── CHUNK TEXT SCORING (extractive summarisation, TF-IDF) ─────────────────────
@@ -1041,7 +1156,7 @@ self.onmessage = async function (e) {
       }
       case 'remove-bg': {
         if (!(data.pixels instanceof ArrayBuffer)) throw new Error('pixels must be ArrayBuffer');
-        var result = removeBg(data.pixels, data.width, data.height, data.threshold);
+        var result = removeBg(data.pixels, data.width, data.height, data.threshold, data.qualityMode, data.subjectMode);
         self.postMessage(
           { pixels: result.pixels, width: result.width, height: result.height },
           [result.pixels]

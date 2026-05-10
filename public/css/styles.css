@@ -2533,6 +2533,23 @@ a{ color:var(--brand-text); }
 /* ── Background remover: before/after enhanced ────────────── */
 .lp-ba-canvas--after canvas { background: repeating-conic-gradient(#d4d4d4 0% 25%, #fff 0% 50%) 0 0 / 12px 12px; }
 
+/* ── Background swatch row (v7.0) ────────────────────────── */
+.lp-swatch-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.lp-swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cbd5e1;
+  cursor: pointer; transition: border-color .15s, transform .12s; padding: 0;
+  flex-shrink: 0;
+}
+.lp-swatch:hover  { border-color: #6366f1; transform: scale(1.15); }
+.lp-swatch.active { border-color: #4f46e5; box-shadow: 0 0 0 2px #eef2ff; transform: scale(1.12); }
+
+/* ── Inline control group pair (quality + subject side-by-side) ── */
+.lp-ctrl-group--row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.lp-ctrl-inline { display: flex; align-items: center; gap: 6px; }
+
+/* ── Export size badge ───────────────────────────────────── */
+.lp-export-size { font-size: .72rem; color: #64748b; }
+
 /* ── Swipe compare ────────────────────────────────────────── */
 .lp-swipe-wrap      { padding: 14px; }
 .lp-swipe-container {
