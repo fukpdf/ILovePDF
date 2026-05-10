@@ -1400,38 +1400,100 @@
       }).filter(l => l.text.length > 0);
     }
 
+    // ── Detect OCR language from sample text (Unicode range analysis) ─────────
+    function _detectOcrLangFromSample(sample) {
+      if (!sample || sample.length < 8) return 'eng';
+      const s       = sample.slice(0, 500);
+      const arabic  = (s.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+      const hebrew  = (s.match(/[\u0590-\u05FF]/g) || []).length;
+      const cjk     = (s.match(/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/g) || []).length;
+      const cyril   = (s.match(/[\u0400-\u04FF]/g) || []).length;
+      const thai    = (s.match(/[\u0E00-\u0E7F]/g) || []).length;
+      const latin   = (s.match(/[a-zA-Z]/g) || []).length;
+      const total   = arabic + hebrew + cjk + cyril + thai + latin || 1;
+      if (arabic / total > 0.15) return (latin / total > 0.15) ? 'ara+eng' : 'ara';
+      if (hebrew / total > 0.15) return 'heb+eng';
+      if (cjk    / total > 0.20) return 'chi_sim+eng';
+      if (cyril  / total > 0.20) return 'rus+eng';
+      if (thai   / total > 0.15) return 'tha+eng';
+      return 'eng';
+    }
+
     // ── OCR a page → same line shape as groupIntoLines() ─────────────────────
-    async function ocrPageToLines(page, pageWidth) {
+    // v5.0: multilingual OCR language detection, adaptive y-bucketing,
+    //       confidence-filtered word cleanup, aggressive canvas memory release.
+    async function ocrPageToLines(page, pageWidth, langHint) {
       const Tesseract = await loadTesseract();
-      const viewport  = page.getViewport({ scale: 2.0 });
+
+      // Adaptive scale: scale up small pages for better OCR accuracy
+      const vp1    = page.getViewport({ scale: 1.0 });
+      const area   = vp1.width * vp1.height;
+      const scale  = area > 400000 ? 1.8 : area < 80000 ? 2.5 : 2.0;
+      const viewport = page.getViewport({ scale });
+
       const canvas    = document.createElement('canvas');
-      canvas.width    = Math.floor(viewport.width);
-      canvas.height   = Math.floor(viewport.height);
+      canvas.width    = Math.min(Math.floor(viewport.width),  3000);
+      canvas.height   = Math.min(Math.floor(viewport.height), 4000);
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-      canvas.width = 0; canvas.height = 0; // release GPU memory immediately
 
-      const { data: { words } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
-      if (!words || !words.length) return [];
+      let dataUrl = null;
+      try {
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      } finally {
+        canvas.width = 0; canvas.height = 0; // release GPU memory immediately
+      }
 
+      if (!dataUrl) return [];
+
+      // Language: use hint → detect from page sample → default eng
+      let ocrLang = langHint || 'eng';
+      if (!langHint) {
+        // Quick native text sample to detect language before Tesseract
+        try {
+          const tc = await page.getTextContent();
+          const sample = tc.items.map(it => it.str).join('').slice(0, 300);
+          if (sample.replace(/\s/g, '').length >= 8) {
+            ocrLang = _detectOcrLangFromSample(sample);
+          }
+        } catch (_) {}
+      }
+
+      let words = [];
+      try {
+        const result = await Tesseract.recognize(dataUrl, ocrLang, { logger: () => {} });
+        words = (result.data && result.data.words) ? result.data.words : [];
+      } finally {
+        dataUrl = null; // release data URL memory
+      }
+
+      if (!words.length) return [];
+
+      // Filter low-confidence words; keep confident ones (>25 threshold)
       const wordItems = words
-        .filter(w => w.text && w.text.trim() && w.confidence > 30)
-        .map(w => ({
-          text:     w.text.trim(),
-          x:        Math.round((w.bbox.x0 + w.bbox.x1) / 4),
-          y:        Math.round((w.bbox.y0 + w.bbox.y1) / 4),
-          fontSize: Math.max(1, Math.round((w.bbox.y1 - w.bbox.y0) / 2)),
-          bold: false, italic: false, mono: false, fontName: '', width: 0,
-        }));
+        .filter(w => w.text && w.text.trim() && w.confidence > 25)
+        .map(w => {
+          const scaleFactor = scale || 2.0;
+          return {
+            text:     w.text.trim(),
+            x:        Math.round((w.bbox.x0 + w.bbox.x1) / (2 * scaleFactor)),
+            y:        Math.round((w.bbox.y0 + w.bbox.y1) / (2 * scaleFactor)),
+            fontSize: Math.max(1, Math.round((w.bbox.y1 - w.bbox.y0) / scaleFactor)),
+            bold: false, italic: false, mono: false, fontName: '', width: 0,
+          };
+        });
 
       if (!wordItems.length) return [];
 
+      // Adaptive y-bucketing: group words into rows based on median font height
+      const medianFs = wordItems.slice().sort((a, b) => a.fontSize - b.fontSize)[Math.floor(wordItems.length / 2)]?.fontSize || 10;
+      const yBucket  = Math.max(3, Math.min(12, Math.round(medianFs * 0.4)));
+
       const rowMap = {};
       for (const w of wordItems) {
-        const yKey = Math.round(w.y / 10) * 10;
+        const yKey = Math.round(w.y / yBucket) * yBucket;
         if (!rowMap[yKey]) rowMap[yKey] = [];
         rowMap[yKey].push(w);
       }

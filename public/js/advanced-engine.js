@@ -1213,10 +1213,21 @@
     var commonEnglish = /\b(the|and|for|are|but|not|you|all|can|had|her|was|one|our|out|day|get|has|him|his|how|man|new|now|old|see|two|way|who|its|let|put|say|she|too|use)\b/i;
     var hasEnglishWords = words.filter(function(w) { return commonEnglish.test(w); }).length;
 
+    // Urdu/Persian disambiguation from Arabic script:
+    // Urdu uses exclusive chars like ں ے ط ظ ۓ ﮯ  (U+06BA, U+06D2, U+06D3)
+    // Persian uses chars like گ پ چ ژ (U+06AF, U+067E, U+0686, U+0698)
+    var urdu    = (s.match(/[\u06BA\u06D2\u06D3\u06BE\u06C1\u06C3\u06D4]/g) || []).length;
+    var persian = (s.match(/[\u06AF\u067E\u0686\u0698\u06CC]/g) || []).length;
+
     var lang;
     // Strict thresholds: needs clear dominance to choose non-Latin
     if      (cjk    / total > 0.20) lang = 'chi_sim';
-    else if (arabic / total > 0.15) lang = 'ara';
+    else if (arabic / total > 0.15) {
+      // Disambiguate: Urdu vs Persian vs Arabic
+      if (urdu > persian && urdu > 0)         lang = 'urd';
+      else if (persian > urdu && persian > 0)  lang = 'fas';
+      else                                     lang = 'ara';
+    }
     else if (cyril  / total > 0.20) lang = 'rus';
     else if (korean / total > 0.20) lang = 'kor';
     else if (thai   / total > 0.15) lang = 'tha';
@@ -1419,7 +1430,32 @@
   // tables (grid+alignment), sections, page breaks.
   // NEW: layout reconstruction engine, intelligent broken-line merging,
   // reading order fix (multi-column), related block grouping.
-  var _LIST_RE = /^(\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]|\s*\d+[.)]\s|\s*[a-zA-Z][.)]\s|\s*[ivxlcdmIVXLCDM]+[.)]\s)/;
+  var _LIST_RE = /^(\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb\u2610\u2611\u2612\u2714\u2718]|\s*\d+[.)]\s|\s*[a-zA-Z][.)]\s|\s*[ivxlcdmIVXLCDM]+[.)]\s)/;
+
+  // ── SYMBOL NORMALIZATION (checkbox/radio glyphs → ASCII equivalents) ──────
+  function _normalizeSymbols(text) {
+    return (text || '')
+      .replace(/[☑✓✔☒✗✘\u2611\u2612\u2714\u2718]/g, '[x]')
+      .replace(/[☐□\u2610]/g, '[ ]');
+  }
+
+  // ── SIGNATURE LINE DETECTION ──────────────────────────────────────────────
+  function _isSignatureLine(text) {
+    var t = (text || '').trim();
+    return /^[_]{6,}$/.test(t) ||
+           /^[-]{8,}$/.test(t) ||
+           /^[=]{8,}$/.test(t) ||
+           /^\.{8,}$/.test(t)  ||
+           /^_{3,}\s*(Date|Sign|Name|Title|Signature|Witness|Authorized|Representative)[:\s]*_{0,}$/i.test(t);
+  }
+
+  // ── FORM / LABEL-VALUE LINE DETECTION ────────────────────────────────────
+  // Detects "Label: Value", "Field Name ........... Value", etc.
+  function _isFormLine(text) {
+    return /^[A-Za-z\u0600-\u06FF][A-Za-z\u0600-\u06FF\s]{1,38}:\s*\S/.test(text) ||
+           /^[A-Za-z\u0600-\u06FF][A-Za-z\u0600-\u06FF\s]{1,38}[.]{5,}\s*\S/.test(text);
+  }
+
   var _NUMBLIST_RE = /^\s*(\d+|[a-zA-Z])[.)]\s+\S/;
   var _SECTION_RE  = /^(chapter|section|part|article|appendix)\s+[\d\w]/i;
 
@@ -1575,12 +1611,27 @@
       // Fix B5: detect italic runs so buildDocx can apply <w:i/> markup
       var lineItalic = lineItems.some(function(it) { return it.fontName && /italic|oblique/i.test(it.fontName); });
 
+      // Normalize checkbox/symbol glyphs in extracted text
+      lineText = _normalizeSymbols(lineText);
+
+      // Signature line: emit directly, no further classification
+      if (_isSignatureLine(lineText)) {
+        paragraphs.push({
+          text: lineText, isHeading: false, isList: false, isNumList: false,
+          isSignature: true, bold: false, italic: false, level: 0,
+          fontSize: lineMaxH,
+        });
+        lastY = y; lastText = lineText; lastH = lineMaxH;
+        return; // continue forEach
+      }
+
       // Classify line — v5.4: richer detection
       var isList    = _LIST_RE.test(lineText);
       var isNumList = _NUMBLIST_RE.test(lineText);
       var isSection = _SECTION_RE.test(lineText.trim());
+      var isForm    = !isList && !isNumList && _isFormLine(lineText);
 
-      var isHeading = !isList && (
+      var isHeading = !isList && !isForm && (
         lineMaxH > medianH * 1.3 ||               // larger font
         lineBold && lineMaxH >= medianH ||          // bold + normal size
         isSection ||                                // section keyword
@@ -1592,20 +1643,20 @@
       // Page break detection: large gap > 3x line height
       var gap       = lastY !== null ? lastY - y : 0;
       var isPageBreak = gap > medianH * 5;
-      var isNewBlock  = gap > medianH * 2.0 || isHeading || isSection || isPageBreak;
+      var isNewBlock  = gap > medianH * 2.0 || isHeading || isSection || isPageBreak || isForm;
 
       // Intelligent broken-line merging v5.4:
       // Merge if: previous line didn't end with sentence punctuation AND
       //           gap is small AND same approximate font size AND
-      //           not starting a list item AND same x-origin (not a new para indent)
+      //           not starting a list item / form line
       var prevHasSentenceEnd = lastText ? /[.!?:;)\]"'\u2019\u201d\u060c\u061b\u061f]$/.test(lastText.trim()) : true;
       var isSmallGap         = gap > 0 && gap < medianH * 1.8;
       var sameSize           = Math.abs(lineMaxH - lastH) < medianH * 0.3;
-      var shouldMerge        = !isNewBlock && !prevHasSentenceEnd && isSmallGap && sameSize && lastY !== null;
+      var shouldMerge        = !isNewBlock && !prevHasSentenceEnd && isSmallGap && sameSize && lastY !== null && !isForm;
 
       if (shouldMerge) {
         var last = paragraphs[paragraphs.length - 1];
-        if (last && !last.isHeading) {
+        if (last && !last.isHeading && !last.isSignature && !last.isForm) {
           // Smart join: add space or not based on whether last char is hyphen
           var lastChar = last.text.trim().slice(-1);
           if (lastChar === '-') {
@@ -1618,20 +1669,27 @@
           last.italic  = last.italic  || lineItalic;
         } else {
           paragraphs.push({ text: lineText, isHeading: isHeading, isList: isList, isNumList: isNumList,
-            bold: lineBold, italic: lineItalic });
+            isForm: isForm, bold: lineBold, italic: lineItalic, fontSize: lineMaxH });
         }
       } else {
-        // Group related blocks: if a list item follows a heading, tag them
-        // Fix B5: store bold/italic flags for buildDocx to apply run markup
+        // v5.0: store bold/italic/fontSize/xPositions for buildDocx run-level markup
+        // PDF.js text items use transform[4] for x coordinate
+        var xPosData = lineItems
+          .map(function(it) { return it.transform ? it.transform[4] : (it.x || 0); })
+          .filter(function(x){ return x > 0; });
         paragraphs.push({
-          text:      lineText,
-          isHeading: isHeading,
-          isList:    isList,
-          isNumList: isNumList,
-          isSection: isSection,
-          level:     isHeading ? _headingLevel(lineMaxH, medianH, maxH) : 0,
-          bold:      lineBold,
-          italic:    lineItalic,
+          text:       lineText,
+          isHeading:  isHeading,
+          isList:     isList,
+          isNumList:  isNumList,
+          isSection:  isSection,
+          isForm:     isForm,
+          level:      isHeading ? _headingLevel(lineMaxH, medianH, maxH) : 0,
+          bold:       lineBold,
+          italic:     lineItalic,
+          fontSize:   lineMaxH,
+          xPositions: xPosData.length > 1 ? xPosData : undefined,
+          pageWidth:  612,
         });
       }
 
@@ -1792,20 +1850,18 @@
     // v5.4 RULE: Reject if only 1 column — not tabular data
     if (maxCol === 0) return [];
 
-    // v5.4 RULE: Validate that at least one column has numeric/mixed content (real table)
+    // v5.0: Relaxed validation — accept text-only tables (HR tables, legal tables,
+    // government forms, schedules) which have no numeric data but are still real tables.
+    // Only reject if: single-row result AND no numeric content (true garbage).
     var hasNumericCol = false;
     for (var ci2 = 0; ci2 <= maxCol; ci2++) {
       var colVals = rows.map(function(r) { return r[ci2] || ''; }).filter(Boolean);
       var numericCount = colVals.filter(function(v) { return /\d/.test(v); }).length;
-      if (numericCount / colVals.length > 0.25) { hasNumericCol = true; break; }
+      if (numericCount / colVals.length > 0.20) { hasNumericCol = true; break; }
     }
-    // If no column has numbers, check for consistent text patterns (headers etc.)
-    if (!hasNumericCol) {
-      var allSingleWord = rows.every(function(r) {
-        return r.filter(Boolean).every(function(c) { return c.split(/\s+/).length <= 2; });
-      });
-      if (!allSingleWord && rows.length < 2) return []; // Not enough structure (only reject single-row results)
-    }
+    // Accept text-only tables as long as they have 2+ rows (multi-row = real table)
+    // Only reject single-row text-only results to avoid false positives
+    if (!hasNumericCol && rows.length < 2) return [];
 
     // Fix B4/B7: Compute proportional column widths from actual x-extents.
     // For each column, span = max(xEnd) - min(xStart), with a floor of 30px.
@@ -2214,7 +2270,11 @@
     if (!langHint) {
       var fn = (file.name || '').toLowerCase();
       if      (fn.includes('chi') || fn.includes('zh'))  ocrLang = 'chi_sim+eng';
-      else if (fn.includes('ara') || fn.includes('ar_')) ocrLang = 'ara+eng';
+      else if (fn.includes('urd') || fn.includes('ur_') || fn.includes('_ur')) ocrLang = 'urd+eng';
+      else if (fn.includes('ara') || fn.includes('ar_') || fn.includes('_ar')) ocrLang = 'ara+eng';
+      else if (fn.includes('fas') || fn.includes('per') || fn.includes('far') || fn.includes('_fa')) ocrLang = 'fas+eng';
+      else if (fn.includes('pus') || fn.includes('pash'))ocrLang = 'pus+eng';
+      else if (fn.includes('heb') || fn.includes('_he')) ocrLang = 'heb+eng';
       else if (fn.includes('rus') || fn.includes('ru_')) ocrLang = 'rus+eng';
       else if (fn.includes('deu') || fn.includes('ger')) ocrLang = 'deu+eng';
       else if (fn.includes('fra') || fn.includes('fr_')) ocrLang = 'fra+eng';
@@ -2222,6 +2282,9 @@
       else if (fn.includes('jpn') || fn.includes('ja_')) ocrLang = 'jpn+eng';
       else if (fn.includes('kor') || fn.includes('ko_')) ocrLang = 'kor+eng';
       else if (fn.includes('por') || fn.includes('pt_')) ocrLang = 'por+eng';
+      else if (fn.includes('hin') || fn.includes('_hi')) ocrLang = 'hin+eng';
+      else if (fn.includes('ben') || fn.includes('_bn')) ocrLang = 'ben+eng';
+      else if (fn.includes('tur') || fn.includes('_tr')) ocrLang = 'tur+eng';
     }
 
     DT().log('ocr-v2-start', { file: file.name, size: file.size, lang: ocrLang });
@@ -2607,6 +2670,16 @@
         }
 
         rawLines.forEach(function(t) {
+          // Normalize checkbox/symbol glyphs
+          t = _normalizeSymbols(t);
+
+          // Signature line detection
+          if (_isSignatureLine(t)) {
+            flushTable();
+            paras.push({ text: t, isSignature: true, isHeading: false, isList: false, isNumList: false, level: 0 });
+            return;
+          }
+
           // Check for multi-column whitespace split
           var cols = t.split(/\s{2,}/).map(function(c){ return c.trim(); }).filter(Boolean);
           if (cols.length >= 2) {
@@ -2614,13 +2687,14 @@
           } else {
             flushTable();
             // Single-column line — classify it
-            var isHeading = (t.length >= 3 && t.length <= 90 &&
+            var isFormOcr = _isFormLine(t);
+            var isHeading = !isFormOcr && ((t.length >= 3 && t.length <= 90 &&
                              t === t.toUpperCase() && /[A-Z]/.test(t)) ||
-                            /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i.test(t);
-            var isNumList = !isHeading && /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/.test(t);
-            var isList    = !isHeading && !isNumList &&
+                            /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i.test(t));
+            var isNumList = !isHeading && !isFormOcr && /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/.test(t);
+            var isList    = !isHeading && !isNumList && !isFormOcr &&
                             /^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s/.test(t);
-            paras.push({ text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, level: isHeading ? 1 : 0 });
+            paras.push({ text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, isForm: isFormOcr, level: isHeading ? 1 : 0 });
           }
         });
         flushTable();

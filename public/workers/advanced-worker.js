@@ -1,12 +1,10 @@
-// Advanced Worker v4.0 — ENTERPRISE RESTABILIZATION (forensic-grade pdf-to-word)
+// Advanced Worker v5.0 — ENTERPRISE FORENSIC STABILIZATION (pdf-to-word)
 // Phase 1: Persistent (handles multiple tasks, no re-spawn).
-// Phase 5: CPU pixel processing for remove-bg (WebGPU removed — broken dispatch math).
-// v3.2: buildDocx — H1-H4 heading levels, bullet + numbered list support,
-//       Calibri default fonts, word/numbering.xml in output ZIP.
-// v3.3: buildXlsx — sheet name sanitization, numeric type coercion,
-//       adaptive column widths, freeze pane on row 1.
-// v4.0: ENTERPRISE RESTABILIZATION — real <w:tbl> table support, page breaks,
-//       multi-level list nesting, hardened XML, LibreOffice/Google Docs compat.
+// Phase 5: CPU pixel processing for remove-bg.
+// v5.0: RTL/multilingual support, inline run-level typography, checkbox normalization,
+//       signature line detection, font size preservation, tab stops, form layout,
+//       RTL table support, underline/strikethrough, per-run bold/italic/size,
+//       improved OOXML compatibility for Word/LibreOffice/Google Docs/WPS.
 // Operations: build-docx | build-xlsx | build-pptx | remove-bg | chunk-text-score
 
 // ── LAZY LIBRARY LOADING ───────────────────────────────────────────────────────
@@ -21,6 +19,40 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+
+// ── RTL DETECTION (Arabic, Hebrew, Syriac, Thaana, NKo, Samaritan, …) ──────────
+// Returns true if text contains significant RTL script content.
+function isRtl(s) {
+  if (!s) return false;
+  var rtlChars = (s.match(/[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u0800-\u083F\u0840-\u085F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+  return rtlChars > 0 && rtlChars / s.replace(/\s/g, '').length > 0.15;
+}
+
+// ── SYMBOL / CHECKBOX NORMALIZATION ───────────────────────────────────────────
+function _normalizeSymbols(text) {
+  return (text || '')
+    .replace(/[☑✓✔☒✗✘]/g, '[x]')
+    .replace(/[☐□]/g, '[ ]')
+    .replace(/[\u2610]/g, '[ ]')
+    .replace(/[\u2611\u2612]/g, '[x]');
+}
+
+// ── SIGNATURE LINE DETECTION ──────────────────────────────────────────────────
+function _isSignatureLine(text) {
+  var t = (text || '').trim();
+  return /^[_]{6,}$/.test(t) ||
+         /^[-]{8,}$/.test(t) ||
+         /^[=]{8,}$/.test(t) ||
+         /^\.{8,}$/.test(t)  ||
+         /^_{3,}\s*(Date|Sign|Name|Title|Signature|Witness|Authorized|Representative)[:\s]*_{0,}$/i.test(t);
+}
+
+// ── FORM LABEL-VALUE DETECTION ────────────────────────────────────────────────
+// Returns true for lines that look like "Label: Value" or "Label ........... Value"
+function _isFormLine(text) {
+  return /^[A-Za-z\u0600-\u06FF\s]{2,40}:\s*\S/.test(text) ||
+         /^[A-Za-z\u0600-\u06FF\s]{2,40}[.]{5,}\s*\S/.test(text);
 }
 
 // Strip leading list markers so Word's own numbering renders cleanly.
@@ -41,17 +73,70 @@ function _listLevel(text) {
   return level;
 }
 
+// ── BUILD INLINE RUNS XML ─────────────────────────────────────────────────────
+// Generates per-run <w:r> elements preserving bold/italic/underline/size/RTL/mono.
+// If runs data is unavailable falls back to single-run from para text.
+// para: { text, runs[], bold, italic, fontSize, isRtl }
+// baseSz: half-point font size (e.g. 22 = 11pt)
+function _buildRunsXml(para, baseSz) {
+  var sz = baseSz || 22;
+  // If per-run data available, emit one <w:r> per run
+  if (para.runs && para.runs.length > 0) {
+    var parts = [];
+    for (var ri = 0; ri < para.runs.length; ri++) {
+      var run = para.runs[ri];
+      if (!run || (!run.text && run.text !== '0')) continue;
+      var runText = _normalizeSymbols(String(run.text));
+      if (!runText) continue;
+      var runSz = run.fontSize > 0 ? Math.max(16, Math.min(144, Math.round(run.fontSize * 2))) : sz;
+      var rPr = '';
+      if (run.bold   || para.bold)   rPr += '<w:b/><w:bCs/>';
+      if (run.italic || para.italic) rPr += '<w:i/><w:iCs/>';
+      if (run.underline)             rPr += '<w:u w:val="single"/>';
+      if (run.strikethrough)         rPr += '<w:strike/>';
+      if (run.mono)                  rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>';
+      if (isRtl(runText))            rPr += '<w:rtl/>';
+      rPr += '<w:sz w:val="' + runSz + '"/><w:szCs w:val="' + runSz + '"/>';
+      rPr += '<w:color w:val="374151"/>';
+      parts.push('<w:r><w:rPr>' + rPr + '</w:rPr><w:t xml:space="preserve">' + esc(runText) + '</w:t></w:r>');
+    }
+    if (parts.length) return parts.join('');
+  }
+  // Fallback: single run from para.text
+  var txt  = _normalizeSymbols(para.text || '');
+  var rPr2 = '';
+  if (para.bold)   rPr2 += '<w:b/><w:bCs/>';
+  if (para.italic) rPr2 += '<w:i/><w:iCs/>';
+  if (isRtl(txt))  rPr2 += '<w:rtl/>';
+  rPr2 += '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/><w:color w:val="374151"/>';
+  return '<w:r><w:rPr>' + rPr2 + '</w:rPr><w:t xml:space="preserve">' + esc(txt) + '</w:t></w:r>';
+}
+
+// ── BUILD TAB STOPS XML ───────────────────────────────────────────────────────
+// Generates <w:tabs> from x-position array for tab-aligned content (forms, schedules).
+function _buildTabStopsXml(xPositions, pageWidth) {
+  if (!xPositions || xPositions.length < 2) return '';
+  var gap  = (pageWidth || 612) * 0.04;
+  var tabs = [];
+  for (var k = 1; k < xPositions.length; k++) {
+    if (xPositions[k] - xPositions[k - 1] >= gap) {
+      var pos = Math.round(xPositions[k] * 20);
+      if (pos > 0 && pos < 120000) {
+        tabs.push('<w:tab w:val="left" w:pos="' + pos + '"/>');
+      }
+    }
+  }
+  return tabs.length ? '<w:tabs>' + tabs.join('') + '</w:tabs>' : '';
+}
+
 // ── BUILD TABLE XML ────────────────────────────────────────────────────────────
-// Generates a real OOXML <w:tbl> element with borders, header row styling,
-// and adaptive column widths. Compatible with Word, LibreOffice, Google Docs.
-//
+// v5.0: RTL table support, form-table detection, per-cell RTL bidi, improved borders.
 // rows       — string[][] (each row is an array of cell strings)
 // numCols    — (optional) override column count; auto-detected from rows if absent
 // isOcrTable — true when rows came from OCR (lighter borders, no header bold)
 // colWidths  — (optional) number[] of proportional x-spans from clusterCellsByXandY
-//              If provided, widths are distributed proportionally instead of equally.
-//              Fix B4/B7: proportional column widths for forms and invoices.
-function buildTableXml(rows, numCols, isOcrTable, colWidths) {
+// isForm     — true when table represents a label/value form layout
+function buildTableXml(rows, numCols, isOcrTable, colWidths, isForm) {
   if (!rows || !rows.length) return '';
 
   // Normalise col count
@@ -61,22 +146,30 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
   // Usable page width: A4-like (12240 twips) minus 1080+1080 margins = 10080 twips
   var USABLE = 10080;
 
-  // Fix B4: compute per-column widths (twips) either from proportional spans or equal
+  // Compute per-column widths (twips): proportional from x-spans or equal
   var colW_arr;
   if (colWidths && colWidths.length === nc) {
     var spanTotal = colWidths.reduce(function(s, v) { return s + (v || 30); }, 0) || 1;
     colW_arr = colWidths.map(function(span) {
       return Math.max(600, Math.round(USABLE * (span || 30) / spanTotal));
     });
-    // Adjust last column so total == USABLE exactly (rounding errors)
     var assigned = colW_arr.reduce(function(s, v) { return s + v; }, 0);
     if (assigned !== USABLE) colW_arr[colW_arr.length - 1] += (USABLE - assigned);
   } else {
-    var eqW = Math.max(600, Math.floor(USABLE / nc));
-    colW_arr = [];
-    for (var ei = 0; ei < nc; ei++) colW_arr.push(eqW);
+    // Form tables: give label col 35%, value col 65% (better for label:value forms)
+    if (isForm && nc === 2) {
+      colW_arr = [Math.round(USABLE * 0.35), Math.round(USABLE * 0.65)];
+    } else {
+      var eqW = Math.max(600, Math.floor(USABLE / nc));
+      colW_arr = [];
+      for (var ei = 0; ei < nc; ei++) colW_arr.push(eqW);
+    }
   }
   var totalW = colW_arr.reduce(function(s, v) { return s + v; }, 0);
+
+  // Detect if table content is predominantly RTL
+  var allCellText = rows.map(function(r) { return (r || []).join(' '); }).join(' ');
+  var tableIsRtl  = isRtl(allCellText);
 
   // ── Table properties ──────────────────────────────────────────────────────
   var xml = '<w:tbl>';
@@ -84,6 +177,7 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
     '<w:tblStyle w:val="TableGrid"/>' +
     '<w:tblW w:w="' + totalW + '" w:type="dxa"/>' +
     '<w:tblLayout w:type="fixed"/>' +
+    (tableIsRtl ? '<w:bidiVisual/>' : '') +
     '<w:tblCellMar>' +
       '<w:top w:w="80" w:type="dxa"/>' +
       '<w:left w:w="108" w:type="dxa"/>' +
@@ -102,16 +196,12 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
 
   // ── Rows ──────────────────────────────────────────────────────────────────
   for (var ri = 0; ri < rows.length; ri++) {
-    var row       = rows[ri] || [];
-    var isHeader  = (ri === 0 && !isOcrTable);
-    var rowFill   = isHeader ? 'EFF6FF' : (ri % 2 === 0 ? 'FFFFFF' : 'F9FAFB');
+    var row      = rows[ri] || [];
+    var isHeader = (ri === 0 && !isOcrTable && !isForm);
+    var rowFill  = isHeader ? 'EFF6FF' : (isForm ? 'FFFFFF' : (ri % 2 === 0 ? 'FFFFFF' : 'F9FAFB'));
 
     xml += '<w:tr>';
 
-    // Row properties
-    // NOTE: <w:shd> is NOT a valid child of <w:trPr> per OOXML CT_TrPr schema —
-    // shading must live in <w:tcPr> (already applied per-cell below). Omitting it
-    // from trPr prevents Word's "repaired" dialog and LibreOffice parse warnings.
     var trPr = '<w:trPr>';
     if (isHeader) trPr += '<w:tblHeader/>';
     trPr += '<w:trHeight w:val="340" w:hRule="atLeast"/>';
@@ -120,11 +210,16 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
 
     // Cells — each with its own proportional width
     for (var ci = 0; ci < nc; ci++) {
-      var cellVal = (row[ci] !== undefined && row[ci] !== null) ? String(row[ci]) : '';
-      var cellSz  = '20';
-      var cellClr = isHeader ? '1E3A5F' : '374151';
-      var bold    = isHeader ? '<w:b/>' : '';
-      var cw      = colW_arr[ci] || Math.max(600, Math.floor(USABLE / nc));
+      var cellVal    = (row[ci] !== undefined && row[ci] !== null) ? String(row[ci]) : '';
+      var cellNorm   = _normalizeSymbols(cellVal);
+      var cellIsRtl  = isRtl(cellNorm);
+      var cellSz     = '20';
+      var cellClr    = isHeader ? '1E3A5F' : (isForm && ci === 0 ? '1E3A5F' : '374151');
+      var bold       = (isHeader || (isForm && ci === 0)) ? '<w:b/>' : '';
+      var cw         = colW_arr[ci] || Math.max(600, Math.floor(USABLE / nc));
+      var cellJc     = cellIsRtl ? '<w:jc w:val="right"/>' : '';
+      var cellBidi   = cellIsRtl ? '<w:bidi/>' : '';
+      var runRtl     = cellIsRtl ? '<w:rtl/>' : '';
 
       xml += '<w:tc>' +
         '<w:tcPr>' +
@@ -138,10 +233,10 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
           '</w:tcBorders>' +
         '</w:tcPr>' +
         '<w:p>' +
-          '<w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>' +
-          (cellVal
-            ? '<w:r><w:rPr>' + bold + '<w:sz w:val="' + cellSz + '"/><w:color w:val="' + cellClr + '"/></w:rPr>' +
-              '<w:t xml:space="preserve">' + esc(cellVal) + '</w:t></w:r>'
+          '<w:pPr><w:spacing w:before="40" w:after="40"/>' + cellBidi + cellJc + '</w:pPr>' +
+          (cellNorm
+            ? '<w:r><w:rPr>' + bold + runRtl + '<w:sz w:val="' + cellSz + '"/><w:szCs w:val="' + cellSz + '"/><w:color w:val="' + cellClr + '"/></w:rPr>' +
+              '<w:t xml:space="preserve">' + esc(cellNorm) + '</w:t></w:r>'
             : '') +
         '</w:p>' +
       '</w:tc>';
@@ -157,14 +252,15 @@ function buildTableXml(rows, numCols, isOcrTable, colWidths) {
 }
 
 // ── BUILD DOCX ────────────────────────────────────────────────────────────────
-// v4.0 ENTERPRISE RESTABILIZATION:
-//   - Real <w:tbl> tables (para.isTable = true, para.rows = string[][])
-//   - Proper DOCX page breaks between pages (no "Page N" text labels)
-//   - Multi-level list nesting (ilvl 0-8)
-//   - Table of Contents marker paragraph (para.isTocEntry)
-//   - Full styles.xml with TableNormal + TableGrid for Word/LibreOffice/GDocs
-//   - Hardened numbering.xml (all 9 indent levels, Symbol fallback)
-//   - Section properties with correct margins
+// v5.0 ENTERPRISE FORENSIC STABILIZATION:
+//   - Full RTL support: <w:bidi/> on all paragraph types, headings, lists, tables
+//   - Per-run inline typography: bold/italic/underline/strikethrough/size from PDF
+//   - Checkbox/symbol normalization: ☑ → [x], ☐ → [ ]
+//   - Signature line detection: ___ → styled underline paragraph
+//   - Font size preservation: para.fontSize drives actual output pt size
+//   - Tab stop generation: para.xPositions drives <w:tabs> alignment
+//   - Form layout: para.isForm → label/value table rendering
+//   - Word/LibreOffice/Google Docs/WPS compatible OOXML
 async function buildDocx(pages) {
   ensureJszip();
   var body = [];
@@ -191,13 +287,28 @@ async function buildDocx(pages) {
         var para = paragraphs[qi];
 
         // ── Real table ──────────────────────────────────────────────────────
-        // Fix B4/B7: pass colWidths for proportional column rendering
         if (para.isTable && para.rows && para.rows.length) {
-          body.push(buildTableXml(para.rows, para.colCount, para.isOcrTable, para.colWidths));
+          body.push(buildTableXml(para.rows, para.colCount, para.isOcrTable, para.colWidths, para.isForm));
           continue;
         }
 
         if (!para.text) continue;
+
+        // ── Signature line (explicit flag OR text pattern detection) ──────────
+        if (para.isSignature || _isSignatureLine(para.text)) {
+          var sigText = _normalizeSymbols(para.text);
+          body.push(
+            '<w:p><w:pPr>' +
+              '<w:spacing w:before="120" w:after="120"/>' +
+            '</w:pPr>' +
+            '<w:r><w:rPr>' +
+              '<w:color w:val="888888"/><w:sz w:val="22"/><w:szCs w:val="22"/>' +
+              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>' +
+            '</w:rPr>' +
+            '<w:t xml:space="preserve">' + esc(sigText) + '</w:t></w:r></w:p>'
+          );
+          continue;
+        }
 
         // ── Heading ─────────────────────────────────────────────────────────
         if (para.isHeading) {
@@ -207,25 +318,34 @@ async function buildDocx(pages) {
           else if (lvl === 2) { hStyle = 'Heading2'; hSz = '24'; hColor = '2C4A7A'; }
           else if (lvl === 3) { hStyle = 'Heading3'; hSz = '22'; hColor = '374151'; }
           else                { hStyle = 'Heading4'; hSz = '21'; hColor = '4B5563'; }
+          var hText     = _normalizeSymbols(para.text);
+          var hIsRtl    = isRtl(hText);
+          var hBidi     = hIsRtl ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          var hRunRtl   = hIsRtl ? '<w:rtl/>' : '';
           body.push(
             '<w:p><w:pPr>' +
               '<w:pStyle w:val="' + hStyle + '"/>' +
               '<w:spacing w:before="200" w:after="80"/>' +
-              '<w:keepNext/>' +
+              '<w:keepNext/>' + hBidi +
             '</w:pPr>' +
             '<w:r><w:rPr>' +
-              '<w:b/><w:sz w:val="' + hSz + '"/><w:color w:val="' + hColor + '"/>' +
-              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
+              '<w:b/><w:bCs/>' + hRunRtl +
+              '<w:sz w:val="' + hSz + '"/><w:szCs w:val="' + hSz + '"/>' +
+              '<w:color w:val="' + hColor + '"/>' +
+              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>' +
             '</w:rPr>' +
-            '<w:t xml:space="preserve">' + esc(para.text) + '</w:t></w:r></w:p>'
+            '<w:t xml:space="preserve">' + esc(hText) + '</w:t></w:r></w:p>'
           );
           continue;
         }
 
         // ── Numbered list ────────────────────────────────────────────────────
         if (para.isNumList) {
-          var numText  = _stripListMarker(para.text, true);
-          var numLevel = Math.max(0, Math.min(8, _listLevel(para.text)));
+          var numText   = _normalizeSymbols(_stripListMarker(para.text, true));
+          var numLevel  = Math.max(0, Math.min(8, _listLevel(para.text)));
+          var numIsRtl  = isRtl(numText);
+          var numBidi   = numIsRtl ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          var numRunRtl = numIsRtl ? '<w:rtl/>' : '';
           body.push(
             '<w:p><w:pPr>' +
               '<w:pStyle w:val="ListParagraph"/>' +
@@ -233,11 +353,11 @@ async function buildDocx(pages) {
                 '<w:ilvl w:val="' + numLevel + '"/>' +
                 '<w:numId w:val="2"/>' +
               '</w:numPr>' +
-              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' +
+              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' + numBidi +
             '</w:pPr>' +
-            '<w:r><w:rPr>' +
-              '<w:sz w:val="22"/><w:color w:val="374151"/>' +
-              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
+            '<w:r><w:rPr>' + numRunRtl +
+              '<w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="374151"/>' +
+              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>' +
             '</w:rPr>' +
             '<w:t xml:space="preserve">' + esc(numText) + '</w:t></w:r></w:p>'
           );
@@ -246,8 +366,11 @@ async function buildDocx(pages) {
 
         // ── Bullet list ──────────────────────────────────────────────────────
         if (para.isList) {
-          var listText  = _stripListMarker(para.text, false);
-          var listLevel = Math.max(0, Math.min(8, _listLevel(para.text)));
+          var listText   = _normalizeSymbols(_stripListMarker(para.text, false));
+          var listLevel  = Math.max(0, Math.min(8, _listLevel(para.text)));
+          var listIsRtl  = isRtl(listText);
+          var listBidi   = listIsRtl ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          var listRunRtl = listIsRtl ? '<w:rtl/>' : '';
           body.push(
             '<w:p><w:pPr>' +
               '<w:pStyle w:val="ListParagraph"/>' +
@@ -255,11 +378,11 @@ async function buildDocx(pages) {
                 '<w:ilvl w:val="' + listLevel + '"/>' +
                 '<w:numId w:val="1"/>' +
               '</w:numPr>' +
-              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' +
+              '<w:spacing w:line="276" w:lineRule="auto" w:after="60"/>' + listBidi +
             '</w:pPr>' +
-            '<w:r><w:rPr>' +
-              '<w:sz w:val="22"/><w:color w:val="374151"/>' +
-              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
+            '<w:r><w:rPr>' + listRunRtl +
+              '<w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="374151"/>' +
+              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>' +
             '</w:rPr>' +
             '<w:t xml:space="preserve">' + esc(listText) + '</w:t></w:r></w:p>'
           );
@@ -267,33 +390,47 @@ async function buildDocx(pages) {
         }
 
         // ── Normal paragraph ─────────────────────────────────────────────────
-        // Fix B5: apply <w:b/> and <w:i/> when the engine detected bold/italic
-        // font names on the PDF text items for this paragraph.
-        var pBold   = para.bold   ? '<w:b/><w:bCs/>'   : '';
-        var pItalic = para.italic ? '<w:i/><w:iCs/>'   : '';
+        // v5.0: RTL support, inline runs, tab stops, font size from PDF metadata.
+        var pText   = _normalizeSymbols(para.text);
+        var pIsRtl  = isRtl(pText);
+        var pBidi   = pIsRtl ? '<w:bidi/><w:jc w:val="right"/>' : '';
+
+        // Font size: use para.fontSize if provided (half-points), else default 22 (11pt)
+        var pBaseSz = (para.fontSize && para.fontSize > 0)
+          ? Math.max(16, Math.min(144, Math.round(para.fontSize * 2)))
+          : 22;
+
+        // Tab stops from positional data (forms, schedules, financial tables)
+        var tabXml  = (para.xPositions && para.xPositions.length > 1)
+          ? _buildTabStopsXml(para.xPositions, para.pageWidth || 612)
+          : '';
+
+        // Inline runs with per-run typography (bold/italic/underline/size/RTL)
+        var runsXml = _buildRunsXml(para, pBaseSz);
+
         body.push(
           '<w:p><w:pPr>' +
             '<w:spacing w:line="276" w:lineRule="auto" w:after="100"/>' +
+            pBidi + tabXml +
           '</w:pPr>' +
-          '<w:r><w:rPr>' +
-            pBold + pItalic +
-            '<w:sz w:val="22"/><w:color w:val="374151"/>' +
-            '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
-          '</w:rPr>' +
-          '<w:t xml:space="preserve">' + esc(para.text) + '</w:t></w:r></w:p>'
+          runsXml +
+          '</w:p>'
         );
       }
     } else if (rawText) {
       // Flat text fallback — split on newlines
       var lines = rawText.split(/\r?\n/);
       for (var li = 0; li < lines.length; li++) {
-        var line = lines[li].trim();
+        var line = _normalizeSymbols(lines[li].trim());
         if (line) {
+          var lineIsRtl = isRtl(line);
+          var lineBidi  = lineIsRtl ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          var lineRtl   = lineIsRtl ? '<w:rtl/>' : '';
           body.push(
-            '<w:p><w:pPr><w:spacing w:line="276" w:lineRule="auto" w:after="100"/></w:pPr>' +
-            '<w:r><w:rPr>' +
-              '<w:sz w:val="22"/><w:color w:val="374151"/>' +
-              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
+            '<w:p><w:pPr><w:spacing w:line="276" w:lineRule="auto" w:after="100"/>' + lineBidi + '</w:pPr>' +
+            '<w:r><w:rPr>' + lineRtl +
+              '<w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="374151"/>' +
+              '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>' +
             '</w:rPr>' +
             '<w:t xml:space="preserve">' + esc(line) + '</w:t></w:r></w:p>'
           );
