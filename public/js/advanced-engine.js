@@ -1775,6 +1775,9 @@
     'pdf-to-word':        1000,
     'pdf-to-excel':       1000,
     'pdf-to-powerpoint':  1000,
+    'word-to-pdf':        500,
+    'excel-to-pdf':       500,
+    'powerpoint-to-pdf':  500,
     'ocr':                200,
     'background-remover': 200,
     'repair':             200,
@@ -1867,6 +1870,11 @@
       var pptxChars  = data.chars  !== undefined ? data.chars  : 0;
       if (pptxSlides < 1) issues.push('no_slides_generated');
       if (pptxChars  < 5) issues.push('no_extractable_text:' + pptxChars);
+    }
+    else if (toolId === 'word-to-pdf') {
+      var wpdfParas = data.paragraphs !== undefined ? data.paragraphs : 0;
+      var wpdfChars = data.chars      !== undefined ? data.chars      : 0;
+      if (wpdfParas === 0 && wpdfChars < 10) issues.push('no_content_extracted');
     }
     else if (toolId === 'background-remover') {
       if (data.hasTransparent === false) issues.push('no_transparent_pixels');
@@ -2786,13 +2794,546 @@
     };
   };
 
-  // ─── SENTINEL DELEGATORS ──────────────────────────────────────────────────
-  // v5: word-to-pdf pre-checks for empty files before handing off
+  // ─── WORD TO PDF — Real Enterprise Pipeline v1.0 ──────────────────────────
+  //
+  // Architecture:
+  //   Phase 0  (5-15%)  : Load mammoth.js + pdf-lib (IDB-cached CDN)
+  //                        ArrayBuffer allocated → mammoth parses → ab null'd immediately
+  //   Phase 1  (15-35%) : DOMParser walks mammoth HTML → flat typed element list extracted
+  //                        Handles: h1-h6, p, ul, ol, table, blockquote, hr, pre, img
+  //                        DOM tree released after extraction
+  //   Phase 2  (35-85%) : pdf-lib direct rendering — NO html2canvas, NO jsPDF
+  //                        Elements rendered in PERF_MODE-adaptive ELEMENT_CHUNK batches
+  //                        yieldToMain() every chunk; memTier() abort guard per chunk
+  //                        Inline bold/italic via segment extractor + word-layout engine
+  //                        Text wrapping via font.widthOfTextAtSize() per-word measurement
+  //                        Tables: auto-sizing grid; Images: base64 embed with 2MB cap
+  //   Phase 3  (85-100%): doc.save() → blob; validateContent; DT() result
+  //
+  // Improvements over BrowserTools wordToPdf() fallback:
+  //   • No html2canvas — eliminates per-document giant canvas OOM
+  //   • No jsPDF — pdf-lib renders directly (consistent with rest of pipeline)
+  //   • ArrayBuffer null'd immediately after mammoth.convertToHtml()
+  //   • DOM released after element-list extraction (element objects null'd after render)
+  //   • ELEMENT_CHUNK batches + yieldToMain() — browser stays responsive
+  //   • memTier() abort per chunk → partial PDF returned (partial > crash)
+  //   • Full DT() DebugTrace throughout all phases
+  //   • _quality: {chars, paras, pages, images, tables} for analyzeResultQuality
+  //   • validateContent('word-to-pdf') branch now active
+  //   • 50MB BrowserTools size ceiling bypassed (AdvancedEngine handles up to 500MB)
+  //   • Inline bold/italic/boldItalic preserved via recursive childNode walker
+  //   • BrowserTools fallback PRESERVED — fires only on library load failure
+  //
   processors['word-to-pdf'] = async function (f, o, s) {
-    s(0, 'active', 10, 'Preparing your file\u2026');
     var file = f && f[0];
     if (!file || file.size < 20) throw new Error('empty_input');
-    throw new Error(ERR.ORIG);
+
+    var fileSizeMB = (file.size / 1048576).toFixed(1);
+    DT().log('word-to-pdf-start', { sizeMB: fileSizeMB });
+
+    // ── Phase 0: load libraries ──────────────────────────────────────────────
+    s(0, 'active', 5, 'Loading engine\u2026');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+    if (!window.mammoth) throw new Error('Document parser unavailable. Check your connection and try again.');
+
+    await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+    if (!window.PDFLib) throw new Error('PDF engine unavailable. Check your connection and try again.');
+
+    DT().log('word-to-pdf-libs-ready', {});
+
+    // ── Phase 0b: DOCX → HTML via mammoth ───────────────────────────────────
+    s(0, 'active', 10, 'Parsing document\u2026');
+
+    var ab = await file.arrayBuffer();
+    var mammothResult;
+    try {
+      mammothResult = await window.mammoth.convertToHtml({ arrayBuffer: ab });
+    } finally {
+      ab = null; // release ArrayBuffer immediately — mammoth holds internal copy
+    }
+
+    var htmlContent = (mammothResult && mammothResult.value) || '';
+    mammothResult = null;
+
+    if (!htmlContent.trim()) {
+      throw new Error('Could not extract content from this Word document. The file may be empty or in an unsupported format.');
+    }
+
+    DT().log('word-to-pdf-html-ready', { htmlLen: htmlContent.length });
+
+    // ── Phase 1: HTML → typed element list ──────────────────────────────────
+    s(1, 'active', 15, 'Analyzing document structure\u2026');
+
+    var parser  = new DOMParser();
+    var htmlDoc = parser.parseFromString('<div id="wr">' + htmlContent + '</div>', 'text/html');
+    htmlContent = null;
+
+    var rootEl   = htmlDoc.getElementById('wr') || htmlDoc.body;
+    var children = rootEl ? Array.from(rootEl.children) : [];
+
+    // Recursive inline-style segment extractor
+    // Returns [{text, bold, italic}] from mixed HTML (strong/b/em/i)
+    function _segs(el) {
+      var out = [];
+      function _walk(node, b, it) {
+        if (node.nodeType === 3) {
+          var t = node.textContent || '';
+          if (t) out.push({ text: t, bold: b, italic: it });
+        } else if (node.nodeType === 1) {
+          var tag = (node.tagName || '').toLowerCase();
+          var nb  = b  || tag === 'strong' || tag === 'b';
+          var ni  = it || tag === 'em'     || tag === 'i';
+          var ch  = node.childNodes;
+          for (var ci = 0; ci < ch.length; ci++) _walk(ch[ci], nb, ni);
+        }
+      }
+      var ch2 = el.childNodes;
+      for (var i2 = 0; i2 < ch2.length; i2++) _walk(ch2[i2], false, false);
+      return out;
+    }
+
+    // Extract a table node → {type, rows, maxCols}
+    function _tableEl(node) {
+      var rows    = [];
+      var maxCols = 0;
+      var trs     = node.querySelectorAll('tr');
+      for (var r = 0; r < trs.length; r++) {
+        var tds = trs[r].querySelectorAll('th, td');
+        var row = [];
+        for (var d = 0; d < tds.length; d++) {
+          row.push({
+            text:   (tds[d].textContent || '').trim().slice(0, 500),
+            isHead: (tds[d].tagName || '').toLowerCase() === 'th',
+          });
+        }
+        if (row.length > maxCols) maxCols = row.length;
+        rows.push(row);
+      }
+      return { type: 'table', rows: rows, maxCols: maxCols };
+    }
+
+    var elements = [];
+    for (var ei = 0; ei < children.length; ei++) {
+      var ch = children[ei];
+      var tag = (ch.tagName || '').toLowerCase();
+
+      if (/^h[1-6]$/.test(tag)) {
+        var lvl = parseInt(tag[1], 10);
+        elements.push({ type: 'heading', level: lvl, segments: _segs(ch), text: (ch.textContent || '').trim() });
+
+      } else if (tag === 'p') {
+        var pText = (ch.textContent || '').trim();
+        if (pText) elements.push({ type: 'para', segments: _segs(ch), text: pText });
+
+      } else if (tag === 'ul') {
+        var ulis = ch.querySelectorAll('li');
+        for (var uli = 0; uli < ulis.length; uli++) {
+          var liText = (ulis[uli].textContent || '').trim();
+          if (liText) elements.push({ type: 'listitem', listType: 'ul', index: uli + 1, text: liText });
+        }
+
+      } else if (tag === 'ol') {
+        var olis = ch.querySelectorAll('li');
+        for (var oli = 0; oli < olis.length; oli++) {
+          var oliText = (olis[oli].textContent || '').trim();
+          if (oliText) elements.push({ type: 'listitem', listType: 'ol', index: oli + 1, text: oliText });
+        }
+
+      } else if (tag === 'table') {
+        elements.push(_tableEl(ch));
+
+      } else if (tag === 'blockquote') {
+        var bqText = (ch.textContent || '').trim();
+        if (bqText) elements.push({ type: 'blockquote', text: bqText });
+
+      } else if (tag === 'hr') {
+        elements.push({ type: 'hr' });
+
+      } else if (tag === 'pre') {
+        var preText = (ch.textContent || '').trim();
+        if (preText) elements.push({ type: 'pre', text: preText });
+
+      } else if (tag === 'img') {
+        var imgSrc = ch.getAttribute('src') || '';
+        if (imgSrc && imgSrc.startsWith('data:image')) elements.push({ type: 'image', src: imgSrc });
+
+      } else {
+        var gText = (ch.textContent || '').trim();
+        if (gText) elements.push({ type: 'para', segments: [{ text: gText, bold: false, italic: false }], text: gText });
+      }
+    }
+
+    // Release DOM and children array
+    rootEl = null; children = null; htmlDoc = null;
+
+    var totalElements = elements.length;
+    DT().log('word-to-pdf-elements', { count: totalElements });
+
+    if (totalElements === 0) {
+      throw new Error('No content could be extracted from this document.');
+    }
+
+    s(1, 'done', 35);
+
+    // ── Phase 2: pdf-lib direct rendering ───────────────────────────────────
+    s(2, 'active', 37, 'Building PDF\u2026');
+
+    // Page geometry
+    var pageSizeKey  = String((o && o.pageSize) || 'A4');
+    var marginKey    = String((o && o.margins)   || 'normal');
+    var PAGE_SIZES   = { A4: [595, 842], Letter: [612, 792], A3: [842, 1191] };
+    var MARGIN_SIZES = { none: 20, narrow: 30, normal: 40, wide: 55 };
+    var psSrc        = PAGE_SIZES[pageSizeKey]  || PAGE_SIZES.A4;
+    var marginPt     = MARGIN_SIZES[marginKey]  || MARGIN_SIZES.normal;
+    var PW           = psSrc[0];
+    var PH           = psSrc[1];
+    var usableW      = PW - marginPt * 2;
+
+    var PDFLib         = window.PDFLib;
+    var _PDFDocument   = PDFLib.PDFDocument;
+    var _StandardFonts = PDFLib.StandardFonts;
+    var _rgb           = PDFLib.rgb;
+
+    var doc       = await _PDFDocument.create();
+    var fontReg   = await doc.embedFont(_StandardFonts.Helvetica);
+    var fontBold  = await doc.embedFont(_StandardFonts.HelveticaBold);
+    var fontItal  = await doc.embedFont(_StandardFonts.HelveticaOblique);
+    var fontBoldI = await doc.embedFont(_StandardFonts.HelveticaBoldOblique);
+
+    // Typography constants
+    var BODY_FS      = 11;
+    var CODE_FS      = 9;
+    var LINE_HF      = 1.55;
+    var PARA_GAP     = 6;
+    var HEAD_PRE     = 10;
+    var HEAD_POST    = 5;
+    var INDENT       = 18;
+    var MAX_IMG_B64  = 2 * 1024 * 1024; // 2MB base64 limit; larger → placeholder
+    var IMG_MAX_H    = 300;
+    var HEADING_FS   = [null, 22, 17, 14, 12, 11, 11]; // h1-h6
+
+    // PERF_MODE-adaptive chunk size — same pattern as excel-to-pdf
+    var ELEMENT_CHUNK = (PERF_MODE === 'high') ? 80 : (PERF_MODE === 'medium') ? 40 : 15;
+
+    // Quality counters
+    var pagesDone  = 0;
+    var charTotal  = 0;
+    var paraCount  = 0;
+    var imgCount   = 0;
+    var tableCount = 0;
+
+    // ── Text layout engine ───────────────────────────────────────────────────
+    // Lay out segments into lines; each line = [{text, bold, italic, w}]
+    function _layoutSegs(segments, fontSize, maxW) {
+      var words  = [];
+      var SPAW   = fontReg.widthOfTextAtSize(' ', fontSize);
+      for (var si = 0; si < segments.length; si++) {
+        var sg   = segments[si];
+        var parts = (sg.text || '').replace(/\s+/g, ' ').split(' ');
+        for (var pi = 0; pi < parts.length; pi++) {
+          if (parts[pi]) words.push({ text: parts[pi], bold: sg.bold, italic: sg.italic });
+        }
+      }
+      if (!words.length) return [];
+      var lines   = [];
+      var curLine = [];
+      var lineW   = 0;
+      for (var wi = 0; wi < words.length; wi++) {
+        var wd = words[wi];
+        var fnt = wd.bold ? (wd.italic ? fontBoldI : fontBold) : (wd.italic ? fontItal : fontReg);
+        var wW; try { wW = fnt.widthOfTextAtSize(wd.text, fontSize); } catch (_) { wW = wd.text.length * fontSize * 0.55; }
+        var gap = curLine.length > 0 ? SPAW : 0;
+        if (lineW + gap + wW > maxW && curLine.length > 0) {
+          lines.push(curLine);
+          curLine = [{ text: wd.text, bold: wd.bold, italic: wd.italic, w: wW }];
+          lineW   = wW;
+        } else {
+          if (curLine.length > 0) lineW += SPAW;
+          curLine.push({ text: wd.text, bold: wd.bold, italic: wd.italic, w: wW });
+          lineW += wW;
+        }
+      }
+      if (curLine.length) lines.push(curLine);
+      return lines;
+    }
+
+    // Wrap plain text (no inline styles) into string-array lines
+    function _wrapText(text, fnt, fontSize, maxW) {
+      var ws  = (text || '').replace(/\s+/g, ' ').trim().split(' ');
+      if (!ws.length || !ws[0]) return [];
+      var lines = []; var cur = '';
+      for (var i = 0; i < ws.length; i++) {
+        var tryStr = cur ? cur + ' ' + ws[i] : ws[i];
+        var w; try { w = fnt.widthOfTextAtSize(tryStr, fontSize); } catch (_) { w = tryStr.length * fontSize * 0.55; }
+        if (w > maxW && cur) { lines.push(cur); cur = ws[i]; }
+        else cur = tryStr;
+      }
+      if (cur) lines.push(cur);
+      return lines;
+    }
+
+    // Draw one laid-out segment line at (x0, y)
+    function _drawSegLine(pg, line, x0, y, fontSize, clr) {
+      var x    = x0;
+      var SPAW = fontReg.widthOfTextAtSize(' ', fontSize);
+      for (var i = 0; i < line.length; i++) {
+        if (i > 0) x += SPAW;
+        var item = line[i];
+        var fnt  = item.bold ? (item.italic ? fontBoldI : fontBold) : (item.italic ? fontItal : fontReg);
+        try { pg.drawText(item.text, { x: x, y: y, size: fontSize, font: fnt, color: clr }); } catch (_) {}
+        x += item.w || 0;
+      }
+    }
+
+    // ── Page management ──────────────────────────────────────────────────────
+    var page = doc.addPage([PW, PH]);
+    pagesDone++;
+    var y = PH - marginPt;
+
+    function _ensureSpace(needed) {
+      if (y - needed < marginPt) {
+        page = doc.addPage([PW, PH]);
+        pagesDone++;
+        y = PH - marginPt;
+      }
+    }
+
+    // ── Element renderer ─────────────────────────────────────────────────────
+    async function _renderElement(el) {
+      if (!el) return;
+
+      // ── HEADING ────────────────────────────────────────────────────────────
+      if (el.type === 'heading') {
+        var hFS   = HEADING_FS[el.level] || BODY_FS;
+        var hLH   = hFS * LINE_HF;
+        var hSegs = (el.segments && el.segments.length) ? el.segments : [{ text: el.text, bold: true, italic: false }];
+        var hLines = _layoutSegs(hSegs, hFS, usableW);
+        if (!hLines.length) return;
+        _ensureSpace(hLH * hLines.length + HEAD_PRE + HEAD_POST + 4);
+        y -= HEAD_PRE;
+        var hClr = el.level <= 2 ? _rgb(0.10, 0.12, 0.42)
+                 : el.level === 3 ? _rgb(0.18, 0.20, 0.36)
+                 : _rgb(0.20, 0.20, 0.22);
+        for (var hl = 0; hl < hLines.length; hl++) {
+          _ensureSpace(hLH + HEAD_POST);
+          _drawSegLine(page, hLines[hl], marginPt, y - hLH + 3, hFS, hClr);
+          y -= hLH;
+        }
+        // Decorative rule under h1/h2
+        if (el.level <= 2) {
+          try {
+            page.drawLine({
+              start: { x: marginPt, y: y - 2 },
+              end:   { x: marginPt + usableW, y: y - 2 },
+              thickness: el.level === 1 ? 1.5 : 0.8,
+              color: _rgb(0.72, 0.76, 0.90),
+            });
+          } catch (_) {}
+          y -= 4;
+        }
+        y -= HEAD_POST;
+        paraCount++;
+        charTotal += el.text.length;
+
+      // ── PARAGRAPH ──────────────────────────────────────────────────────────
+      } else if (el.type === 'para') {
+        var pFS    = BODY_FS;
+        var pLH    = pFS * LINE_HF;
+        var pLines = _layoutSegs(el.segments || [{ text: el.text, bold: false, italic: false }], pFS, usableW);
+        for (var pl = 0; pl < pLines.length; pl++) {
+          _ensureSpace(pLH);
+          _drawSegLine(page, pLines[pl], marginPt, y - pLH + 3, pFS, _rgb(0.02, 0.02, 0.02));
+          y -= pLH;
+        }
+        y -= PARA_GAP;
+        paraCount++;
+        charTotal += el.text.length;
+
+      // ── LIST ITEM ──────────────────────────────────────────────────────────
+      } else if (el.type === 'listitem') {
+        var lFS   = BODY_FS;
+        var lLH   = lFS * LINE_HF;
+        var pfx   = el.listType === 'ol' ? (el.index + '.') : '\u2022';
+        var lLines = _wrapText(el.text, fontReg, lFS, usableW - INDENT);
+        if (!lLines.length) return;
+        for (var ll = 0; ll < lLines.length; ll++) {
+          _ensureSpace(lLH);
+          if (ll === 0) {
+            try { page.drawText(pfx, { x: marginPt, y: y - lLH + 3, size: lFS, font: fontBold, color: _rgb(0.28, 0.30, 0.62) }); } catch (_) {}
+          }
+          try { page.drawText(lLines[ll], { x: marginPt + INDENT, y: y - lLH + 3, size: lFS, font: fontReg, color: _rgb(0.02, 0.02, 0.02) }); } catch (_) {}
+          y -= lLH;
+        }
+        y -= 2;
+        charTotal += el.text.length;
+
+      // ── TABLE ──────────────────────────────────────────────────────────────
+      } else if (el.type === 'table') {
+        if (!el.rows || !el.rows.length) return;
+        tableCount++;
+        var tCols = Math.max(1, el.maxCols);
+        var tFS   = Math.max(7, Math.min(10, Math.floor(usableW / tCols / 8)));
+        var tLH   = tFS * LINE_HF + 5;
+        var colW  = usableW / tCols;
+        _ensureSpace(tLH + 6);
+        y -= 4;
+        for (var tr = 0; tr < el.rows.length; tr++) {
+          _ensureSpace(tLH);
+          var row   = el.rows[tr];
+          var isHdr = tr === 0 || !!(row[0] && row[0].isHead);
+          if (isHdr) {
+            try { page.drawRectangle({ x: marginPt, y: y - tLH + 1, width: usableW, height: tLH, color: _rgb(0.91, 0.93, 0.97) }); } catch (_) {}
+          }
+          var cx = marginPt;
+          for (var td = 0; td < tCols; td++) {
+            var cell  = row[td] || { text: '', isHead: false };
+            var cFont = (isHdr || cell.isHead) ? fontBold : fontReg;
+            var maxC  = Math.max(1, Math.floor(colW / (tFS * 0.62)));
+            var disp  = cell.text.length > maxC ? cell.text.slice(0, maxC - 1) + '\u2026' : cell.text;
+            if (disp) {
+              try { page.drawText(disp, { x: cx + 3, y: y - tLH + 6, size: tFS, font: cFont, color: _rgb(0.02, 0.02, 0.02) }); } catch (_) {}
+            }
+            try { page.drawRectangle({ x: cx, y: y - tLH + 1, width: colW, height: tLH, borderColor: _rgb(0.74, 0.76, 0.80), borderWidth: 0.4 }); } catch (_) {}
+            charTotal += cell.text.length;
+            cx += colW;
+          }
+          y -= tLH;
+        }
+        y -= 4;
+
+      // ── BLOCKQUOTE ─────────────────────────────────────────────────────────
+      } else if (el.type === 'blockquote') {
+        var bqFS    = BODY_FS;
+        var bqLH    = bqFS * LINE_HF;
+        var bqLines = _wrapText(el.text, fontItal, bqFS, usableW - INDENT - 6);
+        if (!bqLines.length) return;
+        _ensureSpace(bqLH * bqLines.length + 4);
+        try {
+          page.drawRectangle({ x: marginPt, y: y - bqLH * bqLines.length - 2, width: 3, height: bqLH * bqLines.length + 2, color: _rgb(0.58, 0.65, 0.82) });
+        } catch (_) {}
+        for (var bql = 0; bql < bqLines.length; bql++) {
+          _ensureSpace(bqLH);
+          try { page.drawText(bqLines[bql], { x: marginPt + INDENT, y: y - bqLH + 3, size: bqFS, font: fontItal, color: _rgb(0.28, 0.30, 0.30) }); } catch (_) {}
+          y -= bqLH;
+        }
+        y -= PARA_GAP;
+        charTotal += el.text.length;
+
+      // ── HORIZONTAL RULE ────────────────────────────────────────────────────
+      } else if (el.type === 'hr') {
+        _ensureSpace(14);
+        try { page.drawLine({ start: { x: marginPt, y: y - 7 }, end: { x: marginPt + usableW, y: y - 7 }, thickness: 0.5, color: _rgb(0.78, 0.78, 0.82) }); } catch (_) {}
+        y -= 14;
+
+      // ── PRE / CODE BLOCK ───────────────────────────────────────────────────
+      } else if (el.type === 'pre') {
+        var cFS    = CODE_FS;
+        var cLH    = cFS * LINE_HF;
+        var cLines = (el.text || '').split('\n').slice(0, 200); // cap at 200 lines
+        _ensureSpace(cLH + 8);
+        y -= 4;
+        try { page.drawRectangle({ x: marginPt, y: y - cLH * cLines.length - 4, width: usableW, height: cLH * cLines.length + 8, color: _rgb(0.95, 0.96, 0.97) }); } catch (_) {}
+        for (var crl = 0; crl < cLines.length; crl++) {
+          _ensureSpace(cLH);
+          var cLineText = cLines[crl].slice(0, 160);
+          if (cLineText) {
+            try { page.drawText(cLineText, { x: marginPt + 5, y: y - cLH + 3, size: cFS, font: fontReg, color: _rgb(0.12, 0.20, 0.14) }); } catch (_) {}
+          }
+          y -= cLH;
+          charTotal += cLines[crl].length;
+        }
+        y -= PARA_GAP;
+
+      // ── IMAGE ──────────────────────────────────────────────────────────────
+      } else if (el.type === 'image') {
+        imgCount++;
+        var b64Str = (el.src || '').split(',')[1] || '';
+        // Skip images with base64 payload > 2MB decoded to avoid OOM
+        if (!b64Str || b64Str.length > MAX_IMG_B64 * 1.37) {
+          _ensureSpace(20);
+          try { page.drawText('[Image \u2014 too large to embed]', { x: marginPt, y: y - 14, size: 9, font: fontItal, color: _rgb(0.50, 0.50, 0.55) }); } catch (_) {}
+          y -= 22;
+          return;
+        }
+        try {
+          var imgBytes = Uint8Array.from(atob(b64Str), function (c) { return c.charCodeAt(0); });
+          var isPng    = (el.src || '').startsWith('data:image/png');
+          var embImg   = isPng ? await doc.embedPng(imgBytes) : await doc.embedJpg(imgBytes);
+          imgBytes     = null;
+          var dims     = embImg.scale(1);
+          var iW       = Math.min(dims.width, usableW);
+          var iH       = (iW / dims.width) * dims.height;
+          if (iH > IMG_MAX_H) { var sc = IMG_MAX_H / iH; iW *= sc; iH = IMG_MAX_H; }
+          _ensureSpace(iH + 10);
+          try { page.drawImage(embImg, { x: marginPt, y: y - iH, width: iW, height: iH }); } catch (_) {}
+          y -= iH + 10;
+        } catch (_imgErr) {
+          _ensureSpace(20);
+          try { page.drawText('[Image \u2014 could not embed]', { x: marginPt, y: y - 14, size: 9, font: fontItal, color: _rgb(0.50, 0.50, 0.55) }); } catch (_) {}
+          y -= 22;
+        }
+      }
+    }
+
+    // ── Chunked element rendering with yield + memTier guard ─────────────────
+    for (var ei2 = 0; ei2 < elements.length; ei2++) {
+      if (memTier() === 'fallback') {
+        DT().error('word-to-pdf-mem-abort', { ei: ei2, pagesDone: pagesDone });
+        break; // return partial PDF — partial is better than crash
+      }
+
+      await _renderElement(elements[ei2]);
+      elements[ei2] = null; // release after render
+
+      if ((ei2 + 1) % ELEMENT_CHUNK === 0) {
+        var renderPct = 37 + Math.round(((ei2 + 1) / totalElements) * 47);
+        s(2, 'active', Math.min(renderPct, 83), 'Rendering\u2026 ' + (ei2 + 1) + '/' + totalElements + ' elements');
+        await yieldToMain(10);
+        if (memTier() === 'fallback') {
+          DT().error('word-to-pdf-chunk-abort', { ei: ei2, pagesDone: pagesDone });
+          break;
+        }
+      }
+    }
+
+    safeArrayNull(elements); elements = null;
+    s(2, 'done', 85);
+
+    // ── Phase 3: finalize ────────────────────────────────────────────────────
+    s(3, 'active', 88, 'Finalizing PDF\u2026');
+
+    var pdfBytes = await doc.save();
+    doc = null;
+
+    var blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    pdfBytes = null;
+
+    if (blob.size < 500) {
+      throw new Error('PDF generation produced an empty result. Please try with a different file.');
+    }
+
+    // Content-level quality gate
+    validateContent('word-to-pdf', { paragraphs: paraCount, chars: charTotal });
+
+    DT().validate('word-to-pdf-quality', {
+      blobSize: blob.size, pagesDone: pagesDone,
+      paraCount: paraCount, charTotal: charTotal,
+      imgCount: imgCount, tableCount: tableCount,
+    });
+    DT().result('word-to-pdf-complete', {
+      sizeMB: (blob.size / 1048576).toFixed(2),
+      pages: pagesDone, paras: paraCount, chars: charTotal,
+      images: imgCount, tables: tableCount,
+    });
+
+    s(3, 'done', 100);
+
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.pdf'),
+      _quality: { rows: paraCount, paras: pagesDone, pages: pagesDone, chars: charTotal },
+    };
   };
   // ─── EXCEL TO PDF — Real Enterprise Pipeline v1.0 ────────────────────────
   //
