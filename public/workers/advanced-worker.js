@@ -90,10 +90,12 @@ function buildTableXml(rows, numCols, isOcrTable) {
     xml += '<w:tr>';
 
     // Row properties
+    // NOTE: <w:shd> is NOT a valid child of <w:trPr> per OOXML CT_TrPr schema —
+    // shading must live in <w:tcPr> (already applied per-cell below). Omitting it
+    // from trPr prevents Word's "repaired" dialog and LibreOffice parse warnings.
     var trPr = '<w:trPr>';
     if (isHeader) trPr += '<w:tblHeader/>';
     trPr += '<w:trHeight w:val="340" w:hRule="atLeast"/>';
-    trPr += '<w:shd w:val="clear" w:color="auto" w:fill="' + rowFill + '"/>';
     trPr += '</w:trPr>';
     xml  += trPr;
 

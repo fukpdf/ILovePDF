@@ -1759,7 +1759,7 @@
       var allSingleWord = rows.every(function(r) {
         return r.filter(Boolean).every(function(c) { return c.split(/\s+/).length <= 2; });
       });
-      if (!allSingleWord && rows.length < 3) return []; // Not enough structure
+      if (!allSingleWord && rows.length < 2) return []; // Not enough structure (only reject single-row results)
     }
 
     return rows;
@@ -2492,7 +2492,13 @@
     // Phase 20B: Text quality scoring — detect garbled unicode even when char
     // count looks sufficient (broken fonts, PUA encoding, replacement chars).
     var _wSampleText = pages.slice(0, 3).map(function (p) {
-      return p.paragraphs.map(function (para) { return para.text; }).join(' ');
+      return p.paragraphs.map(function (para) {
+        if (para.isTable && para.rows) {
+          // Flatten table rows so quality scorer sees actual cell content
+          return para.rows.map(function (r) { return r.join(' '); }).join(' ');
+        }
+        return para.text || '';
+      }).join(' ');
     }).join(' ');
     var _wQuality = _scoreTextQuality(_wSampleText.length > 0 ? _wSampleText : '');
     DT().log('pdf-to-word-quality', {
@@ -2569,9 +2575,19 @@
     }
 
     // Phase 2 (v5): content-level validation — ≥2 paragraphs + ≥50 characters
+    // v4.0 fix: isTable paragraphs have text:'' — count their cell content too so
+    // table-heavy docs (chars=0 from text fields) don't false-fail the chars gate.
     var _wTotalParas = pages.reduce(function (s, p) { return s + p.paragraphs.length; }, 0);
     var _wTotalChars = pages.reduce(function (s, p) {
-      return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
+      return s + p.paragraphs.reduce(function (ps, para) {
+        if (para.isTable && para.rows) {
+          var tblChars = para.rows.reduce(function (rs, row) {
+            return rs + row.reduce(function (cs, cell) { return cs + (cell || '').length; }, 0);
+          }, 0);
+          return ps + tblChars;
+        }
+        return ps + (para.text || '').length;
+      }, 0);
     }, 0);
     DT().validate('pdf-to-word-content', { paras: _wTotalParas, chars: _wTotalChars });
     // v4.0: Call the proper Tier-2 content gate (was only calling DT().validate before)
