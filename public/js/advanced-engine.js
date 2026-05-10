@@ -1436,23 +1436,79 @@
     var medianH = heights[Math.floor(heights.length / 2)] || 10;
     var maxH    = heights[heights.length - 1] || 10;
 
-    // 2. Multi-column detection — look for 2-3 distinct x-clusters
     var validItems = items.filter(function (it) { return it.str.trim(); });
+
+    // ── TABLE DETECTION (v4.0 ENTERPRISE) ────────────────────────────────────
+    // Before building paragraphs, check whether this page is a table.
+    // Strategy: run the existing detectTableGridByAlignment + clusterCellsByXandY.
+    // If a real multi-column table is found, emit it as a single isTable paragraph
+    // so buildDocx() can render a real <w:tbl> element.
+    //
+    // We also try to separate header lines (above the table y-range) from table rows
+    // so that headings above the table are still preserved as heading paragraphs.
+    if (validItems.length >= 6 && detectTableGridByAlignment(items)) {
+      var tableRows = clusterCellsByXandY(items);
+      if (tableRows && tableRows.length >= 2 && tableRows[0] && tableRows[0].length >= 2) {
+        // Determine the y-range of items that were clustered into the table.
+        // Items whose y-coordinates are outside the table band are extracted as
+        // non-table paragraphs (headings, captions) so they are not lost.
+        var tableYs = {};
+        validItems.forEach(function(it) {
+          var yKey = Math.round(it.transform[5] / 6) * 6;
+          tableYs[yKey] = true;
+        });
+
+        var result = [];
+
+        // Extract any heading paragraphs that appear above the table cluster.
+        // Use a lighter heuristic: items with large font in the top 15% of the page.
+        var ys = Object.keys(tableYs).map(Number);
+        var yMin = Math.min.apply(null, ys);
+        var yMax = Math.max.apply(null, ys);
+        var yBand = (yMax - yMin) || 1;
+
+        // Items in the top 12% of y-range are treated as headings/captions outside the table
+        var headingItems = validItems.filter(function(it) {
+          var yKey = Math.round(it.transform[5] / 6) * 6;
+          return yKey > yMax - yBand * 0.12;
+        });
+        if (headingItems.length > 0 && headingItems.length < validItems.length * 0.25) {
+          var headerParas = _buildParaLines(headingItems, medianH, maxH);
+          headerParas.forEach(function(hp) { result.push(hp); });
+        }
+
+        // Emit the table
+        result.push({
+          isTable:  true,
+          rows:     tableRows,
+          colCount: tableRows[0].length,
+          text:     '',   // no plain text for table items
+        });
+
+        DT().log('doc-parser-v4-table', {
+          rows: tableRows.length,
+          cols: tableRows[0] ? tableRows[0].length : 0,
+          items: validItems.length,
+        });
+        return result;
+      }
+    }
+
+    // ── MULTI-COLUMN DETECTION ────────────────────────────────────────────────
     if (validItems.length > 6) {
       var xs = validItems.map(function (it) { return it.transform[4]; });
       xs.sort(function (a, b) { return a - b; });
       var xRange = xs[xs.length - 1] - xs[0];
 
-      // Detect column breaks via gap analysis
+      // Use 22% threshold (was 28%) for more reliable 2-column detection
       var colBoundaries = [];
       for (var ci = 1; ci < xs.length; ci++) {
-        if (xs[ci] - xs[ci - 1] > xRange * 0.28) {
+        if (xs[ci] - xs[ci - 1] > xRange * 0.22) {
           colBoundaries.push((xs[ci - 1] + xs[ci]) / 2);
         }
       }
 
       if (colBoundaries.length >= 1 && xRange > 60) {
-        // Multi-column: sort each column top-to-bottom independently, then concat
         var cols = [[]];
         for (var ki = 0; ki < colBoundaries.length; ki++) cols.push([]);
         validItems.forEach(function (it) {
@@ -1464,7 +1520,7 @@
           cols[col].push(it);
         });
 
-        // Validate column balance (each column has ≥20% of items)
+        // Validate column balance (each column has ≥15% of items)
         var balanced = cols.every(function(c) { return c.length > 0; }) &&
           cols.filter(function(c) { return c.length / validItems.length > 0.15; }).length >= 2;
 
@@ -1485,11 +1541,16 @@
   function _buildParaLines(items, medianH, maxH) {
     maxH = maxH || medianH * 2;
 
-    // Group items into lines by y-coordinate (2px tolerance)
+    // v4.0: Dynamic y-bucket — based on median font height so lines are never
+    // accidentally merged due to a fixed 2px tolerance on dense/small-font PDFs.
+    // Minimum bucket = 2px, max = 8px (avoids over-grouping large-font docs).
+    var _yBucket = Math.max(2, Math.min(8, Math.round(medianH * 0.35)));
+
+    // Group items into lines by y-coordinate (dynamic tolerance)
     var lineMap = {};
     items.forEach(function (it) {
       if (!it.str.trim()) return;
-      var yKey = Math.round(it.transform[5] / 2) * 2; // 2px bucket
+      var yKey = Math.round(it.transform[5] / _yBucket) * _yBucket;
       if (!lineMap[yKey]) lineMap[yKey] = [];
       lineMap[yKey].push(it);
     });
@@ -2449,22 +2510,62 @@
       if (ocrWChars < 10) {
         throw new Error('No readable text could be found. This may be a scanned document with unclear content.');
       }
+      // v4.0: OCR path table reconstruction.
+      // Instead of naive \n-split (which destroys all tabular structure), we:
+      //   (1) Split by newline to get individual text lines.
+      //   (2) Try whitespace-column detection (2+ spaces between tokens).
+      //       If 2+ columns found, emit as isTable paragraph.
+      //   (3) Otherwise apply heading/list detection on the line as before.
+      //
+      // This mirrors the proven pdf-to-excel OCR path (2+-space whitespace split).
       pages = ocrWPages.map(function (p) {
-        var paras = p.text.split('\n').filter(function (l) { return l.trim(); }).map(function (l) {
-          var t = l.trim();
-          // Infer basic structure from OCR line text so the DOCX builder can
-          // apply correct heading / list styles even without a native text layer.
-          var isHeading = (t.length >= 3 && t.length <= 90 &&
-                           t === t.toUpperCase() && /[A-Z]/.test(t)) ||
-                          /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i.test(t);
-          var isNumList = !isHeading && /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/.test(t);
-          var isList    = !isHeading && !isNumList &&
-                          /^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s/.test(t);
-          return { text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, level: isHeading ? 1 : 0 };
+        var rawLines = p.text.split('\n')
+          .map(function (l) { return l.trim(); })
+          .filter(Boolean);
+
+        // Table detection pass: group consecutive multi-column lines into table blocks
+        var paras = [];
+        var tableAccum = [];
+
+        function flushTable() {
+          if (tableAccum.length >= 2) {
+            paras.push({
+              isTable: true,
+              isOcrTable: true,
+              rows: tableAccum.slice(),
+              colCount: tableAccum.reduce(function(m,r){return Math.max(m,r.length);}, 1),
+              text: '',
+            });
+          } else if (tableAccum.length === 1) {
+            // Only one row — not a table, emit as normal paragraph
+            paras.push({ text: tableAccum[0].join('  '), isHeading: false, isList: false, isNumList: false, level: 0 });
+          }
+          tableAccum = [];
+        }
+
+        rawLines.forEach(function(t) {
+          // Check for multi-column whitespace split
+          var cols = t.split(/\s{2,}/).map(function(c){ return c.trim(); }).filter(Boolean);
+          if (cols.length >= 2) {
+            tableAccum.push(cols);
+          } else {
+            flushTable();
+            // Single-column line — classify it
+            var isHeading = (t.length >= 3 && t.length <= 90 &&
+                             t === t.toUpperCase() && /[A-Z]/.test(t)) ||
+                            /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i.test(t);
+            var isNumList = !isHeading && /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/.test(t);
+            var isList    = !isHeading && !isNumList &&
+                            /^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s/.test(t);
+            paras.push({ text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, level: isHeading ? 1 : 0 });
+          }
         });
+        flushTable();
+
         if (!paras.length) paras = [{ text: '(no content)', isHeading: false }];
         return { pageNum: p.pageNum, paragraphs: paras };
       });
+      ocrWPages = null; // release OCR result array — can be large for multi-page docs
     }
 
     // Phase 2 (v5): content-level validation — ≥2 paragraphs + ≥50 characters
@@ -2473,9 +2574,8 @@
       return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
     }, 0);
     DT().validate('pdf-to-word-content', { paras: _wTotalParas, chars: _wTotalChars });
-    if (_wTotalParas < 2 || _wTotalChars < 50) {
-      throw new Error('The document does not contain enough readable text to convert. Please try a different file.');
-    }
+    // v4.0: Call the proper Tier-2 content gate (was only calling DT().validate before)
+    validateContent('pdf-to-word', { paragraphs: _wTotalParas, chars: _wTotalChars });
 
     onStep(1, 'done', 53);
     onStep(2, 'active', 57, 'Building document\u2026');
@@ -2494,7 +2594,13 @@
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
     onStep(3, 'done', 100);
-    return { blob: blob, filename: brandedFilename(file.name, '.docx') };
+    // v4.0: Attach _quality metadata so analyzeResultQuality (dispatch loop) has structural data
+    // to produce a meaningful hybrid score — not just blob-size-only scoring.
+    return {
+      blob:     blob,
+      filename: brandedFilename(file.name, '.docx'),
+      _quality: { chars: _wTotalChars, paras: _wTotalParas, pages: total },
+    };
   };
 
   // ─── PDF → EXCEL (Phase 7: prefetch) ──────────────────────────────────────
