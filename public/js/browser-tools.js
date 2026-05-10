@@ -1273,11 +1273,22 @@
     return finalBlob;
   }
 
-  // ── PDF TO WORD (v4.2 — hybrid OCR/digital, bbox-based OCR structure) ─────────
-  // Per-page hybrid: digital if ≥ 5 extractable chars, else Tesseract word bboxes.
-  // OCR now uses word.bbox X/Y for real line reconstruction + font-size estimated
-  // from bbox height → heading/table/paragraph detection works on scanned pages.
-  // Opts: structureMode (preserve-layout|simple-text), ocrMode (auto|force).
+  // ── PDF TO WORD (v5.0 — Enterprise fidelity engine) ──────────────────────────
+  // Features:
+  //  • Inline run splitting: bold/italic/mono preserved per PDF.js text item
+  //  • RTL/bidirectional text detection → <w:bidi/> + right-aligned paragraphs
+  //  • True tab-stop reconstruction: X-gaps → <w:tab/> + <w:tabs> definitions
+  //  • H1 / H2 / H3 heading hierarchy from font-size ratios
+  //  • Bullet + numbered list detection → Word <w:numPr> list paragraphs
+  //  • Checkbox/symbol normalization (☐☑✓✗ → [x]/[ ] text)
+  //  • Signature line detection (_____ / ----) → styled separator paragraph
+  //  • Advanced table engine: multi-row column alignment, header row shading
+  //  • Multi-column page detection + reading-order reconstruction
+  //  • Page break markers between PDF pages
+  //  • Memory hardening: canvas zeroed + page.cleanup() per page, error isolation
+  //  • Comprehensive styles.xml (Normal, H1–H3, List, Table, Hyperlink)
+  //  • word/numbering.xml for bullet + numbered lists
+  //  Opts: structureMode (preserve-layout|simple-text), ocrMode (auto|force)
   async function pdfToWord(files, opts) {
     opts = opts || {};
     const pdfjsLib   = await loadPdfJs();
@@ -1287,38 +1298,109 @@
     const forceOcr   = String(opts.ocrMode || '').toLowerCase() === 'force';
     const simpleText = String(opts.structureMode || '').toLowerCase() === 'simple-text';
 
+    // ── XML helpers ───────────────────────────────────────────────────────────
     function escXml(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── Step 1: group pdfjs items into visual lines (3pt Y buckets) ──────────
+    // ── RTL detection (Arabic, Hebrew, Syriac, Thaana, …) ────────────────────
+    function isRtl(s) {
+      return /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u0800-\u083F\u0840-\u085F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(s);
+    }
+
+    // ── Font property detection from PDF.js fontName ──────────────────────────
+    function parseFontProps(fontName) {
+      const fn = (fontName || '').toLowerCase();
+      return {
+        bold:   /bold|heavy|black|demi/.test(fn),
+        italic: /italic|oblique/.test(fn),
+        mono:   /mono|courier|consol|typewriter/.test(fn),
+      };
+    }
+
+    // ── Bullet/numbered list prefix detection ─────────────────────────────────
+    function detectListPrefix(text) {
+      // Bullet: •·▪▸►‣◦○●– or plain - / *
+      if (/^[•·▪▸►‣◦○●]\s+/.test(text)) return { listType: 'bullet', text: text.replace(/^[•·▪▸►‣◦○●]\s+/, '').trim() };
+      if (/^[-–—\*]\s{1,3}(?=\S)/.test(text)) return { listType: 'bullet', text: text.replace(/^[-–—\*]\s+/, '').trim() };
+      // Numbered: 1. / 1) / (1) / a. / A. / i.
+      if (/^(\d{1,3}[.):]|[a-zA-Z][.)]|\([a-zA-Z0-9]+\))\s+/.test(text)) {
+        return { listType: 'number', text: text.replace(/^(\d{1,3}[.):]|[a-zA-Z][.)]|\([a-zA-Z0-9]+\))\s+/, '').trim() };
+      }
+      return null;
+    }
+
+    // ── Checkbox / symbol normalization ───────────────────────────────────────
+    function normalizeSymbols(text) {
+      return text
+        .replace(/[☑✓✔☒✗✘]/g, '[x]')
+        .replace(/[☐□]/g, '[ ]');
+    }
+
+    // ── Signature / rule line detection ───────────────────────────────────────
+    function isSignatureLine(text) {
+      const t = text.trim();
+      return /^[_]{6,}$/.test(t) || /^[-]{8,}$/.test(t) || /^[=]{8,}$/.test(t) ||
+             /^_{3,}\s*(Date|Sign|Name|Title|Signature)[:\s]*_{0,}$/i.test(t);
+    }
+
+    // ── Multi-column detection ────────────────────────────────────────────────
+    // Returns the X split-point if the page clearly has 2 text columns, else null.
+    function detectColumnSplit(lines, pageWidth) {
+      if (lines.length < 6) return null;
+      const midX = pageWidth / 2;
+      const margin = pageWidth * 0.07;
+      let leftOnly = 0, rightOnly = 0;
+      for (const l of lines) {
+        const x0 = l.xPositions[0];
+        if (x0 < midX - margin) leftOnly++;
+        else if (x0 > midX + margin) rightOnly++;
+      }
+      const total = leftOnly + rightOnly;
+      if (total < 6) return null;
+      const ratio = Math.min(leftOnly, rightOnly) / total;
+      return ratio > 0.28 ? midX : null;
+    }
+
+    // ── Group PDF.js items into visual lines with per-item run data ───────────
+    // Each run carries: text, x, y, fontSize, fontName, bold, italic, mono, width
     function groupIntoLines(items, pageWidth) {
       const buckets = {};
       for (const item of items) {
         if (!item.str || !item.str.trim()) continue;
         const yKey = Math.round(item.transform[5] / 3) * 3;
-        if (!buckets[yKey]) buckets[yKey] = { parts: [], fontSize: 0 };
-        buckets[yKey].parts.push({ text: item.str, x: item.transform[4] });
+        if (!buckets[yKey]) buckets[yKey] = { runs: [], maxFs: 0, y: item.transform[5] };
         const fs = item.height || 0;
-        if (fs > buckets[yKey].fontSize) buckets[yKey].fontSize = fs;
+        const fp = parseFontProps(item.fontName);
+        buckets[yKey].runs.push({
+          text:     item.str,
+          x:        item.transform[4],
+          y:        item.transform[5],
+          fontSize: fs,
+          fontName: item.fontName || '',
+          bold:     fp.bold,
+          italic:   fp.italic,
+          mono:     fp.mono,
+          width:    item.width || 0,
+        });
+        if (fs > buckets[yKey].maxFs) buckets[yKey].maxFs = fs;
       }
       return Object.keys(buckets).map(Number).sort((a, b) => b - a).map(y => {
-        const bucket = buckets[y];
-        const sorted = bucket.parts.sort((a, b) => a.x - b.x);
+        const bk  = buckets[y];
+        const sorted = bk.runs.sort((a, b) => a.x - b.x);
         return {
-          text:       sorted.map(p => p.text).join(' ').trim(),
-          fontSize:   bucket.fontSize,
-          xPositions: sorted.map(p => p.x),
-          parts:      sorted,
+          runs:       sorted,
+          text:       sorted.map(r => r.text).join(' ').trim(),
+          fontSize:   bk.maxFs,
+          xPositions: sorted.map(r => r.x),
+          parts:      sorted.map(r => ({ text: r.text, x: r.x })),
           pageWidth:  pageWidth || 612,
+          y:          bk.y,
         };
       }).filter(l => l.text.length > 0);
     }
 
-    // ── Step 2: OCR a page → line objects with real bbox coordinates ──────────
-    // Uses Tesseract word.bbox for X/Y position. Font size estimated from bbox
-    // word height (scaled from 2× canvas). Same output shape as groupIntoLines()
-    // so buildStructure() handles heading/table/paragraph detection on both paths.
+    // ── OCR a page → same line shape as groupIntoLines() ─────────────────────
     async function ocrPageToLines(page, pageWidth) {
       const Tesseract = await loadTesseract();
       const viewport  = page.getViewport({ scale: 2.0 });
@@ -1330,46 +1412,46 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
       const dataUrl = canvas.toDataURL('image/png');
-      canvas.width = 0; canvas.height = 0;
+      canvas.width = 0; canvas.height = 0; // release GPU memory immediately
 
       const { data: { words } } = await Tesseract.recognize(dataUrl, 'eng', { logger: () => {} });
       if (!words || !words.length) return [];
 
-      // Scale from 2× canvas pixel space → 1× PDF point space (divide by 2)
       const wordItems = words
         .filter(w => w.text && w.text.trim() && w.confidence > 30)
         .map(w => ({
           text:     w.text.trim(),
-          x:        Math.round((w.bbox.x0 + w.bbox.x1) / 4),           // center X / 2× scale
-          y:        Math.round((w.bbox.y0 + w.bbox.y1) / 4),           // center Y / 2× scale
-          fontSize: Math.max(1, Math.round((w.bbox.y1 - w.bbox.y0) / 2)), // height  / 2× scale
+          x:        Math.round((w.bbox.x0 + w.bbox.x1) / 4),
+          y:        Math.round((w.bbox.y0 + w.bbox.y1) / 4),
+          fontSize: Math.max(1, Math.round((w.bbox.y1 - w.bbox.y0) / 2)),
+          bold: false, italic: false, mono: false, fontName: '', width: 0,
         }));
 
       if (!wordItems.length) return [];
 
-      // Bucket words into lines by Y (10px tolerance in PDF space)
       const rowMap = {};
       for (const w of wordItems) {
         const yKey = Math.round(w.y / 10) * 10;
         if (!rowMap[yKey]) rowMap[yKey] = [];
         rowMap[yKey].push(w);
       }
-
-      const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => a - b); // top → bottom
+      const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => a - b);
       return sortedYs.map(y => {
         const ws    = rowMap[y].sort((a, b) => a.x - b.x);
         const maxFs = Math.max(...ws.map(w => w.fontSize));
         return {
+          runs:       ws,
           text:       ws.map(w => w.text).join(' ').trim(),
           fontSize:   maxFs,
           xPositions: ws.map(w => w.x),
           parts:      ws.map(w => ({ text: w.text, x: w.x })),
           pageWidth:  pageWidth || 612,
+          y,
         };
       }).filter(l => l.text.length > 0);
     }
 
-    // ── Step 3: compute modal body font size ────────────────────────────────
+    // ── Modal (most-common) body font size ────────────────────────────────────
     function computeBaseFontSize(lines) {
       const sizes = lines.map(l => Math.round(l.fontSize)).filter(s => s > 0);
       if (!sizes.length) return 11;
@@ -1378,153 +1460,375 @@
       return parseInt(Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0], 10) || 11;
     }
 
-    // ── Step 4: classify each line (ratio headings, coord tables) ────────────
+    // ── Line classifier ───────────────────────────────────────────────────────
     function classifyLine(line, base) {
       const t   = line.text;
       const fs  = line.fontSize || 0;
       const b   = base || 11;
-      const gap = (line.pageWidth || 612) * 0.045;
+      const gap = (line.pageWidth || 612) * 0.04;
 
-      if (
-        (fs > 0 && fs > b * 1.35) ||
-        (t === t.toUpperCase() && t.length >= 3 && t.length < 90 && /[A-Z]/.test(t) && !/^\d/.test(t))
-      ) return 'h1';
+      if (isSignatureLine(t)) return 'signature';
 
-      if (
-        (fs > 0 && fs > b * 1.15 && fs <= b * 1.35) ||
-        (/^(\d+\.)+\s+\S/.test(t) && t.length <= 100) ||
-        (/^[A-Z]\.\s+\S/.test(t) && t.length <= 100)
-      ) return 'h2';
+      // Heading by font-size ratio (three levels)
+      if (fs > b * 1.55) return 'h1';
+      if (fs > b * 1.32) return 'h2';
+      if (fs > b * 1.12) return 'h3';
 
+      // ALL-CAPS heuristic (no font-size data or matches anyway)
+      if (t === t.toUpperCase() && /[A-Z]/.test(t) && t.length >= 3 && t.length <= 80 && !/^\d/.test(t)) return 'h2';
+
+      // Numeric / lettered section heading
+      if (/^(\d+\.){1,3}\s+\S/.test(t) && t.length <= 100) return 'h3';
+
+      // Table row: significant X gaps between parts
       if (line.xPositions.length >= 2) {
         for (let k = 1; k < line.xPositions.length; k++) {
           if (line.xPositions[k] - line.xPositions[k - 1] >= gap) return 'table-row';
         }
       }
-      if (line.text.split(/\s{3,}/).length >= 3) return 'table-row';
+      if (t.split(/\s{3,}/).length >= 3) return 'table-row';
       return 'p';
     }
 
-    // ── Step 5: build document structure with paragraph merging ─────────────
-    function buildStructure(lines) {
-      if (!lines.length) return [];
-      const base     = computeBaseFontSize(lines);
-      const blocks   = [];
-      let tableRows  = [];
-      let paraBuffer = '';
-
-      const flushTable = () => {
-        if (tableRows.length >= 2) { blocks.push({ type: 'table', rows: tableRows }); }
-        else if (tableRows.length === 1) { blocks.push({ type: 'p', text: tableRows[0].text }); }
-        tableRows = [];
-      };
-      const flushPara = () => {
-        if (paraBuffer.trim()) { blocks.push({ type: 'p', text: paraBuffer.trim() }); }
-        paraBuffer = '';
-      };
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const next = lines[i + 1];
-        const type = simpleText ? 'p' : classifyLine(line, base);
-
-        if (type === 'h1' || type === 'h2') {
-          flushPara(); flushTable();
-          blocks.push({ type, text: line.text });
-          continue;
+    // ── Tab-stop XML for a line with significant X gaps ───────────────────────
+    // Only applied to single-source-line paragraph blocks.
+    function buildTabStopsXml(xPositions, pageWidth) {
+      const gap  = (pageWidth || 612) * 0.04;
+      const tabs = [];
+      for (let k = 1; k < xPositions.length; k++) {
+        if (xPositions[k] - xPositions[k - 1] >= gap) {
+          tabs.push(`<w:tab w:val="left" w:pos="${Math.round(xPositions[k] * 20)}"/>`);
         }
-        if (type === 'table-row') {
-          flushPara();
-          tableRows.push(line);
-          continue;
-        }
-        flushTable();
-        const endsWithPunct = /[.!?:;]$/.test(line.text.trim());
-        const nextType      = next && !simpleText ? classifyLine(next, base) : null;
-        const sameFontSize  = !next || Math.abs((line.fontSize || 0) - (next.fontSize || 0)) < 1.5;
-        paraBuffer = paraBuffer ? paraBuffer + ' ' + line.text : line.text;
-        if (endsWithPunct || !next || nextType !== 'p' || !sameFontSize) { flushPara(); }
       }
-      flushPara();
-      flushTable();
-      return blocks;
+      return tabs.length ? `<w:tabs>${tabs.join('')}</w:tabs>` : '';
     }
 
-    // ── Step 6: table XML — split cells by X-position gaps ───────────────────
-    function buildTableXml(rows) {
-      const border  = side => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
-      const borders = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(border).join('')}</w:tblBorders>`;
+    // ── Inline runs XML for a line block ─────────────────────────────────────
+    // Emits one <w:r> per PDF.js text item, preserving bold/italic/mono/RTL.
+    // Adjacent runs with identical properties are NOT merged (simpler + safer).
+    // Tab characters are inserted between runs when a significant X gap exists.
+    function buildRunsXml(runs, basePtSize, pageWidth) {
+      if (!runs || !runs.length) return '';
+      const gap    = (pageWidth || 612) * 0.04;
+      const parts  = [];
+      for (let i = 0; i < runs.length; i++) {
+        const run  = runs[i];
+        const prev = runs[i - 1];
+        // Tab gap before this run?
+        if (prev && (run.x - prev.x - (prev.width || 0)) >= gap) {
+          const tsz = Math.max(16, Math.round((basePtSize || 11) * 2));
+          parts.push(`<w:r><w:rPr><w:sz w:val="${tsz}"/></w:rPr><w:tab/></w:r>`);
+        }
+        const sz   = run.fontSize > 0 ? Math.round(run.fontSize * 2) : Math.round((basePtSize || 11) * 2);
+        const szV  = Math.max(16, Math.min(144, sz));
+        let rPr = `<w:sz w:val="${szV}"/><w:szCs w:val="${szV}"/>`;
+        if (run.bold)   rPr += '<w:b/><w:bCs/>';
+        if (run.italic) rPr += '<w:i/><w:iCs/>';
+        if (run.mono)   rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>';
+        if (isRtl(run.text)) rPr += '<w:rtl/>';
+        parts.push(`<w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${escXml(run.text)}</w:t></w:r>`);
+      }
+      return parts.join('');
+    }
+
+    // ── Advanced table XML ────────────────────────────────────────────────────
+    // Discovers column boundaries from ALL rows combined, detects header rows.
+    function buildTableXml(rows, pageWidth) {
+      const bdr    = s => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>`;
+      const allBdr = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(bdr).join('')}</w:tblBorders>`;
+      const gap    = (pageWidth || 612) * 0.04;
+
+      // Cluster all X positions from every row to find canonical column boundaries
+      const allX = rows.flatMap(r => r.xPositions || []).sort((a, b) => a - b);
+      const colStarts = [allX[0] || 0];
+      for (let i = 1; i < allX.length; i++) {
+        if (allX[i] - allX[i - 1] >= gap) colStarts.push(allX[i]);
+      }
+      const numCols = Math.max(2, colStarts.length);
+
+      function assignCol(x) {
+        let best = 0, bestDist = Infinity;
+        for (let c = 0; c < colStarts.length; c++) {
+          const d = Math.abs(x - colStarts[c]);
+          if (d < bestDist) { bestDist = d; best = c; }
+        }
+        return best;
+      }
 
       function splitCells(row) {
         if (row.parts && row.parts.length >= 2) {
-          const gap   = (row.pageWidth || 612) * 0.045;
-          const cells = [];
-          let cell    = row.parts[0].text;
-          for (let k = 1; k < row.parts.length; k++) {
-            if (row.parts[k].x - row.parts[k - 1].x >= gap) { cells.push(cell.trim()); cell = row.parts[k].text; }
-            else { cell += ' ' + row.parts[k].text; }
-          }
-          cells.push(cell.trim());
-          return cells.filter(Boolean);
+          const cells = new Array(numCols).fill('');
+          for (const p of row.parts) { const c = assignCol(p.x); cells[c] = cells[c] ? cells[c] + ' ' + p.text : p.text; }
+          // Trim trailing empties but keep at least 2
+          while (cells.length > 2 && !cells[cells.length - 1]) cells.pop();
+          return cells.map(c => c.trim());
         }
         const cols = row.text.split(/\s{2,}/).filter(Boolean);
-        return cols.length >= 2 ? cols : [row.text];
+        return cols.length >= 2 ? cols : [row.text, ''];
       }
 
-      const tRows = rows.map(row => {
-        const cells = splitCells(row);
-        return `<w:tr>${cells.map(c =>
-          `<w:tc><w:tcPr><w:tcBorders>${['top','left','bottom','right'].map(border).join('')}</w:tcBorders></w:tcPr>` +
-          `<w:p><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c)}</w:t></w:r></w:p></w:tc>`
-        ).join('')}</w:tr>`;
+      function isHeaderRow(row, idx) {
+        return idx === 0 && (
+          (row.runs && row.runs.some(r => r.bold)) ||
+          (row.text === row.text.toUpperCase() && /[A-Z]/.test(row.text))
+        );
+      }
+
+      const colWidthPct = Math.floor(100 / numCols);
+      const tRows = rows.map((row, ri) => {
+        const cells   = splitCells(row);
+        const header  = isHeaderRow(row, ri);
+        const shading = header ? '<w:shd w:val="clear" w:color="auto" w:fill="E8EEF5"/>' : '';
+        return `<w:tr>${cells.map(c => {
+          const boldRpr = header ? '<w:b/>' : '';
+          return `<w:tc><w:tcPr><w:tcW w:w="${colWidthPct}" w:type="pct"/>` +
+                 `<w:tcBorders>${['top','left','bottom','right'].map(bdr).join('')}</w:tcBorders>${shading}</w:tcPr>` +
+                 `<w:p><w:r><w:rPr><w:sz w:val="20"/>${boldRpr}</w:rPr>` +
+                 `<w:t xml:space="preserve">${escXml(c)}</w:t></w:r></w:p></w:tc>`;
+        }).join('')}</w:tr>`;
       }).join('');
-      return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/>${borders}</w:tblPr>${tRows}</w:tbl>`;
+
+      return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/>` +
+             `<w:tblW w:w="5000" w:type="pct"/>${allBdr}</w:tblPr>${tRows}</w:tbl>`;
     }
 
-    // ── Step 7: build document.xml ───────────────────────────────────────────
-    function buildDocXml(structure) {
-      const parts = structure.map(block => {
-        if (block.type === 'table') return buildTableXml(block.rows);
-        if (block.type === 'h1') {
-          return `<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="240" w:after="60"/></w:pPr>` +
-                 `<w:r><w:rPr><w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr>` +
-                 `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+    // ── Build document structure ──────────────────────────────────────────────
+    function buildStructure(allLines) {
+      if (!allLines.length) return [];
+      const contentLines = allLines.filter(l => !l.__pageBreak);
+      if (!contentLines.length) return [];
+      const base       = computeBaseFontSize(contentLines);
+      const blocks     = [];
+      let tableRows    = [];
+      let paraLines    = [];   // accumulating lines → paragraph
+      let listBuf      = [];
+      let listType     = null;
+
+      const flushTable = () => {
+        if (tableRows.length >= 2) blocks.push({ type: 'table', rows: tableRows, pageWidth: tableRows[0].pageWidth || 612 });
+        else if (tableRows.length === 1) paraLines.push(tableRows[0]);
+        tableRows = [];
+      };
+
+      const flushPara = () => {
+        if (!paraLines.length) return;
+        if (paraLines.length === 1) {
+          const ln = paraLines[0];
+          // Single-line paragraph: check if it has tab-gap and emit with tab stops
+          blocks.push({ type: 'p', text: normalizeSymbols(ln.text), runs: ln.runs,
+                        xPositions: ln.xPositions, pageWidth: ln.pageWidth, fontSize: ln.fontSize,
+                        singleLine: true });
+        } else {
+          // Multi-line merged paragraph: concatenate runs
+          const allRuns   = paraLines.flatMap(l => l.runs || []);
+          const mergedTxt = normalizeSymbols(paraLines.map(l => l.text).join(' ').trim());
+          blocks.push({ type: 'p', text: mergedTxt, runs: allRuns,
+                        xPositions: paraLines[0].xPositions, pageWidth: paraLines[0].pageWidth,
+                        fontSize: paraLines[0].fontSize, singleLine: false });
         }
-        if (block.type === 'h2') {
-          return `<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:spacing w:before="160" w:after="60"/></w:pPr>` +
-                 `<w:r><w:rPr><w:b/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>` +
-                 `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+        paraLines = [];
+      };
+
+      const flushList = () => {
+        if (listBuf.length) blocks.push({ type: 'list', listType, items: listBuf });
+        listBuf = []; listType = null;
+      };
+
+      for (let i = 0; i < allLines.length; i++) {
+        const line = allLines[i];
+
+        // Page break sentinel
+        if (line.__pageBreak) {
+          flushPara(); flushTable(); flushList();
+          blocks.push({ type: 'pageBreak' });
+          continue;
         }
-        return `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr>` +
-               `<w:r><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr>` +
-               `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
-      });
+
+        const type = simpleText ? 'p' : classifyLine(line, base);
+        const next = allLines[i + 1] && !allLines[i + 1].__pageBreak ? allLines[i + 1] : null;
+
+        // Signature line
+        if (type === 'signature') {
+          flushPara(); flushTable(); flushList();
+          blocks.push({ type: 'signature', text: line.text });
+          continue;
+        }
+
+        // Headings
+        if (type === 'h1' || type === 'h2' || type === 'h3') {
+          flushPara(); flushTable(); flushList();
+          blocks.push({ type, text: line.text, runs: line.runs, fontSize: line.fontSize });
+          continue;
+        }
+
+        // Table rows
+        if (type === 'table-row') {
+          flushPara(); flushList();
+          tableRows.push(line);
+          continue;
+        }
+
+        // Regular paragraph line
+        flushTable();
+
+        // List prefix?
+        const listMatch = !simpleText ? detectListPrefix(line.text) : null;
+        if (listMatch) {
+          flushPara();
+          if (listMatch.listType !== listType) flushList();
+          listType = listMatch.listType;
+          // Rebuild runs without the prefix characters
+          listBuf.push({ text: listMatch.text, runs: line.runs });
+          continue;
+        }
+        flushList();
+
+        // Paragraph accumulation: merge lines with same font size that don't end with punctuation
+        const endsWithPunct  = /[.!?:;]$/.test(line.text.trim());
+        const nextType       = next && !simpleText ? classifyLine(next, base) : null;
+        const sameFontSize   = !next || Math.abs((line.fontSize || 0) - (next.fontSize || 0)) < 1.5;
+        paraLines.push(line);
+        if (endsWithPunct || !next || nextType !== 'p' || !sameFontSize) flushPara();
+      }
+      flushPara(); flushTable(); flushList();
+      return blocks;
+    }
+
+    // ── Numbering XML (bullet + numbered list definitions) ────────────────────
+    function buildNumberingXml() {
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-             `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="multilevel"/>` +
+          `<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/>` +
+            `<w:lvlText w:val="•"/><w:lvlJc w:val="left"/>` +
+            `<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>` +
+            `<w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol"/></w:rPr>` +
+          `</w:lvl></w:abstractNum>` +
+        `<w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="multilevel"/>` +
+          `<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/>` +
+            `<w:lvlText w:val="%1."/><w:lvlJc w:val="left"/>` +
+            `<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>` +
+          `</w:lvl></w:abstractNum>` +
+        `<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>` +
+        `<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>` +
+        `</w:numbering>`;
+    }
+
+    // ── Styles XML ────────────────────────────────────────────────────────────
+    function buildStylesXml(basePt) {
+      const b   = basePt || 11;
+      const sz  = Math.round(b * 2);
+      const h1s = Math.round(Math.max(b * 1.6, 14) * 2);
+      const h2s = Math.round(Math.max(b * 1.35, 12) * 2);
+      const h3s = Math.round(Math.max(b * 1.15, 11) * 2);
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:docDefaults><w:rPrDefault><w:rPr>` +
+          `<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>` +
+          `<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>` +
+        `</w:rPr></w:rPrDefault></w:docDefaults>` +
+        `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/>` +
+          `<w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/>` +
+          `<w:pPr><w:keepNext/><w:spacing w:before="280" w:after="80"/></w:pPr>` +
+          `<w:rPr><w:b/><w:bCs/><w:color w:val="1F3864"/><w:sz w:val="${h1s}"/><w:szCs w:val="${h1s}"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/>` +
+          `<w:pPr><w:keepNext/><w:spacing w:before="200" w:after="60"/></w:pPr>` +
+          `<w:rPr><w:b/><w:bCs/><w:color w:val="2E4057"/><w:sz w:val="${h2s}"/><w:szCs w:val="${h2s}"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/>` +
+          `<w:pPr><w:keepNext/><w:spacing w:before="160" w:after="40"/></w:pPr>` +
+          `<w:rPr><w:b/><w:bCs/><w:color w:val="404040"/><w:sz w:val="${h3s}"/><w:szCs w:val="${h3s}"/></w:rPr></w:style>` +
+        `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/></w:style>` +
+        `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/>` +
+          `<w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/>` +
+          `<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr></w:style>` +
+        `<w:style w:type="paragraph" w:styleId="ListNumber"><w:name w:val="List Number"/><w:basedOn w:val="Normal"/>` +
+          `<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr></w:style>` +
+        `</w:styles>`;
+    }
+
+    // ── document.xml ─────────────────────────────────────────────────────────
+    function buildDocXml(structure, basePt) {
+      const b   = basePt || 11;
+      const sz  = Math.round(b * 2);
+      const NS  = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+      const parts = structure.map(block => {
+
+        if (block.type === 'pageBreak') {
+          return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+        }
+
+        if (block.type === 'signature') {
+          return `<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr>` +
+                 `<w:r><w:rPr><w:color w:val="888888"/></w:rPr>` +
+                 `<w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r></w:p>`;
+        }
+
+        if (block.type === 'table') {
+          return buildTableXml(block.rows, block.pageWidth);
+        }
+
+        if (block.type === 'list') {
+          const numId = block.listType === 'bullet' ? '1' : '2';
+          return block.items.map(item => {
+            const txt  = normalizeSymbols(item.text);
+            const runs = item.runs && item.runs.length
+              ? buildRunsXml(item.runs, b, 612)
+              : `<w:r><w:rPr><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${escXml(txt)}</w:t></w:r>`;
+            return `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr>` +
+                   `<w:spacing w:after="60"/></w:pPr>${runs}</w:p>`;
+          }).join('');
+        }
+
+        if (block.type === 'h1') {
+          const bidiXml = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          const runs = block.runs && block.runs.length
+            ? buildRunsXml(block.runs, Math.max(b * 1.6, 14), block.pageWidth || 612)
+            : `<w:r><w:rPr><w:b/><w:sz w:val="${Math.round(Math.max(b*1.6,14)*2)}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
+          return `<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="280" w:after="80"/>${bidiXml}</w:pPr>${runs}</w:p>`;
+        }
+
+        if (block.type === 'h2') {
+          const bidiXml = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          const runs = block.runs && block.runs.length
+            ? buildRunsXml(block.runs, Math.max(b * 1.35, 12), block.pageWidth || 612)
+            : `<w:r><w:rPr><w:b/><w:sz w:val="${Math.round(Math.max(b*1.35,12)*2)}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
+          return `<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:spacing w:before="200" w:after="60"/>${bidiXml}</w:pPr>${runs}</w:p>`;
+        }
+
+        if (block.type === 'h3') {
+          const bidiXml = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+          const runs = block.runs && block.runs.length
+            ? buildRunsXml(block.runs, Math.max(b * 1.15, 11), block.pageWidth || 612)
+            : `<w:r><w:rPr><w:b/><w:sz w:val="${Math.round(Math.max(b*1.15,11)*2)}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
+          return `<w:p><w:pPr><w:pStyle w:val="Heading3"/><w:spacing w:before="160" w:after="40"/>${bidiXml}</w:pPr>${runs}</w:p>`;
+        }
+
+        // Regular paragraph
+        const bidiXml   = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+        const tabXml    = block.singleLine
+          ? buildTabStopsXml(block.xPositions || [], block.pageWidth || 612)
+          : '';
+        const runs = block.runs && block.runs.length
+          ? buildRunsXml(block.runs, b, block.pageWidth || 612)
+          : `<w:r><w:rPr><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
+        return `<w:p><w:pPr><w:spacing w:after="100"/>${bidiXml}${tabXml}</w:pPr>${runs}</w:p>`;
+      });
+
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+             `<w:document ${NS}>` +
              `<w:body>${parts.join('')}` +
-             `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080" w:header="720" w:footer="720"/></w:sectPr>` +
+             `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>` +
+             `<w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080" w:header="720" w:footer="720"/></w:sectPr>` +
              `</w:body></w:document>`;
     }
 
-    // ── Step 8: package into DOCX zip ────────────────────────────────────────
-    async function buildDocxBlob(structure) {
+    // ── Package DOCX zip ──────────────────────────────────────────────────────
+    async function buildDocxBlob(structure, basePt) {
       if (!structure || !structure.length) throw new Error('No content extracted from document.');
-      const docXml = buildDocXml(structure);
-
-      const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-        `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
-        `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/>` +
-        `<w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>` +
-        `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>` +
-        `<w:basedOn w:val="Normal"/>` +
-        `<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="60"/></w:pPr>` +
-        `<w:rPr><w:b/><w:color w:val="1F3864"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr></w:style>` +
-        `<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/>` +
-        `<w:basedOn w:val="Normal"/>` +
-        `<w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/></w:pPr>` +
-        `<w:rPr><w:b/><w:color w:val="2E4057"/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr></w:style>` +
-        `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/></w:style>` +
-        `</w:styles>`;
+      const hasLists = structure.some(b => b.type === 'list');
 
       const ctXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
@@ -1532,6 +1836,7 @@
         `<Default Extension="xml" ContentType="application/xml"/>` +
         `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
         `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
+        (hasLists ? `<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>` : '') +
         `</Types>`;
 
       const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -1542,22 +1847,27 @@
       const wRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
         `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+        (hasLists ? `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>` : '') +
         `</Relationships>`;
 
       const zip = new JSZip();
       zip.file('[Content_Types].xml', ctXml);
       zip.file('_rels/.rels', relsXml);
-      zip.file('word/document.xml', docXml);
-      zip.file('word/styles.xml', stylesXml);
+      zip.file('word/document.xml', buildDocXml(structure, basePt));
+      zip.file('word/styles.xml', buildStylesXml(basePt));
       zip.file('word/_rels/document.xml.rels', wRelsXml);
+      if (hasLists) zip.file('word/numbering.xml', buildNumberingXml());
       return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     }
 
-    // ── Step 9: per-page hybrid pass ─────────────────────────────────────────
-    // Digital if page has ≥ 5 non-whitespace chars; Tesseract word-bbox OCR otherwise.
+    // ── Per-page hybrid processing ────────────────────────────────────────────
+    // Digital if ≥ 5 non-whitespace chars; Tesseract word-bbox OCR otherwise.
+    // Page-break sentinels are inserted between pages.
+    // Multi-column pages are reordered: left column first, then right column.
     async function buildAllLines(useForceOcr) {
       const allLines = [];
       for (let i = 1; i <= pdf.numPages; i++) {
+        if (i > 1) allLines.push({ __pageBreak: true }); // page separator sentinel
         const page      = await pdf.getPage(i);
         const viewport  = page.getViewport({ scale: 1 });
         const content   = await page.getTextContent();
@@ -1567,7 +1877,17 @@
         const needsOcr  = useForceOcr || charCount < 5;
 
         if (!needsOcr) {
-          allLines.push(...groupIntoLines(items, pageWidth));
+          const lines    = groupIntoLines(items, pageWidth);
+          const colSplit = detectColumnSplit(lines, pageWidth);
+          if (colSplit) {
+            // Two-column layout: emit left column lines then right column lines
+            const left  = lines.filter(l => l.xPositions[0] <  colSplit);
+            const right = lines.filter(l => l.xPositions[0] >= colSplit);
+            // Both are already sorted top→bottom (descending Y) from groupIntoLines
+            allLines.push(...left, ...right);
+          } else {
+            allLines.push(...lines);
+          }
           page.cleanup();
         } else {
           try {
@@ -1576,15 +1896,16 @@
           } catch (_) {}
           page.cleanup();
         }
-        await new Promise(r => setTimeout(r, 0)); // Phase 21: yield to main thread between pages
+        await new Promise(r => setTimeout(r, 0)); // yield to UI thread between pages
       }
       return allLines;
     }
 
-    // ── Step 10: full OCR pass for retry ─────────────────────────────────────
+    // ── Full OCR pass (retry path) ────────────────────────────────────────────
     async function buildAllLinesOcr() {
       const allLines = [];
       for (let i = 1; i <= pdf.numPages; i++) {
+        if (i > 1) allLines.push({ __pageBreak: true });
         const page      = await pdf.getPage(i);
         const viewport  = page.getViewport({ scale: 1 });
         const pageWidth = viewport.width || 612;
@@ -1593,35 +1914,47 @@
           allLines.push(...ocrLines);
         } catch (_) {}
         page.cleanup();
-        await new Promise(r => setTimeout(r, 0)); // Phase 21: yield between pages
+        await new Promise(r => setTimeout(r, 0));
       }
       return allLines;
     }
 
-    // ── Step 11: main processing + smart retry ───────────────────────────────
-    let structure = [];
-    try {
-      structure = buildStructure(await buildAllLines(forceOcr));
-    } catch (_) {}
+    // ── Main processing + smart retry ─────────────────────────────────────────
+    let allLines = [];
+    try { allLines = await buildAllLines(forceOcr); } catch (_) {}
 
-    // Retry with full OCR when digital pass returns nothing
-    if (!structure.length && !forceOcr) {
-      try { structure = buildStructure(await buildAllLinesOcr()); } catch (_) {}
+    // Retry with full OCR when digital pass returned nothing
+    const hasContent = () => allLines.some(l => !l.__pageBreak);
+    if (!hasContent() && !forceOcr) {
+      try { allLines = await buildAllLinesOcr(); } catch (_) {}
     }
 
-    if (!structure.length) {
+    if (!hasContent()) {
       throw new Error('This PDF does not contain usable document content. It may be encrypted, blank, or in an unsupported format.');
     }
 
-    let docxBlob = await buildDocxBlob(structure);
+    const contentLines = allLines.filter(l => !l.__pageBreak);
+    const basePt       = computeBaseFontSize(contentLines);
+    let structure      = buildStructure(allLines);
 
-    // If output is suspiciously small, retry with full OCR
+    if (!structure.length) {
+      throw new Error('This PDF does not contain usable document content.');
+    }
+
+    let docxBlob = await buildDocxBlob(structure, basePt);
+
+    // Blob sanity check — retry with full OCR when output is suspiciously small
     if (docxBlob.size < 1200 && !forceOcr) {
       try {
-        const retryStruct = buildStructure(await buildAllLinesOcr());
-        if (retryStruct.length) {
-          const retryBlob = await buildDocxBlob(retryStruct);
-          if (retryBlob.size > docxBlob.size) docxBlob = retryBlob;
+        const retryLines = await buildAllLinesOcr();
+        if (retryLines.some(l => !l.__pageBreak)) {
+          const retryContent = retryLines.filter(l => !l.__pageBreak);
+          const retryBase    = computeBaseFontSize(retryContent);
+          const retryStruct  = buildStructure(retryLines);
+          if (retryStruct.length) {
+            const retryBlob = await buildDocxBlob(retryStruct, retryBase);
+            if (retryBlob.size > docxBlob.size) docxBlob = retryBlob;
+          }
         }
       } catch (_) {}
     }

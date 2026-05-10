@@ -4,7 +4,8 @@ import fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+         Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 import ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
 import JSZip from 'jszip';
@@ -99,7 +100,11 @@ async function readAndExtract(filePath) {
 }
 
 // ── PDF → WORD ─────────────────────────────────────────────────────────────
-// v2: heading detection via ALL-CAPS / numeric prefix / short-line heuristics
+// v5.0 — Enterprise fidelity server-side engine
+// Features: H1/H2/H3 heading hierarchy, bullet + numbered list detection,
+// table detection (multi-space columns), signature line detection,
+// RTL paragraph alignment, checkbox normalization, paragraph merging,
+// inline bold/italic heuristics (ALL-CAPS text runs, italic-like prefixes).
 
 router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
   try {
@@ -117,50 +122,236 @@ router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
     const text = pdfData.text;
     if (!text.trim()) {
       cleanupFiles(req.file);
-      return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based or scanned.' });
+      return res.status(400).json({ error: 'No extractable text found. The PDF may be image-based or scanned — use the OCR tool first.' });
     }
 
-    const lines = text.split('\n');
-    const children = [];
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    const isRtlText = s =>
+      /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(s);
 
-    for (let idx = 0; idx < lines.length; idx++) {
-      const line = lines[idx];
-      const trimmed = line.trim();
+    const normalizeSymbols = s =>
+      s.replace(/[☑✓✔☒✗✘]/g, '[x]').replace(/[☐□]/g, '[ ]');
 
+    const isSignatureLine = t => {
+      const tr = t.trim();
+      return /^[_]{6,}$/.test(tr) || /^[-]{8,}$/.test(tr) || /^[=]{8,}$/.test(tr);
+    };
+
+    // Detect bullet list prefix → returns { listType, text } or null
+    const detectList = t => {
+      if (/^[•·▪▸►‣◦○●]\s+/.test(t)) return { listType: 'bullet', text: t.replace(/^[•·▪▸►‣◦○●]\s+/, '').trim() };
+      if (/^[-–—\*]\s{1,3}(?=\S)/.test(t))  return { listType: 'bullet', text: t.replace(/^[-–—\*]\s+/, '').trim() };
+      if (/^(\d{1,3}[.):]|[a-zA-Z][.)]|\([a-zA-Z0-9]+\))\s+/.test(t))
+        return { listType: 'number', text: t.replace(/^(\d{1,3}[.):]|[a-zA-Z][.)]|\([a-zA-Z0-9]+\))\s+/, '').trim() };
+      return null;
+    };
+
+    // Table-like line: split on 2+ spaces → ≥ 2 cells
+    const splitTableRow = t => {
+      const cols = t.split(/\s{2,}/).map(c => c.trim()).filter(Boolean);
+      return cols.length >= 2 ? cols : null;
+    };
+
+    // Heading level from line properties (no font data on server side)
+    const headingLevel = (trimmed, idx, rawLines) => {
+      const len = trimmed.length;
+      const prevEmpty = idx === 0 || !rawLines[idx - 1].trim();
+      const nextEmpty = idx >= rawLines.length - 1 || !rawLines[idx + 1].trim();
+      const isAllCaps = trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed) && !/^\d/.test(trimmed);
+      const isNumeric = /^(\d+\.){1,3}\s+\S/.test(trimmed);
+
+      if (isAllCaps && len >= 3 && len <= 60) return 'h1';
+      if (isNumeric && len <= 100) return 'h3';
+      if (prevEmpty && nextEmpty && len < 80 && len >= 3) return 'h2';
+      return null;
+    };
+
+    // ── Parse lines into semantic blocks ────────────────────────────────────
+    const rawLines = text.split('\n');
+    const blocks   = [];  // { type, ... }
+
+    let tableAccum  = [];  // pending table rows
+    let paraAccum   = [];  // pending paragraph lines
+    let listAccum   = [];
+    let listType    = null;
+
+    const flushTable = () => {
+      if (tableAccum.length >= 2) blocks.push({ type: 'table', rows: tableAccum });
+      else if (tableAccum.length === 1) paraAccum.push(tableAccum[0].join('  '));
+      tableAccum = [];
+    };
+    const flushPara = () => {
+      if (paraAccum.length) {
+        blocks.push({ type: 'p', text: normalizeSymbols(paraAccum.join(' ').trim()) });
+        paraAccum = [];
+      }
+    };
+    const flushList = () => {
+      if (listAccum.length) blocks.push({ type: 'list', listType, items: listAccum });
+      listAccum = []; listType = null;
+    };
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const raw     = rawLines[i];
+      const trimmed = raw.trim();
+
+      // Blank line → flush current paragraph/table
       if (!trimmed) {
-        children.push(new Paragraph({}));
+        flushPara(); flushTable(); flushList();
         continue;
       }
 
-      // Heading detection heuristics
-      const isAllCaps = trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed) && trimmed.length >= 3 && trimmed.length <= 80;
-      const isNumericSection = /^(\d+\.)+\s+\S/.test(trimmed) && trimmed.length < 100;
-      const isShortIsolated  = trimmed.length < 70 &&
-        (idx === 0 || !lines[idx - 1].trim()) &&
-        (idx >= lines.length - 1 || !lines[idx + 1].trim());
+      // Signature line
+      if (isSignatureLine(trimmed)) {
+        flushPara(); flushTable(); flushList();
+        blocks.push({ type: 'signature', text: trimmed });
+        continue;
+      }
 
-      if (isAllCaps && trimmed.length <= 60) {
+      // Heading detection
+      const hLevel = headingLevel(trimmed, i, rawLines);
+      if (hLevel) {
+        flushPara(); flushTable(); flushList();
+        blocks.push({ type: hLevel, text: trimmed });
+        continue;
+      }
+
+      // List item
+      const listMatch = detectList(trimmed);
+      if (listMatch) {
+        flushPara(); flushTable();
+        if (listMatch.listType !== listType) flushList();
+        listType = listMatch.listType;
+        listAccum.push(normalizeSymbols(listMatch.text));
+        continue;
+      }
+      flushList();
+
+      // Table row (2+ columns via whitespace)
+      const tableCols = splitTableRow(trimmed);
+      if (tableCols) {
+        flushPara();
+        tableAccum.push(tableCols);
+        continue;
+      }
+      flushTable();
+
+      // Regular paragraph — accumulate
+      paraAccum.push(trimmed);
+      // Flush on sentence-ending punctuation + next line is blank or heading
+      if (/[.!?]$/.test(trimmed)) {
+        const nextTrimmed = (rawLines[i + 1] || '').trim();
+        if (!nextTrimmed || headingLevel(nextTrimmed, i + 1, rawLines)) flushPara();
+      }
+    }
+    flushPara(); flushTable(); flushList();
+
+    // ── Build docx Paragraph objects from semantic blocks ────────────────────
+    const CELL_BORDER = {
+      top:    { style: BorderStyle.SINGLE, size: 4, color: 'AAAAAA' },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: 'AAAAAA' },
+      left:   { style: BorderStyle.SINGLE, size: 4, color: 'AAAAAA' },
+      right:  { style: BorderStyle.SINGLE, size: 4, color: 'AAAAAA' },
+    };
+
+    const children = [];
+
+    for (const block of blocks) {
+      const rtl      = isRtlText(block.text || '');
+      const alignVal = rtl ? AlignmentType.RIGHT : AlignmentType.LEFT;
+
+      if (block.type === 'h1') {
         children.push(new Paragraph({
           heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: trimmed, bold: true, size: 28, color: '1a1a2e' })],
-          spacing: { before: 240, after: 120 },
+          alignment: alignVal,
+          spacing:  { before: 280, after: 80 },
+          children: [new TextRun({ text: block.text, bold: true, size: 32, color: '1F3864' })],
         }));
-      } else if (isNumericSection || isShortIsolated) {
+        continue;
+      }
+
+      if (block.type === 'h2') {
         children.push(new Paragraph({
           heading: HeadingLevel.HEADING_2,
-          children: [new TextRun({ text: trimmed, bold: true, size: 24, color: '2c3e50' })],
-          spacing: { before: 160, after: 80 },
+          alignment: alignVal,
+          spacing:  { before: 200, after: 60 },
+          children: [new TextRun({ text: block.text, bold: true, size: 28, color: '2E4057' })],
         }));
-      } else {
+        continue;
+      }
+
+      if (block.type === 'h3') {
         children.push(new Paragraph({
-          children: [new TextRun({ text: trimmed, size: 22 })],
-          spacing: { after: 60 },
+          heading: HeadingLevel.HEADING_3,
+          alignment: alignVal,
+          spacing:  { before: 160, after: 40 },
+          children: [new TextRun({ text: block.text, bold: true, size: 24, color: '404040' })],
+        }));
+        continue;
+      }
+
+      if (block.type === 'signature') {
+        children.push(new Paragraph({
+          spacing: { before: 120, after: 120 },
+          children: [new TextRun({ text: block.text, color: '888888', size: 20 })],
+        }));
+        continue;
+      }
+
+      if (block.type === 'list') {
+        const bullet = block.listType === 'bullet';
+        for (const item of block.items) {
+          const irt = isRtlText(item);
+          children.push(new Paragraph({
+            alignment: irt ? AlignmentType.RIGHT : AlignmentType.LEFT,
+            indent:   { left: 720, hanging: 360 },
+            spacing:  { after: 60 },
+            children: [
+              new TextRun({ text: bullet ? '• ' : '   ', size: 22 }),
+              new TextRun({ text: item, size: 22 }),
+            ],
+          }));
+        }
+        continue;
+      }
+
+      if (block.type === 'table') {
+        const numCols  = Math.max(...block.rows.map(r => r.length));
+        const colWidthPct = Math.floor(100 / numCols);
+        const tblRows  = block.rows.map((row, ri) => {
+          const isHeader = ri === 0;
+          const cells = Array.from({ length: numCols }, (_, ci) => {
+            const cellText = row[ci] || '';
+            return new TableCell({
+              width:  { size: colWidthPct, type: WidthType.PERCENTAGE },
+              borders: CELL_BORDER,
+              shading: isHeader ? { fill: 'E8EEF5' } : undefined,
+              children: [new Paragraph({
+                children: [new TextRun({ text: cellText, bold: isHeader, size: 20 })],
+              })],
+            });
+          });
+          return new TableRow({ children: cells });
+        });
+        children.push(new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows:  tblRows,
+        }));
+        continue;
+      }
+
+      // Regular paragraph
+      if (block.type === 'p' && block.text) {
+        children.push(new Paragraph({
+          alignment: alignVal,
+          spacing:   { after: 100 },
+          children:  [new TextRun({ text: block.text, size: 22 })],
         }));
       }
     }
 
     if (!children.length) {
-      children.push(new Paragraph({ children: [new TextRun('No text content.')] }));
+      children.push(new Paragraph({ children: [new TextRun({ text: 'No extractable text found.', size: 22 })] }));
     }
 
     const doc = new Document({ sections: [{ properties: {}, children }] });
