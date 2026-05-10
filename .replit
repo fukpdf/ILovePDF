@@ -39,7 +39,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node server.js"
+args = "npm install && node server.js"
 waitForPort = 5000
 
 [[ports]]
@@ -49,9 +49,6 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 9006
 
 [[ports]]
 localPort = 9007
