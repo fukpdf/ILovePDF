@@ -743,6 +743,12 @@ body:has(#tool-content) .app-layout{display:block !important}
 /* Auth modal */
 .auth-modal{position:fixed;inset:0;z-index:var(--z-modal);display:none;align-items:center;justify-content:center;padding:20px}
 .auth-modal.open{display:flex}
+.auth-modal:not(.hidden){display:flex}
+.auth-modal-card{
+  position:relative;z-index:1;background:#fff;border-radius:18px;
+  width:100%;max-width:420px;padding:28px 26px 26px;
+  box-shadow:0 20px 40px rgba(79,70,229,.18);animation:authIn .22s ease;
+}
 .auth-back{position:absolute;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px)}
 .auth-card{
   position:relative;z-index:1;background:#fff;border-radius:18px;
