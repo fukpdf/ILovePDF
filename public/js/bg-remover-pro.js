@@ -1,1040 +1,740 @@
-// Background Remover PRO MAX — full interactive mini-editor
-// 100% browser-side: canvas pixel manipulation, no upload, no server, no paid API.
-// Architecture: self-contained module — BgRemoverPro.mount(file, container, onResult)
+// Background Remover Enterprise UX v8.0
+// 3-phase flow: Settings → Processing → Result
+// Mobile-first, self-healing 4-pass engine, no developer controls.
+// Architecture: BgRemoverPro.mount(file, container, commitResult)
 (function () {
   'use strict';
 
   // ── Constants ─────────────────────────────────────────────────────────────
-  const MAX_DIM = 4096;
-  const ALLOWED_MIME = new Set([
+  var ALLOWED_MIME = new Set([
     'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
-    'image/gif', 'image/bmp', 'image/tiff',
+    'image/gif',  'image/bmp', 'image/tiff',
   ]);
+  var MAX_PREVIEW = 520; // px — max dimension of the settings preview
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  let _container = null;
-  let _evCleanup = [];
-  let _file = null;
-  let _img = null;
-  let _W = 0, _H = 0;
-  let _origPixels = null;   // Uint8ClampedArray RGBA of original image
-  let _mask = null;         // Float32Array [0..1] per pixel (1 = keep, 0 = remove)
-  let _workCtx = null;      // 2d context of work canvas
-  let _overlayCtx = null;   // 2d context of overlay canvas (brush cursor preview)
-  let _onResult = null;
+  // Background swatch definitions
+  var BG_OPTS = [
+    { id: 'transparent', label: 'None',       check: true },
+    { id: 'white',       label: 'White',      hex: '#ffffff' },
+    { id: '#f1f5f9',     label: 'Light',      hex: '#f1f5f9' },
+    { id: 'black',       label: 'Black',      hex: '#000000' },
+    { id: '#2563eb',     label: 'Blue',       hex: '#2563eb' },
+    { id: '#16a34a',     label: 'Green',      hex: '#16a34a' },
+    { id: '#dc2626',     label: 'Red',        hex: '#dc2626' },
+    { id: 'gradient-blue', label: 'Gradient', grad: ['#1a56db', '#4f46e5'] },
+  ];
 
-  // Brush
-  let _activeTool = 'erase';
-  let _brushSize = 24;
-  let _brushHardness = 0.8;
-  let _brushOpacity = 1.0;
-  let _isPainting = false;
-  let _lastPX = -1, _lastPY = -1;
+  // Processing stage messages
+  var STAGES = [
+    { pct:  8, msg: 'Analyzing image colors\u2026' },
+    { pct: 20, msg: 'Detecting subject boundaries\u2026' },
+    { pct: 36, msg: 'Separating foreground from background\u2026' },
+    { pct: 52, msg: 'Refining edge transitions\u2026' },
+    { pct: 67, msg: 'Applying alpha matting\u2026' },
+    { pct: 79, msg: 'Optimizing transparency\u2026' },
+    { pct: 89, msg: 'Enhancing edge quality\u2026' },
+    { pct: 96, msg: 'Preparing final result\u2026' },
+  ];
 
-  // Zoom / pan
-  let _zoom = 1.0;
-  let _panX = 0, _panY = 0;
-  let _isPanning = false;
-  let _panStartX = 0, _panStartY = 0;
-  let _spaceDown = false;
-  let _pinchDist = null;
+  // ── Module state ─────────────────────────────────────────────────────────
+  var _file          = null;
+  var _container     = null;
+  var _commitResult  = null;  // callback: (blob, filename, mime) → commits flow
+  var _origImg       = null;  // original Image element
+  var _origW         = 0;
+  var _origH         = 0;
+  var _origDataUrl   = null;  // compressed JPEG data URL for preview
+  var _resultImg     = null;  // transparent result Image element
+  var _bgColor       = 'transparent';
+  var _exportFmt     = 'png';
+  var _processing    = false;
+  var _stageTimers   = [];
 
-  // Undo/redo
-  const MAX_UNDO = 18;
-  let _undoStack = [];
-  let _redoStack = [];
+  // ── Public API ────────────────────────────────────────────────────────────
+  async function mount(file, container, commitResult) {
+    _file         = file;
+    _container    = container;
+    _commitResult = commitResult;
+    _origImg      = null;
+    _resultImg    = null;
+    _bgColor      = 'transparent';
+    _exportFmt    = 'png';
+    _processing   = false;
+    _stageTimers.forEach(clearTimeout);
+    _stageTimers  = [];
 
-  // View
-  let _showBA = false;
-  let _showGrid = true;
-  let _bgOption = 'transparent';
-  let _bgColor = '#ffffff';
-  let _exportFmt = 'png';
-  let _exportQuality = 0.92;
-  let _exportResolution = 'original';
-  let _qualityMode = 'balanced';
-
-  // Quality presets
-  const PRESETS = {
-    fast:           { threshold: 228, feather: 0, smooth: 0, noise: 0 },
-    balanced:       { threshold: 238, feather: 1, smooth: 2, noise: 1 },
-    'hair-detail':  { threshold: 195, feather: 3, smooth: 6, noise: 0 },
-    'product-photo':{ threshold: 244, feather: 2, smooth: 3, noise: 2 },
-    'high-precision':{ threshold: 233, feather: 4, smooth: 8, noise: 3 },
-  };
-
-  // ── Public mount ──────────────────────────────────────────────────────────
-  async function mount(file, container, onResult) {
-    _file = file; _onResult = onResult;
-    _reset();
-    _container = container;
-
-    // ── Validate file type ───────────────────────────────────────────────
-    const mimeType = (file.type || '').toLowerCase();
-    if (mimeType && !ALLOWED_MIME.has(mimeType)) {
-      container.innerHTML = `<div style="padding:24px;color:#b91c1c;background:#fef2f2;border-radius:8px;margin:16px">
-        <strong>Unsupported format:</strong> ${file.type || 'unknown'}.<br>
-        Please use JPG, PNG, WebP, GIF, BMP, or TIFF.
-      </div>`;
+    var mime = (file.type || '').toLowerCase();
+    if (mime && !ALLOWED_MIME.has(mime)) {
+      _showError(container,
+        'Unsupported file type: ' + (file.type || 'unknown') + '.<br>' +
+        'Please use JPG, PNG, WebP, or GIF.');
       return;
     }
 
-    container.innerHTML = _html();
-
-    // GIF warning — only first frame is processed
-    if (mimeType === 'image/gif') {
-      const warn = document.createElement('div');
-      warn.style.cssText = 'background:#fef3c7;border-radius:8px;padding:8px 14px;margin:8px 0;font-size:13px;color:#92400e;';
-      warn.textContent = '\u26a0\ufe0f Animated GIF detected — only the first frame will be processed.';
-      container.insertBefore(warn, container.firstChild);
-    }
-
-    _bindControls(container);
+    container.innerHTML =
+      '<div class="bgr-loading">' +
+        '<div class="bgr-spinner"></div>' +
+        '<div class="bgr-loading-text">Loading image\u2026</div>' +
+      '</div>';
 
     try {
-      _img = await _loadImg(file);
+      _origImg = await _loadImg(file);
+    } catch (_e) {
+      _showError(container, 'Cannot read this image. Please try a different file.');
+      return;
+    }
+
+    _origW = _origImg.naturalWidth;
+    _origH = _origImg.naturalHeight;
+    if (_origW === 0 || _origH === 0) {
+      _showError(container, 'Image has no valid dimensions. Please try a different file.');
+      return;
+    }
+
+    // Generate compressed preview data URL for reuse
+    var ps  = Math.min(1, MAX_PREVIEW / Math.max(_origW, _origH));
+    var pw  = Math.round(_origW * ps);
+    var ph  = Math.round(_origH * ps);
+    var pc  = document.createElement('canvas');
+    pc.width = pw; pc.height = ph;
+    pc.getContext('2d').drawImage(_origImg, 0, 0, pw, ph);
+    _origDataUrl = pc.toDataURL('image/jpeg', 0.82);
+    pc.width = 0; pc.height = 0;
+
+    // Auto-detect subject type from pixel analysis
+    var detectedSubject = _detectSubject(_origImg);
+
+    _renderSettings(container, detectedSubject);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  PHASE 1 — SETTINGS
+  // ════════════════════════════════════════════════════════════════
+  function _renderSettings(container, detectedSubject) {
+    var badge = (detectedSubject !== 'auto')
+      ? '<div class="bgr-detect-badge">' +
+          _subjectEmoji(detectedSubject) + ' ' + _subjectLabel(detectedSubject) + ' detected' +
+        '</div>'
+      : '';
+
+    container.innerHTML =
+      '<div class="bgr-settings-root">' +
+
+        // ── Left: image preview ──────────────────────────────────
+        '<div class="bgr-settings-left">' +
+          '<div class="bgr-img-frame">' +
+            '<img src="' + _origDataUrl + '" class="bgr-settings-img" alt="Preview">' +
+            badge +
+          '</div>' +
+          '<div class="bgr-img-meta">' +
+            _origW + '\u202f\xd7\u202f' + _origH + '\u202fpx\u2002\xb7\u2002' + _humanSize(_file.size) +
+          '</div>' +
+        '</div>' +
+
+        // ── Right: controls ──────────────────────────────────────
+        '<div class="bgr-settings-right">' +
+          '<div class="bgr-settings-heading">Remove Background</div>' +
+          '<div class="bgr-settings-subheading">Automatic removal \xb7 Runs locally \xb7 Free</div>' +
+
+          '<div class="bgr-field">' +
+            '<label class="bgr-field-label" for="bgr-bg-sel">Background</label>' +
+            '<select class="bgr-select" id="bgr-bg-sel">' +
+              '<option value="transparent">Transparent (PNG)</option>' +
+              '<option value="white">White</option>' +
+              '<option value="#f1f5f9">Light Grey</option>' +
+              '<option value="black">Black</option>' +
+              '<option value="#2563eb">Blue</option>' +
+              '<option value="gradient-blue">Blue Gradient</option>' +
+              '<option value="custom">Custom Color\u2026</option>' +
+            '</select>' +
+            '<input type="color" id="bgr-custom-col" class="bgr-color-pick" value="#6366f1">' +
+          '</div>' +
+
+          '<div class="bgr-field">' +
+            '<label class="bgr-field-label" for="bgr-quality-sel">Quality</label>' +
+            '<select class="bgr-select" id="bgr-quality-sel">' +
+              '<option value="auto" selected>Auto (Recommended)</option>' +
+              '<option value="hd">HD</option>' +
+              '<option value="ultra">Ultra (Slower, Best)</option>' +
+            '</select>' +
+          '</div>' +
+
+          '<div class="bgr-field">' +
+            '<label class="bgr-field-label" for="bgr-subject-sel">Subject Type</label>' +
+            '<select class="bgr-select" id="bgr-subject-sel">' +
+              '<option value="auto"'     + (detectedSubject === 'auto'     ? ' selected' : '') + '>Auto Detect</option>' +
+              '<option value="portrait"' + (detectedSubject === 'portrait' ? ' selected' : '') + '>Person / Portrait</option>' +
+              '<option value="product"'  + (detectedSubject === 'product'  ? ' selected' : '') + '>Product / Object</option>' +
+              '<option value="logo"'     + (detectedSubject === 'logo'     ? ' selected' : '') + '>Logo / Graphic</option>' +
+            '</select>' +
+          '</div>' +
+
+          '<button type="button" class="bgr-main-btn" id="bgr-process-btn">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<path d="M12 2L2 7l10 5 10-5-10-5z"/>' +
+              '<path d="M2 17l10 5 10-5"/>' +
+              '<path d="M2 12l10 5 10-5"/>' +
+            '</svg>' +
+            'Remove Background' +
+          '</button>' +
+
+          '<div class="bgr-trust-row">' +
+            '<span class="bgr-trust-item">\uD83D\uDD12 100% private</span>' +
+            '<span class="bgr-trust-sep">\xb7</span>' +
+            '<span class="bgr-trust-item">\u2713 No upload</span>' +
+            '<span class="bgr-trust-sep">\xb7</span>' +
+            '<span class="bgr-trust-item">\u2713 Free forever</span>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>';
+
+    var bgSel     = container.querySelector('#bgr-bg-sel');
+    var customCol = container.querySelector('#bgr-custom-col');
+    var processBtn = container.querySelector('#bgr-process-btn');
+
+    bgSel.addEventListener('change', function () {
+      customCol.style.display = bgSel.value === 'custom' ? 'block' : 'none';
+    });
+
+    processBtn.addEventListener('click', function () {
+      if (_processing) return;
+      var bg      = bgSel.value === 'custom' ? customCol.value : bgSel.value;
+      var quality = container.querySelector('#bgr-quality-sel').value;
+      var subject = container.querySelector('#bgr-subject-sel').value;
+      _bgColor = bg;
+      var qMode = (quality === 'auto') ? 'hd' : quality;
+      _startProcessing(container, { bgColor: bg, qualityMode: qMode, subjectMode: subject });
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  PHASE 2 — PROCESSING
+  // ════════════════════════════════════════════════════════════════
+  async function _startProcessing(container, opts) {
+    if (_processing) return;
+    _processing = true;
+
+    container.innerHTML =
+      '<div class="bgr-processing-root">' +
+        '<div class="bgr-processing-img-wrap">' +
+          '<img src="' + _origDataUrl + '" class="bgr-processing-img" alt="Processing">' +
+          '<div class="bgr-processing-vignette"></div>' +
+        '</div>' +
+        '<div class="bgr-processing-body">' +
+          '<div class="bgr-proc-label">Removing background\u2026</div>' +
+          '<div class="bgr-proc-stage" id="bgr-stage-msg">' + STAGES[0].msg + '</div>' +
+          '<div class="bgr-prog-track">' +
+            '<div class="bgr-prog-fill" id="bgr-prog-fill" style="width:0%"></div>' +
+          '</div>' +
+          '<div class="bgr-prog-pct" id="bgr-prog-pct">0%</div>' +
+          '<div class="bgr-proc-hint">Processing happens on your device \u2014 files never leave your browser.</div>' +
+        '</div>' +
+      '</div>';
+
+    var fillEl = container.querySelector('#bgr-prog-fill');
+    var pctEl  = container.querySelector('#bgr-prog-pct');
+    var msgEl  = container.querySelector('#bgr-stage-msg');
+
+    function setProgress(pct, msg) {
+      if (fillEl) fillEl.style.width = Math.round(pct) + '%';
+      if (pctEl)  pctEl.textContent  = Math.round(pct) + '%';
+      if (msg && msgEl) msgEl.textContent = msg;
+    }
+
+    // Animate stage messages (realistic timing, independent of actual processing)
+    _stageTimers.forEach(clearTimeout);
+    _stageTimers = [];
+    var stageDelay = 300;
+    STAGES.forEach(function (s, i) {
+      var t = setTimeout(function () { setProgress(s.pct, s.msg); }, stageDelay);
+      _stageTimers.push(t);
+      stageDelay += 550 + i * 200;
+    });
+
+    var result  = null;
+    var lastErr = null;
+
+    try {
+      result = await _runWithHealing(opts, setProgress, msgEl);
+    } catch (err) {
+      lastErr = err;
+    }
+
+    // Stop stage animation
+    _stageTimers.forEach(clearTimeout);
+    _stageTimers = [];
+    _processing = false;
+
+    if (!result || !result.blob || result.blob.size < 50) {
+      setProgress(0, '');
+      _renderEngineError(container, lastErr);
+      return;
+    }
+
+    setProgress(100, 'Done!');
+    await new Promise(function (r) { setTimeout(r, 380); });
+
+    // Load transparent result as Image element (for canvas compositing)
+    try {
+      _resultImg = await _loadImgFromBlob(result.blob);
+      _renderResult(container, result.blob, result.filename || _buildFilename());
     } catch (e) {
-      container.innerHTML = `<div style="padding:24px;color:#b91c1c;background:#fef2f2;border-radius:8px;margin:16px">
-        Cannot load image: ${e.message || 'Unknown error'}.<br>
-        Supported formats: JPG, PNG, WebP, GIF, BMP.
-      </div>`;
-      return;
-    }
-
-    // ── Dimension cap (OOM guard) ────────────────────────────────────────
-    const srcW = _img.naturalWidth;
-    const srcH = _img.naturalHeight;
-    if (srcW === 0 || srcH === 0) {
-      container.innerHTML = `<div style="padding:24px;color:#b91c1c">Image has zero dimensions and cannot be processed.</div>`;
-      return;
-    }
-    if (srcW > MAX_DIM || srcH > MAX_DIM) {
-      const ratio = Math.min(MAX_DIM / srcW, MAX_DIM / srcH);
-      _W = Math.round(srcW * ratio);
-      _H = Math.round(srcH * ratio);
-    } else {
-      _W = srcW;
-      _H = srcH;
-    }
-
-    // Grab original pixels from off-screen canvas (then release the canvas)
-    const offCtx = _offCanvas(_W, _H);
-    offCtx.drawImage(_img, 0, 0, _W, _H);
-    _origPixels = offCtx.getImageData(0, 0, _W, _H).data;
-    offCtx.canvas.width = 0; offCtx.canvas.height = 0;
-
-    // Setup canvases
-    _workCtx = container.querySelector('#bgpro-work').getContext('2d');
-    _overlayCtx = container.querySelector('#bgpro-overlay').getContext('2d');
-    _workCtx.canvas.width = _W; _workCtx.canvas.height = _H;
-    _overlayCtx.canvas.width = _W; _overlayCtx.canvas.height = _H;
-
-    const origC = container.querySelector('#bgpro-orig');
-    origC.width = _W; origC.height = _H;
-    origC.getContext('2d').drawImage(_img, 0, 0, _W, _H);
-
-    // Init mask to fully opaque, then apply removal
-    _mask = new Float32Array(_W * _H).fill(1);
-    _applyRemoval();
-    _pushUndo();
-    _redraw();
-    _detectAndSuggest(container);
-    _updateQuality(container);
-    _updateStatusBar(container);
-
-    // Wire canvas events
-    _wireCanvas(container);
-    _fitZoom(container);
-  }
-
-  // ── HTML ──────────────────────────────────────────────────────────────────
-  function _html() {
-    return `<div class="bgpro" id="bgpro-root">
-  <div class="bgpro-toolbar">
-    <div class="bgpro-tg">
-      <button class="bgpro-tb" id="bgpro-undo" title="Undo">&#8630;</button>
-      <button class="bgpro-tb" id="bgpro-redo" title="Redo">&#8631;</button>
-    </div>
-    <div class="bgpro-tsep"></div>
-    <div class="bgpro-tg">
-      <button class="bgpro-tb" id="bgpro-zin" title="Zoom In">+</button>
-      <span class="bgpro-zlbl" id="bgpro-zlbl">100%</span>
-      <button class="bgpro-tb" id="bgpro-zout" title="Zoom Out">&minus;</button>
-      <button class="bgpro-tb" id="bgpro-zfit" title="Fit">&#x26F6;</button>
-    </div>
-    <div class="bgpro-tsep"></div>
-    <div class="bgpro-tg">
-      <button class="bgpro-tb bgpro-toggle" id="bgpro-ba" title="Before/After">B/A</button>
-      <button class="bgpro-tb bgpro-toggle bgpro-on" id="bgpro-grid" title="Transparency Grid">&#9638;</button>
-    </div>
-    <div class="bgpro-detect" id="bgpro-detect"></div>
-    <button class="bgpro-tb bgpro-dl-tb" id="bgpro-dl-tb">&#11123; Download</button>
-  </div>
-
-  <div class="bgpro-body">
-    <!-- Left: original -->
-    <div class="bgpro-panel bgpro-panel-orig">
-      <div class="bgpro-plabel">Original</div>
-      <div class="bgpro-orig-wrap"><canvas id="bgpro-orig"></canvas></div>
-    </div>
-    <!-- Center: workspace -->
-    <div class="bgpro-panel bgpro-panel-work">
-      <div class="bgpro-plabel">Edit Mask <small>· Scroll to zoom · Space to pan</small></div>
-      <div class="bgpro-scroll" id="bgpro-scroll">
-        <div class="bgpro-vp" id="bgpro-vp">
-          <canvas id="bgpro-bg-canvas" class="bgpro-bg-c"></canvas>
-          <canvas id="bgpro-work" class="bgpro-work-c"></canvas>
-          <canvas id="bgpro-overlay" class="bgpro-overlay-c"></canvas>
-          <div class="bgpro-cursor" id="bgpro-cursor"></div>
-        </div>
-      </div>
-    </div>
-    <!-- Right: controls -->
-    <div class="bgpro-panel bgpro-panel-ctrl" id="bgpro-ctrl">
-      <div class="bgpro-drawer-handle" id="bgpro-drawer-handle">
-        <span class="bgpro-drawer-label">Controls</span>
-      </div>
-
-      <div class="bgpro-section">
-        <div class="bgpro-slbl">Brush Tool</div>
-        <div class="bgpro-tools">
-          <button class="bgpro-tool bgpro-on" id="bgpro-t-erase">&#9003; Erase</button>
-          <button class="bgpro-tool" id="bgpro-t-keep">&#128393; Keep</button>
-          <button class="bgpro-tool" id="bgpro-t-smart">&#10024; Smart</button>
-        </div>
-      </div>
-
-      <div class="bgpro-section">
-        <div class="bgpro-slbl">Brush</div>
-        <div class="bgpro-srow"><label>Size <b id="bgpro-sv">24</b>px</label><input type="range" id="bgpro-bs" min="2" max="150" value="24"></div>
-        <div class="bgpro-srow"><label>Hardness <b id="bgpro-hv">80</b>%</label><input type="range" id="bgpro-bh" min="0" max="100" value="80"></div>
-        <div class="bgpro-srow"><label>Opacity <b id="bgpro-ov">100</b>%</label><input type="range" id="bgpro-bo" min="10" max="100" value="100"></div>
-      </div>
-
-      <div class="bgpro-section">
-        <div class="bgpro-slbl">Quality Mode</div>
-        <select class="bgpro-sel" id="bgpro-qmode">
-          <option value="fast">&#9889; Fast</option>
-          <option value="balanced" selected>&#9878; Balanced</option>
-          <option value="hair-detail">&#128148; Hair Detail</option>
-          <option value="product-photo">&#128230; Product Photo</option>
-          <option value="high-precision">&#127919; High Precision</option>
-        </select>
-        <button class="bgpro-btn-sm" id="bgpro-reapply" style="margin-top:6px;width:100%">Re-apply Removal</button>
-      </div>
-
-      <div class="bgpro-section">
-        <div class="bgpro-slbl">Background</div>
-        <select class="bgpro-sel" id="bgpro-bg">
-          <option value="transparent">Transparent</option>
-          <option value="white">White</option>
-          <option value="black">Black</option>
-          <option value="custom">Custom Color</option>
-          <option value="blur">Blurred Original</option>
-        </select>
-        <input type="color" id="bgpro-bgcol" value="#ffffff" style="display:none;margin-top:6px;width:100%;height:30px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer">
-      </div>
-
-      <div class="bgpro-section">
-        <div class="bgpro-slbl">Edge Quality</div>
-        <div class="bgpro-qmeter" id="bgpro-qmeter">
-          <div class="bgpro-qscore" id="bgpro-qscore">Analyzing…</div>
-          <div class="bgpro-qdetail" id="bgpro-qdetail"></div>
-          <div class="bgpro-qsuggest" id="bgpro-qsuggest"></div>
-        </div>
-      </div>
-
-      <div class="bgpro-section bgpro-expsec">
-        <div class="bgpro-slbl">Export</div>
-        <div class="bgpro-erow"><label>Format</label>
-          <select class="bgpro-sel-sm" id="bgpro-fmt"><option value="png">PNG</option><option value="webp">WEBP</option><option value="jpeg">JPEG</option></select></div>
-        <div class="bgpro-erow"><label>Quality</label>
-          <select class="bgpro-sel-sm" id="bgpro-eq"><option value="1.0">100%</option><option value="0.92" selected>92%</option><option value="0.85">85%</option><option value="0.7">70%</option></select></div>
-        <div class="bgpro-erow"><label>Resolution</label>
-          <select class="bgpro-sel-sm" id="bgpro-er"><option value="original">Original</option><option value="2x">2× Upscale</option><option value="0.5x">50% Size</option></select></div>
-        <button class="bgpro-btn-primary" id="bgpro-dl">&#11123; Download</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="bgpro-status" id="bgpro-status">
-    <span id="bgpro-st-res">—</span>
-    <span class="bgpro-stsep">|</span>
-    <span id="bgpro-st-edge">—</span>
-    <span class="bgpro-stsep">|</span>
-    <span id="bgpro-st-mode">Mode: Balanced</span>
-  </div>
-</div>`;
-  }
-
-  // ── Core: apply initial background removal ────────────────────────────────
-  function _applyRemoval() {
-    const p = PRESETS[_qualityMode] || PRESETS.balanced;
-    const d = _origPixels;
-    const n = _W * _H;
-
-    // Step 1: threshold pass
-    for (let i = 0; i < n; i++) {
-      const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
-      const brightness = (r + g + b) / 3;
-      const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      // Remove near-white or near-gray-unsaturated pixels
-      if (brightness >= p.threshold && saturation < 40) {
-        _mask[i] = 0;
-      } else {
-        _mask[i] = 1;
-      }
-    }
-
-    // Step 2: noise cleanup
-    if (p.noise > 0) _noiseClean(p.noise);
-
-    // Step 3: feathering
-    if (p.feather > 0) _featherMask(p.feather);
-
-    // Step 4: edge smoothing
-    if (p.smooth > 0) _smoothEdge(p.smooth);
-  }
-
-  // ── Noise cleanup (median-like erosion of isolated pixels) ─────────────
-  function _noiseClean(passes) {
-    for (let pass = 0; pass < passes; pass++) {
-      const next = new Float32Array(_mask);
-      for (let y = 1; y < _H - 1; y++) {
-        for (let x = 1; x < _W - 1; x++) {
-          const ci = y * _W + x;
-          if (_mask[ci] < 0.5) {
-            // Check if surrounded by opaque neighbors — fill isolated transparent hole
-            const neighbors = [
-              _mask[(y-1)*_W+x], _mask[(y+1)*_W+x],
-              _mask[y*_W+x-1],   _mask[y*_W+x+1]
-            ];
-            const opaqueCount = neighbors.filter(v => v > 0.5).length;
-            if (opaqueCount >= 4) next[ci] = 1;
-          }
-        }
-      }
-      _mask = next;
+      _renderEngineError(container, e);
     }
   }
 
-  // ── Feathering (box blur the mask at edges) ────────────────────────────
-  function _featherMask(radius) {
-    const r = Math.max(1, Math.round(radius));
-    const tmp = new Float32Array(_mask);
-    // Horizontal pass
-    for (let y = 0; y < _H; y++) {
-      for (let x = 0; x < _W; x++) {
-        let sum = 0, count = 0;
-        for (let dx = -r; dx <= r; dx++) {
-          const nx = x + dx;
-          if (nx >= 0 && nx < _W) { sum += _mask[y * _W + nx]; count++; }
-        }
-        tmp[y * _W + x] = sum / count;
-      }
-    }
-    // Vertical pass
-    for (let y = 0; y < _H; y++) {
-      for (let x = 0; x < _W; x++) {
-        let sum = 0, count = 0;
-        for (let dy = -r; dy <= r; dy++) {
-          const ny = y + dy;
-          if (ny >= 0 && ny < _H) { sum += tmp[ny * _W + x]; count++; }
-        }
-        _mask[y * _W + x] = sum / count;
-      }
-    }
-  }
-
-  // ── Edge smoothing (only blur pixels near alpha transitions) ───────────
-  function _smoothEdge(radius) {
-    const r = Math.max(1, Math.round(radius / 2));
-    const tmp = new Float32Array(_mask);
-    for (let y = r; y < _H - r; y++) {
-      for (let x = r; x < _W - r; x++) {
-        const v = _mask[y * _W + x];
-        if (v > 0.05 && v < 0.95) {
-          let sum = 0, count = 0;
-          for (let dy = -r; dy <= r; dy++) {
-            for (let dx = -r; dx <= r; dx++) {
-              sum += _mask[(y + dy) * _W + (x + dx)]; count++;
-            }
-          }
-          tmp[y * _W + x] = sum / count;
-        }
-      }
-    }
-    _mask = tmp;
-  }
-
-  // ── Redraw work canvas ─────────────────────────────────────────────────
-  function _redraw() {
-    if (!_workCtx) return;
-    const ctx = _workCtx;
-    const W = _W, H = _H;
-    const id = ctx.createImageData(W, H);
-    const od = id.data;
-    const src = _origPixels;
-
-    if (_showBA) {
-      // Show original on left half, masked on right half
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          if (x < W / 2) {
-            od[i] = src[i]; od[i+1] = src[i+1]; od[i+2] = src[i+2]; od[i+3] = 255;
-          } else {
-            const a = _mask[y * W + x];
-            _blendPixel(od, i, src, a);
-          }
-        }
-      }
-      // Draw divider line
-      ctx.putImageData(id, 0, 0);
-      ctx.strokeStyle = 'rgba(99,102,241,0.8)';
-      ctx.lineWidth = 2 / _zoom;
-      ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
-    } else {
-      for (let i = 0; i < W * H; i++) {
-        const pi = i * 4;
-        _blendPixel(od, pi, src, _mask[i]);
-      }
-      ctx.putImageData(id, 0, 0);
+  // ── Self-healing 4-pass engine ──────────────────────────────────────────
+  async function _runWithHealing(opts, setProgress) {
+    if (!window.BrowserTools || typeof window.BrowserTools.process !== 'function') {
+      throw new Error('Processing engine not ready. Please wait a moment and try again.');
     }
 
-    _redrawBgCanvas();
-  }
+    var baseOpts = { bgColor: 'transparent' }; // always get transparent PNG first
 
-  function _blendPixel(od, i, src, alpha) {
-    if (_bgOption === 'transparent' || _bgOption === 'blur') {
-      od[i] = src[i]; od[i+1] = src[i+1]; od[i+2] = src[i+2];
-      od[i+3] = Math.round(alpha * 255);
-    } else {
-      const bg = _parseBgColor();
-      od[i]   = Math.round(src[i]   * alpha + bg[0] * (1 - alpha));
-      od[i+1] = Math.round(src[i+1] * alpha + bg[1] * (1 - alpha));
-      od[i+2] = Math.round(src[i+2] * alpha + bg[2] * (1 - alpha));
-      od[i+3] = 255;
-    }
-  }
+    // Pass 1: user's chosen settings
+    try {
+      var r1 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
+        qualityMode: opts.qualityMode || 'hd',
+        subjectMode: opts.subjectMode || 'auto',
+        threshold:   235,
+      }));
+      if (r1 && r1.blob && r1.blob.size > 100) return r1;
+    } catch (_e1) { /* fall through */ }
 
-  function _parseBgColor() {
-    if (_bgOption === 'white') return [255, 255, 255];
-    if (_bgOption === 'black') return [0, 0, 0];
-    const hex = _bgColor.replace('#', '');
-    return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
-  }
+    // Pass 2: ultra quality, auto subject (broader detection sweep)
+    if (setProgress) setProgress(62, 'Applying enhanced detection\u2026');
+    try {
+      var r2 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
+        qualityMode: 'ultra',
+        subjectMode: 'auto',
+        threshold:   215,
+      }));
+      if (r2 && r2.blob && r2.blob.size > 100) return r2;
+    } catch (_e2) { /* fall through */ }
 
-  function _redrawBgCanvas() {
-    const bgC = (_container || document).querySelector('#bgpro-bg-canvas');
-    if (!bgC) return;
-    bgC.width = _W; bgC.height = _H;
-    const ctx = bgC.getContext('2d');
-    if (_bgOption === 'blur') {
-      ctx.filter = 'blur(20px)';
-      ctx.drawImage(_img, 0, 0);
-      ctx.filter = 'none';
-    } else if (_showGrid && (_bgOption === 'transparent')) {
-      _drawCheckered(ctx, _W, _H);
-    } else {
-      ctx.fillStyle = _bgOption === 'transparent' ? 'transparent' : (_bgOption === 'white' ? '#fff' : _bgOption === 'black' ? '#000' : _bgColor);
-      ctx.fillRect(0, 0, _W, _H);
-    }
-  }
+    // Pass 3: ultra + portrait isolation (most common real-world case)
+    if (setProgress) setProgress(78, 'Applying portrait optimization\u2026');
+    try {
+      var r3 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
+        qualityMode: 'ultra',
+        subjectMode: 'portrait',
+        threshold:   198,
+      }));
+      if (r3 && r3.blob && r3.blob.size > 100) return r3;
+    } catch (_e3) { /* fall through */ }
 
-  function _drawCheckered(ctx, W, H) {
-    const size = Math.max(8, Math.min(24, Math.round(Math.min(W, H) / 40)));
-    const patCanvas = document.createElement('canvas');
-    patCanvas.width = size * 2; patCanvas.height = size * 2;
-    const pCtx = patCanvas.getContext('2d');
-    pCtx.fillStyle = '#c8c8c8';
-    pCtx.fillRect(0, 0, size, size);
-    pCtx.fillRect(size, size, size, size);
-    pCtx.fillStyle = '#f0f0f0';
-    pCtx.fillRect(size, 0, size, size);
-    pCtx.fillRect(0, size, size, size);
-    const pat = ctx.createPattern(patCanvas, 'repeat');
-    patCanvas.width = 0; patCanvas.height = 0;
-    ctx.fillStyle = pat;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  // ── Brush painting ────────────────────────────────────────────────────
-  function _paintAt(cx, cy, isFirst) {
-    const r = Math.max(1, _brushSize);
-    const r2 = r * r;
-    const op = _brushOpacity;
-    const x0 = Math.max(0, Math.floor(cx - r));
-    const x1 = Math.min(_W - 1, Math.ceil(cx + r));
-    const y0 = Math.max(0, Math.floor(cy - r));
-    const y1 = Math.min(_H - 1, Math.ceil(cy + r));
-
-    if (!isFirst && _lastPX >= 0) {
-      // Interpolate line for smooth strokes
-      const dx = cx - _lastPX, dy = cy - _lastPY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const steps = Math.max(1, Math.floor(dist / (r * 0.3)));
-      for (let s = 1; s < steps; s++) {
-        _paintDot(_lastPX + dx * s / steps, _lastPY + dy * s / steps);
-      }
-    }
-    _paintDot(cx, cy);
-    _lastPX = cx; _lastPY = cy;
-  }
-
-  function _paintDot(cx, cy) {
-    const r = Math.max(1, _brushSize);
-    const r2 = r * r;
-    const op = _brushOpacity;
-    const hard = _brushHardness;
-    const x0 = Math.max(0, Math.floor(cx - r));
-    const x1 = Math.min(_W - 1, Math.ceil(cx + r));
-    const y0 = Math.max(0, Math.floor(cy - r));
-    const y1 = Math.min(_H - 1, Math.ceil(cy + r));
-
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        const dx = x - cx, dy = y - cy;
-        const d2 = dx * dx + dy * dy;
-        if (d2 > r2) continue;
-        const norm = Math.sqrt(d2) / r;
-        // Hardness curve: hard=1 → step at edge, hard=0 → smooth gradient
-        const influence = hard >= 1 ? 1 : (norm < hard ? 1 : (1 - (norm - hard) / (1 - hard + 0.001)));
-        const strength = op * Math.max(0, Math.min(1, influence));
-        const idx = y * _W + x;
-
-        if (_activeTool === 'erase') {
-          _mask[idx] = Math.max(0, _mask[idx] - strength);
-        } else if (_activeTool === 'keep') {
-          _mask[idx] = Math.min(1, _mask[idx] + strength);
-        } else if (_activeTool === 'smart') {
-          _smartDot(x, y, strength);
-        }
-      }
-    }
-    // Partial redraw (bounding box of brush for performance)
-    _redrawRegion(
-      Math.max(0, Math.floor(cx - r) - 2), Math.max(0, Math.floor(cy - r) - 2),
-      Math.min(_W, Math.ceil(cx + r) + 2), Math.min(_H, Math.ceil(cy + r) + 2)
-    );
-  }
-
-  function _smartDot(x, y, strength) {
-    // Smart edge: blur only transition pixels near this point
-    const idx = y * _W + x;
-    const v = _mask[idx];
-    // Only affect pixels that are already partially transparent (near edge)
-    if (v > 0.05 && v < 0.95) {
-      const sr = 3;
-      let sum = 0, count = 0;
-      for (let dy = -sr; dy <= sr; dy++) {
-        for (let dx = -sr; dx <= sr; dx++) {
-          const nx = x + dx, ny = y + dy;
-          if (nx >= 0 && nx < _W && ny >= 0 && ny < _H) { sum += _mask[ny * _W + nx]; count++; }
-        }
-      }
-      _mask[idx] = _mask[idx] * (1 - strength) + (sum / count) * strength;
-    } else if (v <= 0.05) {
-      // Very transparent near edge — check neighbors to see if this should transition
-      const neighbors = [
-        y > 0 && _mask[(y-1)*_W+x] > 0.5,
-        y < _H-1 && _mask[(y+1)*_W+x] > 0.5,
-        x > 0 && _mask[y*_W+x-1] > 0.5,
-        x < _W-1 && _mask[y*_W+x+1] > 0.5,
-      ];
-      if (neighbors.some(Boolean)) _mask[idx] = Math.min(1, _mask[idx] + strength * 0.5);
-    }
-  }
-
-  function _redrawRegion(x0, y0, x1, y1) {
-    if (!_workCtx) return;
-    const W = x1 - x0, H = y1 - y0;
-    if (W <= 0 || H <= 0) return;
-    const id = _workCtx.createImageData(W, H);
-    const od = id.data;
-    const src = _origPixels;
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
-        const pi = ((y - y0) * W + (x - x0)) * 4;
-        const si = (y * _W + x) * 4;
-        _blendPixel(od, pi, src, _mask[y * _W + x]);
-      }
-    }
-    _workCtx.putImageData(id, x0, y0);
-  }
-
-  // ── Quality analysis ──────────────────────────────────────────────────
-  function _analyzeQuality() {
-    const n = _W * _H;
-    let transCount = 0, edgeJag = 0, halo = 0, total = 0;
-    for (let y = 1; y < _H - 1; y++) {
-      for (let x = 1; x < _W - 1; x++) {
-        const idx = y * _W + x;
-        const v = _mask[idx];
-        if (v < 0.5) transCount++;
-        total++;
-        // Jagged edge detection: abrupt transition without gradual feather
-        const left = _mask[y * _W + x - 1], right = _mask[y * _W + x + 1];
-        const top  = _mask[(y-1)*_W+x],    bottom= _mask[(y+1)*_W+x];
-        if ((Math.abs(v - left) > 0.7 || Math.abs(v - right) > 0.7 ||
-             Math.abs(v - top)  > 0.7 || Math.abs(v - bottom) > 0.7)) edgeJag++;
-        // White halo: semi-transparent pixel next to fully opaque with bright original
-        if (v > 0.05 && v < 0.4) {
-          const pi = idx * 4;
-          const br = (_origPixels[pi] + _origPixels[pi+1] + _origPixels[pi+2]) / 3;
-          if (br > 200) halo++;
-        }
-      }
-    }
-    const transRatio = transCount / total;
-    const jagScore = Math.min(100, Math.round(edgeJag / Math.max(1, total) * 10000));
-    const haloScore = Math.min(100, Math.round(halo / Math.max(1, total) * 5000));
-    return { transRatio, jagScore, haloScore };
-  }
-
-  function _updateQuality(container) {
-    const { transRatio, jagScore, haloScore } = _analyzeQuality();
-    const score = document.getElementById('bgpro-qscore');
-    const detail = document.getElementById('bgpro-qdetail');
-    const suggest = document.getElementById('bgpro-qsuggest');
-    if (!score) return;
-
-    const pct = Math.round(transRatio * 100);
-    if (transRatio < 0.05) {
-      score.textContent = '⚠ Too Little Removed'; score.className = 'bgpro-qscore bgpro-q-warn';
-    } else if (jagScore > 30 || haloScore > 15) {
-      score.textContent = '🔶 Needs Refinement'; score.className = 'bgpro-qscore bgpro-q-med';
-      const tips = [];
-      if (jagScore > 30) tips.push('jagged edges detected');
-      if (haloScore > 15) tips.push('white halo detected');
-      if (detail) detail.textContent = tips.join(' · ');
-      if (suggest) suggest.textContent = jagScore > 30 ? 'Try Hair Detail mode or Smart Edge brush' : 'Use Smart Edge brush on bright outlines';
-    } else {
-      score.textContent = '✓ Good'; score.className = 'bgpro-qscore bgpro-q-good';
-      if (pct > 20) { score.textContent = '✓ Excellent'; score.className = 'bgpro-qscore bgpro-q-excel'; }
-      if (detail) detail.textContent = `${pct}% transparent · Clean edges`;
-      if (suggest) suggest.textContent = '';
+    // Pass 4: product mode (good for isolated objects on any background)
+    if (setProgress) setProgress(88, 'Trying alternative subject detection\u2026');
+    try {
+      var r4 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
+        qualityMode: 'ultra',
+        subjectMode: 'product',
+        threshold:   180,
+      }));
+      if (r4 && r4.blob && r4.blob.size > 100) return r4;
+    } catch (e4) {
+      throw e4;
     }
 
-    // Status bar edge info
-    const st = document.getElementById('bgpro-st-edge');
-    if (st) st.textContent = `${pct}% removed · Jag: ${jagScore} · Halo: ${haloScore}`;
+    throw new Error('Could not remove the background. The background may be too complex or too similar to the subject.');
   }
 
-  // ── Auto-detect image type ────────────────────────────────────────────
-  function _detectImageType() {
-    const n = _W * _H;
-    const d = _origPixels;
-    let skinTones = 0, lowSat = 0, brightPct = 0, totalOpaque = 0;
-    for (let i = 0; i < n; i++) {
-      const r = d[i*4], g = d[i*4+1], b = d[i*4+2];
-      const brightness = (r + g + b) / 3;
-      const sat = Math.max(r,g,b) - Math.min(r,g,b);
-      if (brightness > 200) brightPct++;
-      if (sat < 30) lowSat++;
-      // Rough skin tone range
-      if (r > 120 && r < 230 && g > 80 && g < 180 && b > 60 && b < 160 && r > g && g > b) skinTones++;
-      totalOpaque++;
-    }
-    const skinRatio = skinTones / totalOpaque;
-    const brightRatio = brightPct / totalOpaque;
-    const flatRatio = lowSat / totalOpaque;
-    if (skinRatio > 0.12) return 'portrait';
-    if (flatRatio > 0.6 && brightRatio < 0.4) return 'logo';
-    if (brightRatio > 0.5) return 'product';
-    return 'illustration';
-  }
+  // ════════════════════════════════════════════════════════════════
+  //  PHASE 3 — RESULT
+  // ════════════════════════════════════════════════════════════════
+  function _renderResult(container, transparentBlob, filename) {
+    var swatchesHtml = BG_OPTS.map(function (b) {
+      var style = b.check
+        ? 'background:repeating-conic-gradient(#bbb 0% 25%,#fff 0% 50%) 0 0/12px 12px'
+        : b.grad
+          ? 'background:linear-gradient(135deg,' + b.grad[0] + ',' + b.grad[1] + ')'
+          : 'background:' + b.hex;
+      var active = (b.id === _bgColor) ? ' bgr-swatch-active' : '';
+      return '<button type="button" class="bgr-swatch' + active + '" data-bgid="' + b.id +
+             '" title="' + b.label + '" aria-label="' + b.label + ' background" style="' + style + '"></button>';
+    }).join('');
 
-  function _detectAndSuggest(container) {
-    const type = _detectImageType();
-    const badge = document.getElementById('bgpro-detect');
-    if (!badge) return;
-    const modeMap = { portrait:'balanced', logo:'high-precision', product:'product-photo', illustration:'hair-detail' };
-    const labelMap = { portrait:'👤 Portrait detected', logo:'🔷 Logo detected', product:'📦 Product detected', illustration:'🎨 Illustration detected' };
-    const suggMap  = { portrait:'Balanced mode recommended', logo:'High Precision recommended', product:'Product Photo recommended', illustration:'Hair Detail recommended' };
-    badge.title = suggMap[type] || '';
-    badge.textContent = labelMap[type] || '';
-    badge.style.display = 'block';
-    // Auto-set the quality mode dropdown
-    const sel = document.getElementById('bgpro-qmode');
-    if (sel) { sel.value = modeMap[type]; _qualityMode = modeMap[type]; }
-    const stMode = document.getElementById('bgpro-st-mode');
-    if (stMode) stMode.textContent = `Mode: ${sel ? sel.options[sel.selectedIndex].text : ''}`;
-  }
+    container.innerHTML =
+      '<div class="bgr-result-root">' +
 
-  // ── Status bar ────────────────────────────────────────────────────────
-  function _updateStatusBar(container) {
-    const res = document.getElementById('bgpro-st-res');
-    if (res) res.textContent = `${_W} × ${_H} px`;
-  }
+        // ── Before / After compare slider ────────────────────────
+        '<div class="bgr-compare-outer" id="bgr-compare-outer">' +
+          // Before: original
+          '<div class="bgr-compare-layer bgr-compare-before" id="bgr-before">' +
+            '<img src="' + _origDataUrl + '" class="bgr-compare-img" alt="Original">' +
+            '<div class="bgr-compare-lbl bgr-compare-lbl--l">Before</div>' +
+          '</div>' +
+          // After: result canvas (clips from left)
+          '<div class="bgr-compare-layer bgr-compare-after" id="bgr-after">' +
+            '<canvas id="bgr-result-cvs" class="bgr-compare-img"></canvas>' +
+            '<div class="bgr-compare-lbl bgr-compare-lbl--r">After</div>' +
+          '</div>' +
+          // Draggable handle
+          '<div class="bgr-compare-handle" id="bgr-compare-handle" aria-label="Drag to compare">' +
+            '<div class="bgr-handle-line"></div>' +
+            '<div class="bgr-handle-knob">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5L1 12l7 7V5zm8 14l7-7-7-7v14z"/></svg>' +
+            '</div>' +
+          '</div>' +
+          '<div class="bgr-compare-hint" id="bgr-compare-hint">\u21d4 Drag to compare</div>' +
+        '</div>' +
 
-  // ── Zoom / pan ────────────────────────────────────────────────────────
-  function _applyZoomPan() {
-    const vp = document.getElementById('bgpro-vp');
-    if (!vp) return;
-    vp.style.transform = `translate(${_panX}px, ${_panY}px) scale(${_zoom})`;
-    vp.style.transformOrigin = '0 0';
-    const lbl = document.getElementById('bgpro-zlbl');
-    if (lbl) lbl.textContent = Math.round(_zoom * 100) + '%';
-  }
+        // ── Controls ─────────────────────────────────────────────
+        '<div class="bgr-result-panel">' +
 
-  function _fitZoom(container) {
-    const scroll = document.getElementById('bgpro-scroll');
-    if (!scroll || !_W) return;
-    const sw = scroll.clientWidth - 32, sh = scroll.clientHeight - 32;
-    if (sw <= 0 || sh <= 0) return;
-    _zoom = Math.min(sw / _W, sh / _H, 1);
-    _panX = (sw - _W * _zoom) / 2;
-    _panY = Math.max(8, (sh - _H * _zoom) / 2);
-    _applyZoomPan();
-  }
+          '<div class="bgr-ctrl-row">' +
+            // Background swatches
+            '<div class="bgr-ctrl-section">' +
+              '<div class="bgr-ctrl-label">Background</div>' +
+              '<div class="bgr-swatch-row" id="bgr-swatch-row">' + swatchesHtml + '</div>' +
+            '</div>' +
+            // Format
+            '<div class="bgr-ctrl-section">' +
+              '<div class="bgr-ctrl-label">Format</div>' +
+              '<div class="bgr-fmt-row">' +
+                '<button type="button" class="bgr-fmt-btn bgr-fmt-active" data-fmt="png">PNG</button>' +
+                '<button type="button" class="bgr-fmt-btn" data-fmt="jpg">JPG</button>' +
+                '<button type="button" class="bgr-fmt-btn" data-fmt="webp">WebP</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
 
-  // ── Export ────────────────────────────────────────────────────────────
-  async function _exportImage() {
-    const fmt = _exportFmt;
-    const q = _exportQuality;
-    const res = _exportResolution;
-    let W = _W, H = _H;
-    if (res === '2x') { W *= 2; H *= 2; }
-    if (res === '0.5x') { W = Math.round(W / 2); H = Math.round(H / 2); }
+          '<div class="bgr-result-actions">' +
+            '<button type="button" class="bgr-dl-btn" id="bgr-dl-btn">' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>' +
+                '<polyline points="7 10 12 15 17 10"/>' +
+                '<line x1="12" y1="15" x2="12" y2="3"/>' +
+              '</svg>' +
+              'Download' +
+            '</button>' +
+            '<button type="button" class="bgr-again-btn" id="bgr-again-btn">Try Again</button>' +
+          '</div>' +
 
-    const out = document.createElement('canvas');
-    out.width = W; out.height = H;
-    const ctx = out.getContext('2d');
+          '<div class="bgr-result-meta">' +
+            _origW + '\u202f\xd7\u202f' + _origH + '\u202fpx \xb7 ' + _humanSize(_file.size) +
+          '</div>' +
 
-    // Background
-    if (_bgOption === 'blur') {
-      ctx.filter = 'blur(20px)'; ctx.drawImage(_img, 0, 0, W, H); ctx.filter = 'none';
-    } else if (_bgOption !== 'transparent') {
-      ctx.fillStyle = _bgOption === 'white' ? '#fff' : _bgOption === 'black' ? '#000' : _bgColor;
-      ctx.fillRect(0, 0, W, H);
-    }
+        '</div>' +
 
-    // Draw masked image using current mask scaled to output size
-    const masked = document.createElement('canvas');
-    masked.width = _W; masked.height = _H;
-    const mCtx = masked.getContext('2d');
-    const id = mCtx.createImageData(_W, _H);
-    const od = id.data;
-    for (let i = 0; i < _W * _H; i++) {
-      const pi = i * 4;
-      od[pi] = _origPixels[pi]; od[pi+1] = _origPixels[pi+1]; od[pi+2] = _origPixels[pi+2];
-      od[pi+3] = Math.round(_mask[i] * 255);
-    }
-    mCtx.putImageData(id, 0, 0);
-    ctx.drawImage(masked, 0, 0, W, H);
+      '</div>';
 
-    // Validate — only block if essentially nothing was removed (0 transparent pixels)
-    const pixels = ctx.getImageData(0, 0, W, H).data;
-    let transPixels = 0;
-    for (let i = 3; i < pixels.length; i += 4) if (pixels[i] < 128) transPixels++;
-    const transRatio = transPixels / (W * H);
-    if (transRatio < 0.001) throw new Error('No background was removed. Try adjusting the threshold or quality mode, then click Re-apply.');
+    // Initial canvas draw
+    _drawResultToCanvas(container.querySelector('#bgr-result-cvs'), _bgColor);
 
-    const mime = fmt === 'jpeg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
-    const ext  = fmt === 'jpeg' ? '.jpg' : fmt === 'webp' ? '.webp' : '.png';
-    return new Promise((res, rej) => {
-      out.toBlob(b => {
-        if (!b || b.size < 100) return rej(new Error('Export failed — canvas encode returned empty blob'));
-        res({ blob: b, ext, mime });
-      }, mime, q);
-    });
-  }
-
-  // ── Undo/redo ────────────────────────────────────────────────────────
-  function _pushUndo() {
-    _undoStack.push(new Float32Array(_mask));
-    if (_undoStack.length > MAX_UNDO) _undoStack.shift();
-    _redoStack = [];
-  }
-
-  function _undo() {
-    if (_undoStack.length < 2) return;
-    _redoStack.push(_undoStack.pop());
-    _mask = new Float32Array(_undoStack[_undoStack.length - 1]);
-    _redraw();
-  }
-
-  function _redo() {
-    if (!_redoStack.length) return;
-    const state = _redoStack.pop();
-    _undoStack.push(state);
-    _mask = new Float32Array(state);
-    _redraw();
-  }
-
-  // ── Canvas coordinate conversion ──────────────────────────────────────
-  function _canvasCoords(e, canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-      x: (clientX - rect.left) / _zoom,
-      y: (clientY - rect.top) / _zoom,
-    };
-  }
-
-  function _vpCoords(e) {
-    const vp = document.getElementById('bgpro-vp');
-    if (!vp) return { x: 0, y: 0 };
-    return _canvasCoords(e, vp);
-  }
-
-  // ── Event wiring ──────────────────────────────────────────────────────
-  function _wireCanvas(container) {
-    const overlay = container.querySelector('#bgpro-overlay');
-    const cursor  = container.querySelector('#bgpro-cursor');
-    if (!overlay) return;
-
-    overlay.addEventListener('mousedown', e => {
-      e.preventDefault();
-      if (_spaceDown) return; // pan mode
-      _isPainting = true;
-      _pushUndo();
-      _lastPX = -1; _lastPY = -1;
-      const { x, y } = _vpCoords(e);
-      _paintAt(x, y, true);
-      _redraw();
-    });
-    overlay.addEventListener('mousemove', e => {
-      const { x, y } = _vpCoords(e);
-      _moveCursor(cursor, x, y);
-      if (!_isPainting) return;
-      _paintAt(x, y, false);
-      _redraw();
-    });
-    overlay.addEventListener('mouseup', () => {
-      if (_isPainting) { _isPainting = false; _updateQuality(container); }
-    });
-    overlay.addEventListener('mouseleave', () => {
-      if (cursor) cursor.style.display = 'none';
-      if (_isPainting) { _isPainting = false; _updateQuality(container); }
-    });
-    overlay.addEventListener('mouseenter', () => { if (cursor) cursor.style.display = 'block'; });
-
-    // Touch events
-    overlay.addEventListener('touchstart', e => {
-      if (e.touches.length === 2) { _pinchDist = _getTouchDist(e); return; }
-      e.preventDefault();
-      _isPainting = true;
-      _pushUndo();
-      _lastPX = -1; _lastPY = -1;
-      const { x, y } = _vpCoords(e);
-      _paintAt(x, y, true); _redraw();
-    }, { passive: false });
-    overlay.addEventListener('touchmove', e => {
-      if (e.touches.length === 2) {
-        const dist = _getTouchDist(e);
-        if (_pinchDist) { _zoom = Math.max(0.15, Math.min(8, _zoom * (dist / _pinchDist))); _applyZoomPan(); }
-        _pinchDist = dist; return;
-      }
-      if (!_isPainting) return;
-      e.preventDefault();
-      const { x, y } = _vpCoords(e);
-      _paintAt(x, y, false); _redraw();
-    }, { passive: false });
-    overlay.addEventListener('touchend', () => {
-      _pinchDist = null;
-      if (_isPainting) { _isPainting = false; _updateQuality(container); }
-    });
-
-    // Wheel zoom
-    const scroll = container.querySelector('#bgpro-scroll');
-    if (scroll) {
-      scroll.addEventListener('wheel', e => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.12 : 0.89;
-        _zoom = Math.max(0.1, Math.min(12, _zoom * factor));
-        _applyZoomPan();
-      }, { passive: false });
-    }
-
-    // Space pan — named handlers so they can be removed on unmount
-    const _onKeyDown = e => {
-      if (e.code === 'Space' && !e.target.matches('input,textarea,select')) {
-        _spaceDown = true;
-        overlay.style.cursor = 'grab';
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); _undo(); }
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); _redo(); }
-    };
-    const _onKeyUp = e => {
-      if (e.code === 'Space') { _spaceDown = false; overlay.style.cursor = 'crosshair'; }
-    };
-    const _onWinMouseMove = e => {
-      if (!_isPanning) return;
-      _panX = e.clientX - _panStartX;
-      _panY = e.clientY - _panStartY;
-      _applyZoomPan();
-    };
-    const _onWinMouseUp = () => { _isPanning = false; };
-
-    window.addEventListener('keydown', _onKeyDown);
-    window.addEventListener('keyup', _onKeyUp);
-    window.addEventListener('mousemove', _onWinMouseMove);
-    window.addEventListener('mouseup', _onWinMouseUp);
-
-    // Register cleanup so re-mount / navigation removes these listeners
-    _evCleanup.push(
-      () => window.removeEventListener('keydown', _onKeyDown),
-      () => window.removeEventListener('keyup', _onKeyUp),
-      () => window.removeEventListener('mousemove', _onWinMouseMove),
-      () => window.removeEventListener('mouseup', _onWinMouseUp),
-    );
-
-    // Pan drag on scroll area when space held
-    scroll && scroll.addEventListener('mousedown', e => {
-      if (!_spaceDown) return;
-      _isPanning = true;
-      _panStartX = e.clientX - _panX;
-      _panStartY = e.clientY - _panY;
-    });
-
-    // touchcancel — reset paint/pinch state when touch is interrupted
-    overlay.addEventListener('touchcancel', () => {
-      _pinchDist = null;
-      if (_isPainting) { _isPainting = false; _updateQuality(container); }
-    });
-  }
-
-  function _moveCursor(cursor, x, y) {
-    if (!cursor) return;
-    const size = _brushSize * 2 * _zoom;
-    cursor.style.display = 'block';
-    cursor.style.width  = size + 'px';
-    cursor.style.height = size + 'px';
-    cursor.style.left   = (x * _zoom - size / 2) + 'px';
-    cursor.style.top    = (y * _zoom - size / 2) + 'px';
-    cursor.style.borderRadius = '50%';
-    cursor.style.border = _activeTool === 'erase' ? '2px solid rgba(239,68,68,0.8)' :
-                          _activeTool === 'keep'  ? '2px solid rgba(16,185,129,0.8)' :
-                                                    '2px solid rgba(99,102,241,0.8)';
-  }
-
-  function _getTouchDist(e) {
-    const a = e.touches[0], b = e.touches[1];
-    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-  }
-
-  // ── Bind control panel events ────────────────────────────────────────
-  function _bindControls(container) {
-    setTimeout(() => {
-      _b(container, '#bgpro-undo', () => _undo());
-      _b(container, '#bgpro-redo', () => _redo());
-      _b(container, '#bgpro-zin',  () => { _zoom = Math.min(12, _zoom * 1.25); _applyZoomPan(); });
-      _b(container, '#bgpro-zout', () => { _zoom = Math.max(0.1, _zoom * 0.8); _applyZoomPan(); });
-      _b(container, '#bgpro-zfit', () => _fitZoom(container));
-      _b(container, '#bgpro-ba',   () => { _showBA = !_showBA; _toggleClass(container, '#bgpro-ba', 'bgpro-on', _showBA); _redraw(); });
-      _b(container, '#bgpro-grid', () => { _showGrid = !_showGrid; _toggleClass(container, '#bgpro-grid', 'bgpro-on', _showGrid); _redraw(); });
-
-      _b(container, '#bgpro-t-erase', () => _setTool(container, 'erase'));
-      _b(container, '#bgpro-t-keep',  () => _setTool(container, 'keep'));
-      _b(container, '#bgpro-t-smart', () => _setTool(container, 'smart'));
-
-      _on(container, '#bgpro-bs', 'input', e => { _brushSize = +e.target.value; _q(container, '#bgpro-sv', e.target.value); });
-      _on(container, '#bgpro-bh', 'input', e => { _brushHardness = +e.target.value / 100; _q(container, '#bgpro-hv', e.target.value); });
-      _on(container, '#bgpro-bo', 'input', e => { _brushOpacity  = +e.target.value / 100; _q(container, '#bgpro-ov', e.target.value); });
-
-      _on(container, '#bgpro-qmode', 'change', e => {
-        _qualityMode = e.target.value;
-        const stMode = container.querySelector('#bgpro-st-mode');
-        if (stMode) stMode.textContent = 'Mode: ' + e.target.options[e.target.selectedIndex].text.replace(/^\S+\s*/,'');
-      });
-      _b(container, '#bgpro-reapply', () => {
-        _pushUndo();
-        _mask = new Float32Array(_W * _H).fill(1);
-        _applyRemoval();
-        _redraw();
-        _updateQuality(container);
-      });
-
-      _on(container, '#bgpro-bg', 'change', e => {
-        _bgOption = e.target.value;
-        const col = container.querySelector('#bgpro-bgcol');
-        if (col) col.style.display = _bgOption === 'custom' ? 'block' : 'none';
-        _redraw();
-      });
-      _on(container, '#bgpro-bgcol', 'input', e => { _bgColor = e.target.value; _redraw(); });
-
-      _on(container, '#bgpro-fmt',  'change', e => { _exportFmt = e.target.value; });
-      _on(container, '#bgpro-eq',   'change', e => { _exportQuality = parseFloat(e.target.value); });
-      _on(container, '#bgpro-er',   'change', e => { _exportResolution = e.target.value; });
-
-      const doDownload = async () => {
-        const btn = container.querySelector('#bgpro-dl');
-        if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
-        try {
-          const { blob, ext, mime } = await _exportImage();
-          const fname = 'ILovePDF-' + (_file.name.replace(/\.[^.]+$/, '') || 'image') + ext;
-          if (_onResult) _onResult(blob, fname, mime);
-          else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = fname;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 30000);
-          }
-        } catch (err) {
-          alert('Export failed: ' + (err.message || 'Unknown error'));
-        } finally {
-              if (btn) { btn.disabled = false; btn.textContent = '⬇ Download'; }
-        }
-      };
-      _b(container, '#bgpro-dl', doDownload);
-      _b(container, '#bgpro-dl-tb', doDownload);
-
-      // Mobile drawer: tap handle to expand/collapse controls panel
-      const drawerHandle = container.querySelector('#bgpro-drawer-handle');
-      const ctrl = container.querySelector('#bgpro-ctrl');
-      if (drawerHandle && ctrl) {
-        drawerHandle.addEventListener('click', () => {
-          ctrl.classList.toggle('bgpro-drawer-open');
-          const lbl = drawerHandle.querySelector('.bgpro-drawer-label');
-          if (lbl) lbl.textContent = ctrl.classList.contains('bgpro-drawer-open') ? 'Close Controls' : 'Controls';
+    // ── Wire: background swatches ───────────────────────────────
+    container.querySelectorAll('[data-bgid]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        _bgColor = btn.dataset.bgid;
+        container.querySelectorAll('[data-bgid]').forEach(function (b) {
+          b.classList.toggle('bgr-swatch-active', b.dataset.bgid === _bgColor);
         });
-      }
-    }, 50);
+        // If transparent + JPG, auto-upgrade to PNG
+        if (_bgColor === 'transparent' && _exportFmt === 'jpg') {
+          _exportFmt = 'png';
+          container.querySelectorAll('[data-fmt]').forEach(function (b) {
+            b.classList.toggle('bgr-fmt-active', b.dataset.fmt === 'png');
+          });
+        }
+        _drawResultToCanvas(container.querySelector('#bgr-result-cvs'), _bgColor);
+      });
+    });
+
+    // ── Wire: format buttons ────────────────────────────────────
+    container.querySelectorAll('[data-fmt]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var fmt = btn.dataset.fmt;
+        // JPG requires opaque background
+        if (fmt === 'jpg' && (!_bgColor || _bgColor === 'transparent')) {
+          _bgColor = 'white';
+          container.querySelectorAll('[data-bgid]').forEach(function (b) {
+            b.classList.toggle('bgr-swatch-active', b.dataset.bgid === 'white');
+          });
+          _drawResultToCanvas(container.querySelector('#bgr-result-cvs'), _bgColor);
+        }
+        _exportFmt = fmt;
+        container.querySelectorAll('[data-fmt]').forEach(function (b) {
+          b.classList.toggle('bgr-fmt-active', b.dataset.fmt === fmt);
+        });
+      });
+    });
+
+    // ── Wire: download ──────────────────────────────────────────
+    var dlBtn = container.querySelector('#bgr-dl-btn');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', async function () {
+        if (dlBtn.disabled) return;
+        dlBtn.disabled = true;
+        dlBtn.innerHTML =
+          '<span class="bgr-dl-spin"></span>Preparing\u2026';
+        try {
+          var out = await _buildDownloadBlob(container);
+          var url = URL.createObjectURL(out.blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = out.filename;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 300000);
+          // Commit to the download step (showStatus auto-commits flow)
+          if (typeof _commitResult === 'function') {
+            _commitResult(out.blob, out.filename, out.mime);
+          }
+        } catch (e) {
+          console.error('[BgRemoverPro] Download failed:', e);
+        } finally {
+          dlBtn.disabled = false;
+          dlBtn.innerHTML =
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>' +
+              '<polyline points="7 10 12 15 17 10"/>' +
+              '<line x1="12" y1="15" x2="12" y2="3"/>' +
+            '</svg>Download';
+        }
+      });
+    }
+
+    // ── Wire: try again ─────────────────────────────────────────
+    var againBtn = container.querySelector('#bgr-again-btn');
+    if (againBtn) {
+      againBtn.addEventListener('click', function () {
+        if (window.Flow) window.Flow.navTo('upload');
+        else window.location.href = window.location.pathname.replace(/\/(preview|download).*$/i, '');
+      });
+    }
+
+    // ── Wire: compare slider ────────────────────────────────────
+    _wireCompareSlider(container);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────
-  function _b(c, sel, fn) { const el = c.querySelector(sel); if (el) el.addEventListener('click', fn); }
-  function _on(c, sel, ev, fn) { const el = c.querySelector(sel); if (el) el.addEventListener(ev, fn); }
-  function _q(c, sel, val) { const el = c.querySelector(sel); if (el) el.textContent = val; }
-  function _toggleClass(c, sel, cls, force) { const el = c.querySelector(sel); if (el) el.classList.toggle(cls, force); }
-  function _reset() {
-    // Remove any window-level event listeners from the previous mount
-    _evCleanup.forEach(fn => fn());
-    _evCleanup = [];
-    // Reset all pixel/mask state
-    _mask = null; _origPixels = null; _undoStack = []; _redoStack = [];
-    // Reset view state
-    _zoom = 1; _panX = 0; _panY = 0; _isPainting = false;
-    _isPanning = false; _pinchDist = null; _spaceDown = false;
-    // Reset tool/mode defaults
-    _activeTool = 'erase'; _qualityMode = 'balanced';
-    _bgOption = 'transparent'; _exportFmt = 'png';
-    _exportQuality = 0.92; _exportResolution = 'original';
-    _showBA = false; _showGrid = true;
+  // ── Canvas: draw result with chosen background ────────────────────────────
+  function _drawResultToCanvas(cvs, bgId) {
+    if (!cvs || !_resultImg) return;
+    var rW = _resultImg.naturalWidth;
+    var rH = _resultImg.naturalHeight;
+    cvs.width  = rW;
+    cvs.height = rH;
+    var ctx = cvs.getContext('2d');
+    ctx.clearRect(0, 0, rW, rH);
+
+    if (!bgId || bgId === 'transparent') {
+      // Checkerboard transparency pattern
+      var SZ = Math.max(8, Math.min(28, Math.round(Math.min(rW, rH) / 28)));
+      for (var ry = 0; ry < rH; ry += SZ) {
+        for (var rx = 0; rx < rW; rx += SZ) {
+          ctx.fillStyle = (Math.floor(rx / SZ) + Math.floor(ry / SZ)) % 2 === 0 ? '#c8c8c8' : '#f0f0f0';
+          ctx.fillRect(rx, ry, SZ, SZ);
+        }
+      }
+    } else if (bgId === 'gradient-blue') {
+      var grd = ctx.createLinearGradient(0, 0, rW, rH);
+      grd.addColorStop(0, '#1a56db'); grd.addColorStop(1, '#4f46e5');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, rW, rH);
+    } else {
+      ctx.fillStyle = (bgId === 'white') ? '#ffffff' : (bgId === 'black') ? '#000000' : bgId;
+      ctx.fillRect(0, 0, rW, rH);
+    }
+
+    ctx.drawImage(_resultImg, 0, 0);
   }
-  function _offCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c.getContext('2d'); }
+
+  // ── Build export blob from current canvas state ───────────────────────────
+  async function _buildDownloadBlob(container) {
+    var cvs = container.querySelector('#bgr-result-cvs');
+    if (!cvs || !_resultImg) throw new Error('Result canvas not ready');
+
+    var fmt      = _exportFmt || 'png';
+    var isTransp = !_bgColor || _bgColor === 'transparent';
+    if (fmt === 'jpg' && isTransp) fmt = 'png';
+
+    var mime     = fmt === 'jpg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
+    var ext      = '.' + (fmt === 'jpg' ? 'jpg' : fmt === 'webp' ? 'webp' : 'png');
+    var quality  = (fmt === 'jpg') ? 0.92 : (fmt === 'webp') ? 0.90 : undefined;
+
+    var blob = await new Promise(function (res, rej) {
+      cvs.toBlob(function (b) {
+        if (b && b.size > 10) res(b);
+        else rej(new Error('Canvas export returned empty blob'));
+      }, mime, quality);
+    });
+
+    var base     = (_file.name || 'image').replace(/\.[^.]+$/, '');
+    var filename = 'ILovePDF-' + base + '-bg-removed' + ext;
+    return { blob: blob, filename: filename, mime: mime };
+  }
+
+  // ── Compare slider wiring ─────────────────────────────────────────────────
+  function _wireCompareSlider(container) {
+    var outer  = container.querySelector('#bgr-compare-outer');
+    var after  = container.querySelector('#bgr-after');
+    var handle = container.querySelector('#bgr-compare-handle');
+    var hint   = container.querySelector('#bgr-compare-hint');
+    if (!outer || !after || !handle) return;
+
+    var pct      = 50;
+    var dragging = false;
+
+    function applySlider(clientX) {
+      var rect = outer.getBoundingClientRect();
+      pct = Math.max(2, Math.min(98, (clientX - rect.left) / rect.width * 100));
+      handle.style.left       = pct + '%';
+      after.style.clipPath    = 'inset(0 0 0 ' + pct + '%)';
+    }
+
+    // Set initial position
+    handle.style.left    = '50%';
+    after.style.clipPath = 'inset(0 0 0 50%)';
+
+    function startDrag(e) {
+      dragging = true;
+      if (hint) hint.style.opacity = '0';
+      applySlider(e.clientX || (e.touches && e.touches[0].clientX));
+    }
+    function moveDrag(e) {
+      if (!dragging) return;
+      applySlider(e.clientX || (e.touches && e.touches[0].clientX));
+    }
+    function stopDrag() { dragging = false; }
+
+    handle.addEventListener('mousedown',  startDrag);
+    handle.addEventListener('touchstart', startDrag, { passive: true });
+
+    document.addEventListener('mousemove',  moveDrag);
+    document.addEventListener('mouseup',    stopDrag);
+    document.addEventListener('touchmove',  function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      applySlider(e.touches[0].clientX);
+    }, { passive: false });
+    document.addEventListener('touchend',   stopDrag);
+
+    // Also drag anywhere on the compare container
+    outer.addEventListener('mousedown', function (e) {
+      dragging = true;
+      if (hint) hint.style.opacity = '0';
+      applySlider(e.clientX);
+    });
+    outer.addEventListener('touchstart', function (e) {
+      dragging = true;
+      if (hint) hint.style.opacity = '0';
+      applySlider(e.touches[0].clientX);
+    }, { passive: true });
+  }
+
+  // ── Error screen ──────────────────────────────────────────────────────────
+  function _renderEngineError(container, err) {
+    var msg = 'Processing failed. Please try a different image.';
+    if (err && err.message) {
+      var m = err.message;
+      if (m.includes('No background detected') || m.includes('Could not remove')) {
+        msg = 'No clear background was found. For best results, use an image with a solid or uniform background.';
+      } else if (m.includes('engine not ready') || m.includes('not a function')) {
+        msg = 'The engine is still initializing. Please wait a moment, then try again.';
+      } else if (m.includes('memory') || m.includes('OOM')) {
+        msg = 'Not enough memory. Please try a smaller image or close other browser tabs.';
+      }
+    }
+    container.innerHTML =
+      '<div class="bgr-error-card">' +
+        '<div class="bgr-error-icon">\u26a0</div>' +
+        '<div class="bgr-error-title">Could not remove background</div>' +
+        '<div class="bgr-error-msg">' + msg + '</div>' +
+        '<div class="bgr-error-actions">' +
+          '<button type="button" class="bgr-main-btn" id="bgr-go-upload">Try a Different Image</button>' +
+        '</div>' +
+      '</div>';
+    var goBtn = container.querySelector('#bgr-go-upload');
+    if (goBtn) {
+      goBtn.addEventListener('click', function () {
+        if (window.Flow) window.Flow.navTo('upload');
+        else window.location.href = window.location.pathname.replace(/\/(preview|download).*$/i, '');
+      });
+    }
+  }
+
+  function _showError(container, msg) {
+    container.innerHTML =
+      '<div class="bgr-error-card">' +
+        '<div class="bgr-error-icon">\u26a0</div>' +
+        '<div class="bgr-error-msg">' + msg + '</div>' +
+      '</div>';
+  }
+
+  // ── Auto subject detection ─────────────────────────────────────────────────
+  // Samples a small downscaled version of the image for speed.
+  function _detectSubject(img) {
+    var SIZE = 64;
+    var sc   = document.createElement('canvas');
+    sc.width = SIZE; sc.height = SIZE;
+    var sCtx = sc.getContext('2d');
+    sCtx.drawImage(img, 0, 0, SIZE, SIZE);
+    var d = sCtx.getImageData(0, 0, SIZE, SIZE).data;
+    sc.width = 0; sc.height = 0;
+
+    var n        = SIZE * SIZE;
+    var skinTone = 0, brightPx = 0, lowSatPx = 0, highSatPx = 0;
+    for (var i = 0; i < n; i++) {
+      var r  = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+      var br = (r + g + b) / 3;
+      var sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (br > 185) brightPx++;
+      if (sat < 22) lowSatPx++;
+      if (sat > 60) highSatPx++;
+      // Skin tone: warm mid-range, r > g > b with reasonable saturation
+      if (r > 100 && r < 240 && g > 70 && g < 200 && b > 50 && b < 180
+          && r > g + 8 && g > b && sat > 15 && sat < 130) skinTone++;
+    }
+    var skinR  = skinTone  / n;
+    var brightR = brightPx / n;
+    var flatR  = lowSatPx  / n;
+    var vividR = highSatPx / n;
+
+    if (skinR  > 0.09)                       return 'portrait';
+    if (flatR  > 0.55 && brightR < 0.35)     return 'logo';
+    if (brightR > 0.52 || vividR < 0.12)     return 'product';
+    return 'auto';
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function _loadImg(file) {
-    return new Promise((res, rej) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload  = () => { URL.revokeObjectURL(url); res(img); };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Cannot decode image')); };
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload  = function () { URL.revokeObjectURL(url); res(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Cannot decode image')); };
       img.src = url;
     });
   }
-  function _setTool(container, tool) {
-    _activeTool = tool;
-    ['erase','keep','smart'].forEach(t => {
-      const b = container.querySelector(`#bgpro-t-${t}`);
-      if (b) b.classList.toggle('bgpro-on', t === tool);
+
+  function _loadImgFromBlob(blob) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload  = function () { URL.revokeObjectURL(url); res(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Cannot decode result image')); };
+      img.src = url;
     });
-    const ov = container.querySelector('#bgpro-overlay');
-    if (ov) ov.style.cursor = 'crosshair';
   }
 
-  // ── Expose ────────────────────────────────────────────────────────────
-  window.BgRemoverPro = { mount };
-})();
+  function _humanSize(bytes) {
+    if (bytes < 1024)         return bytes + ' B';
+    if (bytes < 1024 * 1024)  return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function _buildFilename() {
+    var base = (_file && _file.name ? _file.name : 'image').replace(/\.[^.]+$/, '');
+    return 'ILovePDF-' + base + '-bg-removed.png';
+  }
+
+  function _subjectLabel(s) {
+    return { portrait: 'Portrait', product: 'Product', logo: 'Logo' }[s] || 'Subject';
+  }
+
+  function _subjectEmoji(s) {
+    return { portrait: '\uD83D\uDC64', product: '\uD83D\uDCE6', logo: '\uD83D\uDD37' }[s] || '';
+  }
+
+  // ── Expose ────────────────────────────────────────────────────────────────
+  window.BgRemoverPro = { mount: mount };
+}());

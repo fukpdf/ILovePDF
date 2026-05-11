@@ -596,24 +596,28 @@ function renderUploadStep(tool) {
 
 // ── STEP 2b — PRO MAX EDITOR STEP ─────────────────────────────────────────
 // Mounts a full interactive editor (BgRemoverPro / EditPdfPro) in place of
-// the standard preview+process flow. The editor's onResult callback fires
+// the standard preview+process flow. The editor's callback fires
 // showStatus('success', …) which commits the Flow and navigates to download.
 function renderProPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
   container.classList.add('ew-wide');
 
+  const isBgRemover = tool.id === 'background-remover';
+
   container.innerHTML = `
     <div class="tool-page tool-page--pro" style="padding-bottom:0">
       ${toolHeaderBlock(tool, {
-        heading: tool.name + ' — PRO Editor',
-        desc: 'Edit your file in the interactive editor below, then click Download when done.',
-        icon: tool.icon || 'edit-3',
+        heading:    isBgRemover ? tool.name : tool.name + ' — PRO Editor',
+        desc:       isBgRemover
+                      ? 'Automatic AI removal \xb7 100% local \xb7 Free'
+                      : 'Edit your file in the interactive editor below, then click Download when done.',
+        icon:       tool.icon || 'edit-3',
         hideStatus: true,
         back: { href: '#step:upload', label: 'Back to upload' },
       })}
       ${stepIndicatorHtml('preview')}
-      <div id="pro-editor-mount" style="margin-top:12px;flex:1;min-height:520px;"></div>
+      <div id="pro-editor-mount" style="margin-top:12px;flex:1;${isBgRemover ? '' : 'min-height:520px;'}"></div>
       <div id="result-area" style="margin-top:12px;padding:0 24px;"></div>
     </div>`;
 
@@ -624,6 +628,7 @@ function renderProPreviewStep(tool) {
   const file  = selectedFiles[0] && selectedFiles[0].file;
   if (!file || !mount) { Flow.navTo('upload'); return; }
 
+  // onResult: used by EditPdfPro — auto-downloads then commits flow.
   function onResult(blob, filename, mime) {
     if (!blob || blob.size < 10) {
       showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
@@ -631,7 +636,6 @@ function renderProPreviewStep(tool) {
     }
     const url = URL.createObjectURL(blob);
     setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
-    // Auto-trigger download
     try {
       const a = document.createElement('a');
       a.href = url; a.download = filename;
@@ -646,8 +650,27 @@ function renderProPreviewStep(tool) {
     );
   }
 
-  if (tool.id === 'background-remover' && window.BgRemoverPro) {
-    window.BgRemoverPro.mount(file, mount, onResult);
+  // commitResult: used by BgRemoverPro — user already downloaded via the
+  // in-editor button, so we just show the success card and commit the flow.
+  function commitResult(blob, filename, mime) {
+    if (!blob || blob.size < 10) {
+      showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
+    showStatus(
+      'success',
+      'Background removed!',
+      filename + ' has been saved. Use the button below if the download didn\'t complete.',
+      url,
+      filename
+    );
+    // showStatus auto-calls Flow.commitResult() for type === 'success'
+  }
+
+  if (isBgRemover && window.BgRemoverPro) {
+    window.BgRemoverPro.mount(file, mount, commitResult);
   } else if (tool.id === 'edit' && window.EditPdfPro) {
     window.EditPdfPro.mount(file, mount, onResult);
   }
