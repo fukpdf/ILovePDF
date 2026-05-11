@@ -5398,10 +5398,10 @@
     return out2.buffer;
   }
 
-  // ─── BACKGROUND REMOVER v2.0 (Phase 25C) ────────────────────────────────────
+  // ─── BACKGROUND REMOVER v3.0 (Confidence-Based Foreground Preservation) ─────
   // Accepts: qualityMode ('fast'|'hd'|'ultra'), subjectMode ('auto'|'portrait'|'product'|'logo'),
   //          bgColor ('transparent'|'#rrggbb'|'white'|'black'|'gradient-blue'|'gradient-warm')
-  // Uses v2.0 worker algorithm: K-means color clustering + BFS flood-fill + trimap matting
+  // Uses v3.0 worker: 5-factor confidence scoring, conservative BFS, color-weighted feathering
   processors['background-remover'] = async function (files, opts, onStep) {
     var file        = files[0];
     var qualityMode = (opts && opts.qualityMode) || 'hd';
@@ -5464,7 +5464,7 @@
     var wResult   = null;
     var _hasAlpha = false;
 
-    // Pass 1: v2.0 worker — K-means + BFS + trimap matting
+    // Pass 1: v3.0 worker — confidence-based foreground preservation
     try {
       wResult = await runAdvancedWorker(
         { op: 'remove-bg', pixels: rawBuffer, width: drawW, height: drawH,
