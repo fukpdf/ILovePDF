@@ -152,22 +152,35 @@
   // ══════════════════════════════════════════════════════════════════════════
   //  ORT LOADER
   // ══════════════════════════════════════════════════════════════════════════
+  function _configureWasm(ortNs) {
+    try {
+      ortNs.env.wasm.wasmPaths  = ORT_WASM_DIR;
+      ortNs.env.wasm.proxy      = false;
+      ortNs.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 1);
+    } catch (_e) {}
+  }
+
   function loadORT() {
     if (_ortReady && window.ort) return Promise.resolve(window.ort);
     if (_ortPromise) return _ortPromise;
-    _ortPromise = new Promise(function (resolve, reject) {
+    // Reuse the shared global promise if onnx-runtime-manager.js (or another module)
+    // has already started loading ORT — prevents a second concurrent script injection.
+    if (window.__ortPromise) {
+      _ortPromise = window.__ortPromise.then(function (o) {
+        _configureWasm(o); // configure WASM paths even if we didn't load the script
+        _ortReady = true; return o;
+      });
+      return _ortPromise;
+    }
+    _ortPromise = window.__ortPromise = new Promise(function (resolve, reject) {
       var s = document.createElement('script');
       s.src = ORT_CDN; s.async = true;
       s.onload = function () {
-        if (!window.ort) { _ortPromise = null; reject(new Error('ort global missing')); return; }
-        try {
-          window.ort.env.wasm.wasmPaths  = ORT_WASM_DIR;
-          window.ort.env.wasm.proxy      = false;
-          window.ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 1);
-        } catch (_e) {}
+        if (!window.ort) { _ortPromise = null; window.__ortPromise = null; reject(new Error('ort global missing')); return; }
+        _configureWasm(window.ort);
         _ortReady = true; resolve(window.ort);
       };
-      s.onerror = function () { _ortPromise = null; reject(new Error('ORT CDN load failed')); };
+      s.onerror = function () { _ortPromise = null; window.__ortPromise = null; reject(new Error('ORT CDN load failed')); };
       document.head.appendChild(s);
     });
     return _ortPromise;

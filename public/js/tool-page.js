@@ -1,7 +1,10 @@
 let currentTool = null;
-let selectedFiles = [];   // array of { file, rotation, id }
+let selectedFiles = [];   // array of { file, rotation, id, _thumbUrl? }
 let dragSrcIndex = null;
 let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-level UI)
+// Tracks the currently mounted pro-editor module (BgRemoverPro / EditPdfPro)
+// so destroy() is called before mounting a new instance on tool switch.
+let _activeMountedModule = null;
 
 // ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
 // Routes:
@@ -669,9 +672,17 @@ function renderProPreviewStep(tool) {
     // showStatus auto-calls Flow.commitResult() for type === 'success'
   }
 
+  // Destroy any previously mounted pro-editor before mounting a new one.
+  // Prevents window keydown handlers and document slider listeners from stacking.
+  if (_activeMountedModule) {
+    try { _activeMountedModule.destroy(); } catch (_) {}
+    _activeMountedModule = null;
+  }
   if (isBgRemover && window.BgRemoverPro) {
+    _activeMountedModule = window.BgRemoverPro;
     window.BgRemoverPro.mount(file, mount, commitResult);
   } else if (tool.id === 'edit' && window.EditPdfPro) {
+    _activeMountedModule = window.EditPdfPro;
     window.EditPdfPro.mount(file, mount, onResult);
   }
 }
@@ -945,7 +956,10 @@ function renderFileList() {
     const isPdf   = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
     let thumb;
     if (isImage) {
-      thumb = `<div class="file-thumb-wrap"><img src="${URL.createObjectURL(f)}" alt="" style="transform:rotate(${entry.rotation}deg)"></div>`;
+      // Create blob URL once per file entry; reuse on re-renders (rotate, reorder).
+      // Revoked in removeFile() and clearAll() to prevent accumulation.
+      if (!entry._thumbUrl) entry._thumbUrl = URL.createObjectURL(f);
+      thumb = `<div class="file-thumb-wrap"><img src="${entry._thumbUrl}" alt="" style="transform:rotate(${entry.rotation}deg)"></div>`;
     } else if (isPdf) {
       // PDF first-page preview (rendered async right after this innerHTML).
       thumb = `<div class="file-thumb-wrap pdf-thumb" data-pdf-thumb="${entry.id}"><i data-lucide="file-text"></i></div>`;
@@ -1052,6 +1066,8 @@ function rotateFile(index) {
 }
 
 function removeFile(index) {
+  const _rem = selectedFiles[index];
+  if (_rem && _rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
   selectedFiles.splice(index, 1);
   renderFileList();
   if (selectedFiles.length === 0) {
@@ -1061,6 +1077,7 @@ function removeFile(index) {
 }
 
 function clearAll() {
+  selectedFiles.forEach(function (e) { if (e._thumbUrl) { try { URL.revokeObjectURL(e._thumbUrl); } catch (_) {} } });
   selectedFiles = [];
   renderFileList();
   closePageOrganizer();

@@ -49,6 +49,9 @@
   // Drag/resize
   let _dragState = null; // { id, startX, startY, origX, origY, origW, origH, handle }
 
+  // Keyboard handler ref — stored so destroy() can removeEventListener precisely.
+  let _keydownHandler = null;
+
   // ── Public mount ──────────────────────────────────────────────────────────
   async function mount(file, container, onResult) {
     _file = file; _onResult = onResult;
@@ -426,14 +429,23 @@
     _wireSigModal(container);
     _wireImageUpload(container);
 
-    // Keyboard shortcuts
-    window.addEventListener('keydown', e => {
+    // Keyboard shortcuts — replace the previous handler on every mount() so
+    // re-visiting the editor never stacks duplicate window-level listeners.
+    if (_keydownHandler) window.removeEventListener('keydown', _keydownHandler);
+    _keydownHandler = function (e) {
       if (e.target.matches('input,textarea,select')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); _undo(container); }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); _redo(container); }
       if (e.key === 'Delete' || e.key === 'Backspace') _deleteSelected(container);
       if (e.key === 'Escape') { _selId = null; _updateAnnotLayer(container); _showDefaultProps(container); }
-    });
+    };
+    window.addEventListener('keydown', _keydownHandler);
+  }
+
+  // ── Destroy: remove window listeners and reset state ──────────────────────
+  function destroy() {
+    if (_keydownHandler) { window.removeEventListener('keydown', _keydownHandler); _keydownHandler = null; }
+    _reset();
   }
 
   function _wirePageActions(container) {
@@ -1126,5 +1138,5 @@
   function _reset() { _pdfJs = null; _pdfDoc = null; _fileBytes = null; _pageCount = 0; _pageOrder = []; _pageRotations = {}; _deletedPages = new Set(); _curPage = 1; _zoom = 1; _annotations = []; _selId = null; _nextId = 0; _undoStack = []; _redoStack = []; _activeTool = 'select'; }
 
   // ── Expose ─────────────────────────────────────────────────────────────────
-  window.EditPdfPro = { mount };
+  window.EditPdfPro = { mount, destroy };
 })();

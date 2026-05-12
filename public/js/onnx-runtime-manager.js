@@ -32,8 +32,13 @@
   function _ensureOrt() {
     if (_ort && _ortReady) return Promise.resolve(_ort);
     if (_ortError) return Promise.reject(_ortError);
-    return new Promise(function (res, rej) {
-      if (typeof ort !== 'undefined') { _ort = ort; _ortReady = true; return res(_ort); }
+    // Reuse the shared global promise if bg-ai-engine.js (or another module) has
+    // already started the load — prevents a second concurrent script injection.
+    if (window.__ortPromise) {
+      return window.__ortPromise.then(function (o) { _ort = o; _ortReady = true; return o; });
+    }
+    window.__ortPromise = new Promise(function (res, rej) {
+      if (typeof ort !== 'undefined') { _ort = ort; _ortReady = true; res(_ort); return; }
       var s = document.createElement('script');
       s.src = ORT_CDN;
       s.onload = function () {
@@ -43,6 +48,7 @@
       s.onerror = function () { _ortError = new Error('ort_load_failed'); rej(_ortError); };
       document.head.appendChild(s);
     });
+    return window.__ortPromise;
   }
 
   // ── Detect best backend ────────────────────────────────────────────────────

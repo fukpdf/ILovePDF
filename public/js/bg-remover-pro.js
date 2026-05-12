@@ -49,6 +49,9 @@
   var _exportFmt     = 'png';
   var _processing    = false;
   var _stageTimers   = [];
+  // AbortController for document-level compare-slider listeners.
+  // Aborted on every mount() and on destroy() to prevent accumulation.
+  var _sliderAc      = null;
 
   // ── Public API ────────────────────────────────────────────────────────────
   async function mount(file, container, commitResult) {
@@ -62,6 +65,7 @@
     _processing   = false;
     _stageTimers.forEach(clearTimeout);
     _stageTimers  = [];
+    if (_sliderAc) { _sliderAc.abort(); _sliderAc = null; }
 
     var mime = (file.type || '').toLowerCase();
     if (mime && !ALLOWED_MIME.has(mime)) {
@@ -631,14 +635,19 @@
     handle.addEventListener('mousedown',  startDrag);
     handle.addEventListener('touchstart', startDrag, { passive: true });
 
-    document.addEventListener('mousemove',  moveDrag);
-    document.addEventListener('mouseup',    stopDrag);
+    // Use AbortController so all document listeners are removed atomically
+    // when mount() is called again or destroy() is invoked.
+    if (_sliderAc) _sliderAc.abort();
+    _sliderAc = new AbortController();
+    var _sig = _sliderAc.signal;
+    document.addEventListener('mousemove',  moveDrag, { signal: _sig });
+    document.addEventListener('mouseup',    stopDrag, { signal: _sig });
     document.addEventListener('touchmove',  function (e) {
       if (!dragging) return;
       e.preventDefault();
       applySlider(e.touches[0].clientX);
-    }, { passive: false });
-    document.addEventListener('touchend',   stopDrag);
+    }, { passive: false, signal: _sig });
+    document.addEventListener('touchend',   stopDrag, { signal: _sig });
 
     // Also drag anywhere on the compare container
     outer.addEventListener('mousedown', function (e) {
@@ -795,6 +804,15 @@
     }[s] || '';
   }
 
+  // ── Destroy: clean up document listeners and reset module state ────────────
+  function destroy() {
+    if (_sliderAc) { _sliderAc.abort(); _sliderAc = null; }
+    _stageTimers.forEach(clearTimeout);
+    _stageTimers  = [];
+    _file = null; _container = null; _commitResult = null;
+    _origImg = null; _resultImg = null; _processing = false;
+  }
+
   // ── Expose ────────────────────────────────────────────────────────────────
-  window.BgRemoverPro = { mount: mount };
+  window.BgRemoverPro = { mount: mount, destroy: destroy };
 }());
