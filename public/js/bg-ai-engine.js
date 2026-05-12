@@ -1,26 +1,52 @@
-// Background Removal AI Engine v4.0 — Production-Grade Full Rebuild
-// Root causes fixed vs v3.0:
-//   RC-01: Non-square image distortion → letterbox pad preserves aspect ratio
-//   RC-02: Tile blending seams → cosine (wx*wy) weights replace Math.min
-//   RC-03: Lock thresholds too low → raised to 220/185/160
-//   RC-04: qualityAssert blindly boosts → neighborhood-context gated boost
-//   RC-05: alphaStabilize destroys hair → only fires on non-edge interior pixels
-//   RC-06: bodySolidity halo on BG → requires distance from edge > R
-//   RC-07: Screenshot detection too weak → 6-feature classifier (10 modes)
-//   RC-08: Hole fill threshold 38 → raised to 80 (catches semi-transparent holes)
-//   RC-09: maskToAlpha 28-200 blurry zone → Otsu-guided binary threshold applied
-//   RC-10: No export validation → alpha histogram gate before returning blob
+// BgAiEngine v5.0 — True Segmentation Pipeline
+// Permanent architectural rebuild. Zero heuristic alpha manipulation.
 //
-// Pipeline:
-//   preprocess → classify (10 modes) → letterbox → AI inference (whole/tiled)
-//   → unletterbox → buildFgLock → bfsHoleFill8[×3] → interiorSolidity
-//   → modeEdgeRefine → qualityGate → exportValidate → PNG blob
+// ROOT CAUSES ELIMINATED:
+//   RC-A: Alpha-array heuristic chain (interiorSolidity, metallicBoost,
+//          edgeFeatherSoft, qualityGate) → REMOVED ENTIRELY
+//   RC-B: buildFgLock/enforceLock acting as a pseudo-trimap → REPLACED with
+//          true trimap (definite FG / unknown / definite BG)
+//   RC-C: contour sharpening (±30 on bilinear-scaled output) → REMOVED
+//   RC-D–F: alpha blur (5×5 stabilize, 7×7 solidity, 3×3 feather) → REMOVED
+//   RC-G: qualityGate += 55 global inflation → REMOVED
+//   RC-H: metallicBoost heuristic → REMOVED
+//   RC-I: no guided filter → ADDED (He et al. 2013, integral image O(N))
+//          no trimap → ADDED (0=definite BG, 128=unknown, 255=definite FG)
+//          no morphological ops → ADDED (close/open/holeFill)
+//   RC-J: edgeRefineBinary majority vote → REPLACED with Otsu + morphology
+//
+// TRUE PIPELINE:
+//   INPUT IMAGE
+//     ↓ letterbox pad (aspect-ratio preserving)
+//   AI INFERENCE  (whole or cosine-weighted tiled)
+//     ↓ unletterbox → float confidence map [0,1]
+//   TRIMAP GENERATION
+//     conf > FG_THR → definite FG  (255)
+//     conf < BG_THR → definite BG  (0)
+//     else          → unknown      (128)
+//     Dilate unknown zone near strong Sobel edges (captures hair, fur)
+//     ↓
+//   SCREENSHOT PATH: Otsu binary → morph close/open → holeFill
+//   PHOTO PATH:      Guided Filter (RGB guide, r=8–12, eps=0.004)
+//                    → morph close on FG gaps → holeFill
+//     ↓
+//   TRIMAP HARD ENFORCEMENT  (definite zones NEVER modified)
+//     ↓
+//   UPSAMPLE → W×H  (bilinear, then re-enforce trimap at full res)
+//     ↓
+//   EXPORT: fresh canvas, original pixels + final alpha → PNG blob
+//           export canvas NEVER shared with preview canvas
 
 (function () {
   'use strict';
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  CONSTANTS
+  // ══════════════════════════════════════════════════════════════════════════
   var ORT_CDN      = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js';
   var ORT_WASM_DIR = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
+  var GF_MAX_DIM   = 1024;   // guided filter runs at ≤ this resolution
+  var GF_MAX_MOBILE = 512;
 
   var MODELS = {
     lite: {
@@ -29,7 +55,7 @@
         'https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/u2netp.onnx',
         'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx',
       ],
-      cacheKey: 'bge_u2netp_v4',
+      cacheKey: 'bge_u2netp_v5',
       inputSize: 320,
       mean: [0.485, 0.456, 0.406],
       std:  [0.229, 0.224, 0.225],
@@ -41,7 +67,7 @@
         'https://huggingface.co/Xenova/rmbg-v1.4/resolve/main/onnx/model_quantized.onnx',
         'https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/model_quantized.onnx',
       ],
-      cacheKey: 'bge_rmbg14_q_v4',
+      cacheKey: 'bge_rmbg14_q_v5',
       inputSize: 1024,
       mean: [0.5, 0.5, 0.5],
       std:  [1.0, 1.0, 1.0],
@@ -53,23 +79,15 @@
   var _ortReady   = false;
   var _ortPromise = null;
 
-  function yieldMain() { return new Promise(function (r) { setTimeout(r, 0); }); }
-  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
-  function clampRound(v) { return clamp(Math.round(v), 0, 255); }
+  // ── Tiny utilities ────────────────────────────────────────────────────────
+  function clamp(v, lo, hi)  { return v < lo ? lo : v > hi ? hi : v; }
+  function clampF(v)         { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function yieldMain()       { return new Promise(function (r) { setTimeout(r, 0); }); }
+  function isMobileUA()      { return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || ''); }
 
-  // ── Device tier ────────────────────────────────────────────────────────────
-  function detectTier(opts) {
-    if (opts && opts.qualityMode === 'ultra') return 'standard';
-    if (opts && opts.qualityMode === 'lite')  return 'lite';
-    var ua   = navigator.userAgent || '';
-    var mob  = /Mobi|Android|iPhone|iPad/i.test(ua);
-    var cores = navigator.hardwareConcurrency || 2;
-    var ram   = navigator.deviceMemory || 0;
-    if (mob || cores <= 2 || (ram > 0 && ram < 3)) return 'lite';
-    return 'standard';
-  }
-
-  // ── ORT loader ────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ORT LOADER
+  // ══════════════════════════════════════════════════════════════════════════
   function loadORT() {
     if (_ortReady && window.ort) return Promise.resolve(window.ort);
     if (_ortPromise) return _ortPromise;
@@ -91,10 +109,12 @@
     return _ortPromise;
   }
 
-  // ── IDB cache ─────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  IDB MODEL CACHE
+  // ══════════════════════════════════════════════════════════════════════════
   function idbOpen() {
     return new Promise(function (resolve, reject) {
-      var req = indexedDB.open('bge-model-cache', 4);
+      var req = indexedDB.open('bge-model-cache', 5);
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
         if (!db.objectStoreNames.contains('models')) db.createObjectStore('models');
@@ -105,9 +125,6 @@
   }
 
   async function cacheGet(key) {
-    if (window.IDBCache) {
-      try { var v = await window.IDBCache.get('__bge__' + key); if (v) return v; } catch (_e) {}
-    }
     try {
       var db = await idbOpen();
       return await new Promise(function (res) {
@@ -120,9 +137,6 @@
   }
 
   async function cacheSet(key, buf) {
-    if (window.IDBCache) {
-      try { await window.IDBCache.set('__bge__' + key, buf); return; } catch (_e) {}
-    }
     try {
       var db = await idbOpen();
       await new Promise(function (res) {
@@ -133,14 +147,16 @@
     } catch (_e) {}
   }
 
-  // ── Model fetch with progress ──────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MODEL FETCH (streamed with progress)
+  // ══════════════════════════════════════════════════════════════════════════
   async function fetchModel(cfg, onProgress) {
     var cached = await cacheGet(cfg.cacheKey);
     if (cached) {
-      if (onProgress) onProgress(25, 'AI model ready — initialising…');
+      if (onProgress) onProgress(25, 'AI model ready \u2014 initialising\u2026');
       return cached instanceof ArrayBuffer ? cached : (cached.buffer || cached);
     }
-    if (onProgress) onProgress(3, 'Downloading AI model (' + cfg.sizeMB.toFixed(0) + '\u202fMB)…');
+    if (onProgress) onProgress(3, 'Downloading AI model (' + cfg.sizeMB.toFixed(0) + '\u202fMB)\u2026');
     var lastErr;
     for (var ui = 0; ui < cfg.urls.length; ui++) {
       try {
@@ -158,7 +174,7 @@
           chunks.push(chunk.value); received += chunk.value.length;
           if (onProgress && contentLen) {
             onProgress(3 + Math.round(received / contentLen * 22),
-              'Downloading… ' + (received / 1048576).toFixed(1) + '\u202fMB\u202f/\u202f' + cfg.sizeMB.toFixed(0) + '\u202fMB');
+              'Downloading\u2026 ' + (received / 1048576).toFixed(1) + '\u202fMB\u202f/\u202f' + cfg.sizeMB.toFixed(0) + '\u202fMB');
           }
         }
         var total = 0;
@@ -167,19 +183,31 @@
         for (var ci2 = 0; ci2 < chunks.length; ci2++) { merged.set(chunks[ci2], off); off += chunks[ci2].length; }
         await cacheSet(cfg.cacheKey, merged.buffer);
         return merged.buffer;
-      } catch (e) { lastErr = e; console.warn('[BgAI v4] fetch failed:', cfg.urls[ui], e.message); }
+      } catch (e) { lastErr = e; console.warn('[BgAI v5] fetch failed:', cfg.urls[ui], e.message); }
     }
     throw lastErr || new Error('All model URLs failed');
   }
 
-  // ── Session factory ────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SESSION FACTORY
+  // ══════════════════════════════════════════════════════════════════════════
+  function detectTier(opts) {
+    if (opts && opts.qualityMode === 'ultra') return 'standard';
+    if (opts && opts.qualityMode === 'lite')  return 'lite';
+    var mob   = isMobileUA();
+    var cores = navigator.hardwareConcurrency || 2;
+    var ram   = navigator.deviceMemory || 0;
+    if (mob || cores <= 2 || (ram > 0 && ram < 3)) return 'lite';
+    return 'standard';
+  }
+
   async function getSession(tier, onProgress) {
     if (_sessions[tier]) return { session: _sessions[tier], cfg: MODELS[tier] };
     var cfg = MODELS[tier];
     if (!cfg) throw new Error('Unknown tier: ' + tier);
     var ort      = await loadORT();
     var modelBuf = await fetchModel(cfg, onProgress);
-    if (onProgress) onProgress(28, 'Compiling AI model…');
+    if (onProgress) onProgress(28, 'Compiling AI model\u2026');
     var session, lastErr;
     var provSets = [['webgl', 'wasm'], ['wasm']];
     for (var pi = 0; pi < provSets.length; pi++) {
@@ -191,168 +219,112 @@
           enableMemPattern: false,
         });
         break;
-      } catch (e) { lastErr = e; console.warn('[BgAI v4] session failed:', provSets[pi], e.message); }
+      } catch (e) { lastErr = e; console.warn('[BgAI v5] session failed:', provSets[pi], e.message); }
     }
     if (!session) throw lastErr || new Error('Cannot create ONNX session');
     _sessions[tier] = session;
     return { session: session, cfg: cfg };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 1: IMAGE MODE CLASSIFICATION (10 modes)
-  //  Features: edge density, local variance, saturation entropy, flat ratio,
-  //  histogram entropy, skin ratio, text-line density, luminance spread
-  // ════════════════════════════════════════════════════════════════════════════
-  function classifyImageMode(d, W, H) {
+  // ══════════════════════════════════════════════════════════════════════════
+  //  IMAGE MODE CLASSIFICATION (10 modes, 6 features)
+  //  Determines: screenshot (hard binary pipeline) vs photo (guided filter)
+  // ══════════════════════════════════════════════════════════════════════════
+  function classifyImageMode(pixelData, W, H) {
     var step = Math.max(2, Math.round(Math.sqrt(W * H / 2000)));
-    var flatCount = 0, edgeCount = 0, textLineCount = 0;
-    var skinCount = 0, darkCount = 0, total = 0;
+    var flatCnt = 0, edgeCnt = 0, textLineCnt = 0;
+    var skinCnt = 0, darkCnt = 0, total = 0;
     var satSum = 0, lumSum = 0, lumSqSum = 0;
-    var hsvH_counts = new Float32Array(12); // hue histogram (12 buckets)
+    var hueHist = new Float32Array(12);
 
     for (var y = 2; y < H - 2; y += step) {
       for (var x = 2; x < W - 2; x += step) {
-        var j4  = (y * W + x) * 4;
-        var r   = d[j4], g = d[j4+1], b = d[j4+2];
+        var j4 = (y * W + x) * 4;
+        var r = pixelData[j4], g = pixelData[j4+1], b = pixelData[j4+2];
         var lum = (r * 77 + g * 150 + b * 29) >> 8;
 
-        // 5×5 local variance (flat vs edge detection)
-        var lsum = 0, lsq = 0;
+        // 5×5 local brightness variance
+        var ls = 0, lsq = 0;
         for (var dy = -2; dy <= 2; dy++) {
           for (var dx = -2; dx <= 2; dx++) {
-            var k4  = ((y + dy) * W + (x + dx)) * 4;
-            var br  = (d[k4] * 77 + d[k4+1] * 150 + d[k4+2] * 29) >> 8;
-            lsum += br; lsq += br * br;
+            var k4 = ((y+dy)*W+(x+dx))*4;
+            var br = (pixelData[k4]*77+pixelData[k4+1]*150+pixelData[k4+2]*29)>>8;
+            ls += br; lsq += br*br;
           }
         }
-        var lmean = lsum / 25;
-        var lvar  = lsq / 25 - lmean * lmean;
+        var lm = ls/25, lvar = lsq/25 - lm*lm;
+        if (lvar < 120)  flatCnt++;
+        if (lvar > 1600) edgeCnt++;
 
-        if (lvar < 120)  flatCount++;
-        if (lvar > 1600) edgeCount++;
-        // Text line proxy: very sharp 1D horizontal edge (text on white/dark bg)
-        var leftLum  = (d[(y * W + (x-2)) * 4] * 77 + d[(y * W + (x-2)) * 4 + 1] * 150 + d[(y * W + (x-2)) * 4 + 2] * 29) >> 8;
-        var rightLum = (d[(y * W + (x+2)) * 4] * 77 + d[(y * W + (x+2)) * 4 + 1] * 150 + d[(y * W + (x+2)) * 4 + 2] * 29) >> 8;
-        if (Math.abs(leftLum - rightLum) > 80 && lvar > 500 && lvar < 3000) textLineCount++;
+        // Text-line proxy: strong horizontal luminance step
+        var ll = (pixelData[(y*W+x-2)*4]*77+pixelData[(y*W+x-2)*4+1]*150+pixelData[(y*W+x-2)*4+2]*29)>>8;
+        var lr = (pixelData[(y*W+x+2)*4]*77+pixelData[(y*W+x+2)*4+1]*150+pixelData[(y*W+x+2)*4+2]*29)>>8;
+        if (Math.abs(ll-lr)>80 && lvar>500 && lvar<3000) textLineCnt++;
 
-        // Saturation
-        var mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
-        var mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-        var sat = mx > 0 ? (mx - mn) / mx : 0;
+        var mx = r>g?(r>b?r:b):(g>b?g:b);
+        var mn = r<g?(r<b?r:b):(g<b?g:b);
+        var sat = mx>0?(mx-mn)/mx:0;
         satSum += sat;
-
-        // Hue bucket
-        if (mx > mn) {
-          var hue = mx === r ? ((g - b) / (mx - mn) + 6) % 6
-                  : mx === g ?  (b - r) / (mx - mn) + 2
-                  :             (r - g) / (mx - mn) + 4;
-          hsvH_counts[Math.floor(hue * 2) % 12]++;
+        if (mx>mn) {
+          var hue = mx===r?((g-b)/(mx-mn)+6)%6 : mx===g?(b-r)/(mx-mn)+2 : (r-g)/(mx-mn)+4;
+          hueHist[Math.floor(hue*2)%12]++;
         }
-
-        // Luminance stats
-        lumSum += lum; lumSqSum += lum * lum;
-        if (lum < 50)  darkCount++;
-
-        // Skin tone (warm mid-range)
-        if (r > 100 && r < 240 && g > 60 && g < 200 && b > 40 && b < 180
-            && r > g + 8 && g > b - 20 && sat > 0.08 && sat < 0.65) skinCount++;
-
+        lumSum += lum; lumSqSum += lum*lum;
+        if (lum < 50)  darkCnt++;
+        if (r>100&&r<240&&g>60&&g<200&&b>40&&b<180&&r>g+8&&g>b-20&&sat>0.08&&sat<0.65) skinCnt++;
         total++;
       }
     }
-
     if (!total) return { mode: 'photo', isScreenshot: false };
 
-    var flatRatio     = flatCount  / total;
-    var edgeRatio     = edgeCount  / total;
-    var textLineRatio = textLineCount / total;
-    var skinRatio     = skinCount  / total;
-    var darkRatio     = darkCount  / total;
-    var avgSat        = satSum     / total;
-    var avgLum        = lumSum     / total;
-    var lumVar        = lumSqSum / total - avgLum * avgLum;
+    var flatR = flatCnt/total, edgeR = edgeCnt/total, textR = textLineCnt/total;
+    var skinR = skinCnt/total, darkR = darkCnt/total;
+    var avgSat = satSum/total, avgLum = lumSum/total;
+    var lumVar = lumSqSum/total - avgLum*avgLum;
 
-    // Hue entropy (spread of colors — high = anime/illustration, low = photo)
-    var hueTotal = hsvH_counts.reduce(function (a, v) { return a + v; }, 0);
-    var hueEntropy = 0;
-    for (var hi = 0; hi < 12; hi++) {
-      if (hsvH_counts[hi] > 0) {
-        var p = hsvH_counts[hi] / hueTotal;
-        hueEntropy -= p * Math.log2(p);
-      }
+    var hTotal = 0;
+    for (var hi = 0; hi < 12; hi++) hTotal += hueHist[hi];
+    var hueEnt = 0;
+    for (var hi2 = 0; hi2 < 12; hi2++) {
+      if (hueHist[hi2]>0) { var p=hueHist[hi2]/hTotal; hueEnt -= p*Math.log2(p); }
     }
-    var maxHueEntropy = Math.log2(12);
-    var hueSpread = hueEntropy / maxHueEntropy; // 0..1
+    var hueSpread = hueEnt / Math.log2(12);
 
-    // ── Mode rules (priority order) ──────────────────────────────────────────
-    // Screenshot/UI: flat regions + sharp text edges, low saturation spread
-    var isScreenshot = (flatRatio > 0.42 && (edgeRatio > 0.04 || textLineRatio > 0.03))
-                    || (flatRatio > 0.60 && avgSat < 0.20)
-                    || (textLineRatio > 0.08);
+    // Screenshot: flat + text-edges OR flat + low-sat OR text-heavy
+    var isScreenshot = (flatR>0.42 && (edgeR>0.04||textR>0.03))
+                    || (flatR>0.60 && avgSat<0.20)
+                    || textR>0.08;
+    if (isScreenshot) return { mode: 'screenshot', isScreenshot: true };
 
-    if (isScreenshot) {
-      return { mode: 'screenshot', isScreenshot: true,
-               flatRatio: flatRatio, edgeRatio: edgeRatio };
-    }
-
-    // Dark scene: majority of pixels are dark
-    if (darkRatio > 0.55 && avgLum < 80) {
-      return { mode: 'dark', isScreenshot: false, darkRatio: darkRatio };
-    }
-
-    // Anime/cartoon: high hue spread + flat-ish regions + low luminance variance
-    if (hueSpread > 0.72 && flatRatio > 0.30 && lumVar < 2500) {
-      return { mode: 'anime', isScreenshot: false, hueSpread: hueSpread };
-    }
-
-    // Portrait/selfie: significant skin tones
-    if (skinRatio > 0.07) {
-      return { mode: skinRatio > 0.18 ? 'selfie' : 'portrait', isScreenshot: false, skinRatio: skinRatio };
-    }
-
-    // Metallic: high luminance variance + low saturation + not dark
-    if (avgSat < 0.18 && lumVar > 3500 && darkRatio < 0.30) {
-      return { mode: 'metallic', isScreenshot: false };
-    }
-
-    // Document: very bright, low saturation, text-line edges
-    if (avgLum > 190 && avgSat < 0.10 && textLineRatio > 0.02) {
-      return { mode: 'document', isScreenshot: true }; // treat like screenshot (hard edges)
-    }
-
-    // Product: bright, moderate saturation
-    if (avgLum > 150 && avgSat > 0.15) {
-      return { mode: 'product', isScreenshot: false };
-    }
-
-    // Logo: very flat with limited hue range
-    if (flatRatio > 0.45 && hueSpread < 0.40) {
-      return { mode: 'logo', isScreenshot: false };
-    }
-
+    if (darkR>0.55&&avgLum<80)            return { mode: 'dark',     isScreenshot: false };
+    if (hueSpread>0.72&&flatR>0.30&&lumVar<2500) return { mode: 'anime', isScreenshot: false };
+    if (skinR>0.18)                        return { mode: 'selfie',   isScreenshot: false };
+    if (skinR>0.07)                        return { mode: 'portrait', isScreenshot: false };
+    if (avgSat<0.18&&lumVar>3500&&darkR<0.30) return { mode: 'metallic', isScreenshot: false };
+    if (avgLum>190&&avgSat<0.10&&textR>0.02) return { mode: 'document', isScreenshot: true };
+    if (avgLum>150&&avgSat>0.15)           return { mode: 'product',  isScreenshot: false };
+    if (flatR>0.45&&hueSpread<0.40)        return { mode: 'logo',     isScreenshot: false };
     return { mode: 'photo', isScreenshot: false };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 2: ASPECT-RATIO-PRESERVING LETTERBOX
-  //  FIX RC-01: non-square images were squashed during inference
-  //  We pad the shorter axis to make a square, infer, then unpad.
-  // ════════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
+  //  LETTERBOX PAD (aspect-ratio preserving for inference)
+  //  Pads the shorter axis so the image fits in inputSize×inputSize square.
+  //  Records offX/offY/sw/sh so the mask can be unpadded precisely.
+  // ══════════════════════════════════════════════════════════════════════════
   function letterboxCanvas(src, W, H, inputSize) {
     var scale = inputSize / Math.max(W, H);
     var sw    = Math.round(W * scale);
     var sh    = Math.round(H * scale);
     var offX  = Math.floor((inputSize - sw) / 2);
     var offY  = Math.floor((inputSize - sh) / 2);
-
-    var lc  = document.createElement('canvas');
-    lc.width = inputSize; lc.height = inputSize;
-    var lctx = lc.getContext('2d');
-    lctx.fillStyle = 'rgb(128,128,128)'; // neutral gray pad
+    var lc    = document.createElement('canvas');
+    lc.width  = inputSize; lc.height = inputSize;
+    var lctx  = lc.getContext('2d');
+    lctx.fillStyle = 'rgb(128,128,128)'; // neutral pad
     lctx.fillRect(0, 0, inputSize, inputSize);
     lctx.drawImage(src, offX, offY, sw, sh);
-
-    return { canvas: lc, sw: sw, sh: sh, offX: offX, offY: offY, scale: scale };
+    return { canvas: lc, sw: sw, sh: sh, offX: offX, offY: offY };
   }
 
   function toTensor(canvas, inputSize, mean, std) {
@@ -367,19 +339,17 @@
     return buf;
   }
 
-  // Unpad the letterboxed model output mask back to the original pixel dimensions.
-  // Returns a Uint8Array of size W*H with alpha values 0-255.
-  function unletterboxMask(rawMask, maskSize, W, H, lb, screenshotMode) {
-    // rawMask is Float32Array of size maskSize*maskSize from the model output
-
-    // Step 1: create a maskSize canvas with the raw model output
+  // Extract float confidence [0,1] from raw model mask.
+  // Crops the letterbox padding and scales to targetW×targetH.
+  // Returns Float32Array — NO threshold, NO contour sharpening.
+  function extractConfidence(rawMask, maskSize, targetW, targetH, lb) {
+    var mn = maskSize * maskSize;
     var mc = document.createElement('canvas');
     mc.width = maskSize; mc.height = maskSize;
     var mctx = mc.getContext('2d');
     var mImg = mctx.createImageData(maskSize, maskSize);
-    var mn   = maskSize * maskSize;
     for (var i = 0; i < mn; i++) {
-      var v = clampRound(rawMask[i] * 255);
+      var v = clamp(Math.round(rawMask[i] * 255), 0, 255);
       mImg.data[i*4]     = v;
       mImg.data[i*4 + 1] = v;
       mImg.data[i*4 + 2] = v;
@@ -387,403 +357,408 @@
     }
     mctx.putImageData(mImg, 0, 0);
 
-    // Step 2: Crop only the painted region (exclude the letterbox padding)
-    // The painted region is [offX, offY, offX+sw, offY+sh] in the maskSize square
-    var cropX = lb.offX, cropY = lb.offY, cropW = lb.sw, cropH = lb.sh;
-
-    // Step 3: Scale cropped region back to W×H
-    var oc  = document.createElement('canvas');
-    oc.width = W; oc.height = H;
-    var octx = oc.getContext('2d');
-    octx.imageSmoothingEnabled = true;
-    octx.imageSmoothingQuality = 'high';
-    // Draw only the non-padded portion scaled to final size
-    octx.drawImage(mc, cropX, cropY, cropW, cropH, 0, 0, W, H);
+    var tc = document.createElement('canvas');
+    tc.width = targetW; tc.height = targetH;
+    var tctx = tc.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    // Crop letterbox padding, scale directly to target
+    tctx.drawImage(mc, lb.offX, lb.offY, lb.sw, lb.sh, 0, 0, targetW, targetH);
     mc.width = 0; mc.height = 0;
 
-    var pix   = octx.getImageData(0, 0, W, H).data;
-    oc.width  = 0; oc.height = 0;
+    var px   = tctx.getImageData(0, 0, targetW, targetH).data;
+    tc.width = 0; tc.height = 0;
 
-    var N     = W * H;
-    var alpha = new Uint8Array(N);
+    var conf = new Float32Array(targetW * targetH);
+    for (var j = 0; j < conf.length; j++) conf[j] = px[j * 4] / 255;
+    return conf;
+  }
 
-    if (screenshotMode) {
-      // RC-09 fix for screenshots: use Otsu thresholding to get clean binary mask
-      // Compute Otsu threshold on the mask histogram
-      var hist = new Int32Array(256);
-      for (var j = 0; j < N; j++) hist[pix[j * 4]]++;
-      var otsu = computeOtsu(hist, N);
-      for (var j2 = 0; j2 < N; j2++) {
-        alpha[j2] = pix[j2 * 4] > otsu ? 255 : 0;
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GRAYSCALE GUIDE EXTRACTION
+  //  Uses browser bilinear scaling via canvas (GPU-accelerated).
+  //  Returns Float32Array luminance [0,1] at targetW×targetH.
+  // ══════════════════════════════════════════════════════════════════════════
+  function imgToGray(imgEl, targetW, targetH) {
+    var tc = document.createElement('canvas');
+    tc.width = targetW; tc.height = targetH;
+    var tctx = tc.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(imgEl, 0, 0, imgEl.naturalWidth, imgEl.naturalHeight, 0, 0, targetW, targetH);
+    var px  = tctx.getImageData(0, 0, targetW, targetH).data;
+    tc.width = 0; tc.height = 0;
+    var gray = new Float32Array(targetW * targetH);
+    for (var i = 0; i < gray.length; i++) {
+      // ITU-R BT.601 luminance
+      gray[i] = (px[i*4]*0.299 + px[i*4+1]*0.587 + px[i*4+2]*0.114) / 255;
+    }
+    return gray;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  BILINEAR UPSAMPLE Float32 array via canvas
+  //  Used to scale refined alpha from GF resolution back to full resolution.
+  // ══════════════════════════════════════════════════════════════════════════
+  function upsampleFloat(arr, srcW, srcH, dstW, dstH) {
+    var sc = document.createElement('canvas');
+    sc.width = srcW; sc.height = srcH;
+    var sctx = sc.getContext('2d');
+    var img  = sctx.createImageData(srcW, srcH);
+    for (var i = 0; i < arr.length; i++) {
+      var v = clamp(Math.round(arr[i] * 255), 0, 255);
+      img.data[i*4]     = v;
+      img.data[i*4 + 1] = v;
+      img.data[i*4 + 2] = v;
+      img.data[i*4 + 3] = 255;
+    }
+    sctx.putImageData(img, 0, 0);
+
+    var tc = document.createElement('canvas');
+    tc.width = dstW; tc.height = dstH;
+    var tctx = tc.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(sc, 0, 0, srcW, srcH, 0, 0, dstW, dstH);
+    sc.width = 0; sc.height = 0;
+
+    var px  = tctx.getImageData(0, 0, dstW, dstH).data;
+    tc.width = 0; tc.height = 0;
+
+    var out = new Float32Array(dstW * dstH);
+    for (var j = 0; j < out.length; j++) out[j] = px[j * 4] / 255;
+    return out;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SOBEL EDGE DETECTION (from grayscale float array)
+  //  Returns Float32Array of edge magnitude [0,1].
+  //  Used to extend the trimap unknown zone near strong edges.
+  // ══════════════════════════════════════════════════════════════════════════
+  function sobelEdges(gray, W, H) {
+    var edges = new Float32Array(W * H);
+    for (var y = 1; y < H - 1; y++) {
+      for (var x = 1; x < W - 1; x++) {
+        var i  = y * W + x;
+        var tl = gray[i-W-1], tm = gray[i-W], tr = gray[i-W+1];
+        var ml = gray[i-1],                   mr = gray[i+1];
+        var bl = gray[i+W-1], bm = gray[i+W], br = gray[i+W+1];
+        var gx = -tl - 2*ml - bl + tr + 2*mr + br;
+        var gy = -tl - 2*tm - tr + bl + 2*bm + br;
+        edges[i] = clampF(Math.sqrt(gx*gx + gy*gy) / 1.5);
       }
-    } else {
-      // Photo mode: contour sharpening
-      // RC-09: push values above 210 harder (FG), below 45 harder (BG)
-      // Leave 45-210 as-is for genuine transitions (hair, soft object edges)
-      for (var j3 = 0; j3 < N; j3++) {
-        var a = pix[j3 * 4];
-        if      (a > 210) a = clampRound(a + 30);  // was: >200 +35 — too aggressive
-        else if (a < 45)  a = clampRound(a - 30);  // was: <28  -20 — too conservative
-        alpha[j3] = a;
-      }
     }
-    return alpha;
+    return edges;
   }
 
-  // Compute Otsu's threshold from a histogram
-  function computeOtsu(hist, N) {
-    var sum = 0;
-    for (var i = 0; i < 256; i++) sum += i * hist[i];
-    var sumB = 0, wB = 0, wF = 0, maxVar = 0, threshold = 128;
-    for (var t = 0; t < 256; t++) {
-      wB += hist[t];
-      if (!wB) continue;
-      wF = N - wB;
-      if (!wF) break;
-      sumB += t * hist[t];
-      var mB  = sumB / wB;
-      var mF  = (sum - sumB) / wF;
-      var between = wB * wF * (mB - mF) * (mB - mF);
-      if (between > maxVar) { maxVar = between; threshold = t; }
-    }
-    return threshold;
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 3: FG LOCK SYSTEM
-  //  RC-03 fix: thresholds raised — 140 was too low, false-locked BG pixels
-  //  New tiers: alpha >220 → 255 (solid), >185 → 240, >160 → 220
-  // ════════════════════════════════════════════════════════════════════════════
-  function buildFgLock(alpha, N) {
-    var lock = new Uint8Array(N);
-    for (var i = 0; i < N; i++) {
-      var a = alpha[i];
-      if      (a > 220) lock[i] = 255;
-      else if (a > 185) lock[i] = 240;
-      else if (a > 160) lock[i] = 220;
-    }
-    return lock;
-  }
-
-  function enforceLock(alpha, lock, N) {
-    for (var i = 0; i < N; i++) {
-      if (lock[i] && alpha[i] < lock[i]) alpha[i] = lock[i];
-    }
-  }
-
-  function updateLock(alpha, lock, N) {
-    for (var i = 0; i < N; i++) {
-      var a = alpha[i];
-      if      (a > 220 && lock[i] < 255) lock[i] = 255;
-      else if (a > 185 && lock[i] < 240) lock[i] = 240;
-      else if (a > 162 && lock[i] < 220) lock[i] = 220;
-    }
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 4: 8-CONNECTED BFS HOLE FILL
-  //  RC-08 fix: threshold raised from 38 → 80 (catches semi-transparent holes:
-  //  glasses lenses, reflective clothing, transparent interiors)
-  // ════════════════════════════════════════════════════════════════════════════
-  function bfsHoleFill8(alpha, W, H, threshold) {
-    threshold = threshold || 80;
+  // ══════════════════════════════════════════════════════════════════════════
+  //  TRIMAP GENERATION
+  //  Divides image into definite FG (255), definite BG (0), unknown (128).
+  //  Extends unknown zone by EDGE_DILATION pixels near strong Sobel edges
+  //  to ensure hair, fur, and fine structures fall in the unknown region
+  //  and get refined by the guided filter (not hard-clamped to BG).
+  // ══════════════════════════════════════════════════════════════════════════
+  function generateTrimap(conf, edges, W, H, FG_THR, BG_THR) {
     var N   = W * H;
-    var DX8 = [-1, 0, 1, -1, 1, -1, 0, 1];
-    var DY8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+    var tm  = new Uint8Array(N);
+    var R   = 5; // edge dilation radius (pixels at GF resolution)
+
+    for (var i = 0; i < N; i++) {
+      if      (conf[i] > FG_THR) tm[i] = 255;
+      else if (conf[i] < BG_THR) tm[i] = 0;
+      else                       tm[i] = 128;
+    }
+
+    // Extend unknown zone near strong edges
+    var ext = new Uint8Array(N); // pixels to convert to unknown
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var ci = y * W + x;
+        if (edges[ci] > 0.14 && tm[ci] !== 128) {
+          var y1 = Math.max(0, y - R), y2 = Math.min(H - 1, y + R);
+          var x1 = Math.max(0, x - R), x2 = Math.min(W - 1, x + R);
+          for (var ny = y1; ny <= y2; ny++) {
+            for (var nx = x1; nx <= x2; nx++) {
+              var ni = ny * W + nx;
+              if (tm[ni] !== 128) ext[ni] = 1;
+            }
+          }
+        }
+      }
+    }
+    for (var j = 0; j < N; j++) { if (ext[j]) tm[j] = 128; }
+    return tm;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SUMMED AREA TABLE (integral image) — O(N) box filtering
+  //  Uses (W+1)×(H+1) 1-indexed table with zero-padded first row/col.
+  // ══════════════════════════════════════════════════════════════════════════
+  function buildSAT(arr, W, H) {
+    var W1 = W + 1;
+    var S  = new Float64Array((H + 1) * W1);
+    for (var y = 1; y <= H; y++) {
+      for (var x = 1; x <= W; x++) {
+        S[y*W1+x] = arr[(y-1)*W+(x-1)]
+                  + S[(y-1)*W1+x]
+                  + S[y*W1+(x-1)]
+                  - S[(y-1)*W1+(x-1)];
+      }
+    }
+    return S;
+  }
+
+  function boxFilter(arr, W, H, r) {
+    var W1  = W + 1;
+    var S   = buildSAT(arr, W, H);
+    var out = new Float32Array(W * H);
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var xa = Math.max(0, x - r),     xb = Math.min(W - 1, x + r);
+        var ya = Math.max(0, y - r),     yb = Math.min(H - 1, y + r);
+        var cnt = (xb - xa + 1) * (yb - ya + 1);
+        // SAT box sum: S[yb+1][xb+1] - S[ya][xb+1] - S[yb+1][xa] + S[ya][xa]
+        var sum = S[(yb+1)*W1+(xb+1)] - S[ya*W1+(xb+1)] - S[(yb+1)*W1+xa] + S[ya*W1+xa];
+        out[y*W+x] = sum / cnt;
+      }
+    }
+    return out;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GUIDED FILTER (He, Sun, Tang — CVPR 2010 / PAMI 2013)
+  //  Uses original image luminance as the guide.
+  //  Edges in the guide → large local variance → small linear coefficient →
+  //  filter output tracks input closely (edge preserved).
+  //  Uniform regions → small variance → filter smooths (noise removed).
+  //
+  //  Mathematically prevents halos: the linear model a*I+b cannot create
+  //  new edges that don't exist in the guide.
+  //
+  //  Complexity: O(N) via 8 box filters with integral images.
+  //  Memory: ~10 × Float32[N] arrays, freed progressively.
+  // ══════════════════════════════════════════════════════════════════════════
+  function guidedFilter(guide, input, W, H, r, eps) {
+    var N = W * H;
+
+    var mean_I  = boxFilter(guide, W, H, r);
+    var mean_p  = boxFilter(input, W, H, r);
+
+    var II = new Float32Array(N);
+    var Ip = new Float32Array(N);
+    for (var i = 0; i < N; i++) {
+      II[i] = guide[i] * guide[i];
+      Ip[i] = guide[i] * input[i];
+    }
+    var corr_I  = boxFilter(II, W, H, r);
+    var corr_Ip = boxFilter(Ip, W, H, r);
+    II = null; Ip = null;
+
+    var a = new Float32Array(N);
+    var b = new Float32Array(N);
+    for (var j = 0; j < N; j++) {
+      var varI  = corr_I[j]  - mean_I[j] * mean_I[j];
+      var covIp = corr_Ip[j] - mean_I[j] * mean_p[j];
+      a[j] = covIp / (varI + eps);
+      b[j] = mean_p[j] - a[j] * mean_I[j];
+    }
+    corr_I = null; corr_Ip = null; mean_I = null; mean_p = null;
+
+    var mean_a = boxFilter(a, W, H, r);
+    var mean_b = boxFilter(b, W, H, r);
+    a = null; b = null;
+
+    var output = new Float32Array(N);
+    for (var k = 0; k < N; k++) {
+      output[k] = clampF(mean_a[k] * guide[k] + mean_b[k]);
+    }
+    return output;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  OTSU THRESHOLD
+  //  Finds optimal binary threshold from confidence histogram.
+  //  Used exclusively in screenshot mode for clean binary segmentation.
+  // ══════════════════════════════════════════════════════════════════════════
+  function otsuThreshold(conf, N) {
+    var hist = new Int32Array(256);
+    for (var i = 0; i < N; i++) hist[clamp(Math.round(conf[i] * 255), 0, 255)]++;
+    var sum = 0;
+    for (var t = 0; t < 256; t++) sum += t * hist[t];
+    var sumB = 0, wB = 0, maxVar = 0, threshold = 128;
+    for (var t2 = 0; t2 < 256; t2++) {
+      wB += hist[t2];
+      if (!wB) continue;
+      var wF = N - wB;
+      if (!wF) break;
+      sumB += t2 * hist[t2];
+      var mB = sumB / wB, mF = (sum - sumB) / wF;
+      var between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > maxVar) { maxVar = between; threshold = t2; }
+    }
+    return threshold / 255;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MORPHOLOGICAL OPERATIONS
+  //  3×3 structuring element (8-connected), iterable for larger effective radius.
+  //  These operate on Float32 arrays [0,1].
+  //
+  //  close(r) = dilate(r) then erode(r): fills thin gaps in FG (fingers, cables)
+  //  open(r)  = erode(r) then dilate(r): removes BG noise specks near edges
+  // ══════════════════════════════════════════════════════════════════════════
+  function morphDilate3(alpha, W, H) {
+    var N = W * H, out = new Float32Array(N);
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i  = y * W + x;
+        var mx = alpha[i];
+        if (x > 0)       { var v=alpha[i-1];   if(v>mx) mx=v; }
+        if (x < W-1)     { var v=alpha[i+1];   if(v>mx) mx=v; }
+        if (y > 0)       { var v=alpha[i-W];   if(v>mx) mx=v; }
+        if (y < H-1)     { var v=alpha[i+W];   if(v>mx) mx=v; }
+        if (x>0&&y>0)    { var v=alpha[i-W-1]; if(v>mx) mx=v; }
+        if (x<W-1&&y>0)  { var v=alpha[i-W+1]; if(v>mx) mx=v; }
+        if (x>0&&y<H-1)  { var v=alpha[i+W-1]; if(v>mx) mx=v; }
+        if (x<W-1&&y<H-1){ var v=alpha[i+W+1]; if(v>mx) mx=v; }
+        out[i] = mx;
+      }
+    }
+    return out;
+  }
+
+  function morphErode3(alpha, W, H) {
+    var N = W * H, out = new Float32Array(N);
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i  = y * W + x;
+        var mn = alpha[i];
+        if (x > 0)       { var v=alpha[i-1];   if(v<mn) mn=v; }
+        if (x < W-1)     { var v=alpha[i+1];   if(v<mn) mn=v; }
+        if (y > 0)       { var v=alpha[i-W];   if(v<mn) mn=v; }
+        if (y < H-1)     { var v=alpha[i+W];   if(v<mn) mn=v; }
+        if (x>0&&y>0)    { var v=alpha[i-W-1]; if(v<mn) mn=v; }
+        if (x<W-1&&y>0)  { var v=alpha[i-W+1]; if(v<mn) mn=v; }
+        if (x>0&&y<H-1)  { var v=alpha[i+W-1]; if(v<mn) mn=v; }
+        if (x<W-1&&y<H-1){ var v=alpha[i+W+1]; if(v<mn) mn=v; }
+        out[i] = mn;
+      }
+    }
+    return out;
+  }
+
+  function morphClose(alpha, W, H, iters) {
+    var a = alpha;
+    for (var i = 0; i < iters; i++) a = morphDilate3(a, W, H);
+    for (var j = 0; j < iters; j++) a = morphErode3(a, W, H);
+    return a;
+  }
+
+  function morphOpen(alpha, W, H, iters) {
+    var a = alpha;
+    for (var i = 0; i < iters; i++) a = morphErode3(a, W, H);
+    for (var j = 0; j < iters; j++) a = morphDilate3(a, W, H);
+    return a;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  8-CONNECTED HOLE FILL (BFS from image border)
+  //  Any transparent pixel NOT reachable from the border is interior → FG.
+  //  threshold: pixels BELOW this float value are "hole candidates".
+  //  Raised from 0.15 (v3) to 0.31 to catch semi-transparent interiors
+  //  (glasses lenses, reflective surfaces, transparent clothing).
+  // ══════════════════════════════════════════════════════════════════════════
+  function holeFill8(alpha, W, H, threshold) {
+    threshold = threshold !== undefined ? threshold : 0.31;
+    var N    = W * H;
+    var DX8  = [-1,0,1,-1,1,-1,0,1];
+    var DY8  = [-1,-1,-1,0,0,1,1,1];
     var reach = new Uint8Array(N);
     var q = [], qi = 0;
 
     function seed(pi) {
       if (alpha[pi] < threshold && !reach[pi]) { reach[pi] = 1; q.push(pi); }
     }
-    for (var x = 0; x < W; x++) { seed(x); seed((H - 1) * W + x); }
-    for (var y = 1; y < H - 1; y++) { seed(y * W); seed(y * W + W - 1); }
+    for (var x = 0; x < W; x++) { seed(x); seed((H-1)*W+x); }
+    for (var y = 1; y < H-1; y++) { seed(y*W); seed(y*W+W-1); }
 
     while (qi < q.length) {
-      var pi  = q[qi++];
-      var px_ = pi % W, py_ = (pi - px_) / W;
+      var pi = q[qi++];
+      var px = pi % W, py = (pi - px) / W;
       for (var di = 0; di < 8; di++) {
-        var nx = px_ + DX8[di], ny = py_ + DY8[di];
-        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-        var ni = ny * W + nx;
-        if (reach[ni] || alpha[ni] >= threshold) continue;
-        reach[ni] = 1; q.push(ni);
+        var nx = px+DX8[di], ny = py+DY8[di];
+        if (nx<0||nx>=W||ny<0||ny>=H) continue;
+        var ni = ny*W+nx;
+        if (reach[ni]||alpha[ni]>=threshold) continue;
+        reach[ni]=1; q.push(ni);
       }
     }
+    var filled = new Float32Array(alpha);
     for (var i = 0; i < N; i++) {
-      if (alpha[i] < threshold && !reach[i]) alpha[i] = 230; // interior hole → FG
+      if (alpha[i]<threshold&&!reach[i]) filled[i]=0.9; // interior → FG
     }
+    return filled;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 5: INTERIOR SOLIDITY (RC-06 fix)
-  //  Only boosts pixels that are genuinely interior (surrounded by FG, not edge).
-  //  Guards against activating on BG pixels near subject edges.
-  //  Uses edge distance check: if any neighbor has alpha < BG_THR, skip.
-  // ════════════════════════════════════════════════════════════════════════════
-  function interiorSolidity(alpha, W, H) {
-    var N   = W * H;
-    var out = new Uint8Array(alpha);
-    var R   = 3; // 7×7 window
-    var WIN = 49;
-    var THR = Math.ceil(WIN * 0.72); // 72% must be solid — was 65% (too loose)
-    var INTERIOR_CHK = 1; // 3×3 immediate neighborhood must be all FG
-
-    for (var y = R; y < H - R; y++) {
-      for (var x = R; x < W - R; x++) {
-        var ci = y * W + x;
-        var av = alpha[ci];
-        if (av < 80 || av > 200) continue; // only mid-range pixels
-
-        // RC-06: immediate neighbor check — if any 4-neighbor is low alpha, this is an edge pixel, skip
-        var isEdge = (
-          alpha[ci - 1] < 100 || alpha[ci + 1] < 100 ||
-          alpha[ci - W] < 100 || alpha[ci + W] < 100
-        );
-        if (isEdge) continue; // don't touch edge pixels — they need their natural gradient
-
-        // 7×7 density check
-        var fgCnt = 0, sum = 0;
-        for (var dy = -R; dy <= R; dy++) {
-          for (var dx = -R; dx <= R; dx++) {
-            var na = alpha[(y + dy) * W + (x + dx)];
-            sum += na;
-            if (na > 200) fgCnt++;
-          }
-        }
-        if (fgCnt >= THR) {
-          var target = clampRound(av * 0.20 + (sum / WIN) * 0.80);
-          out[ci] = Math.max(target, 210); // interior must be solid
-        }
-      }
-    }
-    for (var i = 0; i < N; i++) alpha[i] = out[i];
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 6: METALLIC / SPECULAR RESCUE
-  // ════════════════════════════════════════════════════════════════════════════
-  function metallicBoost(alpha, d, W, H) {
-    var R = 2;
-    for (var y = R; y < H - R; y++) {
-      for (var x = R; x < W - R; x++) {
-        var ci = y * W + x;
-        if (alpha[ci] < 50 || alpha[ci] > 215) continue;
-
-        var hasSolid = (
-          (x > 0   && alpha[ci - 1] > 190) ||
-          (x < W-1 && alpha[ci + 1] > 190) ||
-          (y > 0   && alpha[ci - W] > 190) ||
-          (y < H-1 && alpha[ci + W] > 190)
-        );
-        if (!hasSolid) continue;
-
-        var bsum = 0, bsq = 0, ssum = 0, cnt = 0;
-        for (var dy = -R; dy <= R; dy++) {
-          for (var dx = -R; dx <= R; dx++) {
-            var pi = ((y + dy) * W + (x + dx)) * 4;
-            var r = d[pi], g = d[pi+1], b = d[pi+2];
-            var br = (r + g + b) / 3;
-            var mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
-            var mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-            bsum += br; bsq += br * br;
-            ssum += mx > 0 ? (mx - mn) / mx : 0;
-            cnt++;
-          }
-        }
-        var bvar = bsq / cnt - (bsum / cnt) * (bsum / cnt);
-        var asat = ssum / cnt;
-        if (bvar > 350 || asat > 0.25) {
-          alpha[ci] = clampRound(Math.max(alpha[ci], 215));
-        }
-      }
-    }
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 7: MODE-SPECIFIC EDGE REFINEMENT
-  //  RC-05 fix: alphaStabilize was modified — now only runs on confirmed interior
-  //  pixels (all 8 neighbors are FG). Hair strand pixels are never stabilized.
-  //  RC-04 fix: edgeFeather only fires on true FG/BG boundary pixels
-  // ════════════════════════════════════════════════════════════════════════════
-
-  // Soft alpha zone for hair/fur — directional 3×3 feather only on boundary
-  function edgeFeatherSoft(alpha, W, H) {
-    var N      = W * H;
-    var out    = new Uint8Array(alpha);
-    var FG_THR = 230; // must see this solid to qualify edge
-    var BG_THR = 30;  // must see this transparent
-
-    for (var y = 1; y < H - 1; y++) {
-      for (var x = 1; x < W - 1; x++) {
-        var ci = y * W + x;
-        var av = alpha[ci];
-        if (av < 20 || av > 240) continue;
-
-        var hasFg = false, hasBg = false;
-        for (var dy = -1; dy <= 1 && !(hasFg && hasBg); dy++) {
-          for (var dx = -1; dx <= 1 && !(hasFg && hasBg); dx++) {
-            var na = alpha[(y + dy) * W + (x + dx)];
-            if (na > FG_THR) hasFg = true;
-            if (na < BG_THR)  hasBg = true;
-          }
-        }
-        if (!hasFg || !hasBg) continue;
-
-        // True boundary pixel — apply conservative 3×3 blend (center weight = 5)
-        var sum = 0, wt = 0;
-        for (var dy2 = -1; dy2 <= 1; dy2++) {
-          for (var dx2 = -1; dx2 <= 1; dx2++) {
-            var w = (dx2 === 0 && dy2 === 0) ? 5 : 1;
-            sum += alpha[(y + dy2) * W + (x + dx2)] * w; wt += w;
-          }
-        }
-        out[ci] = clampRound(sum / wt);
-      }
-    }
-    for (var i = 0; i < N; i++) alpha[i] = out[i];
-  }
-
-  // Hard edge refinement for screenshots/documents — binary cleanup via erosion
-  function edgeRefineBinary(alpha, W, H) {
-    var N   = W * H;
-    var out = new Uint8Array(alpha);
-    // 3×3 median-like: if majority of 3×3 is FG → FG, else BG
-    for (var y = 1; y < H - 1; y++) {
-      for (var x = 1; x < W - 1; x++) {
-        var ci = y * W + x;
-        if (alpha[ci] > 128 && alpha[ci] < 230) {
-          var fgN = 0;
-          for (var dy = -1; dy <= 1; dy++) {
-            for (var dx = -1; dx <= 1; dx++) {
-              if (alpha[(y + dy) * W + (x + dx)] > 128) fgN++;
-            }
-          }
-          out[ci] = fgN >= 5 ? 255 : 0;
-        }
-      }
-    }
-    for (var i = 0; i < N; i++) alpha[i] = out[i];
-  }
-
-  // Interior pixel stabilization — RC-05 fix: ONLY for pixels where ALL
-  // 8 immediate neighbors are also FG (truly interior, not edge zone).
-  function interiorStabilize(alpha, W, H) {
-    var N   = W * H;
-    var out = new Uint8Array(alpha);
-
-    for (var y = 2; y < H - 2; y++) {
-      for (var x = 2; x < W - 2; x++) {
-        var ci = y * W + x;
-        var av = alpha[ci];
-        if (av >= 190 || av < 30) continue; // already solid or background
-
-        // All 8 immediate neighbors must be FG — guarantees we're interior
-        var allFg = true;
-        for (var dy = -1; dy <= 1 && allFg; dy++) {
-          for (var dx = -1; dx <= 1 && allFg; dx++) {
-            if (alpha[(y + dy) * W + (x + dx)] < 150) allFg = false;
-          }
-        }
-        if (!allFg) continue; // edge or near-edge — leave alone
-
-        // Pull up toward neighborhood average in a 5×5 window
-        var sum = 0;
-        for (var dy2 = -2; dy2 <= 2; dy2++) {
-          for (var dx2 = -2; dx2 <= 2; dx2++) {
-            sum += alpha[(y + dy2) * W + (x + dx2)];
-          }
-        }
-        out[ci] = clampRound(av * 0.30 + (sum / 25) * 0.70);
-      }
-    }
-    for (var i = 0; i < N; i++) alpha[i] = out[i];
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 8: QUALITY ASSERTION GATE (RC-04 fix)
-  //  Old: blindly added +70 to all weak pixels including semi-transparent zones.
-  //  New: only boosts pixels that have FG-majority neighborhood (confirmed FG).
-  //       Leaves genuine hair/edge pixels untouched.
-  // ════════════════════════════════════════════════════════════════════════════
-  function qualityGate(alpha, lock, N, W, H) {
-    var fgCnt = 0, weakCnt = 0;
+  // ══════════════════════════════════════════════════════════════════════════
+  //  TRIMAP HARD ENFORCEMENT
+  //  Definite zones from the trimap are NEVER modified by any refinement stage.
+  //  This is the mathematical guarantee that prevents:
+  //   - false FG locks (old buildFgLock issue)
+  //   - alpha inflation bleeding into BG regions
+  //   - hair/edge destruction by interior passes
+  // ══════════════════════════════════════════════════════════════════════════
+  function enforceTrimapHard(alpha, conf, N, FG_THR, BG_THR) {
     for (var i = 0; i < N; i++) {
-      if (alpha[i] > 80) {
-        fgCnt++;
-        if (alpha[i] < 185) weakCnt++;
-      }
+      if (conf[i] > FG_THR) alpha[i] = 1.0;  // definite FG: always fully opaque
+      if (conf[i] < BG_THR) alpha[i] = 0.0;  // definite BG: always fully transparent
     }
-    if (!fgCnt || weakCnt / fgCnt <= 0.20) return; // quality OK
-
-    console.log('[BgAI v4] Quality gate: ' + Math.round(weakCnt / fgCnt * 100) + '% weak FG — neighborhood-gated boost');
-
-    for (var j = 0; j < N; j++) {
-      if (alpha[j] <= 80 || alpha[j] >= 185) continue;
-      // Only boost if neighborhood average is also FG (confirmed interior, not edge)
-      var x = j % W, y = (j - x) / W;
-      if (x < 1 || x >= W-1 || y < 1 || y >= H-1) continue;
-      var nSum = 0, nCnt = 0;
-      for (var dy = -1; dy <= 1; dy++) {
-        for (var dx = -1; dx <= 1; dx++) {
-          nSum += alpha[(y + dy) * W + (x + dx)]; nCnt++;
-        }
-      }
-      if (nSum / nCnt > 160) { // neighborhood is predominantly FG
-        alpha[j] = clampRound(alpha[j] + 55);
-      }
-    }
-    enforceLock(alpha, lock, N);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  STAGE 9: EXPORT VALIDATION
-  //  Checks alpha histogram. If FG coverage looks catastrophically wrong,
-  //  logs a warning (does not block export — a bad result is better than none).
-  // ════════════════════════════════════════════════════════════════════════════
-  function validateExport(alpha, N) {
+  // ══════════════════════════════════════════════════════════════════════════
+  //  QUALITY VALIDATION (logging only — never modifies alpha)
+  // ══════════════════════════════════════════════════════════════════════════
+  function validateAlpha(alpha, N, label) {
     var solidFg = 0, softFg = 0, bg = 0;
     for (var i = 0; i < N; i++) {
       var a = alpha[i];
-      if      (a > 200) solidFg++;
-      else if (a > 50)  softFg++;
-      else              bg++;
+      if      (a > 0.78) solidFg++;
+      else if (a > 0.20) softFg++;
+      else               bg++;
     }
-    var fgRatio = (solidFg + softFg) / N;
-    var solidRatio = N > 0 ? solidFg / (solidFg + softFg + 1) : 0;
-
-    if (fgRatio < 0.01) {
-      console.warn('[BgAI v4] WARN: Export has almost no foreground (' + (fgRatio * 100).toFixed(1) + '%). Subject may have been removed.');
-    }
-    if (fgRatio > 0.97) {
-      console.warn('[BgAI v4] WARN: Export is nearly all foreground (' + (fgRatio * 100).toFixed(1) + '%). Background may not have been removed.');
-    }
-    if (solidRatio < 0.30 && fgRatio > 0.05) {
-      console.warn('[BgAI v4] WARN: FG is mostly soft/semi-transparent. Subject solidity may be poor.');
-    }
-    console.log('[BgAI v4] Export: FG=' + (fgRatio * 100).toFixed(1) + '% solid=' + (solidRatio * 100).toFixed(1) + '%');
-    return { fgRatio: fgRatio, solidRatio: solidRatio };
+    var fgR     = (solidFg + softFg) / N;
+    var solidR  = solidFg / (solidFg + softFg + 1);
+    console.log('[BgAI v5] ' + label + ': FG=' + (fgR*100).toFixed(1) + '% solid=' + (solidR*100).toFixed(1) + '%');
+    if (fgR < 0.01) console.warn('[BgAI v5] WARN: nearly empty foreground');
+    if (fgR > 0.97) console.warn('[BgAI v5] WARN: background not removed');
+    return { fgR: fgR, solidR: solidR };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
   //  INFERENCE: WHOLE IMAGE
-  // ════════════════════════════════════════════════════════════════════════════
-  async function inferWhole(session, cfg, src, W, H, imageMode) {
-    var lb  = letterboxCanvas(src, W, H, cfg.inputSize);
+  //  Returns { confGF, confFull } — float confidence at GF res and full res.
+  // ══════════════════════════════════════════════════════════════════════════
+  async function inferWhole(session, cfg, img, W, H, gfW, gfH) {
+    var lb  = letterboxCanvas(img, W, H, cfg.inputSize);
     var buf = toTensor(lb.canvas, cfg.inputSize, cfg.mean, cfg.std);
     lb.canvas.width = 0; lb.canvas.height = 0;
 
     var feeds = {};
     feeds[session.inputNames[0]] = new window.ort.Tensor('float32', buf, [1, 3, cfg.inputSize, cfg.inputSize]);
-    var results = await session.run(feeds);
-    return unletterboxMask(results[session.outputNames[0]].data, cfg.inputSize, W, H, lb, imageMode.isScreenshot);
+    var results  = await session.run(feeds);
+    var rawMask  = results[session.outputNames[0]].data;
+
+    var confGF   = extractConfidence(rawMask, cfg.inputSize, gfW, gfH, lb);
+    var confFull = extractConfidence(rawMask, cfg.inputSize, W,   H,   lb);
+    return { confGF: confGF, confFull: confFull };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  INFERENCE: TILED (large images on desktop)
-  //  RC-02 fix: weight = wx * wy (cosine/multiplicative) not Math.min(wx, wy)
-  // ════════════════════════════════════════════════════════════════════════════
-  async function inferTiled(session, cfg, src, W, H, imageMode, onProgress) {
+  // ══════════════════════════════════════════════════════════════════════════
+  //  INFERENCE: TILED (large images — cosine-weighted multiplicative overlap)
+  //  Tile weights: wx*wy (multiplicative, not Math.min).
+  //  Eliminates rectangular seam artifacts at tile corners.
+  // ══════════════════════════════════════════════════════════════════════════
+  async function inferTiled(session, cfg, img, W, H, gfW, gfH, onProgress) {
     var TILE    = 640;
     var OVERLAP = clamp(Math.floor(Math.min(W, H) / 10), 48, 128);
     var STEP    = TILE - OVERLAP;
@@ -791,7 +766,7 @@
     var tilesY  = Math.max(1, Math.ceil((H - OVERLAP) / STEP));
     var total   = tilesX * tilesY, done = 0;
 
-    var accAlpha  = new Float32Array(W * H);
+    var accConf   = new Float32Array(W * H);
     var accWeight = new Float32Array(W * H);
 
     for (var ty = 0; ty < tilesY; ty++) {
@@ -802,125 +777,60 @@
 
         var tc = document.createElement('canvas');
         tc.width = tw; tc.height = th;
-        tc.getContext('2d').drawImage(src, x0, y0, tw, th, 0, 0, tw, th);
+        tc.getContext('2d').drawImage(img, x0, y0, tw, th, 0, 0, tw, th);
 
-        // RC-01 fix: use letterbox for each tile
         var lb  = letterboxCanvas(tc, tw, th, cfg.inputSize);
         var buf = toTensor(lb.canvas, cfg.inputSize, cfg.mean, cfg.std);
         lb.canvas.width = 0; lb.canvas.height = 0;
         tc.width = 0; tc.height = 0;
 
-        var feeds2 = {};
-        feeds2[session.inputNames[0]] = new window.ort.Tensor('float32', buf, [1, 3, cfg.inputSize, cfg.inputSize]);
-        var res2     = await session.run(feeds2);
-        var tileMask = unletterboxMask(res2[session.outputNames[0]].data, cfg.inputSize, tw, th, lb, imageMode.isScreenshot);
+        var feeds = {};
+        feeds[session.inputNames[0]] = new window.ort.Tensor('float32', buf, [1, 3, cfg.inputSize, cfg.inputSize]);
+        var res      = await session.run(feeds);
+        var rawMask  = res[session.outputNames[0]].data;
+        var tileConf = extractConfidence(rawMask, cfg.inputSize, tw, th, lb);
 
         var isL = tx === 0, isR = tx === tilesX - 1;
         var isT = ty === 0, isB = ty === tilesY - 1;
 
         for (var py = 0; py < th; py++) {
           for (var px = 0; px < tw; px++) {
-            // RC-02 fix: cosine/multiplicative weights eliminate seam artifacts
             var wx = 1.0, wy = 1.0;
             if (!isL && px < OVERLAP)       wx = (px + 0.5) / OVERLAP;
             if (!isR && px >= tw - OVERLAP) wx = (tw - px - 0.5) / OVERLAP;
             if (!isT && py < OVERLAP)       wy = (py + 0.5) / OVERLAP;
             if (!isB && py >= th - OVERLAP) wy = (th - py - 0.5) / OVERLAP;
-            // Clamp to [0,1]
-            wx = clamp(wx, 0, 1); wy = clamp(wy, 0, 1);
-            var w  = wx * wy; // multiplicative — eliminates rectangular seam artifacts
+            wx = clampF(wx); wy = clampF(wy);
+            var w  = wx * wy; // multiplicative — zero rectangular seam artifacts
             var gi = (y0 + py) * W + (x0 + px);
-            accAlpha[gi]  += tileMask[py * tw + px] * w;
+            accConf[gi]   += tileConf[py * tw + px] * w;
             accWeight[gi] += w;
           }
         }
 
         done++;
-        if (onProgress) onProgress(32 + Math.round(done / total * 44), 'AI segmentation… ' + Math.round(done / total * 100) + '%');
+        if (onProgress) onProgress(32 + Math.round(done/total*44), 'AI segmentation\u2026 ' + Math.round(done/total*100) + '%');
         if (done % 2 === 0) await yieldMain();
       }
     }
 
-    var alpha = new Uint8Array(W * H);
+    var confFull = new Float32Array(W * H);
     for (var i = 0; i < W * H; i++) {
-      alpha[i] = accWeight[i] > 0 ? clampRound(accAlpha[i] / accWeight[i]) : 0;
+      confFull[i] = accWeight[i] > 0 ? clampF(accConf[i] / accWeight[i]) : 0;
     }
-    return alpha;
+    var confGF = upsampleFloat(confFull, W, H, gfW, gfH); // downscale to GF res
+    return { confGF: confGF, confFull: confFull };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  FULL REFINEMENT PIPELINE
-  //  Mode-specific stages, lock enforced after every stage.
-  // ════════════════════════════════════════════════════════════════════════════
-  async function refineAlpha(alpha, d, W, H, imageMode, onProgress) {
-    var N   = W * H;
-    var isShot = imageMode.isScreenshot;
-
-    // ── A: Build FG lock from raw upscaled AI mask ────────────────────────────
-    var lock = buildFgLock(alpha, N);
-    enforceLock(alpha, lock, N);
-    await yieldMain();
-
-    // ── B: BFS hole fill pass 1 (threshold=80 catches semi-transparent holes) ─
-    bfsHoleFill8(alpha, W, H, 80);
-    enforceLock(alpha, lock, N);
-    await yieldMain();
-
-    if (isShot) {
-      // ── Screenshot path: binary cleanup, no blurring ─────────────────────────
-      edgeRefineBinary(alpha, W, H);
-      enforceLock(alpha, lock, N);
-      bfsHoleFill8(alpha, W, H, 80);
-      enforceLock(alpha, lock, N);
-    } else {
-      // ── Photo/portrait/product path ──────────────────────────────────────────
-
-      // ── C: Interior stabilization (RC-05: only truly interior pixels) ────────
-      interiorStabilize(alpha, W, H);
-      enforceLock(alpha, lock, N);
-      await yieldMain();
-
-      // ── D: Interior solidity (RC-06: edge-distance guard) ────────────────────
-      interiorSolidity(alpha, W, H);
-      enforceLock(alpha, lock, N);
-      await yieldMain();
-
-      // ── E: Metallic/specular rescue + lock expansion ──────────────────────────
-      metallicBoost(alpha, d, W, H);
-      updateLock(alpha, lock, N);
-      enforceLock(alpha, lock, N);
-      await yieldMain();
-
-      // ── F: Edge-only soft feather (hair/fur/natural objects) ─────────────────
-      edgeFeatherSoft(alpha, W, H);
-      enforceLock(alpha, lock, N);
-      await yieldMain();
-
-      // ── G: BFS hole fill pass 2 ───────────────────────────────────────────────
-      bfsHoleFill8(alpha, W, H, 80);
-      enforceLock(alpha, lock, N);
-
-      // ── H: Quality gate (RC-04: neighborhood-gated boost) ────────────────────
-      qualityGate(alpha, lock, N, W, H);
-    }
-
-    // ── I: BFS hole fill pass 3 + final lock ─────────────────────────────────
-    bfsHoleFill8(alpha, W, H, 80);
-    enforceLock(alpha, lock, N);
-
-    return alpha;
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  MAIN PUBLIC ENTRY POINT
-  // ════════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MAIN PROCESS FUNCTION
+  // ══════════════════════════════════════════════════════════════════════════
   async function process(file, opts, onProgress) {
     opts = opts || {};
     var tier = detectTier(opts);
+    if (onProgress) onProgress(1, 'Preparing image\u2026');
 
-    if (onProgress) onProgress(1, 'Preparing image…');
-
-    // Load image
+    // ── Load image ─────────────────────────────────────────────────────────
     var imgUrl = URL.createObjectURL(file);
     var img    = await new Promise(function (res, rej) {
       var el = new Image();
@@ -928,91 +838,193 @@
       el.onerror = function () { URL.revokeObjectURL(imgUrl); rej(new Error('Cannot load image')); };
       el.src = imgUrl;
     });
-
     var W = img.naturalWidth, H = img.naturalHeight;
     if (!W || !H) throw new Error('Image has zero dimensions');
 
-    // Read pixel data once (classification + metallic boost)
-    var srcC = document.createElement('canvas');
-    srcC.width = W; srcC.height = H;
-    var srcCtx = srcC.getContext('2d');
-    srcCtx.drawImage(img, 0, 0);
-    var srcData = srcCtx.getImageData(0, 0, W, H).data;
-    srcC.width  = 0; srcC.height = 0;
+    // ── Classify image mode ────────────────────────────────────────────────
+    // Read pixel data for the classifier (sampled, not full-res)
+    var clsC = document.createElement('canvas');
+    var clsMax = Math.min(1, 256 / Math.max(W, H));
+    var clsW = Math.round(W * clsMax), clsH = Math.round(H * clsMax);
+    clsC.width = clsW; clsC.height = clsH;
+    var clsCtx = clsC.getContext('2d');
+    clsCtx.drawImage(img, 0, 0, W, H, 0, 0, clsW, clsH);
+    var clsData = clsCtx.getImageData(0, 0, clsW, clsH).data;
+    clsC.width = 0; clsC.height = 0;
 
-    // ── Scene classification ─────────────────────────────────────────────────
-    var imageMode = classifyImageMode(srcData, W, H);
-    console.log('[BgAI v4] Mode:', imageMode.mode, '| Screenshot:', imageMode.isScreenshot);
+    var imageMode = classifyImageMode(clsData, clsW, clsH);
+    clsData = null;
 
-    // Override with user selection if provided
+    // User subject mode override
     if (opts.subjectMode && opts.subjectMode !== 'auto') {
       if (opts.subjectMode === 'logo') imageMode = { mode: 'logo', isScreenshot: true };
-      // portrait/product keep classifier result but don't override to screenshot
     }
+    console.log('[BgAI v5] Mode:', imageMode.mode, '| Screenshot:', imageMode.isScreenshot);
 
-    // ── Load ONNX session ────────────────────────────────────────────────────
+    // ── Load ONNX session ──────────────────────────────────────────────────
     var sessionData;
     try {
       sessionData = await getSession(tier, onProgress);
     } catch (e1) {
       if (tier !== 'lite') {
-        console.warn('[BgAI v4] standard model failed → lite:', e1.message);
-        if (onProgress) onProgress(8, 'Switching to lightweight AI…');
+        console.warn('[BgAI v5] standard failed → lite:', e1.message);
+        if (onProgress) onProgress(8, 'Switching to lightweight AI\u2026');
         sessionData = await getSession('lite', onProgress);
       } else { throw e1; }
     }
-
     var session = sessionData.session, cfg = sessionData.cfg;
-    if (onProgress) onProgress(33, 'Running AI segmentation…');
+
+    // ── Compute GF dimensions ──────────────────────────────────────────────
+    var mob       = isMobileUA();
+    var gfMaxDim  = mob ? GF_MAX_MOBILE : GF_MAX_DIM;
+    var gfScale   = Math.min(1.0, gfMaxDim / Math.max(W, H));
+    var gfW       = Math.max(8, Math.round(W * gfScale));
+    var gfH       = Math.max(8, Math.round(H * gfScale));
+
+    if (onProgress) onProgress(33, 'Running AI segmentation\u2026');
     await yieldMain();
 
-    // ── AI Inference ─────────────────────────────────────────────────────────
-    var isMobile   = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || '');
+    // ── AI Inference ───────────────────────────────────────────────────────
     var largeImage = W > cfg.inputSize * 2.2 || H > cfg.inputSize * 2.2;
-    // Mobile: always whole inference but at a downscaled resolution if very large
-    var useTiling  = largeImage && !isMobile && !imageMode.isScreenshot;
-
-    var alpha;
+    var useTiling  = largeImage && !mob && !imageMode.isScreenshot;
+    var confResult;
     if (useTiling) {
-      alpha = await inferTiled(session, cfg, img, W, H, imageMode, onProgress);
+      confResult = await inferTiled(session, cfg, img, W, H, gfW, gfH, onProgress);
     } else {
-      alpha = await inferWhole(session, cfg, img, W, H, imageMode);
+      confResult = await inferWhole(session, cfg, img, W, H, gfW, gfH);
     }
+    var confGF   = confResult.confGF;    // Float32[gfW*gfH] — for refinement
+    var confFull = confResult.confFull;  // Float32[W*H] — for hard constraints
 
-    if (onProgress) onProgress(78, 'Refining at full resolution…');
+    if (onProgress) onProgress(79, 'Trimap + guided filter\u2026');
     await yieldMain();
 
-    // ── Full-resolution refinement ───────────────────────────────────────────
-    await refineAlpha(alpha, srcData, W, H, imageMode, onProgress);
+    // ── Mode-specific thresholds ───────────────────────────────────────────
+    var FG_THR = imageMode.isScreenshot ? 0.82 : 0.87;
+    var BG_THR = imageMode.isScreenshot ? 0.18 : 0.12;
+    var GF_R   = imageMode.mode === 'portrait' || imageMode.mode === 'selfie' ? 12
+               : imageMode.mode === 'anime'    ? 6
+               : imageMode.mode === 'product'  ? 8 : 10;
+    var GF_EPS = imageMode.mode === 'metallic' ? 0.002 : 0.004;
 
-    // ── Export validation ────────────────────────────────────────────────────
-    validateExport(alpha, W * H);
+    // ── Grayscale guide for guided filter ─────────────────────────────────
+    var grayGF = imgToGray(img, gfW, gfH);
 
-    if (onProgress) onProgress(94, 'Compositing…');
+    // ── Sobel edges at GF resolution (for trimap extension) ───────────────
+    var edgesGF = sobelEdges(grayGF, gfW, gfH);
+
+    // ── Trimap generation ──────────────────────────────────────────────────
+    var trimapGF = generateTrimap(confGF, edgesGF, gfW, gfH, FG_THR, BG_THR);
+    edgesGF = null; // free memory
+
+    // ── Refinement pipeline ────────────────────────────────────────────────
+    var refinedGF;
+
+    if (imageMode.isScreenshot) {
+      // ── SCREENSHOT PATH: Otsu binary → morph close/open → holeFill ──────
+      // No guided filter (would soften crisp UI edges).
+      // No feathering (screenshots must have hard pixel-perfect boundaries).
+      var otsuThr = otsuThreshold(confGF, gfW * gfH);
+      refinedGF   = new Float32Array(gfW * gfH);
+      for (var i = 0; i < refinedGF.length; i++) {
+        refinedGF[i] = confGF[i] > otsuThr ? 1.0 : 0.0;
+      }
+      // Close r=2: fill sub-pixel gaps in UI text, thin borders
+      refinedGF = morphClose(refinedGF, gfW, gfH, 2);
+      // Open r=1: remove single-pixel BG specks
+      refinedGF = morphOpen(refinedGF, gfW, gfH, 1);
+
+    } else {
+      // ── PHOTO PATH: Guided Filter → morph close → holeFill ──────────────
+      // Guided filter output naturally preserves all edges from the original
+      // image — hair, fur, soft textures, metallic reflections.
+      // It cannot create halos (linear model) and cannot soften edges
+      // that exist in the guide (the original RGB image).
+      refinedGF = guidedFilter(grayGF, confGF, gfW, gfH, GF_R, GF_EPS);
+
+      // Morphological close on FG region: fills thin gaps in subjects
+      // (gaps between fingers, between hair strands, jewelry, cables).
+      // IMPORTANT: only applied within the UNKNOWN region — definite BG
+      // pixels are not touched (trimap hard enforcement happens after).
+      var fgForClose = new Float32Array(gfW * gfH);
+      for (var i2 = 0; i2 < fgForClose.length; i2++) {
+        fgForClose[i2] = refinedGF[i2] > 0.5 ? refinedGF[i2] : 0.0;
+      }
+      var fgClosed = morphClose(fgForClose, gfW, gfH, 1);
+      fgForClose = null;
+      // Only apply close result in unknown region (not to definite BG)
+      for (var i3 = 0; i3 < refinedGF.length; i3++) {
+        if (trimapGF[i3] === 128 && fgClosed[i3] > refinedGF[i3]) {
+          refinedGF[i3] = fgClosed[i3];
+        }
+      }
+      fgClosed = null;
+    }
+    grayGF = null; // free memory
+
+    // ── 8-connected hole fill at GF resolution ────────────────────────────
+    refinedGF = holeFill8(refinedGF, gfW, gfH, 0.31);
+
+    // ── Trimap hard enforcement at GF resolution ───────────────────────────
+    // definite FG → 1.0, definite BG → 0.0 (ABSOLUTE, cannot be overridden)
+    for (var i4 = 0; i4 < gfW * gfH; i4++) {
+      if (trimapGF[i4] === 255) refinedGF[i4] = 1.0;
+      if (trimapGF[i4] === 0)   refinedGF[i4] = 0.0;
+    }
+    trimapGF = null;
+
+    await yieldMain();
+    if (onProgress) onProgress(91, 'Upsampling to full resolution\u2026');
+
+    // ── Upsample refined alpha GF → full resolution ───────────────────────
+    var alphaFull;
+    if (gfW === W && gfH === H) {
+      alphaFull = refinedGF; // already at full res
+    } else {
+      alphaFull = upsampleFloat(refinedGF, gfW, gfH, W, H);
+    }
+    refinedGF = null;
+
+    // ── Trimap hard enforcement at full resolution ─────────────────────────
+    // Re-apply using full-res confidence to correct any bilinear artefacts
+    // at zone boundaries introduced by the upsample step.
+    enforceTrimapHard(alphaFull, confFull, W * H, FG_THR, BG_THR);
+    confFull = null; // free memory
+
+    // ── Validate ───────────────────────────────────────────────────────────
+    validateAlpha(alphaFull, W * H, 'final');
+
+    if (onProgress) onProgress(95, 'Compositing\u2026');
     await yieldMain();
 
-    // ── Apply final alpha → original pixels → PNG blob ───────────────────────
-    // Single source of truth: the final alpha array applied to original pixels.
-    // No debug overlays, no checkerboard, no intermediate canvases.
+    // ── Export: fresh canvas — NEVER shared with preview ──────────────────
+    // The export canvas contains ONLY: original image pixels with final alpha.
+    // No checkerboard, no overlays, no debug data.
     var outC = document.createElement('canvas');
     outC.width = W; outC.height = H;
-    var outCtx  = outC.getContext('2d');
+    var outCtx = outC.getContext('2d');
     outCtx.drawImage(img, 0, 0);
     var outData = outCtx.getImageData(0, 0, W, H);
-    for (var i = 0; i < W * H; i++) outData.data[i * 4 + 3] = alpha[i];
+    for (var i5 = 0; i5 < W * H; i5++) {
+      outData.data[i5 * 4 + 3] = clamp(Math.round(alphaFull[i5] * 255), 0, 255);
+    }
+    alphaFull = null;
     outCtx.putImageData(outData, 0, 0);
 
     var blob = await new Promise(function (res, rej) {
       outC.toBlob(function (b) {
         outC.width = 0; outC.height = 0;
         if (b && b.size > 100) res(b);
-        else rej(new Error('Canvas export empty'));
+        else rej(new Error('Canvas export produced empty blob'));
       }, 'image/png');
     });
 
     return { blob: blob, ext: '.png', mime: 'image/png' };
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  PUBLIC API
+  // ══════════════════════════════════════════════════════════════════════════
   function preload(tier) {
     getSession(tier || 'lite', null).catch(function () {});
   }
@@ -1022,11 +1034,18 @@
     preload:      preload,
     isReady:      function (t) { return !!_sessions[t || 'lite']; },
     getModelInfo: function (t) { return MODELS[t || 'lite']; },
-    classify:     classifyImageMode, // exposed for debugging
-    computeOtsu:  computeOtsu,       // exposed for debugging
+    // Exposed for debugging / audit verification:
+    classify:     classifyImageMode,
+    otsu:         otsuThreshold,
+    guidedFilter: guidedFilter,
+    morphClose:   morphClose,
+    morphOpen:    morphOpen,
+    holeFill8:    holeFill8,
+    sobelEdges:   sobelEdges,
+    generateTrimap: generateTrimap,
   };
 
-  // Auto-preload lite model 4s after page load
+  // Auto-preload lite model 4 s after page load (model is 4.7 MB)
   if (document.readyState === 'complete') {
     setTimeout(function () { preload('lite'); }, 4000);
   } else {
