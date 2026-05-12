@@ -18,8 +18,8 @@
 
   var MAMMOTH_URL = 'https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js';
   var XLSX_URL    = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-  var PDFJS_MOD   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
-  var PDFJS_WRK   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  var PDFJS_MOD   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
+  var PDFJS_WRK   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var JSZIP_URL   = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 
   var SUPPORTED = new Set([
@@ -53,16 +53,25 @@
   }
 
   // ── PDF.js loader (ESM) ───────────────────────────────────────────────────
-  var _pdfJsPromise = null;
+  // Delegates to the shared global promise created by pdf-preview.js so that
+  // only ONE import() fires regardless of which file calls loadPdfJs first.
   function loadPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-    if (_pdfJsPromise) return _pdfJsPromise;
-    _pdfJsPromise = import(PDFJS_MOD).then(function (mod) {
-      if (!mod.GlobalWorkerOptions.workerSrc) mod.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
-      window.pdfjsLib = mod;
-      return mod;
+    if (window.pdfjsLib && window.pdfjsLib.getDocument) {
+      return Promise.resolve(window.pdfjsLib);
+    }
+    if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
+    window.__pdfjsLibPromise = import(PDFJS_MOD).then(function (mod) {
+      var lib = mod.GlobalWorkerOptions ? mod : (mod.default || mod);
+      if (!lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
+      }
+      window.pdfjsLib = lib;
+      return lib;
+    }).catch(function (err) {
+      window.__pdfjsLibPromise = null;
+      throw err;
     });
-    return _pdfJsPromise;
+    return window.__pdfjsLibPromise;
   }
 
   // ── Utilities ─────────────────────────────────────────────────────────────

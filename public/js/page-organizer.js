@@ -135,15 +135,17 @@
         slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
         return;
       }
+      // renderPage always resolves (returns placeholder on any failure).
+      const canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
       try {
-        const canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         thumbCache.set(key, dataUrl);
         // Tile may have been re-rendered while we were rendering — guard.
         if (slot.isConnected) slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" />`;
       } catch (err) {
+        // toDataURL can fail on a tainted/zero-size canvas — show soft placeholder.
         if (slot.isConnected) {
-          slot.innerHTML = `<div class="po-tile-error" title="${escapeHtml(err.message)}">!</div>`;
+          slot.innerHTML = `<div class="po-tile-placeholder" aria-label="Page preview unavailable"></div>`;
         }
       }
     }
