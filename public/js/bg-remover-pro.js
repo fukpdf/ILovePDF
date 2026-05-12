@@ -467,7 +467,7 @@
         dlBtn.innerHTML =
           '<span class="bgr-dl-spin"></span>Preparing\u2026';
         try {
-          var out = await _buildDownloadBlob(container);
+          var out = await _buildDownloadBlob();
           var url = URL.createObjectURL(out.blob);
           var a = document.createElement('a');
           a.href = url; a.download = out.filename;
@@ -505,6 +505,12 @@
   }
 
   // ── Canvas: draw result with chosen background ────────────────────────────
+  // RC-EXPORT-FIX: For transparent mode, we NO LONGER draw a checkerboard on
+  // the canvas. The canvas only contains actual pixel data (transparent pixels
+  // are zero-alpha). The checkerboard visual is provided by CSS background on
+  // the compare-outer container so the transparent canvas pixels show through.
+  // This means cvs.toBlob('image/png') will produce a clean PNG with real
+  // transparency — no gray/white squares baked into pixel data.
   function _drawResultToCanvas(cvs, bgId) {
     if (!cvs || !_resultImg) return;
     var rW = _resultImg.naturalWidth;
@@ -515,48 +521,75 @@
     ctx.clearRect(0, 0, rW, rH);
 
     if (!bgId || bgId === 'transparent') {
-      // Checkerboard transparency pattern
-      var SZ = Math.max(8, Math.min(28, Math.round(Math.min(rW, rH) / 28)));
-      for (var ry = 0; ry < rH; ry += SZ) {
-        for (var rx = 0; rx < rW; rx += SZ) {
-          ctx.fillStyle = (Math.floor(rx / SZ) + Math.floor(ry / SZ)) % 2 === 0 ? '#c8c8c8' : '#f0f0f0';
-          ctx.fillRect(rx, ry, SZ, SZ);
-        }
-      }
-    } else if (bgId === 'gradient-blue') {
-      var grd = ctx.createLinearGradient(0, 0, rW, rH);
-      grd.addColorStop(0, '#1a56db'); grd.addColorStop(1, '#4f46e5');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, rW, rH);
-    } else {
-      ctx.fillStyle = (bgId === 'white') ? '#ffffff' : (bgId === 'black') ? '#000000' : bgId;
-      ctx.fillRect(0, 0, rW, rH);
-    }
+      // Transparent mode: draw ONLY the result image (zero-alpha pixels remain transparent).
+      // The checkerboard is shown via the CSS background of .bgr-compare-outer
+      // and the canvas element's own CSS background — never baked into pixel data.
+      ctx.drawImage(_resultImg, 0, 0);
 
-    ctx.drawImage(_resultImg, 0, 0);
+      // Apply CSS checkerboard background to the canvas element itself for preview
+      cvs.style.background = 'repeating-conic-gradient(#c0c0c0 0% 25%, #f0f0f0 0% 50%) 0 0 / 20px 20px';
+    } else {
+      // Solid or gradient background — draw BG first, then composite result on top
+      if (bgId === 'gradient-blue') {
+        var grd = ctx.createLinearGradient(0, 0, rW, rH);
+        grd.addColorStop(0, '#1a56db'); grd.addColorStop(1, '#4f46e5');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, rW, rH);
+      } else {
+        ctx.fillStyle = (bgId === 'white') ? '#ffffff' : (bgId === 'black') ? '#000000' : bgId;
+        ctx.fillRect(0, 0, rW, rH);
+      }
+      cvs.style.background = '';
+      ctx.drawImage(_resultImg, 0, 0);
+    }
   }
 
-  // ── Build export blob from current canvas state ───────────────────────────
-  async function _buildDownloadBlob(container) {
-    var cvs = container.querySelector('#bgr-result-cvs');
-    if (!cvs || !_resultImg) throw new Error('Result canvas not ready');
+  // ── Build export blob — ALWAYS from _resultImg, NEVER from the display canvas ──
+  // RC-EXPORT-FIX: The display canvas contains the checkerboard as pixel data when
+  // in transparent mode (old bug). We now create a fresh off-screen canvas from
+  // _resultImg so the export path is always clean and preview/export can never diverge.
+  async function _buildDownloadBlob() {
+    if (!_resultImg) throw new Error('Result image not ready');
 
     var fmt      = _exportFmt || 'png';
     var isTransp = !_bgColor || _bgColor === 'transparent';
-    if (fmt === 'jpg' && isTransp) fmt = 'png';
+    if (fmt === 'jpg' && isTransp) fmt = 'png'; // JPG can't store transparency
 
-    var mime     = fmt === 'jpg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
-    var ext      = '.' + (fmt === 'jpg' ? 'jpg' : fmt === 'webp' ? 'webp' : 'png');
-    var quality  = (fmt === 'jpg') ? 0.92 : (fmt === 'webp') ? 0.90 : undefined;
+    var mime    = fmt === 'jpg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
+    var ext     = '.' + (fmt === 'jpg' ? 'jpg' : fmt === 'webp' ? 'webp' : 'png');
+    var quality = (fmt === 'jpg') ? 0.92 : (fmt === 'webp') ? 0.90 : undefined;
+
+    // Always build from a fresh canvas — never read from the display canvas
+    var expC   = document.createElement('canvas');
+    expC.width = _resultImg.naturalWidth;
+    expC.height = _resultImg.naturalHeight;
+    var expCtx = expC.getContext('2d');
+
+    if (!isTransp) {
+      // Fill background then composite subject on top
+      if (_bgColor === 'gradient-blue') {
+        var grd2 = expCtx.createLinearGradient(0, 0, expC.width, expC.height);
+        grd2.addColorStop(0, '#1a56db'); grd2.addColorStop(1, '#4f46e5');
+        expCtx.fillStyle = grd2;
+      } else {
+        expCtx.fillStyle = (_bgColor === 'white') ? '#ffffff' : (_bgColor === 'black') ? '#000000' : _bgColor;
+      }
+      expCtx.fillRect(0, 0, expC.width, expC.height);
+    }
+    // For transparent: canvas default state is all-transparent — correct for PNG export
+
+    // Composite the transparent result image
+    expCtx.drawImage(_resultImg, 0, 0);
 
     var blob = await new Promise(function (res, rej) {
-      cvs.toBlob(function (b) {
+      expC.toBlob(function (b) {
+        expC.width = 0; expC.height = 0; // free memory
         if (b && b.size > 10) res(b);
-        else rej(new Error('Canvas export returned empty blob'));
+        else rej(new Error('Export canvas returned empty blob'));
       }, mime, quality);
     });
 
-    var base     = (_file.name || 'image').replace(/\.[^.]+$/, '');
+    var base     = (_file && _file.name ? _file.name : 'image').replace(/\.[^.]+$/, '');
     var filename = 'ILovePDF-' + base + '-bg-removed' + ext;
     return { blob: blob, filename: filename, mime: mime };
   }
