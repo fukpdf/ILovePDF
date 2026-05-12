@@ -7,22 +7,8 @@
 // (using pdf-lib) that reflects every edit, then hand it back to the
 // existing tool-page.js submit flow.
 //
-// This means:
-//   • Client-side tools: BrowserTools receives the edited PDF and works as-is.
-//   • Server-side tools: the API endpoint receives the edited PDF and works
-//     without any backend change — the server just sees a "normal" PDF.
-//
-// Public API:
-//   PageOrganizer.shouldHandle(toolId, files)   -> boolean
-//   PageOrganizer.open(containerEl, file, opts) -> Promise<Controller>
-//   Controller.getEditedPdf()                   -> Promise<{ blob, file }>
-//   Controller.getOrderSummary()                -> { order: number[], rotations: number[] }
-//   Controller.getPageCount()                   -> number   (after deletions)
-//   Controller.destroy()
+// DEBUG BUILD — raw errors shown in tiles, full console tracing.
 (function () {
-  // Single-PDF tools that benefit from page-level organize UI.
-  // NOTE: 'compress' is intentionally excluded — it gets a dedicated
-  // single-page preview rendered by tool-page.js, NOT the full page grid.
   const PAGE_LEVEL_TOOLS = new Set([
     'split', 'rotate', 'organize', 'crop', 'page-numbers',
     'watermark', 'sign', 'redact', 'ocr',
@@ -36,7 +22,7 @@
     return /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
   }
 
-  // ── pdf-lib (re-uses the loader that BrowserTools already shipped) ──────
+  // ── pdf-lib ──────────────────────────────────────────────────────────────
   async function loadPdfLib() {
     if (window.PDFLib) return window.PDFLib;
     if (window.BrowserTools && window.BrowserTools._loadPdfLib) {
@@ -46,7 +32,10 @@
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
       s.onload  = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib load failed'));
-      s.onerror = () => reject(new Error('pdf-lib load failed'));
+      s.onerror = (e) => {
+        console.error('[PO_ERROR] pdf-lib script load failed:', e);
+        reject(new Error('pdf-lib load failed'));
+      };
       document.head.appendChild(s);
     });
   }
@@ -61,12 +50,14 @@
     }[c]));
   }
 
-  // ── Open the organizer in `containerEl` for a single PDF file ──────────
+  // ── Open the organizer ────────────────────────────────────────────────────
   async function open(containerEl, file, opts) {
     opts = opts || {};
     const onChange = typeof opts.onChange === 'function' ? opts.onChange : () => {};
 
-    // Loading skeleton (instant feedback while PDF.js spins up)
+    console.log('[PO_DEBUG] open() called for:', file.name, 'size:', file.size);
+    console.log('[PO_DEBUG] PdfPreview available:', typeof window.PdfPreview);
+
     containerEl.innerHTML = `
       <div class="po-loading">
         <div class="po-spinner"></div>
@@ -77,17 +68,19 @@
 
     let pdfDoc;
     try {
+      console.log('[PO_DEBUG] Calling PdfPreview.loadDocument()...');
       pdfDoc = await window.PdfPreview.loadDocument(file);
+      console.log('[PO_DEBUG] loadDocument() succeeded. pageCount:', pdfDoc.pageCount);
     } catch (err) {
+      console.error('[PO_ERROR] PdfPreview.loadDocument() threw:', err);
       containerEl.innerHTML = `
         <div class="po-error">
-          Couldn't read this PDF.
-          <small>${escapeHtml(err && err.message ? err.message : 'Unknown error')}</small>
+          <strong>PDF load failed</strong><br>
+          <code style="font-size:11px;color:#c00">${escapeHtml(err && err.message ? err.message : String(err))}</code>
         </div>`;
       throw err;
     }
 
-    // State: each entry is one page slot. `originalIndex` is 0-indexed into pdfDoc.pdf.
     let pages = Array.from({ length: pdfDoc.pageCount }, (_, i) => ({
       id: uid(),
       originalIndex: i,
@@ -118,8 +111,8 @@
     if (window.lucide) lucide.createIcons();
     const grid = containerEl.querySelector('.po-grid');
 
-    // ── Thumbnail render queue (sequential = avoids GPU stalls on big PDFs)
-    const thumbCache = new Map();   // originalIndex@rotation -> dataURL
+    // ── Thumbnail render queue ────────────────────────────────────────────
+    const thumbCache = new Map();
     let renderToken = 0;
 
     function thumbKey(originalIndex, rotation) {
@@ -129,29 +122,83 @@
     async function renderTileCanvas(tileEl, originalIndex, rotation) {
       const key = thumbKey(originalIndex, rotation);
       const slot = tileEl.querySelector('.po-tile-canvas');
-      if (!slot) return;
+      if (!slot) {
+        console.warn('[PO_DEBUG] renderTileCanvas: no .po-tile-canvas slot for page', originalIndex + 1);
+        return;
+      }
+
+      console.log('[PO_DEBUG] renderTileCanvas() page=' + (originalIndex + 1) + ' rotation=' + rotation);
+
       const cached = thumbCache.get(key);
       if (cached) {
+        console.log('[PO_DEBUG] Using cached thumb for page', originalIndex + 1);
         slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
         return;
       }
-      // renderPage always resolves (returns placeholder on any failure).
-      const canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
+
+      let canvas;
+      try {
+        console.log('[PO_DEBUG] Calling PdfPreview.renderPage(' + (originalIndex + 1) + ')...');
+        canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
+        console.log('[PO_DEBUG] renderPage returned canvas:', canvas.width + 'x' + canvas.height,
+                    'border:', canvas.style.border,
+                    'isConnected:', canvas.isConnected);
+      } catch (err) {
+        // renderPage in debug build should NOT throw — it returns error canvas.
+        // But if it does throw, show the error directly in the tile.
+        console.error('[PO_ERROR] PdfPreview.renderPage threw for page', originalIndex + 1, ':', err);
+        if (slot.isConnected) {
+          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red;word-break:break-all">RENDER ERROR pg${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+        }
+        return;
+      }
+
+      // Verify canvas has actual content (non-zero size, 2d context works)
+      console.log('[PO_DEBUG] Canvas check — width:', canvas.width, 'height:', canvas.height,
+                  'style.border:', canvas.style.border);
+
+      if (!canvas.width || !canvas.height) {
+        console.error('[PO_ERROR] Canvas has zero dimensions for page', originalIndex + 1);
+        if (slot.isConnected) {
+          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red">ZERO-SIZE CANVAS pg${originalIndex+1}</div>`;
+        }
+        return;
+      }
+
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        console.log('[PO_DEBUG] toDataURL() success for page', originalIndex + 1,
+                    'dataUrl length:', dataUrl.length,
+                    'prefix:', dataUrl.slice(0, 30));
         thumbCache.set(key, dataUrl);
-        // Tile may have been re-rendered while we were rendering — guard.
-        if (slot.isConnected) slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" />`;
-      } catch (err) {
-        // toDataURL can fail on a tainted/zero-size canvas — show soft placeholder.
         if (slot.isConnected) {
-          slot.innerHTML = `<div class="po-tile-placeholder" aria-label="Page preview unavailable"></div>`;
+          slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" style="border:2px solid green" />`;
+          console.log('[PO_DEBUG] Thumbnail image injected into DOM for page', originalIndex + 1);
+        } else {
+          console.warn('[PO_DEBUG] slot disconnected from DOM before img inject, page', originalIndex + 1);
+        }
+      } catch (err) {
+        console.error('[PO_ERROR] canvas.toDataURL() failed for page', originalIndex + 1, ':', err);
+        // Canvas rendered but toDataURL failed — insert the canvas element directly.
+        if (slot.isConnected) {
+          try {
+            slot.innerHTML = '';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
+            slot.appendChild(canvas);
+            console.log('[PO_DEBUG] Inserted canvas element directly (toDataURL failed) for page', originalIndex + 1,
+                        'canvas now isConnected:', canvas.isConnected);
+          } catch (appendErr) {
+            console.error('[PO_ERROR] appendChild canvas also failed:', appendErr);
+            slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red">toDataURL FAILED pg${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+          }
         }
       }
     }
 
     function renderGrid() {
       const myToken = ++renderToken;
+      console.log('[PO_DEBUG] renderGrid() token=' + myToken + ' pages=' + pages.length);
       grid.innerHTML = pages.map((p, i) => `
         <div class="po-tile" role="listitem" tabindex="0"
              draggable="true"
@@ -177,15 +224,25 @@
       bindTileEvents();
       updatePageCount();
 
-      // Render thumbnails sequentially so a 200-page PDF doesn't melt the tab.
+      // Render thumbnails sequentially.
       (async function renderThumbsInOrder() {
-        for (const tile of grid.querySelectorAll('.po-tile')) {
-          if (myToken !== renderToken) return;          // grid was re-rendered, abort
+        console.log('[PO_DEBUG] renderThumbsInOrder() starting, token=' + myToken);
+        const tiles = grid.querySelectorAll('.po-tile');
+        console.log('[PO_DEBUG] tiles in DOM:', tiles.length);
+        for (const tile of tiles) {
+          if (myToken !== renderToken) {
+            console.log('[PO_DEBUG] token changed, aborting render loop (myToken=' + myToken + ' renderToken=' + renderToken + ')');
+            return;
+          }
           const id = tile.dataset.id;
           const p = pages.find((x) => x.id === id);
-          if (!p) continue;
+          if (!p) {
+            console.warn('[PO_DEBUG] No page found for tile id', id);
+            continue;
+          }
           await renderTileCanvas(tile, p.originalIndex, p.rotation);
         }
+        console.log('[PO_DEBUG] renderThumbsInOrder() COMPLETE for token=' + myToken);
       })();
     }
 
@@ -195,7 +252,7 @@
       onChange({ pageCount: pages.length });
     }
 
-    // ── Per-tile event wiring (rotate / delete / drag-and-drop) ──────────
+    // ── Per-tile event wiring ─────────────────────────────────────────────
     function bindTileEvents() {
       const tiles = grid.querySelectorAll('.po-tile');
       tiles.forEach((tile) => {
@@ -219,7 +276,6 @@
           });
         });
 
-        // Keyboard accessibility — R rotates, Delete removes, arrows move.
         tile.addEventListener('keydown', (e) => {
           const id = tile.dataset.id;
           const idx = pages.findIndex((x) => x.id === id);
@@ -250,7 +306,7 @@
       bindDragAndDrop();
     }
 
-    // ── Drag and drop with mouse + touch (Pointer Events for mobile) ──────
+    // ── Drag and drop ─────────────────────────────────────────────────────
     function bindDragAndDrop() {
       let dragId = null;
       let placeholder = null;
@@ -260,7 +316,6 @@
       let dragging = false;
 
       grid.querySelectorAll('.po-tile').forEach((tile) => {
-        // Native HTML5 drag (mouse / trackpad)
         tile.addEventListener('dragstart', (e) => {
           dragId = tile.dataset.id;
           tile.classList.add('po-dragging');
@@ -292,10 +347,9 @@
           movePage(dragId, tile.dataset.id, after);
         });
 
-        // ── Touch / Pen (Pointer Events) — long-press 250 ms to pick up ──
         tile.addEventListener('pointerdown', (e) => {
-          if (e.pointerType === 'mouse') return;       // mouse uses native dnd
-          if (e.target.closest('[data-tact]')) return; // tapping a button
+          if (e.pointerType === 'mouse') return;
+          if (e.target.closest('[data-tact]')) return;
           touchTile = tile;
           touchStart = { x: e.clientX, y: e.clientY };
           longPressTimer = setTimeout(() => {
@@ -319,7 +373,7 @@
           if (touchStart && !dragging) {
             const dx = Math.abs(e.clientX - touchStart.x);
             const dy = Math.abs(e.clientY - touchStart.y);
-            if (dx > 10 || dy > 10) {                  // user is scrolling
+            if (dx > 10 || dy > 10) {
               clearTimeout(longPressTimer);
               touchTile = null; touchStart = null;
             }
@@ -329,11 +383,9 @@
           e.preventDefault();
           touchTile.style.left = (e.clientX - touchTile.offsetWidth / 2) + 'px';
           touchTile.style.top  = (e.clientY - touchTile.offsetHeight / 2) + 'px';
-          // Auto-scroll near edges
           const vh = window.innerHeight;
           if (e.clientY > vh - 60) window.scrollBy(0, 12);
           else if (e.clientY < 60)  window.scrollBy(0, -12);
-          // Find drop target
           touchTile.style.visibility = 'hidden';
           const elBelow = document.elementFromPoint(e.clientX, e.clientY);
           touchTile.style.visibility = 'visible';
@@ -388,7 +440,7 @@
       renderGrid();
     }
 
-    // ── Toolbar actions ─────────────────────────────────────────────────
+    // ── Toolbar actions ───────────────────────────────────────────────────
     containerEl.querySelector('[data-act="rotate-all"]').addEventListener('click', () => {
       pages.forEach((p) => { p.rotation = (p.rotation + 90) % 360; });
       renderGrid();
@@ -402,9 +454,8 @@
 
     renderGrid();
 
-    // ── Build edited PDF using pdf-lib (called on submit) ───────────────
+    // ── Build edited PDF ──────────────────────────────────────────────────
     async function getEditedPdf() {
-      // No-op fast path: nothing changed → return original bytes & file.
       const unchanged =
         pages.length === pdfDoc.pageCount &&
         pages.every((p, i) => p.originalIndex === i && p.rotation === 0);
@@ -432,7 +483,7 @@
 
     function getOrderSummary() {
       return {
-        order:     pages.map((p) => p.originalIndex + 1),    // 1-indexed for the legacy `pageOrder` field
+        order:     pages.map((p) => p.originalIndex + 1),
         rotations: pages.map((p) => p.rotation),
       };
     }

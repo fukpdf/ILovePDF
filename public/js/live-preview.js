@@ -55,19 +55,32 @@
   // ── PDF.js loader (ESM) ───────────────────────────────────────────────────
   // Delegates to the shared global promise created by pdf-preview.js so that
   // only ONE import() fires regardless of which file calls loadPdfJs first.
+  // DEBUG: always enforces correct workerSrc to prevent advanced-engine.js
+  // (which uses pdfjs 4.6.82) from overwriting it with a mismatched worker.
   function loadPdfJs() {
     if (window.pdfjsLib && window.pdfjsLib.getDocument) {
+      // Always enforce our workerSrc — advanced-engine.js (4.6.82) may have overwritten it.
+      if (window.pdfjsLib.GlobalWorkerOptions.workerSrc !== PDFJS_WRK) {
+        console.warn('[LP_DEBUG] workerSrc conflict! Was:', window.pdfjsLib.GlobalWorkerOptions.workerSrc,
+                     '— correcting to:', PDFJS_WRK);
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
+      }
       return Promise.resolve(window.pdfjsLib);
     }
     if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
+    console.log('[LP_DEBUG] live-preview.js firing import() for pdfjs', PDFJS_MOD);
     window.__pdfjsLibPromise = import(PDFJS_MOD).then(function (mod) {
       var lib = mod.GlobalWorkerOptions ? mod : (mod.default || mod);
-      if (!lib.GlobalWorkerOptions.workerSrc) {
-        lib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
+      if (!lib || !lib.getDocument) {
+        throw new Error('[LP_DEBUG] pdfjsLib missing getDocument after import');
       }
+      // Always set — never conditional.
+      lib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
+      console.log('[LP_DEBUG] workerSrc set to:', lib.GlobalWorkerOptions.workerSrc);
       window.pdfjsLib = lib;
       return lib;
     }).catch(function (err) {
+      console.error('[LP_DEBUG] import() of pdfjs failed:', err);
       window.__pdfjsLibPromise = null;
       throw err;
     });
@@ -604,13 +617,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (pdf-to-word):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var buf, pdf;
     try {
       buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF. It may be corrupted or encrypted.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (pdf-to-word):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF. It may be corrupted or encrypted.'); return; }
 
     var numPages   = pdf.numPages;
     var checkPages = Math.min(numPages, 5);
@@ -788,13 +801,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (pdf-to-excel):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var buf, pdf;
     try {
       buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (pdf-to-excel):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
 
     var numPages    = pdf.numPages;
     var previewPgs  = Math.min(numPages, 3);
@@ -1385,13 +1398,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (translate):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var buf, pdf;
     try {
       buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (translate):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
 
     var numPages   = pdf.numPages;
     var checkPages = Math.min(numPages, 3);
@@ -1492,13 +1505,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (ai-summarize):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var buf, pdf;
     try {
       buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (ai-summarize):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
 
     var numPages   = pdf.numPages;
     var checkPages = Math.min(numPages, 4);
@@ -1688,13 +1701,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (edit):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var buf, pdf;
     try {
       buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (edit):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF.'); return; }
 
     var numPages  = pdf.numPages;
     var curPage   = 1;
@@ -1858,13 +1871,13 @@
 
     var pdfjsLib;
     try { pdfjsLib = await loadPdfJs(); }
-    catch (_) { host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
+    catch (lpErr) { console.error('[LP_DEBUG] loadPdfJs failed (ocr):', lpErr); host.innerHTML = errorHtml('PDF renderer not available. Check your connection.'); return; }
 
     var pdf;
     try {
       var buf = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-    } catch (_) { host.innerHTML = errorHtml('Could not parse this PDF. It may be corrupted or encrypted.'); return; }
+    } catch (lpErr) { console.error('[LP_DEBUG] getDocument failed (ocr):', lpErr); host.innerHTML = errorHtml('Could not parse this PDF. It may be corrupted or encrypted.'); return; }
 
     var numPages   = pdf.numPages;
     var prevPgs    = Math.min(numPages, 8);
