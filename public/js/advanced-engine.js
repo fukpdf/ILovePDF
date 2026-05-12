@@ -1124,19 +1124,23 @@
   }
 
   var _pdfJsPromise = null;
-  var PDFJS_URL    = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
-  var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  var PDFJS_URL    = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
+  var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 
   function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-    if (_pdfJsPromise)   return _pdfJsPromise;
-    _pdfJsPromise = import(PDFJS_URL).then(function (mod) {
+    // Share the global import promise with pdf-preview.js / live-preview.js to
+    // guarantee exactly one import() call and one consistent worker version.
+    if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
+    if (_pdfJsPromise) return _pdfJsPromise;
+    _pdfJsPromise = window.__pdfjsLibPromise = import(PDFJS_URL).then(function (mod) {
       var lib = mod && (mod.default || mod);
       lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
       window.pdfjsLib = lib;
       return lib;
-    }).catch(function () {
+    }).catch(function (err) {
       _pdfJsPromise = null;
+      window.__pdfjsLibPromise = null;
       throw AEError(ERR.NETWORK, 'pdfjs_load_failed');
     });
     return _pdfJsPromise;

@@ -53,34 +53,28 @@
   }
 
   // ── PDF.js loader (ESM) ───────────────────────────────────────────────────
-  // Delegates to the shared global promise created by pdf-preview.js so that
-  // only ONE import() fires regardless of which file calls loadPdfJs first.
-  // DEBUG: always enforces correct workerSrc to prevent advanced-engine.js
-  // (which uses pdfjs 4.6.82) from overwriting it with a mismatched worker.
+  // All loaders (browser-tools, advanced-engine, pdf-preview, live-preview) share
+  // window.__pdfjsLibPromise — guaranteeing one import() call and one workerSrc.
   function loadPdfJs() {
     if (window.pdfjsLib && window.pdfjsLib.getDocument) {
-      // Always enforce our workerSrc — advanced-engine.js (4.6.82) may have overwritten it.
       if (window.pdfjsLib.GlobalWorkerOptions.workerSrc !== PDFJS_WRK) {
-        console.warn('[LP_DEBUG] workerSrc conflict! Was:', window.pdfjsLib.GlobalWorkerOptions.workerSrc,
-                     '— correcting to:', PDFJS_WRK);
+        console.warn('[LivePreview] workerSrc corrected:',
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc, '→', PDFJS_WRK);
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
       }
       return Promise.resolve(window.pdfjsLib);
     }
     if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
-    console.log('[LP_DEBUG] live-preview.js firing import() for pdfjs', PDFJS_MOD);
     window.__pdfjsLibPromise = import(PDFJS_MOD).then(function (mod) {
       var lib = mod.GlobalWorkerOptions ? mod : (mod.default || mod);
       if (!lib || !lib.getDocument) {
-        throw new Error('[LP_DEBUG] pdfjsLib missing getDocument after import');
+        throw new Error('LivePreview: pdfjsLib.getDocument missing after import');
       }
-      // Always set — never conditional.
       lib.GlobalWorkerOptions.workerSrc = PDFJS_WRK;
-      console.log('[LP_DEBUG] workerSrc set to:', lib.GlobalWorkerOptions.workerSrc);
       window.pdfjsLib = lib;
       return lib;
     }).catch(function (err) {
-      console.error('[LP_DEBUG] import() of pdfjs failed:', err);
+      console.error('[LivePreview] pdfjs import failed:', err);
       window.__pdfjsLibPromise = null;
       throw err;
     });

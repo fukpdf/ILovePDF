@@ -1411,11 +1411,16 @@ async function runAdvancedCompress() {
     const { PDFDocument } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
     if (!pdfjsLib) {
-      const m = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs');
-      pdfjsLib = m && (m.default || m);
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
-      window.pdfjsLib = pdfjsLib;
+      const _p = window.__pdfjsLibPromise ||
+        import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
+          const lib = m && (m.default || m);
+          lib.GlobalWorkerOptions.workerSrc =
+            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+          window.pdfjsLib = lib;
+          return lib;
+        });
+      window.__pdfjsLibPromise = _p;
+      pdfjsLib = await _p;
     }
 
     const file    = selectedFiles[0].file;

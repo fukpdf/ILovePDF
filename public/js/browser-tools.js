@@ -6,8 +6,8 @@
 //        -> Promise<{ blob, filename }>
 (function () {
   const PDFLIB_URL    = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
-  const PDFJS_URL     = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs';
-  const PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs';
+  const PDFJS_URL     = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
+  const PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   const JSZIP_URL     = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
   const MAMMOTH_URL   = 'https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js';
   const HTML2PDF_URL  = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js';
@@ -90,11 +90,14 @@
   function loadPptxGen()  { return loadScriptCached(PPTXGEN_URL,  'PptxGenJS', _pptxSlot); }
 
   // pdfjs uses dynamic import() — ES module; IDB/blob-URL not applicable.
+  // window.__pdfjsLibPromise is the global shared promise so that pdf-preview.js,
+  // live-preview.js, advanced-engine.js and browser-tools.js all use one import() call.
   let pdfJsPromise = null;
   function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
     if (pdfJsPromise) return pdfJsPromise;
-    pdfJsPromise = (async () => {
+    pdfJsPromise = window.__pdfjsLibPromise = (async () => {
       const mod = await import(PDFJS_URL);
       const pdfjsLib = mod && (mod.default || mod);
       pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;

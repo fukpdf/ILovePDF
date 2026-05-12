@@ -27,7 +27,7 @@
   var _ortError  = null;
 
   // ── Load ort dynamically (CDN or local) ────────────────────────────────────
-  var ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js';
+  var ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js';
 
   function _ensureOrt() {
     if (_ort && _ortReady) return Promise.resolve(_ort);

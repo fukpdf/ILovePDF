@@ -6,8 +6,6 @@
 // or dragged to reorder. On submit, we assemble a NEW PDF in the browser
 // (using pdf-lib) that reflects every edit, then hand it back to the
 // existing tool-page.js submit flow.
-//
-// DEBUG BUILD — raw errors shown in tiles, full console tracing.
 (function () {
   const PAGE_LEVEL_TOOLS = new Set([
     'split', 'rotate', 'organize', 'crop', 'page-numbers',
@@ -55,9 +53,6 @@
     opts = opts || {};
     const onChange = typeof opts.onChange === 'function' ? opts.onChange : () => {};
 
-    console.log('[PO_DEBUG] open() called for:', file.name, 'size:', file.size);
-    console.log('[PO_DEBUG] PdfPreview available:', typeof window.PdfPreview);
-
     containerEl.innerHTML = `
       <div class="po-loading">
         <div class="po-spinner"></div>
@@ -68,11 +63,9 @@
 
     let pdfDoc;
     try {
-      console.log('[PO_DEBUG] Calling PdfPreview.loadDocument()...');
       pdfDoc = await window.PdfPreview.loadDocument(file);
-      console.log('[PO_DEBUG] loadDocument() succeeded. pageCount:', pdfDoc.pageCount);
     } catch (err) {
-      console.error('[PO_ERROR] PdfPreview.loadDocument() threw:', err);
+      console.error('[PageOrganizer] loadDocument failed:', err);
       containerEl.innerHTML = `
         <div class="po-error">
           <strong>PDF load failed</strong><br>
@@ -120,77 +113,55 @@
     }
 
     async function renderTileCanvas(tileEl, originalIndex, rotation) {
-      const key = thumbKey(originalIndex, rotation);
+      const key  = thumbKey(originalIndex, rotation);
       const slot = tileEl.querySelector('.po-tile-canvas');
-      if (!slot) {
-        console.warn('[PO_DEBUG] renderTileCanvas: no .po-tile-canvas slot for page', originalIndex + 1);
-        return;
-      }
+      if (!slot) return;
 
-      console.log('[PO_DEBUG] renderTileCanvas() page=' + (originalIndex + 1) + ' rotation=' + rotation);
-
+      // Use cached dataURL if available.
       const cached = thumbCache.get(key);
       if (cached) {
-        console.log('[PO_DEBUG] Using cached thumb for page', originalIndex + 1);
         slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
         return;
       }
 
+      // renderPage always returns a canvas (or error canvas) — it never throws.
       let canvas;
       try {
-        console.log('[PO_DEBUG] Calling PdfPreview.renderPage(' + (originalIndex + 1) + ')...');
         canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
-        console.log('[PO_DEBUG] renderPage returned canvas:', canvas.width + 'x' + canvas.height,
-                    'border:', canvas.style.border,
-                    'isConnected:', canvas.isConnected);
       } catch (err) {
-        // renderPage in debug build should NOT throw — it returns error canvas.
-        // But if it does throw, show the error directly in the tile.
-        console.error('[PO_ERROR] PdfPreview.renderPage threw for page', originalIndex + 1, ':', err);
+        console.error('[PageOrganizer] renderPage threw for page', originalIndex + 1, ':', err);
         if (slot.isConnected) {
-          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red;word-break:break-all">RENDER ERROR pg${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;word-break:break-all">Render error p${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
         }
         return;
       }
 
-      // Verify canvas has actual content (non-zero size, 2d context works)
-      console.log('[PO_DEBUG] Canvas check — width:', canvas.width, 'height:', canvas.height,
-                  'style.border:', canvas.style.border);
-
       if (!canvas.width || !canvas.height) {
-        console.error('[PO_ERROR] Canvas has zero dimensions for page', originalIndex + 1);
+        console.error('[PageOrganizer] Zero-dimension canvas for page', originalIndex + 1);
         if (slot.isConnected) {
-          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red">ZERO-SIZE CANVAS pg${originalIndex+1}</div>`;
+          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0">Zero-size canvas p${originalIndex+1}</div>`;
         }
         return;
       }
 
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        console.log('[PO_DEBUG] toDataURL() success for page', originalIndex + 1,
-                    'dataUrl length:', dataUrl.length,
-                    'prefix:', dataUrl.slice(0, 30));
         thumbCache.set(key, dataUrl);
         if (slot.isConnected) {
-          slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" style="border:2px solid green" />`;
-          console.log('[PO_DEBUG] Thumbnail image injected into DOM for page', originalIndex + 1);
-        } else {
-          console.warn('[PO_DEBUG] slot disconnected from DOM before img inject, page', originalIndex + 1);
+          slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" />`;
         }
       } catch (err) {
-        console.error('[PO_ERROR] canvas.toDataURL() failed for page', originalIndex + 1, ':', err);
-        // Canvas rendered but toDataURL failed — insert the canvas element directly.
+        console.error('[PageOrganizer] toDataURL failed for page', originalIndex + 1, ':', err);
+        // Fallback: insert the canvas element directly if toDataURL is blocked.
         if (slot.isConnected) {
           try {
             slot.innerHTML = '';
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
             slot.appendChild(canvas);
-            console.log('[PO_DEBUG] Inserted canvas element directly (toDataURL failed) for page', originalIndex + 1,
-                        'canvas now isConnected:', canvas.isConnected);
           } catch (appendErr) {
-            console.error('[PO_ERROR] appendChild canvas also failed:', appendErr);
-            slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;border:2px solid red">toDataURL FAILED pg${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+            console.error('[PageOrganizer] appendChild also failed:', appendErr);
+            slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0">toDataURL error p${originalIndex+1}</div>`;
           }
         }
       }
@@ -198,7 +169,6 @@
 
     function renderGrid() {
       const myToken = ++renderToken;
-      console.log('[PO_DEBUG] renderGrid() token=' + myToken + ' pages=' + pages.length);
       grid.innerHTML = pages.map((p, i) => `
         <div class="po-tile" role="listitem" tabindex="0"
              draggable="true"
@@ -224,25 +194,16 @@
       bindTileEvents();
       updatePageCount();
 
-      // Render thumbnails sequentially.
+      // Render thumbnails sequentially — one at a time to respect the mobile render semaphore.
       (async function renderThumbsInOrder() {
-        console.log('[PO_DEBUG] renderThumbsInOrder() starting, token=' + myToken);
         const tiles = grid.querySelectorAll('.po-tile');
-        console.log('[PO_DEBUG] tiles in DOM:', tiles.length);
         for (const tile of tiles) {
-          if (myToken !== renderToken) {
-            console.log('[PO_DEBUG] token changed, aborting render loop (myToken=' + myToken + ' renderToken=' + renderToken + ')');
-            return;
-          }
+          if (myToken !== renderToken) return; // grid was re-rendered, abort stale loop
           const id = tile.dataset.id;
-          const p = pages.find((x) => x.id === id);
-          if (!p) {
-            console.warn('[PO_DEBUG] No page found for tile id', id);
-            continue;
-          }
+          const p  = pages.find((x) => x.id === id);
+          if (!p) continue;
           await renderTileCanvas(tile, p.originalIndex, p.rotation);
         }
-        console.log('[PO_DEBUG] renderThumbsInOrder() COMPLETE for token=' + myToken);
       })();
     }
 
