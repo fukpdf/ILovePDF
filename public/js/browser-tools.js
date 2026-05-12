@@ -2546,11 +2546,31 @@
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
-  // ── PHASE 4: BACKGROUND REMOVER v4.0 — 10-Phase Alpha Matting Engine ────────
-  // Full BFS-based foreground/background segmentation with interior hole filling,
-  // foreground solidity lock, texture/metallic protection, neighborhood consensus,
-  // edge-only feathering, foreground opacity recovery, and quality assertion.
+  // ── PHASE 4: BACKGROUND REMOVER v5.0 — AI-First Hybrid Pipeline ─────────────
+  // Primary path : BgAiEngine (ONNX Runtime Web — u2netp / RMBG-1.4 quantized)
+  // Fallback path: v4.0 CV engine (BFS + solidity + edge refinement)
+  // The AI engine handles model loading, caching and tiled inference internally.
   async function backgroundRemover(files, opts) {
+    opts = opts || {};
+
+    // ── AI path ──────────────────────────────────────────────────────────────
+    // Skip if caller explicitly requested CV engine (pass 3 in healing loop)
+    if (!opts._forceCV && window.BgAiEngine && typeof window.BgAiEngine.process === 'function') {
+      try {
+        // opts._onProgress is the live UI callback from bg-remover-pro.js
+        const onProg   = (typeof opts._onProgress === 'function') ? opts._onProgress : null;
+        const aiResult = await window.BgAiEngine.process(files[0], opts, onProg);
+        if (aiResult && aiResult.blob && aiResult.blob.size > 100) return aiResult;
+      } catch (aiErr) {
+        console.warn('[BgRemover] AI path failed, falling back to CV engine:', aiErr.message);
+      }
+    }
+
+    // ── CV fallback (v4.0 BFS engine) ────────────────────────────────────────
+    return _backgroundRemoverCV(files, opts);
+  }
+
+  async function _backgroundRemoverCV(files, opts) {
     const img         = await loadImageFromFile(files[0]);
     const W           = img.naturalWidth;
     const H           = img.naturalHeight;

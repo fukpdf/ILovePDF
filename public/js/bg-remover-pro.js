@@ -24,16 +24,16 @@
     { id: 'gradient-blue', label: 'Gradient', grad: ['#1a56db', '#4f46e5'] },
   ];
 
-  // Processing stage messages
+  // Processing stage messages (AI-aware)
   var STAGES = [
-    { pct:  8, msg: 'Analyzing image colors\u2026' },
-    { pct: 20, msg: 'Detecting subject boundaries\u2026' },
-    { pct: 36, msg: 'Separating foreground from background\u2026' },
-    { pct: 52, msg: 'Refining edge transitions\u2026' },
-    { pct: 67, msg: 'Applying alpha matting\u2026' },
-    { pct: 79, msg: 'Optimizing transparency\u2026' },
-    { pct: 89, msg: 'Enhancing edge quality\u2026' },
-    { pct: 96, msg: 'Preparing final result\u2026' },
+    { pct:  3, msg: 'Preparing image\u2026' },
+    { pct: 12, msg: 'Loading AI engine\u2026' },
+    { pct: 26, msg: 'Downloading AI model\u2026' },
+    { pct: 40, msg: 'Running AI segmentation\u2026' },
+    { pct: 58, msg: 'Detecting subject boundaries\u2026' },
+    { pct: 73, msg: 'Refining edges\u2026' },
+    { pct: 87, msg: 'Enhancing fine details\u2026' },
+    { pct: 95, msg: 'Compositing result\u2026' },
   ];
 
   // ── Module state ─────────────────────────────────────────────────────────
@@ -236,9 +236,14 @@
     var pctEl  = container.querySelector('#bgr-prog-pct');
     var msgEl  = container.querySelector('#bgr-stage-msg');
 
+    var _progFloor = 0;
     function setProgress(pct, msg) {
-      if (fillEl) fillEl.style.width = Math.round(pct) + '%';
-      if (pctEl)  pctEl.textContent  = Math.round(pct) + '%';
+      var p = Math.round(pct);
+      if (p > _progFloor) {
+        _progFloor = p;
+        if (fillEl) fillEl.style.width = p + '%';
+        if (pctEl)  pctEl.textContent  = p + '%';
+      }
       if (msg && msgEl) msgEl.textContent = msg;
     }
 
@@ -284,60 +289,53 @@
     }
   }
 
-  // ── Self-healing 4-pass engine ──────────────────────────────────────────
+  // ── AI-first self-healing engine ──────────────────────────────────────────
+  // Pass 1: AI engine (ONNX) with live progress callback
+  // Pass 2: AI lite mode (if standard model failed to load)
+  // Pass 3: CV fallback engine (when AI completely unavailable)
   async function _runWithHealing(opts, setProgress) {
     if (!window.BrowserTools || typeof window.BrowserTools.process !== 'function') {
       throw new Error('Processing engine not ready. Please wait a moment and try again.');
     }
 
-    var baseOpts = { bgColor: 'transparent' }; // always get transparent PNG first
+    var baseOpts = { bgColor: 'transparent' };
 
-    // Pass 1: user's chosen settings
+    // Pass 1 — AI (standard quality, with real-time progress wired to UI)
     try {
       var r1 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
-        qualityMode: opts.qualityMode || 'hd',
-        subjectMode: opts.subjectMode || 'auto',
-        threshold:   235,
+        qualityMode:  opts.qualityMode || 'hd',
+        subjectMode:  opts.subjectMode || 'auto',
+        _onProgress:  setProgress,
       }));
       if (r1 && r1.blob && r1.blob.size > 100) return r1;
     } catch (_e1) { /* fall through */ }
 
-    // Pass 2: ultra quality, auto subject (broader detection sweep)
-    if (setProgress) setProgress(62, 'Applying enhanced detection\u2026');
+    // Pass 2 — AI lite (smaller model, guaranteed fast download)
+    if (setProgress) setProgress(30, 'Switching to lightweight AI model\u2026');
     try {
       var r2 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
-        qualityMode: 'ultra',
-        subjectMode: 'auto',
-        threshold:   215,
+        qualityMode:  'lite',
+        subjectMode:  'auto',
+        _onProgress:  setProgress,
       }));
       if (r2 && r2.blob && r2.blob.size > 100) return r2;
     } catch (_e2) { /* fall through */ }
 
-    // Pass 3: ultra + portrait isolation (most common real-world case)
-    if (setProgress) setProgress(78, 'Applying portrait optimization\u2026');
+    // Pass 3 — pure CV fallback (no network required)
+    if (setProgress) setProgress(50, 'Using offline processing\u2026');
     try {
       var r3 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
-        qualityMode: 'ultra',
-        subjectMode: 'portrait',
-        threshold:   198,
+        qualityMode:  'ultra',
+        subjectMode:  'auto',
+        _forceCV:     true,
+        _onProgress:  setProgress,
       }));
       if (r3 && r3.blob && r3.blob.size > 100) return r3;
-    } catch (_e3) { /* fall through */ }
-
-    // Pass 4: product mode (good for isolated objects on any background)
-    if (setProgress) setProgress(88, 'Trying alternative subject detection\u2026');
-    try {
-      var r4 = await window.BrowserTools.process('background-remover', [_file], Object.assign({}, baseOpts, {
-        qualityMode: 'ultra',
-        subjectMode: 'product',
-        threshold:   180,
-      }));
-      if (r4 && r4.blob && r4.blob.size > 100) return r4;
-    } catch (e4) {
-      throw e4;
+    } catch (e3) {
+      throw e3;
     }
 
-    throw new Error('Could not remove the background. The background may be too complex or too similar to the subject.');
+    throw new Error('Could not remove the background. The subject may be too similar to the background.');
   }
 
   // ════════════════════════════════════════════════════════════════
