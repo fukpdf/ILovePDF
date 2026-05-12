@@ -1,41 +1,46 @@
-// BgAiEngine v5.0 — True Segmentation Pipeline
-// Permanent architectural rebuild. Zero heuristic alpha manipulation.
+// BgAiEngine v6.0 — Multi-Pipeline Semantic Segmentation
 //
-// ROOT CAUSES ELIMINATED:
-//   RC-A: Alpha-array heuristic chain (interiorSolidity, metallicBoost,
-//          edgeFeatherSoft, qualityGate) → REMOVED ENTIRELY
-//   RC-B: buildFgLock/enforceLock acting as a pseudo-trimap → REPLACED with
-//          true trimap (definite FG / unknown / definite BG)
-//   RC-C: contour sharpening (±30 on bilinear-scaled output) → REMOVED
-//   RC-D–F: alpha blur (5×5 stabilize, 7×7 solidity, 3×3 feather) → REMOVED
-//   RC-G: qualityGate += 55 global inflation → REMOVED
-//   RC-H: metallicBoost heuristic → REMOVED
-//   RC-I: no guided filter → ADDED (He et al. 2013, integral image O(N))
-//          no trimap → ADDED (0=definite BG, 128=unknown, 255=definite FG)
-//          no morphological ops → ADDED (close/open/holeFill)
-//   RC-J: edgeRefineBinary majority vote → REPLACED with Otsu + morphology
+// ARCHITECTURE OVERVIEW
+// ═══════════════════════════════════════════════════════════════════════════
 //
-// TRUE PIPELINE:
-//   INPUT IMAGE
-//     ↓ letterbox pad (aspect-ratio preserving)
-//   AI INFERENCE  (whole or cosine-weighted tiled)
-//     ↓ unletterbox → float confidence map [0,1]
-//   TRIMAP GENERATION
-//     conf > FG_THR → definite FG  (255)
-//     conf < BG_THR → definite BG  (0)
-//     else          → unknown      (128)
-//     Dilate unknown zone near strong Sobel edges (captures hair, fur)
-//     ↓
-//   SCREENSHOT PATH: Otsu binary → morph close/open → holeFill
-//   PHOTO PATH:      Guided Filter (RGB guide, r=8–12, eps=0.004)
-//                    → morph close on FG gaps → holeFill
-//     ↓
-//   TRIMAP HARD ENFORCEMENT  (definite zones NEVER modified)
-//     ↓
-//   UPSAMPLE → W×H  (bilinear, then re-enforce trimap at full res)
-//     ↓
-//   EXPORT: fresh canvas, original pixels + final alpha → PNG blob
-//           export canvas NEVER shared with preview canvas
+//   IMAGE INPUT
+//     ↓ Enhanced Classifier v2 (12 features → 12 categories)
+//       Features: flatness, edge density, text-line density, skin ratio,
+//                 dark ratio, saturation, hue entropy, aspect ratio,
+//                 UI-bar score, gradient overlay score, icon density, lumVar
+//     ↓ Model Selector
+//       screenshot/document/logo → lite  (4.7 MB, fast, Otsu handles it)
+//       portrait/selfie + ultra  → modnet (25 MB) → birefnet fallback
+//       any + ultra              → birefnet (176 MB, RMBG-2.0/BiRefNet)
+//       any + hd                 → standard (44 MB, RMBG-1.4q)
+//       mobile                   → lite
+//   AI INFERENCE
+//     whole image OR cosine-weighted tiled (1024 px tiles)
+//     → Float32 confidence map [0,1] at GF resolution + full resolution
+//
+//   PIPELINE DISPATCH (per-category)
+//   ┌── SCREENSHOT / DOCUMENT / LOGO / DARK-SCREENSHOT ──────────────────┐
+//   │  Otsu binary → morph close(3) → morph open(1) → holeFill            │
+//   │  NO guided filter. NO feathering. Hard binary pixel-perfect edges.  │
+//   └────────────────────────────────────────────────────────────────────┘
+//   ┌── SELFIE / PORTRAIT ────────────────────────────────────────────────┐
+//   │  Trimap (dilation R=8-10, FG=0.88, BG=0.10)                        │
+//   │  → Multi-Scale Guided Filter: fine(r=4,ε=0.001) + coarse(r=16,ε=.01)│
+//   │  → Edge-magnitude blend (high grad → fine, low grad → coarse)       │
+//   │  → morph close (unknown zone only) → holeFill(0.31)                 │
+//   └────────────────────────────────────────────────────────────────────┘
+//   ┌── PRODUCT / METALLIC ───────────────────────────────────────────────┐
+//   │  Trimap (dilation R=3-4, FG=0.90, BG=0.10)                         │
+//   │  → Color-Component Guided Filter (R+G+B guides, r=8, ε=0.001)      │
+//   │  → morph close (unknown zone only) → holeFill(0.20)                 │
+//   └────────────────────────────────────────────────────────────────────┘
+//   ┌── ANIME / DARK / GENERAL PHOTO ─────────────────────────────────────┐
+//   │  Trimap (mode-specific params) → Grayscale GF → morph → holeFill    │
+//   └────────────────────────────────────────────────────────────────────┘
+//
+//   TRIMAP HARD ENFORCEMENT (definite FG / definite BG IMMUTABLE)
+//     ↓ UPSAMPLE → full W×H → re-enforce trimap at full resolution
+//     ↓ EXPORT: fresh offscreen canvas → original RGB + final alpha → PNG
 
 (function () {
   'use strict';
@@ -45,41 +50,98 @@
   // ══════════════════════════════════════════════════════════════════════════
   var ORT_CDN      = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js';
   var ORT_WASM_DIR = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
-  var GF_MAX_DIM   = 1024;   // guided filter runs at ≤ this resolution
-  var GF_MAX_MOBILE = 512;
 
+  var GF_MAX_DIM    = 1024;
+  var GF_MAX_MOBILE = 512;
+  var TILE_SIZE     = 1024;   // inference tile edge (up from 640 in v5)
+  var TILE_OVERLAP  = 128;    // cosine blend overlap
+
+  // ── Model registry ─────────────────────────────────────────────────────
+  // Each entry: name, urls (tried in order), cacheKey, inputSize,
+  //             mean[], std[], sizeMB, outputSigmoid (if model output needs sigmoid)
   var MODELS = {
     lite: {
-      name: 'U2Net-Lite',
+      name:         'U2Net-Lite',
       urls: [
         'https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/u2netp.onnx',
         'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx',
       ],
-      cacheKey: 'bge_u2netp_v5',
-      inputSize: 320,
-      mean: [0.485, 0.456, 0.406],
-      std:  [0.229, 0.224, 0.225],
-      sizeMB: 4.7,
+      cacheKey:     'bge_u2netp_v6',
+      inputSize:    320,
+      mean:         [0.485, 0.456, 0.406],
+      std:          [0.229, 0.224, 0.225],
+      sizeMB:       4.7,
+      outputSigmoid: false,
     },
     standard: {
-      name: 'RMBG-1.4',
+      name:         'RMBG-1.4',
       urls: [
         'https://huggingface.co/Xenova/rmbg-v1.4/resolve/main/onnx/model_quantized.onnx',
         'https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/model_quantized.onnx',
       ],
-      cacheKey: 'bge_rmbg14_q_v5',
-      inputSize: 1024,
-      mean: [0.5, 0.5, 0.5],
-      std:  [1.0, 1.0, 1.0],
-      sizeMB: 44,
+      cacheKey:     'bge_rmbg14_q_v6',
+      inputSize:    1024,
+      mean:         [0.5, 0.5, 0.5],
+      std:          [1.0, 1.0, 1.0],
+      sizeMB:       44,
+      outputSigmoid: false,
     },
+    modnet: {
+      name:         'MODNet',
+      urls: [
+        'https://huggingface.co/Xenova/modnet/resolve/main/onnx/model_quantized.onnx',
+      ],
+      cacheKey:     'bge_modnet_q_v6',
+      inputSize:    512,
+      mean:         [0.5, 0.5, 0.5],
+      std:          [0.5, 0.5, 0.5],
+      sizeMB:       25,
+      outputSigmoid: true,   // MODNet outputs raw logits
+    },
+    birefnet: {
+      name:         'RMBG-2.0 (BiRefNet)',
+      urls: [
+        'https://huggingface.co/briaai/RMBG-2.0/resolve/main/onnx/model.onnx',
+      ],
+      cacheKey:     'bge_rmbg20_v6',
+      inputSize:    1024,
+      mean:         [0.5, 0.5, 0.5],
+      std:          [1.0, 1.0, 1.0],
+      sizeMB:       176,
+      outputSigmoid: false,
+    },
+  };
+
+  // ── Per-category pipeline configuration ────────────────────────────────
+  // isScreenshot: true → Otsu binary path (no GF, hard edges)
+  // pipeline:     'portrait' | 'product' | 'photo' (refinement strategy)
+  // FG_THR:       confidence > FG_THR → definite foreground
+  // BG_THR:       confidence < BG_THR → definite background
+  // edgeDilR:     trimap edge dilation radius (pixels at GF resolution)
+  // gfR:          guided filter radius (photo/product paths)
+  // gfEps:        guided filter epsilon
+  // holeThr:      hole-fill threshold
+  // morphClose:   morphological close iterations
+  // morphOpen:    morphological open iterations
+  var PIPELINE_CFG = {
+    screenshot:    { isScreenshot:true,  pipeline:'binary',  FG_THR:0.78, BG_THR:0.22, edgeDilR:0,  gfR:0,  gfEps:0,       holeThr:0.25, morphClose:3, morphOpen:1 },
+    darkScreenshot:{ isScreenshot:true,  pipeline:'binary',  FG_THR:0.70, BG_THR:0.30, edgeDilR:0,  gfR:0,  gfEps:0,       holeThr:0.25, morphClose:2, morphOpen:1 },
+    document:      { isScreenshot:true,  pipeline:'binary',  FG_THR:0.75, BG_THR:0.25, edgeDilR:0,  gfR:0,  gfEps:0,       holeThr:0.20, morphClose:2, morphOpen:1 },
+    logo:          { isScreenshot:true,  pipeline:'binary',  FG_THR:0.68, BG_THR:0.32, edgeDilR:0,  gfR:0,  gfEps:0,       holeThr:0.18, morphClose:2, morphOpen:1 },
+    selfie:        { isScreenshot:false, pipeline:'portrait', FG_THR:0.88, BG_THR:0.10, edgeDilR:10, gfR:14, gfEps:0.003,   holeThr:0.31, morphClose:1, morphOpen:0 },
+    portrait:      { isScreenshot:false, pipeline:'portrait', FG_THR:0.87, BG_THR:0.11, edgeDilR:8,  gfR:12, gfEps:0.004,   holeThr:0.31, morphClose:1, morphOpen:0 },
+    product:       { isScreenshot:false, pipeline:'product',  FG_THR:0.90, BG_THR:0.10, edgeDilR:3,  gfR:8,  gfEps:0.001,   holeThr:0.22, morphClose:1, morphOpen:0 },
+    metallic:      { isScreenshot:false, pipeline:'product',  FG_THR:0.88, BG_THR:0.12, edgeDilR:4,  gfR:6,  gfEps:0.0005,  holeThr:0.18, morphClose:1, morphOpen:0 },
+    anime:         { isScreenshot:false, pipeline:'photo',    FG_THR:0.82, BG_THR:0.18, edgeDilR:4,  gfR:6,  gfEps:0.008,   holeThr:0.28, morphClose:1, morphOpen:0 },
+    dark:          { isScreenshot:false, pipeline:'photo',    FG_THR:0.83, BG_THR:0.17, edgeDilR:6,  gfR:10, gfEps:0.004,   holeThr:0.28, morphClose:1, morphOpen:0 },
+    photo:         { isScreenshot:false, pipeline:'photo',    FG_THR:0.86, BG_THR:0.13, edgeDilR:6,  gfR:10, gfEps:0.004,   holeThr:0.28, morphClose:1, morphOpen:0 },
   };
 
   var _sessions   = {};
   var _ortReady   = false;
   var _ortPromise = null;
 
-  // ── Tiny utilities ────────────────────────────────────────────────────────
+  // ── Tiny utilities ─────────────────────────────────────────────────────
   function clamp(v, lo, hi)  { return v < lo ? lo : v > hi ? hi : v; }
   function clampF(v)         { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function yieldMain()       { return new Promise(function (r) { setTimeout(r, 0); }); }
@@ -114,7 +176,7 @@
   // ══════════════════════════════════════════════════════════════════════════
   function idbOpen() {
     return new Promise(function (resolve, reject) {
-      var req = indexedDB.open('bge-model-cache', 5);
+      var req = indexedDB.open('bge-model-cache', 6);
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
         if (!db.objectStoreNames.contains('models')) db.createObjectStore('models');
@@ -183,22 +245,33 @@
         for (var ci2 = 0; ci2 < chunks.length; ci2++) { merged.set(chunks[ci2], off); off += chunks[ci2].length; }
         await cacheSet(cfg.cacheKey, merged.buffer);
         return merged.buffer;
-      } catch (e) { lastErr = e; console.warn('[BgAI v5] fetch failed:', cfg.urls[ui], e.message); }
+      } catch (e) { lastErr = e; console.warn('[BgAI v6] fetch failed:', cfg.urls[ui], e.message); }
     }
     throw lastErr || new Error('All model URLs failed');
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  SESSION FACTORY
+  //  SESSION FACTORY + MODEL TIER SELECTION
   // ══════════════════════════════════════════════════════════════════════════
-  function detectTier(opts) {
-    if (opts && opts.qualityMode === 'ultra') return 'standard';
-    if (opts && opts.qualityMode === 'lite')  return 'lite';
-    var mob   = isMobileUA();
-    var cores = navigator.hardwareConcurrency || 2;
-    var ram   = navigator.deviceMemory || 0;
-    if (mob || cores <= 2 || (ram > 0 && ram < 3)) return 'lite';
-    return 'standard';
+
+  // selectTier: choose model based on image mode, quality setting, device
+  function selectTier(imageMode, qualityMode, forceMob) {
+    var mob = forceMob || isMobileUA();
+    if (mob) return 'lite';
+
+    var cfg = PIPELINE_CFG[imageMode] || PIPELINE_CFG.photo;
+
+    // Screenshots / binary-path modes don't need large models —
+    // the Otsu pipeline extracts quality from contrast not model detail.
+    if (cfg.isScreenshot) return 'lite';
+
+    // Ultra mode: use best available specialist
+    if (qualityMode === 'ultra') {
+      if (imageMode === 'selfie' || imageMode === 'portrait') return 'modnet';
+      return 'birefnet';
+    }
+    if (qualityMode === 'lite') return 'lite';
+    return 'standard'; // 'hd' and 'auto'
   }
 
   async function getSession(tier, onProgress) {
@@ -219,7 +292,7 @@
           enableMemPattern: false,
         });
         break;
-      } catch (e) { lastErr = e; console.warn('[BgAI v5] session failed:', provSets[pi], e.message); }
+      } catch (e) { lastErr = e; console.warn('[BgAI v6] session failed:', provSets[pi], e.message); }
     }
     if (!session) throw lastErr || new Error('Cannot create ONNX session');
     _sessions[tier] = session;
@@ -227,11 +300,27 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  IMAGE MODE CLASSIFICATION (10 modes, 6 features)
-  //  Determines: screenshot (hard binary pipeline) vs photo (guided filter)
+  //  ENHANCED IMAGE CLASSIFIER v2.0
+  //  12 features → 12 categories
+  //
+  //  Features:
+  //   1. flatR          — fraction of flat (low-variance) regions → UI indicator
+  //   2. edgeR          — fraction of high-variance (edge) regions
+  //   3. textLineR      — horizontal luminance step density → text proxy
+  //   4. skinR          — skin-tone pixel ratio → portrait/selfie indicator
+  //   5. darkR          — dark pixel ratio
+  //   6. avgSat         — average saturation
+  //   7. lumVar         — global luminance variance
+  //   8. hueSpread      — hue entropy (anime = low, natural = high)
+  //   9. aspectScore    — portrait phone aspect ratio (H>1.7W) → screenshot hint
+  //  10. uiBarScore     — strong horizontal band near top+bottom → UI chrome
+  //  11. gradOverlay    — gradient band near bottom → social media overlay
+  //  12. iconDensity    — repeating small high-contrast regions → icon grid
   // ══════════════════════════════════════════════════════════════════════════
   function classifyImageMode(pixelData, W, H) {
     var step = Math.max(2, Math.round(Math.sqrt(W * H / 2000)));
+
+    // Counters
     var flatCnt = 0, edgeCnt = 0, textLineCnt = 0;
     var skinCnt = 0, darkCnt = 0, total = 0;
     var satSum = 0, lumSum = 0, lumSqSum = 0;
@@ -275,7 +364,7 @@
         total++;
       }
     }
-    if (!total) return { mode: 'photo', isScreenshot: false };
+    if (!total) return { mode: 'photo', isScreenshot: false, pipelineCfg: PIPELINE_CFG.photo };
 
     var flatR = flatCnt/total, edgeR = edgeCnt/total, textR = textLineCnt/total;
     var skinR = skinCnt/total, darkR = darkCnt/total;
@@ -290,27 +379,169 @@
     }
     var hueSpread = hueEnt / Math.log2(12);
 
-    // Screenshot: flat + text-edges OR flat + low-sat OR text-heavy
-    var isScreenshot = (flatR>0.42 && (edgeR>0.04||textR>0.03))
-                    || (flatR>0.60 && avgSat<0.20)
-                    || textR>0.08;
-    if (isScreenshot) return { mode: 'screenshot', isScreenshot: true };
+    // ── Feature 9: Portrait phone aspect ratio ────────────────────────────
+    // TikTok / Reels / Instagram screenshots are tall narrow crops
+    var aspectScore = (H > W * 1.7) ? 1.0 : (H > W * 1.4) ? 0.5 : 0.0;
 
-    if (darkR>0.55&&avgLum<80)            return { mode: 'dark',     isScreenshot: false };
-    if (hueSpread>0.72&&flatR>0.30&&lumVar<2500) return { mode: 'anime', isScreenshot: false };
-    if (skinR>0.18)                        return { mode: 'selfie',   isScreenshot: false };
-    if (skinR>0.07)                        return { mode: 'portrait', isScreenshot: false };
-    if (avgSat<0.18&&lumVar>3500&&darkR<0.30) return { mode: 'metallic', isScreenshot: false };
-    if (avgLum>190&&avgSat<0.10&&textR>0.02) return { mode: 'document', isScreenshot: true };
-    if (avgLum>150&&avgSat>0.15)           return { mode: 'product',  isScreenshot: false };
-    if (flatR>0.45&&hueSpread<0.40)        return { mode: 'logo',     isScreenshot: false };
-    return { mode: 'photo', isScreenshot: false };
+    // ── Feature 10: UI bar score ──────────────────────────────────────────
+    // Strong uniform horizontal bands in top 8% and bottom 8% → navigation chrome
+    var topH    = Math.max(2, Math.floor(H * 0.08));
+    var botY    = H - topH;
+    var topFlat = 0, topTotal = 0, botFlat = 0, botTotal = 0;
+    var bStep2  = Math.max(1, Math.floor(step / 2));
+    for (var uy = 0; uy < topH; uy += bStep2) {
+      for (var ux = 2; ux < W - 2; ux += bStep2) {
+        var uk4 = (uy*W+ux)*4;
+        var uls=0, ulsq=0;
+        for (var udy=-1; udy<=1; udy++) {
+          for (var udx=-2; udx<=2; udx++) {
+            var ubr=(pixelData[((uy+udy)*W+(ux+udx))*4]*77+pixelData[((uy+udy)*W+(ux+udx))*4+1]*150+pixelData[((uy+udy)*W+(ux+udx))*4+2]*29)>>8;
+            uls+=ubr; ulsq+=ubr*ubr;
+          }
+        }
+        var ulm=uls/15, ulv=ulsq/15-ulm*ulm;
+        if(ulv<80) topFlat++;
+        topTotal++;
+      }
+    }
+    for (var by = botY; by < H; by += bStep2) {
+      for (var bx = 2; bx < W - 2; bx += bStep2) {
+        var bls=0, blsq=0;
+        for (var bdy=-1; bdy<=1; bdy++) {
+          for (var bdx=-2; bdx<=2; bdx++) {
+            var ny2=by+bdy, nx2=bx+bdx;
+            if(ny2<0||ny2>=H||nx2<0||nx2>=W) continue;
+            var bbr=(pixelData[(ny2*W+nx2)*4]*77+pixelData[(ny2*W+nx2)*4+1]*150+pixelData[(ny2*W+nx2)*4+2]*29)>>8;
+            bls+=bbr; blsq+=bbr*bbr;
+          }
+        }
+        var blm=bls/15, blv=blsq/15-blm*blm;
+        if(blv<80) botFlat++;
+        botTotal++;
+      }
+    }
+    var topFlatR = topTotal>0 ? topFlat/topTotal : 0;
+    var botFlatR = botTotal>0 ? botFlat/botTotal : 0;
+    var uiBarScore = (topFlatR + botFlatR) / 2;
+
+    // ── Feature 11: Gradient overlay score ───────────────────────────────
+    // Social media often has a semi-transparent gradient in bottom 20%
+    // Detect by checking if bottom strip avg brightness is lower than mid
+    var midY = Math.floor(H * 0.4), midYEnd = Math.floor(H * 0.6);
+    var gradY = Math.floor(H * 0.8);
+    var midLum = 0, midN = 0, gradLum = 0, gradN = 0;
+    var gStep = Math.max(2, step * 2);
+    for (var gy = midY; gy < midYEnd; gy += gStep) {
+      for (var gx = 0; gx < W; gx += gStep) {
+        midLum += (pixelData[(gy*W+gx)*4]*77+pixelData[(gy*W+gx)*4+1]*150+pixelData[(gy*W+gx)*4+2]*29)>>8;
+        midN++;
+      }
+    }
+    for (var gy2 = gradY; gy2 < H; gy2 += gStep) {
+      for (var gx2 = 0; gx2 < W; gx2 += gStep) {
+        gradLum += (pixelData[(gy2*W+gx2)*4]*77+pixelData[(gy2*W+gx2)*4+1]*150+pixelData[(gy2*W+gx2)*4+2]*29)>>8;
+        gradN++;
+      }
+    }
+    var gradOverlay = 0;
+    if (midN>0 && gradN>0) {
+      var midAvg = midLum/midN, gradAvg = gradLum/gradN;
+      // Gradient overlay: bottom is significantly darker than middle
+      gradOverlay = clampF((midAvg - gradAvg) / 80);
+    }
+
+    // ── Feature 12: Icon density proxy ───────────────────────────────────
+    // Count small isolated high-contrast regions (3-10px) = icon-like structures
+    // Approximation: count pixels with very high local variance but low
+    // neighbourhood variance (isolated blobs = icons)
+    var iconCnt = 0;
+    var iconStep = Math.max(4, step * 2);
+    for (var iy = 4; iy < H - 4; iy += iconStep) {
+      for (var ix = 4; ix < W - 4; ix += iconStep) {
+        var i4 = (iy*W+ix)*4;
+        var localV = 0;
+        // 3×3 variance
+        var sv=0, svq=0;
+        for (var idy=-1; idy<=1; idy++) {
+          for (var idx2=-1; idx2<=1; idx2++) {
+            var ibr=(pixelData[((iy+idy)*W+(ix+idx2))*4]*77+pixelData[((iy+idy)*W+(ix+idx2))*4+1]*150+pixelData[((iy+idy)*W+(ix+idx2))*4+2]*29)>>8;
+            sv+=ibr; svq+=ibr*ibr;
+          }
+        }
+        localV = svq/9 - (sv/9)*(sv/9);
+        // 9×9 variance
+        var sv9=0, svq9=0, cn9=0;
+        for (var idy2=-4; idy2<=4; idy2++) {
+          for (var idx3=-4; idx3<=4; idx3++) {
+            var ny3=iy+idy2, nx3=ix+idx3;
+            if(ny3<0||ny3>=H||nx3<0||nx3>=W) continue;
+            var ibr2=(pixelData[(ny3*W+nx3)*4]*77+pixelData[(ny3*W+nx3)*4+1]*150+pixelData[(ny3*W+nx3)*4+2]*29)>>8;
+            sv9+=ibr2; svq9+=ibr2*ibr2; cn9++;
+          }
+        }
+        var wideV = cn9>0 ? svq9/cn9 - (sv9/cn9)*(sv9/cn9) : 0;
+        // High local variance, moderate wide variance = isolated feature = icon-like
+        if (localV > 800 && wideV < 1200 && wideV > 50) iconCnt++;
+      }
+    }
+    var iconTotal = Math.max(1, Math.floor((H/iconStep) * (W/iconStep)));
+    var iconDensity = iconCnt / iconTotal;
+
+    // ── Decision tree ─────────────────────────────────────────────────────
+
+    // Screenshot signals: flat + text, OR flat + low-sat, OR text-heavy,
+    //                     OR portrait-aspect + UI bars + social overlay
+    var isScreenshotBasic = (flatR>0.42 && (edgeR>0.04||textR>0.03))
+                         || (flatR>0.60 && avgSat<0.20)
+                         || textR>0.08;
+
+    // Social media screenshot: portrait aspect + UI bars + gradient overlay
+    var isSocialScreenshot = aspectScore >= 0.5
+                          && (uiBarScore > 0.55 || gradOverlay > 0.35 || iconDensity > 0.12);
+
+    // Dark-mode screenshot: very dark + flat + text edges
+    var isDarkScreenshot = darkR>0.60 && avgLum<70 && (flatR>0.35 || textR>0.04);
+
+    if (isDarkScreenshot && (isScreenshotBasic || isSocialScreenshot)) {
+      return { mode: 'darkScreenshot', isScreenshot: true, pipelineCfg: PIPELINE_CFG.darkScreenshot };
+    }
+    if (isScreenshotBasic || isSocialScreenshot) {
+      return { mode: 'screenshot', isScreenshot: true, pipelineCfg: PIPELINE_CFG.screenshot };
+    }
+
+    if (avgLum>190&&avgSat<0.10&&textR>0.02&&flatR>0.50) {
+      return { mode: 'document', isScreenshot: true, pipelineCfg: PIPELINE_CFG.document };
+    }
+
+    if (darkR>0.55&&avgLum<80) {
+      return { mode: 'dark', isScreenshot: false, pipelineCfg: PIPELINE_CFG.dark };
+    }
+    if (hueSpread>0.72&&flatR>0.30&&lumVar<2500) {
+      return { mode: 'anime', isScreenshot: false, pipelineCfg: PIPELINE_CFG.anime };
+    }
+
+    // Selfie: high skin + portrait aspect OR high skin + center-biased
+    if (skinR>0.22 || (skinR>0.14 && aspectScore>0)) {
+      return { mode: 'selfie', isScreenshot: false, pipelineCfg: PIPELINE_CFG.selfie };
+    }
+    if (skinR>0.07) {
+      return { mode: 'portrait', isScreenshot: false, pipelineCfg: PIPELINE_CFG.portrait };
+    }
+
+    if (avgSat<0.18&&lumVar>3500&&darkR<0.30) {
+      return { mode: 'metallic', isScreenshot: false, pipelineCfg: PIPELINE_CFG.metallic };
+    }
+    if (avgLum>150&&avgSat>0.15) {
+      return { mode: 'product', isScreenshot: false, pipelineCfg: PIPELINE_CFG.product };
+    }
+    if (flatR>0.45&&hueSpread<0.40) {
+      return { mode: 'logo', isScreenshot: true, pipelineCfg: PIPELINE_CFG.logo };
+    }
+    return { mode: 'photo', isScreenshot: false, pipelineCfg: PIPELINE_CFG.photo };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   //  LETTERBOX PAD (aspect-ratio preserving for inference)
-  //  Pads the shorter axis so the image fits in inputSize×inputSize square.
-  //  Records offX/offY/sw/sh so the mask can be unpadded precisely.
   // ══════════════════════════════════════════════════════════════════════════
   function letterboxCanvas(src, W, H, inputSize) {
     var scale = inputSize / Math.max(W, H);
@@ -321,7 +552,7 @@
     var lc    = document.createElement('canvas');
     lc.width  = inputSize; lc.height = inputSize;
     var lctx  = lc.getContext('2d');
-    lctx.fillStyle = 'rgb(128,128,128)'; // neutral pad
+    lctx.fillStyle = 'rgb(128,128,128)';
     lctx.fillRect(0, 0, inputSize, inputSize);
     lctx.drawImage(src, offX, offY, sw, sh);
     return { canvas: lc, sw: sw, sh: sh, offX: offX, offY: offY };
@@ -339,9 +570,22 @@
     return buf;
   }
 
-  // Extract float confidence [0,1] from raw model mask.
-  // Crops the letterbox padding and scales to targetW×targetH.
-  // Returns Float32Array — NO threshold, NO contour sharpening.
+  // Extract raw model data, optionally applying sigmoid (for models outputting logits)
+  function extractRawData(results, session, cfg, maskSize) {
+    var raw = results[session.outputNames[0]].data;
+    if (!cfg.outputSigmoid) return raw;
+    // Check if sigmoid needed: logit values typically outside [0,1]
+    var needSig = false;
+    for (var i = 0; i < Math.min(raw.length, 200); i++) {
+      if (raw[i] > 1.1 || raw[i] < -0.1) { needSig = true; break; }
+    }
+    if (!needSig) return raw;
+    var out = new Float32Array(raw.length);
+    for (var j = 0; j < raw.length; j++) out[j] = 1.0 / (1.0 + Math.exp(-raw[j]));
+    return out;
+  }
+
+  // Extract float confidence [0,1] — crops letterbox, scales to targetW×targetH
   function extractConfidence(rawMask, maskSize, targetW, targetH, lb) {
     var mn = maskSize * maskSize;
     var mc = document.createElement('canvas');
@@ -349,11 +593,9 @@
     var mctx = mc.getContext('2d');
     var mImg = mctx.createImageData(maskSize, maskSize);
     for (var i = 0; i < mn; i++) {
-      var v = clamp(Math.round(rawMask[i] * 255), 0, 255);
-      mImg.data[i*4]     = v;
-      mImg.data[i*4 + 1] = v;
-      mImg.data[i*4 + 2] = v;
-      mImg.data[i*4 + 3] = 255;
+      var v = clamp(Math.round(clampF(rawMask[i]) * 255), 0, 255);
+      mImg.data[i*4] = mImg.data[i*4+1] = mImg.data[i*4+2] = v;
+      mImg.data[i*4+3] = 255;
     }
     mctx.putImageData(mImg, 0, 0);
 
@@ -362,7 +604,6 @@
     var tctx = tc.getContext('2d');
     tctx.imageSmoothingEnabled = true;
     tctx.imageSmoothingQuality = 'high';
-    // Crop letterbox padding, scale directly to target
     tctx.drawImage(mc, lb.offX, lb.offY, lb.sw, lb.sh, 0, 0, targetW, targetH);
     mc.width = 0; mc.height = 0;
 
@@ -374,11 +615,7 @@
     return conf;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  GRAYSCALE GUIDE EXTRACTION
-  //  Uses browser bilinear scaling via canvas (GPU-accelerated).
-  //  Returns Float32Array luminance [0,1] at targetW×targetH.
-  // ══════════════════════════════════════════════════════════════════════════
+  // ── Grayscale guide (luminance) ────────────────────────────────────────
   function imgToGray(imgEl, targetW, targetH) {
     var tc = document.createElement('canvas');
     tc.width = targetW; tc.height = targetH;
@@ -390,16 +627,34 @@
     tc.width = 0; tc.height = 0;
     var gray = new Float32Array(targetW * targetH);
     for (var i = 0; i < gray.length; i++) {
-      // ITU-R BT.601 luminance
       gray[i] = (px[i*4]*0.299 + px[i*4+1]*0.587 + px[i*4+2]*0.114) / 255;
     }
     return gray;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  BILINEAR UPSAMPLE Float32 array via canvas
-  //  Used to scale refined alpha from GF resolution back to full resolution.
-  // ══════════════════════════════════════════════════════════════════════════
+  // ── RGB pixel extraction (for color-guided filter) ────────────────────
+  function imgToRGB(imgEl, targetW, targetH) {
+    var tc = document.createElement('canvas');
+    tc.width = targetW; tc.height = targetH;
+    var tctx = tc.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(imgEl, 0, 0, imgEl.naturalWidth, imgEl.naturalHeight, 0, 0, targetW, targetH);
+    var px  = tctx.getImageData(0, 0, targetW, targetH).data;
+    tc.width = 0; tc.height = 0;
+    var N   = targetW * targetH;
+    var r   = new Float32Array(N);
+    var g   = new Float32Array(N);
+    var b   = new Float32Array(N);
+    for (var i = 0; i < N; i++) {
+      r[i] = px[i*4]   / 255;
+      g[i] = px[i*4+1] / 255;
+      b[i] = px[i*4+2] / 255;
+    }
+    return { r: r, g: g, b: b };
+  }
+
+  // ── Bilinear upsample Float32 array via canvas ─────────────────────────
   function upsampleFloat(arr, srcW, srcH, dstW, dstH) {
     var sc = document.createElement('canvas');
     sc.width = srcW; sc.height = srcH;
@@ -407,13 +662,10 @@
     var img  = sctx.createImageData(srcW, srcH);
     for (var i = 0; i < arr.length; i++) {
       var v = clamp(Math.round(arr[i] * 255), 0, 255);
-      img.data[i*4]     = v;
-      img.data[i*4 + 1] = v;
-      img.data[i*4 + 2] = v;
-      img.data[i*4 + 3] = 255;
+      img.data[i*4] = img.data[i*4+1] = img.data[i*4+2] = v;
+      img.data[i*4+3] = 255;
     }
     sctx.putImageData(img, 0, 0);
-
     var tc = document.createElement('canvas');
     tc.width = dstW; tc.height = dstH;
     var tctx = tc.getContext('2d');
@@ -421,19 +673,17 @@
     tctx.imageSmoothingQuality = 'high';
     tctx.drawImage(sc, 0, 0, srcW, srcH, 0, 0, dstW, dstH);
     sc.width = 0; sc.height = 0;
-
     var px  = tctx.getImageData(0, 0, dstW, dstH).data;
     tc.width = 0; tc.height = 0;
-
     var out = new Float32Array(dstW * dstH);
     for (var j = 0; j < out.length; j++) out[j] = px[j * 4] / 255;
     return out;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  SOBEL EDGE DETECTION (from grayscale float array)
-  //  Returns Float32Array of edge magnitude [0,1].
-  //  Used to extend the trimap unknown zone near strong edges.
+  //  SOBEL EDGE DETECTION
+  //  Returns Float32Array edge magnitude [0,1] from grayscale float array.
+  //  Used for trimap dilation AND multi-scale GF edge-blend weights.
   // ══════════════════════════════════════════════════════════════════════════
   function sobelEdges(gray, W, H) {
     var edges = new Float32Array(W * H);
@@ -453,15 +703,16 @@
 
   // ══════════════════════════════════════════════════════════════════════════
   //  TRIMAP GENERATION
-  //  Divides image into definite FG (255), definite BG (0), unknown (128).
-  //  Extends unknown zone by EDGE_DILATION pixels near strong Sobel edges
-  //  to ensure hair, fur, and fine structures fall in the unknown region
-  //  and get refined by the guided filter (not hard-clamped to BG).
+  //  conf > FG_THR → definite FG (255)
+  //  conf < BG_THR → definite BG (0)
+  //  else          → unknown (128)
+  //
+  //  edgeDilR = 0: no dilation (screenshot binary path — no extension needed)
+  //  edgeDilR > 0: dilate unknown zone near Sobel edges (captures hair/fur)
   // ══════════════════════════════════════════════════════════════════════════
-  function generateTrimap(conf, edges, W, H, FG_THR, BG_THR) {
-    var N   = W * H;
-    var tm  = new Uint8Array(N);
-    var R   = 5; // edge dilation radius (pixels at GF resolution)
+  function generateTrimap(conf, edges, W, H, FG_THR, BG_THR, edgeDilR) {
+    var N  = W * H;
+    var tm = new Uint8Array(N);
 
     for (var i = 0; i < N; i++) {
       if      (conf[i] > FG_THR) tm[i] = 255;
@@ -469,18 +720,19 @@
       else                       tm[i] = 128;
     }
 
+    if (edgeDilR <= 0 || !edges) return tm;
+
     // Extend unknown zone near strong edges
-    var ext = new Uint8Array(N); // pixels to convert to unknown
+    var ext = new Uint8Array(N);
     for (var y = 0; y < H; y++) {
       for (var x = 0; x < W; x++) {
         var ci = y * W + x;
-        if (edges[ci] > 0.14 && tm[ci] !== 128) {
-          var y1 = Math.max(0, y - R), y2 = Math.min(H - 1, y + R);
-          var x1 = Math.max(0, x - R), x2 = Math.min(W - 1, x + R);
+        if (edges[ci] > 0.12 && tm[ci] !== 128) {
+          var y1 = Math.max(0, y - edgeDilR), y2 = Math.min(H - 1, y + edgeDilR);
+          var x1 = Math.max(0, x - edgeDilR), x2 = Math.min(W - 1, x + edgeDilR);
           for (var ny = y1; ny <= y2; ny++) {
             for (var nx = x1; nx <= x2; nx++) {
-              var ni = ny * W + nx;
-              if (tm[ni] !== 128) ext[ni] = 1;
+              if (tm[ny*W+nx] !== 128) ext[ny*W+nx] = 1;
             }
           }
         }
@@ -491,8 +743,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  SUMMED AREA TABLE (integral image) — O(N) box filtering
-  //  Uses (W+1)×(H+1) 1-indexed table with zero-padded first row/col.
+  //  SUMMED AREA TABLE (integral image) — O(N) box filter
   // ══════════════════════════════════════════════════════════════════════════
   function buildSAT(arr, W, H) {
     var W1 = W + 1;
@@ -517,7 +768,6 @@
         var xa = Math.max(0, x - r),     xb = Math.min(W - 1, x + r);
         var ya = Math.max(0, y - r),     yb = Math.min(H - 1, y + r);
         var cnt = (xb - xa + 1) * (yb - ya + 1);
-        // SAT box sum: S[yb+1][xb+1] - S[ya][xb+1] - S[yb+1][xa] + S[ya][xa]
         var sum = S[(yb+1)*W1+(xb+1)] - S[ya*W1+(xb+1)] - S[(yb+1)*W1+xa] + S[ya*W1+xa];
         out[y*W+x] = sum / cnt;
       }
@@ -526,17 +776,8 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  GUIDED FILTER (He, Sun, Tang — CVPR 2010 / PAMI 2013)
-  //  Uses original image luminance as the guide.
-  //  Edges in the guide → large local variance → small linear coefficient →
-  //  filter output tracks input closely (edge preserved).
-  //  Uniform regions → small variance → filter smooths (noise removed).
-  //
-  //  Mathematically prevents halos: the linear model a*I+b cannot create
-  //  new edges that don't exist in the guide.
-  //
-  //  Complexity: O(N) via 8 box filters with integral images.
-  //  Memory: ~10 × Float32[N] arrays, freed progressively.
+  //  GUIDED FILTER — grayscale guide (He et al. CVPR 2010 / PAMI 2013)
+  //  O(N) via integral images. No halos possible (linear model).
   // ══════════════════════════════════════════════════════════════════════════
   function guidedFilter(guide, input, W, H, r, eps) {
     var N = W * H;
@@ -576,9 +817,71 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  COLOR-COMPONENT GUIDED FILTER
+  //  Runs the guided filter independently with R, G, and B channels as guides
+  //  then blends using perceptual luminance weights (BT.601).
+  //
+  //  Provides substantially better edge sensitivity than grayscale-only guide
+  //  for colored products (red product on white, green packaging, etc.) where
+  //  a grayscale guide would see minimal contrast at color boundaries.
+  //
+  //  Used for: product, metallic pipelines.
+  // ══════════════════════════════════════════════════════════════════════════
+  function colorComponentGuidedFilter(rgb, input, W, H, r, eps) {
+    var gfR = guidedFilter(rgb.r, input, W, H, r, eps);
+    var gfG = guidedFilter(rgb.g, input, W, H, r, eps);
+    var gfB = guidedFilter(rgb.b, input, W, H, r, eps);
+
+    var out = new Float32Array(W * H);
+    for (var i = 0; i < out.length; i++) {
+      // BT.601 perceptual weights
+      out[i] = clampF(0.299 * gfR[i] + 0.587 * gfG[i] + 0.114 * gfB[i]);
+    }
+    gfR = null; gfG = null; gfB = null;
+    return out;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MULTI-SCALE GUIDED FILTER (portrait / selfie / hair pipeline)
+  //
+  //  Problem: Single-scale GF must choose between:
+  //    - Small r (e.g. 4): Preserves hair strands but leaves noisy alpha in body
+  //    - Large r (e.g. 16): Smooth body interior but smears hair edges
+  //
+  //  Solution: Run both scales, blend using edge magnitude as weight:
+  //    - High edge magnitude (hair boundaries, face edges) → fine scale (r=4)
+  //    - Low edge magnitude (interior skin, clothing body) → coarse scale (r=16)
+  //
+  //  The blend weight w = tanh(edge * edgeScale) smoothly interpolates.
+  //  This gives sharp individual hair strands AND clean solid body regions
+  //  simultaneously — matching remove.bg quality for portrait shots.
+  // ══════════════════════════════════════════════════════════════════════════
+  function multiScaleGuidedFilter(guide, input, edges, W, H, gfR, gfEps) {
+    var fineR   = Math.max(2, Math.round(gfR * 0.30));   // e.g. r=14 → fine=4
+    var coarseR = Math.round(gfR * 1.25);                 // e.g. r=14 → coarse=17
+
+    var fineEps   = gfEps * 0.5;
+    var coarseEps = gfEps * 3.0;
+
+    var fine   = guidedFilter(guide, input, W, H, fineR,   fineEps);
+    var coarse = guidedFilter(guide, input, W, H, coarseR, coarseEps);
+
+    var out    = new Float32Array(W * H);
+    var SCALE  = 6.0; // controls how sharply the blend transitions at edges
+
+    for (var i = 0; i < out.length; i++) {
+      // Edge weight: high edge → blend toward fine scale, interior → coarse
+      var ew  = clampF(Math.tanh(edges[i] * SCALE));
+      out[i]  = clampF(ew * fine[i] + (1.0 - ew) * coarse[i]);
+    }
+    fine = null; coarse = null;
+    return out;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  OTSU THRESHOLD
-  //  Finds optimal binary threshold from confidence histogram.
-  //  Used exclusively in screenshot mode for clean binary segmentation.
+  //  Optimal binary threshold from confidence histogram.
+  //  Used exclusively in screenshot / binary path.
   // ══════════════════════════════════════════════════════════════════════════
   function otsuThreshold(conf, N) {
     var hist = new Int32Array(256);
@@ -601,11 +904,9 @@
 
   // ══════════════════════════════════════════════════════════════════════════
   //  MORPHOLOGICAL OPERATIONS
-  //  3×3 structuring element (8-connected), iterable for larger effective radius.
-  //  These operate on Float32 arrays [0,1].
-  //
-  //  close(r) = dilate(r) then erode(r): fills thin gaps in FG (fingers, cables)
-  //  open(r)  = erode(r) then dilate(r): removes BG noise specks near edges
+  //  3×3 structuring element (8-connected).
+  //  close(r) = dilate(r) + erode(r) : fills thin FG gaps
+  //  open(r)  = erode(r) + dilate(r) : removes BG noise specks
   // ══════════════════════════════════════════════════════════════════════════
   function morphDilate3(alpha, W, H) {
     var N = W * H, out = new Float32Array(N);
@@ -613,14 +914,14 @@
       for (var x = 0; x < W; x++) {
         var i  = y * W + x;
         var mx = alpha[i];
-        if (x > 0)       { var v=alpha[i-1];   if(v>mx) mx=v; }
-        if (x < W-1)     { var v=alpha[i+1];   if(v>mx) mx=v; }
-        if (y > 0)       { var v=alpha[i-W];   if(v>mx) mx=v; }
-        if (y < H-1)     { var v=alpha[i+W];   if(v>mx) mx=v; }
-        if (x>0&&y>0)    { var v=alpha[i-W-1]; if(v>mx) mx=v; }
-        if (x<W-1&&y>0)  { var v=alpha[i-W+1]; if(v>mx) mx=v; }
-        if (x>0&&y<H-1)  { var v=alpha[i+W-1]; if(v>mx) mx=v; }
-        if (x<W-1&&y<H-1){ var v=alpha[i+W+1]; if(v>mx) mx=v; }
+        if (x > 0)         { var v=alpha[i-1];   if(v>mx)mx=v; }
+        if (x < W-1)       { var v=alpha[i+1];   if(v>mx)mx=v; }
+        if (y > 0)         { var v=alpha[i-W];   if(v>mx)mx=v; }
+        if (y < H-1)       { var v=alpha[i+W];   if(v>mx)mx=v; }
+        if (x>0&&y>0)      { var v=alpha[i-W-1]; if(v>mx)mx=v; }
+        if (x<W-1&&y>0)    { var v=alpha[i-W+1]; if(v>mx)mx=v; }
+        if (x>0&&y<H-1)    { var v=alpha[i+W-1]; if(v>mx)mx=v; }
+        if (x<W-1&&y<H-1)  { var v=alpha[i+W+1]; if(v>mx)mx=v; }
         out[i] = mx;
       }
     }
@@ -633,14 +934,14 @@
       for (var x = 0; x < W; x++) {
         var i  = y * W + x;
         var mn = alpha[i];
-        if (x > 0)       { var v=alpha[i-1];   if(v<mn) mn=v; }
-        if (x < W-1)     { var v=alpha[i+1];   if(v<mn) mn=v; }
-        if (y > 0)       { var v=alpha[i-W];   if(v<mn) mn=v; }
-        if (y < H-1)     { var v=alpha[i+W];   if(v<mn) mn=v; }
-        if (x>0&&y>0)    { var v=alpha[i-W-1]; if(v<mn) mn=v; }
-        if (x<W-1&&y>0)  { var v=alpha[i-W+1]; if(v<mn) mn=v; }
-        if (x>0&&y<H-1)  { var v=alpha[i+W-1]; if(v<mn) mn=v; }
-        if (x<W-1&&y<H-1){ var v=alpha[i+W+1]; if(v<mn) mn=v; }
+        if (x > 0)         { var v=alpha[i-1];   if(v<mn)mn=v; }
+        if (x < W-1)       { var v=alpha[i+1];   if(v<mn)mn=v; }
+        if (y > 0)         { var v=alpha[i-W];   if(v<mn)mn=v; }
+        if (y < H-1)       { var v=alpha[i+W];   if(v<mn)mn=v; }
+        if (x>0&&y>0)      { var v=alpha[i-W-1]; if(v<mn)mn=v; }
+        if (x<W-1&&y>0)    { var v=alpha[i-W+1]; if(v<mn)mn=v; }
+        if (x>0&&y<H-1)    { var v=alpha[i+W-1]; if(v<mn)mn=v; }
+        if (x<W-1&&y<H-1)  { var v=alpha[i+W+1]; if(v<mn)mn=v; }
         out[i] = mn;
       }
     }
@@ -663,10 +964,7 @@
 
   // ══════════════════════════════════════════════════════════════════════════
   //  8-CONNECTED HOLE FILL (BFS from image border)
-  //  Any transparent pixel NOT reachable from the border is interior → FG.
-  //  threshold: pixels BELOW this float value are "hole candidates".
-  //  Raised from 0.15 (v3) to 0.31 to catch semi-transparent interiors
-  //  (glasses lenses, reflective surfaces, transparent clothing).
+  //  Any transparent pixel not reachable from the border = interior hole → FG.
   // ══════════════════════════════════════════════════════════════════════════
   function holeFill8(alpha, W, H, threshold) {
     threshold = threshold !== undefined ? threshold : 0.31;
@@ -695,23 +993,20 @@
     }
     var filled = new Float32Array(alpha);
     for (var i = 0; i < N; i++) {
-      if (alpha[i]<threshold&&!reach[i]) filled[i]=0.9; // interior → FG
+      if (alpha[i]<threshold&&!reach[i]) filled[i]=0.9;
     }
     return filled;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   //  TRIMAP HARD ENFORCEMENT
-  //  Definite zones from the trimap are NEVER modified by any refinement stage.
-  //  This is the mathematical guarantee that prevents:
-  //   - false FG locks (old buildFgLock issue)
-  //   - alpha inflation bleeding into BG regions
-  //   - hair/edge destruction by interior passes
+  //  Definite FG/BG zones are IMMUTABLE — no refinement stage can override.
+  //  This is the mathematical guarantee preventing alpha inflation / destruction.
   // ══════════════════════════════════════════════════════════════════════════
   function enforceTrimapHard(alpha, conf, N, FG_THR, BG_THR) {
     for (var i = 0; i < N; i++) {
-      if (conf[i] > FG_THR) alpha[i] = 1.0;  // definite FG: always fully opaque
-      if (conf[i] < BG_THR) alpha[i] = 0.0;  // definite BG: always fully transparent
+      if (conf[i] > FG_THR) alpha[i] = 1.0;
+      if (conf[i] < BG_THR) alpha[i] = 0.0;
     }
   }
 
@@ -726,27 +1021,26 @@
       else if (a > 0.20) softFg++;
       else               bg++;
     }
-    var fgR     = (solidFg + softFg) / N;
-    var solidR  = solidFg / (solidFg + softFg + 1);
-    console.log('[BgAI v5] ' + label + ': FG=' + (fgR*100).toFixed(1) + '% solid=' + (solidR*100).toFixed(1) + '%');
-    if (fgR < 0.01) console.warn('[BgAI v5] WARN: nearly empty foreground');
-    if (fgR > 0.97) console.warn('[BgAI v5] WARN: background not removed');
+    var fgR    = (solidFg + softFg) / N;
+    var solidR = solidFg / (solidFg + softFg + 1);
+    console.log('[BgAI v6] ' + label + ': FG=' + (fgR*100).toFixed(1) + '% solid=' + (solidR*100).toFixed(1) + '%');
+    if (fgR < 0.01) console.warn('[BgAI v6] WARN: nearly empty foreground');
+    if (fgR > 0.97) console.warn('[BgAI v6] WARN: background not removed');
     return { fgR: fgR, solidR: solidR };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   //  INFERENCE: WHOLE IMAGE
-  //  Returns { confGF, confFull } — float confidence at GF res and full res.
   // ══════════════════════════════════════════════════════════════════════════
   async function inferWhole(session, cfg, img, W, H, gfW, gfH) {
-    var lb  = letterboxCanvas(img, W, H, cfg.inputSize);
-    var buf = toTensor(lb.canvas, cfg.inputSize, cfg.mean, cfg.std);
+    var lb     = letterboxCanvas(img, W, H, cfg.inputSize);
+    var buf    = toTensor(lb.canvas, cfg.inputSize, cfg.mean, cfg.std);
     lb.canvas.width = 0; lb.canvas.height = 0;
 
     var feeds = {};
     feeds[session.inputNames[0]] = new window.ort.Tensor('float32', buf, [1, 3, cfg.inputSize, cfg.inputSize]);
     var results  = await session.run(feeds);
-    var rawMask  = results[session.outputNames[0]].data;
+    var rawMask  = extractRawData(results, session, cfg, cfg.inputSize);
 
     var confGF   = extractConfidence(rawMask, cfg.inputSize, gfW, gfH, lb);
     var confFull = extractConfidence(rawMask, cfg.inputSize, W,   H,   lb);
@@ -754,13 +1048,13 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  INFERENCE: TILED (large images — cosine-weighted multiplicative overlap)
-  //  Tile weights: wx*wy (multiplicative, not Math.min).
-  //  Eliminates rectangular seam artifacts at tile corners.
+  //  INFERENCE: TILED (large images)
+  //  Tile size: 1024 px (up from 640 in v5) for higher-resolution inference.
+  //  Cosine-weighted multiplicative overlap eliminates seam artifacts.
   // ══════════════════════════════════════════════════════════════════════════
   async function inferTiled(session, cfg, img, W, H, gfW, gfH, onProgress) {
-    var TILE    = 640;
-    var OVERLAP = clamp(Math.floor(Math.min(W, H) / 10), 48, 128);
+    var TILE    = Math.min(TILE_SIZE, cfg.inputSize);
+    var OVERLAP = clamp(Math.floor(Math.min(W, H) / 8), 64, TILE_OVERLAP);
     var STEP    = TILE - OVERLAP;
     var tilesX  = Math.max(1, Math.ceil((W - OVERLAP) / STEP));
     var tilesY  = Math.max(1, Math.ceil((H - OVERLAP) / STEP));
@@ -787,7 +1081,7 @@
         var feeds = {};
         feeds[session.inputNames[0]] = new window.ort.Tensor('float32', buf, [1, 3, cfg.inputSize, cfg.inputSize]);
         var res      = await session.run(feeds);
-        var rawMask  = res[session.outputNames[0]].data;
+        var rawMask  = extractRawData(res, session, cfg, cfg.inputSize);
         var tileConf = extractConfidence(rawMask, cfg.inputSize, tw, th, lb);
 
         var isL = tx === 0, isR = tx === tilesX - 1;
@@ -801,7 +1095,7 @@
             if (!isT && py < OVERLAP)       wy = (py + 0.5) / OVERLAP;
             if (!isB && py >= th - OVERLAP) wy = (th - py - 0.5) / OVERLAP;
             wx = clampF(wx); wy = clampF(wy);
-            var w  = wx * wy; // multiplicative — zero rectangular seam artifacts
+            var w  = wx * wy;
             var gi = (y0 + py) * W + (x0 + px);
             accConf[gi]   += tileConf[py * tw + px] * w;
             accWeight[gi] += w;
@@ -818,7 +1112,7 @@
     for (var i = 0; i < W * H; i++) {
       confFull[i] = accWeight[i] > 0 ? clampF(accConf[i] / accWeight[i]) : 0;
     }
-    var confGF = upsampleFloat(confFull, W, H, gfW, gfH); // downscale to GF res
+    var confGF = upsampleFloat(confFull, W, H, gfW, gfH);
     return { confGF: confGF, confFull: confFull };
   }
 
@@ -827,7 +1121,6 @@
   // ══════════════════════════════════════════════════════════════════════════
   async function process(file, opts, onProgress) {
     opts = opts || {};
-    var tier = detectTier(opts);
     if (onProgress) onProgress(1, 'Preparing image\u2026');
 
     // ── Load image ─────────────────────────────────────────────────────────
@@ -842,131 +1135,193 @@
     if (!W || !H) throw new Error('Image has zero dimensions');
 
     // ── Classify image mode ────────────────────────────────────────────────
-    // Read pixel data for the classifier (sampled, not full-res)
+    var clsMax = Math.min(1, 320 / Math.max(W, H));
+    var clsW = Math.max(8, Math.round(W * clsMax));
+    var clsH = Math.max(8, Math.round(H * clsMax));
     var clsC = document.createElement('canvas');
-    var clsMax = Math.min(1, 256 / Math.max(W, H));
-    var clsW = Math.round(W * clsMax), clsH = Math.round(H * clsMax);
     clsC.width = clsW; clsC.height = clsH;
-    var clsCtx = clsC.getContext('2d');
-    clsCtx.drawImage(img, 0, 0, W, H, 0, 0, clsW, clsH);
-    var clsData = clsCtx.getImageData(0, 0, clsW, clsH).data;
+    clsC.getContext('2d').drawImage(img, 0, 0, W, H, 0, 0, clsW, clsH);
+    var clsData = clsC.getContext('2d').getImageData(0, 0, clsW, clsH).data;
     clsC.width = 0; clsC.height = 0;
 
     var imageMode = classifyImageMode(clsData, clsW, clsH);
     clsData = null;
 
-    // User subject mode override
+    // User subject mode override — respects explicit user selection
     if (opts.subjectMode && opts.subjectMode !== 'auto') {
-      if (opts.subjectMode === 'logo') imageMode = { mode: 'logo', isScreenshot: true };
+      switch (opts.subjectMode) {
+        case 'portrait':
+          imageMode = { mode: 'portrait', isScreenshot: false, pipelineCfg: PIPELINE_CFG.portrait };
+          break;
+        case 'product':
+          imageMode = { mode: 'product', isScreenshot: false, pipelineCfg: PIPELINE_CFG.product };
+          break;
+        case 'logo':
+          imageMode = { mode: 'logo', isScreenshot: true, pipelineCfg: PIPELINE_CFG.logo };
+          break;
+      }
     }
-    console.log('[BgAI v5] Mode:', imageMode.mode, '| Screenshot:', imageMode.isScreenshot);
 
-    // ── Load ONNX session ──────────────────────────────────────────────────
+    var pCfg = imageMode.pipelineCfg;
+    console.log('[BgAI v6] Mode:', imageMode.mode, '| Pipeline:', pCfg.pipeline,
+                '| Screenshot:', pCfg.isScreenshot);
+
+    // ── Select and load model ──────────────────────────────────────────────
+    var tier = selectTier(imageMode.mode, opts.qualityMode || 'hd', false);
     var sessionData;
     try {
       sessionData = await getSession(tier, onProgress);
     } catch (e1) {
-      if (tier !== 'lite') {
-        console.warn('[BgAI v5] standard failed → lite:', e1.message);
-        if (onProgress) onProgress(8, 'Switching to lightweight AI\u2026');
-        sessionData = await getSession('lite', onProgress);
-      } else { throw e1; }
+      // Cascade: birefnet → standard, modnet → standard, standard → lite
+      var fallback = (tier === 'birefnet' || tier === 'modnet') ? 'standard'
+                   : (tier === 'standard') ? 'lite' : null;
+      if (fallback) {
+        console.warn('[BgAI v6]', tier, 'failed → falling back to', fallback, ':', e1.message);
+        if (onProgress) onProgress(8, 'Switching model\u2026');
+        sessionData = await getSession(fallback, onProgress);
+        tier = fallback;
+      } else {
+        throw e1;
+      }
     }
     var session = sessionData.session, cfg = sessionData.cfg;
 
     // ── Compute GF dimensions ──────────────────────────────────────────────
-    var mob       = isMobileUA();
-    var gfMaxDim  = mob ? GF_MAX_MOBILE : GF_MAX_DIM;
-    var gfScale   = Math.min(1.0, gfMaxDim / Math.max(W, H));
-    var gfW       = Math.max(8, Math.round(W * gfScale));
-    var gfH       = Math.max(8, Math.round(H * gfScale));
+    var mob      = isMobileUA();
+    var gfMaxDim = mob ? GF_MAX_MOBILE : GF_MAX_DIM;
+    var gfScale  = Math.min(1.0, gfMaxDim / Math.max(W, H));
+    var gfW      = Math.max(8, Math.round(W * gfScale));
+    var gfH      = Math.max(8, Math.round(H * gfScale));
 
     if (onProgress) onProgress(33, 'Running AI segmentation\u2026');
     await yieldMain();
 
     // ── AI Inference ───────────────────────────────────────────────────────
-    var largeImage = W > cfg.inputSize * 2.2 || H > cfg.inputSize * 2.2;
-    var useTiling  = largeImage && !mob && !imageMode.isScreenshot;
+    var largeImage = W > cfg.inputSize * 1.8 || H > cfg.inputSize * 1.8;
+    var useTiling  = largeImage && !mob && !pCfg.isScreenshot;
     var confResult;
     if (useTiling) {
       confResult = await inferTiled(session, cfg, img, W, H, gfW, gfH, onProgress);
     } else {
       confResult = await inferWhole(session, cfg, img, W, H, gfW, gfH);
     }
-    var confGF   = confResult.confGF;    // Float32[gfW*gfH] — for refinement
-    var confFull = confResult.confFull;  // Float32[W*H] — for hard constraints
+    var confGF   = confResult.confGF;
+    var confFull = confResult.confFull;
 
-    if (onProgress) onProgress(79, 'Trimap + guided filter\u2026');
+    if (onProgress) onProgress(79, 'Refining edges\u2026');
     await yieldMain();
 
-    // ── Mode-specific thresholds ───────────────────────────────────────────
-    var FG_THR = imageMode.isScreenshot ? 0.82 : 0.87;
-    var BG_THR = imageMode.isScreenshot ? 0.18 : 0.12;
-    var GF_R   = imageMode.mode === 'portrait' || imageMode.mode === 'selfie' ? 12
-               : imageMode.mode === 'anime'    ? 6
-               : imageMode.mode === 'product'  ? 8 : 10;
-    var GF_EPS = imageMode.mode === 'metallic' ? 0.002 : 0.004;
-
-    // ── Grayscale guide for guided filter ─────────────────────────────────
-    var grayGF = imgToGray(img, gfW, gfH);
-
-    // ── Sobel edges at GF resolution (for trimap extension) ───────────────
-    var edgesGF = sobelEdges(grayGF, gfW, gfH);
-
     // ── Trimap generation ──────────────────────────────────────────────────
-    var trimapGF = generateTrimap(confGF, edgesGF, gfW, gfH, FG_THR, BG_THR);
-    edgesGF = null; // free memory
+    var edgesGF = null;
+    if (!pCfg.isScreenshot && pCfg.edgeDilR > 0) {
+      var grayGFtmp = imgToGray(img, gfW, gfH);
+      edgesGF = sobelEdges(grayGFtmp, gfW, gfH);
+      grayGFtmp = null;
+    }
 
-    // ── Refinement pipeline ────────────────────────────────────────────────
+    var trimapGF = generateTrimap(confGF, edgesGF, gfW, gfH,
+                                  pCfg.FG_THR, pCfg.BG_THR, pCfg.edgeDilR);
+
+    // ── Per-pipeline refinement ────────────────────────────────────────────
     var refinedGF;
 
-    if (imageMode.isScreenshot) {
-      // ── SCREENSHOT PATH: Otsu binary → morph close/open → holeFill ──────
-      // No guided filter (would soften crisp UI edges).
-      // No feathering (screenshots must have hard pixel-perfect boundaries).
+    if (pCfg.pipeline === 'binary') {
+      // ── SCREENSHOT / DOCUMENT / LOGO / BINARY PATH ─────────────────────
+      // Otsu binary → morph close → morph open → holeFill
+      // No guided filter, no feathering.
+      // Hard pixel-perfect edges. Straight lines stay straight.
       var otsuThr = otsuThreshold(confGF, gfW * gfH);
       refinedGF   = new Float32Array(gfW * gfH);
       for (var i = 0; i < refinedGF.length; i++) {
         refinedGF[i] = confGF[i] > otsuThr ? 1.0 : 0.0;
       }
-      // Close r=2: fill sub-pixel gaps in UI text, thin borders
-      refinedGF = morphClose(refinedGF, gfW, gfH, 2);
-      // Open r=1: remove single-pixel BG specks
-      refinedGF = morphOpen(refinedGF, gfW, gfH, 1);
+      if (pCfg.morphClose > 0) refinedGF = morphClose(refinedGF, gfW, gfH, pCfg.morphClose);
+      if (pCfg.morphOpen  > 0) refinedGF = morphOpen(refinedGF,  gfW, gfH, pCfg.morphOpen);
+
+    } else if (pCfg.pipeline === 'portrait') {
+      // ── PORTRAIT / SELFIE / HAIR PATH ──────────────────────────────────
+      // Multi-scale guided filter: fine scale preserves hair strands,
+      // coarse scale fills interior body regions.
+      // Edge-magnitude blend seamlessly combines both.
+      var grayGFp = imgToGray(img, gfW, gfH);
+      if (!edgesGF) edgesGF = sobelEdges(grayGFp, gfW, gfH);
+
+      refinedGF = multiScaleGuidedFilter(grayGFp, confGF, edgesGF, gfW, gfH,
+                                          pCfg.gfR, pCfg.gfEps);
+      grayGFp = null;
+
+      // Morph close on FG region within unknown zone only
+      // (fills gaps between fingers, hair strand gaps, jewellery)
+      if (pCfg.morphClose > 0) {
+        var fgForClose = new Float32Array(gfW * gfH);
+        for (var ic = 0; ic < fgForClose.length; ic++) {
+          fgForClose[ic] = refinedGF[ic] > 0.5 ? refinedGF[ic] : 0.0;
+        }
+        var fgClosed = morphClose(fgForClose, gfW, gfH, pCfg.morphClose);
+        fgForClose = null;
+        for (var ic2 = 0; ic2 < refinedGF.length; ic2++) {
+          if (trimapGF[ic2] === 128 && fgClosed[ic2] > refinedGF[ic2]) {
+            refinedGF[ic2] = fgClosed[ic2];
+          }
+        }
+        fgClosed = null;
+      }
+
+    } else if (pCfg.pipeline === 'product') {
+      // ── PRODUCT / METALLIC PATH ─────────────────────────────────────────
+      // Color-component guided filter uses R, G, B guides separately.
+      // Far better edge preservation for colored products than grayscale guide.
+      // Low epsilon preserves sharp contours (metallic edges, packaging text).
+      var rgbP = imgToRGB(img, gfW, gfH);
+      refinedGF = colorComponentGuidedFilter(rgbP, confGF, gfW, gfH,
+                                              pCfg.gfR, pCfg.gfEps);
+      rgbP = null;
+
+      if (pCfg.morphClose > 0) {
+        var fgProd = new Float32Array(gfW * gfH);
+        for (var ip = 0; ip < fgProd.length; ip++) {
+          fgProd[ip] = refinedGF[ip] > 0.5 ? refinedGF[ip] : 0.0;
+        }
+        var fgPClosed = morphClose(fgProd, gfW, gfH, pCfg.morphClose);
+        fgProd = null;
+        for (var ip2 = 0; ip2 < refinedGF.length; ip2++) {
+          if (trimapGF[ip2] === 128 && fgPClosed[ip2] > refinedGF[ip2]) {
+            refinedGF[ip2] = fgPClosed[ip2];
+          }
+        }
+        fgPClosed = null;
+      }
 
     } else {
-      // ── PHOTO PATH: Guided Filter → morph close → holeFill ──────────────
-      // Guided filter output naturally preserves all edges from the original
-      // image — hair, fur, soft textures, metallic reflections.
-      // It cannot create halos (linear model) and cannot soften edges
-      // that exist in the guide (the original RGB image).
-      refinedGF = guidedFilter(grayGF, confGF, gfW, gfH, GF_R, GF_EPS);
+      // ── GENERAL PHOTO / ANIME / DARK PATH ──────────────────────────────
+      // Standard grayscale guided filter.
+      var grayGFg = imgToGray(img, gfW, gfH);
+      refinedGF = guidedFilter(grayGFg, confGF, gfW, gfH, pCfg.gfR, pCfg.gfEps);
+      grayGFg = null;
 
-      // Morphological close on FG region: fills thin gaps in subjects
-      // (gaps between fingers, between hair strands, jewelry, cables).
-      // IMPORTANT: only applied within the UNKNOWN region — definite BG
-      // pixels are not touched (trimap hard enforcement happens after).
-      var fgForClose = new Float32Array(gfW * gfH);
-      for (var i2 = 0; i2 < fgForClose.length; i2++) {
-        fgForClose[i2] = refinedGF[i2] > 0.5 ? refinedGF[i2] : 0.0;
-      }
-      var fgClosed = morphClose(fgForClose, gfW, gfH, 1);
-      fgForClose = null;
-      // Only apply close result in unknown region (not to definite BG)
-      for (var i3 = 0; i3 < refinedGF.length; i3++) {
-        if (trimapGF[i3] === 128 && fgClosed[i3] > refinedGF[i3]) {
-          refinedGF[i3] = fgClosed[i3];
+      if (pCfg.morphClose > 0) {
+        var fgGen = new Float32Array(gfW * gfH);
+        for (var ig = 0; ig < fgGen.length; ig++) {
+          fgGen[ig] = refinedGF[ig] > 0.5 ? refinedGF[ig] : 0.0;
         }
+        var fgGClosed = morphClose(fgGen, gfW, gfH, pCfg.morphClose);
+        fgGen = null;
+        for (var ig2 = 0; ig2 < refinedGF.length; ig2++) {
+          if (trimapGF[ig2] === 128 && fgGClosed[ig2] > refinedGF[ig2]) {
+            refinedGF[ig2] = fgGClosed[ig2];
+          }
+        }
+        fgGClosed = null;
       }
-      fgClosed = null;
     }
-    grayGF = null; // free memory
 
-    // ── 8-connected hole fill at GF resolution ────────────────────────────
-    refinedGF = holeFill8(refinedGF, gfW, gfH, 0.31);
+    edgesGF = null;
+
+    // ── Hole fill at GF resolution ─────────────────────────────────────────
+    refinedGF = holeFill8(refinedGF, gfW, gfH, pCfg.holeThr);
 
     // ── Trimap hard enforcement at GF resolution ───────────────────────────
-    // definite FG → 1.0, definite BG → 0.0 (ABSOLUTE, cannot be overridden)
+    // Definite zones overwrite any refinement output — IMMUTABLE.
     for (var i4 = 0; i4 < gfW * gfH; i4++) {
       if (trimapGF[i4] === 255) refinedGF[i4] = 1.0;
       if (trimapGF[i4] === 0)   refinedGF[i4] = 0.0;
@@ -979,26 +1334,24 @@
     // ── Upsample refined alpha GF → full resolution ───────────────────────
     var alphaFull;
     if (gfW === W && gfH === H) {
-      alphaFull = refinedGF; // already at full res
+      alphaFull = refinedGF;
     } else {
       alphaFull = upsampleFloat(refinedGF, gfW, gfH, W, H);
     }
     refinedGF = null;
 
     // ── Trimap hard enforcement at full resolution ─────────────────────────
-    // Re-apply using full-res confidence to correct any bilinear artefacts
-    // at zone boundaries introduced by the upsample step.
-    enforceTrimapHard(alphaFull, confFull, W * H, FG_THR, BG_THR);
-    confFull = null; // free memory
+    // Re-apply to correct any bilinear artefacts at zone boundaries.
+    enforceTrimapHard(alphaFull, confFull, W * H, pCfg.FG_THR, pCfg.BG_THR);
+    confFull = null;
 
-    // ── Validate ───────────────────────────────────────────────────────────
-    validateAlpha(alphaFull, W * H, 'final');
+    validateAlpha(alphaFull, W * H, imageMode.mode);
 
     if (onProgress) onProgress(95, 'Compositing\u2026');
     await yieldMain();
 
     // ── Export: fresh canvas — NEVER shared with preview ──────────────────
-    // The export canvas contains ONLY: original image pixels with final alpha.
+    // Contains ONLY: original RGB pixels + final alpha channel.
     // No checkerboard, no overlays, no debug data.
     var outC = document.createElement('canvas');
     outC.width = W; outC.height = H;
@@ -1034,18 +1387,22 @@
     preload:      preload,
     isReady:      function (t) { return !!_sessions[t || 'lite']; },
     getModelInfo: function (t) { return MODELS[t || 'lite']; },
-    // Exposed for debugging / audit verification:
-    classify:     classifyImageMode,
-    otsu:         otsuThreshold,
-    guidedFilter: guidedFilter,
-    morphClose:   morphClose,
-    morphOpen:    morphOpen,
-    holeFill8:    holeFill8,
-    sobelEdges:   sobelEdges,
-    generateTrimap: generateTrimap,
+    // Debug / audit surface:
+    classify:        classifyImageMode,
+    otsu:            otsuThreshold,
+    guidedFilter:    guidedFilter,
+    colorGuidedFilter: colorComponentGuidedFilter,
+    multiScaleGF:    multiScaleGuidedFilter,
+    morphClose:      morphClose,
+    morphOpen:       morphOpen,
+    holeFill8:       holeFill8,
+    sobelEdges:      sobelEdges,
+    generateTrimap:  generateTrimap,
+    PIPELINE_CFG:    PIPELINE_CFG,
+    MODELS:          MODELS,
   };
 
-  // Auto-preload lite model 4 s after page load (model is 4.7 MB)
+  // Auto-preload lite model 4s after page load (4.7 MB — fast on any connection)
   if (document.readyState === 'complete') {
     setTimeout(function () { preload('lite'); }, 4000);
   } else {

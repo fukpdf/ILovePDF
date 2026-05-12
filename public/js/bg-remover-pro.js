@@ -24,15 +24,15 @@
     { id: 'gradient-blue', label: 'Gradient', grad: ['#1a56db', '#4f46e5'] },
   ];
 
-  // Processing stage messages (AI-aware)
+  // Processing stage messages (v6.0 multi-pipeline AI)
   var STAGES = [
     { pct:  3, msg: 'Preparing image\u2026' },
-    { pct: 12, msg: 'Loading AI engine\u2026' },
-    { pct: 26, msg: 'Downloading AI model\u2026' },
+    { pct: 12, msg: 'Classifying image type\u2026' },
+    { pct: 26, msg: 'Loading AI model\u2026' },
     { pct: 40, msg: 'Running AI segmentation\u2026' },
-    { pct: 58, msg: 'Detecting subject boundaries\u2026' },
+    { pct: 58, msg: 'Generating precision trimap\u2026' },
     { pct: 73, msg: 'Refining edges\u2026' },
-    { pct: 87, msg: 'Enhancing fine details\u2026' },
+    { pct: 87, msg: 'Upsampling to full resolution\u2026' },
     { pct: 95, msg: 'Compositing result\u2026' },
   ];
 
@@ -154,18 +154,19 @@
             '<label class="bgr-field-label" for="bgr-quality-sel">Quality</label>' +
             '<select class="bgr-select" id="bgr-quality-sel">' +
               '<option value="auto" selected>Auto (Recommended)</option>' +
-              '<option value="hd">HD</option>' +
-              '<option value="ultra">Ultra (Slower, Best)</option>' +
+              '<option value="hd">HD \u2014 44\u202fMB model</option>' +
+              '<option value="ultra">Ultra \u2014 Best quality (slower)</option>' +
             '</select>' +
           '</div>' +
 
           '<div class="bgr-field">' +
             '<label class="bgr-field-label" for="bgr-subject-sel">Subject Type</label>' +
             '<select class="bgr-select" id="bgr-subject-sel">' +
-              '<option value="auto"'     + (detectedSubject === 'auto'     ? ' selected' : '') + '>Auto Detect</option>' +
-              '<option value="portrait"' + (detectedSubject === 'portrait' ? ' selected' : '') + '>Person / Portrait</option>' +
-              '<option value="product"'  + (detectedSubject === 'product'  ? ' selected' : '') + '>Product / Object</option>' +
-              '<option value="logo"'     + (detectedSubject === 'logo'     ? ' selected' : '') + '>Logo / Graphic</option>' +
+              '<option value="auto"'       + (detectedSubject === 'auto'       ? ' selected' : '') + '>Auto Detect</option>' +
+              '<option value="portrait"'   + (detectedSubject === 'portrait'   ? ' selected' : '') + '>Person / Portrait</option>' +
+              '<option value="product"'    + (detectedSubject === 'product'    ? ' selected' : '') + '>Product / Object</option>' +
+              '<option value="logo"'       + (detectedSubject === 'logo'       ? ' selected' : '') + '>Logo / Graphic</option>' +
+              '<option value="screenshot"' + (detectedSubject === 'screenshot' ? ' selected' : '') + '>Screenshot / UI</option>' +
             '</select>' +
           '</div>' +
 
@@ -692,37 +693,55 @@
   }
 
   // ── Auto subject detection ─────────────────────────────────────────────────
-  // Samples a small downscaled version of the image for speed.
+  // Uses BgAiEngine.classify when available; falls back to pixel heuristics.
   function _detectSubject(img) {
-    var SIZE = 64;
-    var sc   = document.createElement('canvas');
-    sc.width = SIZE; sc.height = SIZE;
-    var sCtx = sc.getContext('2d');
-    sCtx.drawImage(img, 0, 0, SIZE, SIZE);
-    var d = sCtx.getImageData(0, 0, SIZE, SIZE).data;
-    sc.width = 0; sc.height = 0;
-
-    var n        = SIZE * SIZE;
-    var skinTone = 0, brightPx = 0, lowSatPx = 0, highSatPx = 0;
-    for (var i = 0; i < n; i++) {
-      var r  = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
-      var br = (r + g + b) / 3;
-      var sat = Math.max(r, g, b) - Math.min(r, g, b);
-      if (br > 185) brightPx++;
-      if (sat < 22) lowSatPx++;
-      if (sat > 60) highSatPx++;
-      // Skin tone: warm mid-range, r > g > b with reasonable saturation
-      if (r > 100 && r < 240 && g > 70 && g < 200 && b > 50 && b < 180
-          && r > g + 8 && g > b && sat > 15 && sat < 130) skinTone++;
+    // Prefer the full v6 classifier (12 features, 12 categories)
+    if (window.BgAiEngine && typeof window.BgAiEngine.classify === 'function') {
+      var SIZE = 200;
+      var sc   = document.createElement('canvas');
+      sc.width = SIZE; sc.height = SIZE;
+      sc.getContext('2d').drawImage(img, 0, 0, SIZE, SIZE);
+      var d   = sc.getContext('2d').getImageData(0, 0, SIZE, SIZE).data;
+      sc.width = 0; sc.height = 0;
+      var res = window.BgAiEngine.classify(d, SIZE, SIZE);
+      var m   = res.mode;
+      if (m === 'selfie' || m === 'portrait')    return 'portrait';
+      if (m === 'product' || m === 'metallic')   return 'product';
+      if (m === 'logo')                          return 'logo';
+      if (m === 'screenshot' || m === 'darkScreenshot' || m === 'document') return 'screenshot';
+      return 'auto';
     }
-    var skinR  = skinTone  / n;
-    var brightR = brightPx / n;
-    var flatR  = lowSatPx  / n;
-    var vividR = highSatPx / n;
 
-    if (skinR  > 0.09)                       return 'portrait';
-    if (flatR  > 0.55 && brightR < 0.35)     return 'logo';
-    if (brightR > 0.52 || vividR < 0.12)     return 'product';
+    // Fallback: lightweight pixel heuristic (used before BgAiEngine script loads)
+    var SIZE2 = 64;
+    var sc2   = document.createElement('canvas');
+    sc2.width = SIZE2; sc2.height = SIZE2;
+    sc2.getContext('2d').drawImage(img, 0, 0, SIZE2, SIZE2);
+    var d2 = sc2.getContext('2d').getImageData(0, 0, SIZE2, SIZE2).data;
+    sc2.width = 0; sc2.height = 0;
+
+    var n = SIZE2 * SIZE2;
+    var skinTone = 0, brightPx = 0, lowSatPx = 0, highSatPx = 0, textEdges = 0;
+    for (var i = 0; i < n; i++) {
+      var r = d2[i*4], g = d2[i*4+1], b = d2[i*4+2];
+      var br  = (r+g+b)/3;
+      var sat = Math.max(r,g,b) - Math.min(r,g,b);
+      if (br  > 185) brightPx++;
+      if (sat < 22)  lowSatPx++;
+      if (sat > 60)  highSatPx++;
+      if (r > 100 && r < 240 && g > 70 && g < 200 && b > 50 && b < 180
+          && r > g+8 && g > b && sat > 15 && sat < 130) skinTone++;
+    }
+    var skinR   = skinTone / n;
+    var brightR = brightPx / n;
+    var flatR   = lowSatPx / n;
+    var W2 = img.naturalWidth, H2 = img.naturalHeight;
+    var isPortraitAspect = H2 > W2 * 1.5;
+
+    if (flatR > 0.55 && brightR > 0.45 && isPortraitAspect) return 'screenshot';
+    if (skinR  > 0.09)                                       return 'portrait';
+    if (flatR  > 0.55 && brightR < 0.35)                    return 'logo';
+    if (brightR > 0.52 || (highSatPx/n) < 0.12)             return 'product';
     return 'auto';
   }
 
@@ -759,11 +778,21 @@
   }
 
   function _subjectLabel(s) {
-    return { portrait: 'Portrait', product: 'Product', logo: 'Logo' }[s] || 'Subject';
+    return {
+      portrait:   'Portrait',
+      product:    'Product',
+      logo:       'Logo',
+      screenshot: 'Screenshot',
+    }[s] || 'Subject';
   }
 
   function _subjectEmoji(s) {
-    return { portrait: '\uD83D\uDC64', product: '\uD83D\uDCE6', logo: '\uD83D\uDD37' }[s] || '';
+    return {
+      portrait:   '\uD83D\uDC64',
+      product:    '\uD83D\uDCE6',
+      logo:       '\uD83D\uDD37',
+      screenshot: '\uD83D\uDCF1',
+    }[s] || '';
   }
 
   // ── Expose ────────────────────────────────────────────────────────────────
