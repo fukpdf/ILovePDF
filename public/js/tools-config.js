@@ -744,13 +744,11 @@ const TOOLS = [
   // ── IMAGE TOOLS ───────────────────────────────────────────────────────────
   {
     id: 'background-remover', name: 'Background Remover', icon: 'image-minus',
-    description: 'Remove white or near-white backgrounds from images',
+    description: 'Automatically remove any background from images — solid, gradient, or complex',
     category: 'Image Tools', group: 'image', badge: 'AI',
     apiEndpoint: '/api/background-remove', acceptedFiles: '.jpg,.jpeg,.png,.webp',
     multipleFiles: false, working: true, clientSide: true,
-    options: [
-      { id: 'threshold', label: 'Background Threshold (180–255, higher = stricter)', type: 'number', placeholder: '240' }
-    ]
+    options: []
   },
   {
     id: 'crop-image', name: 'Crop Image', icon: 'crop', clientSide: true,

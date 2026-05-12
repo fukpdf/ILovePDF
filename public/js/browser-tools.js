@@ -2546,25 +2546,376 @@
     return { blob: docxBlob, ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
   }
 
-  // ── PHASE 4: BACKGROUND REMOVER (canvas pixel manipulation) ──────────────
-  // Removes near-white pixels by making them transparent. Matches server
-  // behavior (sharp threshold-based removal).
+  // ── PHASE 4: BACKGROUND REMOVER v4.0 — 10-Phase Alpha Matting Engine ────────
+  // Full BFS-based foreground/background segmentation with interior hole filling,
+  // foreground solidity lock, texture/metallic protection, neighborhood consensus,
+  // edge-only feathering, foreground opacity recovery, and quality assertion.
   async function backgroundRemover(files, opts) {
-    const img       = await loadImageFromFile(files[0]);
-    const threshold = Math.max(100, Math.min(255, parseInt(opts.threshold || '240', 10)));
-    const canvas    = document.createElement('canvas');
-    canvas.width    = img.naturalWidth;
-    canvas.height   = img.naturalHeight;
-    const ctx       = canvas.getContext('2d');
+    const img         = await loadImageFromFile(files[0]);
+    const W           = img.naturalWidth;
+    const H           = img.naturalHeight;
+    const N           = W * H;
+    const subjectMode = opts.subjectMode || 'auto';
+    const qualityMode = opts.qualityMode || 'hd';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i] >= threshold && d[i + 1] >= threshold && d[i + 2] >= threshold) d[i + 3] = 0;
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const d = imgData.data; // RGBA flat array, length = N*4
+
+    // ── Neighbour offsets (4-connected) ─────────────────────────────────────
+    const DX4 = [-1, 1,  0, 0];
+    const DY4 = [ 0, 0, -1, 1];
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function pR(i) { return d[i * 4];     }
+    function pG(i) { return d[i * 4 + 1]; }
+    function pB(i) { return d[i * 4 + 2]; }
+    function lum(i) { return 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2]; }
+
+    // Perceptual colour distance (approximate CIEDE2000 weighting via redmean)
+    function colorDist(r1, g1, b1, r2, g2, b2) {
+      const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+      const rm = (r1 + r2) * 0.5;
+      return Math.sqrt((2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db);
     }
+
+    // ── STEP 1: Sample background colour from image borders ─────────────────
+    const bStep = Math.max(1, Math.floor(Math.min(W, H) / 64));
+    const bSamples = [];
+    for (let x = 0; x < W; x += bStep) {
+      bSamples.push(x, (H - 1) * W + x); // top & bottom rows
+    }
+    for (let y = 1; y < H - 1; y += bStep) {
+      bSamples.push(y * W, y * W + W - 1); // left & right columns
+    }
+    const bRarr = bSamples.map(i => pR(i)).sort((a, b) => a - b);
+    const bGarr = bSamples.map(i => pG(i)).sort((a, b) => a - b);
+    const bBarr = bSamples.map(i => pB(i)).sort((a, b) => a - b);
+    const mid   = Math.floor(bSamples.length / 2);
+    const bgR   = bRarr[mid], bgG = bGarr[mid], bgB = bBarr[mid];
+
+    // Background uniformity — drives BFS tolerance
+    const bgDevs  = bSamples.map(i => colorDist(pR(i), pG(i), pB(i), bgR, bgG, bgB));
+    const bgStd   = Math.sqrt(bgDevs.reduce((s, v) => s + v * v, 0) / bgDevs.length);
+
+    // Subject-mode tuning: portrait = tighter (preserve skin), product = medium
+    const modeScale = subjectMode === 'portrait' ? 0.80
+                    : subjectMode === 'product'  ? 0.90
+                    : subjectMode === 'logo'     ? 0.70 : 1.0;
+    const bfsTol   = Math.max(18, Math.min(55, bgStd * 1.8 + 14)) * modeScale;
+
+    // ── STEP 2: Precompute luminance and Sobel edge magnitude ────────────────
+    const lumArr  = new Float32Array(N);
+    const edgeMag = new Float32Array(N);  // Sobel gradient magnitude
+    const locVar  = new Float32Array(N);  // local brightness variance (metallic proxy)
+
+    for (let i = 0; i < N; i++) lumArr[i] = lum(i);
+
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i    = y * W + x;
+        const tl   = lumArr[i - W - 1], tm = lumArr[i - W], tr = lumArr[i - W + 1];
+        const ml   = lumArr[i - 1],                          mr = lumArr[i + 1];
+        const bl   = lumArr[i + W - 1], bm = lumArr[i + W], br = lumArr[i + W + 1];
+        const gx   = -tl - 2*ml - bl + tr + 2*mr + br;
+        const gy   = -tl - 2*tm - tr + bl + 2*bm + br;
+        edgeMag[i] = Math.sqrt(gx*gx + gy*gy);
+
+        // 3×3 local brightness variance (specular / metallic proxy)
+        const vals = [tl, tm, tr, ml, lumArr[i], mr, bl, bm, br];
+        const avg9  = vals.reduce((s, v) => s + v, 0) / 9;
+        locVar[i]  = Math.sqrt(vals.reduce((s, v) => s + (v - avg9) * (v - avg9), 0) / 9);
+      }
+    }
+
+    // ── STEP 3: BFS flood-fill from border — mark background pixels ──────────
+    const bgMask = new Uint8Array(N);  // 1 = confirmed background
+    const bfsQ   = [];
+    let   bfsQi  = 0;
+
+    function tryBorderSeed(pi) {
+      const r = pR(pi), g = pG(pi), b = pB(pi);
+      if (colorDist(r, g, b, bgR, bgG, bgB) <= bfsTol * 1.6 && !bgMask[pi]) {
+        bgMask[pi] = 1; bfsQ.push(pi);
+      }
+    }
+    for (let x = 0; x < W; x++) { tryBorderSeed(x); tryBorderSeed((H - 1) * W + x); }
+    for (let y = 1; y < H - 1; y++) { tryBorderSeed(y * W); tryBorderSeed(y * W + W - 1); }
+
+    while (bfsQi < bfsQ.length) {
+      const pi = bfsQ[bfsQi++];
+      const x  = pi % W, y = Math.floor(pi / W);
+      const cr = pR(pi), cg = pG(pi), cb = pB(pi);
+
+      for (let di = 0; di < 4; di++) {
+        const nx = x + DX4[di], ny = y + DY4[di];
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (bgMask[ni]) continue;
+
+        const nr = pR(ni), ng = pG(ni), nb = pB(ni);
+        const distFromBg   = colorDist(nr, ng, nb, bgR, bgG, bgB);
+        const distFromPrev = colorDist(nr, ng, nb, cr, cg, cb);
+        const edge         = edgeMag[ni];
+
+        // High-edge / high-texture pixels resist BFS expansion (protect FG detail)
+        const edgeResist = edge > 50 ? 0.30 : edge > 25 ? 0.55 : edge > 12 ? 0.75 : 1.0;
+        // High local-variance pixels resist BFS (protect metallic / reflective surfaces)
+        const varResist  = locVar[ni] > 22 ? 0.45 : locVar[ni] > 12 ? 0.70 : 1.0;
+        const resist     = Math.min(edgeResist, varResist);
+
+        if (distFromBg   <= bfsTol * resist ||
+            distFromPrev <= bfsTol * 0.45 * resist) {
+          bgMask[ni] = 1;
+          bfsQ.push(ni);
+        }
+      }
+    }
+
+    // ── STEP 4: Compute initial alpha map ────────────────────────────────────
+    const alpha  = new Uint8Array(N);
+    const fgConf = new Float32Array(N); // 0..1 foreground confidence
+
+    for (let i = 0; i < N; i++) {
+      if (bgMask[i]) { alpha[i] = 0; fgConf[i] = 0; continue; }
+
+      const r    = pR(i), g = pG(i), b = pB(i);
+      const dist = colorDist(r, g, b, bgR, bgG, bgB);
+
+      // Colour confidence: how different from BG
+      const colConf = Math.min(1.0, dist / (bfsTol * 1.5));
+      // Texture confidence: edges / detail = likely FG
+      const texConf = Math.min(1.0, edgeMag[i] / 35);
+      // Saturation confidence: chromatic pixels = more likely FG
+      const maxC  = Math.max(r, g, b), minC = Math.min(r, g, b);
+      const sat   = maxC > 0 ? (maxC - minC) / maxC : 0;
+      const satConf = Math.min(1.0, sat * 2.2);
+      // Local-variance confidence (metallic / reflective boost)
+      const varConf = Math.min(1.0, locVar[i] / 20);
+
+      const conf   = Math.min(1.0,
+        colConf * 0.45 + texConf * 0.25 + satConf * 0.20 + varConf * 0.10);
+      fgConf[i] = conf;
+
+      // Map confidence to alpha
+      if      (conf >= 0.75) alpha[i] = 255;
+      else if (conf >= 0.55) alpha[i] = Math.round(180 + conf * 97);
+      else if (conf >= 0.35) alpha[i] = Math.round(90  + conf * 165);
+      else                   alpha[i] = Math.round(conf * 257);
+      alpha[i] = Math.min(255, alpha[i]);
+    }
+
+    // ── STEP 5: Interior hole prevention ────────────────────────────────────
+    // Flood-fill from border using only low-alpha pixels; any transparent pixel
+    // NOT reachable from the border is enclosed — fill it as foreground.
+    const borderReach = new Uint8Array(N);
+    const transQ = [];
+    let   transQi = 0;
+
+    function tryTransSeed(pi) {
+      if (alpha[pi] < 40 && !borderReach[pi]) { borderReach[pi] = 1; transQ.push(pi); }
+    }
+    for (let x = 0; x < W; x++) { tryTransSeed(x); tryTransSeed((H - 1) * W + x); }
+    for (let y = 1; y < H - 1; y++) { tryTransSeed(y * W); tryTransSeed(y * W + W - 1); }
+
+    while (transQi < transQ.length) {
+      const pi = transQ[transQi++];
+      const x  = pi % W, y = Math.floor(pi / W);
+      for (let di = 0; di < 4; di++) {
+        const nx = x + DX4[di], ny = y + DY4[di];
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (borderReach[ni] || alpha[ni] >= 40) continue;
+        borderReach[ni] = 1;
+        transQ.push(ni);
+      }
+    }
+
+    // Fill interior holes (transparent pixels not reachable from border)
+    for (let i = 0; i < N; i++) {
+      if (alpha[i] < 40 && !borderReach[i]) {
+        alpha[i]  = 235;  // solid interior — definitely foreground
+        fgConf[i] = 0.85;
+      }
+    }
+
+    // ── STEP 6: Phase 1 — Hard foreground lock ───────────────────────────────
+    // Any pixel with strong FG confidence gets a minimum alpha floor.
+    for (let i = 0; i < N; i++) {
+      if (bgMask[i]) continue;
+      if (fgConf[i] > 0.55 && alpha[i] < 210) alpha[i] = 210;
+      if (fgConf[i] > 0.75 && alpha[i] < 245) alpha[i] = 245;
+    }
+
+    // ── STEP 7: Connected-component foreground solidification ───────────────
+    // BFS to find connected FG regions; solidify large ones aggressively.
+    const ccVisited = new Uint8Array(N);
+    const MIN_FG_SIZE = Math.max(50, Math.floor(N * 0.0008));
+
+    for (let si = 0; si < N; si++) {
+      if (ccVisited[si] || alpha[si] < 110) continue;
+
+      const region  = [];
+      const ccStack = [si];
+      ccVisited[si] = 1;
+      let maxConfInRegion = fgConf[si];
+
+      while (ccStack.length > 0) {
+        const pi = ccStack.pop();
+        region.push(pi);
+        if (fgConf[pi] > maxConfInRegion) maxConfInRegion = fgConf[pi];
+        const x = pi % W, y = Math.floor(pi / W);
+        for (let di = 0; di < 4; di++) {
+          const nx = x + DX4[di], ny = y + DY4[di];
+          if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+          const ni = ny * W + nx;
+          if (ccVisited[ni] || alpha[ni] < 90) continue;
+          ccVisited[ni] = 1;
+          ccStack.push(ni);
+        }
+      }
+
+      if (region.length >= MIN_FG_SIZE) {
+        const floor = maxConfInRegion > 0.60 ? 230
+                    : maxConfInRegion > 0.40 ? 205 : 180;
+        for (let k = 0; k < region.length; k++) {
+          if (alpha[region[k]] < floor) alpha[region[k]] = floor;
+        }
+      }
+    }
+
+    // ── STEP 8: Phase 5 — Neighbourhood alpha consensus (stabilization) ──────
+    const alphaS = new Uint8Array(N);
+    const radius  = qualityMode === 'ultra' ? 2 : 1;
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (bgMask[i]) { alphaS[i] = 0; continue; }
+
+        let sum = 0, wt = 0;
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const nx2 = x + dx, ny2 = y + dy;
+            if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
+            const ni = ny2 * W + nx2;
+            const w  = (dx === 0 && dy === 0) ? 3 : 1;
+            sum += alpha[ni] * w; wt += w;
+          }
+        }
+        const avg     = sum / wt;
+        const isEdge  = edgeMag[i] > 18;
+        const blendW  = isEdge ? 0.35 : 0.12;
+        alphaS[i] = Math.round(alpha[i] * (1 - blendW) + avg * blendW);
+      }
+    }
+    for (let i = 0; i < N; i++) alpha[i] = alphaS[i];
+
+    // Re-apply hard locks after smoothing
+    for (let i = 0; i < N; i++) {
+      if (bgMask[i]) continue;
+      if (fgConf[i] > 0.55 && alpha[i] < 200) alpha[i] = 200;
+      if (fgConf[i] > 0.75 && alpha[i] < 238) alpha[i] = 238;
+    }
+
+    // ── STEP 9: Phase 7 — Edge-only feathering ───────────────────────────────
+    // Feather ONLY pixels that sit on the true FG/BG boundary.
+    const isEdgePx = new Uint8Array(N);
+    for (let y = 2; y < H - 2; y++) {
+      for (let x = 2; x < W - 2; x++) {
+        const i = y * W + x;
+        if (alpha[i] < 20 || alpha[i] > 235) continue; // pure BG or pure FG — skip
+        let hasBg = false, hasFg = false;
+        for (let dy = -2; dy <= 2 && !(hasBg && hasFg); dy++) {
+          for (let dx = -2; dx <= 2 && !(hasBg && hasFg); dx++) {
+            const nx2 = x + dx, ny2 = y + dy;
+            if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
+            const na = alpha[ny2 * W + nx2];
+            if (na < 25)  hasBg = true;
+            if (na > 220) hasFg = true;
+          }
+        }
+        isEdgePx[i] = (hasBg && hasFg) ? 1 : 0;
+      }
+    }
+
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x;
+        if (!isEdgePx[i]) continue;
+        let sum = 0, wt = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx2 = x + dx, ny2 = y + dy;
+            if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
+            const w = (dx === 0 && dy === 0) ? 2 : 1;
+            sum += alpha[ny2 * W + nx2] * w; wt += w;
+          }
+        }
+        alpha[i] = Math.round(sum / wt);
+      }
+    }
+
+    // ── STEP 10: Phase 6 — Foreground opacity recovery ───────────────────────
+    // Boost pixels that are inside solid FG regions but have weak alpha.
+    for (let i = 0; i < N; i++) {
+      if (bgMask[i] || isEdgePx[i]) continue;
+      if (alpha[i] >= 160) continue;
+
+      const x = i % W, y = Math.floor(i / W);
+      let nSum = 0, nCnt = 0;
+      for (let di = 0; di < 4; di++) {
+        const nx2 = x + DX4[di], ny2 = y + DY4[di];
+        if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
+        nSum += alpha[ny2 * W + nx2]; nCnt++;
+      }
+      if (nCnt > 0 && nSum / nCnt > 180) {
+        alpha[i] = Math.round(alpha[i] * 0.35 + (nSum / nCnt) * 0.65);
+      }
+    }
+
+    // ── STEP 11: Phase 3+4 — Low-contrast and metallic object protection ─────
+    // If a pixel has significant local variance or edge magnitude but low alpha,
+    // it is likely a textured / reflective surface — protect it.
+    for (let i = 0; i < N; i++) {
+      if (bgMask[i]) continue;
+      const isTextured  = edgeMag[i] > 30;
+      const isMetallic  = locVar[i]  > 18;
+      if ((isTextured || isMetallic) && alpha[i] < 200) {
+        const boost = isTextured && isMetallic ? 200
+                    : isTextured               ? 180 : 170;
+        if (alpha[i] < boost) alpha[i] = boost;
+      }
+    }
+
+    // ── STEP 12: Phase 9 — Quality assertion + auto-retry ───────────────────
+    let totalFg = 0, weakFg = 0;
+    for (let i = 0; i < N; i++) {
+      if (!bgMask[i] && alpha[i] > 20) { totalFg++; if (alpha[i] < 150) weakFg++; }
+    }
+    if (totalFg > 0 && weakFg / totalFg > 0.28) {
+      // Too much foreground is still weak — apply a global foreground boost
+      for (let i = 0; i < N; i++) {
+        if (!bgMask[i] && alpha[i] > 20 && alpha[i] < 210) {
+          alpha[i] = Math.min(255, alpha[i] + 55);
+        }
+      }
+    }
+
+    // Final interior hole re-check: any enclosed transparent pixel becomes solid
+    for (let i = 0; i < N; i++) {
+      if (alpha[i] < 40 && !borderReach[i] && !bgMask[i]) alpha[i] = 230;
+    }
+
+    // ── Write alpha channel back ─────────────────────────────────────────────
+    for (let i = 0; i < N; i++) d[i * 4 + 3] = alpha[i];
+
     ctx.putImageData(imgData, 0, 0);
     const blob = await canvasToBlob(canvas, 'image/png');
-    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
+    canvas.width = 0; canvas.height = 0;
     return { blob, ext: '.png', mime: 'image/png' };
   }
 
