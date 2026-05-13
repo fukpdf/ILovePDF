@@ -92,18 +92,32 @@
   // pdfjs uses dynamic import() — ES module; IDB/blob-URL not applicable.
   // window.__pdfjsLibPromise is the global shared promise so that pdf-preview.js,
   // live-preview.js, advanced-engine.js and browser-tools.js all use one import() call.
+  //
+  // RCA-5 FIX: Validate that lib.getDocument exists after import.
+  // Previously: `mod && (mod.default || mod)` — when pdfjs-dist ships named ESM
+  // exports, mod.default is undefined and mod is the namespace object which does NOT
+  // have getDocument at the top level. This caused a silent TypeError on first use.
   let pdfJsPromise = null;
   function loadPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (window.pdfjsLib && window.pdfjsLib.getDocument) return Promise.resolve(window.pdfjsLib);
     if (window.__pdfjsLibPromise) return window.__pdfjsLibPromise;
     if (pdfJsPromise) return pdfJsPromise;
     pdfJsPromise = window.__pdfjsLibPromise = (async () => {
       const mod = await import(PDFJS_URL);
-      const pdfjsLib = mod && (mod.default || mod);
-      pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-      window.pdfjsLib = pdfjsLib;
-      return pdfjsLib;
-    })();
+      // Resolve in the same order pdf-preview.js does: prefer the namespace
+      // object if it has getDocument, then try .default.
+      const lib = (mod && mod.getDocument) ? mod : (mod && mod.default && mod.default.getDocument ? mod.default : null);
+      if (!lib || !lib.getDocument) {
+        throw new Error('[BrowserTools] pdfjsLib.getDocument missing after import — unexpected module shape');
+      }
+      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      window.pdfjsLib = lib;
+      return lib;
+    })().catch(function (err) {
+      pdfJsPromise = null;
+      window.__pdfjsLibPromise = null;
+      throw err;
+    });
     return pdfJsPromise;
   }
 

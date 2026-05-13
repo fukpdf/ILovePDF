@@ -189,18 +189,26 @@
       const slot = tileEl.querySelector('.po-tile-canvas');
       if (!slot) return;
 
+      const pageNum = originalIndex + 1;
+      console.debug('[PDF_DEBUG] tile start page=' + pageNum + ' rot=' + rotation + ' key=' + key);
+
       // Check cache first — validate before using
       if (thumbCache.has(key)) {
         const cached = thumbCache.get(key);
         const valid  = await validateThumbDataUrl(cached);
-        if (cancelToken.cancelled) return; // cancelled while validating
+        if (cancelToken.cancelled) {
+          console.debug('[PDF_DEBUG] tile cancelled during cache-validate page=' + pageNum);
+          return;
+        }
         if (valid) {
+          console.debug('[PDF_DEBUG] tile cache-hit page=' + pageNum);
           slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
           tileStates.set(tileId, STATE.RENDERED);
           _setTileState(tileEl, STATE.RENDERED);
           return;
         }
-        // Invalid cache entry — remove and re-render
+        // Invalid cache entry — evict and re-render
+        console.warn('[PDF_DEBUG] tile cache-invalid page=' + pageNum + ' — evicting and re-rendering');
         thumbCache.delete(key);
       }
 
@@ -212,68 +220,86 @@
 
       let canvas;
       try {
-        // PdfPreview.renderPage v3.0 handles its own internal retries (up to 3).
-        canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
+        // PdfPreview.renderPage v4.0 handles its own internal retries (up to 3).
+        canvas = await window.PdfPreview.renderPage(pdfDoc, pageNum, 220, rotation);
       } catch (err) {
-        // PdfPreview never throws — but defensive catch.
-        console.error('[PageOrganizer] renderPage threw (unexpected) for page', originalIndex + 1, ':', err);
+        // PdfPreview v4.0 never throws (returns error canvas) — but defensive catch.
+        const reason = (err && err.message) ? err.message : String(err);
+        console.error('[PDF_RENDER_FAIL] renderPage threw unexpectedly page=' + pageNum + ':', reason);
         if (cancelToken.cancelled) return;
         tileStates.set(tileId, STATE.FAILED);
         _setTileState(tileEl, STATE.FAILED);
         if (slot.isConnected) {
-          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+          slot.innerHTML = `<div class="po-tile-fallback" title="${escapeHtml(reason)}">Page ${pageNum}</div>`;
         }
         return;
       }
 
-      if (cancelToken.cancelled) return;
+      if (cancelToken.cancelled) {
+        console.debug('[PDF_DEBUG] tile cancelled after render page=' + pageNum);
+        return;
+      }
 
-      // Check if canvas is error canvas (all retries failed in pdf-preview)
+      // Check if canvas is error canvas (all retries exhausted in pdf-preview)
       if (canvas && canvas._isErrorCanvas) {
+        const reason = canvas._errorReason || 'all render attempts failed';
+        console.warn('[PDF_RENDER_FAIL] error canvas returned for page=' + pageNum + ' reason:', reason);
         tileStates.set(tileId, STATE.FAILED);
         _setTileState(tileEl, STATE.FAILED);
         if (slot.isConnected) {
-          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+          slot.innerHTML = `<div class="po-tile-fallback" title="${escapeHtml(reason)}">Page ${pageNum}</div>`;
         }
         return;
       }
 
       if (!canvas || !canvas.width || !canvas.height) {
-        console.error('[PageOrganizer] Zero-dimension canvas for page', originalIndex + 1);
+        console.error('[PDF_CANVAS_STATE] zero-dimension canvas page=' + pageNum +
+          ' (' + (canvas ? canvas.width + 'x' + canvas.height : 'null') + ')');
         tileStates.set(tileId, STATE.FAILED);
         _setTileState(tileEl, STATE.FAILED);
         if (slot.isConnected) {
-          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+          slot.innerHTML = `<div class="po-tile-fallback">Page ${pageNum}</div>`;
         }
         return;
       }
 
+      console.debug('[PDF_RENDER_SUCCESS] tile page=' + pageNum +
+        ' canvas=' + canvas.width + 'x' + canvas.height);
+
       // Convert to dataURL and cache
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        if (!dataUrl || !dataUrl.startsWith('data:')) {
+          throw new Error('toDataURL returned invalid string (length=' + (dataUrl ? dataUrl.length : 0) + ')');
+        }
         thumbCache.set(key, dataUrl);
         if (slot.isConnected && !cancelToken.cancelled) {
           slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" />`;
           tileStates.set(tileId, STATE.RENDERED);
           _setTileState(tileEl, STATE.RENDERED);
+          console.debug('[PDF_THUMB_STATE] tile injected page=' + pageNum);
+        } else if (cancelToken.cancelled) {
+          console.debug('[PDF_DEBUG] tile cancelled after toDataURL page=' + pageNum);
         }
       } catch (err) {
-        console.error('[PageOrganizer] toDataURL failed for page', originalIndex + 1, ':', err);
-        // Fallback: insert canvas directly
+        const reason = (err && err.message) ? err.message : String(err);
+        console.error('[PDF_THUMB_STATE] toDataURL failed page=' + pageNum + ':', reason);
+        // Fallback: insert canvas directly (no objectFit, but shows something real)
         if (slot.isConnected && !cancelToken.cancelled) {
           try {
             slot.innerHTML = '';
-            canvas.style.maxWidth = '100%';
-            canvas.style.height = 'auto';
+            canvas.style.cssText = 'display:block;max-width:100%;height:auto;';
             slot.appendChild(canvas);
             tileStates.set(tileId, STATE.RENDERED);
             _setTileState(tileEl, STATE.RENDERED);
+            console.debug('[PDF_THUMB_STATE] tile injected via canvas fallback page=' + pageNum);
           } catch (appendErr) {
-            console.error('[PageOrganizer] canvas append also failed:', appendErr);
+            const appendReason = (appendErr && appendErr.message) ? appendErr.message : String(appendErr);
+            console.error('[PDF_THUMB_STATE] canvas append also failed page=' + pageNum + ':', appendReason);
             tileStates.set(tileId, STATE.FAILED);
             _setTileState(tileEl, STATE.FAILED);
             if (slot.isConnected) {
-              slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+              slot.innerHTML = `<div class="po-tile-fallback" title="DOM injection failed: ${escapeHtml(appendReason)}">Page ${pageNum}</div>`;
             }
           }
         }

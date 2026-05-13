@@ -108,13 +108,18 @@
   // Cancel all queued (waiting) tasks for a tier. Running tasks are unaffected.
   // Queued resolve() calls fire immediately so callers can unblock and check
   // their own cancellation flags.
+  //
+  // RCA-3 FIX: Do NOT decrement slot.active for queued waiters — they never
+  // held a slot. The old code did `slot.active -= count` which drove active
+  // below its true value, causing future acquireSlot() calls to skip blocking
+  // when the tier was already at max concurrency → GPU over-commits → context loss.
   function cancelQueued(tier) {
     var slot = _slots[tier];
     if (!slot) return 0;
     var count = slot.queue.length;
     slot.queue.forEach(function (res) { try { res(); } catch (_) {} });
-    slot.queue   = [];
-    slot.active  = Math.max(0, slot.active - count);
+    slot.queue = [];
+    // slot.active is NOT modified — queued tasks never incremented it.
     return count;
   }
 

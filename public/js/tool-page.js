@@ -988,6 +988,11 @@ function renderFileList() {
 
 // Render the first page of every PDF in the file list as an inline thumbnail.
 // Speeds up the UI for tools like Merge by giving each row a real preview.
+//
+// RCA-2 FIX: Previously appended the canvas directly and set objectFit:cover
+// on it — objectFit does NOT apply to <canvas> elements. On mobile the canvas
+// would collapse or display at wrong dimensions. Now converts to dataURL and
+// injects an <img> element, which fully supports objectFit:cover.
 async function renderPdfThumbnails() {
   if (!window.PdfPreview) return;
   for (const entry of selectedFiles) {
@@ -997,15 +1002,63 @@ async function renderPdfThumbnails() {
     let pdfDoc;
     try {
       pdfDoc = await window.PdfPreview.loadDocument(entry.file);
-      const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 64, 0);
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      canvas.style.objectFit = 'cover';
-      canvas.style.borderRadius = '6px';
-      host.innerHTML = '';
-      host.appendChild(canvas);
-    } catch (_) {
-      // Leave the fallback file-text icon in place.
+      const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 80, 0);
+
+      // Error canvas → leave fallback icon in place, log exact reason.
+      if (canvas && canvas._isErrorCanvas) {
+        console.warn('[PDF_THUMB_STATE] thumbnail failed for', entry.file.name,
+          '— reason:', canvas._errorReason || 'unknown');
+        continue;
+      }
+
+      // Convert to dataURL so we can use an <img> element that respects objectFit.
+      let dataUrl;
+      try {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      } catch (toUrlErr) {
+        console.warn('[PDF_THUMB_STATE] toDataURL failed for', entry.file.name, ':', toUrlErr.message);
+        // Fallback: append canvas directly with explicit size CSS (no objectFit)
+        canvas.style.cssText = 'display:block;width:100%;height:100%;border-radius:6px;';
+        if (host.isConnected) { host.innerHTML = ''; host.appendChild(canvas); }
+        continue;
+      }
+
+      // Verify the dataURL decoded correctly before injecting.
+      await new Promise(function (resolve) {
+        if (!host.isConnected) { resolve(); return; }
+        const img = new Image();
+        const timer = setTimeout(function () {
+          img.onload = img.onerror = null;
+          // Timeout on img decode — fall back to canvas
+          console.warn('[PDF_THUMB_STATE] img decode timeout for', entry.file.name);
+          canvas.style.cssText = 'display:block;width:100%;height:100%;border-radius:6px;';
+          if (host.isConnected) { host.innerHTML = ''; host.appendChild(canvas); }
+          resolve();
+        }, 2000);
+        img.onload = function () {
+          clearTimeout(timer);
+          if (img.width > 0 && img.height > 0 && host.isConnected) {
+            img.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;border-radius:6px;';
+            img.setAttribute('draggable', 'false');
+            host.innerHTML = '';
+            host.appendChild(img);
+            console.debug('[PDF_THUMB_STATE] thumbnail ok:', entry.file.name,
+              img.naturalWidth + 'x' + img.naturalHeight);
+          } else {
+            console.warn('[PDF_THUMB_STATE] img decoded but zero dimensions for', entry.file.name);
+          }
+          resolve();
+        };
+        img.onerror = function () {
+          clearTimeout(timer);
+          console.warn('[PDF_THUMB_STATE] img load error for', entry.file.name);
+          resolve();
+        };
+        img.src = dataUrl;
+      });
+    } catch (err) {
+      console.warn('[PDF_THUMB_STATE] thumbnail exception for', entry.file && entry.file.name, ':', err && err.message);
+      // Leave the fallback file-text icon in place — never show a broken state.
     } finally {
       try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
     }
