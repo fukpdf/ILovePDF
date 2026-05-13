@@ -32,8 +32,11 @@
   var PreviewNeutralizer = (function () {
     var _patched = false;
 
+    // PdfPreview is the core PDF rendering engine used by page-organizer and
+    // merge-tool thumbnails — it must NOT be neutralized. Only neutralize
+    // actual live-preview panel surfaces.
     var PREVIEW_GLOBALS = [
-      'LivePreview', 'PdfPreview', 'PreviewEngine', 'PreviewRenderer',
+      'LivePreview', 'PreviewEngine', 'PreviewRenderer',
       'PreviewWorker', 'PreviewQueue', 'PreviewAutoRender', 'PreviewPipeline',
       'LivePreviewV2', 'PdfPreviewRenderer', 'PreviewCanvasGenerator',
     ];
@@ -119,7 +122,8 @@
       });
     }
 
-    ['LivePreview','PdfPreview'].forEach(function(name) {
+    // PdfPreview excluded — it is the core rendering engine, not a preview panel.
+    ['LivePreview'].forEach(function(name) {
       try { _installProxy(name); } catch(_) {}
     });
 

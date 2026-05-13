@@ -400,7 +400,9 @@
                    'startWorker','renderAll','renderNext','preview','previewFile'];
     var NOOP = function(){ return Promise.resolve(); };
 
-    var GLOBALS = ['LivePreview','PdfPreview','PreviewEngine','PreviewRenderer',
+    // PdfPreview excluded: it is the core PDF rendering engine (page-organizer
+    // thumbnails, merge-tool previews). Patching its renderPage breaks all tile renders.
+    var GLOBALS = ['LivePreview','PreviewEngine','PreviewRenderer',
                    'PreviewWorker','PreviewQueue','LivePreviewV2','PreviewAutoRender',
                    'PdfPreviewRenderer','PreviewCanvasGenerator','PreviewPipeline'];
 

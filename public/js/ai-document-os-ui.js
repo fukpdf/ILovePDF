@@ -52,15 +52,10 @@
         log('LivePreview.mount disabled');
       }
 
-      // PdfPreview — shadow show/render to no-ops
-      var PP = window.PdfPreview;
-      if (PP) {
-        ['show','render','mount','init','loadPage','renderPage'].forEach(function (fn) {
-          if (typeof PP[fn] === 'function') { PP['__orig_' + fn] = PP[fn]; PP[fn] = function () { return Promise.resolve(); }; }
-        });
-        PP.__aosDisabled = true;
-        log('PdfPreview disabled');
-      }
+      // PdfPreview is the core PDF rendering engine (page thumbnails, organizer,
+      // merge-tool previews). It must NOT be patched — patching renderPage
+      // causes all tile thumbnails to silently return undefined, producing the
+      // "Page X striped placeholder never replaced" bug.
 
       // Also hide any lingering preview DOM elements
       var selectors = ['.lp-panel','.pdf-preview-panel','#pdf-preview-root','#live-preview-root','.preview-queue-container','.preview-virtualization','.preview-pipeline-root'];
