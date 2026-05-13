@@ -95,37 +95,15 @@
       log('preview systems neutralized');
     }
 
-    // Watch for late-injected preview globals
+    // REMOVED: watchForLateInjection MutationObserver — re-applying patches on every
+    // DOM mutation was a vector for re-neutralizing late-loaded production engines.
+    // RuntimeProtection.js now handles immutability of core globals via writable:false.
     var _observer = null;
-    function watchForLateInjection() {
-      if (typeof MutationObserver === 'undefined') return;
-      if (_observer) return;
-      _observer = new MutationObserver(function() {
-        PREVIEW_GLOBALS.forEach(function(name) {
-          var obj = window[name];
-          if (obj && !obj.__aoi_neutralized) _patchGlobal(name);
-        });
-      });
-      _observer.observe(document.documentElement, { childList: true, subtree: false });
-    }
+    function watchForLateInjection() { /* disabled — see runtime-protection.js */ }
 
-    // Proxy future assignments to window.LivePreview / window.PdfPreview
-    function _installProxy(globalName) {
-      var _current = window[globalName];
-      Object.defineProperty(window, globalName, {
-        get: function() { return _current; },
-        set: function(val) {
-          _current = val;
-          if (val && !val.__aoi_neutralized) _patchGlobal(globalName);
-        },
-        configurable: true,
-      });
-    }
-
-    // PdfPreview excluded — it is the core rendering engine, not a preview panel.
-    ['LivePreview'].forEach(function(name) {
-      try { _installProxy(name); } catch(_) {}
-    });
+    // REMOVED: Object.defineProperty setter trap for LivePreview — intercepting window
+    // property assignment is a global mutation hazard. RuntimeProtection.js locks
+    // critical methods after all modules finish loading instead.
 
     function restore(name) {
       var obj = window[name];

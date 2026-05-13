@@ -67,15 +67,10 @@
       log('All preview systems disabled');
     }
 
-    // Re-disable on DOM mutations (preview systems may re-inject)
-    function watchAndSuppress() {
-      if (typeof MutationObserver === 'undefined') return;
-      var observer = new MutationObserver(function () {
-        if (!window.LivePreview || window.LivePreview.__aosDisabled) return;
-        disable();
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: false });
-    }
+    // REMOVED: watchAndSuppress MutationObserver — re-firing disable() on every DOM
+    // mutation was a vector for silently re-patching production engines on navigation.
+    // RuntimeProtection.js handles method immutability via writable:false instead.
+    function watchAndSuppress() { /* disabled — see runtime-protection.js */ }
 
     function restore() {
       var LP = window.LivePreview;

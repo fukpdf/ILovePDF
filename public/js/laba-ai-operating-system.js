@@ -421,22 +421,11 @@
 
     function apply() {
       GLOBALS.forEach(_patch);
-      // Neutralize any that load after us
-      var _orig = Object.defineProperty;
-      try {
-        GLOBALS.forEach(function(name){
-          if (!window[name]) {
-            Object.defineProperty(window, name, {
-              configurable: true, enumerable: false,
-              set: function(v){
-                Object.defineProperty(window, name, { configurable:true, writable:true, value:v });
-                _patch(name);
-              },
-              get: function(){ return undefined; }
-            });
-          }
-        });
-      } catch(_){}
+      // REMOVED: Object.defineProperty setter traps for late-loading globals.
+      // Intercepting window property assignment via setter traps is a global
+      // mutation hazard — they can fire on core production engines that load
+      // after this module. RuntimeProtection.js handles post-load immutability
+      // via writable:false after DOMContentLoaded and load events instead.
     }
 
     return { apply: apply };
