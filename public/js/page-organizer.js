@@ -1,11 +1,14 @@
 // Page-level Organize UI for single-PDF tools.
+// v2.0 — Final Stabilization
 //
-// When a user uploads a PDF for an "organizable" tool (split, rotate,
-// organize, compress, ocr, etc.), we replace the plain file-list view with
-// a high-resolution thumbnail grid. Each thumbnail can be rotated, deleted,
-// or dragged to reorder. On submit, we assemble a NEW PDF in the browser
-// (using pdf-lib) that reflects every edit, then hand it back to the
-// existing tool-page.js submit flow.
+// Key hardening in v2.0:
+//   • Per-tile render state machine (idle→queued→rendering→rendered→failed→retrying)
+//   • Per-render cancellation token — old tokens flipped on grid re-render
+//   • Retry failed tiles up to 3 times (handled by PdfPreview v3.0)
+//   • Thumbnail cache validation before use (checks image decodes)
+//   • Spinner shown during render; fallback placeholder shown after all retries
+//   • PdfPreview.invalidateSession() called on destroy
+//   • Bounded thumbCache (max 200 entries, FIFO eviction)
 (function () {
   const PAGE_LEVEL_TOOLS = new Set([
     'split', 'rotate', 'organize', 'crop', 'page-numbers',
@@ -31,12 +34,23 @@
       s.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
       s.onload  = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib load failed'));
       s.onerror = (e) => {
-        console.error('[PO_ERROR] pdf-lib script load failed:', e);
+        console.error('[PO] pdf-lib script load failed:', e);
         reject(new Error('pdf-lib load failed'));
       };
       document.head.appendChild(s);
     });
   }
+
+  // ── Tile state machine states ─────────────────────────────────────────────
+  const STATE = {
+    IDLE:      'idle',
+    QUEUED:    'queued',
+    RENDERING: 'rendering',
+    RENDERED:  'rendered',
+    RETRYING:  'retrying',
+    FAILED:    'failed',
+    DESTROYED: 'destroyed',
+  };
 
   function uid() {
     return 'p_' + Math.random().toString(36).slice(2, 10);
@@ -46,6 +60,54 @@
     return String(s || '').replace(/[&<>"']/g, (c) => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
+  }
+
+  // ── Validate thumbnail blob before using it ───────────────────────────────
+  // Returns true if the dataURL can be decoded as a valid image.
+  function validateThumbDataUrl(dataUrl) {
+    return new Promise(function (resolve) {
+      if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+        return resolve(false);
+      }
+      var img = new Image();
+      var timer = setTimeout(function () {
+        img.onload = img.onerror = null;
+        resolve(false);
+      }, 1000);
+      img.onload  = function () { clearTimeout(timer); resolve(img.width > 0 && img.height > 0); };
+      img.onerror = function () { clearTimeout(timer); resolve(false); };
+      img.src = dataUrl;
+    });
+  }
+
+  // ── Bounded thumbnail cache ───────────────────────────────────────────────
+  // Max 200 entries — FIFO eviction.
+  function makeBoundedCache(maxSize) {
+    var keys = []; // insertion order
+    var map  = new Map();
+    return {
+      has: function (k) { return map.has(k); },
+      get: function (k) { return map.get(k); },
+      set: function (k, v) {
+        if (map.has(k)) {
+          map.set(k, v);
+          return;
+        }
+        if (keys.length >= maxSize) {
+          var evict = keys.shift();
+          map.delete(evict);
+        }
+        keys.push(k);
+        map.set(k, v);
+      },
+      delete: function (k) {
+        var idx = keys.indexOf(k);
+        if (idx >= 0) keys.splice(idx, 1);
+        map.delete(k);
+      },
+      clear: function () { keys = []; map.clear(); },
+      size: function () { return map.size; },
+    };
   }
 
   // ── Open the organizer ────────────────────────────────────────────────────
@@ -104,78 +166,154 @@
     if (window.lucide) lucide.createIcons();
     const grid = containerEl.querySelector('.po-grid');
 
-    // ── Thumbnail render queue ────────────────────────────────────────────
-    const thumbCache = new Map();
-    let renderToken = 0;
+    // ── State tracking ────────────────────────────────────────────────────
+    const thumbCache   = makeBoundedCache(200);
+    const tileStates   = new Map(); // tileId → STATE.*
+    let   renderToken  = 0;        // grid-level render generation counter
+
+    // Active cancellation tokens for in-flight renders.
+    // Each is an object `{ cancelled: false }` so we can flip it by reference.
+    const activeCancelTokens = new Set();
 
     function thumbKey(originalIndex, rotation) {
       return `${originalIndex}@${rotation}`;
     }
 
-    async function renderTileCanvas(tileEl, originalIndex, rotation) {
+    // ── Per-tile render ───────────────────────────────────────────────────
+    async function renderTileCanvas(tileEl, originalIndex, rotation, cancelToken) {
+      const tileId = tileEl.dataset.id;
+      if (!tileId) return;
+      if (cancelToken.cancelled) return;
+
       const key  = thumbKey(originalIndex, rotation);
       const slot = tileEl.querySelector('.po-tile-canvas');
       if (!slot) return;
 
-      // Use cached dataURL if available.
-      const cached = thumbCache.get(key);
-      if (cached) {
-        slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
-        return;
+      // Check cache first — validate before using
+      if (thumbCache.has(key)) {
+        const cached = thumbCache.get(key);
+        const valid  = await validateThumbDataUrl(cached);
+        if (cancelToken.cancelled) return; // cancelled while validating
+        if (valid) {
+          slot.innerHTML = `<img src="${cached}" alt="" draggable="false" />`;
+          tileStates.set(tileId, STATE.RENDERED);
+          _setTileState(tileEl, STATE.RENDERED);
+          return;
+        }
+        // Invalid cache entry — remove and re-render
+        thumbCache.delete(key);
       }
 
-      // renderPage always returns a canvas (or error canvas) — it never throws.
+      // Mark as rendering
+      tileStates.set(tileId, STATE.RENDERING);
+      _setTileState(tileEl, STATE.RENDERING);
+
+      if (cancelToken.cancelled) return;
+
       let canvas;
       try {
+        // PdfPreview.renderPage v3.0 handles its own internal retries (up to 3).
         canvas = await window.PdfPreview.renderPage(pdfDoc, originalIndex + 1, 220, rotation);
       } catch (err) {
-        console.error('[PageOrganizer] renderPage threw for page', originalIndex + 1, ':', err);
+        // PdfPreview never throws — but defensive catch.
+        console.error('[PageOrganizer] renderPage threw (unexpected) for page', originalIndex + 1, ':', err);
+        if (cancelToken.cancelled) return;
+        tileStates.set(tileId, STATE.FAILED);
+        _setTileState(tileEl, STATE.FAILED);
         if (slot.isConnected) {
-          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0;word-break:break-all">Render error p${originalIndex+1}: ${escapeHtml(String(err && err.message ? err.message : err))}</div>`;
+          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
         }
         return;
       }
 
-      if (!canvas.width || !canvas.height) {
+      if (cancelToken.cancelled) return;
+
+      // Check if canvas is error canvas (all retries failed in pdf-preview)
+      if (canvas && canvas._isErrorCanvas) {
+        tileStates.set(tileId, STATE.FAILED);
+        _setTileState(tileEl, STATE.FAILED);
+        if (slot.isConnected) {
+          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+        }
+        return;
+      }
+
+      if (!canvas || !canvas.width || !canvas.height) {
         console.error('[PageOrganizer] Zero-dimension canvas for page', originalIndex + 1);
+        tileStates.set(tileId, STATE.FAILED);
+        _setTileState(tileEl, STATE.FAILED);
         if (slot.isConnected) {
-          slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0">Zero-size canvas p${originalIndex+1}</div>`;
+          slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
         }
         return;
       }
 
+      // Convert to dataURL and cache
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         thumbCache.set(key, dataUrl);
-        if (slot.isConnected) {
+        if (slot.isConnected && !cancelToken.cancelled) {
           slot.innerHTML = `<img src="${dataUrl}" alt="" draggable="false" />`;
+          tileStates.set(tileId, STATE.RENDERED);
+          _setTileState(tileEl, STATE.RENDERED);
         }
       } catch (err) {
         console.error('[PageOrganizer] toDataURL failed for page', originalIndex + 1, ':', err);
-        // Fallback: insert the canvas element directly if toDataURL is blocked.
-        if (slot.isConnected) {
+        // Fallback: insert canvas directly
+        if (slot.isConnected && !cancelToken.cancelled) {
           try {
             slot.innerHTML = '';
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
             slot.appendChild(canvas);
+            tileStates.set(tileId, STATE.RENDERED);
+            _setTileState(tileEl, STATE.RENDERED);
           } catch (appendErr) {
-            console.error('[PageOrganizer] appendChild also failed:', appendErr);
-            slot.innerHTML = `<div style="font-size:10px;color:#c00;padding:4px;background:#fff0f0">toDataURL error p${originalIndex+1}</div>`;
+            console.error('[PageOrganizer] canvas append also failed:', appendErr);
+            tileStates.set(tileId, STATE.FAILED);
+            _setTileState(tileEl, STATE.FAILED);
+            if (slot.isConnected) {
+              slot.innerHTML = `<div class="po-tile-fallback">Page ${originalIndex + 1}</div>`;
+            }
           }
         }
       }
     }
 
+    // ── Visual state indicator on tile ────────────────────────────────────
+    function _setTileState(tileEl, state) {
+      if (!tileEl || !tileEl.isConnected) return;
+      tileEl.dataset.renderState = state;
+      // Add/remove CSS classes for visual state
+      tileEl.classList.toggle('po-tile--rendering', state === STATE.RENDERING || state === STATE.RETRYING);
+      tileEl.classList.toggle('po-tile--failed',    state === STATE.FAILED);
+      tileEl.classList.toggle('po-tile--rendered',  state === STATE.RENDERED);
+    }
+
+    // ── Grid render ───────────────────────────────────────────────────────
     function renderGrid() {
+      // Cancel all active renders from the previous grid generation
+      activeCancelTokens.forEach(function (tok) { tok.cancelled = true; });
+      activeCancelTokens.clear();
+
+      // Invalidate PdfPreview session so stale getPage() calls abort
+      if (window.PdfPreview && window.PdfPreview.invalidateSession) {
+        window.PdfPreview.invalidateSession();
+      }
+
       const myToken = ++renderToken;
+
+      tileStates.clear();
+
       grid.innerHTML = pages.map((p, i) => `
         <div class="po-tile" role="listitem" tabindex="0"
              draggable="true"
-             data-id="${p.id}" data-pos="${i}"
+             data-id="${p.id}" data-pos="${i}" data-render-state="${STATE.IDLE}"
              aria-label="Page ${i + 1}, originally page ${p.originalIndex + 1}">
           <div class="po-tile-pos">${i + 1}</div>
-          <div class="po-tile-canvas" style="transform:none"></div>
+          <div class="po-tile-canvas">
+            <div class="po-tile-spinner"></div>
+          </div>
           <div class="po-tile-meta">
             <span class="po-tile-orig">orig p.${p.originalIndex + 1}</span>
             <span class="po-tile-rot${p.rotation ? ' is-rotated' : ''}">${p.rotation}°</span>
@@ -194,15 +332,29 @@
       bindTileEvents();
       updatePageCount();
 
-      // Render thumbnails sequentially — one at a time to respect the mobile render semaphore.
+      // Render thumbnails sequentially — respects mobile render semaphore.
+      // Each tile gets its own cancellation token.
       (async function renderThumbsInOrder() {
-        const tiles = grid.querySelectorAll('.po-tile');
+        const tiles = Array.from(grid.querySelectorAll('.po-tile'));
         for (const tile of tiles) {
-          if (myToken !== renderToken) return; // grid was re-rendered, abort stale loop
+          // If this grid generation has been superseded, stop.
+          if (myToken !== renderToken) return;
+
           const id = tile.dataset.id;
           const p  = pages.find((x) => x.id === id);
           if (!p) continue;
-          await renderTileCanvas(tile, p.originalIndex, p.rotation);
+
+          tileStates.set(id, STATE.QUEUED);
+
+          // Create a per-tile cancellation token and register it.
+          const cancelToken = { cancelled: false };
+          activeCancelTokens.add(cancelToken);
+
+          try {
+            await renderTileCanvas(tile, p.originalIndex, p.rotation, cancelToken);
+          } finally {
+            activeCancelTokens.delete(cancelToken);
+          }
         }
       })();
     }
@@ -449,10 +601,25 @@
       };
     }
 
+    // Idempotent destroy — safe to call multiple times.
+    let _destroyed = false;
     function destroy() {
+      if (_destroyed) return;
+      _destroyed = true;
+
+      // Cancel all in-flight renders
+      activeCancelTokens.forEach(function (tok) { tok.cancelled = true; });
+      activeCancelTokens.clear();
+
+      // Invalidate PdfPreview session
+      if (window.PdfPreview && window.PdfPreview.invalidateSession) {
+        window.PdfPreview.invalidateSession();
+      }
+
+      thumbCache.clear();
+      tileStates.clear();
       containerEl.innerHTML = '';
       window.PdfPreview.unloadDocument(pdfDoc);
-      thumbCache.clear();
     }
 
     return {
