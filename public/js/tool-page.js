@@ -1037,7 +1037,7 @@ async function renderPdfThumbnails() {
         }, 2000);
         img.onload = function () {
           clearTimeout(timer);
-          if (img.width > 0 && img.height > 0 && host.isConnected) {
+          if (img.naturalWidth > 0 && img.naturalHeight > 0 && host.isConnected) {
             img.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;border-radius:6px;';
             img.setAttribute('draggable', 'false');
             host.innerHTML = '';

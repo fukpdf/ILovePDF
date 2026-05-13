@@ -74,7 +74,7 @@
         img.onload = img.onerror = null;
         resolve(false);
       }, 1000);
-      img.onload  = function () { clearTimeout(timer); resolve(img.width > 0 && img.height > 0); };
+      img.onload  = function () { clearTimeout(timer); resolve(img.naturalWidth > 0 && img.naturalHeight > 0); };
       img.onerror = function () { clearTimeout(timer); resolve(false); };
       img.src = dataUrl;
     });
@@ -321,11 +321,6 @@
       // Cancel all active renders from the previous grid generation
       activeCancelTokens.forEach(function (tok) { tok.cancelled = true; });
       activeCancelTokens.clear();
-
-      // Invalidate PdfPreview session so stale getPage() calls abort
-      if (window.PdfPreview && window.PdfPreview.invalidateSession) {
-        window.PdfPreview.invalidateSession();
-      }
 
       const myToken = ++renderToken;
 
