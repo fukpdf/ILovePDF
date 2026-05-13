@@ -9,21 +9,42 @@ function closeComingSoonModal() {
   document.body.style.overflow = '';
 }
 
-function handleSignupBackdrop(e) { if (e.target === e.currentTarget) closeSignupModal(); }
+function handleSignupBackdrop(e) { /* auth modal removed */ }
 function showSignupModal(file) {
-  const m = document.getElementById('signup-modal');
-  const info = document.getElementById('signup-file-info');
-  if (info && file) {
-    const mb = (file.size / (1024 * 1024)).toFixed(1);
-    info.textContent = `"${file.name}" is ${mb} MB — exceeds the 100 MB free limit.`;
+  const mb = file ? (file.size / (1024 * 1024)).toFixed(1) : '?';
+  const name = file ? file.name : 'This file';
+  // Show a non-blocking banner — auth modal removed, just inform user of size limit
+  let banner = document.getElementById('size-limit-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'size-limit-banner';
+    banner.style.cssText = [
+      'position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999',
+      'background:#fff;border:1.5px solid #fecaca;border-left:4px solid #ef4444',
+      'border-radius:10px;padding:14px 18px;max-width:430px;width:calc(100% - 32px)',
+      'box-shadow:0 4px 20px rgba(0,0,0,.12);font-size:.88rem;color:#0f172a',
+      'display:flex;gap:12px;align-items:flex-start'
+    ].join(';');
+    banner.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+           style="flex-shrink:0;margin-top:1px">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div>
+        <div style="font-weight:700;margin-bottom:3px">File too large</div>
+        <div id="size-limit-msg"></div>
+      </div>`;
+    document.body.appendChild(banner);
   }
-  if (m) { m.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+  const msgEl = banner.querySelector('#size-limit-msg');
+  if (msgEl) msgEl.textContent = `"${name}" is ${mb} MB — the 100 MB limit applies. Please use a smaller file.`;
+  banner.style.display = 'flex';
+  clearTimeout(banner._hideTimer);
+  banner._hideTimer = setTimeout(() => { banner.style.display = 'none'; }, 7000);
 }
-function closeSignupModal() {
-  const m = document.getElementById('signup-modal');
-  if (m) m.classList.add('hidden');
-  document.body.style.overflow = '';
-}
+function closeSignupModal() { /* auth modal removed */ }
 
 function showProcessing(title, msg) {
   const o = document.getElementById('processing-overlay');

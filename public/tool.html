@@ -90,22 +90,6 @@
     </div>
   </div>
 
-  <div id="signup-modal" class="modal-backdrop signup-modal hidden" onclick="handleSignupBackdrop(event)">
-    <div class="modal-box">
-      <button class="modal-close" onclick="closeSignupModal()" aria-label="Close"><i data-lucide="x"></i></button>
-      <span class="modal-emoji">🔒</span>
-      <h3 class="modal-title">Sign Up Required</h3>
-      <p class="modal-message">
-        Files larger than <strong>100&nbsp;MB</strong> require a free account.
-        Create one to unlock larger uploads and premium features.
-      </p>
-      <div class="file-info" id="signup-file-info"></div>
-      <div class="modal-actions">
-        <button class="btn btn-primary" onclick="closeSignupModal()"><i data-lucide="user-plus"></i> Sign Up Free</button>
-        <button class="btn btn-outline" onclick="closeSignupModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
 
   <div id="processing-overlay" class="processing-overlay hidden" aria-live="polite">
     <div class="processing-card">

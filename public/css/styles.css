@@ -1233,6 +1233,42 @@ a{ color:var(--brand-text); }
 }
 .v2-auth .btn-signup:hover{ transform: translateY(-1px); filter:brightness(1.05); box-shadow: var(--shadow-pop); }
 
+/* ── Donate button ─────────────────────────────────────────────────────── */
+.btn-donate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: linear-gradient(135deg, #fb923c 0%, #ef4444 100%);
+  color: #fff;
+  border-radius: 20px;
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: opacity .15s, transform .15s, box-shadow .15s;
+  box-shadow: 0 2px 10px rgba(239,68,68,.22);
+  letter-spacing: .01em;
+}
+.btn-donate i[data-lucide], .btn-donate svg {
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.btn-donate:hover {
+  opacity: .9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(239,68,68,.34);
+}
+.btn-donate:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+@media (max-width: 520px) {
+  .btn-donate-text { display: none; }
+  .btn-donate { padding: 7px 10px; }
+}
+
 /* Hide the legacy mega-nav (per-category inline dropdowns) — replaced by v2 nav */
 .mega-nav{ display:none !important; }
 .topbar-search{ display:none !important; }   /* keep header tidy with new buttons */

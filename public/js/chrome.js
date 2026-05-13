@@ -207,10 +207,10 @@ function renderHeader(){
       <div class="hs-results" id="hs-results" role="listbox" hidden></div>
     </div>
 
-    <div class="v2-auth" id="header-auth-btns">
-      <button class="btn-login" type="button" data-auth="login">Log In</button>
-      <button class="btn-signup" type="button" data-auth="signup">Sign Up</button>
-    </div>
+    <a class="btn-donate" href="https://buymeacoffee.com/ilovepdf" target="_blank" rel="noopener noreferrer" aria-label="Support ILovePDF — Buy us a coffee">
+      <i data-lucide="heart"></i>
+      <span class="btn-donate-text">Donate</span>
+    </a>
   `;
 
   const allItem = document.getElementById('all-tools-item');

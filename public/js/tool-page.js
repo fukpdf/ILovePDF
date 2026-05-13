@@ -631,7 +631,7 @@ function renderProPreviewStep(tool) {
   const file  = selectedFiles[0] && selectedFiles[0].file;
   if (!file || !mount) { Flow.navTo('upload'); return; }
 
-  // onResult: used by EditPdfPro — auto-downloads then commits flow.
+  // onResult: used by EditPdfPro — shows the Download button for manual save.
   function onResult(blob, filename, mime) {
     if (!blob || blob.size < 10) {
       showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
@@ -639,15 +639,10 @@ function renderProPreviewStep(tool) {
     }
     const url = URL.createObjectURL(blob);
     setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
-    try {
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch (_) {}
     showStatus(
       'success',
       'Your file is ready',
-      filename + ' has been downloaded. Use the button below if it didn\'t start automatically.',
+      'Click the Download button below to save ' + filename + '.',
       url,
       filename
     );
@@ -774,8 +769,7 @@ function renderPreviewStep(tool) {
 
 // ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────
 // Re-renders the captured success markup (status card + Download button) on
-// a dedicated page. The actual file was already auto-downloaded on Process,
-// the visible button is a fallback in case the browser blocked it.
+// a dedicated page. The user clicks Download to save — no auto-download.
 function renderDownloadStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
@@ -1327,7 +1321,6 @@ async function processFile() {
 
       const { blob, filename } = result;
       hideProcessing();
-      triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
       // Compress: surface "already optimised" when the PDF could not be shrunk.
       const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
@@ -1336,7 +1329,7 @@ async function processFile() {
         isAlreadyOpt ? 'Already optimised' : 'Your file is ready',
         isAlreadyOpt
           ? 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.'
-          : 'Press the button if download does not start automatically.',
+          : 'Click the Download button below to save your file.',
         createStatusUrl(blob),
         filename,
       );
@@ -1539,12 +1532,11 @@ async function runAdvancedCompress() {
     const saved    = Math.max(0, Math.round((1 - blob.size / file.size) * 100));
 
     hideProcessing();
-    triggerDownload(blob, filename);
     if (window.UsageLimit) window.UsageLimit.record(1);
     showStatus(
       'success',
       saved > 0 ? `Reduced by ${saved}%` : 'Compression complete',
-      'Press the button if the download does not start automatically.',
+      'Click the Download button below to save your file.',
       createStatusUrl(blob),
       filename,
     );

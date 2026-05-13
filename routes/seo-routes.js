@@ -68,6 +68,7 @@ const BLOG_POSTS = [
   '/blog/resize-image-guide.html',
   '/blog/image-filters-guide.html',
   '/blog/best-pdf-tools.html',
+  '/blog/support-the-project.html',
 ];
 
 function escXml(s){
