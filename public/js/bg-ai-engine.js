@@ -143,6 +143,9 @@
   var _sessions   = {};
   var _ortReady   = false;
   var _ortPromise = null;
+  // Inference cancellation flag. Set to true by cancel() before a route change
+  // or tab hide; checked inside inferTiled() after each yieldMain() call.
+  var _tileCancel = false;
 
   function clamp(v, lo, hi)  { return v < lo ? lo : v > hi ? hi : v; }
   function clampF(v)         { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -994,14 +997,21 @@
         var x1=Math.min(x0+TILE,W), y1=Math.min(y0+TILE,H);
         var tw=x1-x0, th=y1-y0;
 
-        var tc=document.createElement('canvas');
-        tc.width=tw; tc.height=th;
+        // Acquire tile canvas from pool — reused across tilesX × tilesY iterations,
+        // eliminating repeated GPU texture allocation in the hot inference path.
+        var tc;
+        if (window.CanvasPool) {
+          tc = window.CanvasPool.acquireCanvas(tw, th);
+        } else {
+          tc = document.createElement('canvas');
+          tc.width = tw; tc.height = th;
+        }
         tc.getContext('2d').drawImage(img,x0,y0,tw,th,0,0,tw,th);
 
         var lb=letterboxCanvas(tc,tw,th,cfg.inputSize);
         var buf=toTensor(lb.canvas,cfg.inputSize,cfg.mean,cfg.std);
         lb.canvas.width=0; lb.canvas.height=0;
-        tc.width=0; tc.height=0;
+        if (window.CanvasPool) { window.CanvasPool.releaseCanvas(tc); } else { tc.width=0; tc.height=0; }
 
         var feeds={};
         feeds[session.inputNames[0]]=new window.ort.Tensor('float32',buf,[1,3,cfg.inputSize,cfg.inputSize]);
@@ -1028,7 +1038,16 @@
 
         done++;
         if (onProgress) onProgress(32+Math.round(done/total*44),'AI segmentation\u2026 '+Math.round(done/total*100)+'%');
-        if (done%2===0) await yieldMain();
+        if (done%2===0) {
+          await yieldMain();
+          // Check cancellation after every yield — allows lifecycle manager or
+          // route transitions to abort in-flight tiled inference without leaking.
+          if (_tileCancel) {
+            var ce = new Error('Inference cancelled');
+            ce.cancelled = true;
+            throw ce;
+          }
+        }
       }
     }
 
@@ -1042,6 +1061,7 @@
   //  MAIN PROCESS FUNCTION
   // ══════════════════════════════════════════════════════════════════════════
   async function process(file, opts, onProgress) {
+    _tileCancel = false; // reset on every new process() call
     opts = opts || {};
     if (onProgress) onProgress(1, 'Preparing image\u2026');
 
@@ -1326,6 +1346,9 @@
   window.BgAiEngine = {
     process:      process,
     preload:      preload,
+    // cancel() sets the flag checked inside inferTiled() after each tile yield.
+    // Safe to call at any time; no-op if inference is not running.
+    cancel:       function () { _tileCancel = true; },
     isReady:      function (t) { return !!_sessions[t || 'lite']; },
     getModelInfo: function (t) { return MODELS[t || 'lite']; },
     // Debug / audit surface

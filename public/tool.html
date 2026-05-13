@@ -133,11 +133,17 @@
 
   <script src="/js/config.js"></script>
   <script src="/js/debug-trace.js"></script>
+  <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
+  <script src="/js/timer-registry.js"></script>
   <script src="/workers/workerPool.js"></script>
   <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
   <script src="/js/opfs-manager.js"></script>
   <script src="/js/stream-helpers.js"></script>
   <script src="/js/memory-pressure-monitor.js"></script>
+  <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
+  <script src="/js/canvas-pool.js"></script>
+  <script src="/js/task-scheduler.js"></script>
+  <script src="/js/lifecycle-manager.js"></script>
   <!-- Phase 25: Large File Architecture (load after Phase 23A, before browser-tools) -->
   <script src="/js/large-file-streaming.js"></script>
   <script src="/js/eviction-manager.js"></script>

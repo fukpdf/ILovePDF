@@ -55,12 +55,16 @@
   var _renderQueue = [];
   var MAX_CONCURRENT = /Mobi|Android/i.test(navigator.userAgent) ? 1 : 2;
 
+  // Delegate to TaskScheduler when available (loaded before pdf-preview.js).
+  // Falls back to the internal semaphore if TaskScheduler is absent.
   function acquireRenderSlot() {
+    if (window.TaskScheduler) return window.TaskScheduler.acquireSlot('RENDER');
     if (_renderSlots < MAX_CONCURRENT) { _renderSlots++; return Promise.resolve(); }
     return new Promise(function (resolve) { _renderQueue.push(resolve); });
   }
 
   function releaseRenderSlot() {
+    if (window.TaskScheduler) { window.TaskScheduler.releaseSlot('RENDER'); return; }
     if (_renderQueue.length > 0) { _renderQueue.shift()(); }
     else { _renderSlots = Math.max(0, _renderSlots - 1); }
   }
@@ -160,7 +164,12 @@
     canvas.style.cssText = 'display:block;width:' + Math.floor(w / dpr) + 'px;height:' + Math.floor(h / dpr) + 'px';
 
     var ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('canvas.getContext("2d") returned null (GPU limit or oversized canvas)');
+    if (!ctx) {
+      // GPU context limit or transient context loss — wait 120 ms and retry once.
+      await new Promise(function (r) { setTimeout(r, 120); });
+      ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) throw new Error('canvas.getContext("2d") returned null after retry (GPU limit or context loss)');
+    }
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
