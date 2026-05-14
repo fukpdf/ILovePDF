@@ -147,13 +147,20 @@
       const blob = await fetchResultBlob(final.result_url);
       const filename = final.result_name || ('ILovePDF-' + (file.name || 'file'));
       ui.hideProcessing();
+      // Route status URL through ObjectURLRegistry so memory-pressure cleanup
+      // and pagehide revocation both fire correctly.  Revoke after 5 minutes —
+      // generous enough for any user action.
+      const reg = window.ObjectURLRegistry;
+      const _statusUrl = reg
+        ? reg.create(blob, 'queue-result')
+        : URL.createObjectURL(blob);
+      setTimeout(() => {
+        try { reg ? reg.revoke(_statusUrl) : URL.revokeObjectURL(_statusUrl); } catch (_) {}
+      }, 5 * 60 * 1000);
       ui.triggerDownload(blob, filename);
       if (window.UsageLimit) window.UsageLimit.record(1);
-      // Create a status URL and schedule revocation after 5 minutes.
-      const _statusUrl = URL.createObjectURL(blob);
-      setTimeout(() => { try { URL.revokeObjectURL(_statusUrl); } catch (_) {} }, 5 * 60 * 1000);
       ui.showStatus('success', 'Your file is ready',
-        `Press the button if download does not start automatically.`,
+        'Press the button if download does not start automatically.',
         _statusUrl, filename);
     } catch (err) {
       ui.hideProcessing();

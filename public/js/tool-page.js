@@ -5,6 +5,10 @@ let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-le
 // Tracks the currently mounted pro-editor module (BgRemoverPro / EditPdfPro)
 // so destroy() is called before mounting a new instance on tool switch.
 let _activeMountedModule = null;
+// Re-entrancy guard for processFile(): prevents a rapid double-click from
+// launching two concurrent processing runs.  Set to true the moment we commit
+// to processing; cleared in the try/finally regardless of exit path.
+let _processingInFlight = false;
 
 // ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
 // Routes:
@@ -840,6 +844,12 @@ function setupFileInput() {
   const input = document.getElementById('file-input');
   const area  = document.getElementById('upload-area');
   if (!input || !area) return;
+  // Guard: renderUploadStep() is called every time the user presses "Back to
+  // Upload", which would stack duplicate listeners on the same elements.
+  // dataset.inputBound mirrors the stepBound / touchBound patterns used
+  // elsewhere in this file.
+  if (area.dataset.inputBound === '1') return;
+  area.dataset.inputBound = '1';
 
   area.addEventListener('click', e => {
     if (e.target.closest('input')) return;
@@ -1244,6 +1254,10 @@ async function tryWithRetry(toolId, files, opts) {
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
+  // Re-entrancy guard: a rapid double-click must never launch two concurrent
+  // processing runs.  All downstream validation is synchronous so this guard
+  // fires before any async work begins.
+  if (_processingInFlight) return;
   if (!currentTool) return;
   if (selectedFiles.length === 0) {
     showStatus('error', 'No file selected', 'Please upload a file before processing.');
@@ -1262,134 +1276,141 @@ async function processFile() {
     if (e.file.size > MAX_FILE_BYTES) { showSignupModal(e.file); return; }
   }
 
-  // ── Page-organizer integration ──────────────────────────────────────────
-  // If the user reordered, rotated, or deleted pages in the preview grid,
-  // assemble the edited PDF here and substitute it for the original file.
-  // Server-side and client-side flows both see the edited PDF transparently.
-  if (pageOrganizer && selectedFiles.length === 1) {
-    try {
-      if (pageOrganizer.getPageCount() === 0) {
-        showStatus('error', 'No pages selected', 'Please keep at least one page before processing.');
-        return;
-      }
-      showProcessing('Processing your file…', 'Just a moment.');
-      const { file: editedFile } = await pageOrganizer.getEditedPdf();
-      if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
-      selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
-      hideProcessing();
-    } catch (err) {
-      hideProcessing();
-      showStatus('error', 'Please try again',
-        'Processing is taking longer than usual. Please wait or try again later.');
-      return;
-    }
-  }
-
-  const formData = new FormData();
-
-  if (currentTool.multipleFiles) {
-    const isImgInput = currentTool.group === 'image' ||
-                       currentTool.id === 'scan-to-pdf' ||
-                       currentTool.id === 'jpg-to-pdf';
-    const field = isImgInput ? 'images' : 'pdfs';
-    selectedFiles.forEach(e => formData.append(field, e.file));
-  } else {
-    const field = currentTool.group === 'image' ? 'image' : 'pdf';
-    formData.append(field, selectedFiles[0].file);
-  }
-
-  // Per-file rotations (server may use; safe to ignore otherwise)
-  formData.append('rotations', JSON.stringify(selectedFiles.map(e => e.rotation)));
-
-  (currentTool.options || []).forEach(opt => {
-    const el = document.getElementById(`opt-${opt.id}`);
-    if (el && el.value.trim() !== '') formData.append(opt.id, el.value.trim());
-  });
-  // Compress: inject the tier-aware level value (slider → 'low'|'medium'|'high').
-  if (currentTool.id === 'compress') {
-    const lvl = readCompressLevel();
-    if (lvl) formData.append('level', lvl);
-  }
-
-  showProcessing(`Processing your file…`, 'This usually takes only a few seconds.');
+  // Past all synchronous validation — commit to processing.
+  // The try/finally below guarantees _processingInFlight and processBtn are
+  // always restored regardless of which exit path fires (success, error, throw).
+  _processingInFlight = true;
   const processBtn = document.getElementById('process-btn');
-  if (processBtn) processBtn.disabled = true;
-
-  // ── Browser-side path FIRST: zero upload, instant result for any tool
-  // marked `clientSide: true` and supported by BrowserTools. If the
-  // browser handler succeeds we're done. If it throws (or signals
-  // NO_BROWSER_GAIN — e.g. compress couldn't shrink it), we fall through
-  // to the queue / direct paths below.
-  if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
-    try {
-      const opts = {};
-      (currentTool.options || []).forEach(o => {
-        const el = document.getElementById(`opt-${o.id}`);
-        if (el && el.value !== '') opts[o.id] = el.value;
-      });
-      const result = await tryWithRetry(
-        currentTool.id,
-        selectedFiles.map(e => e.file),
-        opts,
-      );
-
-      // ── Output Validation Layer ─────────────────────────────────────────
-      const validation = await OutputValidator.check(currentTool.id, result);
-      if (!validation.ok) {
+  try {
+    // ── Page-organizer integration ──────────────────────────────────────────
+    // If the user reordered, rotated, or deleted pages in the preview grid,
+    // assemble the edited PDF here and substitute it for the original file.
+    // Server-side and client-side flows both see the edited PDF transparently.
+    if (pageOrganizer && selectedFiles.length === 1) {
+      try {
+        if (pageOrganizer.getPageCount() === 0) {
+          showStatus('error', 'No pages selected', 'Please keep at least one page before processing.');
+          return;
+        }
+        showProcessing('Processing your file…', 'Just a moment.');
+        const { file: editedFile } = await pageOrganizer.getEditedPdf();
+        if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
+        selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
         hideProcessing();
-        showStatus('error', 'Result incomplete', validation.msg);
-        if (processBtn) processBtn.disabled = false;
+      } catch (err) {
+        hideProcessing();
+        showStatus('error', 'Please try again',
+          'Processing is taking longer than usual. Please wait or try again later.');
         return;
       }
-
-      const { blob, filename } = result;
-      hideProcessing();
-      if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
-      // Compress: surface "already optimised" when the PDF could not be shrunk.
-      const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
-      showStatus(
-        'success',
-        isAlreadyOpt ? 'Already optimised' : 'Your file is ready',
-        isAlreadyOpt
-          ? 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.'
-          : 'Click the Download button below to save your file.',
-        createStatusUrl(blob),
-        filename,
-      );
-      if (currentTool.id === 'compress') appendCompressAdvancedLink();
-      if (processBtn) processBtn.disabled = false;
-      return;
-    } catch (err) {
-      hideProcessing();
-      const rawMsg = (err && err.message) || '';
-      let userMsg = 'Something went wrong. Please try again.';
-      if (rawMsg === 'file_too_large_for_browser') {
-        userMsg = 'This file is too large to process directly. Please use a file under 50 MB.';
-      } else if (rawMsg === 'memory_pressure') {
-        userMsg = 'Your device is running low on memory. Please close other tabs and try again.';
-      } else if (rawMsg && rawMsg !== '__orig__' &&
-                 rawMsg !== 'NO_BROWSER_GAIN' &&
-                 rawMsg !== 'No browser-side compression possible' &&
-                 !rawMsg.startsWith('no_processor_') &&
-                 !rawMsg.includes('Worker') &&
-                 !rawMsg.includes('wasm') &&
-                 !rawMsg.includes('OPFS') &&
-                 !rawMsg.includes('chunk') &&
-                 !rawMsg.includes('ArrayBuffer') &&
-                 rawMsg.length < 220) {
-        userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
-      }
-      showStatus('error', 'Processing failed', userMsg);
-      if (processBtn) processBtn.disabled = false;
-      return;
     }
-  }
 
-  // No browser handler found for this tool
-  hideProcessing();
-  showStatus('error', 'Tool unavailable',
-    'This tool is not yet available in your browser. Please try again in a moment.');
-  if (processBtn) processBtn.disabled = false;
+    const formData = new FormData();
+
+    if (currentTool.multipleFiles) {
+      const isImgInput = currentTool.group === 'image' ||
+                         currentTool.id === 'scan-to-pdf' ||
+                         currentTool.id === 'jpg-to-pdf';
+      const field = isImgInput ? 'images' : 'pdfs';
+      selectedFiles.forEach(e => formData.append(field, e.file));
+    } else {
+      const field = currentTool.group === 'image' ? 'image' : 'pdf';
+      formData.append(field, selectedFiles[0].file);
+    }
+
+    // Per-file rotations (server may use; safe to ignore otherwise)
+    formData.append('rotations', JSON.stringify(selectedFiles.map(e => e.rotation)));
+
+    (currentTool.options || []).forEach(opt => {
+      const el = document.getElementById(`opt-${opt.id}`);
+      if (el && el.value.trim() !== '') formData.append(opt.id, el.value.trim());
+    });
+    // Compress: inject the tier-aware level value (slider → 'low'|'medium'|'high').
+    if (currentTool.id === 'compress') {
+      const lvl = readCompressLevel();
+      if (lvl) formData.append('level', lvl);
+    }
+
+    showProcessing(`Processing your file…`, 'This usually takes only a few seconds.');
+    if (processBtn) processBtn.disabled = true;
+
+    // ── Browser-side path FIRST: zero upload, instant result for any tool
+    // marked `clientSide: true` and supported by BrowserTools. If the
+    // browser handler succeeds we're done. If it throws (or signals
+    // NO_BROWSER_GAIN — e.g. compress couldn't shrink it), we fall through
+    // to the queue / direct paths below.
+    if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
+      try {
+        const opts = {};
+        (currentTool.options || []).forEach(o => {
+          const el = document.getElementById(`opt-${o.id}`);
+          if (el && el.value !== '') opts[o.id] = el.value;
+        });
+        const result = await tryWithRetry(
+          currentTool.id,
+          selectedFiles.map(e => e.file),
+          opts,
+        );
+
+        // ── Output Validation Layer ───────────────────────────────────────
+        const validation = await OutputValidator.check(currentTool.id, result);
+        if (!validation.ok) {
+          hideProcessing();
+          showStatus('error', 'Result incomplete', validation.msg);
+          return;
+        }
+
+        const { blob, filename } = result;
+        hideProcessing();
+        if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
+        // Compress: surface "already optimised" when the PDF could not be shrunk.
+        const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
+        showStatus(
+          'success',
+          isAlreadyOpt ? 'Already optimised' : 'Your file is ready',
+          isAlreadyOpt
+            ? 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.'
+            : 'Click the Download button below to save your file.',
+          createStatusUrl(blob),
+          filename,
+        );
+        if (currentTool.id === 'compress') appendCompressAdvancedLink();
+        return;
+      } catch (err) {
+        hideProcessing();
+        const rawMsg = (err && err.message) || '';
+        let userMsg = 'Something went wrong. Please try again.';
+        if (rawMsg === 'file_too_large_for_browser') {
+          userMsg = 'This file is too large to process directly. Please use a file under 50 MB.';
+        } else if (rawMsg === 'memory_pressure') {
+          userMsg = 'Your device is running low on memory. Please close other tabs and try again.';
+        } else if (rawMsg && rawMsg !== '__orig__' &&
+                   rawMsg !== 'NO_BROWSER_GAIN' &&
+                   rawMsg !== 'No browser-side compression possible' &&
+                   !rawMsg.startsWith('no_processor_') &&
+                   !rawMsg.includes('Worker') &&
+                   !rawMsg.includes('wasm') &&
+                   !rawMsg.includes('OPFS') &&
+                   !rawMsg.includes('chunk') &&
+                   !rawMsg.includes('ArrayBuffer') &&
+                   rawMsg.length < 220) {
+          userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
+        }
+        showStatus('error', 'Processing failed', userMsg);
+        return;
+      }
+    }
+
+    // No browser handler found for this tool
+    hideProcessing();
+    showStatus('error', 'Tool unavailable',
+      'This tool is not yet available in your browser. Please try again in a moment.');
+  } finally {
+    // Always restore button state and clear the re-entrancy guard — regardless
+    // of which exit path fired (success return, error return, or uncaught throw).
+    _processingInFlight = false;
+    if (processBtn) processBtn.disabled = false;
+  }
 }
 
 // ── BRANDED FILENAME ───────────────────────────────────────────────────────
@@ -1504,6 +1525,9 @@ async function runAdvancedCompress() {
   if (processBtn) processBtn.disabled = true;
   showProcessing('Applying deep compression…', 'Rendering pages for maximum size reduction.');
 
+  // srcPdf is declared outside the try so the finally block can always destroy
+  // it, even if an error fires mid-loop (prevents PDF.js memory leak).
+  let srcPdf = null;
   try {
     // Render-based deep compression: every page → JPEG canvas → re-embedded PDF.
     const { PDFDocument } = await window.BrowserTools._loadPdfLib();
@@ -1521,11 +1545,14 @@ async function runAdvancedCompress() {
       pdfjsLib = await _p;
     }
 
-    const file    = selectedFiles[0].file;
-    const data    = await file.arrayBuffer();
-    const srcPdf  = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    const total   = srcPdf.numPages;
-    const outDoc  = await PDFDocument.create();
+    const file = selectedFiles[0].file;
+    // [FUTURE: StreamEngine] Replace file.arrayBuffer() with OPFS byte-range
+    // streaming so giant PDFs don't spike the JS heap during deep compress.
+    let data  = await file.arrayBuffer();
+    srcPdf    = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    data      = null; // release ArrayBuffer reference; PDF.js owns it now
+    const total  = srcPdf.numPages;
+    const outDoc = await PDFDocument.create();
 
     for (let i = 1; i <= total; i++) {
       showProcessing(
@@ -1554,14 +1581,12 @@ async function runAdvancedCompress() {
           b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
         }, 'image/jpeg', 0.72);
       });
-      // Explicitly zero the canvas dimensions to free GPU texture memory.
-      // Reuse the already-obtained ctx from this loop iteration.
+      // Zero canvas dimensions to release GPU texture memory before next page.
       canvas.width = 0; canvas.height = 0;
       const img = await outDoc.embedJpg(jpgBytes);
       const pg  = outDoc.addPage([pw, ph]);
       pg.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
     }
-    await srcPdf.destroy();
 
     const outBytes = await outDoc.save({ useObjectStreams: true });
     const blob     = new Blob([outBytes], { type: 'application/pdf' });
@@ -1583,6 +1608,9 @@ async function runAdvancedCompress() {
       ? err.message : 'Please try again with a different file.';
     showStatus('error', 'Deep compression failed', msg);
   } finally {
+    // Always destroy the PDF.js document — even on mid-loop errors.
+    // This frees the decoded stream data and worker references.
+    if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     if (processBtn) processBtn.disabled = false;
   }
 }

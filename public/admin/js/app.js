@@ -120,9 +120,16 @@ const SECTION_TITLES = {
 };
 
 let _currentSection = 'overview';
+// Monotonic navigation counter — incremented on every navigate() call so any
+// in-flight async renderSection() can detect it has been superseded and bail
+// before writing to the DOM. This prevents stale data from a slow API call
+// overwriting content rendered by a more recent navigation event.
+let _navSeq = 0;
+
 function navigate(section) {
   if (!SECTION_TITLES[section]) section = 'overview';
   _currentSection = section;
+  _navSeq++;
 
   $$('.section').forEach(s => s.classList.remove('active'));
   const sec = $(`#section-${section}`);
@@ -561,6 +568,11 @@ async function renderTools(sec) {
 
 // Analytics filter state — persists for the session
 const _an = { range:'30', from:'', to:'', tool:'', ua:'' };
+// Monotonic counter for analytics renders. Incremented on every loadAnalytics()
+// call so concurrent invocations (rapid filter changes, Refresh clicks) can
+// detect they have been superseded and bail before writing to the DOM or
+// creating duplicate charts.
+let _analyticsSeq = 0;
 
 async function renderAnalytics(sec) {
   const today   = new Date().toISOString().split('T')[0];
@@ -623,6 +635,12 @@ async function renderAnalytics(sec) {
 }
 
 async function loadAnalytics() {
+  // Increment and snapshot the sequence counter.  If a newer call is made
+  // while we are awaiting the API, our seq will no longer equal _analyticsSeq
+  // and we bail before touching the DOM or creating duplicate charts.
+  _analyticsSeq++;
+  const seq = _analyticsSeq;
+
   const body = $('#analytics-body');
   if (!body) return;
   try {
@@ -639,6 +657,10 @@ async function loadAnalytics() {
     if (_an.ua)   url += `&ua=${encodeURIComponent(_an.ua)}`;
 
     const d = await API.get(url);
+
+    // Bail if a newer filter-change or Refresh click has already fired.
+    if (seq !== _analyticsSeq) return;
+
     const toolUsage   = Array.isArray(d.toolUsage)   ? d.toolUsage   : [];
     const dailyEvents = Array.isArray(d.dailyEvents)  ? d.dailyEvents  : [];
     const uaBreakdown = Array.isArray(d.uaBreakdown)  ? d.uaBreakdown  : [];
@@ -746,6 +768,8 @@ async function loadAnalytics() {
       }
     }
   } catch (e) {
+    // Only show the error if this is still the latest analytics render.
+    if (seq !== _analyticsSeq) return;
     if ($('#analytics-body')) $('#analytics-body').innerHTML = `<div class="alert alert-warning"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg> ${esc(e.message)}</div>`;
   }
 }
