@@ -506,6 +506,43 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
    Tablet  ≤ 1024px   → 3 cols, single column layout
    Mobile  ≤ 768px    → 2 cols
    ============================================================ */
+/* ── View All Tools CTA ───────────────────────────────────────────────────── */
+/* Replaces the fragile inline onmouseover/onmouseout handlers.
+   Works identically on desktop, tablet and mobile. */
+#view-all-tools-cta {
+  text-align: center;
+  margin: 36px 0 8px;
+}
+.view-all-tools-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 30px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 15px;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, .28);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.view-all-tools-btn:hover,
+.view-all-tools-btn:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(99, 102, 241, .38);
+}
+.view-all-tools-btn:active { transform: translateY(0); }
+.view-all-tools-sub {
+  font-size: 13px;
+  color: var(--text-mute, #8a92a6);
+  margin: 10px 0 0;
+}
+
+/* ── Calc mobile slot — now a pure CSS no-op (nodes stay in .rail-sticky) ── */
+/* DOM teleportation is replaced by .calc-card.mobile-open toggling in home.js */
+#calc-mobile-slot { display: none !important; }
+
 @media (max-width: 1280px){
   .tools-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }

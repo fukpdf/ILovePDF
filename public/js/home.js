@@ -50,32 +50,46 @@ function renderTools(){
   if (!existing) {
     const cta = document.createElement('div');
     cta.id = 'view-all-tools-cta';
-    cta.style.cssText = 'text-align:center;margin:36px 0 8px';
     cta.innerHTML = `
-      <a href="/tools" style="display:inline-flex;align-items:center;gap:8px;padding:14px 30px;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);color:#fff;font-weight:600;border-radius:12px;text-decoration:none;font-size:15px;box-shadow:0 4px 18px rgba(99,102,241,.28);transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 24px rgba(99,102,241,.38)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 18px rgba(99,102,241,.28)'">
+      <a href="/tools" class="view-all-tools-btn">
         <i data-lucide="grid-3x3"></i>
         View All 33+ Tools
         <i data-lucide="arrow-right"></i>
       </a>
-      <p style="font-size:13px;color:var(--text-mute,#8a92a6);margin:10px 0 0">Advanced tools, AI features, image editing and more</p>
+      <p class="view-all-tools-sub">Advanced tools, AI features, image editing and more</p>
     `;
     root.after(cta);
   }
 }
 
 /* ----------------------- mobile calculator toggle ----------------------- */
+// Uses CSS class toggling only — no DOM node movement.
+// The CSS already has `.calc-card.mobile-open { display:block }` which overrides
+// the `@media (max-width:1024px) .rail-sticky .calc-card { display:none }` rule
+// (same specificity, later declaration wins). This means the calculator cards
+// always stay in .rail-sticky — they are simply shown/hidden via CSS.
+// A MediaQueryList listener auto-resets state on desktop resize so there is
+// never a stale open/closed mismatch across breakpoints.
 function wireCalcToggle(){
-  const btn  = document.getElementById('calc-toggle');
-  const slot = document.getElementById('calc-mobile-slot');
-  const sticky = document.querySelector('.rail-sticky');
-  if (!btn || !slot || !sticky) return;
-  btn.addEventListener('click', () => {
-    const open = !btn.classList.contains('open');
+  const btn   = document.getElementById('calc-toggle');
+  if (!btn) return;
+
+  const cards = () => document.querySelectorAll('.rail-sticky .calc-card');
+
+  const setOpen = (open) => {
     btn.classList.toggle('open', open);
     btn.setAttribute('aria-expanded', String(open));
-    if (open) Array.from(sticky.children).forEach(c => slot.appendChild(c));
-    else      Array.from(slot.children).forEach(c => sticky.appendChild(c));
-  });
+    cards().forEach(c => c.classList.toggle('mobile-open', open));
+  };
+
+  btn.addEventListener('click', () => setOpen(!btn.classList.contains('open')));
+
+  // Auto-collapse when the viewport crosses back to desktop (≥1025 px).
+  // This prevents the "open on mobile, resize to desktop, rail is broken" bug.
+  const mq = window.matchMedia('(min-width: 1025px)');
+  const onMqChange = (e) => { if (e.matches) setOpen(false); };
+  if (mq.addEventListener) mq.addEventListener('change', onMqChange);
+  else if (mq.addListener)  mq.addListener(onMqChange); // Safari 13 fallback
 }
 
 /* ----------------------- numbers-to-words calculator ----------------------- */
