@@ -168,34 +168,36 @@ async function renderOverview(sec) {
   $('#refresh-overview').onclick = () => renderOverview(sec);
   try {
     const d = await API.get('/overview');
-    const s = d.stats;
+    const s   = d.stats   || {};
+    const sys = d.system  || {};
+    const recentLogs = Array.isArray(d.recentLogs) ? d.recentLogs : [];
     $('#ov-stats').innerHTML = `<div class="stat-grid">
-      <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/></svg></div><div class="stat-label">Total Tools</div><div class="stat-value">${s.totalTools}</div><div class="stat-sub">${s.totalTools} available</div></div>
-      <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="stat-label">Blog Posts</div><div class="stat-value">${s.totalPosts}</div><div class="stat-sub">${s.pubPosts} published · ${s.draftPosts} draft</div></div>
-      <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="stat-label">Registered Users</div><div class="stat-value">${fmt.num(s.totalUsers)}</div><div class="stat-sub">+${s.todayUsers} today</div></div>
-      <div class="stat-card"><div class="stat-icon icon-yellow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg></div><div class="stat-label">Active Flags</div><div class="stat-value">${s.activeFlags}</div><div class="stat-sub">Feature flags enabled</div></div>
-      <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Uptime</div><div class="stat-value">${fmtUptime(d.system.uptime)}</div><div class="stat-sub">Node ${d.system.nodeVersion}</div></div>
-      <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="stat-label">Memory Used</div><div class="stat-value">${d.system.memUsedMB}<small style="font-size:14px">MB</small></div><div class="stat-sub">of ${d.system.memTotalMB}MB heap</div></div>
+      <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/></svg></div><div class="stat-label">Total Tools</div><div class="stat-value">${s.totalTools||0}</div><div class="stat-sub">${s.totalTools||0} available</div></div>
+      <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="stat-label">Blog Posts</div><div class="stat-value">${s.totalPosts||0}</div><div class="stat-sub">${s.pubPosts||0} published · ${s.draftPosts||0} draft</div></div>
+      <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="stat-label">Registered Users</div><div class="stat-value">${fmt.num(s.totalUsers||0)}</div><div class="stat-sub">+${s.todayUsers||0} today</div></div>
+      <div class="stat-card"><div class="stat-icon icon-yellow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg></div><div class="stat-label">Active Flags</div><div class="stat-value">${s.activeFlags||0}</div><div class="stat-sub">Feature flags enabled</div></div>
+      <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Uptime</div><div class="stat-value">${fmtUptime(sys.uptime||0)}</div><div class="stat-sub">Node ${sys.nodeVersion||'N/A'}</div></div>
+      <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="stat-label">Memory Used</div><div class="stat-value">${sys.memUsedMB||0}<small style="font-size:14px">MB</small></div><div class="stat-sub">of ${sys.memTotalMB||0}MB heap</div></div>
     </div>`;
     // Recent logs
-    $('#ov-logs').innerHTML = d.recentLogs.length ? d.recentLogs.slice(0,10).map(l => `
+    $('#ov-logs').innerHTML = recentLogs.length ? recentLogs.slice(0,10).map(l => `
       <div class="log-item">
-        <div class="log-dot" style="background:${actionColor(l.action)}"></div>
+        <div class="log-dot" style="background:${actionColor(l.action||'')}"></div>
         <div class="log-content">
-          <div class="log-action">${esc(l.action.replace(/_/g,' '))}</div>
+          <div class="log-action">${esc((l.action||'').replace(/_/g,' '))}</div>
           <div class="log-meta">${esc(l.details||'')} ${l.ip?'· '+l.ip:''}</div>
         </div>
         <div class="log-time">${fmt.ago(l.created_at)}</div>
       </div>`).join('') : '<div class="text-muted text-sm">No activity yet.</div>';
     // System health
-    const memPct = Math.round(d.system.memUsedMB / d.system.memTotalMB * 100);
+    const memPct = sys.memTotalMB ? Math.round((sys.memUsedMB||0) / sys.memTotalMB * 100) : 0;
     $('#ov-health').innerHTML = `
       <div style="display:grid;gap:14px">
         <div><div class="flex justify-between mb-1"><span class="text-sm">Heap Memory</span><span class="text-sm font-bold">${memPct}%</span></div><div class="health-bar"><div class="health-fill ${memPct>80?'danger':memPct>60?'warn':''}" style="width:${memPct}%"></div></div></div>
-        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Platform</span><span>${d.system.platform}</span></div>
-        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">CPU Cores</span><span>${d.system.cpuCount}</span></div>
-        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Total RAM</span><span>${d.system.totalMemGB}GB</span></div>
-        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Free RAM</span><span>${d.system.freeMemGB}GB</span></div>
+        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Platform</span><span>${sys.platform||'—'}</span></div>
+        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">CPU Cores</span><span>${sys.cpuCount||'—'}</span></div>
+        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Total RAM</span><span>${sys.totalMemGB||'—'}GB</span></div>
+        <div class="flex justify-between" style="font-size:13px"><span class="text-muted">Free RAM</span><span>${sys.freeMemGB||'—'}GB</span></div>
       </div>`;
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -253,10 +255,12 @@ async function loadBlogPosts() {
     if (_blogStatus) params.set('status', _blogStatus);
     if (_blogSearch) params.set('search', _blogSearch);
     const d = await API.get('/blog/posts?' + params);
+    const posts = Array.isArray(d.posts) ? d.posts : [];
+    const total = d.total || 0;
     const tbody = $('#blog-tbody');
     if (!tbody) return;
-    if (!d.posts.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><h3>No posts found</h3><p>Create your first blog post to get started.</p></div></td></tr>`; return; }
-    tbody.innerHTML = d.posts.map(p => `
+    if (!posts.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><h3>No posts found</h3><p>Create your first blog post to get started.</p></div></td></tr>`; return; }
+    tbody.innerHTML = posts.map(p => `
       <tr>
         <td><div style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</div><div style="font-size:11px;color:var(--muted)">/blog/${esc(p.slug)}</div></td>
         <td><span class="badge ${p.status==='published'?'badge-green':'badge-gray'}">${p.status}</span></td>
@@ -269,8 +273,8 @@ async function loadBlogPosts() {
           <button class="btn btn-ghost btn-xs del-post" data-id="${p.id}" data-title="${esc(p.title)}" title="Delete">🗑</button>
         </td>
       </tr>`).join('');
-    $('#blog-count').textContent = `${d.total} total post${d.total!==1?'s':''}`;
-    renderPagination('#blog-pagination', d.total, 15, _blogPage, p => { _blogPage = p; loadBlogPosts(); });
+    $('#blog-count').textContent = `${total} total post${total!==1?'s':''}`;
+    renderPagination('#blog-pagination', total, 15, _blogPage, p => { _blogPage = p; loadBlogPosts(); });
     $$('.edit-post').forEach(b => b.onclick = () => openEditor(b.dataset.id));
     $$('.del-post').forEach(b => b.onclick = async () => {
       const ok = await modal('Delete Post', `<p>Permanently delete <strong>${esc(b.dataset.title)}</strong>? This cannot be undone.</p>`, 'Delete', 'danger');
@@ -284,6 +288,7 @@ async function loadBlogPosts() {
 
 async function showCategoryManager() {
   const d = await API.get('/blog/categories');
+  const categories = Array.isArray(d.categories) ? d.categories : [];
   const html = `
     <div class="form-group">
       <label class="form-label">New Category</label>
@@ -292,7 +297,7 @@ async function showCategoryManager() {
         <button class="btn btn-primary" id="add-cat-btn">Add</button>
       </div>
     </div>
-    <div id="cat-list">${d.categories.map(c=>`
+    <div id="cat-list">${categories.map(c=>`
       <div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border)">
         <div><strong>${esc(c.name)}</strong><span class="text-muted text-sm"> /${c.slug}</span></div>
         <button class="btn btn-ghost btn-xs del-cat" data-id="${c.id}">Remove</button>
@@ -327,7 +332,8 @@ async function openEditor(postId) {
   // Load categories
   try {
     const cats = await API.get('/blog/categories');
-    cats.categories.forEach(c => {
+    const categoryList = Array.isArray(cats.categories) ? cats.categories : [];
+    categoryList.forEach(c => {
       const o = document.createElement('option');
       o.value = c.id; o.textContent = c.name;
       $('#post-category').append(o);
@@ -564,27 +570,32 @@ async function loadAnalytics(sec, days) {
   if (!body) return;
   try {
     const d = await API.get('/analytics?days=' + days);
+    const toolUsage   = Array.isArray(d.toolUsage)   ? d.toolUsage   : [];
+    const dailyEvents = Array.isArray(d.dailyEvents)  ? d.dailyEvents  : [];
+    const uaBreakdown = Array.isArray(d.uaBreakdown)  ? d.uaBreakdown  : [];
+    const totalEvents = d.totalEvents || 0;
+    const numDays     = d.days || days;
     body.innerHTML = `
       <div class="stat-grid mb-4">
-        <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Total Events</div><div class="stat-value">${fmt.num(d.totalEvents)}</div><div class="stat-sub">Last ${d.days} days</div></div>
-        <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="stat-label">Top Tool</div><div class="stat-value" style="font-size:16px">${d.toolUsage[0]?.tool_id||'—'}</div><div class="stat-sub">${fmt.num(d.toolUsage[0]?.c||0)} uses</div></div>
-        <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="stat-label">Mobile Users</div><div class="stat-value">${d.uaBreakdown.find(u=>u.ua_type==='mobile')?.c||0}</div><div class="stat-sub">vs ${d.uaBreakdown.find(u=>u.ua_type==='desktop')?.c||0} desktop</div></div>
+        <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Total Events</div><div class="stat-value">${fmt.num(totalEvents)}</div><div class="stat-sub">Last ${numDays} days</div></div>
+        <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="stat-label">Top Tool</div><div class="stat-value" style="font-size:16px">${toolUsage[0]?.tool_id||'—'}</div><div class="stat-sub">${fmt.num(toolUsage[0]?.c||0)} uses</div></div>
+        <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="stat-label">Mobile Users</div><div class="stat-value">${uaBreakdown.find(u=>u.ua_type==='mobile')?.c||0}</div><div class="stat-sub">vs ${uaBreakdown.find(u=>u.ua_type==='desktop')?.c||0} desktop</div></div>
       </div>
       <div class="grid-2 mb-4">
-        <div class="card"><div class="card-header"><span class="card-title">Daily Events</span></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div></div>
-        <div class="card"><div class="card-header"><span class="card-title">Top Tools</span></div><div class="card-body">${d.toolUsage.length?d.toolUsage.map((t,i)=>`<div class="flex justify-between items-center mb-2"><div class="flex items-center gap-2"><span style="font-size:12px;color:var(--muted);width:16px">${i+1}</span><span style="font-size:13px">${esc(t.tool_id)}</span></div><span class="badge badge-purple">${fmt.num(t.c)}</span></div>`).join(''):'<div class="text-muted text-sm">No tool usage recorded yet.</div>'}</div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Daily Events</span></div><div class="card-body"><div class="chart-wrap">${dailyEvents.length ? '<canvas id="chart-daily"></canvas>' : '<div class="text-muted text-sm" style="padding:24px 0;text-align:center">No events recorded yet.</div>'}</div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Top Tools</span></div><div class="card-body">${toolUsage.length?toolUsage.map((t,i)=>`<div class="flex justify-between items-center mb-2"><div class="flex items-center gap-2"><span style="font-size:12px;color:var(--muted);width:16px">${i+1}</span><span style="font-size:13px">${esc(t.tool_id||'')}</span></div><span class="badge badge-purple">${fmt.num(t.c||0)}</span></div>`).join(''):'<div class="text-muted text-sm">No tool usage recorded yet.</div>'}</div></div>
       </div>`;
 
     // Chart
-    if (window.Chart && d.dailyEvents.length) {
+    if (window.Chart && dailyEvents.length) {
       const ctx = $('#chart-daily');
       if (ctx) {
         if (ctx._chart) ctx._chart.destroy();
         ctx._chart = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: d.dailyEvents.map(e => e.day),
-            datasets: [{ label:'Events', data: d.dailyEvents.map(e => e.c), borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.08)', fill:true, tension:.4, pointRadius:3 }]
+            labels: dailyEvents.map(e => e.day),
+            datasets: [{ label:'Events', data: dailyEvents.map(e => e.c), borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.08)', fill:true, tension:.4, pointRadius:3 }]
           },
           options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},x:{grid:{display:false}}} }
         });
@@ -837,26 +848,34 @@ async function renderHealth(sec) {
   $('#refresh-health').onclick = () => renderHealth(sec);
   try {
     const d = await API.get('/health');
-    const memPct = Math.round(d.memory.heapUsedMB / d.memory.heapTotalMB * 100);
-    const osMemPct = Math.round((1 - parseFloat(d.os.freeMemGB) / parseFloat(d.os.totalMemGB)) * 100);
+    const memory       = d.memory   || {};
+    const osInfo       = d.os       || {};
+    const dbInfo       = d.db       || {};
+    const uploads      = d.uploads  || {};
+    const recentErrors = Array.isArray(d.recentErrors) ? d.recentErrors : [];
+    const loadAvg      = Array.isArray(osInfo.loadAvg) ? osInfo.loadAvg : [];
+    const memPct   = memory.heapTotalMB   ? Math.round((memory.heapUsedMB||0)   / memory.heapTotalMB   * 100) : 0;
+    const totalGB  = parseFloat(osInfo.totalMemGB) || 0;
+    const freeGB   = parseFloat(osInfo.freeMemGB)  || 0;
+    const osMemPct = totalGB ? Math.round((1 - freeGB / totalGB) * 100) : 0;
     $('#health-body').innerHTML = `
       <div class="stat-grid mb-4">
-        <div class="stat-card"><div class="stat-icon ${memPct>80?'icon-red':memPct>60?'icon-yellow':'icon-green'}"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Heap Memory</div><div class="stat-value">${d.memory.heapUsedMB}MB</div><div class="stat-sub">of ${d.memory.heapTotalMB}MB (${memPct}%)</div></div>
-        <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div><div class="stat-label">RSS Memory</div><div class="stat-value">${d.memory.rssMB}MB</div><div class="stat-sub">Process total</div></div>
-        <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="stat-label">Database</div><div class="stat-value">${d.db.sizeMB}MB</div><div class="stat-sub">${d.db.users} users · ${d.db.posts} posts</div></div>
-        <div class="stat-card"><div class="stat-icon icon-yellow"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><div class="stat-label">Uploads Dir</div><div class="stat-value">${d.uploads.count}</div><div class="stat-sub">${d.uploads.sizeMB}MB on disk</div></div>
+        <div class="stat-card"><div class="stat-icon ${memPct>80?'icon-red':memPct>60?'icon-yellow':'icon-green'}"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Heap Memory</div><div class="stat-value">${memory.heapUsedMB||0}MB</div><div class="stat-sub">of ${memory.heapTotalMB||0}MB (${memPct}%)</div></div>
+        <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div><div class="stat-label">RSS Memory</div><div class="stat-value">${memory.rssMB||0}MB</div><div class="stat-sub">Process total</div></div>
+        <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="stat-label">Database</div><div class="stat-value">${dbInfo.sizeMB||0}MB</div><div class="stat-sub">${dbInfo.users||0} users · ${dbInfo.posts||0} posts</div></div>
+        <div class="stat-card"><div class="stat-icon icon-yellow"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><div class="stat-label">Uploads Dir</div><div class="stat-value">${uploads.count||0}</div><div class="stat-sub">${uploads.sizeMB||0}MB on disk</div></div>
       </div>
       <div class="grid-2 mb-4">
         <div class="card"><div class="card-header"><span class="card-title">Server Info</span></div><div class="card-body" style="display:grid;gap:12px">
           <div><div class="flex justify-between mb-1"><span class="text-sm">Heap Memory</span><span class="text-sm font-bold">${memPct}%</span></div><div class="health-bar"><div class="health-fill ${memPct>80?'danger':memPct>60?'warn':''}" style="width:${memPct}%"></div></div></div>
           <div><div class="flex justify-between mb-1"><span class="text-sm">System RAM Used</span><span class="text-sm font-bold">${osMemPct}%</span></div><div class="health-bar"><div class="health-fill ${osMemPct>80?'danger':osMemPct>60?'warn':''}" style="width:${osMemPct}%"></div></div></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Platform</span><span>${d.os.platform}</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Node.js</span><span>${d.os.nodeVersion}</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">CPU Cores</span><span>${d.os.cpus}</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Load Average</span><span>${d.os.loadAvg.join(' ')}</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Total RAM</span><span>${d.os.totalMemGB}GB</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Free RAM</span><span>${d.os.freeMemGB}GB</span></div>
-          <div class="flex justify-between text-sm"><span class="text-muted">Uptime</span><span>${fmtUptime(d.uptime)}</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Platform</span><span>${osInfo.platform||'—'}</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Node.js</span><span>${osInfo.nodeVersion||'—'}</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">CPU Cores</span><span>${osInfo.cpus||'—'}</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Load Average</span><span>${loadAvg.length ? loadAvg.join(' ') : '—'}</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Total RAM</span><span>${osInfo.totalMemGB||'—'}GB</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Free RAM</span><span>${osInfo.freeMemGB||'—'}GB</span></div>
+          <div class="flex justify-between text-sm"><span class="text-muted">Uptime</span><span>${fmtUptime(d.uptime||0)}</span></div>
         </div></div>
         <div class="card"><div class="card-header"><span class="card-title">Service Status</span></div><div class="card-body" style="display:grid;gap:12px">
           ${serviceRow('Express Server', true)}
@@ -867,7 +886,7 @@ async function renderHealth(sec) {
           ${serviceRow('HuggingFace AI', false, 'Optional — not configured')}
         </div></div>
       </div>
-      ${d.recentErrors.length ? `<div class="card"><div class="card-header"><span class="card-title">Recent Errors</span></div><div class="card-body">${d.recentErrors.map(e=>`<div class="log-item"><div class="log-dot" style="background:var(--danger)"></div><div class="log-content"><div class="log-action">${esc(e.action)}</div><div class="log-meta">${esc(e.details||'')}</div></div><div class="log-time">${fmt.ago(e.created_at)}</div></div>`).join('')}</div></div>` : ''}`;
+      ${recentErrors.length ? `<div class="card"><div class="card-header"><span class="card-title">Recent Errors</span></div><div class="card-body">${recentErrors.map(e=>`<div class="log-item"><div class="log-dot" style="background:var(--danger)"></div><div class="log-content"><div class="log-action">${esc(e.action||'')}</div><div class="log-meta">${esc(e.details||'')}</div></div><div class="log-time">${fmt.ago(e.created_at)}</div></div>`).join('')}</div></div>` : ''}`;
   } catch(e) { toast(e.message,'error'); }
 }
 function serviceRow(name, ok, note='') {
@@ -904,7 +923,7 @@ async function renderSettings(sec) {
   sec.innerHTML = `<div class="page-header"><div><div class="page-title">Settings</div><div class="page-sub">Feature flags, maintenance mode, and site-wide toggles.</div></div></div><div id="settings-body">Loading…</div>`;
   try {
     const d = await API.get('/feature-flags');
-    const flags = d.flags;
+    const flags = Array.isArray(d.flags) ? d.flags : [];
     const maintenanceFlag = flags.find(f => f.key === 'maintenance_mode');
     $('#settings-body').innerHTML = `
       ${maintenanceFlag?.enabled ? '<div class="alert alert-warning mb-4"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg><strong>Maintenance mode is ON.</strong> Your site is currently showing a maintenance page to visitors.</div>' : ''}
@@ -934,7 +953,9 @@ async function renderSettings(sec) {
 
 function renderFlagsList(flags) {
   const list = $('#flags-list'); if (!list) return;
-  if (!flags.length) { list.innerHTML = '<div class="text-muted text-sm">No feature flags.</div>'; return; }
+  const safeFlags = Array.isArray(flags) ? flags : [];
+  if (!safeFlags.length) { list.innerHTML = '<div class="text-muted text-sm">No feature flags.</div>'; return; }
+  flags = safeFlags;
   list.innerHTML = flags.map(f => `
     <div class="flex justify-between items-center" style="padding:10px 0;border-bottom:1px solid var(--border)">
       <div><div style="font-weight:600;font-size:13px">${esc(f.key)}</div><div class="text-sm text-muted">${esc(f.description||'')}</div></div>
