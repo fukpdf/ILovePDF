@@ -113,6 +113,33 @@ window.TOOL_PRIORITY_BANDS = [
     .filter(t => (t.prio || 'instant') === band.key),
 }));
 
+// ── Homepage-specific tool bands ─────────────────────────────────────────────
+// A curated subset of 12 core tools shown on the homepage grid.
+// ALL tools are accessible from the /tools directory page.
+const _HP_IDS = new Set([
+  'merge','split','pdf-to-jpg','jpg-to-pdf','organize',
+  'protect','unlock','rotate','watermark','page-numbers',
+  'pdf-to-word','pdf-to-excel',
+]);
+const _allFlat = window.TOOL_GROUPS.flatMap(g => (g.items||[]).map(t => Object.assign({ _cat: g.key }, t)));
+
+window.HOMEPAGE_BANDS = [
+  {
+    key: 'core',
+    title: 'Core PDF Tools',
+    subtitle: '12 essential tools for everyday PDF tasks — instant results, no signup needed.',
+    icon: 'zap',
+    items: _allFlat.filter(t => t.tid && _HP_IDS.has(t.tid)),
+  },
+  {
+    key: 'compress',
+    title: 'Compression',
+    subtitle: 'Shrink your files fast — choose your preferred quality level.',
+    icon: 'archive',
+    items: _allFlat.filter(t => t.tid === 'compress'),
+  },
+];
+
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present so
 // users land on the indexable URL. Falls back to /tool.html?id=<id> for items

@@ -241,7 +241,17 @@ app.get('/:slug/:step', (req, res, next) => {
   res.type('html').send(html);
 });
 
+// /tools — dedicated tools directory page
+app.get('/tools', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'tools.html'));
+});
+
+// Catch-all: admin sub-paths fall back to login (not homepage).
+// Everything else gets the main SPA index.html.
 app.get('/{*path}', (req, res) => {
+  const p = req.path || '';
+  if (p.startsWith('/admin')) return res.redirect('/admin/login');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

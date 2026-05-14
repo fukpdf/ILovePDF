@@ -6,19 +6,21 @@
 const homeToolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
 /* ----------------------- render tools grid ----------------------- */
-// Renders three priority bands (Instant → Compression → Advanced) instead of
-// the legacy functional categories so users see the fastest-to-use tools at
-// the top of the page. The mega-menu still uses functional categories — this
-// is purely a homepage presentation choice driven by chrome.js metadata.
+// Renders the homepage tool bands (core tools + compression only).
+// ALL 33+ tools are accessible via the /tools directory page.
+// The mega-menu still shows every tool in functional categories.
 function renderTools(){
   const root = document.getElementById('tools-root');
   if (!root) return;
-  const bands = window.TOOL_PRIORITY_BANDS || [];
+
+  // Use the curated homepage bands (core + compress).
+  // Falls back to full priority bands if homepage bands not yet defined.
+  const bands = window.HOMEPAGE_BANDS || window.TOOL_PRIORITY_BANDS || [];
   if (!bands.length) return;
 
   const badge = (window.toolBadgeHtml || (()=> ''));
   root.innerHTML = bands.map(b => {
-    if (!b.items.length) return '';
+    if (!b.items || !b.items.length) return '';
     return `
       <section class="cat-block cat-block--${b.key}" id="cat-${b.key}" data-prio="${b.key}">
         <div class="cat-title cat-title--${b.key}">
@@ -29,7 +31,7 @@ function renderTools(){
         ${b.subtitle ? `<p class="cat-sub">${b.subtitle}</p>` : ''}
         <div class="tools-grid">
           ${b.items.map(t => `
-            <a class="tool" data-cat="${t._cat}" data-prio="${t.prio||'instant'}" href="${homeToolUrl(t)}">
+            <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}" href="${homeToolUrl(t)}">
               <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
               <div class="tool-text">
                 <h4>${t.name}</h4>
@@ -42,6 +44,23 @@ function renderTools(){
       </section>
     `;
   }).join('');
+
+  // "View All Tools" CTA — appended directly after the grid container
+  const existing = document.getElementById('view-all-tools-cta');
+  if (!existing) {
+    const cta = document.createElement('div');
+    cta.id = 'view-all-tools-cta';
+    cta.style.cssText = 'text-align:center;margin:36px 0 8px';
+    cta.innerHTML = `
+      <a href="/tools" style="display:inline-flex;align-items:center;gap:8px;padding:14px 30px;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);color:#fff;font-weight:600;border-radius:12px;text-decoration:none;font-size:15px;box-shadow:0 4px 18px rgba(99,102,241,.28);transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 24px rgba(99,102,241,.38)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 18px rgba(99,102,241,.28)'">
+        <i data-lucide="grid-3x3"></i>
+        View All 33+ Tools
+        <i data-lucide="arrow-right"></i>
+      </a>
+      <p style="font-size:13px;color:var(--text-mute,#8a92a6);margin:10px 0 0">Advanced tools, AI features, image editing and more</p>
+    `;
+    root.after(cta);
+  }
 }
 
 /* ----------------------- mobile calculator toggle ----------------------- */

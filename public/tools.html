@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All PDF & Image Tools — ILovePDF</title>
+  <meta name="description" content="Browse all 33+ free PDF and image tools: merge, split, compress, convert, OCR, AI summarize, background remover and more. No signup required.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://ilovepdf.cyou/tools">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/home.css">
+  <style>
+    .tools-page-hero {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+      color: #fff;
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    .tools-page-hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      margin: 0 0 12px;
+      letter-spacing: -0.03em;
+    }
+    .tools-page-hero p {
+      font-size: 1.05rem;
+      opacity: .88;
+      margin: 0 0 28px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .tp-search-wrap {
+      position: relative;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .tp-search-wrap svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px; height: 18px;
+      stroke: #94a3b8; fill: none;
+      stroke-width: 2; stroke-linecap: round;
+      pointer-events: none;
+    }
+    #tp-search {
+      width: 100%;
+      padding: 14px 16px 14px 46px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      outline: none;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(0,0,0,.15);
+      transition: background .2s;
+    }
+    #tp-search::placeholder { color: rgba(255,255,255,.65); }
+    #tp-search:focus { background: rgba(255,255,255,.22); }
+
+    .tp-filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 20px 24px 4px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .tp-tab {
+      padding: 7px 16px;
+      border-radius: 99px;
+      border: 1.5px solid var(--border, #e5e8f0);
+      background: var(--surface, #fff);
+      color: var(--text-soft, #5b6478);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .tp-tab:hover { border-color: var(--primary, #4f46e5); color: var(--primary, #4f46e5); }
+    .tp-tab.active {
+      background: var(--primary, #4f46e5);
+      border-color: var(--primary, #4f46e5);
+      color: #fff;
+    }
+
+    .tp-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 8px 24px 64px;
+    }
+    .tp-section {
+      margin-bottom: 36px;
+    }
+    .tp-section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 0 12px;
+      border-bottom: 1.5px solid var(--border, #e5e8f0);
+      margin-bottom: 16px;
+    }
+    .tp-section-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: var(--grad-soft, #eef2ff);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .tp-section-icon svg { width: 16px; height: 16px; stroke: var(--primary, #4f46e5); fill: none; stroke-width: 2; }
+    .tp-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text, #1a1f36);
+    }
+    .tp-section-count {
+      font-size: 12px;
+      color: var(--text-mute, #8a92a6);
+      background: var(--surface-2, #f1f3f9);
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-left: 2px;
+    }
+
+    .tp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .tp-tool {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      border-radius: 12px;
+      background: var(--surface, #fff);
+      border: 1.5px solid var(--border, #e5e8f0);
+      text-decoration: none;
+      color: var(--text, #1a1f36);
+      transition: all .15s;
+      position: relative;
+    }
+    .tp-tool:hover {
+      border-color: var(--primary, #4f46e5);
+      box-shadow: 0 4px 16px rgba(79,70,229,.10);
+      transform: translateY(-1px);
+    }
+    .tp-tool-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .tp-tool-ico {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .tp-tool-ico svg { width: 18px; height: 18px; stroke: var(--primary, #4f46e5); fill: none; stroke-width: 2; }
+    .tp-tool-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tp-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    .tp-badge--popular { background: #dcfce7; color: #15803d; }
+    .tp-badge--advanced { background: #f3f4f6; color: #6b7280; }
+    .tp-badge--new { background: #fef3c7; color: #b45309; }
+    .tp-badge--ai { background: #f3e8ff; color: #7c3aed; }
+    .tp-tool-name {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .tp-tool-desc {
+      font-size: 12px;
+      color: var(--text-soft, #5b6478);
+      line-height: 1.4;
+    }
+
+    .tp-empty {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--text-mute, #8a92a6);
+    }
+    .tp-empty svg { width: 48px; height: 48px; margin-bottom: 12px; stroke: #cbd5e1; fill: none; stroke-width: 1.5; }
+    .tp-empty h3 { font-size: 16px; color: var(--text-soft, #5b6478); margin: 0 0 6px; }
+    .tp-empty p { font-size: 13px; margin: 0; }
+
+    .tp-no-results {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .tp-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+      .tp-filter-bar { padding: 16px 16px 4px; gap: 6px; }
+      .tp-main { padding: 8px 16px 48px; }
+      .tools-page-hero { padding: 40px 16px 36px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="ILovePDF home">
+        <span class="brand-mark"><i data-lucide="file-text"></i></span>
+        <span class="brand-name">ILove<span>PDF</span></span>
+      </a>
+      <nav class="nav" id="nav" aria-label="Main"></nav>
+    </div>
+  </header>
+
+  <div class="tools-page-hero">
+    <h1>All PDF &amp; Image Tools</h1>
+    <p>33+ free tools — merge, split, convert, OCR, AI summarize, image editing and more. No signup, no watermarks.</p>
+    <div class="tp-search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="tp-search" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
+    </div>
+  </div>
+
+  <div class="tp-filter-bar" id="tp-filter-bar" role="tablist" aria-label="Filter by category">
+    <button class="tp-tab active" data-cat="all" role="tab" aria-selected="true">All Tools</button>
+    <button class="tp-tab" data-cat="organize" role="tab">Organize</button>
+    <button class="tp-tab" data-cat="convert" role="tab">Convert</button>
+    <button class="tp-tab" data-cat="security" role="tab">Security</button>
+    <button class="tp-tab" data-cat="edit" role="tab">Edit</button>
+    <button class="tp-tab" data-cat="advanced" role="tab">Advanced &amp; AI</button>
+    <button class="tp-tab" data-cat="image" role="tab">Image</button>
+    <button class="tp-tab" data-cat="utilities" role="tab">Utilities</button>
+  </div>
+
+  <div class="tp-main" id="tp-main" role="main">
+    <div style="text-align:center;padding:60px 0;color:var(--text-mute,#8a92a6)">Loading tools…</div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer style="background:var(--text,#1a1f36);color:rgba(255,255,255,.7);padding:40px 24px;text-align:center">
+    <a href="/" style="color:#fff;font-weight:700;font-size:18px;text-decoration:none">ILove<span style="color:#a78bfa">PDF</span></a>
+    <p style="margin:12px 0 0;font-size:13px">Free online PDF &amp; image tools. All files processed securely and deleted automatically.</p>
+    <div style="margin-top:16px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:13px">
+      <a href="/" style="color:rgba(255,255,255,.7);text-decoration:none">Home</a>
+      <a href="/merge-pdf" style="color:rgba(255,255,255,.7);text-decoration:none">Merge PDF</a>
+      <a href="/compress-pdf" style="color:rgba(255,255,255,.7);text-decoration:none">Compress PDF</a>
+      <a href="/pdf-to-word" style="color:rgba(255,255,255,.7);text-decoration:none">PDF to Word</a>
+      <a href="/about" style="color:rgba(255,255,255,.7);text-decoration:none">About</a>
+    </div>
+    <p style="margin:16px 0 0;font-size:12px;opacity:.5">© 2024–2026 ILovePDF.cyou — All rights reserved</p>
+  </footer>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="/js/tools-config.js"></script>
+  <script src="/js/chrome.js"></script>
+  <script src="/js/auth-ui.js"></script>
+  <script src="/js/tools-page.js"></script>
+
+</body>
+</html>

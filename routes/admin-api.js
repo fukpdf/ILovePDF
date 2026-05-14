@@ -405,21 +405,70 @@ router.delete('/media/:id', (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 router.get('/analytics', (req, res) => {
-  const days = parseInt(req.query.days || '30');
-  const since = Math.floor((Date.now() - days * 86400000) / 1000);
+  const days       = parseInt(req.query.days || '30');
+  const range      = req.query.range   || '';
+  const fromParam  = req.query.from    || '';
+  const toParam    = req.query.to      || '';
+  const toolFilter = req.query.tool    || '';
+  const uaFilter   = req.query.ua      || '';
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  let since, until;
+
+  if (range === 'today') {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    since = Math.floor(d.getTime() / 1000);
+    until = nowSec;
+  } else if (range === 'yesterday') {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    until = Math.floor(d.getTime() / 1000) - 1;
+    since = until - 86399;
+  } else if (fromParam && toParam) {
+    since = Math.floor(new Date(fromParam).getTime() / 1000);
+    until = Math.floor(new Date(toParam + 'T23:59:59').getTime() / 1000);
+    if (isNaN(since) || isNaN(until)) {
+      since = Math.floor((Date.now() - days * 86400000) / 1000);
+      until = nowSec;
+    }
+  } else {
+    since = Math.floor((Date.now() - days * 86400000) / 1000);
+    until = nowSec;
+  }
+
+  // Build parameterized WHERE clause with optional filters
+  const clauses = ['created_at>?', 'created_at<=?'];
+  const params  = [since, until];
+  if (toolFilter) { clauses.push('tool_id=?');  params.push(toolFilter); }
+  if (uaFilter)   { clauses.push('ua_type=?');  params.push(uaFilter);  }
+  const baseWhere = clauses.join(' AND ');
 
   const toolUsage = db.prepare(
-    "SELECT tool_id, COUNT(*) as c FROM adm_analytics WHERE event='tool_use' AND created_at>? GROUP BY tool_id ORDER BY c DESC LIMIT 10"
-  ).all(since);
-  const dailyEvents = db.prepare(
-    "SELECT strftime('%Y-%m-%d', created_at, 'unixepoch') as day, COUNT(*) as c FROM adm_analytics WHERE created_at>? GROUP BY day ORDER BY day"
-  ).all(since);
-  const uaBreakdown = db.prepare(
-    "SELECT ua_type, COUNT(*) as c FROM adm_analytics WHERE created_at>? GROUP BY ua_type"
-  ).all(since);
-  const totalEvents = db.prepare('SELECT COUNT(*) as c FROM adm_analytics WHERE created_at>?').get(since)?.c || 0;
+    `SELECT tool_id, COUNT(*) as c FROM adm_analytics WHERE event='tool_use' AND ${baseWhere} GROUP BY tool_id ORDER BY c DESC LIMIT 15`
+  ).all(...params);
 
-  res.json({ toolUsage, dailyEvents, uaBreakdown, totalEvents, days });
+  const dailyEvents = db.prepare(
+    `SELECT strftime('%Y-%m-%d', created_at, 'unixepoch') as day, COUNT(*) as c FROM adm_analytics WHERE ${baseWhere} GROUP BY day ORDER BY day`
+  ).all(...params);
+
+  const uaBreakdown = db.prepare(
+    `SELECT ua_type, COUNT(*) as c FROM adm_analytics WHERE ${baseWhere} GROUP BY ua_type`
+  ).all(...params);
+
+  const totalEvents = db.prepare(
+    `SELECT COUNT(*) as c FROM adm_analytics WHERE ${baseWhere}`
+  ).get(...params)?.c || 0;
+
+  // Distinct tool IDs for the filter dropdown (all time, top 50)
+  const toolIds = db.prepare(
+    "SELECT DISTINCT tool_id FROM adm_analytics WHERE tool_id IS NOT NULL ORDER BY tool_id LIMIT 50"
+  ).all().map(r => r.tool_id);
+
+  // Event type breakdown for summary
+  const eventBreakdown = db.prepare(
+    `SELECT event, COUNT(*) as c FROM adm_analytics WHERE ${baseWhere} GROUP BY event ORDER BY c DESC LIMIT 10`
+  ).all(...params);
+
+  res.json({ toolUsage, dailyEvents, uaBreakdown, totalEvents, eventBreakdown, toolIds, days, since, until });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

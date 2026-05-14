@@ -559,34 +559,161 @@ async function renderTools(sec) {
 // SECTION 4 — ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Analytics filter state — persists for the session
+const _an = { range:'30', from:'', to:'', tool:'', ua:'' };
+
 async function renderAnalytics(sec) {
-  sec.innerHTML = `<div class="page-header"><div><div class="page-title">Analytics</div><div class="page-sub">Privacy-first usage insights.</div></div><div class="page-actions"><select id="analytics-days" class="btn btn-secondary btn-sm" style="padding:7px 12px"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></div></div><div id="analytics-body"><div style="text-align:center;padding:40px;color:var(--muted)">Loading analytics…</div></div>`;
-  $('#analytics-days').onchange = async e => { await loadAnalytics(sec, parseInt(e.target.value)); };
-  await loadAnalytics(sec, 30);
+  const today   = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(Date.now() - 6*86400000).toISOString().split('T')[0];
+
+  sec.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Analytics</div><div class="page-sub">Privacy-first usage insights.</div></div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-body" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="an-range" class="btn btn-secondary btn-sm" style="padding:7px 12px">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="custom">Custom range…</option>
+        </select>
+        <div id="an-custom" style="display:none;gap:6px;align-items:center;flex-wrap:wrap" class="flex">
+          <input type="date" id="an-from" class="btn btn-secondary btn-sm" style="padding:6px 10px" value="${weekAgo}">
+          <span style="font-size:13px;color:var(--muted,#9ca3af)">→</span>
+          <input type="date" id="an-to"   class="btn btn-secondary btn-sm" style="padding:6px 10px" value="${today}">
+          <button class="btn btn-primary btn-sm" id="an-apply" style="padding:6px 14px">Apply</button>
+        </div>
+        <select id="an-ua" class="btn btn-secondary btn-sm" style="padding:7px 12px">
+          <option value="">All devices</option>
+          <option value="mobile">Mobile only</option>
+          <option value="desktop">Desktop only</option>
+        </select>
+        <select id="an-tool" class="btn btn-secondary btn-sm" style="padding:7px 12px">
+          <option value="">All tools</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="an-refresh" style="padding:7px 12px;margin-left:auto" title="Refresh">↻ Refresh</button>
+      </div>
+    </div>
+    <div id="analytics-body"><div style="text-align:center;padding:48px;color:var(--muted,#9ca3af)">Loading analytics…</div></div>`;
+
+  const applyFilters = () => {
+    const r = ($('#an-range')||{}).value || '30';
+    _an.range = r;
+    _an.from  = r === 'custom' ? (($('#an-from')||{}).value || weekAgo) : '';
+    _an.to    = r === 'custom' ? (($('#an-to')||{}).value   || today)   : '';
+    _an.ua    = ($('#an-ua')||{}).value   || '';
+    _an.tool  = ($('#an-tool')||{}).value || '';
+    loadAnalytics();
+  };
+
+  $('#an-range').onchange = e => {
+    const c = $('#an-custom');
+    if (c) c.style.display = e.target.value === 'custom' ? 'flex' : 'none';
+    if (e.target.value !== 'custom') applyFilters();
+  };
+  if ($('#an-apply'))   $('#an-apply').onclick   = applyFilters;
+  if ($('#an-ua'))      $('#an-ua').onchange      = applyFilters;
+  if ($('#an-tool'))    $('#an-tool').onchange     = applyFilters;
+  if ($('#an-refresh')) $('#an-refresh').onclick   = applyFilters;
+
+  await loadAnalytics();
 }
 
-async function loadAnalytics(sec, days) {
+async function loadAnalytics() {
   const body = $('#analytics-body');
   if (!body) return;
   try {
-    const d = await API.get('/analytics?days=' + days);
+    let url = '/analytics?';
+    const r = _an.range;
+    if (r === 'today' || r === 'yesterday') {
+      url += `range=${r}`;
+    } else if (r === 'custom' && _an.from && _an.to) {
+      url += `from=${encodeURIComponent(_an.from)}&to=${encodeURIComponent(_an.to)}`;
+    } else {
+      url += `days=${parseInt(r)||30}`;
+    }
+    if (_an.tool) url += `&tool=${encodeURIComponent(_an.tool)}`;
+    if (_an.ua)   url += `&ua=${encodeURIComponent(_an.ua)}`;
+
+    const d = await API.get(url);
     const toolUsage   = Array.isArray(d.toolUsage)   ? d.toolUsage   : [];
     const dailyEvents = Array.isArray(d.dailyEvents)  ? d.dailyEvents  : [];
     const uaBreakdown = Array.isArray(d.uaBreakdown)  ? d.uaBreakdown  : [];
     const totalEvents = d.totalEvents || 0;
-    const numDays     = d.days || days;
+    const toolIds     = Array.isArray(d.toolIds)      ? d.toolIds      : [];
+
+    // Populate tool filter dropdown (keep current selection)
+    const toolSel = $('#an-tool');
+    if (toolSel && toolIds.length) {
+      const cur = _an.tool;
+      const opts = ['<option value="">All tools</option>',
+        ...toolIds.map(id => `<option value="${esc(id)}"${id===cur?' selected':''}>${esc(id)}</option>`)].join('');
+      toolSel.innerHTML = opts;
+    }
+
+    const mobile  = uaBreakdown.find(u=>u.ua_type==='mobile')?.c  || 0;
+    const desktop = uaBreakdown.find(u=>u.ua_type==='desktop')?.c || 0;
+    const avgDaily = dailyEvents.length ? Math.round(totalEvents / dailyEvents.length) : 0;
+
     body.innerHTML = `
       <div class="stat-grid mb-4">
-        <div class="stat-card"><div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Total Events</div><div class="stat-value">${fmt.num(totalEvents)}</div><div class="stat-sub">Last ${numDays} days</div></div>
-        <div class="stat-card"><div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="stat-label">Top Tool</div><div class="stat-value" style="font-size:16px">${toolUsage[0]?.tool_id||'—'}</div><div class="stat-sub">${fmt.num(toolUsage[0]?.c||0)} uses</div></div>
-        <div class="stat-card"><div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="stat-label">Mobile Users</div><div class="stat-value">${uaBreakdown.find(u=>u.ua_type==='mobile')?.c||0}</div><div class="stat-sub">vs ${uaBreakdown.find(u=>u.ua_type==='desktop')?.c||0} desktop</div></div>
+        <div class="stat-card">
+          <div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+          <div class="stat-label">Total Events</div>
+          <div class="stat-value">${fmt.num(totalEvents)}</div>
+          <div class="stat-sub">${dailyEvents.length} active days · avg ${fmt.num(avgDaily)}/day</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+          <div class="stat-label">Top Tool</div>
+          <div class="stat-value" style="font-size:16px">${esc(toolUsage[0]?.tool_id||'—')}</div>
+          <div class="stat-sub">${fmt.num(toolUsage[0]?.c||0)} uses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+          <div class="stat-label">Mobile / Desktop</div>
+          <div class="stat-value">${fmt.num(mobile)}</div>
+          <div class="stat-sub">vs ${fmt.num(desktop)} desktop · ${mobile+desktop ? Math.round(mobile*100/(mobile+desktop)) : 0}% mobile</div>
+        </div>
       </div>
       <div class="grid-2 mb-4">
-        <div class="card"><div class="card-header"><span class="card-title">Daily Events</span></div><div class="card-body"><div class="chart-wrap">${dailyEvents.length ? '<canvas id="chart-daily"></canvas>' : '<div class="text-muted text-sm" style="padding:24px 0;text-align:center">No events recorded yet.</div>'}</div></div></div>
-        <div class="card"><div class="card-header"><span class="card-title">Top Tools</span></div><div class="card-body">${toolUsage.length?toolUsage.map((t,i)=>`<div class="flex justify-between items-center mb-2"><div class="flex items-center gap-2"><span style="font-size:12px;color:var(--muted);width:16px">${i+1}</span><span style="font-size:13px">${esc(t.tool_id||'')}</span></div><span class="badge badge-purple">${fmt.num(t.c||0)}</span></div>`).join(''):'<div class="text-muted text-sm">No tool usage recorded yet.</div>'}</div></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Daily Events</span></div>
+          <div class="card-body"><div class="chart-wrap" style="position:relative;height:200px">
+            ${dailyEvents.length ? '<canvas id="chart-daily"></canvas>' : '<div class="text-muted text-sm" style="padding:32px 0;text-align:center">No events in this period.</div>'}
+          </div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Top Tools</span></div>
+          <div class="card-body"><div class="chart-wrap" style="position:relative;height:200px">
+            ${toolUsage.length ? '<canvas id="chart-tools"></canvas>' : '<div class="text-muted text-sm" style="padding:32px 0;text-align:center">No tool usage recorded yet.</div>'}
+          </div></div>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header"><span class="card-title">Tool Usage Breakdown</span></div>
+        <div class="card-body">
+          ${toolUsage.length
+            ? toolUsage.map((t,i) => {
+                const pct = toolUsage[0]?.c ? Math.round(t.c*100/toolUsage[0].c) : 0;
+                return `<div style="margin-bottom:10px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                    <span style="font-size:13px;font-weight:500"><span style="color:var(--muted,#9ca3af);font-size:11px;margin-right:6px">${i+1}</span>${esc(t.tool_id||'')}</span>
+                    <span class="badge badge-purple">${fmt.num(t.c)}</span>
+                  </div>
+                  <div style="height:4px;background:var(--border,#e5e7eb);border-radius:2px">
+                    <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;transition:width .4s"></div>
+                  </div>
+                </div>`;
+              }).join('')
+            : '<div class="text-muted text-sm">No tool usage recorded yet.</div>'}
+        </div>
       </div>`;
 
-    // Chart
+    // Line chart — Daily Events
     if (window.Chart && dailyEvents.length) {
       const ctx = $('#chart-daily');
       if (ctx) {
@@ -597,11 +724,30 @@ async function loadAnalytics(sec, days) {
             labels: dailyEvents.map(e => e.day),
             datasets: [{ label:'Events', data: dailyEvents.map(e => e.c), borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.08)', fill:true, tension:.4, pointRadius:3 }]
           },
-          options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},x:{grid:{display:false}}} }
+          options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}} }
         });
       }
     }
-  } catch (e) { body.innerHTML = `<div class="alert alert-warning"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>${esc(e.message)}</div>`; }
+
+    // Bar chart — Top Tools
+    if (window.Chart && toolUsage.length) {
+      const ctx = $('#chart-tools');
+      if (ctx) {
+        if (ctx._chart) ctx._chart.destroy();
+        ctx._chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: toolUsage.slice(0,8).map(t => t.tool_id||'?'),
+            datasets: [{ label:'Uses', data: toolUsage.slice(0,8).map(t => t.c),
+              backgroundColor: toolUsage.slice(0,8).map((_,i)=>`hsl(${245+i*18},75%,${60+i*2}%)`) }]
+          },
+          options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},x:{grid:{display:false}}} }
+        });
+      }
+    }
+  } catch (e) {
+    if ($('#analytics-body')) $('#analytics-body').innerHTML = `<div class="alert alert-warning"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg> ${esc(e.message)}</div>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
