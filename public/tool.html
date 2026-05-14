@@ -225,6 +225,27 @@
   <script src="/js/adaptive-degradation.js"></script>
   <script src="/js/cleanup-contracts.js"></script>
   <script src="/js/phase1c-audit.js"></script>
+  <!-- Phase 2: CentralRuntime — Centralized Browser-Side Processing Runtime
+       Strict load order (each depends on all prior):
+         T032 event-bus → T030 state → T028 telemetry → T025 cancellation →
+         T023 memory → T026 progress → T021 scheduler → T022 workers →
+         T024 queue → T027 cleanup → T031 health → T029 adapters →
+         T034 streaming → T033 diagnostics → T020 core (CentralRuntime) -->
+  <script src="/js/runtime-event-bus.js"></script>
+  <script src="/js/runtime-state.js"></script>
+  <script src="/js/runtime-telemetry.js"></script>
+  <script src="/js/runtime-cancellation.js"></script>
+  <script src="/js/runtime-memory-controller.js"></script>
+  <script src="/js/runtime-progress.js"></script>
+  <script src="/js/runtime-task-scheduler.js"></script>
+  <script src="/js/runtime-worker-orchestrator.js"></script>
+  <script src="/js/runtime-queue-engine.js"></script>
+  <script src="/js/runtime-cleanup.js"></script>
+  <script src="/js/runtime-health.js"></script>
+  <script src="/js/runtime-tool-adapters.js"></script>
+  <script src="/js/runtime-streaming-hooks.js"></script>
+  <script src="/js/runtime-diagnostics.js"></script>
+  <script src="/js/runtime-core.js"></script>
   <script src="/js/browser-tools.js"></script>
   <script src="/js/advanced-engine.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
