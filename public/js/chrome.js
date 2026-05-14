@@ -207,7 +207,7 @@ function renderHeader(){
       <div class="hs-results" id="hs-results" role="listbox" hidden></div>
     </div>
 
-    <a class="btn-donate" href="https://buymeacoffee.com/ilovepdf" target="_blank" rel="noopener noreferrer" aria-label="Support ILovePDF — Buy us a coffee">
+    <a class="btn-donate" href="https://buymeacoffee.com/ilovepdf" target="_blank" rel="noopener noreferrer" aria-label="Support ILovePDF — Buy us a coffee" style="display:none"><!-- FEATURE FLAG: remove style="display:none" to show donate button -->
       <i data-lucide="heart"></i>
       <span class="btn-donate-text">Donate</span>
     </a>
