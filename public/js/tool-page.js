@@ -138,8 +138,17 @@ async function hydrateFlowState() {
     let html = state.result.html;
     const resultBlob = await ToolState.getBlob(slug, 'result');
     if (resultBlob) {
-      const fresh = URL.createObjectURL(resultBlob);
+      // Track via ObjectURLRegistry so it is revoked on memory pressure or pagehide.
+      const fresh = window.ObjectURLRegistry
+        ? window.ObjectURLRegistry.create(resultBlob, 'hydrated-result')
+        : URL.createObjectURL(resultBlob);
       html = ToolState.rewriteBlobHrefs(html, fresh);
+      // Schedule revocation after 30 min (ample time for the user to download).
+      setTimeout(() => {
+        try {
+          window.ObjectURLRegistry ? window.ObjectURLRegistry.revoke(fresh) : URL.revokeObjectURL(fresh);
+        } catch (_) {}
+      }, 30 * 60 * 1000);
     }
     Flow.result = { html, ts: state.result.ts };
   }
@@ -316,6 +325,8 @@ function renderNotFound(toolId, slug) {
     if (el) el.textContent = countdown;
     if (countdown <= 0) clearInterval(tick);
   }, 1000);
+  // Register with TimerRegistry so pagehide clears it even if countdown is mid-run.
+  if (window.TimerRegistry) window.TimerRegistry.registerInterval('not-found-countdown', tick);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -637,8 +648,12 @@ function renderProPreviewStep(tool) {
       showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
       return;
     }
-    const url = URL.createObjectURL(blob);
-    setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
+    // Route through ObjectURLRegistry so memory-pressure and pagehide both revoke.
+    const reg = window.ObjectURLRegistry;
+    const url  = reg ? reg.create(blob, 'pro-editor-result') : URL.createObjectURL(blob);
+    setTimeout(() => {
+      try { reg ? reg.revoke(url) : URL.revokeObjectURL(url); } catch (_) {}
+    }, 60 * 60 * 1000);
     showStatus(
       'success',
       'Your file is ready',
@@ -655,8 +670,11 @@ function renderProPreviewStep(tool) {
       showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
       return;
     }
-    const url = URL.createObjectURL(blob);
-    setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
+    const reg = window.ObjectURLRegistry;
+    const url  = reg ? reg.create(blob, 'bg-remover-result') : URL.createObjectURL(blob);
+    setTimeout(() => {
+      try { reg ? reg.revoke(url) : URL.revokeObjectURL(url); } catch (_) {}
+    }, 60 * 60 * 1000);
     showStatus(
       'success',
       'Background removed!',
@@ -1087,22 +1105,27 @@ function attachDragHandlers() {
       renderFileList();
     });
 
-    // Touch fallback: long-press + swap with neighbour using touch events
-    let touchStartY = null;
-    el.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-    el.addEventListener('touchend', e => {
-      if (touchStartY === null) return;
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      const idx = parseInt(el.dataset.index, 10);
-      if (Math.abs(dy) > 30) {
-        const swap = dy > 0 ? idx + 1 : idx - 1;
-        if (swap >= 0 && swap < selectedFiles.length) {
-          [selectedFiles[idx], selectedFiles[swap]] = [selectedFiles[swap], selectedFiles[idx]];
-          renderFileList();
+    // Touch fallback: long-press + swap with neighbour using touch events.
+    // Guard with dataset.touchBound (mirrors the stepBound guard above) to
+    // prevent duplicate listener accumulation across renderFileList() calls.
+    if (el.dataset.touchBound !== '1') {
+      el.dataset.touchBound = '1';
+      let touchStartY = null;
+      el.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+      el.addEventListener('touchend', e => {
+        if (touchStartY === null) return;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        const idx = parseInt(el.dataset.index, 10);
+        if (Math.abs(dy) > 30) {
+          const swap = dy > 0 ? idx + 1 : idx - 1;
+          if (swap >= 0 && swap < selectedFiles.length) {
+            [selectedFiles[idx], selectedFiles[swap]] = [selectedFiles[swap], selectedFiles[idx]];
+            renderFileList();
+          }
         }
-      }
-      touchStartY = null;
-    });
+        touchStartY = null;
+      });
+    }
   });
 }
 
@@ -1398,16 +1421,28 @@ function mimeToExt(ct) {
 }
 
 function triggerDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
+  const reg = window.ObjectURLRegistry;
+  const url  = reg ? reg.create(blob, 'trigger-download') : URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  setTimeout(() => {
+    try { reg ? reg.revoke(url) : URL.revokeObjectURL(url); } catch (_) {}
+  }, 30000);
 }
 
 // Create an object URL for showStatus download links and schedule automatic
 // revocation after 5 minutes (generous enough for any user action).
+// Routes through ObjectURLRegistry when available so memory-pressure cleanup
+// and pagehide revocation both fire correctly.
 function createStatusUrl(blob) {
+  if (window.ObjectURLRegistry) {
+    const url = window.ObjectURLRegistry.create(blob, 'status-download');
+    setTimeout(() => {
+      try { window.ObjectURLRegistry.revoke(url); } catch (_) {}
+    }, 5 * 60 * 1000);
+    return url;
+  }
   const url = URL.createObjectURL(blob);
   setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 5 * 60 * 1000);
   return url;
@@ -1519,6 +1554,8 @@ async function runAdvancedCompress() {
           b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
         }, 'image/jpeg', 0.72);
       });
+      // Explicitly zero the canvas dimensions to free GPU texture memory.
+      // Reuse the already-obtained ctx from this loop iteration.
       canvas.width = 0; canvas.height = 0;
       const img = await outDoc.embedJpg(jpgBytes);
       const pg  = outDoc.addPage([pw, ph]);

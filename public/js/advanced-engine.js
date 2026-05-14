@@ -769,7 +769,8 @@
     _blobEntries.length = 0;
     remaining.forEach(function (e) { _blobEntries.push(e); });
   }
-  setInterval(backgroundClean, 60000);
+  var _bgCleanIv = setInterval(backgroundClean, 60000);
+  if (window.TimerRegistry) window.TimerRegistry.registerInterval('ae-bg-clean', _bgCleanIv);
 
   // ── PHASE 20F: GLOBAL MEMORY SAFETY HELPERS ──────────────────────────────
   // Reusable cleanup utilities following OCR engine patterns (Phase 19B).

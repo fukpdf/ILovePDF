@@ -59,7 +59,8 @@
       return { alive: alive, dead: dead, total: _workers.size };
     }
 
-    setInterval(checkAll, HEARTBEAT_MS);
+    var _hbIv = setInterval(checkAll, HEARTBEAT_MS);
+    if (window.TimerRegistry) window.TimerRegistry.registerInterval('dlm-heartbeat', _hbIv);
     return { register: register, ping: ping, unregister: unregister, checkAll: checkAll, getStats: getStats };
   }());
 
@@ -142,7 +143,8 @@
       return { starvation: false, depth: depth };
     }
 
-    setInterval(check, HEARTBEAT_MS);
+    var _qsgIv = setInterval(check, HEARTBEAT_MS);
+    if (window.TimerRegistry) window.TimerRegistry.registerInterval('dlm-queue-guard', _qsgIv);
     function getStats() { return { snapshots: _snapshots.length, lastDepth: _snapshots.length ? _snapshots[_snapshots.length - 1].depth : 0 }; }
     return { check: check, getStats: getStats };
   }());
@@ -234,6 +236,7 @@
     _hookWorkerPool();
     if (window.WorkerPool) clearInterval(_iv);
   }, 200);
+  if (window.TimerRegistry) window.TimerRegistry.registerInterval('dlm-pool-hook', _iv);
 
 
   // ═══════════════════════════════════════════════════════════════════════════

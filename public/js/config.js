@@ -27,6 +27,8 @@
   // ── Silent keep-alive ──────────────────────────────────────────────────
   // Pings the API every 3 minutes so the upstream processing service does
   // not idle/sleep between user requests. Errors are swallowed silently.
+  // Both timers are registered with TimerRegistry (when available) so they
+  // are cancelled on pagehide / bfcache restore and never become orphans.
   (function startKeepAlive() {
     const url = window.location.origin + '/api/health';
     const ping = () => {
@@ -36,8 +38,22 @@
       } catch (_) {}
     };
     // Fire one shortly after load, then every 3 minutes.
-    setTimeout(ping, 5000);
-    setInterval(ping, 3 * 60 * 1000);
+    const warmupId  = setTimeout(ping, 5000);
+    const intervalId = setInterval(ping, 3 * 60 * 1000);
+    // Register after DOMContentLoaded so TimerRegistry is guaranteed to exist.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        if (window.TimerRegistry) {
+          window.TimerRegistry.registerTimeout('keep-alive', warmupId);
+          window.TimerRegistry.registerInterval('keep-alive', intervalId);
+        }
+      }, { once: true });
+    } else {
+      if (window.TimerRegistry) {
+        window.TimerRegistry.registerTimeout('keep-alive', warmupId);
+        window.TimerRegistry.registerInterval('keep-alive', intervalId);
+      }
+    }
   })();
 
   window.queueUrl = function (path) {

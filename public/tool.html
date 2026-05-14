@@ -119,6 +119,10 @@
   <script src="/js/debug-trace.js"></script>
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
   <script src="/js/timer-registry.js"></script>
+  <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
+       tracked timers, streaming markers, future runtime integration points.
+       Must load after timer-registry, before all processing scripts. -->
+  <script src="/js/phase1-stabilization.js"></script>
   <script src="/workers/workerPool.js"></script>
   <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
   <script src="/js/opfs-manager.js"></script>
@@ -131,7 +135,6 @@
   <script src="/js/memory-telemetry.js"></script>
   <script src="/js/adaptive-runtime.js"></script>
   <script src="/js/ocr-runtime-manager.js"></script>
-  <script src="/js/lifecycle-stress-test.js"></script>
   <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
   <script src="/js/canvas-pool.js"></script>
   <script src="/js/task-scheduler.js"></script>
@@ -185,8 +188,6 @@
   <script src="/js/deadlock-monitor.js"></script>
   <!-- Phase 40C: OPFS Integrity System (CRC32, staged-write, journal, orphan recovery) -->
   <script src="/js/opfs-integrity.js"></script>
-  <!-- Phase 40D: Giant-File Torture Tests (synthetic PDFs, memory-spike, GPU-loss sims) -->
-  <script src="/js/giant-file-torture.js"></script>
   <!-- Phase 40E: Browser Compat Layer (Safari/iOS/mobile detect, fallback routing, shims) -->
   <script src="/js/browser-compat-layer.js"></script>
   <!-- Phase 40F: GPU Fallback Validator (capability probe, chain verify, device-lost sim) -->
@@ -195,12 +196,6 @@
   <script src="/js/resume-integrity.js"></script>
   <!-- Phase 40H: Distributed Recovery Tests (leader-death, shard integrity, reassignment) -->
   <script src="/js/distributed-recovery.js"></script>
-  <!-- Phase 40I: Low-RAM Device Simulator (512MB/1GB/2GB profiles, survival verify) -->
-  <script src="/js/lowram-simulator.js"></script>
-  <!-- Phase 40J: OCR Accuracy Benchmark (doc library, word/keyword/numeric scoring) -->
-  <script src="/js/ocr-benchmark.js"></script>
-  <!-- Phase 40K: Compare Accuracy Benchmark (pair library, Jaccard+bigram similarity) -->
-  <script src="/js/compare-benchmark.js"></script>
   <!-- Phase 40M: Self-Healing Recovery (trigger detect, auto-cleanup, progress preserve) -->
   <script src="/js/self-healing.js"></script>
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
