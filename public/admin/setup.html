@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Setup — ILovePDF</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0f172a;--card:#1e293b;--border:#334155;--accent:#6366f1;--text:#f1f5f9;--muted:#94a3b8;--err:#ef4444;--success:#10b981;--input:#0f172a}
+  body{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:'Inter',system-ui,sans-serif;color:var(--text);background-image:radial-gradient(ellipse at 30% 20%,rgba(99,102,241,.15) 0%,transparent 60%)}
+  .card{width:100%;max-width:460px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;box-shadow:0 25px 50px rgba(0,0,0,.4)}
+  .logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+  .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .logo-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+  .logo-text{font-size:18px;font-weight:700}
+  .logo-text span{color:var(--accent)}
+  .setup-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:var(--accent);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:20px}
+  h1{font-size:22px;font-weight:700;margin-bottom:8px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:28px;line-height:1.6}
+  .field{margin-bottom:18px}
+  label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:11px 14px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;outline:none;transition:border .2s}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+  .pw-wrap{position:relative}
+  .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted)}
+  .pw-toggle svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .strength{margin-top:8px}
+  .strength-bar{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-bottom:4px}
+  .strength-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0}
+  .strength-text{font-size:12px;color:var(--muted)}
+  .requirements{margin-top:10px;font-size:12px;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .req{display:flex;align-items:center;gap:4px}
+  .req.ok{color:var(--success)}
+  .req svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round}
+  .global-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--err);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:18px;display:none}
+  .global-err.show{display:block}
+  .btn{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
+  .btn:hover{background:#4f46e5}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <div class="logo-text">ILove<span>PDF</span></div>
+  </div>
+  <div class="setup-badge">
+    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    First-time setup
+  </div>
+  <h1>Create admin account</h1>
+  <p class="sub">This account controls the entire ILovePDF admin panel. Keep your credentials safe.</p>
+  <div class="global-err" id="global-err"></div>
+  <form id="setup-form" novalidate>
+    <div class="field">
+      <label>Admin Username</label>
+      <input type="text" id="username" placeholder="e.g. admin" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="password" placeholder="At least 10 characters" autocomplete="new-password" required>
+        <button type="button" class="pw-toggle" id="pw-toggle"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <div class="strength">
+        <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+        <div class="strength-text" id="strength-text">Enter a password</div>
+      </div>
+      <div class="requirements" id="reqs">
+        <div class="req" id="req-len"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>10+ characters</div>
+        <div class="req" id="req-upper"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>Uppercase letter</div>
+        <div class="req" id="req-lower"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>Lowercase letter</div>
+        <div class="req" id="req-num"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>Number</div>
+        <div class="req" id="req-spec"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>Special character</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Confirm Password</label>
+      <input type="password" id="confirm-password" placeholder="Repeat password" autocomplete="new-password" required>
+    </div>
+    <button type="submit" class="btn" id="setup-btn">Create Admin Account</button>
+  </form>
+</div>
+<script>
+const pw = document.getElementById('password');
+document.getElementById('pw-toggle').addEventListener('click', () => {
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+});
+pw.addEventListener('input', () => {
+  const v = pw.value;
+  const checks = {
+    len:   v.length >= 10,
+    upper: /[A-Z]/.test(v),
+    lower: /[a-z]/.test(v),
+    num:   /[0-9]/.test(v),
+    spec:  /[^A-Za-z0-9]/.test(v),
+  };
+  const score = Object.values(checks).filter(Boolean).length;
+  const fill = document.getElementById('strength-fill');
+  const text = document.getElementById('strength-text');
+  const colors = ['','#ef4444','#f59e0b','#eab308','#10b981','#10b981'];
+  const labels = ['','Very weak','Weak','Fair','Strong','Very strong'];
+  fill.style.width = (score * 20) + '%';
+  fill.style.background = colors[score];
+  text.textContent = v ? labels[score] : 'Enter a password';
+  for (const [key, ok] of Object.entries(checks)) {
+    const el = document.getElementById('req-' + key);
+    el.classList.toggle('ok', ok);
+    el.querySelector('svg').innerHTML = ok
+      ? '<polyline points="20 6 9 17 4 12"/>'
+      : '<circle cx="12" cy="12" r="10"/>';
+  }
+});
+document.getElementById('setup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = pw.value;
+  const confirm  = document.getElementById('confirm-password').value;
+  const errEl    = document.getElementById('global-err');
+  errEl.classList.remove('show');
+  if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.classList.add('show'); return; }
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const res = await fetch('/api/admin/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      credentials: 'include',
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) { window.location.href = '/admin'; }
+    else { errEl.textContent = j.error || 'Setup failed.'; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Admin Account'; }
+  } catch { errEl.textContent = 'Network error.'; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Admin Account'; }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — ILovePDF</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f172a;--card:#1e293b;--border:#334155;--accent:#6366f1;
+    --accent-h:#4f46e5;--text:#f1f5f9;--muted:#94a3b8;--err:#ef4444;
+    --success:#10b981;--input:#0f172a;
+  }
+  body{min-height:100vh;background:var(--bg);display:flex;align-items:center;
+    justify-content:center;font-family:'Inter',system-ui,sans-serif;color:var(--text);
+    background-image:radial-gradient(ellipse at 30% 20%,rgba(99,102,241,.15) 0%,transparent 60%),
+    radial-gradient(ellipse at 70% 80%,rgba(139,92,246,.1) 0%,transparent 60%)}
+  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);
+    border-radius:16px;padding:40px;box-shadow:0 25px 50px rgba(0,0,0,.4)}
+  .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+  .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+    border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .logo-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+  .logo-text{font-size:18px;font-weight:700;color:var(--text)}
+  .logo-text span{color:var(--accent)}
+  .badge{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.05em;
+    background:rgba(99,102,241,.15);color:var(--accent);border:1px solid rgba(99,102,241,.3);
+    border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle}
+  h1{font-size:22px;font-weight:700;margin-bottom:6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+  .field{margin-bottom:18px}
+  label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+  input[type=text],input[type=password]{
+    width:100%;padding:11px 14px;background:var(--input);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:15px;outline:none;transition:border .2s}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+  .pw-wrap{position:relative}
+  .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    background:none;border:none;cursor:pointer;color:var(--muted);padding:4px}
+  .pw-toggle:hover{color:var(--text)}
+  .pw-toggle svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .err{color:var(--err);font-size:13px;margin-top:4px;display:none}
+  .err.show{display:block}
+  .global-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+    color:var(--err);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:18px;display:none}
+  .global-err.show{display:block}
+  .btn{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;
+    border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;
+    margin-top:4px}
+  .btn:hover{background:var(--accent-h)}
+  .btn:active{transform:scale(.99)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+    vertical-align:middle;margin-right:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btn.loading .spinner{display:inline-block}
+  .btn.loading .btn-text{opacity:.7}
+  .footer-note{text-align:center;margin-top:24px;font-size:12px;color:var(--muted)}
+  .lockout{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);
+    border-radius:8px;padding:12px 14px;font-size:13px;color:#fca5a5;display:none;
+    margin-bottom:16px}
+  .lockout.show{display:block}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <div class="logo-text">ILove<span>PDF</span> <span class="badge">ADMIN</span></div>
+  </div>
+  <h1>Welcome back</h1>
+  <p class="sub">Sign in to the admin dashboard.</p>
+
+  <div class="lockout" id="lockout">
+    🔒 Too many failed attempts. Please wait before trying again.
+  </div>
+  <div class="global-err" id="global-err"></div>
+
+  <form id="login-form" autocomplete="on" novalidate>
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+      <div class="err" id="err-username"></div>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password">
+          <svg id="eye-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div class="err" id="err-password"></div>
+    </div>
+    <button type="submit" class="btn" id="login-btn">
+      <span class="spinner"></span><span class="btn-text">Sign In</span>
+    </button>
+  </form>
+  <p class="footer-note">Secure admin access only.</p>
+</div>
+
+<script>
+const form = document.getElementById('login-form');
+const btn  = document.getElementById('login-btn');
+const pwInput = document.getElementById('password');
+const pwToggle = document.getElementById('pw-toggle');
+
+pwToggle.addEventListener('click', () => {
+  const show = pwInput.type === 'password';
+  pwInput.type = show ? 'text' : 'password';
+  document.getElementById('eye-icon').innerHTML = show
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = pwInput.value;
+
+  document.getElementById('global-err').classList.remove('show');
+  document.getElementById('err-username').classList.remove('show');
+  document.getElementById('err-password').classList.remove('show');
+
+  if (!username) { showErr('err-username', 'Username is required.'); return; }
+  if (!password) { showErr('err-password', 'Password is required.'); return; }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      credentials: 'include',
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) {
+      window.location.href = '/admin';
+    } else if (res.status === 429) {
+      document.getElementById('lockout').classList.add('show');
+      showGlobalErr(j.error || 'Too many attempts.');
+    } else {
+      showGlobalErr(j.error || 'Invalid credentials.');
+    }
+  } catch {
+    showGlobalErr('Network error. Please try again.');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+});
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function showGlobalErr(msg) {
+  const el = document.getElementById('global-err');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+</script>
+</body>
+</html>

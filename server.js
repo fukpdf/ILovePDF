@@ -16,6 +16,8 @@ import authRouter from './routes/auth.js';
 import r2Router from './routes/r2.js';
 import searchRouter from './routes/search.js';
 import liveIntelRouter from './routes/live-intelligence.js';
+import adminRouter from './routes/admin.js';
+import adminApiRouter from './routes/admin-api.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
@@ -120,6 +122,12 @@ const apiLimiter = rateLimit({
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Admin dashboard — mounted before main API so /admin/* is not rate-limited
+// adminRouter  : serves /admin/login, /admin/setup, /admin/*, /api/admin/auth/*
+// adminApiRouter: all /api/admin/* CRUD (protected by adminGuard inside)
+app.use(adminRouter);
+app.use('/api/admin', adminApiRouter);
 
 // Rate limiter applied FIRST — before any /api/* handler
 app.use('/api', apiLimiter);

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — ILovePDF</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="sidebar-logo-text">ILove<span>PDF</span><span class="sidebar-badge">ADMIN</span></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <div class="nav-item active" data-section="overview">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Overview
+        </div>
+        <div class="nav-item" data-section="blog">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Blog Manager
+          <span class="nav-badge" id="blog-badge" style="display:none">0</span>
+        </div>
+        <div class="nav-item" data-section="tools">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="9" y="10" width="6" height="6" rx="1"/><rect x="16" y="10" width="6" height="6" rx="1"/></svg>
+          Tool Manager
+        </div>
+        <div class="nav-item" data-section="analytics">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Content</div>
+        <div class="nav-item" data-section="homepage">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Homepage
+        </div>
+        <div class="nav-item" data-section="branding">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Branding
+        </div>
+        <div class="nav-item" data-section="media">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Media Library
+        </div>
+        <div class="nav-item" data-section="announcements">
+          <svg viewBox="0 0 24 24"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>
+          Announcements
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Marketing</div>
+        <div class="nav-item" data-section="seo">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          SEO Panel
+        </div>
+        <div class="nav-item" data-section="ads">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15l3-6 3 6"/><path d="M8.5 12.5h3M17 9v6"/></svg>
+          Ads & Monetization
+        </div>
+        <div class="nav-item" data-section="donations">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Donations
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">System</div>
+        <div class="nav-item" data-section="health">
+          <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          System Health
+        </div>
+        <div class="nav-item" data-section="logs">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Audit Logs
+        </div>
+        <div class="nav-item" data-section="settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </div>
+        <div class="nav-item" data-section="backup">
+          <svg viewBox="0 0 24 24"><polyline points="21 15 21 21 3 21 3 15"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Backup & Export
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-avatar" id="user-avatar">A</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-username" id="user-name">Admin</div>
+          <div class="sidebar-role">Administrator</div>
+        </div>
+        <div class="sidebar-logout" id="logout-btn" title="Sign out">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN CONTENT ═══════════════════════════════════════════════════════ -->
+  <div id="main">
+
+    <!-- Topbar -->
+    <header id="topbar">
+      <button id="menu-toggle" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-title" id="topbar-title">Overview</div>
+      <div class="topbar-actions">
+        <a href="/" target="_blank" class="btn btn-secondary btn-sm">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          View Site
+        </a>
+        <button class="btn btn-primary btn-sm" id="topbar-new-post">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Post
+        </button>
+      </div>
+    </header>
+
+    <!-- Content sections -->
+    <div id="content">
+
+      <!-- ─── OVERVIEW ─────────────────────────────────────────────────────── -->
+      <div class="section active" id="section-overview"></div>
+
+      <!-- ─── BLOG ──────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-blog"></div>
+
+      <!-- ─── TOOLS ─────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-tools"></div>
+
+      <!-- ─── ANALYTICS ─────────────────────────────────────────────────────── -->
+      <div class="section" id="section-analytics"></div>
+
+      <!-- ─── HOMEPAGE ─────────────────────────────────────────────────────── -->
+      <div class="section" id="section-homepage"></div>
+
+      <!-- ─── BRANDING ─────────────────────────────────────────────────────── -->
+      <div class="section" id="section-branding"></div>
+
+      <!-- ─── MEDIA ─────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-media"></div>
+
+      <!-- ─── ANNOUNCEMENTS ──────────────────────────────────────────────────── -->
+      <div class="section" id="section-announcements"></div>
+
+      <!-- ─── SEO ──────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-seo"></div>
+
+      <!-- ─── ADS ──────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-ads"></div>
+
+      <!-- ─── DONATIONS ─────────────────────────────────────────────────────── -->
+      <div class="section" id="section-donations"></div>
+
+      <!-- ─── HEALTH ───────────────────────────────────────────────────────── -->
+      <div class="section" id="section-health"></div>
+
+      <!-- ─── LOGS ─────────────────────────────────────────────────────────── -->
+      <div class="section" id="section-logs"></div>
+
+      <!-- ─── SETTINGS ─────────────────────────────────────────────────────── -->
+      <div class="section" id="section-settings"></div>
+
+      <!-- ─── BACKUP ───────────────────────────────────────────────────────── -->
+      <div class="section" id="section-backup"></div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── Modal ────────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Confirm</div>
+      <button class="modal-close" id="modal-close">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer">
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Blog Editor Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="editor-overlay">
+  <div class="modal modal-xl" id="editor-modal" style="max-width:1100px">
+    <div class="modal-header">
+      <div class="modal-title" id="editor-modal-title">New Post</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" id="editor-save-draft">Save Draft</button>
+        <button class="btn btn-primary btn-sm" id="editor-publish">Publish</button>
+        <button class="modal-close" id="editor-close">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 320px;gap:0;padding:0;overflow:hidden">
+      <!-- Editor pane -->
+      <div style="padding:20px;overflow-y:auto;border-right:1px solid var(--border)">
+        <div class="form-group">
+          <input type="text" id="post-title" placeholder="Post title…" style="font-size:20px;font-weight:700;border:none;padding:0;border-radius:0;box-shadow:none;border-bottom:2px solid var(--border)" class="form-control">
+        </div>
+        <!-- Editor toolbar -->
+        <div class="editor-wrap">
+          <div class="editor-toolbar" id="editor-toolbar">
+            <button data-cmd="bold" title="Bold"><b>B</b></button>
+            <button data-cmd="italic" title="Italic"><i>I</i></button>
+            <button data-cmd="underline" title="Underline"><u>U</u></button>
+            <div class="sep"></div>
+            <button data-cmd="h2" title="Heading 2">H2</button>
+            <button data-cmd="h3" title="Heading 3">H3</button>
+            <div class="sep"></div>
+            <button data-cmd="ul" title="Bullet list">• List</button>
+            <button data-cmd="ol" title="Numbered list">1. List</button>
+            <div class="sep"></div>
+            <button data-cmd="blockquote" title="Quote">"Quote"</button>
+            <button data-cmd="code" title="Code">Code</button>
+            <div class="sep"></div>
+            <button data-cmd="link" title="Insert link">🔗 Link</button>
+            <button data-cmd="image" title="Insert image">🖼 Image</button>
+            <div class="sep"></div>
+            <button data-cmd="hr" title="Divider">— HR</button>
+          </div>
+          <div id="blog-editor" contenteditable="true" spellcheck="true"></div>
+        </div>
+      </div>
+      <!-- Settings pane -->
+      <div style="padding:20px;overflow-y:auto;background:#fafafa" id="editor-settings">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="post-status">
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Slug (URL)</label>
+          <input type="text" id="post-slug" placeholder="post-url-slug">
+          <div class="form-hint">Will appear as: /blog/<span id="slug-preview">…</span></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="post-category">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tags (comma-separated)</label>
+          <input type="text" id="post-tags" placeholder="pdf, tools, guide">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Excerpt</label>
+          <textarea id="post-excerpt" rows="3" placeholder="Short description…"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thumbnail URL</label>
+          <input type="url" id="post-thumbnail" placeholder="https://…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Author</label>
+          <input type="text" id="post-author" value="Admin">
+        </div>
+        <hr style="margin:16px 0;border:none;border-top:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">SEO</div>
+        <div class="form-group">
+          <label class="form-label">Meta Title</label>
+          <input type="text" id="post-meta-title" placeholder="SEO title">
+          <div class="form-hint"><span id="meta-title-count">0</span>/60 chars</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Meta Description</label>
+          <textarea id="post-meta-desc" rows="3" placeholder="SEO description…"></textarea>
+          <div class="form-hint"><span id="meta-desc-count">0</span>/160 chars</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">OG Image URL</label>
+          <input type="url" id="post-og-image" placeholder="https://…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Featured Post</label>
+          <label class="toggle">
+            <input type="checkbox" id="post-featured">
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label">Mark as featured</span>
+          </label>
+        </div>
+        <input type="hidden" id="editing-post-id" value="">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<script src="/admin/js/app.js"></script>
+</body>
+</html>
