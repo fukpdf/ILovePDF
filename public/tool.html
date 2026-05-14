@@ -212,6 +212,19 @@
   <script src="/js/universal-translation-validator.js"></script>
   <!-- Phase 41F: Universal Translation Pipeline (full P41A-E integration, BrowserTools.process hook) -->
   <script src="/js/universal-translation-pipeline.js"></script>
+  <!-- Phase 1C: Worker Lifecycle, Download Manager, Retry Orchestrator,
+       Navigation Cancel, Adaptive Degradation, Cleanup Contracts, Lifecycle Audit.
+       Load after all Phase 1A/1B/Phase 40 systems, before browser-tools.
+       Strict order: worker-lifecycle → download-manager → retry-orchestrator →
+                     navigation-cancel → adaptive-degradation → cleanup-contracts →
+                     phase1c-audit -->
+  <script src="/js/worker-lifecycle.js"></script>
+  <script src="/js/download-manager.js"></script>
+  <script src="/js/retry-orchestrator.js"></script>
+  <script src="/js/navigation-cancel.js"></script>
+  <script src="/js/adaptive-degradation.js"></script>
+  <script src="/js/cleanup-contracts.js"></script>
+  <script src="/js/phase1c-audit.js"></script>
   <script src="/js/browser-tools.js"></script>
   <script src="/js/advanced-engine.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
