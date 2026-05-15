@@ -296,6 +296,42 @@
   <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
   <script src="/js/runtime-enterprise-certification.js" defer></script>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 9 — Distributed Browser Operating System + GPU Compute       -->
+  <!-- Load order:                                                         -->
+  <!--   9A  WasmEngine      — SIMD/threaded WASM + JS fallbacks           -->
+  <!--   9B  GpuEngine       — WebGPU/WebGL2/CPU tier + shader pipelines   -->
+  <!--   9G  Kernel          — microkernel routing all compute resources    -->
+  <!--   9C  SharedCluster   — SharedWorker multi-tab compute cluster       -->
+  <!--   9D  Sandbox         — isolated VM execution + policy engine        -->
+  <!--   9F  IncrementalPdf  — OPFS-staged xref parsing + incremental write -->
+  <!--   9H  ZeroCopy        — buffer pool + transferable stream pipeline   -->
+  <!--   9H  Workspace       — OPFS/IDB multi-doc workspace persistence     -->
+  <!--   9E  LocalAI         — ONNX on-device inference + heuristic chain   -->
+  <!--   9J  BrowserOSCert   — full 15-category certification audit         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- 9A: WASM compute engine — SIMD probe, streaming instantiation, JS fallbacks -->
+  <script src="/js/runtime-wasm-engine.js"></script>
+  <!-- 9B: GPU compute engine — WebGPU device, WebGL2/WebGL1/CPU fallback tier -->
+  <script src="/js/runtime-gpu-engine.js"></script>
+  <!-- 9G: Browser OS microkernel — single arbitration point for all compute slots -->
+  <script src="/js/runtime-kernel.js"></script>
+  <!-- 9C: SharedWorker cluster — persistent multi-tab brain, priority task queue -->
+  <script src="/js/runtime-shared-cluster.js"></script>
+  <!-- 9D/9I: Sandbox VM — isolated execution, policy engine, OPFS/Worker isolation -->
+  <script src="/js/runtime-sandbox.js"></script>
+  <!-- 9F: Incremental PDF engine — OPFS staging, xref parsing, incremental write -->
+  <script src="/js/runtime-incremental-pdf.js"></script>
+  <!-- 9G/9H: Zero-copy pipeline — buffer pool, transferable streams, backpressure -->
+  <script src="/js/runtime-zero-copy.js"></script>
+  <!-- 9H: Workspace persistence — OPFS + IDB multi-document workspace manager -->
+  <script src="/js/runtime-workspace.js"></script>
+  <!-- 9E: Local AI engine — ONNX on-device inference, model cache, heuristic chain -->
+  <script src="/js/runtime-local-ai.js"></script>
+  <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
+  <script src="/js/runtime-browser-os-certification.js" defer></script>
+
   <!-- Phase 6D — Cross-tab BroadcastChannel Coordination -->
   <script src="/js/runtime-cross-tab.js"></script>
   <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->
