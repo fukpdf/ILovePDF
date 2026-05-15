@@ -510,10 +510,11 @@
        Order of each module is preserved exactly as before. -->
   <script src="/js/homepage-lazy-loader.js" defer></script>
 
-  <!-- Phase 17: Runtime Observability Dashboard
-       Ctrl+Shift+R — toggle floating devtools panel.
-       Lightweight: only activates on keypress; zero metric polling until opened. -->
-  <script src="/core/runtime-dashboard.js" defer></script>
+  <!-- Phase 18/20: Production mode guard.
+       Detects environment, suppresses Phase-tagged console noise in production,
+       and blocks public activation of admin-only debug APIs (runtime dashboard
+       is now served exclusively at /admin/runtime for authenticated admins). -->
+  <script src="/core/production-mode.js" defer></script>
 
   <!-- Phase 10H: Footer language links -->
   <script defer>

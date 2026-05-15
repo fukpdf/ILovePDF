@@ -141,6 +141,12 @@ router.get('/api/admin/auth/me', adminGuard, (req, res) => {
 router.get('/admin', adminGuard, (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'index.html'));
 });
+
+// ── Phase 19: Admin-only runtime observability dashboard ──────────────────────
+router.get('/admin/runtime', adminGuard, (req, res) => {
+  res.sendFile(path.join(ADMIN_DIR, 'runtime.html'));
+});
+
 router.get('/admin/{*path}', adminGuard, (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'index.html'));
 });

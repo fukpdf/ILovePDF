@@ -1400,6 +1400,7 @@
    * § 17  SHOW / HIDE / TOGGLE
    * ═══════════════════════════════════════════════════════════════════════════ */
   function _show() {
+    if (!G.__IPLV_ADMIN_RUNTIME__) return; /* Phase 18: admin-only */
     if (_visible) return;
     _visible = true;
     _injectCSS();
@@ -1480,6 +1481,7 @@
    * § 19  KEYBOARD SHORTCUT — Ctrl+Shift+R
    * ═══════════════════════════════════════════════════════════════════════════ */
   document.addEventListener('keydown', function (e) {
+    if (!G.__IPLV_ADMIN_RUNTIME__) return; /* Phase 18: admin-only */
     if (e.ctrlKey && e.shiftKey && (e.key === 'R' || e.key === 'r' || e.keyCode === 82)) {
       e.preventDefault();
       _toggle();
@@ -1512,6 +1514,6 @@
     _stopCollecting();
   }, { passive: true });
 
-  console.debug(LOG, 'RuntimeDashboard v' + VERSION + ' ready — Ctrl+Shift+R to open');
+  if (G.__IPLV_ADMIN_RUNTIME__) console.debug(LOG, 'RuntimeDashboard v' + VERSION + ' ready — Ctrl+Shift+R to open');
 
 }(window));

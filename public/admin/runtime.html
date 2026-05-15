@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runtime Monitor — ILovePDF Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+    font-size: 13px;
+  }
+
+  /* ── Topbar ────────────────────────────────────────────────────────────── */
+  #rt-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 2147483647;
+    height: 44px;
+  }
+  #rt-topbar .rt-logo {
+    font-weight: 700;
+    font-size: 13px;
+    color: #7c3aed;
+    letter-spacing: .4px;
+  }
+  #rt-topbar .rt-logo span { color: #e6edf3; }
+  #rt-topbar .rt-sep { width: 1px; height: 20px; background: #30363d; }
+  #rt-topbar .rt-badge {
+    background: #7c3aed22;
+    color: #a78bfa;
+    border: 1px solid #7c3aed44;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+  }
+  #rt-topbar .rt-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #6b7280;
+    margin-left: auto;
+  }
+  #rt-topbar .rt-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .4; }
+  }
+  #rt-topbar a.rt-back {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    transition: color .15s, border-color .15s;
+  }
+  #rt-topbar a.rt-back:hover { color: #e6edf3; border-color: #6b7280; }
+
+  /* ── Loading splash ────────────────────────────────────────────────────── */
+  #rt-loading {
+    position: fixed;
+    inset: 44px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: #0d1117;
+    z-index: 10;
+  }
+  #rt-loading .rt-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #21262d;
+    border-top-color: #7c3aed;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #rt-loading p { color: #6b7280; font-size: 12px; }
+
+  /* ── Dashboard host ────────────────────────────────────────────────────── */
+  #rt-host {
+    position: fixed;
+    inset: 44px 0 0 0;
+    overflow: hidden;
+  }
+
+  /* Override panel CSS so it fills the host area */
+  #iplv-dash {
+    position: absolute !important;
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  /* Hide the traffic-light close/minimize/maximize dots */
+  #iplv-dash .dh-dots { display: none !important; }
+
+  /* Error banner */
+  #rt-error {
+    display: none;
+    position: fixed;
+    inset: 44px 0 0 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #0d1117;
+    color: #ef4444;
+    font-size: 13px;
+  }
+  #rt-error p { color: #6b7280; font-size: 12px; }
+  #rt-error a { color: #818cf8; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ──────────────────────────────────────────────────────────────── -->
+<header id="rt-topbar">
+  <div class="rt-logo">ILove<span>PDF</span></div>
+  <div class="rt-sep"></div>
+  <div class="rt-badge">RUNTIME MONITOR</div>
+  <div class="rt-status">
+    <div class="rt-status-dot" id="status-dot"></div>
+    <span id="status-text">Initialising…</span>
+  </div>
+  <a href="/admin" class="rt-back">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    Admin
+  </a>
+</header>
+
+<!-- ── Loading splash ──────────────────────────────────────────────────────── -->
+<div id="rt-loading">
+  <div class="rt-spinner"></div>
+  <p>Loading Runtime Dashboard…</p>
+</div>
+
+<!-- ── Error banner (shown on failure) ────────────────────────────────────── -->
+<div id="rt-error">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+       stroke="#ef4444" stroke-width="1.5" stroke-linecap="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+  <strong>Runtime dashboard failed to load</strong>
+  <p id="rt-error-msg">An unexpected error occurred.</p>
+  <a href="/admin">← Back to Admin</a>
+</div>
+
+<!-- ── Dashboard host ──────────────────────────────────────────────────────── -->
+<div id="rt-host"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Verify admin session is still live ─────────────────────────────────── */
+  fetch('/api/admin/auth/me', { credentials: 'include' })
+    .then(function (r) {
+      if (!r.ok) { window.location.href = '/admin/login'; return; }
+      return r.json();
+    })
+    .then(function (data) {
+      if (!data || !data.username) { window.location.href = '/admin/login'; return; }
+      document.getElementById('status-text').textContent =
+        'Authenticated as ' + data.username;
+      _boot();
+    })
+    .catch(function () {
+      /* Network error — still attempt to boot; server auth is the real gate */
+      _boot();
+    });
+
+  function _boot() {
+    /* Mark this context as admin-authorised for the runtime dashboard */
+    window.__IPLV_ADMIN_RUNTIME__ = true;
+
+    /* Load the dashboard script then mount it fullscreen */
+    var s = document.createElement('script');
+    s.src = '/core/runtime-dashboard.js';
+    s.defer = false;
+    s.onload  = _mount;
+    s.onerror = _fail;
+    document.head.appendChild(s);
+  }
+
+  function _mount() {
+    try {
+      var host = document.getElementById('rt-host');
+      var loading = document.getElementById('rt-loading');
+
+      /* Wait one frame so the script fully executes */
+      requestAnimationFrame(function () {
+        if (!window.RuntimeDashboard) { _fail(); return; }
+
+        /* Show full-screen panel inside rt-host */
+        window.RuntimeDashboard.mountFullscreenPanel();
+
+        /* Move the panel into #rt-host so it respects our inset */
+        var panel = document.getElementById('iplv-dash');
+        if (panel && host) {
+          host.appendChild(panel);
+        }
+
+        /* Hide loading splash */
+        if (loading) loading.style.display = 'none';
+
+        /* Update status dot */
+        var health = window.RuntimeDashboard.getHealth();
+        var dot = document.getElementById('status-dot');
+        if (dot && health && health.color) dot.style.background = health.color;
+        document.getElementById('status-text').textContent =
+          'Live — health ' + (health ? health.score : '?') + '/100';
+      });
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  function _fail(err) {
+    document.getElementById('rt-loading').style.display = 'none';
+    var errEl = document.getElementById('rt-error');
+    errEl.style.display = 'flex';
+    if (err && err.message) {
+      document.getElementById('rt-error-msg').textContent = err.message;
+    }
+    var dot = document.getElementById('status-dot');
+    if (dot) dot.style.background = '#ef4444';
+    document.getElementById('status-text').textContent = 'Error';
+  }
+}());
+</script>
+</body>
+</html>

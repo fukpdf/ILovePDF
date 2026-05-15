@@ -424,11 +424,11 @@
        Replaces 50+ eager-deferred AI/Laba script tags.
        Crawlers skip entirely (SEO/tools unaffected).
        All 50 modules load in original order via sequential await. -->
-  <!-- Phase 17: Runtime Observability Dashboard
-       Ctrl+Shift+R — toggle floating devtools panel.
-       Reads LIVE data from all Phase 1-16 subsystems.
-       Zero metric polling until panel is opened. -->
-  <script src="/core/runtime-dashboard.js" defer></script>
+  <!-- Phase 18/20: Production mode guard.
+       Detects environment, suppresses Phase-tagged console noise in production,
+       and blocks public activation of admin-only debug APIs (runtime dashboard
+       is now served exclusively at /admin/runtime for authenticated admins). -->
+  <script src="/core/production-mode.js" defer></script>
 
   <script src="/js/homepage-lazy-loader.js" defer></script>
 </body>
