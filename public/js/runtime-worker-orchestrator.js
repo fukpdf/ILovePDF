@@ -203,16 +203,29 @@
 
     var taskP = window.WorkerPool.run(url, message, transferables || [], workerOpts);
 
-    // Timeout race
+    // Timeout race — tid is cleared when taskP wins so no dangling fire
+    var _tid = null;
     var timeoutP = new Promise(function (_, reject) {
-      var tid = setTimeout(function () {
+      _tid = setTimeout(function () {
+        _tid = null;
         if (wpToken) try { wpToken.cancel(); } catch (_) {}
         reject(new Error('worker-timeout:' + Math.round(timeoutMs / 1000) + 's'));
       }, timeoutMs);
-      if (window.TimerRegistry) window.TimerRegistry.registerTimeout('rwo-timeout', tid);
+      if (window.TimerRegistry) window.TimerRegistry.registerTimeout('rwo-timeout', _tid);
     });
 
-    return Promise.race([taskP, timeoutP]);
+    return Promise.race([
+      taskP.then(function (result) {
+        // Clear timeout so it never fires on an already-complete task
+        if (_tid !== null) { clearTimeout(_tid); _tid = null; }
+        // Auto-pulse WorkerLeakDetector: marks this worker as alive
+        if (window.WorkerLeakDetector && window.WorkerLeakDetector.pulse) {
+          try { window.WorkerLeakDetector.pulse(url); } catch (_) {}
+        }
+        return result;
+      }),
+      timeoutP,
+    ]);
   }
 
   // ── Terminate all workers for a URL ───────────────────────────────────────

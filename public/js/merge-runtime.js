@@ -290,8 +290,17 @@
       // Don't cancel on success — token expires naturally
     }
 
-    // Telemetry: cleanup timing
     if (window.RuntimeTelemetry) {
+      // Emit named cancel event when cleanup is caused by a cancellation
+      if (reason.startsWith('error:cancel') || reason.startsWith('nav-cancel:')) {
+        try { window.RuntimeTelemetry.record('merge:cancel', { reason: reason }); } catch (_) {}
+      }
+      // Close the active span if it is still open
+      if (_currentSpan !== null) {
+        var _spanOutcome = (reason.startsWith('error:') || reason.startsWith('nav-cancel:')) ? 'error' : 'ok';
+        try { window.RuntimeTelemetry.endSpan(_currentSpan, _spanOutcome); } catch (_) {}
+      }
+      // Telemetry: cleanup timing
       try { window.RuntimeTelemetry.record('merge:cleanup', { reason: reason }); } catch (_) {}
     }
 

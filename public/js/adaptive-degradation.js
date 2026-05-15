@@ -156,14 +156,31 @@
       _currentProfile = _profileFor(_currentTier);
     }
   } else {
-    // MemPressure not available: start a fallback polling loop
-    // to read performance.memory directly every 10 s
+    // MemPressure not available: fallback polling.
+    // performance.memory is Chrome/Edge-only; on Safari/Firefox it is absent.
+    // Use navigator.deviceMemory (where available) for an initial conservative tier,
+    // then rely on session step-down and mobile stress guard for ongoing adaptation.
     var MB = 1024 * 1024;
+    var _hasHeapAPI = !!(typeof performance !== 'undefined' &&
+      performance.memory &&
+      typeof performance.memory.usedJSHeapSize === 'number');
+    var _deviceMemGB = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 0;
+
+    // On devices with ≤2 GB RAM (or low-end mobile without heap API), start at 'reduce'.
+    if (!_hasHeapAPI) {
+      if (_deviceMemGB > 0 && _deviceMemGB <= 2) {
+        _applyProfile('reduce', 'ok');
+      } else if (IS_LOW_END_MOBILE) {
+        _applyProfile('reduce', 'ok');
+      }
+    }
+
     var _fbTimer = setInterval(function () {
       try {
-        var used = (performance && performance.memory && performance.memory.usedJSHeapSize) || 0;
+        if (!_hasHeapAPI) return; // no heap API (Safari/Firefox) — rely on step-down/stress guard
+        var used = performance.memory.usedJSHeapSize;
         var tier = 'ok';
-        if (used > 900 * MB) tier = 'abort';
+        if      (used > 900 * MB) tier = 'abort';
         else if (used > 720 * MB) tier = 'critical';
         else if (used > 550 * MB) tier = 'low';
         else if (used > 400 * MB) tier = 'reduce';

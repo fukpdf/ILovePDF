@@ -67,6 +67,7 @@
     var subtitle = pages === 'all'
       ? 'Rotating all pages ' + degrees + '°…'
       : 'Rotating pages ' + pages + ' by ' + degrees + '°…';
+    var _lastMilestone = -1;
 
     return function onProgress(pct, msg) {
       if (_progressTask) {
@@ -74,6 +75,14 @@
       }
       if (window.showProcessing) {
         try { window.showProcessing('Rotating PDF…', msg || subtitle); } catch (_) {}
+      }
+      // Per-tool milestone telemetry at 25% increments
+      if (window.RuntimeTelemetry) {
+        var _ms = Math.floor(pct / 25) * 25;
+        if (_ms > 0 && _ms > _lastMilestone) {
+          _lastMilestone = _ms;
+          try { window.RuntimeTelemetry.record('rotate:progress', { pct: _ms, msg: msg || null }); } catch (_) {}
+        }
       }
     };
   }
@@ -132,6 +141,15 @@
     }
 
     if (window.RuntimeTelemetry) {
+      // Emit named cancel event when cleanup is caused by a cancellation
+      if (reason.startsWith('error:cancel') || reason.startsWith('nav-cancel:')) {
+        try { window.RuntimeTelemetry.record('rotate:cancel', { reason: reason }); } catch (_) {}
+      }
+      // Close the active span if it is still open
+      if (_currentSpan !== null) {
+        var _spanOutcome = (reason.startsWith('error:') || reason.startsWith('nav-cancel:')) ? 'error' : 'ok';
+        try { window.RuntimeTelemetry.endSpan(_currentSpan, _spanOutcome); } catch (_) {}
+      }
       try { window.RuntimeTelemetry.record('rotate:cleanup', { reason: reason }); } catch (_) {}
     }
 

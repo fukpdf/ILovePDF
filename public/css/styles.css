@@ -1052,6 +1052,27 @@ input, select, textarea { font-family: inherit; }
 @keyframes spinPulse { to { transform: rotate(360deg); } }
 @keyframes barSlide { to { left: 100%; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.processing-bar-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: var(--primary); border-radius: 5px;
+  width: 0; transition: width .35s ease;
+}
+.processing-pct {
+  font-size: .78rem; color: var(--text-muted);
+  text-align: center; margin-top: 6px; min-height: 1.1em;
+  font-variant-numeric: tabular-nums;
+}
+.processing-cancel-btn {
+  margin-top: 14px; display: block; width: 100%;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-muted); border-radius: 8px;
+  padding: 7px 16px; font-size: .84rem; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.processing-cancel-btn:hover {
+  border-color: #ef4444; color: #ef4444;
+}
+.processing-cancel-btn.hidden { display: none; }
 
 /* ===== SIGN-UP REQUIRED MODAL ===== */
 .signup-modal .modal-box { max-width: 440px; }

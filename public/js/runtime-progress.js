@@ -262,5 +262,49 @@
     getStats:         getStats,
   };
 
+  // ── Overlay progress bridge ────────────────────────────────────────────────
+  // Listens on RuntimeEventBus for progress:update events and drives the DOM
+  // progress bar fill width, percentage text, and cancel button visibility.
+  // Wires the cancel button to RuntimeCancellation.cancelAll().
+  (function _wireOverlayBridge() {
+    var _barFill = document.getElementById('processing-bar-fill');
+    var _pctText = document.getElementById('processing-pct');
+    var _cancelBtn = document.getElementById('processing-cancel-btn');
+
+    if (!_barFill && !_pctText && !_cancelBtn) return; // not on a tool page
+
+    function _updateBar(overall) {
+      if (_barFill) _barFill.style.width = overall + '%';
+      if (_pctText)  _pctText.textContent = overall > 0 && overall < 100 ? overall + '%' : '';
+    }
+
+    function _resetBar() {
+      if (_barFill)  { _barFill.style.width = '0'; }
+      if (_pctText)  { _pctText.textContent = ''; }
+      if (_cancelBtn) { _cancelBtn.classList.add('hidden'); }
+    }
+
+    if (window.RuntimeEventBus) {
+      window.RuntimeEventBus.on('progress:update', function (ev) {
+        if (!ev || typeof ev.overall !== 'number') return;
+        _updateBar(ev.overall);
+        if (_cancelBtn && ev.overall > 0 && ev.overall < 100) {
+          _cancelBtn.classList.remove('hidden');
+        }
+      });
+      window.RuntimeEventBus.on('task:completed', _resetBar);
+      window.RuntimeEventBus.on('task:failed',    _resetBar);
+    }
+
+    if (_cancelBtn) {
+      _cancelBtn.addEventListener('click', function () {
+        if (window.RuntimeCancellation) {
+          try { window.RuntimeCancellation.cancelAll('user-cancel'); } catch (_) {}
+        }
+        _resetBar();
+      });
+    }
+  }());
+
   console.debug('[RuntimeProgress] ready — T026 progress system active');
 }());

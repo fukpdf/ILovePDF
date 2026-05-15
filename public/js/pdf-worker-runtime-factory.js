@@ -449,9 +449,11 @@
 
     // ── Progress reporter ─────────────────────────────────────────────────
     // Updates RuntimeProgress (when _progressTask exists) AND window.showProcessing.
+    // Also emits toolId:progress telemetry at 25% milestones.
     function _buildProgressReporter(files, opts) {
       var title    = cfg.buildProgressTitle    ? cfg.buildProgressTitle(files, opts)    : (toolId + '…');
       var subtitle = cfg.buildProgressSubtitle ? cfg.buildProgressSubtitle(files, opts) : 'Processing…';
+      var _lastMilestone = -1;
 
       return function onProgress(pct, msg) {
         if (_progressTask) {
@@ -459,6 +461,14 @@
         }
         if (window.showProcessing) {
           try { window.showProcessing(title, msg || subtitle); } catch (_) {}
+        }
+        // Per-tool milestone telemetry at 25% increments
+        if (window.RuntimeTelemetry) {
+          var _ms = Math.floor(pct / 25) * 25;
+          if (_ms > 0 && _ms > _lastMilestone) {
+            _lastMilestone = _ms;
+            try { window.RuntimeTelemetry.record(toolId + ':progress', { pct: _ms, msg: msg || null }); } catch (_) {}
+          }
         }
       };
     }
@@ -476,6 +486,15 @@
       }
 
       if (window.RuntimeTelemetry) {
+        // Emit named cancel event when this cleanup is caused by a cancellation
+        if (reason.startsWith('error:cancel') || reason.startsWith('nav-cancel:')) {
+          try { window.RuntimeTelemetry.record(toolId + ':cancel', { reason: reason }); } catch (_) {}
+        }
+        // Close the active span if it is still open
+        if (_currentSpan !== null) {
+          var _spanOutcome = (reason.startsWith('error:') || reason.startsWith('nav-cancel:')) ? 'error' : 'ok';
+          try { window.RuntimeTelemetry.endSpan(_currentSpan, _spanOutcome); } catch (_) {}
+        }
         try { window.RuntimeTelemetry.record(toolId + ':cleanup', { reason: reason }); } catch (_) {}
       }
 

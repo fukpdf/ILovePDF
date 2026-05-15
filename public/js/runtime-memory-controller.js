@@ -39,10 +39,18 @@
     EMERGENCY: { maxWorkers: 1, maxPreviews: 0, canvasScale: 0.40, chunkMB: 0.5, enablePreview: false },
   };
 
-  // Mobile adjustment: halve worker/preview limits
+  // Mobile adjustment: tighten worker/preview limits per platform
   var _ua = navigator.userAgent || '';
-  var IS_MOBILE = /Mobile|Tablet|Android|iPhone|iPad/i.test(_ua);
-  if (IS_MOBILE) {
+  var IS_MOBILE   = /Mobile|Tablet|Android|iPhone|iPad/i.test(_ua);
+  var IS_IOS      = /iPhone|iPad|iPod/i.test(_ua);
+  // iOS Safari: process limit ≈ 1.3–1.5 GB with aggressive OOM kills
+  var IS_IOS_SAFARI = IS_IOS && !/CriOS|FxiOS|OPiOS|mercury/i.test(_ua);
+
+  if (IS_IOS_SAFARI) {
+    TIERS.NORMAL.maxWorkers   = 1; TIERS.NORMAL.maxPreviews   = 1;
+    TIERS.WARNING.maxWorkers  = 1; TIERS.WARNING.maxPreviews  = 0;
+    TIERS.CRITICAL.maxWorkers = 1; TIERS.CRITICAL.maxPreviews = 0;
+  } else if (IS_MOBILE) {
     TIERS.NORMAL.maxWorkers  = 2; TIERS.NORMAL.maxPreviews  = 2;
     TIERS.WARNING.maxWorkers = 1; TIERS.WARNING.maxPreviews = 1;
   }
@@ -223,6 +231,7 @@
       tier:        _currentTier,
       rawTier:     _rawTier,
       isMobile:    IS_MOBILE,
+      isIosSafari: IS_IOS_SAFARI,
       config:      getConfig(),
       memUsedMB:   memUsedMB(),
       memAvailMB:  memAvailMB(),

@@ -200,7 +200,8 @@
   // minimize (user may switch back). Cancel only if hidden for > 5 min.
   var _hiddenAt = 0;
   var _hiddenTimer = null;
-  var HIDDEN_CANCEL_MS = 5 * 60 * 1000; // 5 minutes
+  var _IS_MOBILE_NC = /Mobile|Tablet|Android|iPhone|iPad/i.test(navigator.userAgent || '');
+  var HIDDEN_CANCEL_MS = _IS_MOBILE_NC ? 60 * 1000 : 5 * 60 * 1000; // 60s mobile, 5min desktop
 
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
