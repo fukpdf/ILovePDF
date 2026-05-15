@@ -1,0 +1,61 @@
+{
+  "name": "ILovePDF — Free PDF & Image Tools",
+  "short_name": "ILovePDF",
+  "description": "33+ free PDF and image tools online. Merge, split, compress, convert, OCR, AI summarize and more.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#4f46e5",
+  "background_color": "#ffffff",
+  "lang": "en",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Merge PDF",
+      "short_name": "Merge",
+      "description": "Combine multiple PDF files into one",
+      "url": "/merge-pdf",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Compress PDF",
+      "short_name": "Compress",
+      "description": "Reduce PDF file size",
+      "url": "/compress-pdf",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "PDF to Word",
+      "short_name": "PDF→Word",
+      "description": "Convert PDF to editable Word document",
+      "url": "/pdf-to-word",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "AI Summarizer",
+      "short_name": "AI Summary",
+      "description": "Summarize any PDF with AI",
+      "url": "/ai-summarizer",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "ILovePDF Tool Dashboard"
+    }
+  ],
+  "prefer_related_applications": false
+}
