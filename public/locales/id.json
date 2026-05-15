@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Gabung PDF",
+    "split": "Pisah PDF",
+    "organize": "Atur",
+    "convert": "Konversi",
+    "all_tools": "Semua Alat",
+    "search": "Cari 33+ alat…",
+    "donate": "Donasi"
+  },
+  "hero": {
+    "eyebrow": "33+ Alat Gratis",
+    "title": "Semua Alat PDF & Gambar yang Anda Butuhkan",
+    "desc": "Gabung, pisah, kompres, konversi, edit, tandatangani dan lindungi — plus ringkasan AI, OCR dan paket gambar lengkap.",
+    "explore": "Jelajahi Alat",
+    "merge": "Gabung PDF",
+    "split": "Pisah PDF",
+    "organize": "Atur PDF",
+    "compress": "Kompres PDF",
+    "ai": "Ringkasan AI",
+    "n2w": "Angka ke Kata",
+    "currency": "Konverter Mata Uang"
+  },
+  "calc": {
+    "n2w_title": "Angka ke Kata",
+    "n2w_desc": "Ubah angka menjadi teks atau mata uang",
+    "enter_num": "Masukkan angka",
+    "words": "Kata",
+    "currency": "Mata Uang",
+    "case": "Huruf Besar/Kecil",
+    "lowercase": "huruf kecil",
+    "uppercase": "HURUF BESAR",
+    "titlecase": "Judul",
+    "convert": "Konversi",
+    "copy": "Salin",
+    "fx_title": "Konverter Mata Uang",
+    "fx_desc": "Nilai tukar langsung · 160+ mata uang",
+    "amount": "Jumlah",
+    "from": "Dari",
+    "to": "Ke",
+    "loading_rates": "Memuat nilai tukar…",
+    "convert_btn": "Konversi"
+  },
+  "band": {
+    "organize_title": "Atur PDF",
+    "organize_sub": "Gabung, pisah, putar, potong dan susun ulang halaman PDF seketika.",
+    "security_title": "Keamanan",
+    "security_sub": "Lindungi atau buka kunci dokumen PDF dengan satu klik.",
+    "image_title": "Alat Gambar",
+    "image_sub": "Potong, ubah ukuran, terapkan filter dan hapus latar belakang gambar.",
+    "edit_title": "Edit & Anotasi",
+    "edit_sub": "Tambahkan tanda air, nomor halaman, tanda tangan dan penyuntingan.",
+    "utilities_title": "Utilitas",
+    "utilities_sub": "Konverter angka ke kata dan nilai tukar mata uang langsung.",
+    "convert_title": "Konversi",
+    "convert_sub": "Konversi antara PDF, Word, Excel, PowerPoint, JPG dan HTML.",
+    "advanced_title": "Lanjutan & AI",
+    "advanced_sub": "OCR, ringkasan AI, terjemahan, perbandingan dan otomasi alur kerja."
+  },
+  "section": {
+    "tools_title": "Alat Esensial",
+    "tools_desc": "Alat PDF paling banyak digunakan — cepat, gratis, berbasis browser. Tidak perlu daftar.",
+    "see_all": "Lihat semua 33+ alat →",
+    "categories_title": "Semua yang Anda Butuhkan untuk Mengelola PDF",
+    "categories_desc": "33+ alat gratis diorganisir berdasarkan tugas — dari perbaikan cepat hingga pemrosesan AI lanjutan."
+  },
+  "trust": {
+    "title": "Mengapa Pengguna Mempercayai ILovePDF.cyou",
+    "desc": "Dibangun di sekitar privasi Anda. Tidak perlu akun. File dihapus seketika.",
+    "privacy": "Fokus Privasi",
+    "privacy_desc": "File diproses di browser Anda atau dihapus dari server kami dalam beberapa detik.",
+    "fast": "Pemrosesan Cepat",
+    "fast_desc": "Sebagian besar alat berjalan sepenuhnya di browser Anda untuk hasil instan.",
+    "secure": "Aman dan Terpercaya",
+    "secure_desc": "Semua unggahan dienkripsi saat transit. Data Anda tidak pernah dijual atau dibagikan.",
+    "free": "Gratis dan Dapat Diakses",
+    "free_desc": "Setiap alat gratis. Tidak ada paywall, pendaftaran paksa, atau tanda air."
+  },
+  "footer": {
+    "desc": "Alat PDF dan gambar gratis online. Tidak perlu daftar.",
+    "product": "Produk",
+    "company": "Perusahaan",
+    "legal": "Hukum",
+    "all_tools": "Semua Alat",
+    "about": "Tentang",
+    "contact": "Kontak",
+    "blog": "Blog",
+    "privacy": "Kebijakan Privasi",
+    "terms": "Ketentuan Layanan",
+    "disclaimer": "Penafian",
+    "rights": "© 2026 ILovePDF — Hak cipta dilindungi.",
+    "deleted": "File dihapus secara otomatis dalam beberapa detik.",
+    "languages": "Bahasa"
+  },
+  "lang": {
+    "select": "Pilih bahasa",
+    "search": "Cari bahasa…",
+    "title": "Bahasa"
+  }
+}

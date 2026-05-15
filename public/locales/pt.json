@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Juntar PDF",
+    "split": "Dividir PDF",
+    "organize": "Organizar",
+    "convert": "Converter",
+    "all_tools": "Todas as ferramentas",
+    "search": "Pesquisar 33+ ferramentas…",
+    "donate": "Doar"
+  },
+  "hero": {
+    "eyebrow": "33+ ferramentas gratuitas",
+    "title": "Todas as ferramentas de PDF e imagem que você precisará",
+    "desc": "Junte, divida, comprima, converta, edite, assine e proteja — mais resumo com IA, OCR e suite completa de imagens.",
+    "explore": "Explorar ferramentas",
+    "merge": "Juntar PDF",
+    "split": "Dividir PDF",
+    "organize": "Organizar PDF",
+    "compress": "Comprimir PDF",
+    "ai": "Resumidor IA",
+    "n2w": "Número por extenso",
+    "currency": "Conversor de moedas"
+  },
+  "calc": {
+    "n2w_title": "Número por extenso",
+    "n2w_desc": "Converter números em texto ou moeda",
+    "enter_num": "Digite um número",
+    "words": "Palavras",
+    "currency": "Moeda",
+    "case": "Capitalização",
+    "lowercase": "minúsculas",
+    "uppercase": "MAIÚSCULAS",
+    "titlecase": "Primeira Maiúscula",
+    "convert": "Converter",
+    "copy": "Copiar",
+    "fx_title": "Conversor de moedas",
+    "fx_desc": "Taxas ao vivo · 160+ moedas",
+    "amount": "Valor",
+    "from": "De",
+    "to": "Para",
+    "loading_rates": "Carregando taxas…",
+    "convert_btn": "Converter"
+  },
+  "band": {
+    "organize_title": "Organizar PDFs",
+    "organize_sub": "Junte, divida, gire, recorte e reordene páginas de PDF instantaneamente.",
+    "security_title": "Segurança",
+    "security_sub": "Proteja ou desbloqueie documentos PDF com senha em um clique.",
+    "image_title": "Ferramentas de imagem",
+    "image_sub": "Recorte, redimensione, aplique filtros e remova fundos de imagens.",
+    "edit_title": "Editar e anotar",
+    "edit_sub": "Adicione marcas d'água, números de página, assinaturas e redações.",
+    "utilities_title": "Utilitários",
+    "utilities_sub": "Conversor de número por extenso e taxas de câmbio ao vivo.",
+    "convert_title": "Converter",
+    "convert_sub": "Converta entre PDF, Word, Excel, PowerPoint, JPG e HTML.",
+    "advanced_title": "Avançado e IA",
+    "advanced_sub": "OCR, resumos com IA, tradução, comparação e automação de fluxos."
+  },
+  "section": {
+    "tools_title": "Ferramentas essenciais",
+    "tools_desc": "As ferramentas PDF mais usadas — rápidas, gratuitas e baseadas no navegador. Sem cadastro.",
+    "see_all": "Ver todas as 33+ ferramentas →",
+    "categories_title": "Tudo que você precisa para gerenciar PDFs",
+    "categories_desc": "33+ ferramentas gratuitas organizadas por tarefa — de correções rápidas a processamento IA avançado."
+  },
+  "trust": {
+    "title": "Por que os usuários confiam no ILovePDF.cyou",
+    "desc": "Construído em torno da sua privacidade. Sem conta necessária. Arquivos deletados instantaneamente.",
+    "privacy": "Foco na privacidade",
+    "privacy_desc": "Os arquivos são processados no seu navegador ou deletados dos nossos servidores em segundos.",
+    "fast": "Processamento rápido",
+    "fast_desc": "A maioria das ferramentas roda completamente no seu navegador para resultados instantâneos.",
+    "secure": "Seguro e confiável",
+    "secure_desc": "Todos os uploads são criptografados em trânsito. Seus dados nunca são vendidos ou compartilhados.",
+    "free": "Gratuito e acessível",
+    "free_desc": "Todas as ferramentas são gratuitas. Sem paywall, sem cadastro obrigatório, sem marca d'água."
+  },
+  "footer": {
+    "desc": "Ferramentas gratuitas de PDF e imagem online. Sem cadastro.",
+    "product": "Produto",
+    "company": "Empresa",
+    "legal": "Legal",
+    "all_tools": "Todas as ferramentas",
+    "about": "Sobre",
+    "contact": "Contato",
+    "blog": "Blog",
+    "privacy": "Política de privacidade",
+    "terms": "Termos de serviço",
+    "disclaimer": "Aviso legal",
+    "rights": "© 2026 ILovePDF — Todos os direitos reservados.",
+    "deleted": "Os arquivos são deletados automaticamente em segundos.",
+    "languages": "Idiomas"
+  },
+  "lang": {
+    "select": "Selecionar idioma",
+    "search": "Buscar idioma…",
+    "title": "Idioma"
+  }
+}

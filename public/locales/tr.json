@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "PDF Birleştir",
+    "split": "PDF Böl",
+    "organize": "Düzenle",
+    "convert": "Dönüştür",
+    "all_tools": "Tüm Araçlar",
+    "search": "33+ araç ara…",
+    "donate": "Bağış Yap"
+  },
+  "hero": {
+    "eyebrow": "33+ Ücretsiz Araç",
+    "title": "İhtiyacınız Olan Her PDF ve Görsel Aracı",
+    "desc": "Birleştir, böl, sıkıştır, dönüştür, düzenle, imzala ve koru — AI özeti, OCR ve tam görsel paketi ile.",
+    "explore": "Araçları Keşfet",
+    "merge": "PDF Birleştir",
+    "split": "PDF Böl",
+    "organize": "PDF Düzenle",
+    "compress": "PDF Sıkıştır",
+    "ai": "AI Özetleyici",
+    "n2w": "Sayıdan Kelimeye",
+    "currency": "Döviz Çevirici"
+  },
+  "calc": {
+    "n2w_title": "Sayıdan Kelimeye",
+    "n2w_desc": "Sayıları metin veya para birimine dönüştürün",
+    "enter_num": "Bir sayı girin",
+    "words": "Kelimeler",
+    "currency": "Para Birimi",
+    "case": "Harf Stili",
+    "lowercase": "küçük harf",
+    "uppercase": "BÜYÜK HARF",
+    "titlecase": "Başlık Stili",
+    "convert": "Dönüştür",
+    "copy": "Kopyala",
+    "fx_title": "Döviz Çevirici",
+    "fx_desc": "Canlı kurlar · 160+ para birimi",
+    "amount": "Miktar",
+    "from": "Kaynak",
+    "to": "Hedef",
+    "loading_rates": "Kurlar yükleniyor…",
+    "convert_btn": "Dönüştür"
+  },
+  "band": {
+    "organize_title": "PDF'leri Düzenle",
+    "organize_sub": "PDF sayfalarını anında birleştir, böl, döndür, kırp ve yeniden sırala.",
+    "security_title": "Güvenlik",
+    "security_sub": "PDF belgelerini tek tıkla parola ile koru veya kilidi aç.",
+    "image_title": "Görsel Araçları",
+    "image_sub": "Görselleri kırp, yeniden boyutlandır, filtre uygula ve arka planı kaldır.",
+    "edit_title": "Düzenle ve Açıkla",
+    "edit_sub": "Filigran, sayfa numarası, imza ve düzenleme ekle.",
+    "utilities_title": "Araçlar",
+    "utilities_sub": "Sayıdan kelimeye dönüştürücü ve canlı döviz kurları.",
+    "convert_title": "Dönüştür",
+    "convert_sub": "PDF, Word, Excel, PowerPoint, JPG ve HTML arasında dönüştür.",
+    "advanced_title": "Gelişmiş ve AI",
+    "advanced_sub": "OCR, AI özetleri, çeviri, karşılaştırma ve iş akışı otomasyonu."
+  },
+  "section": {
+    "tools_title": "Temel Araçlar",
+    "tools_desc": "En çok kullanılan PDF araçları — hızlı, ücretsiz, tarayıcı tabanlı. Kayıt gerekmez.",
+    "see_all": "33+ aracın tamamını gör →",
+    "categories_title": "PDF Yönetimi İçin İhtiyacınız Her Şey",
+    "categories_desc": "Göreve göre düzenlenmiş 33+ ücretsiz araç — hızlı düzeltmelerden gelişmiş AI işlemeye kadar."
+  },
+  "trust": {
+    "title": "Kullanıcılar Neden ILovePDF.cyou'ya Güveniyor",
+    "desc": "Gizliliğiniz etrafında inşa edildi. Hesap gerekmiyor. Dosyalar anında siliniyor.",
+    "privacy": "Gizlilik Odaklı",
+    "privacy_desc": "Dosyalar tarayıcınızda işlenir veya sunucularımızdan saniyeler içinde silinir.",
+    "fast": "Hızlı İşlem",
+    "fast_desc": "Araçların çoğu anlık, gecikmesiz sonuçlar için tamamen tarayıcınızda çalışır.",
+    "secure": "Güvenli ve Emniyetli",
+    "secure_desc": "Tüm yüklemeler aktarım sırasında şifrelenir. Verileriniz asla satılmaz.",
+    "free": "Ücretsiz ve Erişilebilir",
+    "free_desc": "Her araç ücretsizdir. Ücretli engel yok, zorla kayıt yok, filigran yok."
+  },
+  "footer": {
+    "desc": "Çevrimiçi ücretsiz PDF ve görsel araçları. Kayıt gerekmez.",
+    "product": "Ürün",
+    "company": "Şirket",
+    "legal": "Hukuki",
+    "all_tools": "Tüm Araçlar",
+    "about": "Hakkında",
+    "contact": "İletişim",
+    "blog": "Blog",
+    "privacy": "Gizlilik Politikası",
+    "terms": "Hizmet Şartları",
+    "disclaimer": "Sorumluluk Reddi",
+    "rights": "© 2026 ILovePDF — Tüm hakları saklıdır.",
+    "deleted": "Dosyalar saniyeler içinde otomatik olarak silinir.",
+    "languages": "Diller"
+  },
+  "lang": {
+    "select": "Dil seçin",
+    "search": "Dil ara…",
+    "title": "Dil"
+  }
+}

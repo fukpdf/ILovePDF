@@ -1,0 +1,115 @@
+{
+  "nav": {
+    "merge": "Merge PDF",
+    "split": "Split PDF",
+    "organize": "Organize",
+    "convert": "Convert",
+    "all_tools": "All Tools",
+    "search": "Search 33+ tools…",
+    "donate": "Donate"
+  },
+  "hero": {
+    "eyebrow": "33+ Free Tools",
+    "title": "Every PDF & Image Tool You'll Ever Need",
+    "desc": "Merge, split, compress, convert, edit, sign and protect — plus AI summarizer, OCR and a full image suite.",
+    "explore": "Explore Tools",
+    "merge": "Merge PDF",
+    "split": "Split PDF",
+    "organize": "Organize PDF",
+    "compress": "Compress PDF",
+    "ai": "AI Summarizer",
+    "n2w": "Numbers to Words",
+    "currency": "Currency Converter"
+  },
+  "calc": {
+    "n2w_title": "Numbers to Words",
+    "n2w_desc": "Convert numbers to text or currency",
+    "enter_num": "Enter a number",
+    "words": "Words",
+    "currency": "Currency",
+    "case": "Case",
+    "lowercase": "lowercase",
+    "uppercase": "UPPERCASE",
+    "titlecase": "Title Case",
+    "convert": "Convert",
+    "copy": "Copy",
+    "fx_title": "Currency Converter",
+    "fx_desc": "Live rates · 160+ currencies",
+    "amount": "Amount",
+    "from": "From",
+    "to": "To",
+    "loading_rates": "Loading rates…",
+    "convert_btn": "Convert"
+  },
+  "band": {
+    "organize_title": "Organize PDFs",
+    "organize_sub": "Merge, split, rotate, crop and reorder your PDF pages instantly.",
+    "security_title": "Security",
+    "security_sub": "Password-protect or unlock PDF documents with one click.",
+    "image_title": "Image Tools",
+    "image_sub": "Crop, resize, apply filters and remove image backgrounds.",
+    "edit_title": "Edit & Annotate",
+    "edit_sub": "Add watermarks, page numbers, signatures and redactions.",
+    "utilities_title": "Utilities",
+    "utilities_sub": "Numbers to words converter and live currency exchange rates.",
+    "convert_title": "Convert",
+    "convert_sub": "Convert between PDF, Word, Excel, PowerPoint, JPG and HTML.",
+    "advanced_title": "Advanced & AI",
+    "advanced_sub": "OCR, AI summaries, translation, comparison and workflow automation."
+  },
+  "section": {
+    "tools_title": "Essential Tools",
+    "tools_desc": "The most-used PDF tools — fast, free, and browser-powered. No signup required.",
+    "see_all": "See all 33+ tools →",
+    "categories_title": "Everything You Need to Manage PDFs",
+    "categories_desc": "33+ free tools organised by task — from quick fixes to advanced AI processing."
+  },
+  "trust": {
+    "title": "Why Users Trust ILovePDF.cyou",
+    "desc": "Built around your privacy. No account needed. Files deleted instantly.",
+    "privacy": "Privacy Focused",
+    "privacy_desc": "Files are processed in your browser or deleted from our servers within seconds.",
+    "fast": "Fast Processing",
+    "fast_desc": "Most tools run entirely in your browser for instant, lag-free results.",
+    "secure": "Secure & Safe",
+    "secure_desc": "All uploads are encrypted in transit. No data is ever sold or shared.",
+    "free": "Free & Accessible",
+    "free_desc": "Every tool is free. No paywalls, no forced sign-ups, no watermarks."
+  },
+  "footer": {
+    "desc": "Free PDF & Image tools online. No sign-up required.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "all_tools": "All Tools",
+    "about": "About",
+    "contact": "Contact",
+    "blog": "Blog",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "disclaimer": "Disclaimer",
+    "rights": "© 2026 ILovePDF — All rights reserved.",
+    "deleted": "Files are deleted automatically within seconds.",
+    "languages": "Languages"
+  },
+  "lang": {
+    "select": "Select language",
+    "search": "Search languages…",
+    "title": "Language"
+  },
+  "cat": {
+    "organize": "Organize PDF",
+    "convert": "Convert PDF",
+    "compress": "Compress & Optimize",
+    "edit_security": "Edit & Security",
+    "view_all": "View all →"
+  },
+  "quick": {
+    "pdf_title": "PDF Tools",
+    "pdf_desc": "Merge, split, compress, convert & more",
+    "image_title": "Image Tools",
+    "image_desc": "Background remover, crop, resize, filters",
+    "utils_title": "Utilities",
+    "utils_desc": "Currency converter, numbers to words"
+  }
+}

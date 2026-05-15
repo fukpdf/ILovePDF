@@ -8,6 +8,8 @@
   <meta name="keywords" content="merge pdf, split pdf, compress pdf, pdf to word, word to pdf, jpg to pdf, html to pdf, ocr pdf, ai summarizer, background remover, ilovepdf">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://ilovepdf.cyou/">
+  <link rel="alternate" hreflang="x-default" href="https://ilovepdf.cyou/">
+  <link rel="alternate" hreflang="en"         href="https://ilovepdf.cyou/">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="shortcut icon" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
@@ -40,8 +42,8 @@
           <div class="calc-head">
             <span class="ico"><i data-lucide="calculator"></i></span>
             <div>
-              <h3>Numbers to Words</h3>
-              <p>Convert numbers to text or currency</p>
+              <h3 data-i18n="calc.n2w_title">Numbers to Words</h3>
+              <p data-i18n="calc.n2w_desc">Convert numbers to text or currency</p>
             </div>
           </div>
           <div class="calc-body">
@@ -72,11 +74,11 @@
               <option value="Title Case">Title Case</option>
             </select>
 
-            <button id="calc-go" class="calc-btn">Convert</button>
+            <button id="calc-go" class="calc-btn" data-i18n="calc.convert">Convert</button>
             <div class="calc-out-wrap" id="calc-out-wrap" hidden>
               <div id="calc-out" class="calc-out show" aria-live="polite"></div>
               <button type="button" id="calc-copy" class="calc-copy" aria-label="Copy to clipboard">
-                <i data-lucide="copy"></i><span>Copy</span>
+                <i data-lucide="copy"></i><span data-i18n="calc.copy">Copy</span>
               </button>
             </div>
           </div>
@@ -87,8 +89,8 @@
           <div class="calc-head alt">
             <span class="ico"><i data-lucide="dollar-sign"></i></span>
             <div>
-              <h3>Currency Converter</h3>
-              <p>Live rates · 160+ currencies</p>
+              <h3 data-i18n="calc.fx_title">Currency Converter</h3>
+              <p data-i18n="calc.fx_desc">Live rates · 160+ currencies</p>
             </div>
           </div>
           <div class="calc-body">
@@ -441,6 +443,30 @@
         <a href="/terms.html">Terms</a>
         <a href="/disclaimer.html">Disclaimer</a>
       </div>
+      <div class="footer-col footer-languages">
+        <h4>Languages</h4>
+        <div class="footer-lang-grid">
+          <a href="#" class="footer-lang-link" data-lang="en">English</a>
+          <a href="#" class="footer-lang-link" data-lang="ar">العربية</a>
+          <a href="#" class="footer-lang-link" data-lang="ur">اردو</a>
+          <a href="#" class="footer-lang-link" data-lang="fa">فارسی</a>
+          <a href="#" class="footer-lang-link" data-lang="hi">हिन्दी</a>
+          <a href="#" class="footer-lang-link" data-lang="bn">বাংলা</a>
+          <a href="#" class="footer-lang-link" data-lang="zh">中文</a>
+          <a href="#" class="footer-lang-link" data-lang="ja">日本語</a>
+          <a href="#" class="footer-lang-link" data-lang="ko">한국어</a>
+          <a href="#" class="footer-lang-link" data-lang="tr">Türkçe</a>
+          <a href="#" class="footer-lang-link" data-lang="id">Indonesia</a>
+          <a href="#" class="footer-lang-link" data-lang="ru">Русский</a>
+          <a href="#" class="footer-lang-link" data-lang="fr">Français</a>
+          <a href="#" class="footer-lang-link" data-lang="de">Deutsch</a>
+          <a href="#" class="footer-lang-link" data-lang="es">Español</a>
+          <a href="#" class="footer-lang-link" data-lang="pt">Português</a>
+          <a href="#" class="footer-lang-link" data-lang="it">Italiano</a>
+          <a href="#" class="footer-lang-link" data-lang="nl">Nederlands</a>
+          <a href="#" class="footer-lang-link" data-lang="pl">Polski</a>
+        </div>
+      </div>
     </div>
     <div class="footer-bottom">
       <span>© 2026 ILovePDF — All rights reserved.</span>
@@ -455,6 +481,7 @@
   <script src="https://unpkg.com/lucide@latest" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/n2w-converter.js" defer></script>
+  <script src="/js/i18n.js" defer></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <script src="/js/home.js" defer></script>
@@ -541,5 +568,21 @@
   <script src="/js/laba-ai-evolution-os.js" defer></script>
   <!-- Final AI Evolution Audit — window.runFinalAiEvolutionAudit() -->
   <script src="/js/final-ai-evolution-audit.js" defer></script>
+  <!-- Phase 10J: RuntimeGlobalCertification — window.RuntimeGlobalCertification() -->
+  <script src="/js/runtime-global-certification.js" defer></script>
+  <!-- Phase 10H: Footer language links -->
+  <script defer>
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('.footer-lang-link[data-lang]');
+      if (!link) return;
+      e.preventDefault();
+      var lang = link.getAttribute('data-lang');
+      if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+        window.RuntimeI18n.setLanguage(lang).then(function () {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      }
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Scal PDF",
+    "split": "Podziel PDF",
+    "organize": "Organizuj",
+    "convert": "Konwertuj",
+    "all_tools": "Wszystkie narzędzia",
+    "search": "Szukaj 33+ narzędzi…",
+    "donate": "Wesprzyj"
+  },
+  "hero": {
+    "eyebrow": "33+ bezpłatnych narzędzi",
+    "title": "Wszystkie narzędzia do PDF i obrazów, jakich kiedykolwiek będziesz potrzebować",
+    "desc": "Scalaj, dziel, kompresuj, konwertuj, edytuj, podpisuj i chroń — plus podsumowanie AI, OCR i pełny zestaw narzędzi obrazowych.",
+    "explore": "Odkryj narzędzia",
+    "merge": "Scal PDF",
+    "split": "Podziel PDF",
+    "organize": "Organizuj PDF",
+    "compress": "Kompresuj PDF",
+    "ai": "Streszczenie AI",
+    "n2w": "Liczba słownie",
+    "currency": "Przelicznik walut"
+  },
+  "calc": {
+    "n2w_title": "Liczba słownie",
+    "n2w_desc": "Konwertuj liczby na tekst lub walutę",
+    "enter_num": "Wprowadź liczbę",
+    "words": "Słowa",
+    "currency": "Waluta",
+    "case": "Wielkość liter",
+    "lowercase": "małe litery",
+    "uppercase": "WIELKIE LITERY",
+    "titlecase": "Pierwsza Wielka",
+    "convert": "Konwertuj",
+    "copy": "Kopiuj",
+    "fx_title": "Przelicznik walut",
+    "fx_desc": "Kursy na żywo · 160+ walut",
+    "amount": "Kwota",
+    "from": "Z",
+    "to": "Na",
+    "loading_rates": "Ładowanie kursów…",
+    "convert_btn": "Przelicz"
+  },
+  "band": {
+    "organize_title": "Organizuj PDF-y",
+    "organize_sub": "Scalaj, dziel, obracaj, przycinaj i zmieniaj kolejność stron PDF błyskawicznie.",
+    "security_title": "Bezpieczeństwo",
+    "security_sub": "Chroń hasłem lub odblokowuj dokumenty PDF jednym kliknięciem.",
+    "image_title": "Narzędzia obrazowe",
+    "image_sub": "Przycinaj, zmieniaj rozmiar, stosuj filtry i usuwaj tła z obrazów.",
+    "edit_title": "Edytuj i adnotuj",
+    "edit_sub": "Dodaj znaki wodne, numery stron, podpisy i redakcje.",
+    "utilities_title": "Narzędzia",
+    "utilities_sub": "Konwerter liczb na słowa i kursy walut na żywo.",
+    "convert_title": "Konwertuj",
+    "convert_sub": "Konwertuj między PDF, Word, Excel, PowerPoint, JPG i HTML.",
+    "advanced_title": "Zaawansowane i AI",
+    "advanced_sub": "OCR, streszczenia AI, tłumaczenie, porównanie i automatyzacja procesów."
+  },
+  "section": {
+    "tools_title": "Niezbędne narzędzia",
+    "tools_desc": "Najczęściej używane narzędzia PDF — szybkie, bezpłatne, działające w przeglądarce. Bez rejestracji.",
+    "see_all": "Zobacz wszystkie 33+ narzędzi →",
+    "categories_title": "Wszystko, czego potrzebujesz do zarządzania PDF-ami",
+    "categories_desc": "33+ bezpłatnych narzędzi zorganizowanych według zadań — od szybkich poprawek do zaawansowanego przetwarzania AI."
+  },
+  "trust": {
+    "title": "Dlaczego użytkownicy ufają ILovePDF.cyou",
+    "desc": "Zbudowany wokół Twojej prywatności. Bez konta. Pliki usuwane natychmiast.",
+    "privacy": "Skupiony na prywatności",
+    "privacy_desc": "Pliki są przetwarzane w Twojej przeglądarce lub usuwane z naszych serwerów w ciągu sekund.",
+    "fast": "Szybkie przetwarzanie",
+    "fast_desc": "Większość narzędzi działa w całości w Twojej przeglądarce, zapewniając natychmiastowe wyniki.",
+    "secure": "Bezpieczny i niezawodny",
+    "secure_desc": "Wszystkie przesyłane pliki są szyfrowane. Twoje dane nigdy nie są sprzedawane ani udostępniane.",
+    "free": "Bezpłatny i dostępny",
+    "free_desc": "Każde narzędzie jest bezpłatne. Żadnych paywall-i, obowiązkowej rejestracji ani znaków wodnych."
+  },
+  "footer": {
+    "desc": "Bezpłatne narzędzia PDF i obrazowe online. Bez rejestracji.",
+    "product": "Produkt",
+    "company": "Firma",
+    "legal": "Prawne",
+    "all_tools": "Wszystkie narzędzia",
+    "about": "O nas",
+    "contact": "Kontakt",
+    "blog": "Blog",
+    "privacy": "Polityka prywatności",
+    "terms": "Warunki korzystania",
+    "disclaimer": "Zastrzeżenie prawne",
+    "rights": "© 2026 ILovePDF — Wszelkie prawa zastrzeżone.",
+    "deleted": "Pliki są automatycznie usuwane w ciągu kilku sekund.",
+    "languages": "Języki"
+  },
+  "lang": {
+    "select": "Wybierz język",
+    "search": "Szukaj języka…",
+    "title": "Język"
+  }
+}

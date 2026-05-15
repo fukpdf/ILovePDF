@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "PDF samenvoegen",
+    "split": "PDF splitsen",
+    "organize": "Organiseren",
+    "convert": "Converteren",
+    "all_tools": "Alle tools",
+    "search": "Zoek 33+ tools…",
+    "donate": "Doneren"
+  },
+  "hero": {
+    "eyebrow": "33+ gratis tools",
+    "title": "Alle PDF- en afbeeldingstools die u ooit nodig zult hebben",
+    "desc": "Samenvoegen, splitsen, comprimeren, converteren, bewerken, ondertekenen en beveiligen — plus AI-samenvatting, OCR en volledige beeldbewerking.",
+    "explore": "Verken tools",
+    "merge": "PDF samenvoegen",
+    "split": "PDF splitsen",
+    "organize": "PDF organiseren",
+    "compress": "PDF comprimeren",
+    "ai": "AI-samenvatter",
+    "n2w": "Getal in woorden",
+    "currency": "Valutaomzetter"
+  },
+  "calc": {
+    "n2w_title": "Getal in woorden",
+    "n2w_desc": "Getallen omzetten naar tekst of valuta",
+    "enter_num": "Voer een getal in",
+    "words": "Woorden",
+    "currency": "Valuta",
+    "case": "Hoofdlettergebruik",
+    "lowercase": "kleine letters",
+    "uppercase": "HOOFDLETTERS",
+    "titlecase": "Eerste Letter Hoofdletter",
+    "convert": "Converteren",
+    "copy": "Kopiëren",
+    "fx_title": "Valutaomzetter",
+    "fx_desc": "Live koersen · 160+ valuta's",
+    "amount": "Bedrag",
+    "from": "Van",
+    "to": "Naar",
+    "loading_rates": "Koersen laden…",
+    "convert_btn": "Converteren"
+  },
+  "band": {
+    "organize_title": "PDF's organiseren",
+    "organize_sub": "PDF-pagina's samenvoegen, splitsen, roteren, bijsnijden en herordenen.",
+    "security_title": "Beveiliging",
+    "security_sub": "PDF-documenten met wachtwoord beveiligen of ontgrendelen met één klik.",
+    "image_title": "Afbeeldingstools",
+    "image_sub": "Afbeeldingen bijsnijden, vergroten/verkleinen, filters toepassen en achtergronden verwijderen.",
+    "edit_title": "Bewerken en annoteren",
+    "edit_sub": "Watermerken, paginanummers, handtekeningen en bewerkingen toevoegen.",
+    "utilities_title": "Hulpprogramma's",
+    "utilities_sub": "Getal-naar-woorden converter en live wisselkoersen.",
+    "convert_title": "Converteren",
+    "convert_sub": "Converteren tussen PDF, Word, Excel, PowerPoint, JPG en HTML.",
+    "advanced_title": "Geavanceerd en AI",
+    "advanced_sub": "OCR, AI-samenvattingen, vertaling, vergelijking en workflowautomatisering."
+  },
+  "section": {
+    "tools_title": "Essentiële tools",
+    "tools_desc": "De meestgebruikte PDF-tools — snel, gratis en browsergebaseerd. Geen registratie vereist.",
+    "see_all": "Alle 33+ tools bekijken →",
+    "categories_title": "Alles wat u nodig heeft voor PDF-beheer",
+    "categories_desc": "33+ gratis tools georganiseerd per taak — van snelle correcties tot geavanceerde AI-verwerking."
+  },
+  "trust": {
+    "title": "Waarom gebruikers ILovePDF.cyou vertrouwen",
+    "desc": "Gebouwd rondom uw privacy. Geen account vereist. Bestanden direct verwijderd.",
+    "privacy": "Privacygericht",
+    "privacy_desc": "Bestanden worden in uw browser verwerkt of binnen seconden van onze servers verwijderd.",
+    "fast": "Snelle verwerking",
+    "fast_desc": "De meeste tools werken volledig in uw browser voor directe resultaten.",
+    "secure": "Veilig en betrouwbaar",
+    "secure_desc": "Alle uploads zijn versleuteld tijdens overdracht. Uw gegevens worden nooit verkocht.",
+    "free": "Gratis en toegankelijk",
+    "free_desc": "Elke tool is gratis. Geen betaalmuren, geen verplichte registratie, geen watermerken."
+  },
+  "footer": {
+    "desc": "Gratis PDF- en afbeeldingstools online. Geen registratie vereist.",
+    "product": "Product",
+    "company": "Bedrijf",
+    "legal": "Juridisch",
+    "all_tools": "Alle tools",
+    "about": "Over ons",
+    "contact": "Contact",
+    "blog": "Blog",
+    "privacy": "Privacybeleid",
+    "terms": "Servicevoorwaarden",
+    "disclaimer": "Disclaimer",
+    "rights": "© 2026 ILovePDF — Alle rechten voorbehouden.",
+    "deleted": "Bestanden worden automatisch binnen seconden verwijderd.",
+    "languages": "Talen"
+  },
+  "lang": {
+    "select": "Taal selecteren",
+    "search": "Taal zoeken…",
+    "title": "Taal"
+  }
+}

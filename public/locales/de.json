@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "PDF zusammenführen",
+    "split": "PDF aufteilen",
+    "organize": "Organisieren",
+    "convert": "Konvertieren",
+    "all_tools": "Alle Werkzeuge",
+    "search": "33+ Werkzeuge suchen…",
+    "donate": "Spenden"
+  },
+  "hero": {
+    "eyebrow": "33+ kostenlose Werkzeuge",
+    "title": "Alle PDF- und Bildwerkzeuge, die Sie je brauchen werden",
+    "desc": "Zusammenführen, aufteilen, komprimieren, konvertieren, bearbeiten, signieren und schützen — plus KI-Zusammenfassung, OCR und vollständige Bildbearbeitung.",
+    "explore": "Werkzeuge entdecken",
+    "merge": "PDF zusammenführen",
+    "split": "PDF aufteilen",
+    "organize": "PDF organisieren",
+    "compress": "PDF komprimieren",
+    "ai": "KI-Zusammenfasser",
+    "n2w": "Zahl in Wort",
+    "currency": "Währungsrechner"
+  },
+  "calc": {
+    "n2w_title": "Zahl in Wort",
+    "n2w_desc": "Zahlen in Text oder Währung umwandeln",
+    "enter_num": "Eine Zahl eingeben",
+    "words": "Wörter",
+    "currency": "Währung",
+    "case": "Schreibweise",
+    "lowercase": "kleinbuchstaben",
+    "uppercase": "GROSSBUCHSTABEN",
+    "titlecase": "Erster Buchstabe Groß",
+    "convert": "Konvertieren",
+    "copy": "Kopieren",
+    "fx_title": "Währungsrechner",
+    "fx_desc": "Live-Kurse · 160+ Währungen",
+    "amount": "Betrag",
+    "from": "Von",
+    "to": "Nach",
+    "loading_rates": "Kurse werden geladen…",
+    "convert_btn": "Konvertieren"
+  },
+  "band": {
+    "organize_title": "PDFs organisieren",
+    "organize_sub": "PDF-Seiten sofort zusammenführen, aufteilen, drehen, zuschneiden und neu ordnen.",
+    "security_title": "Sicherheit",
+    "security_sub": "PDF-Dokumente mit einem Klick mit Passwort schützen oder entsperren.",
+    "image_title": "Bildwerkzeuge",
+    "image_sub": "Bilder zuschneiden, skalieren, Filter anwenden und Hintergründe entfernen.",
+    "edit_title": "Bearbeiten & Kommentieren",
+    "edit_sub": "Wasserzeichen, Seitenzahlen, Signaturen und Schwärzungen hinzufügen.",
+    "utilities_title": "Dienstprogramme",
+    "utilities_sub": "Zahl-in-Wort-Konverter und Live-Wechselkurse.",
+    "convert_title": "Konvertieren",
+    "convert_sub": "Zwischen PDF, Word, Excel, PowerPoint, JPG und HTML konvertieren.",
+    "advanced_title": "Erweitert & KI",
+    "advanced_sub": "OCR, KI-Zusammenfassungen, Übersetzung, Vergleich und Workflow-Automatisierung."
+  },
+  "section": {
+    "tools_title": "Grundlegende Werkzeuge",
+    "tools_desc": "Die meistgenutzten PDF-Werkzeuge — schnell, kostenlos, browserbasiert. Keine Anmeldung erforderlich.",
+    "see_all": "Alle 33+ Werkzeuge anzeigen →",
+    "categories_title": "Alles, was Sie zur PDF-Verwaltung benötigen",
+    "categories_desc": "33+ kostenlose Werkzeuge nach Aufgaben geordnet — von schnellen Korrekturen bis zur KI-Verarbeitung."
+  },
+  "trust": {
+    "title": "Warum Nutzer ILovePDF.cyou vertrauen",
+    "desc": "Rund um Ihre Privatsphäre aufgebaut. Kein Konto erforderlich. Dateien werden sofort gelöscht.",
+    "privacy": "Datenschutzorientiert",
+    "privacy_desc": "Dateien werden in Ihrem Browser verarbeitet oder in Sekunden von unseren Servern gelöscht.",
+    "fast": "Schnelle Verarbeitung",
+    "fast_desc": "Die meisten Werkzeuge laufen vollständig in Ihrem Browser für sofortige Ergebnisse.",
+    "secure": "Sicher und zuverlässig",
+    "secure_desc": "Alle Uploads werden während der Übertragung verschlüsselt. Ihre Daten werden nie verkauft.",
+    "free": "Kostenlos und zugänglich",
+    "free_desc": "Jedes Werkzeug ist kostenlos. Keine Bezahlschranken, keine erzwungene Anmeldung, keine Wasserzeichen."
+  },
+  "footer": {
+    "desc": "Kostenlose PDF- und Bildwerkzeuge online. Keine Anmeldung erforderlich.",
+    "product": "Produkt",
+    "company": "Unternehmen",
+    "legal": "Rechtliches",
+    "all_tools": "Alle Werkzeuge",
+    "about": "Über uns",
+    "contact": "Kontakt",
+    "blog": "Blog",
+    "privacy": "Datenschutzrichtlinie",
+    "terms": "Nutzungsbedingungen",
+    "disclaimer": "Haftungsausschluss",
+    "rights": "© 2026 ILovePDF — Alle Rechte vorbehalten.",
+    "deleted": "Dateien werden automatisch in Sekunden gelöscht.",
+    "languages": "Sprachen"
+  },
+  "lang": {
+    "select": "Sprache auswählen",
+    "search": "Sprache suchen…",
+    "title": "Sprache"
+  }
+}

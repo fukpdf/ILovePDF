@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "PDF 結合",
+    "split": "PDF 分割",
+    "organize": "整理",
+    "convert": "変換",
+    "all_tools": "すべてのツール",
+    "search": "33以上のツールを検索…",
+    "donate": "寄付する"
+  },
+  "hero": {
+    "eyebrow": "33以上の無料ツール",
+    "title": "必要なすべてのPDFと画像ツール",
+    "desc": "結合、分割、圧縮、変換、編集、署名、保護 — AIサマリー、OCR、フル画像スイート付き。",
+    "explore": "ツールを探す",
+    "merge": "PDF 結合",
+    "split": "PDF 分割",
+    "organize": "PDF 整理",
+    "compress": "PDF 圧縮",
+    "ai": "AI要約ツール",
+    "n2w": "数字→言葉",
+    "currency": "通貨換算"
+  },
+  "calc": {
+    "n2w_title": "数字を言葉に変換",
+    "n2w_desc": "数字をテキストまたは通貨に変換",
+    "enter_num": "数字を入力",
+    "words": "言葉",
+    "currency": "通貨",
+    "case": "大文字/小文字",
+    "lowercase": "小文字",
+    "uppercase": "大文字",
+    "titlecase": "タイトルケース",
+    "convert": "変換",
+    "copy": "コピー",
+    "fx_title": "通貨換算",
+    "fx_desc": "リアルタイムレート · 160以上の通貨",
+    "amount": "金額",
+    "from": "変換元",
+    "to": "変換先",
+    "loading_rates": "レートを読み込み中…",
+    "convert_btn": "変換"
+  },
+  "band": {
+    "organize_title": "PDF 整理",
+    "organize_sub": "PDFページの結合、分割、回転、切り取り、並び替えを即時実行。",
+    "security_title": "セキュリティ",
+    "security_sub": "PDFにパスワード保護を追加、またはワンクリックで解除。",
+    "image_title": "画像ツール",
+    "image_sub": "画像の切り取り、リサイズ、フィルター適用、背景削除。",
+    "edit_title": "編集・注釈",
+    "edit_sub": "透かし、ページ番号、署名、墨消しを追加。",
+    "utilities_title": "ユーティリティ",
+    "utilities_sub": "数字→言葉変換と最新の為替レート。",
+    "convert_title": "変換",
+    "convert_sub": "PDF、Word、Excel、PowerPoint、JPG、HTML間で変換。",
+    "advanced_title": "高度機能・AI",
+    "advanced_sub": "OCR、AI要約、翻訳、比較、ワークフロー自動化。"
+  },
+  "section": {
+    "tools_title": "基本ツール",
+    "tools_desc": "最もよく使われるPDFツール — 高速、無料、ブラウザで動作。登録不要。",
+    "see_all": "33以上のツールをすべて見る →",
+    "categories_title": "PDF管理に必要なすべて",
+    "categories_desc": "33以上の無料ツールをタスク別に整理 — 素早い修正から高度なAI処理まで。"
+  },
+  "trust": {
+    "title": "ユーザーがILovePDF.cyouを信頼する理由",
+    "desc": "プライバシーを中心に構築。アカウント不要。ファイルは即座に削除。",
+    "privacy": "プライバシー重視",
+    "privacy_desc": "ファイルはブラウザで処理されるか、数秒以内にサーバーから削除されます。",
+    "fast": "高速処理",
+    "fast_desc": "ほとんどのツールはブラウザで完全動作し、即時に結果が得られます。",
+    "secure": "安全・セキュア",
+    "secure_desc": "すべてのアップロードは転送中に暗号化。データが販売されることはありません。",
+    "free": "無料・誰でも利用可能",
+    "free_desc": "すべてのツールが無料。ペイウォールなし、強制登録なし、透かしなし。"
+  },
+  "footer": {
+    "desc": "オンラインで無料のPDF・画像ツール。登録不要。",
+    "product": "製品",
+    "company": "会社",
+    "legal": "法律",
+    "all_tools": "すべてのツール",
+    "about": "会社概要",
+    "contact": "お問い合わせ",
+    "blog": "ブログ",
+    "privacy": "プライバシーポリシー",
+    "terms": "利用規約",
+    "disclaimer": "免責事項",
+    "rights": "© 2026 ILovePDF — All rights reserved.",
+    "deleted": "ファイルは数秒以内に自動的に削除されます。",
+    "languages": "言語"
+  },
+  "lang": {
+    "select": "言語を選択",
+    "search": "言語を検索…",
+    "title": "言語"
+  }
+}

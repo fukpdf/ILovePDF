@@ -2404,3 +2404,188 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   .hls-blog-grid { grid-template-columns: 1fr; }
   .hls-head h2 { font-size: 1.35rem; }
 }
+
+
+/* ============================================================
+   PHASE 10 — GLOBAL PRODUCTIZATION: i18n, RTL, Language Selector
+   ============================================================ */
+
+/* ── Category band icon color variants (Phase 10A new bands) ─────────── */
+.cat-block--organize  .cat-title-ico { background: #eef2ff; color: #4f46e5 }
+.cat-block--security  .cat-title-ico { background: #fef2f2; color: #dc2626 }
+.cat-block--image     .cat-title-ico { background: #fdf4ff; color: #a855f7 }
+.cat-block--edit      .cat-title-ico { background: #fdf2f8; color: #db2777 }
+.cat-block--utilities .cat-title-ico { background: #fef3c7; color: #b45309 }
+.cat-block--convert   .cat-title-ico { background: #fff7ed; color: #ea580c }
+
+/* ── Tool icon colors for new data-cat values ────────────────────────── */
+.tool[data-cat="organize"]  .tool-ico { background: var(--grad-soft); color: var(--primary) }
+.tool[data-cat="utilities"] .tool-ico { background: #fef3c7; color: #b45309 }
+
+/* ── Footer — 5-column grid with Languages column ────────────────────── */
+.footer-inner { grid-template-columns: 1.4fr repeat(4, 1fr) }
+.footer-lang-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 6px;
+}
+.footer-lang-link {
+  display: block;
+  color: #9aa3bd;
+  font-size: .76rem;
+  margin: 3px 0;
+  text-decoration: none;
+  transition: .15s color;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footer-lang-link:hover { color: #fff }
+
+/* ── Language selector — nav globe button + dropdown ─────────────────── */
+.lang-sel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .18s border-color, .18s background, .18s color;
+  white-space: nowrap;
+}
+.lang-btn:hover { border-color: var(--primary); color: var(--primary) }
+.lang-btn svg { width: 15px; height: 15px }
+.lang-chev { transition: transform .18s }
+.lang-btn[aria-expanded="true"] .lang-chev { transform: rotate(180deg) }
+#lang-code { font-size: .75rem; letter-spacing: .04em; min-width: 22px; text-align: center }
+
+.lang-drop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1200;
+  min-width: 220px;
+  max-height: 340px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.13);
+  overflow: hidden;
+}
+.lang-drop[hidden] { display: none }
+
+.lang-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  font-size: .83rem;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  flex-shrink: 0;
+}
+.lang-search-input::placeholder { color: var(--text-mute) }
+
+.lang-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.lang-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: .15s background;
+  border-radius: 0;
+}
+.lang-item:hover { background: var(--bg) }
+.lang-item.is-active {
+  background: var(--grad-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+.lang-flag { font-size: 1.1em; line-height: 1; flex-shrink: 0 }
+.lang-native {
+  font-size: .87rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lang-name {
+  font-size: .74rem;
+  color: var(--text-mute);
+  flex-shrink: 0;
+}
+.lang-item.is-active .lang-native,
+.lang-item.is-active .lang-name { color: inherit }
+
+/* ── RTL Global Overrides (dir=rtl set by RuntimeI18n on <html>) ─────── */
+[dir="rtl"] .page                  { direction: rtl }
+[dir="rtl"] .rail                  { direction: rtl }
+[dir="rtl"] .content               { direction: rtl }
+[dir="rtl"] .cat-title             { flex-direction: row-reverse }
+[dir="rtl"] .cat-title::after      { order: -1 }
+[dir="rtl"] .hero-actions          { flex-direction: row-reverse }
+[dir="rtl"] .section-head          { flex-direction: row-reverse }
+[dir="rtl"] .tools-grid            { direction: rtl }
+[dir="rtl"] .tool                  { direction: rtl }
+[dir="rtl"] .tool-text             { text-align: right }
+[dir="rtl"] .tool h4               { text-align: right }
+[dir="rtl"] .tool p                { text-align: right }
+[dir="rtl"] .footer-inner          { direction: rtl }
+[dir="rtl"] .footer-bottom         { direction: rtl; flex-direction: row-reverse }
+[dir="rtl"] .footer-lang-grid      { direction: rtl }
+[dir="rtl"] .nav                   { direction: rtl }
+[dir="rtl"] .lang-drop             { left: 0; right: auto }
+[dir="rtl"] .lang-item             { flex-direction: row-reverse }
+[dir="rtl"] .hs-bar                { direction: rtl }
+[dir="rtl"] .mega                  { direction: rtl }
+[dir="rtl"] .mega-grid             { direction: rtl }
+[dir="rtl"] .mega-link             { flex-direction: row-reverse }
+[dir="rtl"] .calc-card             { direction: rtl; text-align: right }
+[dir="rtl"] .calc-modes            { flex-direction: row-reverse }
+[dir="rtl"] .hls-section           { direction: rtl }
+[dir="rtl"] .hls-founder-card      { flex-direction: row-reverse }
+[dir="rtl"] .hls-founder-badges    { flex-direction: row-reverse }
+[dir="rtl"] .hls-cat-card          { text-align: right }
+[dir="rtl"] .hls-trust-card        { text-align: right }
+[dir="rtl"] .hls-blog-card         { direction: rtl }
+
+/* ── Responsive: hide lang-name on small nav ─────────────────────────── */
+@media (max-width: 1023.98px) {
+  .lang-sel { display: none }
+}
+@media (max-width: 768px) {
+  .footer-inner { grid-template-columns: 1fr 1fr }
+  .footer-languages { grid-column: 1 / -1 }
+  .footer-lang-grid { grid-template-columns: repeat(4, 1fr) }
+}
+@media (max-width: 480px) {
+  .footer-lang-grid { grid-template-columns: repeat(3, 1fr) }
+}

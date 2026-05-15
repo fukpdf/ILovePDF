@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Fusionar PDF",
+    "split": "Dividir PDF",
+    "organize": "Organizar",
+    "convert": "Convertir",
+    "all_tools": "Todas las herramientas",
+    "search": "Buscar 33+ herramientas…",
+    "donate": "Donar"
+  },
+  "hero": {
+    "eyebrow": "33+ herramientas gratuitas",
+    "title": "Todas las herramientas de PDF e imagen que necesitarás",
+    "desc": "Fusiona, divide, comprime, convierte, edita, firma y protege — más resumen con IA, OCR y suite completa de imágenes.",
+    "explore": "Explorar herramientas",
+    "merge": "Fusionar PDF",
+    "split": "Dividir PDF",
+    "organize": "Organizar PDF",
+    "compress": "Comprimir PDF",
+    "ai": "Resumidor IA",
+    "n2w": "Número a palabras",
+    "currency": "Conversor de divisas"
+  },
+  "calc": {
+    "n2w_title": "Número a palabras",
+    "n2w_desc": "Convierte números a texto o divisa",
+    "enter_num": "Introduce un número",
+    "words": "Palabras",
+    "currency": "Divisa",
+    "case": "Mayúsculas",
+    "lowercase": "minúsculas",
+    "uppercase": "MAYÚSCULAS",
+    "titlecase": "Primera En Mayúscula",
+    "convert": "Convertir",
+    "copy": "Copiar",
+    "fx_title": "Conversor de divisas",
+    "fx_desc": "Tipos en vivo · 160+ divisas",
+    "amount": "Importe",
+    "from": "De",
+    "to": "A",
+    "loading_rates": "Cargando tipos de cambio…",
+    "convert_btn": "Convertir"
+  },
+  "band": {
+    "organize_title": "Organizar PDFs",
+    "organize_sub": "Fusiona, divide, rota, recorta y reordena páginas de PDF al instante.",
+    "security_title": "Seguridad",
+    "security_sub": "Protege o desbloquea documentos PDF con contraseña en un clic.",
+    "image_title": "Herramientas de imagen",
+    "image_sub": "Recorta, redimensiona, aplica filtros y elimina fondos de imágenes.",
+    "edit_title": "Editar y anotar",
+    "edit_sub": "Añade marcas de agua, números de página, firmas y redacciones.",
+    "utilities_title": "Utilidades",
+    "utilities_sub": "Convertidor número a palabras y tipos de cambio en directo.",
+    "convert_title": "Convertir",
+    "convert_sub": "Convierte entre PDF, Word, Excel, PowerPoint, JPG y HTML.",
+    "advanced_title": "Avanzado e IA",
+    "advanced_sub": "OCR, resúmenes con IA, traducción, comparación y automatización de flujos."
+  },
+  "section": {
+    "tools_title": "Herramientas esenciales",
+    "tools_desc": "Las herramientas PDF más usadas — rápidas, gratuitas y basadas en el navegador. Sin registro.",
+    "see_all": "Ver todas las 33+ herramientas →",
+    "categories_title": "Todo lo que necesitas para gestionar PDFs",
+    "categories_desc": "33+ herramientas gratuitas organizadas por tarea — desde correcciones rápidas hasta procesamiento IA avanzado."
+  },
+  "trust": {
+    "title": "Por qué los usuarios confían en ILovePDF.cyou",
+    "desc": "Construido en torno a tu privacidad. Sin cuenta necesaria. Archivos eliminados al instante.",
+    "privacy": "Enfocado en la privacidad",
+    "privacy_desc": "Los archivos se procesan en tu navegador o se eliminan de nuestros servidores en segundos.",
+    "fast": "Procesamiento rápido",
+    "fast_desc": "La mayoría de herramientas se ejecutan completamente en tu navegador para resultados instantáneos.",
+    "secure": "Seguro y fiable",
+    "secure_desc": "Todas las subidas están cifradas en tránsito. Tus datos nunca se venden ni se comparten.",
+    "free": "Gratuito y accesible",
+    "free_desc": "Todas las herramientas son gratuitas. Sin muros de pago, sin registro obligatorio, sin marcas de agua."
+  },
+  "footer": {
+    "desc": "Herramientas gratuitas de PDF e imagen en línea. Sin registro.",
+    "product": "Producto",
+    "company": "Empresa",
+    "legal": "Legal",
+    "all_tools": "Todas las herramientas",
+    "about": "Acerca de",
+    "contact": "Contacto",
+    "blog": "Blog",
+    "privacy": "Política de privacidad",
+    "terms": "Términos de servicio",
+    "disclaimer": "Aviso legal",
+    "rights": "© 2026 ILovePDF — Todos los derechos reservados.",
+    "deleted": "Los archivos se eliminan automáticamente en segundos.",
+    "languages": "Idiomas"
+  },
+  "lang": {
+    "select": "Seleccionar idioma",
+    "search": "Buscar idioma…",
+    "title": "Idioma"
+  }
+}

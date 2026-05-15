@@ -113,32 +113,26 @@ window.TOOL_PRIORITY_BANDS = [
     .filter(t => (t.prio || 'instant') === band.key),
 }));
 
-// ── Homepage-specific tool bands ─────────────────────────────────────────────
-// A curated subset of 12 core tools shown on the homepage grid.
-// ALL tools are accessible from the /tools directory page.
-const _HP_IDS = new Set([
-  'merge','split','pdf-to-jpg','jpg-to-pdf','organize',
-  'protect','unlock','rotate','watermark','page-numbers',
-  'pdf-to-word','pdf-to-excel',
-]);
-const _allFlat = window.TOOL_GROUPS.flatMap(g => (g.items||[]).map(t => Object.assign({ _cat: g.key }, t)));
+// ── Phase 10A: Homepage bands — ALL tools organised by category ───────────────
+// All 37 tools are now shown on the homepage, maximising discoverability,
+// internal linking density, SEO crawlability, and ad impression opportunities.
+const _BAND_META = {
+  organize:  { title:'Organize PDFs',   icon:'layers',             subtitle:'Merge, split, rotate, crop and reorder your PDF pages instantly.' },
+  security:  { title:'Security',        icon:'shield',             subtitle:'Password-protect or unlock PDF documents with one click.' },
+  image:     { title:'Image Tools',     icon:'image',              subtitle:'Crop, resize, apply filters and remove image backgrounds.' },
+  edit:      { title:'Edit & Annotate', icon:'edit-3',             subtitle:'Add watermarks, page numbers, signatures and redactions.' },
+  utilities: { title:'Utilities',       icon:'calculator',         subtitle:'Numbers to words converter and live currency exchange rates.' },
+  convert:   { title:'Convert',         icon:'arrow-right-circle', subtitle:'Convert between PDF, Word, Excel, PowerPoint, JPG and HTML.' },
+  advanced:  { title:'Advanced & AI',   icon:'sparkles',           subtitle:'OCR, AI summaries, translation, comparison and workflow automation.' },
+};
 
-window.HOMEPAGE_BANDS = [
-  {
-    key: 'core',
-    title: 'Core PDF Tools',
-    subtitle: '12 essential tools for everyday PDF tasks — instant results, no signup needed.',
-    icon: 'zap',
-    items: _allFlat.filter(t => t.tid && _HP_IDS.has(t.tid)),
-  },
-  {
-    key: 'compress',
-    title: 'Compression',
-    subtitle: 'Shrink your files fast — choose your preferred quality level.',
-    icon: 'archive',
-    items: _allFlat.filter(t => t.tid === 'compress'),
-  },
-];
+window.HOMEPAGE_BANDS = window.TOOL_GROUPS.map(g => ({
+  key:      g.key,
+  title:    (_BAND_META[g.key] || {}).title    || g.title,
+  subtitle: (_BAND_META[g.key] || {}).subtitle || '',
+  icon:     (_BAND_META[g.key] || {}).icon     || 'wrench',
+  items:    (g.items || []).map(t => Object.assign({ _cat: g.key }, t)),
+}));
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present so
@@ -232,6 +226,18 @@ function renderHeader(){
         >
       </div>
       <div class="hs-results" id="hs-results" role="listbox" hidden></div>
+    </div>
+
+    <div class="lang-sel" id="lang-sel">
+      <button class="lang-btn" id="lang-btn" type="button" aria-label="Select language" aria-expanded="false" aria-haspopup="listbox">
+        <i data-lucide="globe"></i>
+        <span id="lang-code">EN</span>
+        <i data-lucide="chevron-down" class="lang-chev"></i>
+      </button>
+      <div class="lang-drop" id="lang-drop" hidden>
+        <input class="lang-search-input" type="search" id="lang-search-input" placeholder="Search languages…" aria-label="Search languages" autocomplete="off">
+        <ul class="lang-list" id="lang-list" role="listbox" aria-label="Available languages"></ul>
+      </div>
     </div>
 
     <a class="btn-donate" href="https://buymeacoffee.com/ilovepdf" target="_blank" rel="noopener noreferrer" aria-label="Support ILovePDF — Buy us a coffee" style="display:none"><!-- FEATURE FLAG: remove style="display:none" to show donate button -->
@@ -496,6 +502,88 @@ function wireMobileSearchBtn() {
   });
 }
 
+/* Phase 10C: Language selector — globe icon + compact code badge.
+   Reads from window.RuntimeI18n (i18n.js) which loads asynchronously. */
+function wireLangSelector() {
+  const sel  = document.getElementById('lang-sel');
+  const btn  = document.getElementById('lang-btn');
+  const drop = document.getElementById('lang-drop');
+  const inp  = document.getElementById('lang-search-input');
+  const list = document.getElementById('lang-list');
+  const code = document.getElementById('lang-code');
+  if (!sel || !btn || !drop || !list) return;
+
+  const LANGS = (window.RuntimeI18n && window.RuntimeI18n.availableLanguages)
+    ? window.RuntimeI18n.availableLanguages() : [];
+
+  const getCurrentLang = () =>
+    (window.RuntimeI18n && typeof window.RuntimeI18n.getLanguage === 'function')
+      ? window.RuntimeI18n.getLanguage() : 'en';
+
+  const open  = () => {
+    drop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    if (inp) { inp.value = ''; inp.focus(); }
+    renderList('');
+  };
+  const close = () => {
+    drop.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  };
+
+  const renderList = (q) => {
+    const ql       = (q || '').toLowerCase();
+    const cur      = getCurrentLang();
+    const filtered = !ql ? LANGS : LANGS.filter(l =>
+      l.name.toLowerCase().includes(ql) ||
+      l.nativeName.toLowerCase().includes(ql) ||
+      l.code.includes(ql)
+    );
+    list.innerHTML = filtered.map(l => `
+      <li class="lang-item${l.code === cur ? ' is-active' : ''}"
+          role="option" data-code="${escapeHtml(l.code)}" tabindex="0"
+          aria-selected="${l.code === cur}">
+        <span class="lang-flag">${l.flag || ''}</span>
+        <span class="lang-native">${escapeHtml(l.nativeName)}</span>
+        <span class="lang-name">${escapeHtml(l.name)}</span>
+      </li>`).join('');
+  };
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    drop.hidden ? open() : close();
+  });
+  if (inp) inp.addEventListener('input', () => renderList(inp.value));
+
+  list.addEventListener('click', async (e) => {
+    const item = e.target.closest('[data-code]');
+    if (!item) return;
+    const lang = item.dataset.code;
+    close();
+    if (code) code.textContent = lang.toUpperCase();
+    if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+      await window.RuntimeI18n.setLanguage(lang);
+    }
+    renderList('');
+  });
+
+  list.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.target.click(); }
+  });
+
+  document.addEventListener('click',   e => { if (!sel.contains(e.target)) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  window.addEventListener('i18n:change', e => {
+    if (code && e.detail && e.detail.lang) code.textContent = e.detail.lang.toUpperCase();
+    renderList('');
+  });
+
+  if (code && window.RuntimeI18n && typeof window.RuntimeI18n.getLanguage === 'function') {
+    code.textContent = window.RuntimeI18n.getLanguage().toUpperCase();
+  }
+}
+
 /* Drawer / hamburger removed — header is logo + search + All Tools only.
    Auth modal helpers below stay because the limit popup and tool-page
    inline links still trigger them via [data-auth]. */
@@ -692,6 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
+  wireLangSelector();
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);

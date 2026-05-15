@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Unisci PDF",
+    "split": "Dividi PDF",
+    "organize": "Organizza",
+    "convert": "Converti",
+    "all_tools": "Tutti gli strumenti",
+    "search": "Cerca 33+ strumenti…",
+    "donate": "Dona"
+  },
+  "hero": {
+    "eyebrow": "33+ strumenti gratuiti",
+    "title": "Tutti gli strumenti PDF e immagini di cui avrai bisogno",
+    "desc": "Unisci, dividi, comprimi, converti, modifica, firma e proteggi — più riassunto IA, OCR e suite immagini completa.",
+    "explore": "Esplora gli strumenti",
+    "merge": "Unisci PDF",
+    "split": "Dividi PDF",
+    "organize": "Organizza PDF",
+    "compress": "Comprimi PDF",
+    "ai": "Riassunto IA",
+    "n2w": "Numero in lettere",
+    "currency": "Convertitore valute"
+  },
+  "calc": {
+    "n2w_title": "Numero in lettere",
+    "n2w_desc": "Converti numeri in testo o valuta",
+    "enter_num": "Inserisci un numero",
+    "words": "Parole",
+    "currency": "Valuta",
+    "case": "Maiuscole",
+    "lowercase": "minuscolo",
+    "uppercase": "MAIUSCOLO",
+    "titlecase": "Prima Lettera Maiuscola",
+    "convert": "Converti",
+    "copy": "Copia",
+    "fx_title": "Convertitore valute",
+    "fx_desc": "Tassi in tempo reale · 160+ valute",
+    "amount": "Importo",
+    "from": "Da",
+    "to": "A",
+    "loading_rates": "Caricamento tassi…",
+    "convert_btn": "Converti"
+  },
+  "band": {
+    "organize_title": "Organizza i PDF",
+    "organize_sub": "Unisci, dividi, ruota, ritaglia e riordina le pagine PDF all'istante.",
+    "security_title": "Sicurezza",
+    "security_sub": "Proteggi o sblocca i documenti PDF con password in un clic.",
+    "image_title": "Strumenti immagine",
+    "image_sub": "Ritaglia, ridimensiona, applica filtri e rimuovi sfondi dalle immagini.",
+    "edit_title": "Modifica e annota",
+    "edit_sub": "Aggiungi filigrane, numeri di pagina, firme e oscuramenti.",
+    "utilities_title": "Utilità",
+    "utilities_sub": "Convertitore numero in lettere e tassi di cambio in tempo reale.",
+    "convert_title": "Converti",
+    "convert_sub": "Converti tra PDF, Word, Excel, PowerPoint, JPG e HTML.",
+    "advanced_title": "Avanzato e IA",
+    "advanced_sub": "OCR, riassunti IA, traduzione, confronto e automazione dei flussi."
+  },
+  "section": {
+    "tools_title": "Strumenti essenziali",
+    "tools_desc": "Gli strumenti PDF più usati — veloci, gratuiti e basati sul browser. Nessuna registrazione richiesta.",
+    "see_all": "Vedi tutti i 33+ strumenti →",
+    "categories_title": "Tutto il necessario per gestire i PDF",
+    "categories_desc": "33+ strumenti gratuiti organizzati per attività — dalle correzioni rapide all'elaborazione IA avanzata."
+  },
+  "trust": {
+    "title": "Perché gli utenti si fidano di ILovePDF.cyou",
+    "desc": "Costruito attorno alla tua privacy. Nessun account richiesto. File eliminati all'istante.",
+    "privacy": "Focalizzato sulla privacy",
+    "privacy_desc": "I file vengono elaborati nel tuo browser o eliminati dai nostri server in pochi secondi.",
+    "fast": "Elaborazione rapida",
+    "fast_desc": "La maggior parte degli strumenti funziona interamente nel tuo browser per risultati istantanei.",
+    "secure": "Sicuro e affidabile",
+    "secure_desc": "Tutti i caricamenti sono criptati in transito. I tuoi dati non vengono mai venduti.",
+    "free": "Gratuito e accessibile",
+    "free_desc": "Ogni strumento è gratuito. Nessun paywall, nessuna registrazione obbligatoria, nessuna filigrana."
+  },
+  "footer": {
+    "desc": "Strumenti gratuiti PDF e immagini online. Nessuna registrazione.",
+    "product": "Prodotto",
+    "company": "Azienda",
+    "legal": "Legale",
+    "all_tools": "Tutti gli strumenti",
+    "about": "Chi siamo",
+    "contact": "Contatti",
+    "blog": "Blog",
+    "privacy": "Informativa sulla privacy",
+    "terms": "Termini di servizio",
+    "disclaimer": "Disclaimer",
+    "rights": "© 2026 ILovePDF — Tutti i diritti riservati.",
+    "deleted": "I file vengono eliminati automaticamente in pochi secondi.",
+    "languages": "Lingue"
+  },
+  "lang": {
+    "select": "Seleziona lingua",
+    "search": "Cerca lingua…",
+    "title": "Lingua"
+  }
+}

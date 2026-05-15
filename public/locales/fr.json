@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "Fusionner PDF",
+    "split": "Diviser PDF",
+    "organize": "Organiser",
+    "convert": "Convertir",
+    "all_tools": "Tous les outils",
+    "search": "Rechercher 33+ outils…",
+    "donate": "Faire un don"
+  },
+  "hero": {
+    "eyebrow": "33+ outils gratuits",
+    "title": "Tous les outils PDF et image dont vous avez besoin",
+    "desc": "Fusionnez, divisez, compressez, convertissez, modifiez, signez et protégez — plus résumé AI, OCR et suite d'image complète.",
+    "explore": "Explorer les outils",
+    "merge": "Fusionner PDF",
+    "split": "Diviser PDF",
+    "organize": "Organiser PDF",
+    "compress": "Compresser PDF",
+    "ai": "Résumé AI",
+    "n2w": "Nombre en lettres",
+    "currency": "Convertisseur de devises"
+  },
+  "calc": {
+    "n2w_title": "Nombre en lettres",
+    "n2w_desc": "Convertir les nombres en texte ou en devise",
+    "enter_num": "Entrez un nombre",
+    "words": "Mots",
+    "currency": "Devise",
+    "case": "Casse",
+    "lowercase": "minuscule",
+    "uppercase": "MAJUSCULE",
+    "titlecase": "Titre",
+    "convert": "Convertir",
+    "copy": "Copier",
+    "fx_title": "Convertisseur de devises",
+    "fx_desc": "Taux en direct · 160+ devises",
+    "amount": "Montant",
+    "from": "De",
+    "to": "Vers",
+    "loading_rates": "Chargement des taux…",
+    "convert_btn": "Convertir"
+  },
+  "band": {
+    "organize_title": "Organiser les PDF",
+    "organize_sub": "Fusionnez, divisez, faites pivoter, recadrez et réorganisez vos pages PDF instantanément.",
+    "security_title": "Sécurité",
+    "security_sub": "Protégez ou déverrouillez des documents PDF par mot de passe en un clic.",
+    "image_title": "Outils Image",
+    "image_sub": "Recadrez, redimensionnez, appliquez des filtres et supprimez les arrière-plans d'images.",
+    "edit_title": "Modifier et Annoter",
+    "edit_sub": "Ajoutez filigranes, numéros de page, signatures et caviardages.",
+    "utilities_title": "Utilitaires",
+    "utilities_sub": "Convertisseur nombre-en-lettres et taux de change en direct.",
+    "convert_title": "Convertir",
+    "convert_sub": "Convertissez entre PDF, Word, Excel, PowerPoint, JPG et HTML.",
+    "advanced_title": "Avancé et IA",
+    "advanced_sub": "OCR, résumés IA, traduction, comparaison et automatisation de flux."
+  },
+  "section": {
+    "tools_title": "Outils Essentiels",
+    "tools_desc": "Les outils PDF les plus utilisés — rapides, gratuits, basés sur le navigateur. Sans inscription.",
+    "see_all": "Voir tous les 33+ outils →",
+    "categories_title": "Tout ce dont vous avez besoin pour gérer des PDF",
+    "categories_desc": "33+ outils gratuits organisés par tâche — des corrections rapides au traitement IA avancé."
+  },
+  "trust": {
+    "title": "Pourquoi les utilisateurs font confiance à ILovePDF.cyou",
+    "desc": "Conçu autour de votre vie privée. Aucun compte requis. Fichiers supprimés instantanément.",
+    "privacy": "Axé sur la vie privée",
+    "privacy_desc": "Les fichiers sont traités dans votre navigateur ou supprimés de nos serveurs en quelques secondes.",
+    "fast": "Traitement rapide",
+    "fast_desc": "La plupart des outils s'exécutent entièrement dans votre navigateur pour des résultats instantanés.",
+    "secure": "Sécurisé et fiable",
+    "secure_desc": "Tous les téléchargements sont chiffrés en transit. Vos données ne sont jamais vendues.",
+    "free": "Gratuit et accessible",
+    "free_desc": "Chaque outil est gratuit. Pas de paywall, pas d'inscription forcée, pas de filigrane."
+  },
+  "footer": {
+    "desc": "Outils PDF et image gratuits en ligne. Sans inscription.",
+    "product": "Produit",
+    "company": "Société",
+    "legal": "Mentions légales",
+    "all_tools": "Tous les outils",
+    "about": "À propos",
+    "contact": "Contact",
+    "blog": "Blog",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions d'utilisation",
+    "disclaimer": "Clause de non-responsabilité",
+    "rights": "© 2026 ILovePDF — Tous droits réservés.",
+    "deleted": "Les fichiers sont automatiquement supprimés en quelques secondes.",
+    "languages": "Langues"
+  },
+  "lang": {
+    "select": "Choisir la langue",
+    "search": "Rechercher une langue…",
+    "title": "Langue"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "merge": "合并 PDF",
+    "split": "拆分 PDF",
+    "organize": "整理",
+    "convert": "转换",
+    "all_tools": "所有工具",
+    "search": "搜索 33+ 工具…",
+    "donate": "捐赠"
+  },
+  "hero": {
+    "eyebrow": "33+ 个免费工具",
+    "title": "您所需要的每一个 PDF 和图像工具",
+    "desc": "合并、拆分、压缩、转换、编辑、签名和保护 — 还有 AI 摘要、OCR 和完整的图像套件。",
+    "explore": "探索工具",
+    "merge": "合并 PDF",
+    "split": "拆分 PDF",
+    "organize": "整理 PDF",
+    "compress": "压缩 PDF",
+    "ai": "AI 摘要",
+    "n2w": "数字转文字",
+    "currency": "货币转换器"
+  },
+  "calc": {
+    "n2w_title": "数字转文字",
+    "n2w_desc": "将数字转换为文字或货币",
+    "enter_num": "输入数字",
+    "words": "文字",
+    "currency": "货币",
+    "case": "大小写",
+    "lowercase": "小写",
+    "uppercase": "大写",
+    "titlecase": "首字母大写",
+    "convert": "转换",
+    "copy": "复制",
+    "fx_title": "货币转换器",
+    "fx_desc": "实时汇率 · 160+ 货币",
+    "amount": "金额",
+    "from": "从",
+    "to": "至",
+    "loading_rates": "加载汇率中…",
+    "convert_btn": "转换"
+  },
+  "band": {
+    "organize_title": "整理 PDF",
+    "organize_sub": "合并、拆分、旋转、裁剪和重新排列 PDF 页面。",
+    "security_title": "安全",
+    "security_sub": "即时为 PDF 文档添加密码保护或解锁。",
+    "image_title": "图像工具",
+    "image_sub": "裁剪、调整大小、应用滤镜和去除图像背景。",
+    "edit_title": "编辑与注释",
+    "edit_sub": "添加水印、页码、签名和涂改。",
+    "utilities_title": "实用工具",
+    "utilities_sub": "数字转文字转换器和实时货币汇率。",
+    "convert_title": "转换",
+    "convert_sub": "在 PDF、Word、Excel、PowerPoint、JPG 和 HTML 之间转换。",
+    "advanced_title": "高级与 AI",
+    "advanced_sub": "OCR、AI 摘要、翻译、比较和工作流程自动化。"
+  },
+  "section": {
+    "tools_title": "基本工具",
+    "tools_desc": "最常用的 PDF 工具 — 快速、免费、浏览器驱动。无需注册。",
+    "see_all": "查看全部 33+ 工具 →",
+    "categories_title": "管理 PDF 所需的一切",
+    "categories_desc": "33+ 个免费工具按任务分类 — 从快速修复到高级 AI 处理。"
+  },
+  "trust": {
+    "title": "用户为何信任 ILovePDF.cyou",
+    "desc": "围绕您的隐私而构建。无需账户。文件即时删除。",
+    "privacy": "注重隐私",
+    "privacy_desc": "文件在您的浏览器中处理，或在几秒钟内从我们的服务器删除。",
+    "fast": "快速处理",
+    "fast_desc": "大多数工具完全在您的浏览器中运行，获得即时无延迟的结果。",
+    "secure": "安全可靠",
+    "secure_desc": "所有上传均在传输过程中加密。您的数据绝不出售或共享。",
+    "free": "免费且易于访问",
+    "free_desc": "每个工具都是免费的。没有付费墙，没有强制注册，没有水印。"
+  },
+  "footer": {
+    "desc": "在线免费 PDF 和图像工具。无需注册。",
+    "product": "产品",
+    "company": "公司",
+    "legal": "法律",
+    "all_tools": "所有工具",
+    "about": "关于我们",
+    "contact": "联系我们",
+    "blog": "博客",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "disclaimer": "免责声明",
+    "rights": "© 2026 ILovePDF — 保留所有权利。",
+    "deleted": "文件在几秒钟内自动删除。",
+    "languages": "语言"
+  },
+  "lang": {
+    "select": "选择语言",
+    "search": "搜索语言…",
+    "title": "语言"
+  }
+}
