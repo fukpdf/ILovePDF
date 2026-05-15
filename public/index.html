@@ -494,90 +494,22 @@
   <script src="/js/dropdown-fix.js" defer></script>
   <script src="/js/home.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
-  <!-- Laba AI Assistant -->
+  <!-- Laba AI Assistant — widget CSS + button UI load eagerly for instant chat bubble -->
   <link rel="stylesheet" href="/laba/laba-widget.css">
   <script src="/laba/laba-widget.js" defer></script>
-  <!-- Phase 47: Vector Memory Engine -->
-  <script src="/js/vector-memory-engine.js" defer></script>
-  <!-- Phase 48: Generative AI Engine -->
-  <script src="/js/generative-ai-engine.js" defer></script>
-  <!-- Phase 49: AI Agent System -->
-  <script src="/js/ai-agent-system.js" defer></script>
-  <!-- Phase 50: P2P Distributed Mesh V2 (OFF by default) -->
-  <script src="/js/p2p-distributed-mesh-v2.js" defer></script>
-  <!-- Phase 51: WebGPU AI Expansion -->
-  <script src="/js/webgpu-ai-expansion.js" defer></script>
-  <!-- Phase 53: Enterprise Memory Fabric -->
-  <script src="/js/enterprise-memory-fabric.js" defer></script>
-  <!-- Phase 52: AI Document OS UI -->
-  <script src="/js/ai-document-os-ui.js" defer></script>
-  <!-- Phase 46: Laba AI Chat -->
-  <script src="/js/laba-ai-chat.js" defer></script>
-  <!-- Phase 46+: Laba Tool Orchestrator (file upload in chat, intent detection, tool execution) -->
-  <script src="/js/laba-tool-orchestrator.js" defer></script>
-  <script src="/js/laba-conversational-intelligence.js" defer></script>
-  <!-- Phase 2: Persistent Memory + Intelligent Agent Layer -->
-  <script src="/js/laba-memory-system.js" defer></script>
-  <script src="/js/laba-semantic-memory.js" defer></script>
-  <script src="/js/laba-agent-system.js" defer></script>
-  <script src="/js/laba-workflow-engine.js" defer></script>
-  <script src="/js/laba-session-recovery.js" defer></script>
-  <script src="/js/laba-smart-suggestions.js" defer></script>
-  <!-- Phase 3: Autonomous Super AI Layer -->
-  <script src="/js/laba-cognitive-brain.js" defer></script>
-  <script src="/js/laba-personality-engine.js" defer></script>
-  <script src="/js/laba-admin-core.js" defer></script>
-  <script src="/js/laba-dev-copilot.js" defer></script>
-  <script src="/js/laba-safe-executor.js" defer></script>
-  <script src="/js/laba-autonomous-agents.js" defer></script>
-  <script src="/js/laba-context-engine.js" defer></script>
-  <script src="/js/laba-task-queue.js" defer></script>
-  <script src="/js/laba-tool-healing.js" defer></script>
-  <script src="/js/laba-humanizer.js" defer></script>
-  <script src="/js/laba-deep-memory-ext.js" defer></script>
-  <script src="/js/laba-workflow-planner.js" defer></script>
-  <script src="/js/laba-predictive-engine.js" defer></script>
-  <script src="/js/laba-tool-learning.js" defer></script>
-  <!-- Phase 54+55: Final AI OS Audit -->
-  <script src="/js/final-ai-os-audit.js" defer></script>
-  <!-- Phase 56: Real LLM Routing -->
-  <script src="/js/real-llm-routing.js" defer></script>
-  <!-- Phase 57: Persistent Vector Database -->
-  <script src="/js/persistent-vector-database.js" defer></script>
-  <!-- Phase 58: Autonomous Agent System -->
-  <script src="/js/autonomous-agent-system.js" defer></script>
-  <!-- Phase 59: Stable P2P Network (OFF by default) -->
-  <script src="/js/stable-p2p-network.js" defer></script>
-  <!-- Phase 56–59 Integration + window.RunNextAiEvolutionAudit() -->
-  <script src="/js/ai-os-integration.js" defer></script>
-  <!-- Phase 60: Real Generative Intelligence -->
-  <script src="/js/real-generative-intelligence.js" defer></script>
-  <!-- Phase 61: Autonomous AI Workers -->
-  <script src="/js/autonomous-ai-workers.js" defer></script>
-  <!-- Phase 62: Local AI Runtime -->
-  <script src="/js/local-ai-runtime.js" defer></script>
-  <!-- Phase 63: Browser Compute Cloud (P2P OFF by default) -->
-  <script src="/js/browser-compute-cloud.js" defer></script>
-  <!-- Phase 64: Hyperscale Vector Memory -->
-  <script src="/js/hyperscale-vector-memory.js" defer></script>
-  <!-- Phase 65: Laba AI Operating System -->
-  <script src="/js/laba-ai-operating-system.js" defer></script>
-  <!-- Final Super AI Audit -->
-  <script src="/js/final-super-ai-audit.js" defer></script>
-  <!-- Phase 66: Real Local LLM Engine -->
-  <script src="/js/real-local-llm-engine.js" defer></script>
-  <!-- Phase 67: Advanced Agent Intelligence -->
-  <script src="/js/advanced-agent-intelligence.js" defer></script>
-  <!-- Phase 68: Hyperscale Vector Fabric -->
-  <script src="/js/hyperscale-vector-fabric.js" defer></script>
-  <!-- Phase 69: Production Compute Mesh (P2P OFF by default) -->
-  <script src="/js/production-compute-mesh.js" defer></script>
-  <!-- Phase 70: Laba AI Evolution OS -->
-  <script src="/js/laba-ai-evolution-os.js" defer></script>
-  <!-- Final AI Evolution Audit — window.runFinalAiEvolutionAudit() -->
-  <script src="/js/final-ai-evolution-audit.js" defer></script>
-  <!-- Phase 10J: RuntimeGlobalCertification — window.RuntimeGlobalCertification() -->
-  <script src="/js/runtime-global-certification.js" defer></script>
+
+  <!-- Phase 12: Shared Core Architecture (additive — safe on every page) -->
+  <script src="/core/core-manifest.js" defer></script>
+  <script src="/core/shared-constants.js" defer></script>
+  <script src="/core/runtime-contracts.js" defer></script>
+
+  <!-- Phase 13: Homepage Lazy Loader
+       Replaces 50+ eager-defer AI/Laba script tags.
+       Crawlers: skipped entirely (SEO/translations unaffected).
+       Real users: heavy AI stack loads after 4 s idle OR first Laba interaction.
+       Order of each module is preserved exactly as before. -->
+  <script src="/js/homepage-lazy-loader.js" defer></script>
+
   <!-- Phase 10H: Footer language links -->
   <script defer>
     document.addEventListener('click', function (e) {
