@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 9 — Full Verification Suite</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --pass:     #22c55e;
+      --fail:     #ef4444;
+      --warn:     #f59e0b;
+      --skip:     #6b7280;
+      --blue:     #60a5fa;
+      --text:     #e2e8f0;
+      --muted:    #94a3b8;
+      --font:     'SF Mono', 'Fira Code', Consolas, monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    #app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: var(--text);
+      flex: 1;
+    }
+    .header-title span { color: var(--blue); }
+
+    .btn {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .btn:hover { background: #252836; border-color: var(--blue); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--blue);
+      color: #0f1117;
+      border-color: var(--blue);
+      font-weight: bold;
+    }
+    .btn-primary:hover { background: #93c5fd; border-color: #93c5fd; }
+    .btn-primary:disabled { background: #2a4070; color: #555; border-color: #2a4070; }
+
+    .header-badge {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: bold;
+      border: 1px solid currentColor;
+    }
+    .badge-pass    { color: var(--pass); }
+    .badge-fail    { color: var(--fail); }
+    .badge-warn    { color: var(--warn); }
+    .badge-running { color: var(--blue); }
+    .badge-idle    { color: var(--muted); }
+
+    main {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      height: calc(100vh - 57px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 16px;
+    }
+    .sidebar-label {
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding: 0 4px;
+    }
+
+    .suite-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 5px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: background .12s;
+      margin-bottom: 2px;
+    }
+    .suite-btn:hover { background: rgba(255,255,255,.05); }
+    .suite-btn.active { background: rgba(96,165,250,.12); color: var(--blue); }
+
+    .suite-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .ind-pass { background: var(--pass); }
+    .ind-fail { background: var(--fail); }
+    .ind-warn { background: var(--warn); }
+    .ind-running {
+      background: var(--blue);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Scorecard in sidebar ── */
+    .scorecard {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 4px;
+    }
+    .scorecard-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 5px;
+    }
+    .score-label { font-size: 11px; color: var(--muted); flex: 1; }
+    .score-bar-wrap {
+      width: 80px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .4s ease;
+    }
+    .score-val { font-size: 11px; width: 28px; text-align: right; }
+
+    /* ── Content area ── */
+    #content {
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+
+    /* ── Overall status bar ── */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    #status-text {
+      flex: 1;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .stat-chip {
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .chip-pass { background: rgba(34,197,94,.15);  color: var(--pass); }
+    .chip-fail { background: rgba(239,68,68,.15);   color: var(--fail); }
+    .chip-warn { background: rgba(245,158,11,.15);  color: var(--warn); }
+    .chip-total{ background: rgba(148,163,184,.1);  color: var(--muted);}
+
+    /* ── Progress bar ── */
+    #progress-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    #progress-fill {
+      height: 100%;
+      background: var(--blue);
+      border-radius: 2px;
+      transition: width .3s ease;
+      width: 0%;
+    }
+
+    /* ── Suite cards ── */
+    .suite-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .suite-card.has-fail  { border-color: rgba(239,68,68,.4); }
+    .suite-card.has-warn  { border-color: rgba(245,158,11,.3); }
+    .suite-card.all-pass  { border-color: rgba(34,197,94,.25); }
+
+    .suite-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .suite-header:hover { background: rgba(255,255,255,.03); }
+
+    .suite-name { font-weight: bold; font-size: 13px; flex: 1; }
+    .suite-counts { font-size: 11px; color: var(--muted); }
+    .suite-ms { font-size: 11px; color: var(--muted); }
+    .suite-chevron { color: var(--muted); font-size: 11px; transition: transform .2s; }
+    .suite-card.open .suite-chevron { transform: rotate(90deg); }
+
+    .suite-body {
+      display: none;
+      border-top: 1px solid var(--border);
+    }
+    .suite-card.open .suite-body { display: block; }
+
+    .test-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0;
+      padding: 5px 14px 5px 28px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-status {
+      width: 46px;
+      font-size: 11px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .s-PASS { color: var(--pass); }
+    .s-FAIL { color: var(--fail); }
+    .s-WARN { color: var(--warn); }
+    .s-SKIP { color: var(--skip); }
+    .test-name  { width: 220px; flex-shrink: 0; font-size: 12px; }
+    .test-detail{ color: var(--muted); font-size: 11px; word-break: break-word; }
+
+    /* ── Cert panel ── */
+    #cert-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    #cert-panel.visible { display: block; }
+    .cert-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+    .cert-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .cert-tile {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .cert-tile-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .cert-tile-score { font-size: 22px; font-weight: bold; }
+    .cert-tile-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .cert-tile-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+    .cert-verdict {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(96,165,250,.08);
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--blue);
+      line-height: 1.5;
+    }
+    .cert-phase10 {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .cert-bottlenecks {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(245,158,11,.07);
+      border: 1px solid rgba(245,158,11,.2);
+      border-radius: 5px;
+      font-size: 11px;
+      color: var(--warn);
+    }
+
+    /* ── Log console ── */
+    #log-wrap {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .log-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    #log-clear {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    #log-clear:hover { border-color: var(--blue); color: var(--blue); }
+    #log-output {
+      padding: 10px 14px;
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .log-line { display: flex; gap: 8px; }
+    .log-time { color: #4b5563; flex-shrink: 0; }
+    .log-pass { color: var(--pass); }
+    .log-fail { color: var(--fail); }
+    .log-warn { color: var(--warn); }
+    .log-info { color: var(--blue); }
+
+    /* ── Idle placeholder ── */
+    #idle-msg {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    #idle-msg h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+    #idle-msg p  { max-width: 400px; margin: 0 auto; line-height: 1.7; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="header-title">
+      <span>Phase 9</span> Distributed Browser OS — Verification Suite
+    </div>
+    <span id="overall-badge" class="header-badge badge-idle">IDLE</span>
+    <button class="btn" id="btn-run-suite" style="display:none" onclick="runSelectedSuite()">Run Selected</button>
+    <button class="btn btn-primary" id="btn-run-all" onclick="runAll()">▶ Run All Suites</button>
+  </header>
+
+  <main>
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Suites</div>
+        <button class="suite-btn active" id="nav-all" onclick="selectSuite('all')">
+          <span>All Suites</span>
+          <span id="nav-all-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9A" onclick="selectSuite('9A')">
+          <span>9A — WasmEngine</span>
+          <span id="nav-9A-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9B" onclick="selectSuite('9B')">
+          <span>9B — GpuEngine</span>
+          <span id="nav-9B-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9C" onclick="selectSuite('9C')">
+          <span>9C — SharedCluster</span>
+          <span id="nav-9C-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9D" onclick="selectSuite('9D')">
+          <span>9D — IncrementalPdf</span>
+          <span id="nav-9D-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9E" onclick="selectSuite('9E')">
+          <span>9E — LocalAI</span>
+          <span id="nav-9E-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9F" onclick="selectSuite('9F')">
+          <span>9F — Workspace</span>
+          <span id="nav-9F-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9G" onclick="selectSuite('9G')">
+          <span>9G — Kernel</span>
+          <span id="nav-9G-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9H" onclick="selectSuite('9H')">
+          <span>9H — ZeroCopy</span>
+          <span id="nav-9H-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-9I" onclick="selectSuite('9I')">
+          <span>9I — Sandbox</span>
+          <span id="nav-9I-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-8I" onclick="selectSuite('8I')">
+          <span>8I — Security</span>
+          <span id="nav-8I-ind" class="suite-indicator"></span>
+        </button>
+        <button class="suite-btn" id="nav-CERT" onclick="selectSuite('CERT')">
+          <span>CERT — BrowserOS Cert</span>
+          <span id="nav-CERT-ind" class="suite-indicator"></span>
+        </button>
+      </div>
+
+      <!-- Cert scores in sidebar -->
+      <div id="scorecard-wrap" class="sidebar-section" style="display:none">
+        <div class="sidebar-label">Cert Scores</div>
+        <div class="scorecard">
+          <div id="sc-rows"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+      <!-- Idle message -->
+      <div id="idle-msg">
+        <h3>Phase 9 Verification Suite</h3>
+        <p>Press <strong>▶ Run All Suites</strong> to execute all 10 subsystem tests + BrowserOS Certification, or select a specific suite from the sidebar.</p>
+      </div>
+
+      <!-- Status bar (hidden until run) -->
+      <div id="status-bar" style="display:none">
+        <div id="status-text">Ready</div>
+        <span class="stat-chip chip-pass" id="chip-pass">0 PASS</span>
+        <span class="stat-chip chip-fail" id="chip-fail">0 FAIL</span>
+        <span class="stat-chip chip-warn" id="chip-warn">0 WARN</span>
+        <span class="stat-chip chip-total" id="chip-total">0 tests</span>
+        <span id="chip-ms" class="stat-chip chip-total">0 ms</span>
+      </div>
+      <div id="progress-wrap" style="display:none"><div id="progress-fill"></div></div>
+
+      <!-- Cert panel -->
+      <div id="cert-panel">
+        <div class="cert-title">BrowserOS Certification — Score Report</div>
+        <div class="cert-grid" id="cert-tiles"></div>
+        <div id="cert-verdict-box" class="cert-verdict" style="display:none"></div>
+        <div id="cert-bottleneck-box" class="cert-bottlenecks" style="display:none"></div>
+        <div id="cert-phase10" class="cert-phase10"></div>
+      </div>
+
+      <!-- Suite cards -->
+      <div id="suite-cards"></div>
+
+      <!-- Log -->
+      <div id="log-wrap">
+        <div class="log-header">
+          Console Log
+          <button id="log-clear" onclick="clearLog()">clear</button>
+        </div>
+        <div id="log-output"><div class="log-line log-info"><span class="log-time">—</span><span>Verification harness loaded. Ready.</span></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  Load all Phase 9 runtime scripts FIRST, then the verification harness.
+  Script names match the actual files in public/js/.
+  ═══════════════════════════════════════════════════════════════════
+-->
+
+<!-- Phase 1–7 foundations (minimal required subset) -->
+<script src="/js/runtime-core.js"              defer></script>
+<script src="/js/runtime-state.js"             defer></script>
+<script src="/js/runtime-event-bus.js"         defer></script>
+<script src="/js/runtime-memory-controller.js" defer></script>
+<script src="/js/runtime-health.js"            defer></script>
+<script src="/js/runtime-cancellation.js"      defer></script>
+<script src="/js/runtime-idb.js"               defer></script>
+<script src="/js/runtime-result-cache.js"      defer></script>
+<script src="/js/runtime-telemetry.js"         defer></script>
+<script src="/js/runtime-stream-bridge.js"     defer></script>
+<script src="/js/runtime-streaming-hooks.js"   defer></script>
+<script src="/js/runtime-worker-orchestrator.js" defer></script>
+<script src="/js/runtime-ai-orchestrator.js"   defer></script>
+<script src="/js/runtime-progress.js"          defer></script>
+
+<!-- Phase 8 -->
+<script src="/js/runtime-security.js"               defer></script>
+<script src="/js/runtime-memory-defense.js"         defer></script>
+<script src="/js/runtime-benchmark-engine.js"       defer></script>
+<script src="/js/runtime-distributed-scheduler.js"  defer></script>
+<script src="/js/runtime-ai-upgrade.js"             defer></script>
+<script src="/js/runtime-telemetry-enterprise.js"   defer></script>
+
+<!-- Phase 9 — dependency order: wasm→gpu→kernel→cluster→sandbox→ipdf→zerocopy→workspace→localai -->
+<script src="/js/runtime-wasm-engine.js"             defer></script>
+<script src="/js/runtime-gpu-engine.js"              defer></script>
+<script src="/js/runtime-kernel.js"                  defer></script>
+<script src="/js/runtime-shared-cluster.js"          defer></script>
+<script src="/js/runtime-sandbox.js"                 defer></script>
+<script src="/js/runtime-incremental-pdf.js"         defer></script>
+<script src="/js/runtime-zero-copy.js"               defer></script>
+<script src="/js/runtime-workspace.js"               defer></script>
+<script src="/js/runtime-local-ai.js"                defer></script>
+
+<!-- Cert last (audits all Phase 9 subsystems) -->
+<script src="/js/runtime-browser-os-certification.js" defer></script>
+
+<!-- Verification harness — must be after all subsystems -->
+<script src="/js/runtime-phase9-verification.js"     defer></script>
+
+<script>
+  // ── Page state ─────────────────────────────────────────────────────────────
+  var _selectedSuite = 'all';
+  var _running = false;
+  var _suiteResults = {};
+  var _suiteOrder = ['9A','9B','9C','9D','9E','9F','9G','9H','9I','8I','CERT'];
+
+  // Wait for all deferred scripts to load before enabling buttons
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      _log('info', 'All scripts loaded — runtime ready');
+      _checkPresence();
+    }, 800);
+  });
+
+  function _checkPresence() {
+    var checks = [
+      ['RuntimeWasmEngine',           '9A'],
+      ['RuntimeGpuEngine',            '9B'],
+      ['RuntimeSharedCluster',        '9C'],
+      ['RuntimeIncrementalPdf',       '9D'],
+      ['RuntimeLocalAI',              '9E'],
+      ['RuntimeWorkspace',            '9F'],
+      ['RuntimeKernel',               '9G'],
+      ['RuntimeZeroCopy',             '9H'],
+      ['RuntimeSandbox',              '9I'],
+      ['RuntimeSecurity',             '8I'],
+      ['RuntimeBrowserOSCertification','CERT'],
+    ];
+    var ok = 0, missing = [];
+    checks.forEach(function (c) {
+      if (window[c[0]]) { ok++; }
+      else { missing.push(c[0]); }
+    });
+    _log(ok === checks.length ? 'pass' : 'warn',
+      ok + '/' + checks.length + ' subsystems present' +
+      (missing.length ? ' — missing: ' + missing.join(', ') : ''));
+  }
+
+  // ── Suite selection ────────────────────────────────────────────────────────
+  function selectSuite(name) {
+    _selectedSuite = name;
+    document.querySelectorAll('.suite-btn').forEach(function (b) { b.classList.remove('active'); });
+    var navBtn = document.getElementById('nav-' + name);
+    if (navBtn) navBtn.classList.add('active');
+    var runSuiteBtn = document.getElementById('btn-run-suite');
+    runSuiteBtn.style.display = name === 'all' ? 'none' : '';
+    runSuiteBtn.textContent = '▶ Run ' + name;
+    _renderCards();
+  }
+
+  // ── Run all ───────────────────────────────────────────────────────────────
+  function runAll() {
+    if (_running) return;
+    _selectedSuite = 'all';
+    selectSuite('all');
+    _startRun(null);
+  }
+
+  function runSelectedSuite() {
+    if (_running || _selectedSuite === 'all') return;
+    _startRun([_selectedSuite]);
+  }
+
+  function _startRun(suiteList) {
+    if (_running) return;
+    if (!window.P9V) {
+      _log('fail', 'P9V harness not loaded yet — wait a moment and retry');
+      return;
+    }
+    _running = true;
+    _setRunning(true);
+    _log('info', 'Starting ' + (suiteList ? suiteList.join(', ') : 'all suites') + '…');
+
+    var opts = suiteList ? { suites: suiteList } : {};
+
+    // Progress animation
+    var totalSuites = suiteList ? suiteList.length : _suiteOrder.length;
+    var doneSuites = 0;
+    var progInterval = setInterval(function () {
+      var pct = Math.min(95, (doneSuites / totalSuites) * 95);
+      _setProgress(pct);
+    }, 300);
+
+    window.P9V.run(opts).then(function (report) {
+      clearInterval(progInterval);
+      _setProgress(100);
+      _running = false;
+      _setRunning(false);
+
+      // Store results
+      report.suites.forEach(function (s) {
+        var key = _suiteKeyFromName(s.name);
+        if (key) _suiteResults[key] = s;
+      });
+
+      _updateStatusBar(report);
+      _updateNavIndicators();
+      _renderCards();
+      _renderCertPanel(report.certReport);
+      _renderSidebarScores(report.certReport);
+
+      var verdict = report.totalFailed === 0
+        ? (report.totalWarned === 0 ? 'ALL PASS' : 'PASS WITH WARNINGS')
+        : 'FAILURES: ' + report.totalFailed;
+      _log(report.totalFailed === 0 ? 'pass' : 'fail',
+        verdict + ' — ' + report.totalPassed + '/' + report.totalTests +
+        ' (' + report.overallPct + '%) in ' + report.duration + 'ms');
+
+    }).catch(function (e) {
+      clearInterval(progInterval);
+      _setProgress(0);
+      _running = false;
+      _setRunning(false);
+      _log('fail', 'Run failed: ' + e.message);
+    });
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+
+  function _setRunning(on) {
+    var badge = document.getElementById('overall-badge');
+    var btnAll = document.getElementById('btn-run-all');
+    var btnSuite = document.getElementById('btn-run-suite');
+    if (on) {
+      badge.className = 'header-badge badge-running';
+      badge.innerHTML = '<span class="spinner"></span>RUNNING';
+      btnAll.disabled = true;
+      btnSuite.disabled = true;
+      document.getElementById('status-bar').style.display = '';
+      document.getElementById('progress-wrap').style.display = '';
+      document.getElementById('idle-msg').style.display = 'none';
+    } else {
+      btnAll.disabled = false;
+      btnSuite.disabled = false;
+    }
+  }
+
+  function _setProgress(pct) {
+    document.getElementById('progress-fill').style.width = pct + '%';
+  }
+
+  function _updateStatusBar(report) {
+    var badge = document.getElementById('overall-badge');
+    if (report.totalFailed > 0) {
+      badge.className = 'header-badge badge-fail'; badge.textContent = 'FAIL';
+    } else if (report.totalWarned > 0) {
+      badge.className = 'header-badge badge-warn'; badge.textContent = 'WARN';
+    } else {
+      badge.className = 'header-badge badge-pass'; badge.textContent = 'PASS';
+    }
+
+    document.getElementById('status-text').textContent =
+      report.totalFailed === 0
+        ? (report.totalWarned === 0 ? '✓ All tests passed' : '⚠ Passed with warnings')
+        : '✗ ' + report.totalFailed + ' test(s) failed';
+    document.getElementById('chip-pass').textContent  = report.totalPassed + ' PASS';
+    document.getElementById('chip-fail').textContent  = report.totalFailed + ' FAIL';
+    document.getElementById('chip-warn').textContent  = report.totalWarned + ' WARN';
+    document.getElementById('chip-total').textContent = report.totalTests  + ' tests';
+    document.getElementById('chip-ms').textContent    = report.duration    + ' ms';
+  }
+
+  function _suiteKeyFromName(name) {
+    var m = name.match(/^(\w+)/);
+    return m ? m[1] : null;
+  }
+
+  function _updateNavIndicators() {
+    _suiteOrder.forEach(function (key) {
+      var suite = _suiteResults[key];
+      var indEl = document.getElementById('nav-' + key + '-ind');
+      if (!indEl || !suite) return;
+      var hasFail = suite.tests.some(function (t) { return t.status === 'FAIL'; });
+      var hasWarn = suite.tests.some(function (t) { return t.status === 'WARN'; });
+      indEl.className = 'suite-indicator ' + (hasFail ? 'ind-fail' : hasWarn ? 'ind-warn' : 'ind-pass');
+    });
+    // overall
+    var allInd = document.getElementById('nav-all-ind');
+    var anyFail = _suiteOrder.some(function (k) {
+      var s = _suiteResults[k];
+      return s && s.tests.some(function (t) { return t.status === 'FAIL'; });
+    });
+    var anyWarn = _suiteOrder.some(function (k) {
+      var s = _suiteResults[k];
+      return s && s.tests.some(function (t) { return t.status === 'WARN'; });
+    });
+    if (allInd) allInd.className = 'suite-indicator ' + (anyFail ? 'ind-fail' : anyWarn ? 'ind-warn' : (Object.keys(_suiteResults).length > 0 ? 'ind-pass' : ''));
+  }
+
+  function _renderCards() {
+    var container = document.getElementById('suite-cards');
+    container.innerHTML = '';
+
+    var suitesToShow = _selectedSuite === 'all' ? _suiteOrder : [_selectedSuite];
+    suitesToShow.forEach(function (key) {
+      var suite = _suiteResults[key];
+      if (!suite) return; // not run yet
+
+      var hasFail = suite.tests.some(function (t) { return t.status === 'FAIL'; });
+      var hasWarn = suite.tests.some(function (t) { return t.status === 'WARN'; });
+      var allPass = !hasFail && !hasWarn;
+
+      var card = document.createElement('div');
+      card.className = 'suite-card' +
+        (hasFail ? ' has-fail' : hasWarn ? ' has-warn' : ' all-pass') +
+        (hasFail ? ' open' : _selectedSuite !== 'all' ? ' open' : '');
+      card.id = 'card-' + key;
+
+      var indColor = hasFail ? 'var(--fail)' : hasWarn ? 'var(--warn)' : 'var(--pass)';
+      var header = '<div class="suite-header" onclick="toggleCard(\'' + key + '\')">' +
+        '<span style="width:8px;height:8px;border-radius:50%;background:' + indColor + ';flex-shrink:0;display:inline-block"></span>' +
+        '<span class="suite-name">' + suite.name + '</span>' +
+        '<span class="suite-counts">' + suite.passed + '/' + suite.total + '</span>' +
+        (suite.ms ? '<span class="suite-ms"> &nbsp; ' + suite.ms + 'ms</span>' : '') +
+        '<span class="suite-chevron">▶</span>' +
+        '</div>';
+
+      var rows = suite.tests.map(function (t) {
+        return '<div class="test-row">' +
+          '<span class="test-status s-' + t.status + '">' + t.status + '</span>' +
+          '<span class="test-name">' + _esc(t.name) + '</span>' +
+          '<span class="test-detail">' + _esc(t.detail || '') + '</span>' +
+          '</div>';
+      }).join('');
+
+      card.innerHTML = header + '<div class="suite-body">' + rows + '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  function toggleCard(key) {
+    var card = document.getElementById('card-' + key);
+    if (card) card.classList.toggle('open');
+  }
+
+  function _renderCertPanel(cr) {
+    var panel = document.getElementById('cert-panel');
+    if (!cr) { panel.classList.remove('visible'); return; }
+
+    panel.classList.add('visible');
+    var tiles = document.getElementById('cert-tiles');
+    var scoreFields = [
+      ['BrowserOS Overall', cr.browserOsScore],
+      ['Offline Capability', cr.offlineScore],
+      ['Compute Scalability', cr.computeScore],
+      ['AI Readiness', cr.aiScore],
+      ['Large-File Handling', cr.largeFileScore],
+      ['Mobile Resilience', cr.mobileScore],
+    ];
+
+    tiles.innerHTML = scoreFields.map(function (pair) {
+      var val = Math.round(pair[1] || 0);
+      var color = val >= 70 ? 'var(--pass)' : val >= 40 ? 'var(--warn)' : 'var(--fail)';
+      return '<div class="cert-tile">' +
+        '<div class="cert-tile-label">' + pair[0] + '</div>' +
+        '<div class="cert-tile-score" style="color:' + color + '">' + val + '<span style="font-size:13px;color:var(--muted)">/100</span></div>' +
+        '<div class="cert-tile-bar"><div class="cert-tile-bar-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
+        '</div>';
+    }).join('');
+
+    var verdictBox = document.getElementById('cert-verdict-box');
+    if (cr.verdict) { verdictBox.textContent = cr.verdict; verdictBox.style.display = ''; }
+    else verdictBox.style.display = 'none';
+
+    var bnBox = document.getElementById('cert-bottleneck-box');
+    if (cr.bottlenecks && cr.bottlenecks.length) {
+      bnBox.innerHTML = '<strong>Bottlenecks:</strong> ' + cr.bottlenecks.map(_esc).join(' · ');
+      bnBox.style.display = '';
+    } else bnBox.style.display = 'none';
+
+    var p10 = document.getElementById('cert-phase10');
+    p10.textContent = cr.phase10 ? '→ Phase 10: ' + cr.phase10 : '';
+  }
+
+  function _renderSidebarScores(cr) {
+    var wrap = document.getElementById('scorecard-wrap');
+    if (!cr) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+
+    var scoreFields = [
+      ['BrowserOS', cr.browserOsScore],
+      ['Offline',   cr.offlineScore],
+      ['Compute',   cr.computeScore],
+      ['AI',        cr.aiScore],
+      ['LargeFile', cr.largeFileScore],
+      ['Mobile',    cr.mobileScore],
+    ];
+    var rows = scoreFields.map(function (pair) {
+      var val = Math.round(pair[1] || 0);
+      var color = val >= 70 ? 'var(--pass)' : val >= 40 ? 'var(--warn)' : 'var(--fail)';
+      return '<div class="score-row">' +
+        '<span class="score-label">' + pair[0] + '</span>' +
+        '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
+        '<span class="score-val" style="color:' + color + '">' + val + '</span>' +
+        '</div>';
+    }).join('');
+    document.getElementById('sc-rows').innerHTML = rows;
+  }
+
+  // ── Log ───────────────────────────────────────────────────────────────────
+  function _log(type, msg) {
+    var out = document.getElementById('log-output');
+    var now = new Date();
+    var ts = now.toTimeString().slice(0,8) + '.' + String(now.getMilliseconds()).padStart(3,'0');
+    var line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = '<span class="log-time">' + ts + '</span>' +
+      '<span class="log-' + type + '">' + _esc(String(msg)) + '</span>';
+    out.appendChild(line);
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log-output').innerHTML = '';
+  }
+
+  function _esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Intercept console for live log ────────────────────────────────────────
+  (function () {
+    var _origWarn = console.warn.bind(console);
+    var _origErr  = console.error.bind(console);
+    console.warn = function () {
+      _origWarn.apply(console, arguments);
+      _log('warn', Array.from(arguments).join(' '));
+    };
+    console.error = function () {
+      _origErr.apply(console, arguments);
+      _log('fail', Array.from(arguments).join(' '));
+    };
+  }());
+</script>
+</body>
+</html>
