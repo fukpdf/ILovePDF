@@ -55,7 +55,9 @@
     "convert_title": "Konvertieren",
     "convert_sub": "Zwischen PDF, Word, Excel, PowerPoint, JPG und HTML konvertieren.",
     "advanced_title": "Erweitert & KI",
-    "advanced_sub": "OCR, KI-Zusammenfassungen, Übersetzung, Vergleich und Workflow-Automatisierung."
+    "advanced_sub": "OCR, KI-Zusammenfassungen, Übersetzung, Vergleich und Workflow-Automatisierung.",
+    "instant_title": "Sofort-Tools",
+    "instant_sub": "Schnell, kostenlos und browserbasiert — ohne Anmeldung."
   },
   "section": {
     "tools_title": "Grundlegende Werkzeuge",

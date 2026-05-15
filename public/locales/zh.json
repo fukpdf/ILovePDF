@@ -55,7 +55,9 @@
     "convert_title": "转换",
     "convert_sub": "在 PDF、Word、Excel、PowerPoint、JPG 和 HTML 之间转换。",
     "advanced_title": "高级与 AI",
-    "advanced_sub": "OCR、AI 摘要、翻译、比较和工作流程自动化。"
+    "advanced_sub": "OCR、AI 摘要、翻译、比较和工作流程自动化。",
+    "instant_title": "即时工具",
+    "instant_sub": "快速、免费、基于浏览器——无需注册。"
   },
   "section": {
     "tools_title": "基本工具",

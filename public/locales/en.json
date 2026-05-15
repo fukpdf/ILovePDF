@@ -54,8 +54,10 @@
     "utilities_sub": "Numbers to words converter and live currency exchange rates.",
     "convert_title": "Convert",
     "convert_sub": "Convert between PDF, Word, Excel, PowerPoint, JPG and HTML.",
-    "advanced_title": "Advanced & AI",
-    "advanced_sub": "OCR, AI summaries, translation, comparison and workflow automation."
+    "advanced_title": "Advanced Tools",
+    "advanced_sub": "Powerful conversion, OCR & AI tools for demanding tasks.",
+    "instant_title": "Instant Tools",
+    "instant_sub": "Fast, free and browser-powered — no signup needed."
   },
   "section": {
     "tools_title": "Essential Tools",

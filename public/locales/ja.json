@@ -55,7 +55,9 @@
     "convert_title": "変換",
     "convert_sub": "PDF、Word、Excel、PowerPoint、JPG、HTML間で変換。",
     "advanced_title": "高度機能・AI",
-    "advanced_sub": "OCR、AI要約、翻訳、比較、ワークフロー自動化。"
+    "advanced_sub": "OCR、AI要約、翻訳、比較、ワークフロー自動化。",
+    "instant_title": "即時ツール",
+    "instant_sub": "高速・無料・ブラウザ完結 — サインアップ不要。"
   },
   "section": {
     "tools_title": "基本ツール",

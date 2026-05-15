@@ -55,7 +55,9 @@
     "convert_title": "Converteren",
     "convert_sub": "Converteren tussen PDF, Word, Excel, PowerPoint, JPG en HTML.",
     "advanced_title": "Geavanceerd en AI",
-    "advanced_sub": "OCR, AI-samenvattingen, vertaling, vergelijking en workflowautomatisering."
+    "advanced_sub": "OCR, AI-samenvattingen, vertaling, vergelijking en workflowautomatisering.",
+    "instant_title": "Directe Tools",
+    "instant_sub": "Snel, gratis en browsergebaseerd — geen registratie vereist."
   },
   "section": {
     "tools_title": "Essentiële tools",

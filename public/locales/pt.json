@@ -55,7 +55,9 @@
     "convert_title": "Converter",
     "convert_sub": "Converta entre PDF, Word, Excel, PowerPoint, JPG e HTML.",
     "advanced_title": "Avançado e IA",
-    "advanced_sub": "OCR, resumos com IA, tradução, comparação e automação de fluxos."
+    "advanced_sub": "OCR, resumos com IA, tradução, comparação e automação de fluxos.",
+    "instant_title": "Ferramentas Instantâneas",
+    "instant_sub": "Rápidas, gratuitas e no navegador — sem cadastro."
   },
   "section": {
     "tools_title": "Ferramentas essenciais",

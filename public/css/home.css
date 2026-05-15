@@ -2589,3 +2589,93 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 @media (max-width: 480px) {
   .footer-lang-grid { grid-template-columns: repeat(3, 1fr) }
 }
+
+/* ============================================================
+   PHASE FINAL — Dual badges, footer lang dropdown, mobile lang
+   ============================================================ */
+
+/* ── Dual-badge wrapper for Compress PDF (⚡ Instant + ☁️ Advanced) ──────── */
+.tool-badges {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  pointer-events: none;
+}
+.tool-badges .tool-badge {
+  position: static;
+}
+
+/* ── Footer language selector — collapsed dropdown (not always-visible) ──── */
+.footer-lang-sel {
+  position: relative;
+}
+.footer-lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 9px;
+  color: #cbd1e2;
+  padding: 9px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 500;
+  text-align: left;
+  transition: .15s background, .15s border-color;
+}
+.footer-lang-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); }
+.footer-lang-btn[aria-expanded="true"] { border-color: rgba(255,255,255,.35); }
+.footer-lang-chev {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  transition: transform .18s;
+}
+.footer-lang-btn[aria-expanded="true"] .footer-lang-chev { transform: rotate(180deg); }
+
+.footer-lang-panel {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 900;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #1e2235;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  padding: 4px 0;
+  box-shadow: 0 -8px 32px rgba(0,0,0,.35);
+}
+.footer-lang-panel[hidden] { display: none; }
+
+/* override old footer-lang-link rule when inside the new dropdown panel */
+.footer-lang-panel .footer-lang-link {
+  display: block;
+  color: #9aa3bd;
+  font-size: .83rem;
+  margin: 0;
+  padding: 7px 14px;
+  text-decoration: none;
+  transition: .12s color, .12s background;
+  white-space: nowrap;
+  border-radius: 0;
+}
+.footer-lang-panel .footer-lang-link:hover  { color: #fff; background: rgba(255,255,255,.07); }
+.footer-lang-panel .footer-lang-link.is-active { color: #a5b4fc; font-weight: 600; }
+
+/* ── Mobile nav: show lang-sel on mobile too (compact) ──────────────────── */
+@media (max-width: 1023.98px) {
+  .lang-sel {
+    display: flex;
+  }
+  #lang-code { display: none; }
+  .lang-btn { padding: 0 8px; gap: 2px; }
+}

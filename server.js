@@ -52,6 +52,21 @@ app.get('/', (_req, res, next) => {
   res.type('html').send(__HOME_HTML);
 });
 
+// Lightweight geo-language hint. Reads country from CDN headers (Cloudflare,
+// Vercel, AWS CloudFront). Returns { country: "SA" } or { country: null }.
+// i18n.js calls this on first visit when no language preference is stored.
+app.get('/api/geo', (req, res) => {
+  const country = (
+    req.headers['cf-ipcountry']         ||
+    req.headers['x-country-code']       ||
+    req.headers['x-vercel-ip-country']  ||
+    req.headers['x-amz-cf-ipcountry']  ||
+    ''
+  ).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || null;
+  res.set('Cache-Control', 'no-store');
+  res.json({ country });
+});
+
 // Phase-3 SEO: /sitemap.xml, /robots.txt, /pdf-tools etc., /submit-urls,
 // /ping-index. Mounted before static so it can override sitemap/robots files.
 app.use(seoRouter);

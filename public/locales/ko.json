@@ -55,7 +55,9 @@
     "convert_title": "변환",
     "convert_sub": "PDF, Word, Excel, PowerPoint, JPG 및 HTML 간 변환.",
     "advanced_title": "고급 및 AI",
-    "advanced_sub": "OCR, AI 요약, 번역, 비교 및 워크플로우 자동화."
+    "advanced_sub": "OCR, AI 요약, 번역, 비교 및 워크플로우 자동화.",
+    "instant_title": "즉시 도구",
+    "instant_sub": "빠르고 무료, 브라우저 기반 — 가입 불필요."
   },
   "section": {
     "tools_title": "필수 도구",

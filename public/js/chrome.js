@@ -95,17 +95,23 @@ window.TOOL_PRIO_LABEL = {
   advanced: '☁️ Advanced',
 };
 window.toolBadgeHtml = function (prio) {
-  if (!prio || prio === 'compress') return '';
+  if (!prio) return '';
+  if (prio === 'compress') {
+    return '<span class="tool-badges">' +
+      '<span class="tool-badge tool-badge--instant">⚡ Instant</span>' +
+      '<span class="tool-badge tool-badge--advanced">☁️ Advanced</span>' +
+      '</span>';
+  }
   const cls  = prio === 'instant' ? 'tool-badge tool-badge--instant'
                                   : 'tool-badge tool-badge--advanced';
   const text = prio === 'instant' ? '⚡ Instant' : '☁️ Advanced';
   return '<span class="' + cls + '" aria-label="' + text + '">' + text + '</span>';
 };
-// Flat priority bands used by the homepage. Order: A (instant) → B (compress) → C (advanced).
+// TOOL_PRIORITY_BANDS — kept for back-compat (mobile overlay, mega-menu, other components).
 window.TOOL_PRIORITY_BANDS = [
-  { key:'instant',  title:'Instant tools',  subtitle:'Fast, simple tools designed for quick results.',            icon:'zap'     },
-  { key:'compress', title:'Compression',    subtitle:'Shrink your files fast — choose your preferred quality.',    icon:'archive' },
-  { key:'advanced', title:'Advanced tools', subtitle:'Powerful conversion, OCR & AI tools for demanding tasks.',   icon:'cloud'   },
+  { key:'instant',  title:'Instant Tools',  subtitle:'Fast, browser-powered tools — no signup needed.',          icon:'zap'     },
+  { key:'compress', title:'Compression',    subtitle:'Shrink your files fast — choose your preferred quality.',   icon:'archive' },
+  { key:'advanced', title:'Advanced Tools', subtitle:'Powerful conversion, OCR & AI tools for demanding tasks.',  icon:'cloud'   },
 ].map(band => ({
   ...band,
   items: window.TOOL_GROUPS
@@ -113,26 +119,28 @@ window.TOOL_PRIORITY_BANDS = [
     .filter(t => (t.prio || 'instant') === band.key),
 }));
 
-// ── Phase 10A: Homepage bands — ALL tools organised by category ───────────────
-// All 37 tools are now shown on the homepage, maximising discoverability,
-// internal linking density, SEO crawlability, and ad impression opportunities.
-const _BAND_META = {
-  organize:  { title:'Organize PDFs',   icon:'layers',             subtitle:'Merge, split, rotate, crop and reorder your PDF pages instantly.' },
-  security:  { title:'Security',        icon:'shield',             subtitle:'Password-protect or unlock PDF documents with one click.' },
-  image:     { title:'Image Tools',     icon:'image',              subtitle:'Crop, resize, apply filters and remove image backgrounds.' },
-  edit:      { title:'Edit & Annotate', icon:'edit-3',             subtitle:'Add watermarks, page numbers, signatures and redactions.' },
-  utilities: { title:'Utilities',       icon:'calculator',         subtitle:'Numbers to words converter and live currency exchange rates.' },
-  convert:   { title:'Convert',         icon:'arrow-right-circle', subtitle:'Convert between PDF, Word, Excel, PowerPoint, JPG and HTML.' },
-  advanced:  { title:'Advanced & AI',   icon:'sparkles',           subtitle:'OCR, AI summaries, translation, comparison and workflow automation.' },
-};
-
-window.HOMEPAGE_BANDS = window.TOOL_GROUPS.map(g => ({
-  key:      g.key,
-  title:    (_BAND_META[g.key] || {}).title    || g.title,
-  subtitle: (_BAND_META[g.key] || {}).subtitle || '',
-  icon:     (_BAND_META[g.key] || {}).icon     || 'wrench',
-  items:    (g.items || []).map(t => Object.assign({ _cat: g.key }, t)),
-}));
+// ── HOMEPAGE_BANDS: exactly 2 sections — Instant Tools + Advanced Tools ───────
+// Compress PDF lives inside Instant Tools but renders both ⚡ and ☁️ badges.
+(function () {
+  const allTools = window.TOOL_GROUPS
+    .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)));
+  window.HOMEPAGE_BANDS = [
+    {
+      key:      'instant',
+      title:    'Instant Tools',
+      subtitle: 'Fast, free and browser-powered — no signup needed.',
+      icon:     'zap',
+      items:    allTools.filter(t => t.prio === 'instant' || t.prio === 'compress'),
+    },
+    {
+      key:      'advanced',
+      title:    'Advanced Tools',
+      subtitle: 'Powerful conversion, OCR & AI tools for demanding tasks.',
+      icon:     'cloud',
+      items:    allTools.filter(t => t.prio === 'advanced'),
+    },
+  ];
+})();
 
 const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present so
@@ -183,19 +191,19 @@ function renderHeader(){
      </a>`).join('');
 
   nav.innerHTML = `
-    <a class="nav-direct" href="/merge-pdf">Merge PDF</a>
-    <a class="nav-direct" href="/split-pdf">Split PDF</a>
+    <a class="nav-direct" href="/merge-pdf" data-i18n="nav.merge">Merge PDF</a>
+    <a class="nav-direct" href="/split-pdf" data-i18n="nav.split">Split PDF</a>
 
     <div class="nav-item has-dd" id="nav-organize">
       <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
-        Organize <i data-lucide="chevron-down"></i>
+        <span data-i18n="nav.organize">Organize</span> <i data-lucide="chevron-down"></i>
       </button>
       <div class="dd" role="menu">${ddLinks(ORGANIZE_ITEMS)}</div>
     </div>
 
     <div class="nav-item has-dd" id="nav-convert">
       <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
-        Convert <i data-lucide="chevron-down"></i>
+        <span data-i18n="nav.convert">Convert</span> <i data-lucide="chevron-down"></i>
       </button>
       <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
     </div>
@@ -203,7 +211,7 @@ function renderHeader(){
     <div class="nav-item has-dd has-mega" id="all-tools-item">
       <button class="nav-btn all-tools" id="all-tools-btn" type="button"
               aria-expanded="false" aria-haspopup="true">
-        All Tools <i data-lucide="chevron-down"></i>
+        <span data-i18n="nav.all_tools">All Tools</span> <i data-lucide="chevron-down"></i>
       </button>
       <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
     </div>
@@ -219,6 +227,7 @@ function renderHeader(){
           id="hs-input"
           class="hs-input"
           placeholder="Search 33+ tools…"
+          data-i18n-placeholder="nav.search"
           autocomplete="off"
           aria-label="Search tools"
           aria-expanded="false"
@@ -775,12 +784,65 @@ function loadMobileNav() {
   document.head.appendChild(s);
 }
 
+/* ── Footer language dropdown (collapsible, click-to-open) ─────────────────── */
+function wireFooterLangSelector() {
+  const sel   = document.getElementById('footer-lang-sel');
+  const btn   = document.getElementById('footer-lang-btn');
+  const panel = document.getElementById('footer-lang-panel');
+  const label = document.getElementById('footer-lang-label');
+  if (!sel || !btn || !panel) return;
+
+  const LANG_LABELS = {
+    en:'🇬🇧 English', ar:'🇸🇦 العربية', ur:'🇵🇰 اردو', fa:'🇮🇷 فارسی',
+    hi:'🇮🇳 हिन्दी', bn:'🇧🇩 বাংলা', zh:'🇨🇳 中文', ja:'🇯🇵 日本語',
+    ko:'🇰🇷 한국어', tr:'🇹🇷 Türkçe', id:'🇮🇩 Indonesia', ru:'🇷🇺 Русский',
+    fr:'🇫🇷 Français', de:'🇩🇪 Deutsch', es:'🇪🇸 Español', pt:'🇧🇷 Português',
+    it:'🇮🇹 Italiano', nl:'🇳🇱 Nederlands', pl:'🇵🇱 Polski',
+  };
+
+  const open  = () => { panel.hidden = false; btn.setAttribute('aria-expanded', 'true'); };
+  const close = () => { panel.hidden = true;  btn.setAttribute('aria-expanded', 'false'); };
+
+  btn.addEventListener('click', e => { e.stopPropagation(); panel.hidden ? open() : close(); });
+  document.addEventListener('click', e => { if (!sel.contains(e.target)) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  panel.addEventListener('click', async e => {
+    const link = e.target.closest('[data-lang]');
+    if (!link) return;
+    e.preventDefault();
+    const lang = link.dataset.lang;
+    close();
+    if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+      await window.RuntimeI18n.setLanguage(lang);
+    }
+  });
+
+  const syncLabel = lang => {
+    if (label) label.textContent = LANG_LABELS[lang] || ('🌐 ' + lang.toUpperCase());
+    panel.querySelectorAll('[data-lang]').forEach(a => {
+      a.classList.toggle('is-active', a.dataset.lang === lang);
+    });
+  };
+
+  window.addEventListener('i18n:change', e => {
+    if (e.detail && e.detail.lang) syncLabel(e.detail.lang);
+  });
+
+  if (window.RuntimeI18n && typeof window.RuntimeI18n.getLanguage === 'function') {
+    syncLabel(window.RuntimeI18n.getLanguage());
+  } else {
+    window.addEventListener('i18n:change', e => { if (e.detail) syncLabel(e.detail.lang); }, { once: true });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
   wireLangSelector();
+  wireFooterLangSelector();
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);

@@ -55,7 +55,9 @@
     "convert_title": "Konwertuj",
     "convert_sub": "Konwertuj między PDF, Word, Excel, PowerPoint, JPG i HTML.",
     "advanced_title": "Zaawansowane i AI",
-    "advanced_sub": "OCR, streszczenia AI, tłumaczenie, porównanie i automatyzacja procesów."
+    "advanced_sub": "OCR, streszczenia AI, tłumaczenie, porównanie i automatyzacja procesów.",
+    "instant_title": "Natychmiastowe Narzędzia",
+    "instant_sub": "Szybkie, darmowe i w przeglądarce — bez rejestracji."
   },
   "section": {
     "tools_title": "Niezbędne narzędzia",

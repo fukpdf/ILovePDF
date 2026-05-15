@@ -55,7 +55,9 @@
     "convert_title": "تبدیل",
     "convert_sub": "تبدیل بین PDF، Word، Excel، PowerPoint، JPG و HTML.",
     "advanced_title": "پیشرفته و هوش مصنوعی",
-    "advanced_sub": "OCR، خلاصه‌سازی هوش مصنوعی، ترجمه، مقایسه و اتوماسیون."
+    "advanced_sub": "OCR، خلاصه‌سازی هوش مصنوعی، ترجمه، مقایسه و اتوماسیون.",
+    "instant_title": "ابزارهای فوری",
+    "instant_sub": "سریع، رایگان و مبتنی بر مرورگر — بدون نیاز به ثبت‌نام."
   },
   "section": {
     "tools_title": "ابزارهای اساسی",

@@ -55,7 +55,9 @@
     "convert_title": "Dönüştür",
     "convert_sub": "PDF, Word, Excel, PowerPoint, JPG ve HTML arasında dönüştür.",
     "advanced_title": "Gelişmiş ve AI",
-    "advanced_sub": "OCR, AI özetleri, çeviri, karşılaştırma ve iş akışı otomasyonu."
+    "advanced_sub": "OCR, AI özetleri, çeviri, karşılaştırma ve iş akışı otomasyonu.",
+    "instant_title": "Anlık Araçlar",
+    "instant_sub": "Hızlı, ücretsiz ve tarayıcı tabanlı — kayıt gerekmez."
   },
   "section": {
     "tools_title": "Temel Araçlar",

@@ -55,7 +55,9 @@
     "convert_title": "التحويل",
     "convert_sub": "تحويل بين PDF وWord وExcel وPowerPoint وJPG وHTML.",
     "advanced_title": "خيارات متقدمة وذكاء اصطناعي",
-    "advanced_sub": "تقنية OCR، ملخصات الذكاء الاصطناعي، الترجمة والمقارنة."
+    "advanced_sub": "تقنية OCR، ملخصات الذكاء الاصطناعي، الترجمة والمقارنة.",
+    "instant_title": "الأدوات الفورية",
+    "instant_sub": "سريعة، مجانية وتعمل في المتصفح — لا تسجيل مطلوب."
   },
   "section": {
     "tools_title": "الأدوات الأساسية",

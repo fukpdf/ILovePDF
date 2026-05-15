@@ -19,16 +19,23 @@ function renderTools(){
   if (!bands.length) return;
 
   const badge = (window.toolBadgeHtml || (()=> ''));
+  const t18 = (key, fallback) => {
+    if (!window.t) return fallback;
+    const v = window.t(key);
+    return (v && v !== key) ? v : fallback;
+  };
   root.innerHTML = bands.map(b => {
     if (!b.items || !b.items.length) return '';
+    const titleText = t18(`band.${b.key}_title`, b.title);
+    const subText   = b.subtitle ? t18(`band.${b.key}_sub`, b.subtitle) : '';
     return `
       <section class="cat-block cat-block--${b.key}" id="cat-${b.key}" data-prio="${b.key}">
         <div class="cat-title cat-title--${b.key}">
           <span class="cat-title-ico"><i data-lucide="${b.icon}"></i></span>
-          <span class="cat-title-text">${b.title}</span>
+          <span class="cat-title-text" data-i18n="band.${b.key}_title">${titleText}</span>
           <span class="cat-title-count">${b.items.length}</span>
         </div>
-        ${b.subtitle ? `<p class="cat-sub">${b.subtitle}</p>` : ''}
+        ${b.subtitle ? `<p class="cat-sub" data-i18n="band.${b.key}_sub">${subText}</p>` : ''}
         <div class="tools-grid">
           ${b.items.map(t => `
             <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}" href="${homeToolUrl(t)}">
@@ -331,4 +338,12 @@ document.addEventListener('DOMContentLoaded', () => {
   tryIcons();
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
+
+  // Re-render tool grid + re-apply DOM translations when language changes.
+  // This handles band titles/subtitles (data-i18n) and refreshes icon bindings.
+  window.addEventListener('i18n:change', () => {
+    renderTools();
+    tryIcons();
+    setTimeout(tryIcons, 100);
+  });
 });

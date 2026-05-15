@@ -185,10 +185,60 @@
       var self = this;
       return self.loadLocale(DEFAULT_LANG).then(function () {
         _fallback = _cache[DEFAULT_LANG] || {};
-        var stored = DEFAULT_LANG;
-        try { stored = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG; } catch (_) {}
-        var lang = (stored !== DEFAULT_LANG) ? stored : self.detectBrowserLanguage();
-        return self.setLanguage(lang);
+        // 1. Saved preference always wins — user's explicit choice is sticky.
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (_) {}
+        if (stored) return self.setLanguage(stored);
+        // 2. Browser language detection.
+        var browserLang = self.detectBrowserLanguage();
+        // 3. If browser reports English (the default), try lightweight geo lookup.
+        //    Geo check is capped at 1.5 s so it never blocks the page.
+        if (browserLang === DEFAULT_LANG) {
+          return self._detectGeoLanguage().then(function (geoLang) {
+            return self.setLanguage(geoLang || DEFAULT_LANG);
+          });
+        }
+        return self.setLanguage(browserLang);
+      });
+    },
+
+    _detectGeoLanguage: function () {
+      var GEO_MAP = {
+        SA:'ar',AE:'ar',KW:'ar',QA:'ar',BH:'ar',OM:'ar',JO:'ar',
+        IQ:'ar',EG:'ar',LY:'ar',TN:'ar',MA:'ar',DZ:'ar',SD:'ar',
+        YE:'ar',SY:'ar',LB:'ar',PS:'ar',
+        PK:'ur', IR:'fa', BD:'bn',
+        IN:'hi', NP:'hi',
+        CN:'zh', TW:'zh', HK:'zh', MO:'zh',
+        JP:'ja', KR:'ko', TR:'tr', ID:'id',
+        RU:'ru', KZ:'ru', BY:'ru',
+        FR:'fr', MC:'fr', LU:'fr',
+        DE:'de', AT:'de',
+        ES:'es', MX:'es', AR:'es', CL:'es', CO:'es', PE:'es', VE:'es',
+        BR:'pt', PT:'pt',
+        IT:'it', SM:'it',
+        NL:'nl', BE:'nl',
+        PL:'pl',
+      };
+      return new Promise(function (resolve) {
+        var done = false;
+        var timer = setTimeout(function () {
+          if (!done) { done = true; resolve(null); }
+        }, 1500);
+        fetch('/api/geo', { cache: 'no-cache' })
+          .then(function (r) { return r.ok ? r.json() : {}; })
+          .then(function (d) {
+            clearTimeout(timer);
+            if (!done) {
+              done = true;
+              var lang = d && d.country ? GEO_MAP[String(d.country).toUpperCase()] : null;
+              resolve(lang || null);
+            }
+          })
+          .catch(function () {
+            clearTimeout(timer);
+            if (!done) { done = true; resolve(null); }
+          });
       });
     },
   };

@@ -55,7 +55,9 @@
     "convert_title": "Konversi",
     "convert_sub": "Konversi antara PDF, Word, Excel, PowerPoint, JPG dan HTML.",
     "advanced_title": "Lanjutan & AI",
-    "advanced_sub": "OCR, ringkasan AI, terjemahan, perbandingan dan otomasi alur kerja."
+    "advanced_sub": "OCR, ringkasan AI, terjemahan, perbandingan dan otomasi alur kerja.",
+    "instant_title": "Alat Instan",
+    "instant_sub": "Cepat, gratis, dan berbasis browser — tanpa pendaftaran."
   },
   "section": {
     "tools_title": "Alat Esensial",
