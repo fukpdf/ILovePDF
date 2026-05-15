@@ -253,6 +253,20 @@
   <!-- Phase 3 — Rotate PDF Runtime Migration (additive, feature-flagged) -->
   <script src="/js/rotate-worker-adapter.js"></script>
   <script src="/js/rotate-runtime.js"></script>
+  <!-- Phase 3 — Bulk PDF Runtime Migration (registry + factory + per-tool runtimes) -->
+  <!-- Load order: registry (patches BrowserTools.process once, after merge+rotate chain) -->
+  <!--             factory (shared createPdfToolRuntime function, no side effects)       -->
+  <!--             per-tool runtimes (each registers with registry, sets feature flag)   -->
+  <script src="/js/pdf-runtime-registry.js"></script>
+  <script src="/js/pdf-worker-runtime-factory.js"></script>
+  <!-- scheduler-only tools (main-thread pdf-lib, wrapped in RuntimeScheduler slot) -->
+  <script src="/js/split-runtime.js"></script>
+  <script src="/js/organize-runtime.js"></script>
+  <script src="/js/protect-runtime.js"></script>
+  <script src="/js/unlock-runtime.js"></script>
+  <!-- worker-dispatch tools (pdf-worker.js OPS table, full RuntimeWorkers orchestration) -->
+  <script src="/js/page-numbers-runtime.js"></script>
+  <script src="/js/watermark-runtime.js"></script>
   <script src="/js/advanced-engine.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
