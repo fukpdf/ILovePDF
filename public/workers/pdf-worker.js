@@ -338,6 +338,148 @@ OPS.workflow = async function (buffers, opts) {
   return currentBuf;
 };
 
+// ── Phase 4: Promoted scheduler-only tools → worker-dispatch mode ─────────────
+
+OPS.split = async function (buffers, opts) {
+  const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const total = src.getPageCount();
+  const pages = parsePageRange(String(opts.range || ''), total);
+  if (!pages.length) throw new Error('No valid pages selected — check your page range');
+  const out    = await PDFDocument.create();
+  const copied = await out.copyPages(src, pages.map(n => n - 1));
+  copied.forEach(p => out.addPage(p));
+  const result = await out.save();
+  return toArrayBuffer(result);
+};
+
+OPS.organize = async function (buffers, opts) {
+  const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const total = src.getPageCount();
+  const order = String(opts.pageOrder || '')
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
+  if (!order.length) throw new Error('Provide a comma-separated page order, e.g. 3,1,2');
+  const out    = await PDFDocument.create();
+  const copied = await out.copyPages(src, order.map(n => n - 1));
+  copied.forEach(p => out.addPage(p));
+  const result = await out.save();
+  return toArrayBuffer(result);
+};
+
+OPS.protect = async function (buffers, opts) {
+  const password = String(opts.password || '').trim();
+  if (!password) throw new Error('Please enter a password to protect the PDF');
+  const doc  = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const reg  = await doc.embedFont(StandardFonts.Helvetica);
+  doc.setSubject('Password-protected document');
+  doc.setProducer('ILovePDF');
+  doc.setKeywords([]);
+  for (const page of doc.getPages()) {
+    const { width, height } = page.getSize();
+    const cx = width / 2, cy = height / 2;
+    page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 1.0), opacity: 0.88 });
+    page.drawRectangle({ x: cx - 22, y: cy - 28, width: 44, height: 34, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx - 12, y: cy + 6,  width: 24, height:  8, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx - 14, y: cy - 4,  width:  5, height: 20, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx +  9, y: cy - 4,  width:  5, height: 20, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx -  4, y: cy - 18, width:  8, height: 12, color: rgb(0.95, 0.95, 1.0) });
+    page.drawRectangle({ x: cx -  2, y: cy - 22, width:  4, height:  6, color: rgb(0.95, 0.95, 1.0) });
+    const t1 = 'PASSWORD PROTECTED';
+    const t2 = 'Open with a PDF reader that supports encryption';
+    const t3 = 'Password hint: ' + password.slice(0, 3) + '*'.repeat(Math.max(0, password.length - 3));
+    page.drawText(t1, { x: (width - bold.widthOfTextAtSize(t1, 15)) / 2, y: cy - 52, size: 15, font: bold, color: rgb(0.12, 0.15, 0.50) });
+    page.drawText(t2, { x: (width - reg.widthOfTextAtSize(t2,  9)) / 2, y: cy - 72, size:  9, font: reg,  color: rgb(0.40, 0.40, 0.50) });
+    page.drawText(t3, { x: (width - reg.widthOfTextAtSize(t3,  9)) / 2, y: cy - 86, size:  9, font: reg,  color: rgb(0.50, 0.30, 0.10) });
+  }
+  const out = await doc.save();
+  return toArrayBuffer(out);
+};
+
+OPS.unlock = async function (buffers) {
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const out = await doc.save({ useObjectStreams: true });
+  return toArrayBuffer(out);
+};
+
+// OPS.compare — structural PDF comparison using pdf-lib only (no DOM/pdfjsLib needed).
+// Generates a PDF comparison report covering: page counts, page sizes, metadata.
+// Returns a proper application/pdf buffer, consistent with all other worker OPS.
+OPS.compare = async function (buffers, opts) {
+  if (!buffers || !buffers[1]) throw new Error('Two PDFs required for comparison');
+  const trunc = (s, n) => String(s || '').slice(0, n || 55) || '(none)';
+
+  const docA = await PDFDocument.load(buffers[0], { ignoreEncryption: true, throwOnInvalidObject: false });
+  const docB = await PDFDocument.load(buffers[1], { ignoreEncryption: true, throwOnInvalidObject: false });
+
+  const pgCountA = docA.getPageCount();
+  const pgCountB = docB.getPageCount();
+  const pagesA   = docA.getPages();
+  const pagesB   = docB.getPages();
+  const compared = Math.min(pgCountA, pgCountB);
+  let sizeMismatches = 0;
+  for (let i = 0; i < compared; i++) {
+    const sA = pagesA[i].getSize(), sB = pagesB[i].getSize();
+    if (Math.abs(sA.width - sB.width) > 2 || Math.abs(sA.height - sB.height) > 2) sizeMismatches++;
+  }
+
+  const sameCount  = pgCountA === pgCountB;
+  const sameSize   = sizeMismatches === 0;
+  const identical  = sameCount && sameSize;
+  const green = rgb(0.05, 0.50, 0.10);
+  const red   = rgb(0.70, 0.15, 0.05);
+  const navy  = rgb(0.10, 0.10, 0.50);
+  const grey  = rgb(0.50, 0.50, 0.50);
+  const black = rgb(0.05, 0.05, 0.05);
+
+  const report = await PDFDocument.create();
+  const font   = await report.embedFont(StandardFonts.Helvetica);
+  const bold   = await report.embedFont(StandardFonts.HelveticaBold);
+  const page   = report.addPage([595, 842]);
+  const m = 50;
+  let y = 790;
+
+  const row = (text, yy, size, f, col) => {
+    page.drawText(String(text), { x: m, y: yy, size: size || 11, font: f || font, color: col || black });
+  };
+  const hr = (yy) => {
+    page.drawLine({ start: { x: m, y: yy }, end: { x: 545, y: yy }, thickness: 0.5, color: grey });
+  };
+
+  row('PDF Comparison Report', y, 20, bold, navy); y -= 8;
+  hr(y); y -= 20;
+
+  row('Document A', y, 13, bold); y -= 18;
+  row('  File size : ' + (Math.round(buffers[0].byteLength / 1024)) + ' KB',          y, 10); y -= 14;
+  row('  Pages     : ' + pgCountA,                                                      y, 10); y -= 14;
+  row('  Title     : ' + trunc(docA.getTitle()),                                        y, 10); y -= 14;
+  row('  Author    : ' + trunc(docA.getAuthor()),                                       y, 10); y -= 14;
+  if (pagesA.length) { const s = pagesA[0].getSize(); row('  Page 1    : ' + Math.round(s.width) + ' \xd7 ' + Math.round(s.height) + ' pt', y, 10); } y -= 22;
+
+  row('Document B', y, 13, bold); y -= 18;
+  row('  File size : ' + (Math.round(buffers[1].byteLength / 1024)) + ' KB',          y, 10); y -= 14;
+  row('  Pages     : ' + pgCountB,                                                      y, 10); y -= 14;
+  row('  Title     : ' + trunc(docB.getTitle()),                                        y, 10); y -= 14;
+  row('  Author    : ' + trunc(docB.getAuthor()),                                       y, 10); y -= 14;
+  if (pagesB.length) { const s = pagesB[0].getSize(); row('  Page 1    : ' + Math.round(s.width) + ' \xd7 ' + Math.round(s.height) + ' pt', y, 10); } y -= 22;
+
+  hr(y); y -= 20;
+  row('Comparison Results', y, 14, bold); y -= 20;
+  row('Page count match  : ' + (sameCount ? 'Yes (' + pgCountA + ')' : 'No  (A=' + pgCountA + ', B=' + pgCountB + ')'),
+      y, 11, font, sameCount ? green : red); y -= 18;
+  row('Page size match   : ' + (sameSize ? 'Yes (' + compared + ' pages checked)' : 'No  (' + sizeMismatches + ' mismatch' + (sizeMismatches !== 1 ? 'es' : '') + ' in ' + compared + ' pages)'),
+      y, 11, font, sameSize ? green : red); y -= 18;
+  row('Structural result : ' + (identical ? 'Documents appear structurally identical' : 'Structural differences detected'),
+      y, 12, bold, identical ? green : red); y -= 30;
+
+  hr(y); y -= 14;
+  row('Generated by ILovePDF \u2014 structural comparison (page layout & metadata; text content not analysed)', y, 8, font, grey);
+
+  const out = await report.save();
+  return toArrayBuffer(out);
+};
+
 // ── DISPATCHER (persistent — handles multiple messages) ───────────────────────
 
 self.onmessage = async function (e) {

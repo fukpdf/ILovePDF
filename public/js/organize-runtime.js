@@ -1,17 +1,13 @@
-// Organize Runtime v1.0 — Phase 3 Bulk Migration
+// Organize Runtime v2.0 — Phase 4 Worker Promotion
 // Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
 //
-// Adapter mode: 'scheduler-only'
-//   organize() (reorder pages) in browser-tools.js runs pure pdf-lib on the
-//   main thread. pdf-worker.js does NOT have an OPS.organize entry.
-//   The factory wraps the original handler inside a RuntimeScheduler slot,
-//   adding: cancellation, telemetry, memory guards, progress reporting.
+// Adapter mode: 'worker'
+//   OPS.organize in pdf-worker.js reorders pages using pure pdf-lib.
+//   The factory reads files[0], transfers the ArrayBuffer to the worker (zero-copy),
+//   and returns a single PDF with pages in the requested order.
 //
 // Feature flag: window.RUNTIME_ORGANIZE_ENABLED = true (default)
 //   Set to false in DevTools to force legacy path.
-//
-// [FUTURE: OPS.organize in pdf-worker.js] Moving the page-reorder logic
-// to the worker would allow switching adapterMode to 'worker' here.
 //
 // Exposed as: window.OrganizeRuntime
 (function () {
@@ -31,9 +27,15 @@
     LOG:         '[ORT]',
 
     // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode: 'scheduler-only',
-    timeoutMs:   90000,
-    timerOwner:  'ort-tick',
+    adapterMode:   'worker',
+    timeoutMs:     90000,
+    workerTimeout: 90000,
+    timerOwner:    'ort-tick',
+
+    // ── Dedup key: tool + file identity + desired page order ─────────────────
+    buildDedupeKey: function (files, opts) {
+      return 'organize:' + (files[0] && files[0].name) + ':' + (files[0] && files[0].size) + ':' + (opts && opts.pageOrder || '');
+    },
 
     workerProgressMessages: [
       'Reordering pages…',
@@ -59,7 +61,7 @@
         pageOrder: (opts && opts.pageOrder) || '',
       };
     },
-    buildSuccessAttrs: function (files, blob, opts, ms) {
+    buildSuccessAttrs: function (files, blob, opts) {
       return {
         pageOrder:  (opts && opts.pageOrder) || '',
         inputBytes: files[0] && files[0].size,

@@ -228,9 +228,12 @@
   //   100% → done
 
   async function _workerDispatch(cfg, files, opts, onProgress, token) {
-    var toolId     = cfg.toolId;
-    var file       = files[0];
-    var totalBytes = file.size;
+    var toolId   = cfg.toolId;
+    // Multi-file support: cfg.multiFile reads every file in the array.
+    // Single-file tools (the default) only read files[0].
+    var fileList   = (cfg.multiFile && files.length > 1) ? files : [files[0]];
+    var file       = fileList[0];  // primary file — used for telemetry labels
+    var totalBytes = fileList.reduce(function (s, f) { return s + (f.size || 0); }, 0);
 
     // Pre-check: cancellation + memory
     if (token && token.cancelled) throw new Error('cancelled-before-read');
@@ -278,10 +281,15 @@
       throw new Error('cancelled-during-read');
     }
 
-    var buf;
+    // Read all file buffers (all files for multi-file tools; just files[0] otherwise).
+    var bufs = [];
+    var buf  = null; // primary buffer alias — kept for dedupeKey fallback reference
     try {
       // [FUTURE: StreamEngine] file.arrayBuffer() → OPFS byte-range stream
-      buf = await file.arrayBuffer();
+      for (var _fi = 0; _fi < fileList.length; _fi++) {
+        bufs.push(await fileList[_fi].arrayBuffer());
+      }
+      buf = bufs[0];
     } catch (readErr) {
       if (readSpanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(readSpanId, 'read-error');
       if (spanId     !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId,     'read-error');
@@ -292,7 +300,7 @@
     onProgress(50, 'Dispatching to worker…');
 
     if (token && token.cancelled) {
-      buf = null;
+      bufs.forEach(function (_, i) { bufs[i] = null; }); bufs = []; buf = null;
       if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
       throw new Error('cancelled-after-read');
     }
@@ -304,7 +312,7 @@
 
     var workerMsg = {
       tool:    toolId,
-      buffers: [buf],
+      buffers: bufs,   // all buffers — single element for single-file, N for multi-file
       options: opts,
     };
 
@@ -324,7 +332,7 @@
         workerResult = await window.RuntimeWorkers.dispatch(
           WORKER_URL,
           workerMsg,
-          [buf],
+          bufs,   // all buffers as transferables (zero-copy ownership to worker)
           {
             priority:  'normal',
             label:     toolId + '-worker',
@@ -342,14 +350,16 @@
         }
         var wpOpts = {};
         if (wpToken) wpOpts.token = wpToken;
-        workerResult = await window.WorkerPool.run(WORKER_URL, workerMsg, [buf], wpOpts);
+        workerResult = await window.WorkerPool.run(WORKER_URL, workerMsg, bufs, wpOpts);
       } else {
         // No worker infrastructure — signal caller to use legacy fallback.
         throw new Error('no-worker-runtime');
       }
     } finally {
       stopTicker();
-      buf = null; // release buffer reference immediately
+      // Release all buffer references immediately (single or multi-file)
+      if (bufs) { bufs.forEach(function (_, i) { bufs[i] = null; }); bufs = []; }
+      buf = null;
     }
 
     // Validate worker output

@@ -1,21 +1,13 @@
-// Split Runtime v1.0 — Phase 3 Bulk Migration
+// Split Runtime v2.0 — Phase 4 Worker Promotion
 // Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
 //
-// Adapter mode: 'scheduler-only'
-//   split() in browser-tools.js runs pure pdf-lib on the main thread.
-//   pdf-worker.js does NOT have an OPS.split entry, so worker dispatch is not
-//   available. The factory wraps the original handler inside a RuntimeScheduler
-//   slot, adding: cancellation tokens, telemetry spans, memory guards,
-//   concurrency control, and progress reporting.
+// Adapter mode: 'worker'
+//   OPS.split in pdf-worker.js handles page-range extraction using pure pdf-lib.
+//   The factory reads files[0], transfers the ArrayBuffer to the worker (zero-copy),
+//   and returns a single-output PDF containing the selected pages.
 //
 // Feature flag: window.RUNTIME_SPLIT_ENABLED = true (default)
 //   Set to false in DevTools to force legacy path.
-//
-// [FUTURE: StreamEngine] When StreamEngine ships, replace the Blob→ArrayBuffer
-// round-trip in _schedulerOnlyDispatch with OPFS chunk streaming.
-//
-// [FUTURE: OPS.split in pdf-worker.js] Adding split to the worker OPS table
-// would allow switching adapterMode to 'worker' here with no other changes.
 //
 // Exposed as: window.SplitRuntime
 (function () {
@@ -35,9 +27,15 @@
     LOG:         '[SRT]',
 
     // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode: 'scheduler-only',
-    timeoutMs:   90000,   // 90s hard cap; split is fast even on large PDFs
-    timerOwner:  'srt-tick',
+    adapterMode:   'worker',
+    timeoutMs:     90000,   // 90s hard cap; split is fast even on large PDFs
+    workerTimeout: 90000,
+    timerOwner:    'srt-tick',
+
+    // ── Dedup key: tool + file identity + page range ─────────────────────────
+    buildDedupeKey: function (files, opts) {
+      return 'split:' + (files[0] && files[0].name) + ':' + (files[0] && files[0].size) + ':' + (opts && opts.range || '');
+    },
 
     workerProgressMessages: [
       'Splitting PDF…',
@@ -47,7 +45,7 @@
     ],
 
     // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function (files) {
+    buildProgressTitle: function () {
       return 'Splitting PDF…';
     },
     buildProgressSubtitle: function (files, opts) {
@@ -63,7 +61,7 @@
         range: (opts && opts.range) || '',
       };
     },
-    buildSuccessAttrs: function (files, blob, opts, ms) {
+    buildSuccessAttrs: function (files, blob, opts) {
       return {
         range:       (opts && opts.range) || '',
         inputBytes:  files[0] && files[0].size,

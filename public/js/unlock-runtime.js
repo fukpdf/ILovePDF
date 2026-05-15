@@ -1,17 +1,14 @@
-// Unlock Runtime v1.0 — Phase 3 Bulk Migration
+// Unlock Runtime v2.0 — Phase 4 Worker Promotion
 // Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
 //
-// Adapter mode: 'scheduler-only'
-//   unlock() in browser-tools.js runs pure pdf-lib on the main thread.
-//   It loads the PDF with ignoreEncryption:true and re-saves without
-//   encryption — works for owner-password protected PDFs (the typical case).
-//   pdf-worker.js does NOT have an OPS.unlock entry.
+// Adapter mode: 'worker'
+//   OPS.unlock in pdf-worker.js loads the PDF with ignoreEncryption:true and
+//   re-saves it without encryption — removes owner-password protection.
+//   The factory reads files[0], transfers the ArrayBuffer to the worker (zero-copy),
+//   and returns a clean, unlocked PDF.
 //
 // Feature flag: window.RUNTIME_UNLOCK_ENABLED = true (default)
 //   Set to false in DevTools to force legacy path.
-//
-// [FUTURE: OPS.unlock in pdf-worker.js] Moving unlock to the worker OPS
-//   table would allow switching adapterMode to 'worker' here.
 //
 // Exposed as: window.UnlockRuntime
 (function () {
@@ -31,9 +28,15 @@
     LOG:         '[URT]',
 
     // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode: 'scheduler-only',
-    timeoutMs:   90000,
-    timerOwner:  'urt-tick',
+    adapterMode:   'worker',
+    timeoutMs:     90000,
+    workerTimeout: 90000,
+    timerOwner:    'urt-tick',
+
+    // ── Dedup key: tool + file identity ──────────────────────────────────────
+    buildDedupeKey: function (files) {
+      return 'unlock:' + (files[0] && files[0].name) + ':' + (files[0] && files[0].size);
+    },
 
     workerProgressMessages: [
       'Unlocking PDF…',
@@ -57,7 +60,7 @@
         size: files[0] && files[0].size,
       };
     },
-    buildSuccessAttrs: function (files, blob, opts, ms) {
+    buildSuccessAttrs: function (files, blob) {
       return {
         inputBytes: files[0] && files[0].size,
       };
