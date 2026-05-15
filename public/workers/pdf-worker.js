@@ -480,11 +480,104 @@ OPS.compare = async function (buffers, opts) {
   return toArrayBuffer(out);
 };
 
+// ── Phase 7A: Stream-Reader Protocol ─────────────────────────────────────────
+// Handles the chunk-ack and transferable-stream protocols from RuntimeStreamBridge.
+// Main thread sends chunks one at a time; worker acks each before main sends next.
+// Accumulation happens in WORKER RAM (not main thread) — eliminates main-thread spike.
+
+const _streamState = new Map(); // streamId → { chunks, tool, options, totalSize }
+
+function _mergeChunks(chunks) {
+  const total  = chunks.reduce(function (s, c) { return s + c.byteLength; }, 0);
+  const merged = new Uint8Array(total);
+  let offset   = 0;
+  for (const chunk of chunks) {
+    merged.set(new Uint8Array(chunk), offset);
+    offset += chunk.byteLength;
+  }
+  return merged.buffer;
+}
+
+async function _dispatchStream(streamId, tool, options) {
+  const state = _streamState.get(streamId);
+  if (!state) {
+    self.postMessage({ type: 'stream-error', streamId, __error: 'stream-state-lost' });
+    return;
+  }
+  _streamState.delete(streamId);
+  try {
+    const op = OPS[tool];
+    if (!op) throw new Error('Unknown tool: ' + tool);
+    const buf = _mergeChunks(state.chunks);
+    state.chunks = []; // free memory before op (op will allocate its own)
+    const resultBuffer = await op([buf], options || {});
+    if (!resultBuffer) throw new Error('No output produced');
+    self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
+  } catch (err) {
+    self.postMessage({ type: 'stream-error', streamId, __error: err.message || String(err) });
+  }
+}
+
 // ── DISPATCHER (persistent — handles multiple messages) ───────────────────────
 
 self.onmessage = async function (e) {
   const data = e.data || {};
 
+  // ── Phase 7A: chunk-ack streaming protocol ────────────────────────────────
+  if (data.type === 'stream-init') {
+    _streamState.set(data.streamId, {
+      chunks:    [],
+      tool:      data.tool,
+      options:   data.options,
+      totalSize: data.totalSize || 0,
+    });
+    return;
+  }
+
+  if (data.type === 'stream-chunk') {
+    const state = _streamState.get(data.streamId);
+    if (!state) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-init-not-received' });
+      return;
+    }
+    // Store chunk (already transferred — lives in worker RAM now, not main thread)
+    state.chunks.push(data.chunk);
+    // Ack immediately to allow main thread to send next chunk (backpressure)
+    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex });
+    if (data.isLast) {
+      await _dispatchStream(data.streamId, state.tool, state.options);
+    }
+    return;
+  }
+
+  if (data.type === 'stream-cancel') {
+    _streamState.delete(data.streamId);
+    return;
+  }
+
+  // ── Phase 7A: transferable ReadableStream (path A) ─────────────────────────
+  if (data.type === 'stream-pipe') {
+    try {
+      const reader = data.stream.getReader();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value instanceof ArrayBuffer ? value : (value.buffer || value));
+      }
+      const op = OPS[data.tool];
+      if (!op) throw new Error('Unknown tool: ' + data.tool);
+      const buf          = _mergeChunks(chunks);
+      const resultBuffer = await op([buf], data.options || {});
+      if (!resultBuffer) throw new Error('No output produced');
+      self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: resultBuffer }, [resultBuffer]);
+    } catch (err) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: err.message || String(err) });
+    }
+    return;
+  }
+
+  // ── Standard one-shot dispatch ─────────────────────────────────────────────
   // Phase 4: SAB mode — buffers were shared, not transferred
   let buffers = data.buffers || [];
   if (data._sabMode && buffers.length === 0 && data._sabCount > 0) {

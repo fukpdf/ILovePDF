@@ -224,21 +224,31 @@
     var chunkIndex = 0;
     var chunks     = [];
 
-    // Collect all chunks first (for workers that need full data)
+    // Phase 7A: pipeline streaming — dispatch each chunk immediately without
+    // accumulating all chunks in RAM. Peak main-thread RAM = 1 chunk (not full file).
+    // Uses a look-ahead of 1 chunk to detect isLast without pre-loading everything.
     var reader = createChunkReader(fileOrHandle, { token: token, onProgress: opts.onProgress });
+    var _hasPeeked = false;
+    var _peekedChunk = null;
+
     for await (var chunk of reader) {
-      chunks.push(chunk);
+      if (_hasPeeked) {
+        // Previous chunk is NOT the last — dispatch it now
+        if (token && token.cancelled) break;
+        var result = await workerFn(_peekedChunk, chunkIndex, false, totalSize);
+        results.push(result);
+        chunkIndex++;
+        // Yield to event loop between chunks for backpressure / UI responsiveness
+        await new Promise(function (r) { setTimeout(r, 0); });
+      }
+      _hasPeeked    = true;
+      _peekedChunk  = chunk;
     }
 
-    if (token && token.cancelled) throw new Error('cancelled');
-
-    // Dispatch each chunk to worker
-    for (var i = 0; i < chunks.length; i++) {
-      if (token && token.cancelled) break;
-      var isLast = (i === chunks.length - 1);
-      var result = await workerFn(chunks[i], i, isLast, totalSize);
-      results.push(result);
-      chunkIndex++;
+    // Dispatch the final chunk (isLast = true)
+    if (_hasPeeked && _peekedChunk !== null && !(token && token.cancelled)) {
+      var lastResult = await workerFn(_peekedChunk, chunkIndex, true, totalSize);
+      results.push(lastResult);
     }
 
     return results;
@@ -466,6 +476,25 @@
     streamFromWorker:    streamFromWorker,
     sweepOpfs:           sweepOpfs,
     isReady:             isReady,
+
+    // Phase 7A — transferable stream bridge integration
+    // Delegates to RuntimeStreamBridge (loaded separately). Checked lazily so
+    // the bridge module can load after RuntimeStreaming without ordering issues.
+    supportsTransferableStreams: function () {
+      return global.RuntimeStreamBridge
+        ? global.RuntimeStreamBridge.supportsTransferableStreams()
+        : false;
+    },
+    streamToWorkerReadable: function (workerUrl, file, message, opts) {
+      if (!global.RuntimeStreamBridge) {
+        return Promise.reject(new Error('RuntimeStreamBridge not loaded — load runtime-stream-bridge.js'));
+      }
+      return global.RuntimeStreamBridge.streamToWorkerReadable(workerUrl, file, message, opts);
+    },
+    pipelineStreamToWorker: function (workerUrl, file, message, opts) {
+      if (!global.RuntimeStreamBridge) return Promise.resolve(null);
+      return global.RuntimeStreamBridge.pipelineStreamToWorker(workerUrl, file, message, opts);
+    },
 
     // Phase 2 compat (upgraded)
     markFullLoad:        markFullLoad,

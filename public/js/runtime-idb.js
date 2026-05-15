@@ -306,14 +306,15 @@
   // ── HEALTH HISTORY ARCHIVING ───────────────────────────────────────────────
   var _MAX_HEALTH_RECORDS = 20;
 
-  function archiveHealth(snapshot) {
+  // Phase 7F: _archiveHealthDirect — unbounced write used by the coalescer's
+  // flush path. Called only after the coalescer has already collapsed rapid-fire
+  // health events into a single write per 10-second window.
+  function _archiveHealthDirect(snapshot) {
     if (!_available || !snapshot) return Promise.resolve();
     return _put(STORE_HEALTH, Object.assign({ key: Date.now() }, snapshot))
       .then(function () {
-        // Rolling trim: keep only last 20
         return _getAll(STORE_HEALTH).then(function (all) {
           if (!all || all.length <= _MAX_HEALTH_RECORDS) return;
-          // Sort by ts, delete oldest
           all.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
           var toDelete = all.slice(0, all.length - _MAX_HEALTH_RECORDS);
           toDelete.forEach(function (r) {
@@ -321,6 +322,30 @@
           });
         });
       }).catch(function () {});
+  }
+
+  // Phase 7F: _putDirect — raw store write used by RuntimeIDBCoalescer.
+  function _putDirect(store, record) {
+    return _put(store, record);
+  }
+
+  function archiveHealth(snapshot) {
+    if (!_available || !snapshot) return Promise.resolve();
+
+    // Phase 7F: route through coalescer — collapses all writes in the same
+    // 10-second window into a single IDB transaction (eliminates write storm).
+    if (global.RuntimeIDBCoalescer) {
+      global.RuntimeIDBCoalescer.schedule(STORE_HEALTH, Object.assign({ key: Date.now() }, snapshot), {
+        importance: 'background',
+        // All health events in the same 10-second bucket share the same dedup key,
+        // so only the most recent snapshot in that window reaches the database.
+        key: 'health-' + Math.floor(Date.now() / 10000),
+      });
+      return Promise.resolve();
+    }
+
+    // Direct write (fallback when coalescer not yet loaded)
+    return _archiveHealthDirect(snapshot);
   }
 
   // Subscribe to health changes
@@ -454,17 +479,22 @@
 
   // Expose immediately
   global.RuntimeIDB = {
-    persistState:      persistState,
-    restoreState:      restoreState,
-    saveCheckpoint:    saveCheckpoint,
-    getCheckpoint:     getCheckpoint,
-    clearCheckpoint:   clearCheckpoint,
-    getAllCheckpoints:  getAllCheckpoints,
-    archiveHealth:     archiveHealth,
-    sweepOrphans:      sweepOrphans,
-    purge:             purge,
-    getStats:          getStats,
-    isAvailable:       function () { return _available; },
+    persistState:       persistState,
+    restoreState:       restoreState,
+    saveCheckpoint:     saveCheckpoint,
+    getCheckpoint:      getCheckpoint,
+    deleteCheckpoint:   clearCheckpoint,  // Phase 7G alias for CrashRecoveryUI
+    clearCheckpoint:    clearCheckpoint,
+    getAllCheckpoints:   getAllCheckpoints,
+    archiveHealth:      archiveHealth,
+    sweepOrphans:       sweepOrphans,
+    purge:              purge,
+    getStats:           getStats,
+    isAvailable:        function () { return _available; },
+    // Phase 7F: internal methods exposed for RuntimeIDBCoalescer
+    _putDirect:         _putDirect,
+    _archiveHealthDirect: _archiveHealthDirect,
+    _coalescerWired:    true,  // certification flag
   };
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {

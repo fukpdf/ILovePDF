@@ -287,7 +287,34 @@ document.addEventListener('DOMContentLoaded', () => {
   // If hydration succeeds the user can refresh on /preview or /download
   // and keep their place; otherwise renderStep's guards send them back to
   // the upload step automatically.
-  hydrateFlowState().finally(() => renderStep());
+  hydrateFlowState().finally(() => {
+    renderStep();
+    // Phase 7G: crash recovery — show banner if an interrupted session exists.
+    // Runs after renderStep() so the tool UI is already visible before the banner appears.
+    if (window.CrashRecoveryUI && currentTool && Flow.step === 'upload') {
+      const toolIdForCrash = currentTool.id;
+      const slugForCrash   = Flow.baseSlug();
+      window.CrashRecoveryUI.check(toolIdForCrash, slugForCrash, {
+        onResume: function (checkpoint) {
+          // Re-run hydration with the restored checkpoint data
+          hydrateFlowState().then(function (ok) {
+            if (ok) renderStep();
+          }).catch(function () {});
+          if (window.RuntimeTelemetry) {
+            try { window.RuntimeTelemetry.record('crash-recovery:tool-resumed', { tool: toolIdForCrash }); } catch (_) {}
+          }
+        },
+        onDiscard: function () {
+          // Clear flow state and restart fresh
+          Flow.reset();
+          if (window.ToolState) {
+            try { window.ToolState.clear(slugForCrash); } catch (_) {}
+          }
+          renderStep();
+        },
+      }).catch(function () {});
+    }
+  });
 });
 
 function renderNotFound(toolId, slug) {

@@ -4939,18 +4939,47 @@
   // ── Helper: send pixels to the preprocessor worker via WorkerPool ──────────
   // Returns { pixels: ArrayBuffer, width, height } or null on any failure.
   // rawPixelsBuf is TRANSFERRED (detached after call) — caller must pass a .slice().
+  //
+  // Phase 7C: upgraded to route through RuntimeWorkers.dispatch() when available.
+  // This adds full lifecycle management: cooldown detection, zombie prevention,
+  // timeout enforcement, telemetry spans, and cancellation token propagation.
+  // Falls back to direct WorkerPool.run() for backward compatibility.
   async function _ocrPreprocessPage(rawPixelsBuf, w, h, mode) {
+    var msg = { pixels: rawPixelsBuf, width: w, height: h, mode: mode };
+
+    // Phase 7C preferred path: RuntimeWorkers.dispatch() with full orchestration
+    if (window.RuntimeWorkers && window.RuntimeWorkers.dispatch) {
+      try {
+        var result = await window.RuntimeWorkers.dispatch(
+          OCR_PREPROCESSOR_URL,
+          msg,
+          [rawPixelsBuf],  // transferable — zero-copy
+          {
+            priority:  'high',        // OCR preprocessing is on the critical path
+            label:     'ocr-preprocess-' + mode,
+            timeoutMs: 15000,         // 15 s — preprocessing should be fast
+            // No dedupeKey: each page has unique pixels
+          }
+        );
+        if (!result || !result.pixels) return null;
+        return result;
+      } catch (_) {
+        return null; // preprocessor unavailable / timed out → caller uses raw path
+      }
+    }
+
+    // Legacy fallback: direct WorkerPool.run() (Phase 7C: bypasses lifecycle mgmt)
     if (!window.WorkerPool) return null;
     try {
-      var result = await window.WorkerPool.run(
+      var legacyResult = await window.WorkerPool.run(
         OCR_PREPROCESSOR_URL,
-        { pixels: rawPixelsBuf, width: w, height: h, mode: mode },
-        [rawPixelsBuf]  // transferable — detaches rawPixelsBuf in main thread
+        msg,
+        [rawPixelsBuf]
       );
-      if (!result || !result.pixels) return null;
-      return result; // { pixels: ArrayBuffer (RGBA), width, height }
+      if (!legacyResult || !legacyResult.pixels) return null;
+      return legacyResult;
     } catch (_) {
-      return null; // preprocessor unavailable → caller uses raw path
+      return null;
     }
   }
 

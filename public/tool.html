@@ -257,6 +257,19 @@
   <!-- Phase 6B — OPFS Streaming Engine (replaces streaming stubs) -->
   <!-- runtime-streaming-hooks.js is already loaded above; engine is live -->
   <!-- Phase 6C — Advanced Worker Pooling already active via WorkerPool in advanced-engine.js -->
+  <!-- Phase 7 — Production-Grade Stream Pipeline, Adaptive Engine, IDB Coalescing, Crash Recovery -->
+  <!-- 7E: Adaptive pipeline (load first — bridges use it for chunk sizing) -->
+  <script src="/js/runtime-adaptive-pipeline.js"></script>
+  <!-- 7A: Transferable stream bridge (load before runtime-stream-bridge references) -->
+  <script src="/js/runtime-stream-bridge.js"></script>
+  <!-- 7B: PDF byte-range index (partial OPFS staging for split/organize/compare) -->
+  <script src="/js/pdf-byte-range-index.js"></script>
+  <!-- 7F: IDB write coalescer (load before runtime-idb archiveHealth subscription fires) -->
+  <script src="/js/runtime-idb-coalescer.js"></script>
+  <!-- 7G: Crash recovery UI (load before tool-page.js DOMContentLoaded) -->
+  <script src="/js/crash-recovery-ui.js"></script>
+  <!-- 7I: Production certification (dev + console diagnostics only) -->
+  <script src="/js/runtime-production-certification.js" defer></script>
   <!-- Phase 6D — Cross-tab BroadcastChannel Coordination -->
   <script src="/js/runtime-cross-tab.js"></script>
   <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->

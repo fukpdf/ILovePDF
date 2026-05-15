@@ -1398,10 +1398,73 @@ function chunkTextScore(text, maxSentences) {
   };
 }
 
+// ── Phase 7A: Stream-Reader Protocol (advanced-worker) ────────────────────────
+// Mirrors the protocol in pdf-worker.js. Allows RuntimeStreamBridge to stream
+// large files into this worker without full-buffer accumulation in the main thread.
+// Advanced-worker ops are data-message based (op field), not buffer-based,
+// so the stream protocol primarily supports future large-input ops.
+
+var _awStreamState = new Map();
+
+function _awMergeChunks(chunks) {
+  var total  = chunks.reduce(function (s, c) { return s + c.byteLength; }, 0);
+  var merged = new Uint8Array(total);
+  var offset = 0;
+  for (var i = 0; i < chunks.length; i++) {
+    merged.set(new Uint8Array(chunks[i]), offset);
+    offset += chunks[i].byteLength;
+  }
+  return merged.buffer;
+}
+
 // ── DISPATCHER (persistent — handles multiple messages) ───────────────────────
 
 self.onmessage = async function (e) {
   var data = e.data || {};
+
+  // Phase 7A: chunk-ack streaming protocol
+  if (data.type === 'stream-init') {
+    _awStreamState.set(data.streamId, { chunks: [], op: data.op, options: data.options, totalSize: data.totalSize || 0 });
+    return;
+  }
+  if (data.type === 'stream-chunk') {
+    var _awState = _awStreamState.get(data.streamId);
+    if (!_awState) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-init-not-received' });
+      return;
+    }
+    _awState.chunks.push(data.chunk);
+    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex });
+    if (data.isLast) {
+      var _awBuf = _awMergeChunks(_awState.chunks);
+      _awState.chunks = [];
+      _awStreamState.delete(data.streamId);
+      try {
+        self.postMessage({ type: 'stream-done', streamId: data.streamId, receivedBytes: _awBuf.byteLength });
+      } catch (err) {
+        self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: err.message || String(err) });
+      }
+    }
+    return;
+  }
+  if (data.type === 'stream-cancel') { _awStreamState.delete(data.streamId); return; }
+  if (data.type === 'stream-pipe') {
+    try {
+      var _awReader = data.stream.getReader();
+      var _awChunks = [];
+      while (true) {
+        var _awR = await _awReader.read();
+        if (_awR.done) break;
+        _awChunks.push(_awR.value instanceof ArrayBuffer ? _awR.value : (_awR.value.buffer || _awR.value));
+      }
+      var _awTotal = _awMergeChunks(_awChunks);
+      self.postMessage({ type: 'stream-done', streamId: data.streamId, receivedBytes: _awTotal.byteLength });
+    } catch (_awErr) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: _awErr.message || String(_awErr) });
+    }
+    return;
+  }
+
   try {
     switch (data.op) {
       case 'build-docx': {

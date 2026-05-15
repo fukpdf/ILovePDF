@@ -257,7 +257,84 @@
 
     onProgress(5, 'Preparing file…');
 
-    // [FUTURE: StreamEngine] Replace arrayBuffer() with OPFS byte-range reader.
+    // Phase 7D/7H: Stream-native file reads — for large single-file tools, attempt
+    // to stream the file into the worker via RuntimeStreamBridge (chunk-ack protocol)
+    // instead of pulling the entire file into main-thread RAM first.
+    // Workers receive chunks and reassemble in their own RAM (no main-thread spike).
+    //
+    // Conditions for streaming path:
+    //   • Single-file tool (multiFile tools still use full read — merge needs all files)
+    //   • File size > WORKER_STREAM_THRESHOLD (10 MB — below this, arrayBuffer is fine)
+    //   • RuntimeStreamBridge is loaded
+    //   • Not in EMERGENCY memory tier (avoid spawning extra workers under pressure)
+    var WORKER_STREAM_THRESHOLD = 10 * 1024 * 1024; // 10 MB
+    var _canStream = (
+      !cfg.multiFile &&
+      fileList.length === 1 &&
+      file.size > WORKER_STREAM_THRESHOLD &&
+      window.RuntimeStreamBridge &&
+      !(window.RuntimeMemory && window.RuntimeMemory.isEmergency())
+    );
+
+    if (_canStream) {
+      // Mark that we are using stream-native path (not a full-load)
+      if (window.RuntimeTelemetry) {
+        try {
+          window.RuntimeTelemetry.record(toolId + ':stream-native-dispatch', {
+            name: file.name, size: file.size,
+          });
+        } catch (_) {}
+      }
+      onProgress(10, 'Streaming file to worker…');
+
+      if (token && token.cancelled) {
+        if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
+        throw new Error('cancelled-during-stream');
+      }
+
+      var dedupeKeyStream = cfg.buildDedupeKey
+        ? cfg.buildDedupeKey(files, opts)
+        : (toolId + ':' + file.name + ':' + file.size);
+
+      var stopTickerStream = _startProgressTicker(
+        10,
+        cfg.workerProgressMessages || ['Streaming…', 'Processing…', 'Building PDF…', 'Finalising…'],
+        (cfg.timerOwner || toolId) + '-stream-tk',
+        onProgress
+      );
+
+      var streamResult;
+      try {
+        streamResult = await window.RuntimeStreamBridge.streamToWorkerReadable(
+          WORKER_URL,
+          file,
+          { tool: toolId, options: opts },
+          { token: token, onProgress: onProgress }
+        );
+      } catch (streamErr) {
+        stopTickerStream();
+        // Stream failed — fall through to full arrayBuffer() path below
+        console.warn('[PWRF]', toolId, 'stream-native failed, falling back to arrayBuffer:', streamErr.message);
+        _canStream = false;
+        if (window.RuntimeTelemetry) {
+          try { window.RuntimeTelemetry.record(toolId + ':stream-native-fallback', { error: streamErr.message }); } catch (_) {}
+        }
+      }
+
+      if (_canStream && streamResult) {
+        stopTickerStream();
+        if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'ok');
+        onProgress(95, 'Done!');
+        // streamResult.buffer is the worker result — same shape as _workerDispatch result
+        if (!streamResult.buffer) throw new Error('stream-native: worker produced no output');
+        return { buffer: streamResult.buffer, blobSize: streamResult.buffer.byteLength };
+      }
+      if (_canStream) {
+        stopTickerStream();
+      }
+    }
+
+    // Full arrayBuffer() read path (small files, multiFile tools, or stream fallback)
     if (window.RuntimeStreaming && window.RuntimeStreaming.markFullLoad) {
       window.RuntimeStreaming.markFullLoad(toolId + ':read-file', {
         name: file.name, size: totalBytes,
@@ -285,7 +362,6 @@
     var bufs = [];
     var buf  = null; // primary buffer alias — kept for dedupeKey fallback reference
     try {
-      // [FUTURE: StreamEngine] file.arrayBuffer() → OPFS byte-range stream
       for (var _fi = 0; _fi < fileList.length; _fi++) {
         bufs.push(await fileList[_fi].arrayBuffer());
       }
