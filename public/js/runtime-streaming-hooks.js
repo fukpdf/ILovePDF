@@ -1,176 +1,474 @@
-// Runtime Streaming Hooks v1.0 — Phase 2 (T034)
-// Prepares streaming integration points WITHOUT implementing full streaming.
-// Marks all current full-file-load patterns, provides chunk routing stubs,
-// stream-aware scheduling slots, partial processing hooks, incremental
-// rendering hooks, and chunk telemetry hooks.
+// ILovePDF — Runtime Streaming Engine v2.0 — Phase 6B
+// =====================================================================
+// Phase 2 (T034) stub layer REPLACED with real OPFS streaming engine.
 //
-// THIS FILE IS INTENTIONALLY STUB-HEAVY.
-// Real streaming will be wired in a future phase (StreamEngine).
-// Every stub is a [FUTURE: StreamEngine] marked migration point.
+// Provides:
+//   RuntimeStreaming.openFile(file)              — stage file to OPFS
+//   RuntimeStreaming.createChunkReader(file,opts) — real async chunk iterator
+//   RuntimeStreaming.streamToWorker(handle,fn,opts) — stream chunks → worker
+//   RuntimeStreaming.streamFromWorker(result,opts)  — wrap result → stream
+//   RuntimeStreaming.processPartial(file,fn,opts)   — chunk-aware processor
+//   RuntimeStreaming.shouldStream(file)             — real OPFS gate
+//   RuntimeStreaming.isReady()                     — true when OPFS available
+//   RuntimeStreaming.getCapabilities()             — live capability probe
 //
-// Calling code can use these hooks today and get correct behavior;
-// when StreamEngine lands, only the hook bodies change — no callsites.
+// All prior stub APIs remain — callers using the Phase 2 surface continue
+// to work without modification. New callers use the Phase 6B surface.
 //
-// Integrates: RuntimeTelemetry, RuntimeEventBus, P1 (streamMarker),
-//             RuntimeScheduler (future)
+// Streaming is gated: files < STREAM_THRESHOLD_BYTES use the original
+// full-read path. Files >= threshold use OPFS chunked streaming when
+// the browser supports it. Graceful fallback to full-read otherwise.
 //
-// [FUTURE: StreamEngine] When activated, replace stub bodies with:
-//   - OPFS byte-range parser (phase32)
-//   - RollingWindow page streaming (giant-file-routing)
-//   - SurvivalMode for huge files (phase32)
-//   - Incremental canvas rendering (future)
-//
-// Exposed as: window.RuntimeStreaming
-(function () {
+// Integrates: RuntimeTelemetry, RuntimeEventBus, RuntimeProgress,
+//             RuntimeCancellation, RuntimeScheduler, P1 streamMarkers
+// =====================================================================
+(function (global) {
   'use strict';
 
-  if (window.RuntimeStreaming) return;
+  if (global.RuntimeStreaming) return;
 
-  var LOG = '[RSH]';
+  var LOG = '[RSE]';
 
-  // ── Stream markers ────────────────────────────────────────────────────────
-  // All full-file-load sites should call markFullLoad() so StreamEngine
-  // can discover and replace them without grep.
+  // ── Configuration ─────────────────────────────────────────────────────────
+  var STREAM_THRESHOLD_BYTES = 10 * 1024 * 1024;  // 10 MB — stream above this
+  var DEFAULT_CHUNK_BYTES    =  4 * 1024 * 1024;  //  4 MB chunks
+  var OPFS_DIR               = 'ilovepdf-stream';  // OPFS subdirectory name
+  var MAX_OPFS_FILE_AGE_MS   = 30 * 60 * 1000;    // 30 min — sweep stale OPFS files
+
+  // ── Capability detection ──────────────────────────────────────────────────
+  var _opfsSupported = !!(
+    typeof navigator !== 'undefined' &&
+    navigator.storage &&
+    typeof navigator.storage.getDirectory === 'function'
+  );
+  var _readableStreamSupported = typeof ReadableStream !== 'undefined';
+  var _transferableStream = _readableStreamSupported &&
+    _safe(function () { return typeof new ReadableStream().pipeTo === 'function'; }, false);
+
+  function _safe(fn, def) { try { return fn(); } catch (_) { return def; } }
+
+  // ── Stream markers (Phase 2 backward compat) ──────────────────────────────
   var _markers = [];
 
   function markFullLoad(label, opts) {
     var m = { label: label, opts: opts || {}, ts: Date.now() };
     _markers.push(m);
-    // Forward to P1.streamMarker for backward compatibility
-    if (window.P1 && window.P1.streamMarker) {
-      try { window.P1.streamMarker(label, opts); } catch (_) {}
+    if (global.P1 && global.P1.streamMarker) {
+      try { global.P1.streamMarker(label, opts); } catch (_) {}
     }
-    if (window.RuntimeTelemetry) {
-      try { window.RuntimeTelemetry.record('stream:marker', { label: label }); } catch (_) {}
+    if (global.RuntimeTelemetry) {
+      try { global.RuntimeTelemetry.record('stream:marker', { label: label }); } catch (_) {}
     }
-    // [FUTURE: StreamEngine] Check if label matches a stream-capable pattern;
-    // if so, return a StreamHandle instead of null.
-    return null; // stub — StreamEngine returns StreamHandle here
+    return null;
   }
 
-  // ── Chunk routing ─────────────────────────────────────────────────────────
-  // [FUTURE: StreamEngine] Route a file through the byte-range chunker.
-  // Today: returns null (caller falls back to full-file read).
-  // Future: returns AsyncIterable<Uint8Array> chunks.
-  function createChunkReader(file, opts) {
+  // ── OPFS root handle ──────────────────────────────────────────────────────
+  var _opfsRoot = null;
+
+  async function _getOpfsDir() {
+    if (!_opfsSupported) throw new Error('OPFS not available');
+    if (!_opfsRoot) {
+      var root = await navigator.storage.getDirectory();
+      _opfsRoot = await root.getDirectoryHandle(OPFS_DIR, { create: true });
+    }
+    return _opfsRoot;
+  }
+
+  // ── Phase 6B — openFile ───────────────────────────────────────────────────
+  // Copies a File/Blob into OPFS for byte-range access.
+  // Returns: { handle: FileSystemFileHandle, name, size, opfsName }
+  // Falls back silently to { handle: null, file } if OPFS unavailable.
+  async function openFile(file) {
+    if (!file) throw new Error('openFile: file required');
+    if (!_opfsSupported) return { handle: null, file: file, opfs: false };
+
+    var opfsName = 'stream-' + Date.now() + '-' + (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    try {
+      var dir    = await _getOpfsDir();
+      var handle = await dir.getFileHandle(opfsName, { create: true });
+      var writable = await handle.createWritable();
+
+      // Stream the file into OPFS in chunks to avoid OOM on large files
+      var chunkSize = DEFAULT_CHUNK_BYTES;
+      var offset = 0;
+      while (offset < file.size) {
+        var slice = file.slice(offset, offset + chunkSize);
+        var ab    = await slice.arrayBuffer();
+        await writable.write(ab);
+        offset += chunkSize;
+
+        if (global.RuntimeTelemetry) {
+          try {
+            global.RuntimeTelemetry.record('stream:opfs-write-chunk', {
+              name: file.name, offset: offset, total: file.size,
+            });
+          } catch (_) {}
+        }
+      }
+      await writable.close();
+
+      if (global.RuntimeEventBus) {
+        try { global.RuntimeEventBus.emit('stream:chunk', { label: 'opfs-open', chunkIndex: 0, chunkBytes: file.size, totalBytes: file.size }); } catch (_) {}
+      }
+
+      return { handle: handle, opfsName: opfsName, name: file.name, size: file.size, opfs: true };
+
+    } catch (err) {
+      console.warn(LOG, 'openFile OPFS write failed, falling back to memory:', err.message);
+      return { handle: null, file: file, opfs: false };
+    }
+  }
+
+  // ── Phase 6B — createChunkReader ─────────────────────────────────────────
+  // Returns an async generator that yields Uint8Array chunks.
+  // If OPFS handle is provided, reads from OPFS byte-ranges.
+  // If only a File is provided, uses File.slice() for chunking.
+  // Falls back to yielding the full ArrayBuffer if chunking fails.
+  async function* createChunkReader(fileOrHandle, opts) {
     opts = opts || {};
-    // [FUTURE: StreamEngine] if file.size > opts.threshold and OPFS available,
-    // return an OPFS-backed byte-range reader with adaptive chunk sizing.
-    if (window.RuntimeTelemetry) {
-      try { window.RuntimeTelemetry.record('stream:chunk-read-stub', { size: file && file.size }); } catch (_) {}
+    var chunkSize = opts.chunkBytes || DEFAULT_CHUNK_BYTES;
+    var token     = opts.token || null;
+
+    // Determine source
+    var isOpfsHandle = fileOrHandle && fileOrHandle.opfs && fileOrHandle.handle;
+    var file = isOpfsHandle ? null : (fileOrHandle && fileOrHandle.file ? fileOrHandle.file : fileOrHandle);
+    var totalSize = fileOrHandle ? (fileOrHandle.size || (file && file.size) || 0) : 0;
+
+    if (global.RuntimeTelemetry) {
+      try { global.RuntimeTelemetry.record('stream:chunk-read-start', { size: totalSize, opfs: !!isOpfsHandle }); } catch (_) {}
     }
-    return null; // stub
+
+    if (isOpfsHandle) {
+      // OPFS byte-range path
+      try {
+        var opfsFile = await fileOrHandle.handle.getFile();
+        var offset = 0;
+        var chunkIndex = 0;
+        while (offset < opfsFile.size) {
+          if (token && token.cancelled) { return; }
+          var end   = Math.min(offset + chunkSize, opfsFile.size);
+          var slice = opfsFile.slice(offset, end);
+          var ab    = await slice.arrayBuffer();
+          yield new Uint8Array(ab);
+
+          recordChunk('opfs-read', chunkIndex, ab.byteLength, opfsFile.size);
+          offset += chunkSize;
+          chunkIndex++;
+
+          if (opts.onProgress) {
+            try { opts.onProgress(Math.round((offset / opfsFile.size) * 100)); } catch (_) {}
+          }
+        }
+        return;
+      } catch (err) {
+        console.warn(LOG, 'OPFS chunk read failed, falling back to full read:', err.message);
+        // Fall through to full-read fallback
+      }
+    }
+
+    // File.slice() path (no OPFS, or OPFS failed)
+    if (file && file.size <= DEFAULT_CHUNK_BYTES * 2) {
+      // Small file — just read whole thing
+      var ab = await file.arrayBuffer();
+      yield new Uint8Array(ab);
+      return;
+    }
+
+    if (file) {
+      var off = 0;
+      var ci  = 0;
+      while (off < file.size) {
+        if (token && token.cancelled) { return; }
+        var sliceEnd = Math.min(off + chunkSize, file.size);
+        var sliceAb  = await file.slice(off, sliceEnd).arrayBuffer();
+        yield new Uint8Array(sliceAb);
+        recordChunk('file-slice', ci, sliceAb.byteLength, file.size);
+        off += chunkSize;
+        ci++;
+        if (opts.onProgress) {
+          try { opts.onProgress(Math.round((off / file.size) * 100)); } catch (_) {}
+        }
+      }
+      return;
+    }
+
+    // Last resort: if we got a raw ArrayBuffer
+    if (fileOrHandle instanceof ArrayBuffer) {
+      yield new Uint8Array(fileOrHandle);
+    }
   }
 
-  // ── Partial processing hook ───────────────────────────────────────────────
-  // [FUTURE: StreamEngine] Called when a tool can process page-by-page.
-  // Today: runs fn(entireFile) synchronously.
-  // Future: runs fn(chunk) for each chunk, aggregating results.
+  // ── Phase 6B — streamToWorker ─────────────────────────────────────────────
+  // Streams chunks from an openFile() handle to a worker function.
+  // workerFn receives: (chunk: Uint8Array, chunkIndex, isLast, totalSize) → Promise<any>
+  // Results are collected and returned as an array.
+  // Falls back to full-file workerFn call if streaming not needed.
+  async function streamToWorker(fileOrHandle, workerFn, opts) {
+    opts = opts || {};
+    var token    = opts.token || null;
+    var totalSize = fileOrHandle ? (fileOrHandle.size || (fileOrHandle.file && fileOrHandle.file.size) || 0) : 0;
+
+    // Use full-read path for small files
+    if (totalSize < STREAM_THRESHOLD_BYTES || !_opfsSupported) {
+      var srcFile = fileOrHandle && fileOrHandle.file ? fileOrHandle.file : fileOrHandle;
+      if (srcFile && typeof srcFile.arrayBuffer === 'function') {
+        markFullLoad('stream-to-worker:small-file', { size: totalSize });
+        var ab = await srcFile.arrayBuffer();
+        return [await workerFn(new Uint8Array(ab), 0, true, totalSize)];
+      }
+    }
+
+    // Streaming path
+    var results    = [];
+    var chunkIndex = 0;
+    var chunks     = [];
+
+    // Collect all chunks first (for workers that need full data)
+    var reader = createChunkReader(fileOrHandle, { token: token, onProgress: opts.onProgress });
+    for await (var chunk of reader) {
+      chunks.push(chunk);
+    }
+
+    if (token && token.cancelled) throw new Error('cancelled');
+
+    // Dispatch each chunk to worker
+    for (var i = 0; i < chunks.length; i++) {
+      if (token && token.cancelled) break;
+      var isLast = (i === chunks.length - 1);
+      var result = await workerFn(chunks[i], i, isLast, totalSize);
+      results.push(result);
+      chunkIndex++;
+    }
+
+    return results;
+  }
+
+  // ── Phase 6B — streamFromWorker ───────────────────────────────────────────
+  // Wraps a worker result (ArrayBuffer / Uint8Array / Blob) in a ReadableStream.
+  // Consumers can pipe the stream to a WritableStream or collect chunks.
+  function streamFromWorker(result, opts) {
+    opts = opts || {};
+
+    if (!_readableStreamSupported) {
+      // Fallback: return plain buffer
+      return { stream: null, buffer: result };
+    }
+
+    var buffer = null;
+    if (result instanceof ArrayBuffer)          buffer = result;
+    else if (result instanceof Uint8Array)      buffer = result.buffer;
+    else if (result && result.buffer instanceof ArrayBuffer) buffer = result.buffer;
+
+    if (!buffer) return { stream: null, buffer: null, error: 'unsupported result type' };
+
+    var chunkSize = opts.chunkBytes || DEFAULT_CHUNK_BYTES;
+    var totalSize = buffer.byteLength;
+    var offset = 0;
+
+    var stream = new ReadableStream({
+      pull: function (controller) {
+        if (offset >= totalSize) { controller.close(); return; }
+        var end   = Math.min(offset + chunkSize, totalSize);
+        var chunk = buffer.slice(offset, end);
+        controller.enqueue(new Uint8Array(chunk));
+        offset = end;
+        recordChunk('worker-out', Math.floor(offset / chunkSize), chunk.byteLength, totalSize);
+      },
+      cancel: function () {
+        if (global.RuntimeTelemetry) {
+          try { global.RuntimeTelemetry.record('stream:from-worker-cancelled', {}); } catch (_) {}
+        }
+      },
+    });
+
+    return { stream: stream, totalSize: totalSize };
+  }
+
+  // ── processPartial (upgraded from stub) ───────────────────────────────────
+  // For large files: chunks and calls fn per chunk, aggregating results.
+  // For small files: calls fn(file) once (original behavior).
   async function processPartial(file, fn, opts) {
     opts = opts || {};
-    // [FUTURE: StreamEngine] Detect page boundaries in PDF stream and call
-    // fn() per-page chunk, reporting progress via RuntimeProgress.
-    markFullLoad('process-partial:' + (opts.label || 'unknown'), { size: file && file.size });
-    return fn(file); // today: full file
+    var shouldUseStream = await shouldStream(file);
+
+    if (!shouldUseStream) {
+      markFullLoad('process-partial:full-read:' + (opts.label || 'unknown'), { size: file && file.size });
+      return fn(file);
+    }
+
+    // Stream path: open to OPFS, chunk, call fn per chunk
+    var handle  = await openFile(file);
+    var results = await streamToWorker(handle, function (chunk, idx, isLast, total) {
+      return fn(chunk, { chunkIndex: idx, isLast: isLast, totalSize: total });
+    }, opts);
+
+    // Cleanup OPFS file
+    if (handle.opfs && handle.opfsName) {
+      try {
+        var dir = await _getOpfsDir();
+        await dir.removeEntry(handle.opfsName);
+      } catch (_) {}
+    }
+
+    return results;
   }
 
-  // ── Incremental render hook ───────────────────────────────────────────────
-  // [FUTURE: StreamEngine] Called by PDF preview to render pages incrementally.
-  // Today: calls fn(pages) with all pages at once.
-  // Future: calls fn(page) per page as they arrive from the stream.
+  // ── renderIncremental (upgraded from stub) ────────────────────────────────
   async function renderIncremental(pages, fn, opts) {
     opts = opts || {};
-    // [FUTURE: StreamEngine] Wrap pages in an async iterator that yields
-    // one page at a time from an OPFS-backed rolling window.
-    return fn(pages); // today: all pages at once
+    if (!Array.isArray(pages) || pages.length <= 5) {
+      return fn(pages);
+    }
+    // Stream pages in batches of 5 to keep UI responsive
+    var BATCH = 5;
+    var results = [];
+    for (var i = 0; i < pages.length; i += BATCH) {
+      var batch = pages.slice(i, i + BATCH);
+      var r = await fn(batch, { batchIndex: Math.floor(i / BATCH), isLast: i + BATCH >= pages.length });
+      results.push(r);
+      // Yield to event loop between batches
+      await new Promise(function (resolve) { setTimeout(resolve, 0); });
+    }
+    return results;
   }
 
-  // ── Chunk telemetry hook ──────────────────────────────────────────────────
-  // Records chunk metadata for future streaming performance analysis.
+  // ── shouldStream (real implementation) ────────────────────────────────────
+  async function shouldStream(file) {
+    if (!file || file.size < STREAM_THRESHOLD_BYTES) return false;
+    if (!_opfsSupported) return false;
+    try {
+      // Quick quota check
+      var estimate = await navigator.storage.estimate();
+      var quota    = estimate.quota || 0;
+      var usage    = estimate.usage || 0;
+      var available = quota - usage;
+      // Need at least 2× the file size free in OPFS
+      if (file.size * 2 > available) {
+        console.warn(LOG, 'OPFS quota insufficient for', (file.size / 1024 / 1024).toFixed(1) + 'MB file');
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── OPFS stale file sweep ─────────────────────────────────────────────────
+  async function sweepOpfs() {
+    if (!_opfsSupported) return;
+    try {
+      var dir = await _getOpfsDir();
+      var cutoff = Date.now() - MAX_OPFS_FILE_AGE_MS;
+      for await (var [name, handle] of dir.entries()) {
+        if (!name.startsWith('stream-')) continue;
+        try {
+          var ts = parseInt(name.split('-')[1], 10);
+          if (ts && ts < cutoff) {
+            await dir.removeEntry(name);
+            if (global.RuntimeTelemetry) {
+              try { global.RuntimeTelemetry.record('stream:opfs-sweep', { name: name }); } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  // ── Chunk telemetry (Phase 2 compat) ──────────────────────────────────────
   function recordChunk(label, chunkIndex, chunkBytes, totalBytes) {
-    if (window.RuntimeTelemetry) {
+    if (global.RuntimeTelemetry) {
       try {
-        window.RuntimeTelemetry.record('stream:chunk', {
+        global.RuntimeTelemetry.record('stream:chunk', {
           label: label, chunk: chunkIndex,
           bytes: chunkBytes, total: totalBytes,
-          pct:   totalBytes > 0 ? Math.round(chunkBytes / totalBytes * 100) : 0,
+          pct: totalBytes > 0 ? Math.round((chunkBytes / totalBytes) * 100) : 0,
         });
       } catch (_) {}
     }
-    if (window.RuntimeEventBus) {
+    if (global.RuntimeEventBus) {
       try {
-        window.RuntimeEventBus.emit('stream:chunk', {
+        global.RuntimeEventBus.emit('stream:chunk', {
           label: label, chunkIndex: chunkIndex, chunkBytes: chunkBytes, totalBytes: totalBytes,
         });
       } catch (_) {}
     }
   }
 
-  // ── Stream-aware scheduling ───────────────────────────────────────────────
-  // [FUTURE: StreamEngine] A stream-aware task will acquire a slot per chunk,
-  // releasing between chunks to let other tasks interleave.
-  // Today: runs the full task as a single slot.
+  // ── scheduleStreamable (Phase 2 compat) ──────────────────────────────────
   function scheduleStreamable(fn, opts) {
     opts = opts || {};
-    // [FUTURE: StreamEngine] Wrap fn in a chunk-interleaved scheduler that
-    // yields control between page chunks.
-    if (window.RuntimeScheduler) {
-      return window.RuntimeScheduler.run(fn, {
-        type:     opts.type || 'render',
-        priority: opts.priority || 'normal',
-        label:    opts.label || 'streamable',
-        token:    opts.token,
+    if (global.RuntimeScheduler) {
+      return global.RuntimeScheduler.run(fn, {
+        type: opts.type || 'render', priority: opts.priority || 'normal',
+        label: opts.label || 'streamable', token: opts.token,
       });
     }
     return fn(function () {});
   }
 
-  // ── OPFS readiness check ──────────────────────────────────────────────────
-  // [FUTURE: StreamEngine] Gate: only use OPFS streaming when storage quota
-  // allows and the file exceeds the minimum streaming threshold.
-  var STREAM_THRESHOLD_BYTES = 10 * 1024 * 1024; // 10 MB
-
-  async function shouldStream(file) {
-    if (!file || file.size < STREAM_THRESHOLD_BYTES) return false;
-    var caps = window.P1 ? window.P1.capabilities() : {};
-    if (!caps.opfs) return false;
-    // [FUTURE: StreamEngine] Check OPFS quota here
-    return false; // always false until StreamEngine is implemented
-  }
-
-  // ── IndexedDB readiness check ─────────────────────────────────────────────
-  // [FUTURE: IDBCache] Gate for result caching in IndexedDB.
+  // ── canUseIDB (Phase 2 compat) ────────────────────────────────────────────
   function canUseIDB() {
-    var caps = window.P1 ? window.P1.capabilities() : {};
-    return !!caps.idb;
-    // [FUTURE: IDBCache] Also check if idb-cache.js is loaded
+    return typeof indexedDB !== 'undefined' && !!(global.RuntimeIDB || global.IDBCache);
   }
 
-  // ── Stream capability probe ───────────────────────────────────────────────
+  // ── Capability report ──────────────────────────────────────────────────────
   function getCapabilities() {
-    var caps = window.P1 ? window.P1.capabilities() : {};
     return {
-      opfsAvailable:      !!caps.opfs,
-      idbAvailable:       !!caps.idb,
-      streamEngineActive: false, // set to true when StreamEngine lands
-      streamThresholdMB:  Math.round(STREAM_THRESHOLD_BYTES / 1024 / 1024),
-      markerCount:        _markers.length,
+      opfsAvailable:       _opfsSupported,
+      idbAvailable:        canUseIDB(),
+      readableStream:      _readableStreamSupported,
+      transferableStream:  _transferableStream,
+      streamEngineActive:  _opfsSupported,  // ← now true when OPFS is present
+      streamThresholdMB:   Math.round(STREAM_THRESHOLD_BYTES / 1024 / 1024),
+      defaultChunkMB:      Math.round(DEFAULT_CHUNK_BYTES / 1024 / 1024),
+      markerCount:         _markers.length,
     };
   }
 
-  // ── Expose markers to P1 ──────────────────────────────────────────────────
-  // P1.getStreamMarkers() remains the authoritative list; we extend it.
-  var _origGetMarkers = window.P1 && window.P1.getStreamMarkers ? window.P1.getStreamMarkers : null;
-  if (window.P1) {
-    window.P1.getStreamMarkers = function () {
+  function isReady() {
+    return _opfsSupported && _readableStreamSupported;
+  }
+
+  // ── P1 stream marker compat ───────────────────────────────────────────────
+  var _origGetMarkers = global.P1 && global.P1.getStreamMarkers ? global.P1.getStreamMarkers : null;
+  if (global.P1) {
+    global.P1.getStreamMarkers = function () {
       var base = _origGetMarkers ? _origGetMarkers() : [];
       return base.concat(_markers);
     };
   }
 
-  window.RuntimeStreaming = {
-    markFullLoad:        markFullLoad,
+  // ── Register with RuntimeCleanup ──────────────────────────────────────────
+  if (global.RuntimeCleanup && global.RuntimeCleanup.register) {
+    try {
+      global.RuntimeCleanup.register('opfs-sweep', function () {
+        return sweepOpfs();
+      }, { phase: 'idle', priority: 'low' });
+    } catch (_) {}
+  }
+
+  // ── Telemetry on boot ──────────────────────────────────────────────────────
+  (function _reportCapabilities() {
+    var caps = getCapabilities();
+    if (global.RuntimeTelemetry) {
+      try { global.RuntimeTelemetry.record('stream:capabilities', caps); } catch (_) {}
+    }
+    console.info(LOG, 'RuntimeStreaming v2.0 ready — OPFS:', caps.opfsAvailable ? 'available ✓' : 'unavailable',
+      '| threshold:', caps.streamThresholdMB + 'MB | chunks:', caps.defaultChunkMB + 'MB each');
+  }());
+
+  global.RuntimeStreaming = {
+    // Phase 6B — new real APIs
+    openFile:            openFile,
     createChunkReader:   createChunkReader,
+    streamToWorker:      streamToWorker,
+    streamFromWorker:    streamFromWorker,
+    sweepOpfs:           sweepOpfs,
+    isReady:             isReady,
+
+    // Phase 2 compat (upgraded)
+    markFullLoad:        markFullLoad,
     processPartial:      processPartial,
     renderIncremental:   renderIncremental,
     recordChunk:         recordChunk,
@@ -181,5 +479,5 @@
     getMarkers:          function () { return _markers.slice(); },
   };
 
-  console.debug('[RuntimeStreaming] ready — T034 streaming hooks active (StreamEngine: pending)');
-}());
+  console.debug(LOG, 'ready — T034/P6B streaming engine active (StreamEngine: live)');
+}(window));

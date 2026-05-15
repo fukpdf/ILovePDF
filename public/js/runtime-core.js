@@ -84,6 +84,10 @@
       ['p5healthMon',   window.RuntimeHealthMonitor],
       ['p5coverage',    { report: window.RuntimeCoverageReport }],
       ['p5cert',        { report: window.RuntimeCertificationReport }],
+      // Phase 6 — Persistence + Streaming + Cross-tab + AI
+      ['idb',           window.RuntimeIDB],
+      ['crossTab',      window.RuntimeCrossTab],
+      ['aiOrch',        window.RuntimeAIOrchestrator],
       // Phase 1A/1B
       ['p1',            window.P1],
       ['memPressure',   window.MemPressure],
@@ -303,33 +307,46 @@
     return _moduleRuntimes.get(moduleId);
   }
 
-  // ── IndexedDB migration hooks ─────────────────────────────────────────────
-  // [FUTURE: IndexedDB] State persistence for crash recovery + cross-tab sync.
-  // Call CentralRuntime.persistState() to checkpoint the runtime state.
+  // ── IndexedDB persistence — Phase 6A + 6F ────────────────────────────────
+  // Delegates to RuntimeIDB which is loaded after this file.
+  // At definition time the module may not exist; checked at call time.
   function persistState() {
-    // [FUTURE: IDBCache] window.RuntimeState.snapshot() → IDB write
-    return Promise.resolve(null); // stub
+    var idb = window.RuntimeIDB;
+    if (idb && idb.persistState) return idb.persistState();
+    return Promise.resolve(null);
   }
 
-  // [FUTURE: IndexedDB] Restore state from IDB on boot after crash.
   function restoreState() {
-    // [FUTURE: IDBCache] IDB read → RuntimeState bulk set
-    return Promise.resolve(null); // stub
+    var idb = window.RuntimeIDB;
+    if (idb && idb.restoreState) return idb.restoreState();
+    return Promise.resolve(null);
   }
 
-  // ── OPFS integration hooks ────────────────────────────────────────────────
-  // [FUTURE: OPFSRuntime] File processing will move to OPFS-backed streams.
+  // ── OPFS streaming — Phase 6B ─────────────────────────────────────────────
+  // Returns an OPFS FileHandle for large-file streaming via RuntimeStreaming.
   function getOpfsHandle(filename) {
-    // [FUTURE: OPFSRuntime] Return an OPFS FileSystemFileHandle for filename.
-    return Promise.resolve(null); // stub
+    var streaming = window.RuntimeStreaming;
+    if (streaming && streaming.openFile && filename) {
+      return streaming.openFile({ name: filename, size: 0, type: '' });
+    }
+    return Promise.resolve(null);
   }
 
-  // ── AI orchestration hooks ────────────────────────────────────────────────
-  // [FUTURE: AIOrchestrator] CentralRuntime will coordinate autonomous AI agents.
+  // ── AI orchestration — Phase 6E ───────────────────────────────────────────
+  // Delegates to RuntimeAIOrchestrator.runAiTask(); falls back to
+  // direct GenerativeAiEngine.generate() if orchestrator not loaded.
   function runAiTask(taskType, payload) {
-    // [FUTURE: AIOrchestrator] Route to AutonomousPlanner or GenerativeAiEngine.
-    console.warn(LOG, 'AI orchestration not yet integrated — taskType:', taskType);
-    return Promise.reject(new Error('ai-orchestration-pending'));
+    var aiOrch = window.RuntimeAIOrchestrator;
+    if (aiOrch && aiOrch.runAiTask) return aiOrch.runAiTask(taskType, payload || {});
+    // Direct fallback to GenerativeAiEngine
+    var GAE = window.GenerativeAiEngine;
+    if (GAE && typeof GAE.generate === 'function') {
+      var text = (payload && (payload.text || payload.prompt)) || '';
+      return GAE.generate(text, { intent: taskType })
+        .then(function (r) { return { result: typeof r === 'string' ? r : (r && r.result) || String(r), provider: 'GenerativeAiEngine-direct' }; });
+    }
+    console.warn(LOG, 'AI orchestration not loaded — taskType:', taskType);
+    return Promise.reject(new Error('ai-orchestrator-not-loaded'));
   }
 
   // ── Bootstrap (deferred to allow all scripts to load) ────────────────────

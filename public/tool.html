@@ -252,6 +252,15 @@
   <script src="/js/runtime-core.js"></script>
   <!-- Phase 5 — Runtime Certification Layer (report functions + RT.debug + RT.simulate) -->
   <script src="/js/runtime-phase5.js"></script>
+  <!-- Phase 6A+6F — IndexedDB Persistence + Crash Recovery -->
+  <script src="/js/runtime-idb.js"></script>
+  <!-- Phase 6B — OPFS Streaming Engine (replaces streaming stubs) -->
+  <!-- runtime-streaming-hooks.js is already loaded above; engine is live -->
+  <!-- Phase 6C — Advanced Worker Pooling already active via WorkerPool in advanced-engine.js -->
+  <!-- Phase 6D — Cross-tab BroadcastChannel Coordination -->
+  <script src="/js/runtime-cross-tab.js"></script>
+  <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->
+  <script src="/js/runtime-ai-orchestrator.js"></script>
   <script src="/js/browser-tools.js"></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
   <script src="/js/merge-worker-adapter.js"></script>
