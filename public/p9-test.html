@@ -3,564 +3,843 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase 9 — Full Verification Suite</title>
+  <title>Phase 9 — Production Certification Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --border:   #2a2d3a;
+      --bg:       #0b0d14;
+      --surface:  #131620;
+      --surface2: #1a1e2e;
+      --border:   #252a3d;
+      --border2:  #2f3550;
       --pass:     #22c55e;
       --fail:     #ef4444;
       --warn:     #f59e0b;
       --skip:     #6b7280;
       --blue:     #60a5fa;
+      --purple:   #a78bfa;
+      --cyan:     #22d3ee;
+      --orange:   #fb923c;
       --text:     #e2e8f0;
-      --muted:    #94a3b8;
+      --muted:    #64748b;
       --font:     'SF Mono', 'Fira Code', Consolas, monospace;
+      --sans:     -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 13px;
-      line-height: 1.6;
-      padding: 0;
-      min-height: 100vh;
+      font-size: 12px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* ── Layout ── */
-    #app {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      min-height: 100vh;
-    }
-
-    header {
+    /* ── Header ── */
+    #hdr {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 16px 24px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .header-title {
-      font-size: 15px;
-      font-weight: bold;
-      color: var(--text);
-      flex: 1;
-    }
-    .header-title span { color: var(--blue); }
-
-    .btn {
-      padding: 7px 18px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 12px;
-      cursor: pointer;
-      transition: background .15s, border-color .15s;
-    }
-    .btn:hover { background: #252836; border-color: var(--blue); }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-primary {
-      background: var(--blue);
-      color: #0f1117;
-      border-color: var(--blue);
-      font-weight: bold;
-    }
-    .btn-primary:hover { background: #93c5fd; border-color: #93c5fd; }
-    .btn-primary:disabled { background: #2a4070; color: #555; border-color: #2a4070; }
-
-    .header-badge {
-      padding: 3px 10px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: bold;
-      border: 1px solid currentColor;
-    }
-    .badge-pass    { color: var(--pass); }
-    .badge-fail    { color: var(--fail); }
-    .badge-warn    { color: var(--warn); }
-    .badge-running { color: var(--blue); }
-    .badge-idle    { color: var(--muted); }
-
-    main {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      height: calc(100vh - 57px);
-      overflow: hidden;
-    }
-
-    /* ── Sidebar ── */
-    #sidebar {
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
-      padding: 12px;
-    }
-
-    .sidebar-section {
-      margin-bottom: 16px;
-    }
-    .sidebar-label {
-      font-size: 10px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 6px;
-      padding: 0 4px;
-    }
-
-    .suite-btn {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      padding: 7px 10px;
-      border-radius: 5px;
-      border: none;
-      background: transparent;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 12px;
-      cursor: pointer;
-      text-align: left;
-      transition: background .12s;
-      margin-bottom: 2px;
-    }
-    .suite-btn:hover { background: rgba(255,255,255,.05); }
-    .suite-btn.active { background: rgba(96,165,250,.12); color: var(--blue); }
-
-    .suite-indicator {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--border);
+      gap: 0;
+      height: 46px;
       flex-shrink: 0;
+      padding: 0 16px 0 0;
     }
-    .ind-pass { background: var(--pass); }
-    .ind-fail { background: var(--fail); }
-    .ind-warn { background: var(--warn); }
-    .ind-running {
-      background: var(--blue);
-      animation: pulse 1s infinite;
-    }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-    /* ── Scorecard in sidebar ── */
-    .scorecard {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-top: 4px;
-    }
-    .scorecard-title {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .score-row {
+    .hdr-logo {
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--text);
+      border-right: 1px solid var(--border);
+      height: 100%;
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 5px;
     }
-    .score-label { font-size: 11px; color: var(--muted); flex: 1; }
-    .score-bar-wrap {
-      width: 80px;
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .score-bar-fill {
+    .hdr-logo span { color: var(--blue); }
+    .tabs {
+      display: flex;
       height: 100%;
-      border-radius: 3px;
-      transition: width .4s ease;
+      flex: 1;
     }
-    .score-val { font-size: 11px; width: 28px; text-align: right; }
-
-    /* ── Content area ── */
-    #content {
-      overflow-y: auto;
-      padding: 20px 24px;
+    .tab-btn {
+      padding: 0 18px;
+      height: 100%;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 11px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
     }
+    .tab-btn:hover  { color: var(--text); }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-    /* ── Overall status bar ── */
-    #status-bar {
+    .hdr-right {
       display: flex;
       align-items: center;
-      gap: 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-left: auto;
     }
-    #status-text {
-      flex: 1;
-      font-size: 14px;
+    #hdr-badge {
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
       font-weight: bold;
+      border: 1px solid currentColor;
     }
-    .stat-chip {
-      padding: 3px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-    }
-    .chip-pass { background: rgba(34,197,94,.15);  color: var(--pass); }
-    .chip-fail { background: rgba(239,68,68,.15);   color: var(--fail); }
-    .chip-warn { background: rgba(245,158,11,.15);  color: var(--warn); }
-    .chip-total{ background: rgba(148,163,184,.1);  color: var(--muted);}
+    .badge-idle    { color: var(--muted); }
+    .badge-running { color: var(--blue);  }
+    .badge-pass    { color: var(--pass);  }
+    .badge-fail    { color: var(--fail);  }
+    .badge-warn    { color: var(--warn);  }
 
-    /* ── Progress bar ── */
-    #progress-wrap {
-      height: 3px;
-      background: var(--border);
-      border-radius: 2px;
+    .btn {
+      padding: 5px 14px;
+      border-radius: 5px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 11px;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    .btn:hover { background: #222840; border-color: var(--blue); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-blue { background: var(--blue); color: #0b0d14; border-color: var(--blue); font-weight: bold; }
+    .btn-blue:hover { background: #93c5fd; border-color: #93c5fd; }
+    .btn-purple { background: var(--purple); color: #0b0d14; border-color: var(--purple); font-weight: bold; }
+    .btn-purple:hover { background: #c4b5fd; }
+
+    /* ── Live metrics bar ── */
+    #metrics-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      height: 36px;
+      flex-shrink: 0;
       overflow: hidden;
-      margin-bottom: 20px;
+    }
+    .metric-tile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+    }
+    .metric-tile:last-child { border-right: none; }
+    .metric-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); white-space: nowrap; }
+    .metric-val { font-size: 14px; font-weight: bold; color: var(--text); white-space: nowrap; }
+    .metric-val.green  { color: var(--pass); }
+    .metric-val.yellow { color: var(--warn); }
+    .metric-val.red    { color: var(--fail); }
+    .metric-spark { width: 60px; height: 20px; flex-shrink: 0; }
+
+    /* ── Progress strip ── */
+    #progress-strip {
+      height: 2px;
+      background: var(--border);
+      flex-shrink: 0;
+      display: none;
     }
     #progress-fill {
       height: 100%;
-      background: var(--blue);
-      border-radius: 2px;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
       transition: width .3s ease;
       width: 0%;
     }
 
+    /* ── Main content area ── */
+    #main {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .tab-pane {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .tab-pane.active { display: block; }
+
+    /* ── Two-col layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      height: 100%;
+    }
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 12px 10px;
+    }
+    .content {
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    /* ── Sidebar nav ── */
+    .sn-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      padding: 0 6px;
+      margin-bottom: 5px;
+      margin-top: 12px;
+    }
+    .sn-label:first-child { margin-top: 0; }
+    .sn-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 11px;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 1px;
+      transition: background .1s;
+    }
+    .sn-btn:hover { background: rgba(255,255,255,.04); }
+    .sn-btn.active { background: rgba(96,165,250,.12); color: var(--blue); }
+    .sn-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--border2);
+      flex-shrink: 0;
+      transition: background .3s;
+    }
+    .dot-pass { background: var(--pass); }
+    .dot-fail { background: var(--fail); }
+    .dot-warn { background: var(--warn); }
+    .dot-run  { background: var(--blue); animation: pulse .8s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ── Status bar ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .status-text { flex: 1; font-size: 13px; font-weight: bold; }
+    .chip {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .chip-p { background: rgba(34,197,94,.15);  color: var(--pass); }
+    .chip-f { background: rgba(239,68,68,.15);   color: var(--fail); }
+    .chip-w { background: rgba(245,158,11,.15);  color: var(--warn); }
+    .chip-n { background: rgba(148,163,184,.08); color: var(--muted);}
+
     /* ── Suite cards ── */
-    .suite-card {
+    .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
       overflow: hidden;
       transition: border-color .2s;
     }
-    .suite-card.has-fail  { border-color: rgba(239,68,68,.4); }
-    .suite-card.has-warn  { border-color: rgba(245,158,11,.3); }
-    .suite-card.all-pass  { border-color: rgba(34,197,94,.25); }
-
-    .suite-header {
+    .card.has-fail { border-color: rgba(239,68,68,.35); }
+    .card.has-warn { border-color: rgba(245,158,11,.25); }
+    .card.all-pass { border-color: rgba(34,197,94,.2); }
+    .card-hdr {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 11px 14px;
+      gap: 8px;
+      padding: 9px 12px;
       cursor: pointer;
       user-select: none;
     }
-    .suite-header:hover { background: rgba(255,255,255,.03); }
-
-    .suite-name { font-weight: bold; font-size: 13px; flex: 1; }
-    .suite-counts { font-size: 11px; color: var(--muted); }
-    .suite-ms { font-size: 11px; color: var(--muted); }
-    .suite-chevron { color: var(--muted); font-size: 11px; transition: transform .2s; }
-    .suite-card.open .suite-chevron { transform: rotate(90deg); }
-
-    .suite-body {
-      display: none;
-      border-top: 1px solid var(--border);
-    }
-    .suite-card.open .suite-body { display: block; }
-
+    .card-hdr:hover { background: rgba(255,255,255,.02); }
+    .card-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .card-title { font-weight: bold; font-size: 12px; flex: 1; }
+    .card-meta  { font-size: 10px; color: var(--muted); }
+    .card-chev  { color: var(--muted); font-size: 10px; transition: transform .18s; }
+    .card.open .card-chev { transform: rotate(90deg); }
+    .card-body { display: none; border-top: 1px solid var(--border); }
+    .card.open .card-body { display: block; }
     .test-row {
       display: flex;
       align-items: baseline;
+      padding: 4px 12px 4px 24px;
+      border-bottom: 1px solid rgba(255,255,255,.03);
       gap: 0;
-      padding: 5px 14px 5px 28px;
-      border-bottom: 1px solid rgba(255,255,255,.04);
     }
     .test-row:last-child { border-bottom: none; }
-    .test-status {
-      width: 46px;
-      font-size: 11px;
-      font-weight: bold;
-      flex-shrink: 0;
-    }
+    .ts { width: 42px; font-size: 10px; font-weight: bold; flex-shrink: 0; }
+    .tn { width: 210px; flex-shrink: 0; font-size: 11px; }
+    .td { color: var(--muted); font-size: 10px; word-break: break-all; }
     .s-PASS { color: var(--pass); }
     .s-FAIL { color: var(--fail); }
     .s-WARN { color: var(--warn); }
     .s-SKIP { color: var(--skip); }
-    .test-name  { width: 220px; flex-shrink: 0; font-size: 12px; }
-    .test-detail{ color: var(--muted); font-size: 11px; word-break: break-word; }
 
-    /* ── Cert panel ── */
-    #cert-panel {
+    /* ── Dashboard charts ── */
+    #dash-pane .content {
+      padding: 16px;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 12px;
-      display: none;
+      border-radius: 6px;
+      padding: 12px 14px;
     }
-    #cert-panel.visible { display: block; }
-    .cert-title {
-      font-size: 14px;
+    .chart-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chart-big-val {
+      font-size: 26px;
       font-weight: bold;
-      margin-bottom: 14px;
+      margin-bottom: 4px;
       color: var(--text);
+      line-height: 1;
     }
-    .cert-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 10px;
+    .chart-canvas {
+      width: 100%;
+      height: 50px;
+      display: block;
     }
-    .cert-tile {
-      background: var(--bg);
+    .chart-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Gauge ── */
+    .gauge-wrap { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .gauge {
+      flex: 1; min-width: 120px;
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 10px 12px;
     }
-    .cert-tile-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-    .cert-tile-score { font-size: 22px; font-weight: bold; }
-    .cert-tile-bar {
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin-top: 6px;
-      overflow: hidden;
-    }
-    .cert-tile-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+    .gauge-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+    .gauge-val   { font-size: 20px; font-weight: bold; }
+    .gauge-bar   { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .gauge-fill  { height: 100%; border-radius: 2px; transition: width .4s ease; }
 
-    .cert-verdict {
-      margin-top: 14px;
-      padding: 10px 14px;
-      background: rgba(96,165,250,.08);
-      border: 1px solid rgba(96,165,250,.2);
-      border-radius: 6px;
-      font-size: 12px;
-      color: var(--blue);
-      line-height: 1.5;
+    /* ── Stress section ── */
+    .stress-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
     }
-    .cert-phase10 {
-      margin-top: 8px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .cert-bottlenecks {
-      margin-top: 8px;
-      padding: 8px 12px;
-      background: rgba(245,158,11,.07);
-      border: 1px solid rgba(245,158,11,.2);
-      border-radius: 5px;
-      font-size: 11px;
-      color: var(--warn);
-    }
-
-    /* ── Log console ── */
-    #log-wrap {
-      margin-top: 16px;
+    .stress-tile {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color .15s;
     }
-    .log-header {
+    .stress-tile:hover { border-color: var(--blue); }
+    .stress-tile.running { border-color: var(--blue); animation: border-pulse 1s infinite; }
+    .stress-tile.passed  { border-color: rgba(34,197,94,.4); }
+    .stress-tile.failed  { border-color: rgba(239,68,68,.4); }
+    .stress-tile.warned  { border-color: rgba(245,158,11,.3); }
+    @keyframes border-pulse { 0%,100%{border-color:var(--blue)} 50%{border-color:rgba(96,165,250,.3)} }
+    .st-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+    .st-score { font-size: 22px; font-weight: bold; color: var(--muted); }
+    .st-status { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Certification panel ── */
+    .cert-hero {
+      background: linear-gradient(135deg, rgba(96,165,250,.08) 0%, rgba(167,139,250,.08) 100%);
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .cert-score-big { font-size: 64px; font-weight: bold; line-height: 1; }
+    .cert-level-badge {
+      display: inline-block;
+      padding: 4px 16px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+    .level-ENTERPRISE { background: rgba(34,197,94,.2);   color: var(--pass);   border: 1px solid var(--pass); }
+    .level-PRODUCTION { background: rgba(96,165,250,.2);  color: var(--blue);   border: 1px solid var(--blue); }
+    .level-STAGING    { background: rgba(245,158,11,.2);  color: var(--warn);   border: 1px solid var(--warn); }
+    .level-DEVELOPMENT{ background: rgba(239,68,68,.2);   color: var(--fail);   border: 1px solid var(--fail); }
+
+    .cert-scores-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .cert-score-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .cst-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+    .cst-val   { font-size: 22px; font-weight: bold; }
+    .cst-bar   { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .cst-fill  { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+    .phase10-box {
+      background: rgba(96,165,250,.06);
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .phase10-title { font-size: 13px; font-weight: bold; color: var(--blue); margin-bottom: 6px; }
+    .phase10-desc  { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+    .phase10-features { list-style: none; }
+    .phase10-features li { font-size: 11px; color: var(--text); padding: 2px 0; }
+    .phase10-features li::before { content: '→ '; color: var(--blue); }
+
+    .bottleneck-box {
+      background: rgba(245,158,11,.05);
+      border: 1px solid rgba(245,158,11,.2);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .bn-title { font-size: 11px; font-weight: bold; color: var(--warn); margin-bottom: 6px; }
+    .bn-item  { font-size: 10px; color: var(--muted); padding: 2px 0; }
+    .bn-item::before { content: '⚠ '; color: var(--warn); }
+
+    /* ── Log ── */
+    .log-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .log-hdr {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
+      gap: 8px;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--muted);
+      font-size: 9px;
       text-transform: uppercase;
       letter-spacing: .06em;
+      color: var(--muted);
     }
-    #log-clear {
+    .log-clr {
       margin-left: auto;
       background: none;
       border: 1px solid var(--border);
       color: var(--muted);
       font-family: var(--font);
-      font-size: 10px;
-      padding: 2px 8px;
+      font-size: 9px;
+      padding: 1px 7px;
       border-radius: 3px;
       cursor: pointer;
     }
-    #log-clear:hover { border-color: var(--blue); color: var(--blue); }
-    #log-output {
-      padding: 10px 14px;
-      max-height: 220px;
+    .log-clr:hover { border-color: var(--blue); color: var(--blue); }
+    .log-out {
+      padding: 8px 12px;
+      max-height: 180px;
       overflow-y: auto;
-      font-size: 11px;
+      font-size: 10px;
       color: var(--muted);
       line-height: 1.7;
     }
-    .log-line { display: flex; gap: 8px; }
-    .log-time { color: #4b5563; flex-shrink: 0; }
-    .log-pass { color: var(--pass); }
-    .log-fail { color: var(--fail); }
-    .log-warn { color: var(--warn); }
-    .log-info { color: var(--blue); }
-
-    /* ── Idle placeholder ── */
-    #idle-msg {
-      text-align: center;
-      padding: 60px 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    #idle-msg h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
-    #idle-msg p  { max-width: 400px; margin: 0 auto; line-height: 1.7; }
+    .ll { display: flex; gap: 8px; }
+    .lt { color: #2d3748; flex-shrink: 0; }
+    .lp { color: var(--pass); }
+    .lf { color: var(--fail); }
+    .lw { color: var(--warn); }
+    .li { color: var(--blue); }
+    .lm { color: var(--muted); }
 
     /* ── Spinner ── */
-    .spinner {
+    .spin {
       display: inline-block;
-      width: 12px; height: 12px;
-      border: 2px solid var(--border);
+      width: 10px; height: 10px;
+      border: 2px solid rgba(96,165,250,.3);
       border-top-color: var(--blue);
       border-radius: 50%;
-      animation: spin .7s linear infinite;
+      animation: spin .6s linear infinite;
       vertical-align: middle;
-      margin-right: 6px;
+      margin-right: 5px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    /* ── Idle splash ── */
+    .splash {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+    .splash h2 { font-size: 18px; color: var(--text); margin-bottom: 10px; }
+    .splash p  { font-size: 12px; color: var(--muted); max-width: 420px; line-height: 1.7; }
+    .splash .btn-row { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   </style>
 </head>
 <body>
-<div id="app">
 
-  <!-- Header -->
-  <header>
-    <div class="header-title">
-      <span>Phase 9</span> Distributed Browser OS — Verification Suite
-    </div>
-    <span id="overall-badge" class="header-badge badge-idle">IDLE</span>
-    <button class="btn" id="btn-run-suite" style="display:none" onclick="runSelectedSuite()">Run Selected</button>
-    <button class="btn btn-primary" id="btn-run-all" onclick="runAll()">▶ Run All Suites</button>
-  </header>
-
-  <main>
-    <!-- Sidebar -->
-    <div id="sidebar">
-      <div class="sidebar-section">
-        <div class="sidebar-label">Suites</div>
-        <button class="suite-btn active" id="nav-all" onclick="selectSuite('all')">
-          <span>All Suites</span>
-          <span id="nav-all-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9A" onclick="selectSuite('9A')">
-          <span>9A — WasmEngine</span>
-          <span id="nav-9A-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9B" onclick="selectSuite('9B')">
-          <span>9B — GpuEngine</span>
-          <span id="nav-9B-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9C" onclick="selectSuite('9C')">
-          <span>9C — SharedCluster</span>
-          <span id="nav-9C-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9D" onclick="selectSuite('9D')">
-          <span>9D — IncrementalPdf</span>
-          <span id="nav-9D-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9E" onclick="selectSuite('9E')">
-          <span>9E — LocalAI</span>
-          <span id="nav-9E-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9F" onclick="selectSuite('9F')">
-          <span>9F — Workspace</span>
-          <span id="nav-9F-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9G" onclick="selectSuite('9G')">
-          <span>9G — Kernel</span>
-          <span id="nav-9G-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9H" onclick="selectSuite('9H')">
-          <span>9H — ZeroCopy</span>
-          <span id="nav-9H-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-9I" onclick="selectSuite('9I')">
-          <span>9I — Sandbox</span>
-          <span id="nav-9I-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-8I" onclick="selectSuite('8I')">
-          <span>8I — Security</span>
-          <span id="nav-8I-ind" class="suite-indicator"></span>
-        </button>
-        <button class="suite-btn" id="nav-CERT" onclick="selectSuite('CERT')">
-          <span>CERT — BrowserOS Cert</span>
-          <span id="nav-CERT-ind" class="suite-indicator"></span>
-        </button>
-      </div>
-
-      <!-- Cert scores in sidebar -->
-      <div id="scorecard-wrap" class="sidebar-section" style="display:none">
-        <div class="sidebar-label">Cert Scores</div>
-        <div class="scorecard">
-          <div id="sc-rows"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Content -->
-    <div id="content">
-      <!-- Idle message -->
-      <div id="idle-msg">
-        <h3>Phase 9 Verification Suite</h3>
-        <p>Press <strong>▶ Run All Suites</strong> to execute all 10 subsystem tests + BrowserOS Certification, or select a specific suite from the sidebar.</p>
-      </div>
-
-      <!-- Status bar (hidden until run) -->
-      <div id="status-bar" style="display:none">
-        <div id="status-text">Ready</div>
-        <span class="stat-chip chip-pass" id="chip-pass">0 PASS</span>
-        <span class="stat-chip chip-fail" id="chip-fail">0 FAIL</span>
-        <span class="stat-chip chip-warn" id="chip-warn">0 WARN</span>
-        <span class="stat-chip chip-total" id="chip-total">0 tests</span>
-        <span id="chip-ms" class="stat-chip chip-total">0 ms</span>
-      </div>
-      <div id="progress-wrap" style="display:none"><div id="progress-fill"></div></div>
-
-      <!-- Cert panel -->
-      <div id="cert-panel">
-        <div class="cert-title">BrowserOS Certification — Score Report</div>
-        <div class="cert-grid" id="cert-tiles"></div>
-        <div id="cert-verdict-box" class="cert-verdict" style="display:none"></div>
-        <div id="cert-bottleneck-box" class="cert-bottlenecks" style="display:none"></div>
-        <div id="cert-phase10" class="cert-phase10"></div>
-      </div>
-
-      <!-- Suite cards -->
-      <div id="suite-cards"></div>
-
-      <!-- Log -->
-      <div id="log-wrap">
-        <div class="log-header">
-          Console Log
-          <button id="log-clear" onclick="clearLog()">clear</button>
-        </div>
-        <div id="log-output"><div class="log-line log-info"><span class="log-time">—</span><span>Verification harness loaded. Ready.</span></div></div>
-      </div>
-    </div>
-  </main>
+<!-- ── Header ── -->
+<div id="hdr">
+  <div class="hdr-logo"><span>Phase 9</span> Browser OS</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('verify')">Verification</button>
+    <button class="tab-btn" onclick="switchTab('stress')">Stress Tests</button>
+    <button class="tab-btn" onclick="switchTab('dash')">Live Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('cert')">Certification</button>
+  </div>
+  <div class="hdr-right">
+    <span id="hdr-badge" class="badge-idle">IDLE</span>
+    <button class="btn" id="btn-verify"  onclick="runVerify()">▶ Verify</button>
+    <button class="btn btn-purple" id="btn-stress" onclick="runStress()">⚡ Stress</button>
+    <button class="btn btn-blue"   id="btn-certify" onclick="runFull()">★ Certify All</button>
+  </div>
 </div>
 
-<!--
-  ═══════════════════════════════════════════════════════════════════
-  Load all Phase 9 runtime scripts FIRST, then the verification harness.
-  Script names match the actual files in public/js/.
-  ═══════════════════════════════════════════════════════════════════
--->
+<!-- ── Live metrics bar ── -->
+<div id="metrics-bar">
+  <div class="metric-tile">
+    <div>
+      <div class="metric-label">Heap</div>
+      <div class="metric-val" id="mv-heap">—</div>
+    </div>
+    <canvas class="metric-spark" id="spark-heap"></canvas>
+  </div>
+  <div class="metric-tile">
+    <div>
+      <div class="metric-label">Throughput</div>
+      <div class="metric-val" id="mv-tput">—</div>
+    </div>
+    <canvas class="metric-spark" id="spark-tput"></canvas>
+  </div>
+  <div class="metric-tile">
+    <div>
+      <div class="metric-label">Avg Latency</div>
+      <div class="metric-val" id="mv-lat">—</div>
+    </div>
+    <canvas class="metric-spark" id="spark-lat"></canvas>
+  </div>
+  <div class="metric-tile">
+    <div>
+      <div class="metric-label">Pool Hit</div>
+      <div class="metric-val" id="mv-pool">—</div>
+    </div>
+    <canvas class="metric-spark" id="spark-pool"></canvas>
+  </div>
+  <div class="metric-tile">
+    <div>
+      <div class="metric-label">Queue Depth</div>
+      <div class="metric-val" id="mv-queue">—</div>
+    </div>
+    <canvas class="metric-spark" id="spark-queue"></canvas>
+  </div>
+  <div class="metric-tile" style="border-right:none">
+    <div>
+      <div class="metric-label">Mem Tier</div>
+      <div class="metric-val" id="mv-tier">—</div>
+    </div>
+  </div>
+</div>
 
-<!-- Phase 1–7 foundations (minimal required subset) -->
+<!-- ── Progress strip ── -->
+<div id="progress-strip"><div id="progress-fill"></div></div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- ══ VERIFICATION TAB ══ -->
+  <div id="pane-verify" class="tab-pane active">
+    <div class="two-col" style="height:100%">
+      <div class="sidebar" id="v-sidebar">
+        <div class="sn-label">Suites</div>
+        <button class="sn-btn active" id="vn-all" onclick="vSelectSuite('all')">
+          <span>All Suites</span><span id="vn-all-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9A" onclick="vSelectSuite('9A')">
+          <span>9A WasmEngine</span><span id="vn-9A-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9B" onclick="vSelectSuite('9B')">
+          <span>9B GpuEngine</span><span id="vn-9B-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9C" onclick="vSelectSuite('9C')">
+          <span>9C SharedCluster</span><span id="vn-9C-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9D" onclick="vSelectSuite('9D')">
+          <span>9D IncrementalPdf</span><span id="vn-9D-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9E" onclick="vSelectSuite('9E')">
+          <span>9E LocalAI</span><span id="vn-9E-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9F" onclick="vSelectSuite('9F')">
+          <span>9F Workspace</span><span id="vn-9F-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9G" onclick="vSelectSuite('9G')">
+          <span>9G Kernel</span><span id="vn-9G-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9H" onclick="vSelectSuite('9H')">
+          <span>9H ZeroCopy</span><span id="vn-9H-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-9I" onclick="vSelectSuite('9I')">
+          <span>9I Sandbox</span><span id="vn-9I-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-8I" onclick="vSelectSuite('8I')">
+          <span>8I Security</span><span id="vn-8I-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="vn-CERT" onclick="vSelectSuite('CERT')">
+          <span>CERT BrowserOS</span><span id="vn-CERT-dot" class="sn-dot"></span>
+        </button>
+      </div>
+      <div class="content" id="v-content">
+        <div class="splash" id="v-splash">
+          <h2>Verification Suite</h2>
+          <p>Tests real API execution across all 11 Phase 9 subsystems — WASM, GPU, Cluster, IncrementalPDF, LocalAI, Workspace, Kernel, ZeroCopy, Sandbox, Security + BrowserOS Certification.</p>
+          <div class="btn-row">
+            <button class="btn btn-blue" onclick="runVerify()">▶ Run All Verification</button>
+          </div>
+        </div>
+        <div id="v-results" style="display:none">
+          <div class="status-row" id="v-status-row">
+            <div class="status-text" id="v-status-text">Ready</div>
+            <span class="chip chip-p" id="v-cp">0P</span>
+            <span class="chip chip-f" id="v-cf">0F</span>
+            <span class="chip chip-w" id="v-cw">0W</span>
+            <span class="chip chip-n" id="v-ct">0 tests</span>
+            <span class="chip chip-n" id="v-cms">—</span>
+          </div>
+          <div id="v-cards"></div>
+          <div class="log-panel">
+            <div class="log-hdr">Console <button class="log-clr" onclick="clearLog('v-log')">clear</button></div>
+            <div class="log-out" id="v-log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STRESS TAB ══ -->
+  <div id="pane-stress" class="tab-pane">
+    <div class="two-col" style="height:100%">
+      <div class="sidebar" id="s-sidebar">
+        <div class="sn-label">Suites</div>
+        <button class="sn-btn active" id="sn-all" onclick="sSelectSuite('all')">
+          <span>All Suites</span><span id="sn-all-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-CONC"    onclick="sSelectSuite('CONC')">
+          <span>CONC Concurrency</span><span id="sn-CONC-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-MEM"     onclick="sSelectSuite('MEM')">
+          <span>MEM Memory Torture</span><span id="sn-MEM-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-STREAM"  onclick="sSelectSuite('STREAM')">
+          <span>STREAM Stream Torture</span><span id="sn-STREAM-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-AI"      onclick="sSelectSuite('AI')">
+          <span>AI Load Testing</span><span id="sn-AI-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-OPFS"    onclick="sSelectSuite('OPFS')">
+          <span>OPFS+IDB Pressure</span><span id="sn-OPFS-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-CLUSTER" onclick="sSelectSuite('CLUSTER')">
+          <span>CLUSTER Chaos</span><span id="sn-CLUSTER-dot" class="sn-dot"></span>
+        </button>
+        <button class="sn-btn" id="sn-LONG"    onclick="sSelectSuite('LONG')">
+          <span>LONG Session Test</span><span id="sn-LONG-dot" class="sn-dot"></span>
+        </button>
+
+        <div class="sn-label" style="margin-top:16px">Stress Scores</div>
+        <div id="stress-score-sidebar" style="padding:4px 2px">
+          <div style="color:var(--muted);font-size:10px;padding:4px 6px">Run stress tests to see scores</div>
+        </div>
+      </div>
+      <div class="content" id="s-content">
+        <div class="splash" id="s-splash">
+          <h2>Stress Test Suite</h2>
+          <p>Production-grade stress validation: 50 concurrent tasks, 100 zero-copy transfers, AI saturation, OPFS storms, IDB write floods, and compressed long-session simulation.</p>
+          <div class="btn-row">
+            <button class="btn btn-purple" onclick="runStress()">⚡ Run All Stress Tests</button>
+          </div>
+        </div>
+        <div id="s-results" style="display:none">
+          <div class="status-row" id="s-status-row">
+            <div class="status-text" id="s-status-text">Ready</div>
+            <span class="chip chip-n" id="s-cert-level" style="font-size:11px">—</span>
+            <span class="chip chip-p" id="s-cp">0P</span>
+            <span class="chip chip-f" id="s-cf">0F</span>
+            <span class="chip chip-w" id="s-cw">0W</span>
+            <span class="chip chip-n" id="s-cms">—</span>
+          </div>
+
+          <!-- Stress tiles -->
+          <div class="stress-grid" id="stress-tiles"></div>
+
+          <!-- Suite cards -->
+          <div id="s-cards"></div>
+
+          <div class="log-panel">
+            <div class="log-hdr">Stress Log <button class="log-clr" onclick="clearLog('s-log')">clear</button></div>
+            <div class="log-out" id="s-log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD TAB ══ -->
+  <div id="pane-dash" class="tab-pane">
+    <div class="content" id="dash-pane" style="padding:16px">
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:bold">Live System Dashboard</span>
+        <button class="btn" id="btn-start-monitor" onclick="toggleMonitor()">▶ Start Monitor</button>
+        <span id="monitor-status" style="font-size:10px;color:var(--muted)">Monitor inactive</span>
+      </div>
+
+      <!-- Gauge row -->
+      <div class="gauge-wrap" id="gauges">
+        <div class="gauge">
+          <div class="gauge-label">Heap Memory</div>
+          <div class="gauge-val" id="g-heap" style="color:var(--blue)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-heap" style="background:var(--blue);width:0%"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Memory Tier</div>
+          <div class="gauge-val" id="g-tier" style="color:var(--pass)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-tier" style="background:var(--pass);width:100%"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Kernel Queue</div>
+          <div class="gauge-val" id="g-queue" style="color:var(--cyan)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-queue" style="background:var(--cyan);width:0%"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Pool Hit Rate</div>
+          <div class="gauge-val" id="g-pool" style="color:var(--purple)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-pool" style="background:var(--purple);width:0%"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Throughput</div>
+          <div class="gauge-val" id="g-tput" style="color:var(--orange)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-tput" style="background:var(--orange);width:0%"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Avg Latency</div>
+          <div class="gauge-val" id="g-lat" style="color:var(--warn)">—</div>
+          <div class="gauge-bar"><div class="gauge-fill" id="gf-lat" style="background:var(--warn);width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Full charts -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">Heap Memory (MB) <span id="chart-heap-val" style="color:var(--blue)">—</span></div>
+          <canvas class="chart-canvas" id="chart-heap" height="50"></canvas>
+          <div class="chart-sub" id="chart-heap-sub">Last 60s of samples</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Throughput (tasks/s) <span id="chart-tput-val" style="color:var(--orange)">—</span></div>
+          <canvas class="chart-canvas" id="chart-tput" height="50"></canvas>
+          <div class="chart-sub" id="chart-tput-sub">—</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Avg Task Latency (ms) <span id="chart-lat-val" style="color:var(--warn)">—</span></div>
+          <canvas class="chart-canvas" id="chart-lat" height="50"></canvas>
+          <div class="chart-sub">Lower is better</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Buffer Pool Hit % <span id="chart-pool-val" style="color:var(--purple)">—</span></div>
+          <canvas class="chart-canvas" id="chart-pool" height="50"></canvas>
+          <div class="chart-sub">Higher = better ZeroCopy efficiency</div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Kernel Queue Depth <span id="chart-queue-val" style="color:var(--cyan)">—</span></div>
+          <canvas class="chart-canvas" id="chart-queue" height="50"></canvas>
+          <div class="chart-sub">Active + queued tasks</div>
+        </div>
+        <div class="chart-card" id="subsystem-status-card">
+          <div class="chart-title">Subsystem Status</div>
+          <div id="subsys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;font-size:10px"></div>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <div class="log-hdr">Dashboard Log <button class="log-clr" onclick="clearLog('d-log')">clear</button></div>
+        <div class="log-out" id="d-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CERTIFICATION TAB ══ -->
+  <div id="pane-cert" class="tab-pane">
+    <div class="content" id="cert-content" style="padding:16px;max-width:900px;margin:0 auto">
+      <div class="splash" id="cert-splash">
+        <h2>Production Certification</h2>
+        <p>Run the full certification to get a comprehensive Browser OS score, stress scores, deployment readiness assessment, and Phase 10 recommendation.</p>
+        <div class="btn-row">
+          <button class="btn btn-blue" onclick="runFull()">★ Run Full Certification</button>
+          <button class="btn" onclick="runVerify(); runStress(); switchTab('cert')">Run Verify + Stress first</button>
+        </div>
+      </div>
+      <div id="cert-results" style="display:none">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Script loading — exact filenames verified against public/js
+     ═══════════════════════════════════════════════════════════ -->
 <script src="/js/runtime-core.js"              defer></script>
 <script src="/js/runtime-state.js"             defer></script>
 <script src="/js/runtime-event-bus.js"         defer></script>
@@ -575,16 +854,12 @@
 <script src="/js/runtime-worker-orchestrator.js" defer></script>
 <script src="/js/runtime-ai-orchestrator.js"   defer></script>
 <script src="/js/runtime-progress.js"          defer></script>
-
-<!-- Phase 8 -->
 <script src="/js/runtime-security.js"               defer></script>
 <script src="/js/runtime-memory-defense.js"         defer></script>
 <script src="/js/runtime-benchmark-engine.js"       defer></script>
 <script src="/js/runtime-distributed-scheduler.js"  defer></script>
 <script src="/js/runtime-ai-upgrade.js"             defer></script>
 <script src="/js/runtime-telemetry-enterprise.js"   defer></script>
-
-<!-- Phase 9 — dependency order: wasm→gpu→kernel→cluster→sandbox→ipdf→zerocopy→workspace→localai -->
 <script src="/js/runtime-wasm-engine.js"             defer></script>
 <script src="/js/runtime-gpu-engine.js"              defer></script>
 <script src="/js/runtime-kernel.js"                  defer></script>
@@ -594,347 +869,872 @@
 <script src="/js/runtime-zero-copy.js"               defer></script>
 <script src="/js/runtime-workspace.js"               defer></script>
 <script src="/js/runtime-local-ai.js"                defer></script>
-
-<!-- Cert last (audits all Phase 9 subsystems) -->
 <script src="/js/runtime-browser-os-certification.js" defer></script>
-
-<!-- Verification harness — must be after all subsystems -->
 <script src="/js/runtime-phase9-verification.js"     defer></script>
+<script src="/js/runtime-phase9-stress.js"           defer></script>
 
 <script>
-  // ── Page state ─────────────────────────────────────────────────────────────
-  var _selectedSuite = 'all';
-  var _running = false;
-  var _suiteResults = {};
-  var _suiteOrder = ['9A','9B','9C','9D','9E','9F','9G','9H','9I','8I','CERT'];
+'use strict';
+// ═══════════════════════════════════════════════════════════════════════════
+// Page controller
+// ═══════════════════════════════════════════════════════════════════════════
 
-  // Wait for all deferred scripts to load before enabling buttons
-  window.addEventListener('load', function () {
-    setTimeout(function () {
-      _log('info', 'All scripts loaded — runtime ready');
-      _checkPresence();
-    }, 800);
+var _running  = false;
+var _monitor  = false;
+var _monTimer = null;
+
+var _vResults  = {};  // verification results by key
+var _sResults  = {};  // stress results by suite name
+var _certReport = null;
+var _stressReport = null;
+
+var V_ORDER = ['9A','9B','9C','9D','9E','9F','9G','9H','9I','8I','CERT'];
+var S_ORDER = ['CONC','MEM','STREAM','AI','OPFS','CLUSTER','LONG'];
+
+var _vSel = 'all', _sSel = 'all';
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+  var pane = document.getElementById('pane-' + name);
+  if (pane) pane.classList.add('active');
+  var btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(function (b) { if (b.textContent.toLowerCase().includes(name) || b.getAttribute('onclick') && b.getAttribute('onclick').includes(name)) b.classList.add('active'); });
+}
+
+// ── Sidebar nav ────────────────────────────────────────────────────────────
+function vSelectSuite(k) {
+  _vSel = k;
+  document.querySelectorAll('#v-sidebar .sn-btn').forEach(function (b) { b.classList.remove('active'); });
+  var btn = document.getElementById('vn-' + k); if (btn) btn.classList.add('active');
+  _renderVCards();
+}
+function sSelectSuite(k) {
+  _sSel = k;
+  document.querySelectorAll('#s-sidebar .sn-btn').forEach(function (b) { b.classList.remove('active'); });
+  var btn = document.getElementById('sn-' + k); if (btn) btn.classList.add('active');
+  _renderSCards();
+}
+
+// ── Buttons disable/enable ─────────────────────────────────────────────────
+function _setRunning(on) {
+  _running = on;
+  ['btn-verify','btn-stress','btn-certify'].forEach(function (id) {
+    var b = document.getElementById(id);
+    if (b) b.disabled = on;
   });
+  var badge = document.getElementById('hdr-badge');
+  var strip = document.getElementById('progress-strip');
+  if (on) {
+    badge.className = 'badge-running';
+    badge.innerHTML = '<span class="spin"></span>RUNNING';
+    strip.style.display = 'block';
+  } else {
+    strip.style.display = 'none';
+  }
+}
 
-  function _checkPresence() {
-    var checks = [
-      ['RuntimeWasmEngine',           '9A'],
-      ['RuntimeGpuEngine',            '9B'],
-      ['RuntimeSharedCluster',        '9C'],
-      ['RuntimeIncrementalPdf',       '9D'],
-      ['RuntimeLocalAI',              '9E'],
-      ['RuntimeWorkspace',            '9F'],
-      ['RuntimeKernel',               '9G'],
-      ['RuntimeZeroCopy',             '9H'],
-      ['RuntimeSandbox',              '9I'],
-      ['RuntimeSecurity',             '8I'],
-      ['RuntimeBrowserOSCertification','CERT'],
-    ];
-    var ok = 0, missing = [];
-    checks.forEach(function (c) {
-      if (window[c[0]]) { ok++; }
-      else { missing.push(c[0]); }
+function _setProgress(pct) {
+  document.getElementById('progress-fill').style.width = Math.min(100, pct) + '%';
+}
+
+function _setBadge(verdict, score) {
+  var badge = document.getElementById('hdr-badge');
+  if (verdict === 'ALL PASS') {
+    badge.className = 'badge-pass'; badge.textContent = 'PASS ' + (score || '');
+  } else if (verdict === 'FAILURES') {
+    badge.className = 'badge-fail'; badge.textContent = 'FAIL';
+  } else {
+    badge.className = 'badge-warn'; badge.textContent = 'WARN ' + (score || '');
+  }
+}
+
+// ── RUN VERIFICATION ──────────────────────────────────────────────────────
+function runVerify() {
+  if (_running || !window.P9V) { _log('v-log','warn','P9V not loaded yet'); return; }
+  _setRunning(true);
+  switchTab('verify');
+  document.getElementById('v-splash').style.display = 'none';
+  document.getElementById('v-results').style.display = '';
+  _log('v-log','info','Verification starting…');
+  _setProgress(5);
+
+  window.P9V.run({}).then(function (report) {
+    _setProgress(100);
+    _setRunning(false);
+
+    report.suites.forEach(function (s) {
+      var key = _suiteKey(s.name);
+      if (key) { _vResults[key] = s; }
     });
-    _log(ok === checks.length ? 'pass' : 'warn',
-      ok + '/' + checks.length + ' subsystems present' +
-      (missing.length ? ' — missing: ' + missing.join(', ') : ''));
-  }
 
-  // ── Suite selection ────────────────────────────────────────────────────────
-  function selectSuite(name) {
-    _selectedSuite = name;
-    document.querySelectorAll('.suite-btn').forEach(function (b) { b.classList.remove('active'); });
-    var navBtn = document.getElementById('nav-' + name);
-    if (navBtn) navBtn.classList.add('active');
-    var runSuiteBtn = document.getElementById('btn-run-suite');
-    runSuiteBtn.style.display = name === 'all' ? 'none' : '';
-    runSuiteBtn.textContent = '▶ Run ' + name;
-    _renderCards();
-  }
+    _updateVStatus(report);
+    _updateVDots();
+    _renderVCards();
 
-  // ── Run all ───────────────────────────────────────────────────────────────
-  function runAll() {
-    if (_running) return;
-    _selectedSuite = 'all';
-    selectSuite('all');
-    _startRun(null);
-  }
+    var v = report.totalFailed === 0 ? 'ALL PASS' : 'FAILURES';
+    _setBadge(v, report.overallPct + '%');
+    _log('v-log', report.totalFailed === 0 ? 'pass' : 'fail',
+      'Done: ' + report.totalPassed + '/' + report.totalTests + ' (' + report.overallPct + '%) in ' + report.duration + 'ms');
+  }).catch(function (e) {
+    _setRunning(false);
+    _log('v-log','fail','Error: ' + e.message);
+  });
+}
 
-  function runSelectedSuite() {
-    if (_running || _selectedSuite === 'all') return;
-    _startRun([_selectedSuite]);
-  }
+function _updateVStatus(r) {
+  document.getElementById('v-status-text').textContent =
+    r.totalFailed === 0 ? (r.totalWarned === 0 ? '✓ All tests passed' : '⚠ Passed with warnings') : '✗ ' + r.totalFailed + ' test(s) failed';
+  $('v-cp').textContent  = r.totalPassed + 'P';
+  $('v-cf').textContent  = r.totalFailed + 'F';
+  $('v-cw').textContent  = r.totalWarned + 'W';
+  $('v-ct').textContent  = r.totalTests  + ' tests';
+  $('v-cms').textContent = r.duration    + 'ms';
+}
 
-  function _startRun(suiteList) {
-    if (_running) return;
-    if (!window.P9V) {
-      _log('fail', 'P9V harness not loaded yet — wait a moment and retry');
-      return;
+function _updateVDots() {
+  V_ORDER.forEach(function (k) {
+    var s = _vResults[k];
+    var d = document.getElementById('vn-' + k + '-dot');
+    if (!d || !s) return;
+    var hasFail = s.tests.some(function (t) { return t.status === 'FAIL'; });
+    var hasWarn = s.tests.some(function (t) { return t.status === 'WARN'; });
+    d.className = 'sn-dot ' + (hasFail ? 'dot-fail' : hasWarn ? 'dot-warn' : 'dot-pass');
+  });
+  var allDot = document.getElementById('vn-all-dot');
+  if (allDot) {
+    var anyFail = V_ORDER.some(function (k) { var s = _vResults[k]; return s && s.tests.some(function (t) { return t.status === 'FAIL'; }); });
+    var anyWarn = V_ORDER.some(function (k) { var s = _vResults[k]; return s && s.tests.some(function (t) { return t.status === 'WARN'; }); });
+    allDot.className = 'sn-dot ' + (anyFail ? 'dot-fail' : anyWarn ? 'dot-warn' : (Object.keys(_vResults).length > 0 ? 'dot-pass' : ''));
+  }
+}
+
+function _renderVCards() {
+  var container = document.getElementById('v-cards');
+  container.innerHTML = '';
+  var toShow = _vSel === 'all' ? V_ORDER : [_vSel];
+  toShow.forEach(function (k) {
+    var s = _vResults[k]; if (!s) return;
+    container.appendChild(_buildCard(k, s, false));
+  });
+}
+
+// ── RUN STRESS ─────────────────────────────────────────────────────────────
+function runStress() {
+  if (_running || !window.RuntimeStressHarness) { _log('s-log','warn','StressHarness not loaded'); return; }
+  _setRunning(true);
+  switchTab('stress');
+  document.getElementById('s-splash').style.display = 'none';
+  document.getElementById('s-results').style.display = '';
+  _log('s-log','info','Stress testing starting…');
+  _setProgress(5);
+
+  // Init stress tiles
+  _initStressTiles();
+
+  var progressCb = function (info) {
+    _log('s-log','info', '[' + info.phase + '] ' + info.step);
+    _setProgress(info.pct || 10);
+    if (info.phase) {
+      var tile = document.getElementById('stile-' + info.phase.toUpperCase());
+      if (!tile) tile = document.getElementById('stile-' + _phaseToKey(info.phase));
+      if (tile) { tile.className = 'stress-tile running'; tile.querySelector('.st-status').textContent = info.step; }
     }
-    _running = true;
-    _setRunning(true);
-    _log('info', 'Starting ' + (suiteList ? suiteList.join(', ') : 'all suites') + '…');
+  };
 
-    var opts = suiteList ? { suites: suiteList } : {};
+  window.RuntimeStressHarness.runAll({}, progressCb).then(function (report) {
+    _setProgress(100);
+    _setRunning(false);
+    _stressReport = report;
 
-    // Progress animation
-    var totalSuites = suiteList ? suiteList.length : _suiteOrder.length;
-    var doneSuites = 0;
-    var progInterval = setInterval(function () {
-      var pct = Math.min(95, (doneSuites / totalSuites) * 95);
-      _setProgress(pct);
-    }, 300);
+    report.suites.forEach(function (s) {
+      _sResults[s.name] = s;
+    });
 
-    window.P9V.run(opts).then(function (report) {
-      clearInterval(progInterval);
-      _setProgress(100);
-      _running = false;
-      _setRunning(false);
+    _updateSStatus(report);
+    _updateSDots(report);
+    _renderSCards();
+    _updateStressTiles(report);
+    _updateStressScoreSidebar(report);
 
-      // Store results
-      report.suites.forEach(function (s) {
-        var key = _suiteKeyFromName(s.name);
-        if (key) _suiteResults[key] = s;
+    var v = report.totalFailed === 0 ? (report.totalWarned <= 2 ? 'ALL PASS' : 'WARN') : 'FAILURES';
+    _setBadge(v, report.overallScore + '/100');
+    _log('s-log', report.totalFailed === 0 ? 'pass' : 'fail',
+      'Score=' + report.overallScore + '/100 | Level=' + report.certLevel + ' | ' + report.totalFailed + ' failures in ' + report.duration + 'ms');
+  }).catch(function (e) {
+    _setRunning(false);
+    _log('s-log','fail','Stress error: ' + e.message);
+    console.error(e);
+  });
+}
+
+function _phaseToKey(phase) {
+  var map = { concurrency: 'CONC', memory: 'MEM', stream: 'STREAM', ai: 'AI', 'opfs-idb': 'OPFS', cluster: 'CLUSTER', longsession: 'LONG' };
+  return map[phase.toLowerCase()] || phase.toUpperCase();
+}
+
+function _initStressTiles() {
+  var grid = document.getElementById('stress-tiles');
+  grid.innerHTML = '';
+  var defs = [
+    { key: 'CONC',    label: 'Concurrency',    desc: '50 tasks + 100 ZC ops' },
+    { key: 'MEM',     label: 'Memory Torture',  desc: 'Heap growth + pool stress' },
+    { key: 'STREAM',  label: 'Stream Torture',  desc: 'Flood + cancel + backpressure' },
+    { key: 'AI',      label: 'AI Load',         desc: '50 concurrent inferences' },
+    { key: 'OPFS',    label: 'OPFS+IDB',        desc: '10x import + 50x writes' },
+    { key: 'CLUSTER', label: 'Cluster Chaos',   desc: '30 enqueues + leader test' },
+    { key: 'LONG',    label: 'Long Session',    desc: '20-cycle compressed run' },
+  ];
+  defs.forEach(function (d) {
+    var tile = document.createElement('div');
+    tile.className = 'stress-tile';
+    tile.id = 'stile-' + d.key;
+    tile.innerHTML = '<div class="st-name">' + d.label + '</div>' +
+      '<div class="st-score" id="stile-score-' + d.key + '">—</div>' +
+      '<div class="st-status" id="stile-status-' + d.key + '">' + d.desc + '</div>';
+    grid.appendChild(tile);
+  });
+}
+
+function _updateStressTiles(report) {
+  var suiteMap = {
+    'Concurrency': 'CONC', 'MemoryTorture': 'MEM', 'StreamTorture': 'STREAM',
+    'AILoad': 'AI', 'OPFSIDBPressure': 'OPFS', 'ClusterChaos': 'CLUSTER', 'LongSession': 'LONG',
+  };
+  report.suites.forEach(function (s) {
+    var key = suiteMap[s.name];
+    if (!key) return;
+    var tile  = document.getElementById('stile-' + key);
+    var score = document.getElementById('stile-score-' + key);
+    var status= document.getElementById('stile-status-' + key);
+    if (!tile || !score) return;
+    var hasFail = s.failed > 0;
+    var hasWarn = s.warned > 0;
+    tile.className = 'stress-tile ' + (hasFail ? 'failed' : hasWarn ? 'warned' : 'passed');
+    var color = hasFail ? 'var(--fail)' : hasWarn ? 'var(--warn)' : 'var(--pass)';
+    score.style.color = color;
+    score.textContent = s.score + '/100';
+    status.textContent = s.passed + '/' + s.tests.length + ' passed';
+  });
+}
+
+function _updateStressScoreSidebar(report) {
+  var el = document.getElementById('stress-score-sidebar');
+  if (!el) return;
+  var ss = report.stressScores;
+  var pairs = [
+    ['Concurrency',  ss.concurrency],
+    ['Memory',       ss.memoryStability],
+    ['Streams',      ss.streamIntegrity],
+    ['AI',           ss.aiStability],
+    ['Cluster',      ss.clusterResilience],
+    ['Long Session', ss.longSession],
+    ['Overall',      ss.overall],
+  ];
+  el.innerHTML = pairs.map(function (p) {
+    var v = p[1] === null || p[1] === undefined ? '—' : p[1];
+    var color = (typeof v === 'number') ? (v >= 75 ? 'var(--pass)' : v >= 50 ? 'var(--warn)' : 'var(--fail)') : 'var(--muted)';
+    return '<div style="display:flex;justify-content:space-between;padding:3px 6px;font-size:10px">' +
+      '<span style="color:var(--muted)">' + p[0] + '</span>' +
+      '<span style="font-weight:bold;color:' + color + '">' + v + '</span>' +
+      '</div>';
+  }).join('');
+}
+
+function _updateSStatus(r) {
+  document.getElementById('s-status-text').textContent =
+    r.totalFailed === 0 ? '✓ Stress passed — Level: ' + r.certLevel : '✗ ' + r.totalFailed + ' failures — Level: ' + r.certLevel;
+
+  var levelCls = { ENTERPRISE: 'chip-p', PRODUCTION: 'chip-p', STAGING: 'chip-w', DEVELOPMENT: 'chip-f' };
+  var lev = document.getElementById('s-cert-level');
+  lev.className = 'chip ' + (levelCls[r.certLevel] || 'chip-n');
+  lev.textContent = r.certLevel;
+
+  $('s-cp').textContent  = r.totalPassed + 'P';
+  $('s-cf').textContent  = r.totalFailed + 'F';
+  $('s-cw').textContent  = r.totalWarned + 'W';
+  $('s-cms').textContent = r.duration + 'ms';
+}
+
+function _updateSDots(report) {
+  var suiteMap = {
+    'Concurrency': 'CONC', 'MemoryTorture': 'MEM', 'StreamTorture': 'STREAM',
+    'AILoad': 'AI', 'OPFSIDBPressure': 'OPFS', 'ClusterChaos': 'CLUSTER', 'LongSession': 'LONG',
+  };
+  report.suites.forEach(function (s) {
+    var key = suiteMap[s.name]; if (!key) return;
+    var d = document.getElementById('sn-' + key + '-dot'); if (!d) return;
+    d.className = 'sn-dot ' + (s.failed > 0 ? 'dot-fail' : s.warned > 0 ? 'dot-warn' : 'dot-pass');
+  });
+  var allD = document.getElementById('sn-all-dot');
+  if (allD) allD.className = 'sn-dot ' + (report.totalFailed > 0 ? 'dot-fail' : report.totalWarned > 0 ? 'dot-warn' : 'dot-pass');
+}
+
+function _renderSCards() {
+  var container = document.getElementById('s-cards');
+  container.innerHTML = '';
+  var suiteMap = {
+    'Concurrency': 'CONC', 'MemoryTorture': 'MEM', 'StreamTorture': 'STREAM',
+    'AILoad': 'AI', 'OPFSIDBPressure': 'OPFS', 'ClusterChaos': 'CLUSTER', 'LongSession': 'LONG',
+  };
+  var toShow = _sSel === 'all'
+    ? Object.values(suiteMap)
+    : [_sSel];
+
+  Object.entries(suiteMap).forEach(function (kv) {
+    var sName = kv[0], sKey = kv[1];
+    if (toShow.indexOf(sKey) === -1) return;
+    var s = _sResults[sName]; if (!s) return;
+    container.appendChild(_buildCard(sKey, s, true));
+  });
+}
+
+// ── RUN FULL CERTIFICATION ─────────────────────────────────────────────────
+function runFull() {
+  if (_running) return;
+  switchTab('cert');
+  document.getElementById('cert-splash').style.display = 'none';
+  document.getElementById('cert-results').style.display = '';
+  document.getElementById('cert-results').innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)"><span class="spin"></span> Running full certification…</div>';
+
+  _setRunning(true);
+  _setProgress(10);
+  _log('d-log','info','Full certification starting…');
+
+  // Step 1: verification
+  var verifyJob = window.P9V ? window.P9V.run({}) : Promise.resolve(null);
+
+  verifyJob.then(function (vReport) {
+    _setProgress(35);
+    if (vReport) {
+      vReport.suites.forEach(function (s) { var k = _suiteKey(s.name); if (k) _vResults[k] = s; });
+      _updateVDots();
+    }
+
+    // Step 2: stress
+    var stressJob = window.RuntimeStressHarness
+      ? window.RuntimeStressHarness.runAll({}, function (info) { _setProgress(35 + (info.pct || 0) * 0.45); })
+      : Promise.resolve(null);
+
+    return stressJob.then(function (sReport) {
+      _setProgress(80);
+      if (sReport) {
+        _stressReport = sReport;
+        sReport.suites.forEach(function (s) { _sResults[s.name] = s; });
+      }
+
+      // Step 3: cert
+      var certJob = window.RuntimeBrowserOSCertification ? window.RuntimeBrowserOSCertification() : Promise.resolve(null);
+
+      return certJob.then(function (certReport) {
+        _setProgress(100);
+        _setRunning(false);
+        _certReport = certReport;
+
+        _renderCertPage(certReport, sReport, vReport);
+        var score = certReport ? Math.round(certReport.browserOsScore || 0) : 0;
+        var stressScore = sReport ? sReport.overallScore : 0;
+        var combined = Math.round((score + stressScore) / 2);
+        _setBadge(combined >= 70 ? 'ALL PASS' : 'WARN', combined + '/100');
+        _log('d-log','pass','Certification complete. BrowserOS=' + score + ' Stress=' + stressScore + ' Combined=' + combined);
       });
-
-      _updateStatusBar(report);
-      _updateNavIndicators();
-      _renderCards();
-      _renderCertPanel(report.certReport);
-      _renderSidebarScores(report.certReport);
-
-      var verdict = report.totalFailed === 0
-        ? (report.totalWarned === 0 ? 'ALL PASS' : 'PASS WITH WARNINGS')
-        : 'FAILURES: ' + report.totalFailed;
-      _log(report.totalFailed === 0 ? 'pass' : 'fail',
-        verdict + ' — ' + report.totalPassed + '/' + report.totalTests +
-        ' (' + report.overallPct + '%) in ' + report.duration + 'ms');
-
-    }).catch(function (e) {
-      clearInterval(progInterval);
-      _setProgress(0);
-      _running = false;
-      _setRunning(false);
-      _log('fail', 'Run failed: ' + e.message);
     });
-  }
+  }).catch(function (e) {
+    _setRunning(false);
+    _log('d-log','fail','Certification failed: ' + e.message);
+    document.getElementById('cert-results').innerHTML = '<div style="padding:20px;color:var(--fail)">Error: ' + _esc(e.message) + '</div>';
+  });
+}
 
-  // ── UI helpers ────────────────────────────────────────────────────────────
+function _renderCertPage(certReport, stressReport, verifyReport) {
+  var el = document.getElementById('cert-results');
+  if (!el) return;
 
-  function _setRunning(on) {
-    var badge = document.getElementById('overall-badge');
-    var btnAll = document.getElementById('btn-run-all');
-    var btnSuite = document.getElementById('btn-run-suite');
-    if (on) {
-      badge.className = 'header-badge badge-running';
-      badge.innerHTML = '<span class="spinner"></span>RUNNING';
-      btnAll.disabled = true;
-      btnSuite.disabled = true;
-      document.getElementById('status-bar').style.display = '';
-      document.getElementById('progress-wrap').style.display = '';
-      document.getElementById('idle-msg').style.display = 'none';
-    } else {
-      btnAll.disabled = false;
-      btnSuite.disabled = false;
+  var cr = certReport || {};
+  var sr = stressReport || {};
+  var vr = verifyReport || {};
+
+  // Combined score
+  var bosScore    = Math.round(cr.browserOsScore || 0);
+  var stressScore = sr.overallScore || 0;
+  var verifyPct   = vr.overallPct || 0;
+  var combined    = Math.round((bosScore * 0.4 + stressScore * 0.4 + verifyPct * 0.2));
+  var certLevel   = sr.certLevel || (combined >= 90 ? 'ENTERPRISE' : combined >= 75 ? 'PRODUCTION' : combined >= 55 ? 'STAGING' : 'DEVELOPMENT');
+  var scoreColor  = combined >= 75 ? 'var(--pass)' : combined >= 50 ? 'var(--warn)' : 'var(--fail)';
+
+  var html = '';
+
+  // Hero
+  html += '<div class="cert-hero">';
+  html += '<div class="cert-score-big" style="color:' + scoreColor + '">' + combined + '<span style="font-size:24px;color:var(--muted)">/100</span></div>';
+  html += '<div style="font-size:12px;color:var(--muted);margin-top:4px">Combined Production Score</div>';
+  html += '<div class="cert-level-badge level-' + certLevel + '">' + certLevel + ' CERTIFIED</div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-top:10px">BrowserOS: ' + bosScore + ' &nbsp;|&nbsp; Stress: ' + stressScore + ' &nbsp;|&nbsp; Verify: ' + verifyPct + '%</div>';
+  html += '</div>';
+
+  // Score tiles
+  var tiles = [
+    ['BrowserOS Score', bosScore,                     'var(--blue)'],
+    ['Stress Score',    stressScore,                  'var(--purple)'],
+    ['Verification',    verifyPct,                    'var(--cyan)'],
+    ['Offline Cap.',    Math.round(cr.offlineScore||0),'var(--pass)'],
+    ['Compute Scale',   Math.round(cr.computeScaleScore||0), 'var(--orange)'],
+    ['AI Readiness',    Math.round(cr.aiScore||0),    'var(--warn)'],
+    ['Large File',      Math.round(cr.largeFileScore||0), 'var(--blue)'],
+    ['Mobile',          Math.round(cr.mobileScore||0),'var(--purple)'],
+    ['Concurrency',     sr.stressScores && sr.stressScores.concurrency || 0,  'var(--cyan)'],
+    ['Mem Stability',   sr.stressScores && sr.stressScores.memoryStability || 0, 'var(--pass)'],
+    ['Stream Integrity',sr.stressScores && sr.stressScores.streamIntegrity || 0, 'var(--orange)'],
+    ['AI Stability',    sr.stressScores && sr.stressScores.aiStability || 0,  'var(--warn)'],
+    ['Cluster Resil.',  sr.stressScores && sr.stressScores.clusterResilience || 0, 'var(--blue)'],
+    ['Long Session',    sr.stressScores && sr.stressScores.longSession || 0,  'var(--purple)'],
+  ];
+
+  html += '<div class="cert-scores-grid">';
+  tiles.forEach(function (t) {
+    var v = Math.round(t[1] || 0);
+    var c = t[2];
+    html += '<div class="cert-score-tile">' +
+      '<div class="cst-label">' + t[0] + '</div>' +
+      '<div class="cst-val" style="color:' + c + '">' + v + '<span style="font-size:11px;color:var(--muted)">/100</span></div>' +
+      '<div class="cst-bar"><div class="cst-fill" style="width:' + v + '%;background:' + c + '"></div></div>' +
+      '</div>';
+  });
+  html += '</div>';
+
+  // Phase 10
+  if (cr.phase10Recommendation || cr.architectureVerdict) {
+    var p10 = cr.phase10Recommendation || {};
+    html += '<div class="phase10-box">';
+    html += '<div class="phase10-title">Phase 10 Recommendation: ' + _esc(p10.title || 'See below') + '</div>';
+    if (p10.description) html += '<div class="phase10-desc">' + _esc(p10.description) + '</div>';
+    if (p10.priorityFeatures && p10.priorityFeatures.length) {
+      html += '<ul class="phase10-features">';
+      p10.priorityFeatures.forEach(function (f) { html += '<li>' + _esc(f) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</div>';
+    if (cr.architectureVerdict) {
+      html += '<div class="bottleneck-box">';
+      html += '<div class="bn-title">Architecture Verdict</div>';
+      html += '<div class="bn-item">' + _esc(cr.architectureVerdict) + '</div>';
+      html += '</div>';
     }
   }
 
-  function _setProgress(pct) {
-    document.getElementById('progress-fill').style.width = pct + '%';
+  // Bottlenecks
+  var allBn = [];
+  if (cr.bottlenecks) allBn = allBn.concat(cr.bottlenecks.slice(0, 8));
+  if (sr.bottlenecks) sr.bottlenecks.slice(0, 4).forEach(function (b) { allBn.push('[STRESS] ' + b); });
+  if (allBn.length > 0) {
+    html += '<div class="bottleneck-box">';
+    html += '<div class="bn-title">Remaining Bottlenecks (' + allBn.length + ')</div>';
+    allBn.forEach(function (b) { html += '<div class="bn-item">' + _esc(b) + '</div>'; });
+    html += '</div>';
   }
 
-  function _updateStatusBar(report) {
-    var badge = document.getElementById('overall-badge');
-    if (report.totalFailed > 0) {
-      badge.className = 'header-badge badge-fail'; badge.textContent = 'FAIL';
-    } else if (report.totalWarned > 0) {
-      badge.className = 'header-badge badge-warn'; badge.textContent = 'WARN';
-    } else {
-      badge.className = 'header-badge badge-pass'; badge.textContent = 'PASS';
+  // Deployment readiness
+  var ready = sr.deploymentReady !== false && combined >= 60;
+  html += '<div style="background:' + (ready ? 'rgba(34,197,94,.07)' : 'rgba(239,68,68,.07)') + ';border:1px solid ' + (ready ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') + ';border-radius:6px;padding:12px 16px;margin-bottom:12px">';
+  html += '<div style="font-size:12px;font-weight:bold;color:' + (ready ? 'var(--pass)' : 'var(--fail)') + ';margin-bottom:4px">';
+  html += ready ? '✓ PRODUCTION DEPLOYMENT READY' : '✗ NOT READY — ADDRESS BOTTLENECKS FIRST';
+  html += '</div>';
+  html += '<div style="font-size:10px;color:var(--muted)">Score: ' + combined + '/100 | Stress Level: ' + certLevel + ' | ' + (allBn.length === 0 ? 'No critical bottlenecks' : allBn.length + ' bottlenecks to address') + '</div>';
+  html += '</div>';
+
+  // Browser compat matrix
+  if (cr.browserCompatMatrix) {
+    html += '<details><summary style="cursor:pointer;font-size:11px;color:var(--muted);padding:6px 0">Browser Compatibility Matrix</summary>';
+    html += '<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:10px">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border)">';
+    ['Browser','WASM','SIMD','Threads','OPFS','WebGPU','SharedWorker','BroadcastCh','LocalAI'].forEach(function (h) {
+      html += '<th style="padding:4px 6px;text-align:left;color:var(--muted)">' + h + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    Object.entries(cr.browserCompatMatrix).forEach(function (kv) {
+      var browser = kv[0], caps = kv[1];
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.03)">';
+      html += '<td style="padding:4px 6px;color:var(--text)">' + browser + '</td>';
+      ['wasm','simd','threads','opfs','webgpu','sharedWorker','broadcastCh','localAI'].forEach(function (cap) {
+        var ok = caps[cap];
+        html += '<td style="padding:4px 6px;color:' + (ok ? 'var(--pass)' : 'var(--muted)') + '">' + (ok ? '✓' : '—') + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></details>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ── LIVE DASHBOARD ─────────────────────────────────────────────────────────
+function toggleMonitor() {
+  if (_monitor) {
+    stopMonitor();
+  } else {
+    startMonitor();
+  }
+}
+
+function startMonitor() {
+  if (_monitor) return;
+  _monitor = true;
+  document.getElementById('btn-start-monitor').textContent = '■ Stop Monitor';
+  document.getElementById('monitor-status').textContent = 'Sampling every 500ms…';
+
+  if (window.RuntimeStressHarness) window.RuntimeStressHarness.startMonitor();
+
+  // Subscribe to metric events
+  if (window.RuntimeEventBus) {
+    window.RuntimeEventBus.on('stress:metrics', _onMetrics);
+  }
+
+  // Also poll directly every second
+  _monTimer = setInterval(function () {
+    _pollMetrics();
+  }, 1000);
+
+  _updateSubsystemStatus();
+  _log('d-log','info','Monitor started');
+}
+
+function stopMonitor() {
+  _monitor = false;
+  document.getElementById('btn-start-monitor').textContent = '▶ Start Monitor';
+  document.getElementById('monitor-status').textContent = 'Monitor inactive';
+  if (_monTimer) { clearInterval(_monTimer); _monTimer = null; }
+  if (window.RuntimeStressHarness) window.RuntimeStressHarness.stopMonitor();
+  if (window.RuntimeEventBus) {
+    try { window.RuntimeEventBus.off('stress:metrics', _onMetrics); } catch (_) {}
+  }
+  _log('d-log','info','Monitor stopped');
+}
+
+function _pollMetrics() {
+  var heapMB = 0;
+  try {
+    if (performance.memory) heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576);
+    else if (window.RuntimeMemory && window.RuntimeMemory.memUsedMB) heapMB = Math.round(window.RuntimeMemory.memUsedMB());
+  } catch (_) {}
+
+  var tier = 'N/A';
+  try { if (window.RuntimeMemory) tier = window.RuntimeMemory.getTier(); } catch (_) {}
+
+  var queueDepth = 0;
+  try {
+    if (window.RuntimeKernel) {
+      var load = window.RuntimeKernel.getLoad();
+      var _q = typeof load.queued === 'number' ? load.queued : 0;
+      var _a = typeof load.active === 'number' ? load.active
+             : (load.active && typeof load.active === 'object'
+                ? Object.values(load.active).reduce(function(a,b){return a+(+b||0);},0)
+                : 0);
+      queueDepth = _q + _a;
     }
+  } catch (_) {}
 
-    document.getElementById('status-text').textContent =
-      report.totalFailed === 0
-        ? (report.totalWarned === 0 ? '✓ All tests passed' : '⚠ Passed with warnings')
-        : '✗ ' + report.totalFailed + ' test(s) failed';
-    document.getElementById('chip-pass').textContent  = report.totalPassed + ' PASS';
-    document.getElementById('chip-fail').textContent  = report.totalFailed + ' FAIL';
-    document.getElementById('chip-warn').textContent  = report.totalWarned + ' WARN';
-    document.getElementById('chip-total').textContent = report.totalTests  + ' tests';
-    document.getElementById('chip-ms').textContent    = report.duration    + ' ms';
+  var poolHit = 0;
+  try { if (window.RuntimeZeroCopy) poolHit = parseInt((window.RuntimeZeroCopy.getStats()||{}).poolHitRate, 10) || 0; } catch (_) {}
+
+  var m = { heapMB: heapMB, tier: tier, queueDepth: queueDepth, poolHit: poolHit };
+  _updateMetricsBar(m);
+  _updateGauges(m);
+
+  if (window.RuntimeStressHarness) {
+    var live = window.RuntimeStressHarness.getLiveMetrics();
+    if (live) {
+      _updateCharts(live);
+      _updateMetricsBar({ heapMB: live.heapMB || heapMB, throughput: live.throughput, latencyMs: live.latencyMs, poolHit: live.poolHit || poolHit, queueDepth: live.queueDepth || queueDepth, tier: tier });
+      _updateGauges({ heapMB: live.heapMB || heapMB, tier: tier, queueDepth: live.queueDepth || queueDepth, poolHit: live.poolHit || poolHit, throughput: live.throughput, latencyMs: live.latencyMs });
+    }
   }
+}
 
-  function _suiteKeyFromName(name) {
-    var m = name.match(/^(\w+)/);
-    return m ? m[1] : null;
+function _onMetrics(live) {
+  _updateMetricsBar({ heapMB: live.heapMB, throughput: live.throughput, latencyMs: live.latencyMs, poolHit: live.poolHit, queueDepth: live.queueDepth });
+  _updateCharts(live);
+}
+
+function _updateMetricsBar(m) {
+  if (m.heapMB !== undefined) {
+    $('mv-heap').textContent = m.heapMB + 'MB';
+    $('mv-heap').className = 'metric-val ' + (m.heapMB > 1500 ? 'red' : m.heapMB > 800 ? 'yellow' : '');
+    _sparkline('spark-heap', _ringSnap('heapMB'), 'var(--blue)');
   }
-
-  function _updateNavIndicators() {
-    _suiteOrder.forEach(function (key) {
-      var suite = _suiteResults[key];
-      var indEl = document.getElementById('nav-' + key + '-ind');
-      if (!indEl || !suite) return;
-      var hasFail = suite.tests.some(function (t) { return t.status === 'FAIL'; });
-      var hasWarn = suite.tests.some(function (t) { return t.status === 'WARN'; });
-      indEl.className = 'suite-indicator ' + (hasFail ? 'ind-fail' : hasWarn ? 'ind-warn' : 'ind-pass');
-    });
-    // overall
-    var allInd = document.getElementById('nav-all-ind');
-    var anyFail = _suiteOrder.some(function (k) {
-      var s = _suiteResults[k];
-      return s && s.tests.some(function (t) { return t.status === 'FAIL'; });
-    });
-    var anyWarn = _suiteOrder.some(function (k) {
-      var s = _suiteResults[k];
-      return s && s.tests.some(function (t) { return t.status === 'WARN'; });
-    });
-    if (allInd) allInd.className = 'suite-indicator ' + (anyFail ? 'ind-fail' : anyWarn ? 'ind-warn' : (Object.keys(_suiteResults).length > 0 ? 'ind-pass' : ''));
+  if (m.throughput !== undefined) {
+    $('mv-tput').textContent = m.throughput + '/s';
+    _sparkline('spark-tput', _ringSnap('throughput'), 'var(--orange)');
   }
+  if (m.latencyMs !== undefined) {
+    $('mv-lat').textContent = m.latencyMs ? m.latencyMs + 'ms' : '—';
+    _sparkline('spark-lat', _ringSnap('latencyMs'), 'var(--warn)');
+  }
+  if (m.poolHit !== undefined) {
+    $('mv-pool').textContent = m.poolHit + '%';
+    $('mv-pool').className = 'metric-val ' + (m.poolHit >= 50 ? 'green' : m.poolHit >= 20 ? 'yellow' : '');
+    _sparkline('spark-pool', _ringSnap('poolHit'), 'var(--purple)');
+  }
+  if (m.queueDepth !== undefined) {
+    $('mv-queue').textContent = m.queueDepth;
+    _sparkline('spark-queue', _ringSnap('queueDepth'), 'var(--cyan)');
+  }
+  if (m.tier) {
+    $('mv-tier').textContent = m.tier;
+    $('mv-tier').className = 'metric-val ' + ({ NORMAL: 'green', WARNING: 'yellow', CRITICAL: 'red', EMERGENCY: 'red' }[m.tier] || '');
+  }
+}
 
-  function _renderCards() {
-    var container = document.getElementById('suite-cards');
-    container.innerHTML = '';
+function _updateGauges(m) {
+  if (m.heapMB !== undefined) {
+    $('g-heap').textContent = m.heapMB + 'MB';
+    var heapPct = Math.min(100, m.heapMB / 20);
+    $('gf-heap').style.width = heapPct + '%';
+    var heapColor = m.heapMB > 1500 ? 'var(--fail)' : m.heapMB > 800 ? 'var(--warn)' : 'var(--blue)';
+    $('gf-heap').style.background = heapColor;
+    $('g-heap').style.color = heapColor;
+  }
+  if (m.tier) {
+    $('g-tier').textContent = m.tier;
+    var tierColor = { NORMAL: 'var(--pass)', WARNING: 'var(--warn)', CRITICAL: 'var(--fail)', EMERGENCY: 'var(--fail)' }[m.tier] || 'var(--muted)';
+    $('g-tier').style.color = tierColor;
+    $('gf-tier').style.background = tierColor;
+  }
+  if (m.queueDepth !== undefined) {
+    $('g-queue').textContent = m.queueDepth;
+    var qPct = Math.min(100, m.queueDepth * 5);
+    $('gf-queue').style.width = qPct + '%';
+  }
+  if (m.poolHit !== undefined) {
+    $('g-pool').textContent = m.poolHit + '%';
+    $('gf-pool').style.width = m.poolHit + '%';
+    var pColor = m.poolHit >= 50 ? 'var(--pass)' : m.poolHit >= 20 ? 'var(--warn)' : 'var(--fail)';
+    $('gf-pool').style.background = pColor;
+    $('g-pool').style.color = pColor;
+  }
+  if (m.throughput !== undefined) {
+    $('g-tput').textContent = m.throughput + '/s';
+    $('gf-tput').style.width = Math.min(100, m.throughput) + '%';
+  }
+  if (m.latencyMs !== undefined) {
+    $('g-lat').textContent = m.latencyMs ? m.latencyMs + 'ms' : '—';
+    var latPct = Math.min(100, (m.latencyMs || 0) / 5);
+    $('gf-lat').style.width = latPct + '%';
+  }
+}
 
-    var suitesToShow = _selectedSuite === 'all' ? _suiteOrder : [_selectedSuite];
-    suitesToShow.forEach(function (key) {
-      var suite = _suiteResults[key];
-      if (!suite) return; // not run yet
+function _updateCharts(live) {
+  if (!live || !live.ring) return;
+  _chart('chart-heap',  live.ring.heapMB,    'var(--blue)',   'chart-heap-val',  v => v + 'MB');
+  _chart('chart-tput',  live.ring.throughput, 'var(--orange)', 'chart-tput-val',  v => v + '/s');
+  _chart('chart-lat',   live.ring.latencyMs,  'var(--warn)',   'chart-lat-val',   v => v + 'ms');
+  _chart('chart-pool',  live.ring.poolHit,    'var(--purple)', 'chart-pool-val',  v => v + '%');
+  _chart('chart-queue', live.ring.queueDepth, 'var(--cyan)',   'chart-queue-val', v => String(v));
+}
 
-      var hasFail = suite.tests.some(function (t) { return t.status === 'FAIL'; });
-      var hasWarn = suite.tests.some(function (t) { return t.status === 'WARN'; });
-      var allPass = !hasFail && !hasWarn;
+function _updateSubsystemStatus() {
+  var subsystems = [
+    ['WasmEngine',     'RuntimeWasmEngine'],
+    ['GpuEngine',      'RuntimeGpuEngine'],
+    ['Kernel',         'RuntimeKernel'],
+    ['SharedCluster',  'RuntimeSharedCluster'],
+    ['Sandbox',        'RuntimeSandbox'],
+    ['IncrementalPdf', 'RuntimeIncrementalPdf'],
+    ['ZeroCopy',       'RuntimeZeroCopy'],
+    ['Workspace',      'RuntimeWorkspace'],
+    ['LocalAI',        'RuntimeLocalAI'],
+    ['Security',       'RuntimeSecurity'],
+    ['BrowserOSCert',  'RuntimeBrowserOSCertification'],
+    ['StressHarness',  'RuntimeStressHarness'],
+  ];
+  var grid = document.getElementById('subsys-grid');
+  if (!grid) return;
+  grid.innerHTML = subsystems.map(function (s) {
+    var ok = !!window[s[1]];
+    return '<div style="display:flex;align-items:center;gap:4px">' +
+      '<span style="width:6px;height:6px;border-radius:50%;background:' + (ok ? 'var(--pass)' : 'var(--fail)') + ';flex-shrink:0"></span>' +
+      '<span style="color:' + (ok ? 'var(--text)' : 'var(--muted)') + '">' + s[0] + '</span>' +
+      '</div>';
+  }).join('');
+}
 
-      var card = document.createElement('div');
-      card.className = 'suite-card' +
-        (hasFail ? ' has-fail' : hasWarn ? ' has-warn' : ' all-pass') +
-        (hasFail ? ' open' : _selectedSuite !== 'all' ? ' open' : '');
-      card.id = 'card-' + key;
+// ── Ring snapshot helper ───────────────────────────────────────────────────
+function _ringSnap(key) {
+  if (!window.RuntimeStressHarness) return new Array(60).fill(0);
+  var m = window.RuntimeStressHarness.getLiveMetrics();
+  return m && m.ring && m.ring[key] ? m.ring[key] : new Array(60).fill(0);
+}
 
-      var indColor = hasFail ? 'var(--fail)' : hasWarn ? 'var(--warn)' : 'var(--pass)';
-      var header = '<div class="suite-header" onclick="toggleCard(\'' + key + '\')">' +
-        '<span style="width:8px;height:8px;border-radius:50%;background:' + indColor + ';flex-shrink:0;display:inline-block"></span>' +
-        '<span class="suite-name">' + suite.name + '</span>' +
-        '<span class="suite-counts">' + suite.passed + '/' + suite.total + '</span>' +
-        (suite.ms ? '<span class="suite-ms"> &nbsp; ' + suite.ms + 'ms</span>' : '') +
-        '<span class="suite-chevron">▶</span>' +
+// ── Canvas chart helpers ───────────────────────────────────────────────────
+function _sparkline(canvasId, data, color) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  var w = c.offsetWidth || 60;
+  var h = c.offsetHeight || 20;
+  c.width = w; c.height = h;
+  ctx.clearRect(0, 0, w, h);
+  var last30 = data.slice(-30);
+  var max = Math.max.apply(null, last30) || 1;
+  if (last30.length < 2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  last30.forEach(function (v, i) {
+    var x = (i / (last30.length - 1)) * w;
+    var y = h - (v / max) * h * 0.9 - 1;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+function _chart(canvasId, data, color, valId, fmt) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  var w = c.offsetWidth || 280;
+  var h = 50;
+  c.width = w; c.height = h;
+  ctx.clearRect(0, 0, w, h);
+  var arr = (data || []).slice(-60);
+  var max = Math.max.apply(null, arr) || 1;
+  if (arr.length < 2) return;
+
+  // Fill
+  ctx.beginPath();
+  ctx.fillStyle = color.replace(')', ', 0.08)').replace('var(', 'rgba(').replace(/rgba\(--[a-z]+/, 'rgba(96,165,250');
+  // Simpler: just stroke
+  ctx.moveTo(0, h);
+  arr.forEach(function (v, i) {
+    var x = (i / (arr.length - 1)) * w;
+    var y = h - (v / max) * h * 0.85;
+    ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = color.replace(/var\(--[a-z]+\)/, '#60a5fa');
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.beginPath();
+  ctx.strokeStyle = color.replace(/var\(--[a-z-]+\)/, '#60a5fa');
+  var colorMap = { 'var(--blue)':'#60a5fa','var(--orange)':'#fb923c','var(--warn)':'#f59e0b','var(--purple)':'#a78bfa','var(--cyan)':'#22d3ee','var(--pass)':'#22c55e','var(--fail)':'#ef4444' };
+  ctx.strokeStyle = colorMap[color] || color;
+  ctx.lineWidth = 1.5;
+  arr.forEach(function (v, i) {
+    var x = (i / (arr.length - 1)) * w;
+    var y = h - (v / max) * h * 0.85;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  if (valId) {
+    var last = arr[arr.length - 1];
+    var el = document.getElementById(valId);
+    if (el) el.textContent = fmt ? fmt(last) : last;
+  }
+}
+
+// ── Card builder ───────────────────────────────────────────────────────────
+function _buildCard(key, suite, forceOpen) {
+  var hasFail = suite.failed > 0 || (suite.tests && suite.tests.some(function (t) { return t.status === 'FAIL'; }));
+  var hasWarn = suite.warned > 0 || (suite.tests && suite.tests.some(function (t) { return t.status === 'WARN'; }));
+  var open    = forceOpen || hasFail;
+
+  var div = document.createElement('div');
+  div.className = 'card' + (hasFail ? ' has-fail' : hasWarn ? ' has-warn' : ' all-pass') + (open ? ' open' : '');
+  div.id = 'card-' + key;
+
+  var dotColor = hasFail ? 'var(--fail)' : hasWarn ? 'var(--warn)' : 'var(--pass)';
+  var score = typeof suite.score === 'number' ? ' | ' + suite.score + '/100' : '';
+
+  div.innerHTML = '<div class="card-hdr" onclick="toggleCard(\'' + key + '\')">' +
+    '<div class="card-dot" style="background:' + dotColor + '"></div>' +
+    '<div class="card-title">' + _esc(suite.name || key) + '</div>' +
+    '<div class="card-meta">' + (suite.passed || 0) + '/' + (suite.total || (suite.tests||[]).length) + score + (suite.ms ? ' · ' + suite.ms + 'ms' : '') + '</div>' +
+    '<div class="card-chev">▶</div>' +
+    '</div>' +
+    '<div class="card-body">' +
+    (suite.tests || []).map(function (t) {
+      return '<div class="test-row">' +
+        '<div class="ts s-' + t.status + '">' + t.status + '</div>' +
+        '<div class="tn">' + _esc(t.name) + '</div>' +
+        '<div class="td">' + _esc(t.detail || '') + '</div>' +
         '</div>';
+    }).join('') +
+    '</div>';
 
-      var rows = suite.tests.map(function (t) {
-        return '<div class="test-row">' +
-          '<span class="test-status s-' + t.status + '">' + t.status + '</span>' +
-          '<span class="test-name">' + _esc(t.name) + '</span>' +
-          '<span class="test-detail">' + _esc(t.detail || '') + '</span>' +
-          '</div>';
-      }).join('');
+  return div;
+}
 
-      card.innerHTML = header + '<div class="suite-body">' + rows + '</div>';
-      container.appendChild(card);
-    });
-  }
+function toggleCard(key) {
+  var c = document.getElementById('card-' + key);
+  if (c) c.classList.toggle('open');
+}
 
-  function toggleCard(key) {
-    var card = document.getElementById('card-' + key);
-    if (card) card.classList.toggle('open');
-  }
+// ── Log helpers ────────────────────────────────────────────────────────────
+function _log(logId, type, msg) {
+  var out = document.getElementById(logId);
+  if (!out) return;
+  var ts = new Date().toTimeString().slice(0, 8);
+  var line = document.createElement('div');
+  line.className = 'll';
+  line.innerHTML = '<span class="lt">' + ts + '</span><span class="l' + type[0] + '">' + _esc(String(msg)) + '</span>';
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+}
 
-  function _renderCertPanel(cr) {
-    var panel = document.getElementById('cert-panel');
-    if (!cr) { panel.classList.remove('visible'); return; }
+function clearLog(id) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = '';
+}
 
-    panel.classList.add('visible');
-    var tiles = document.getElementById('cert-tiles');
-    var scoreFields = [
-      ['BrowserOS Overall', cr.browserOsScore],
-      ['Offline Capability', cr.offlineScore],
-      ['Compute Scalability', cr.computeScore],
-      ['AI Readiness', cr.aiScore],
-      ['Large-File Handling', cr.largeFileScore],
-      ['Mobile Resilience', cr.mobileScore],
-    ];
+function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function $(id)   { return document.getElementById(id); }
 
-    tiles.innerHTML = scoreFields.map(function (pair) {
-      var val = Math.round(pair[1] || 0);
-      var color = val >= 70 ? 'var(--pass)' : val >= 40 ? 'var(--warn)' : 'var(--fail)';
-      return '<div class="cert-tile">' +
-        '<div class="cert-tile-label">' + pair[0] + '</div>' +
-        '<div class="cert-tile-score" style="color:' + color + '">' + val + '<span style="font-size:13px;color:var(--muted)">/100</span></div>' +
-        '<div class="cert-tile-bar"><div class="cert-tile-bar-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
-        '</div>';
-    }).join('');
+function _suiteKey(name) {
+  var m = name.match(/^(\w+)/);
+  return m ? m[1] : null;
+}
 
-    var verdictBox = document.getElementById('cert-verdict-box');
-    if (cr.verdict) { verdictBox.textContent = cr.verdict; verdictBox.style.display = ''; }
-    else verdictBox.style.display = 'none';
+// ── Console intercept ─────────────────────────────────────────────────────
+(function () {
+  var _ow = console.warn.bind(console);
+  var _oe = console.error.bind(console);
+  console.warn  = function () { _ow.apply(console, arguments);  _log('d-log','warn', Array.from(arguments).join(' ')); };
+  console.error = function () { _oe.apply(console, arguments);  _log('d-log','fail', Array.from(arguments).join(' ')); };
+}());
 
-    var bnBox = document.getElementById('cert-bottleneck-box');
-    if (cr.bottlenecks && cr.bottlenecks.length) {
-      bnBox.innerHTML = '<strong>Bottlenecks:</strong> ' + cr.bottlenecks.map(_esc).join(' · ');
-      bnBox.style.display = '';
-    } else bnBox.style.display = 'none';
+// ── Boot ──────────────────────────────────────────────────────────────────
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    _pollMetrics();
+    _updateSubsystemStatus();
 
-    var p10 = document.getElementById('cert-phase10');
-    p10.textContent = cr.phase10 ? '→ Phase 10: ' + cr.phase10 : '';
-  }
+    // Count subsystems
+    var count = [
+      'RuntimeWasmEngine','RuntimeGpuEngine','RuntimeKernel','RuntimeSharedCluster',
+      'RuntimeSandbox','RuntimeIncrementalPdf','RuntimeZeroCopy','RuntimeWorkspace',
+      'RuntimeLocalAI','RuntimeSecurity','RuntimeBrowserOSCertification',
+      'RuntimeStressHarness', 'P9V',
+    ].filter(function (k) { return !!window[k]; }).length;
 
-  function _renderSidebarScores(cr) {
-    var wrap = document.getElementById('scorecard-wrap');
-    if (!cr) { wrap.style.display = 'none'; return; }
-    wrap.style.display = '';
+    _log('d-log','info', count + '/13 modules loaded');
+    _log('v-log','info', 'Ready — ' + count + '/13 modules present');
+    _log('s-log','info', 'Stress harness ready: ' + (window.RuntimeStressHarness ? 'YES' : 'NO'));
 
-    var scoreFields = [
-      ['BrowserOS', cr.browserOsScore],
-      ['Offline',   cr.offlineScore],
-      ['Compute',   cr.computeScore],
-      ['AI',        cr.aiScore],
-      ['LargeFile', cr.largeFileScore],
-      ['Mobile',    cr.mobileScore],
-    ];
-    var rows = scoreFields.map(function (pair) {
-      var val = Math.round(pair[1] || 0);
-      var color = val >= 70 ? 'var(--pass)' : val >= 40 ? 'var(--warn)' : 'var(--fail)';
-      return '<div class="score-row">' +
-        '<span class="score-label">' + pair[0] + '</span>' +
-        '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
-        '<span class="score-val" style="color:' + color + '">' + val + '</span>' +
-        '</div>';
-    }).join('');
-    document.getElementById('sc-rows').innerHTML = rows;
-  }
-
-  // ── Log ───────────────────────────────────────────────────────────────────
-  function _log(type, msg) {
-    var out = document.getElementById('log-output');
-    var now = new Date();
-    var ts = now.toTimeString().slice(0,8) + '.' + String(now.getMilliseconds()).padStart(3,'0');
-    var line = document.createElement('div');
-    line.className = 'log-line';
-    line.innerHTML = '<span class="log-time">' + ts + '</span>' +
-      '<span class="log-' + type + '">' + _esc(String(msg)) + '</span>';
-    out.appendChild(line);
-    out.scrollTop = out.scrollHeight;
-  }
-
-  function clearLog() {
-    document.getElementById('log-output').innerHTML = '';
-  }
-
-  function _esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // ── Intercept console for live log ────────────────────────────────────────
-  (function () {
-    var _origWarn = console.warn.bind(console);
-    var _origErr  = console.error.bind(console);
-    console.warn = function () {
-      _origWarn.apply(console, arguments);
-      _log('warn', Array.from(arguments).join(' '));
-    };
-    console.error = function () {
-      _origErr.apply(console, arguments);
-      _log('fail', Array.from(arguments).join(' '));
-    };
-  }());
+    // Subscribe to stress events
+    if (window.RuntimeEventBus) {
+      window.RuntimeEventBus.on('stress:suite-complete', function (data) {
+        _log('s-log','pass', '[' + data.name + '] score=' + data.result.score + ' passed=' + data.result.passed + '/' + data.result.tests.length);
+      });
+      window.RuntimeEventBus.on('browser-os:certified', function (data) {
+        _log('d-log','pass', 'BrowserOS Certification: ' + data.score + '/100');
+      });
+    }
+  }, 900);
+});
 </script>
 </body>
 </html>
