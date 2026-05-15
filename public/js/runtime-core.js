@@ -80,6 +80,10 @@
       ['adaptiveDeg',   window.AdaptiveDegradation],
       ['cleanupContr',  window.CleanupContracts],
       ['workerLC',      window.WorkerLifecycle],
+      // Phase 5 — Certification layer
+      ['p5healthMon',   window.RuntimeHealthMonitor],
+      ['p5coverage',    { report: window.RuntimeCoverageReport }],
+      ['p5cert',        { report: window.RuntimeCertificationReport }],
       // Phase 1A/1B
       ['p1',            window.P1],
       ['memPressure',   window.MemPressure],
