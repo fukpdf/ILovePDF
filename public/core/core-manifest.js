@@ -92,6 +92,39 @@
       ],
     },
 
+    /* ── PHASE 14: TOOL RUNTIME FEDERATION ───────────────────────────────── */
+    federation: {
+      label: 'Tool Runtime Federation (Phase 14)',
+      description: 'Module federation layer: tool→group mapping, scoped runtimes, module health.',
+      globals: [
+        'RuntimeFederation',
+        'ToolModuleRegistry',
+        'RuntimeModuleLoader',
+      ],
+    },
+
+    /* ── PHASE 15: AI LAYER ISOLATION ────────────────────────────────────── */
+    aiRuntime: {
+      label: 'AI Runtime Layer (Phase 15)',
+      description: 'Unified AI facade: provider registry, inference router, execution layer.',
+      globals: [
+        'AIRuntime',
+        'AIProviderRegistry',
+        'AIInferenceRouter',
+        'AIExecutionLayer',
+      ],
+    },
+
+    /* ── PHASE 16: BROWSER OS GOVERNOR ───────────────────────────────────── */
+    governor: {
+      label: 'Runtime Governor (Phase 16)',
+      description: 'Global resource governor, orchestrator, RT.runtime.* API surface.',
+      globals: [
+        'RuntimeGovernor',
+        'RuntimeOrchestrator',
+      ],
+    },
+
     /* ── AI LAYER ────────────────────────────────────────────────────────── */
     ai: {
       label: 'AI Layer',
