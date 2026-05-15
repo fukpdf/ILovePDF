@@ -1,4 +1,14 @@
-// RuntimeStreamBridge v1.0 — Phase 7A
+// RuntimeStreamBridge v1.1 — Phase 7A + Phase 8G optimizations
+// Phase 8G additions:
+//   • Chunk prefetch (double-buffer): pre-reads the NEXT chunk while the
+//     worker is processing the CURRENT one — eliminates idle latency
+//     between ack and the next chunk arriving at the worker.
+//   • Enterprise telemetry hooks: emits stream:started/chunk/done events
+//     so RuntimeTelemetryEnterprise can track throughput / ack latency.
+//   • MemDefense pause/resume: listens to memdefense:stream-pause and
+//     memdefense:stream-resume events and throttles the chunk pipeline.
+//   • Security validation: calls RuntimeSecurity.validateWorkerMessage()
+//     on outbound stream-init and stream-chunk messages when loaded.
 // =====================================================================
 // True transferable stream pipeline. Eliminates the full-buffer
 // accumulation bottleneck in streamToWorker() by pipelining chunk
@@ -86,6 +96,37 @@
     return 8 * MB;
   }
 
+  // ── Phase 8G: MemDefense stream-pause gate ────────────────────────────────
+  var _streamsPaused = false;
+
+  function _wireMemDefense() {
+    var bus = global.RuntimeEventBus;
+    if (!bus || !bus.on) return;
+    bus.on('memdefense:stream-pause',  function () { _streamsPaused = true; });
+    bus.on('memdefense:stream-resume', function () { _streamsPaused = false; });
+  }
+
+  if (document.readyState === 'complete') {
+    setTimeout(_wireMemDefense, 200);
+  } else {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(_wireMemDefense, 200); }, { once: true });
+  }
+
+  // ── Phase 8G: Enterprise telemetry emit helpers ───────────────────────────
+  function _telStream(event, data) {
+    var bus = global.RuntimeEventBus;
+    if (bus && bus.emit) { try { bus.emit('stream:' + event, data); } catch (_) {} }
+    // Also route to enterprise telemetry direct API
+    var te = global.RuntimeTelemetryEnterprise;
+    if (te && te.recordStream) {
+      try {
+        if (event === 'started') te.recordStream.start(data.streamId, data.tool, data.totalBytes);
+        if (event === 'chunk')   te.recordStream.chunk(data.streamId, data.chunkBytes, data.ackMs);
+        if (event === 'done')    te.recordStream.end(data.streamId);
+      } catch (_) {}
+    }
+  }
+
   // ── Active stream registry (for cancellation) ──────────────────────────────
   var _activeStreams = new Map();
 
@@ -126,6 +167,13 @@
       });
     }
 
+    // 8G: reject if MemDefense has paused streams
+    if (_streamsPaused) {
+      return Promise.reject(new Error('stream-paused-by-memdefense'));
+    }
+
+    _telStream('started', { streamId: streamId, tool: message.tool, totalBytes: file.size });
+
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
@@ -149,6 +197,7 @@
           if (global.RuntimeTelemetry && spanId !== null) {
             global.RuntimeTelemetry.endSpan(spanId, 'ok');
           }
+          _telStream('done', { streamId: streamId });
           resolve(d);
         } else if (d.type === 'stream-error') {
           _activeStreams.delete(streamId);
@@ -191,6 +240,15 @@
         stream:   fileStream,
         totalSize: file.size,
       });
+
+      // 8G: security validation on outbound message
+      if (global.RuntimeSecurity) {
+        try { global.RuntimeSecurity.validateWorkerMessage(msg); } catch (se) {
+          _activeStreams.delete(streamId);
+          try { w.terminate(); } catch (_) {}
+          reject(se); return;
+        }
+      }
 
       try {
         w.postMessage(msg, [fileStream]);
@@ -247,37 +305,98 @@
       // Wait for ack before sending next chunk — real backpressure
       var _pendingAck  = false;
 
+      // ── 8G: Prefetch double-buffer ────────────────────────────────────────
+      // While the worker processes chunk N, we pre-read chunk N+1 into
+      // _prefetchBuf so it can be sent immediately on ack — eliminating
+      // the main-thread slice().arrayBuffer() latency from the hot path.
+      var _prefetchBuf  = null;   // ArrayBuffer for the next chunk
+      var _prefetchEnd  = 0;      // file offset after prefetch read
+      var _prefetchLast = false;  // true if prefetch covers the last byte
+      var _prefetching  = false;  // read in-flight guard
+
+      async function _prefetchNext() {
+        if (_prefetching || _prefetchBuf) return;
+        var nextOffset = offset; // offset is updated after send
+        if (nextOffset >= totalSize) return;
+        var nextEnd  = Math.min(nextOffset + chunkSz, totalSize);
+        _prefetching = true;
+        try {
+          var slice = file.slice(nextOffset, nextEnd);
+          var buf   = await slice.arrayBuffer();
+          if (!entry.cancelled && !done) {
+            _prefetchBuf  = buf;
+            _prefetchEnd  = nextEnd;
+            _prefetchLast = (nextEnd >= totalSize);
+          }
+        } catch (_) {
+          // silently discard — _sendNextChunk will re-read on ack
+        }
+        _prefetching = false;
+      }
+
+      // 8G: track chunk send times for ack-latency telemetry
+      var _chunkSentTs = 0;
+
       async function _sendNextChunk() {
         if (entry.cancelled || done) return;
 
         // Send init message first
         if (!sentInit) {
           sentInit = true;
-          w.postMessage(Object.assign({}, message, {
+          var initMsg = Object.assign({}, message, {
             type:      'stream-init',
             streamId:  streamId,
             totalSize: totalSize,
-          }));
+          });
+          w.postMessage(initMsg);
+          // Kick off first prefetch after init
+          _prefetchNext().catch(function () {});
         }
 
         if (offset >= totalSize) {
-          // All chunks sent — nothing more to do (last chunk already sent with isLast=true)
           return;
         }
 
-        if (_pendingAck) return; // waiting for ack from previous chunk
+        if (_pendingAck) return; // still waiting for previous ack
 
-        var end     = Math.min(offset + chunkSz, totalSize);
-        var isLast  = (end >= totalSize);
-        var slice   = file.slice(offset, end);
-        var buf;
-        try {
-          buf = await slice.arrayBuffer();
-        } catch (readErr) {
-          _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          reject(readErr);
+        // 8G: MemDefense gate — pause chunk pipeline under memory pressure
+        if (_streamsPaused) {
+          // Retry in 500ms
+          setTimeout(function () {
+            if (!entry.cancelled && !done) {
+              _sendNextChunk().catch(function (err) {
+                _activeStreams.delete(streamId);
+                try { w.terminate(); } catch (_) {}
+                reject(err);
+              });
+            }
+          }, 500);
           return;
+        }
+
+        var buf, end, isLast;
+
+        // Use prefetch buffer if available and covers the right offset
+        if (_prefetchBuf && _prefetchEnd > offset) {
+          buf    = _prefetchBuf;
+          end    = _prefetchEnd;
+          isLast = _prefetchLast;
+          _prefetchBuf  = null;
+          _prefetchEnd  = 0;
+          _prefetchLast = false;
+        } else {
+          // Prefetch missed — fall back to direct read
+          end    = Math.min(offset + chunkSz, totalSize);
+          isLast = (end >= totalSize);
+          var slice = file.slice(offset, end);
+          try {
+            buf = await slice.arrayBuffer();
+          } catch (readErr) {
+            _activeStreams.delete(streamId);
+            try { w.terminate(); } catch (_) {}
+            reject(readErr);
+            return;
+          }
         }
 
         if (entry.cancelled) {
@@ -290,15 +409,30 @@
         _pendingAck = true;
         offset = end;
 
+        // 8G: Telemetry
+        _telStream('chunk', { streamId: streamId, chunkBytes: buf.byteLength });
+        _chunkSentTs = Date.now();
+
+        var chunkMsg = {
+          type:       'stream-chunk',
+          streamId:   streamId,
+          chunk:      buf,
+          chunkIndex: chunkIndex,
+          isLast:     isLast,
+          totalSize:  totalSize,
+        };
+
+        // 8G: security validation on chunk message
+        if (global.RuntimeSecurity) {
+          try { global.RuntimeSecurity.validateWorkerMessage(chunkMsg); } catch (se) {
+            _activeStreams.delete(streamId);
+            try { w.terminate(); } catch (_) {}
+            reject(se); return;
+          }
+        }
+
         try {
-          w.postMessage({
-            type:       'stream-chunk',
-            streamId:   streamId,
-            chunk:      buf,
-            chunkIndex: chunkIndex,
-            isLast:     isLast,
-            totalSize:  totalSize,
-          }, [buf]); // transfer — zero-copy, buf detached in main thread
+          w.postMessage(chunkMsg, [buf]); // zero-copy transfer
         } catch (postErr) {
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
@@ -311,6 +445,11 @@
         if (onProgress) {
           try { onProgress(Math.min(85, Math.round((offset / totalSize) * 85)), 'Streaming to worker…'); } catch (_) {}
         }
+
+        // 8G: Immediately prefetch the NEXT chunk while worker processes current one
+        if (!isLast) {
+          _prefetchNext().catch(function () {});
+        }
       }
 
       w.onmessage = function (e) {
@@ -318,6 +457,11 @@
         if (!d || d.streamId !== streamId) return;
 
         if (d.type === 'stream-ack') {
+          // 8G: record ack latency for enterprise telemetry
+          if (_chunkSentTs > 0) {
+            _telStream('chunk', { streamId: streamId, chunkBytes: 0, ackMs: Date.now() - _chunkSentTs });
+            _chunkSentTs = 0;
+          }
           _pendingAck = false;
           // Send next chunk now that worker acknowledged the previous one
           _sendNextChunk().catch(function (err) {
@@ -333,6 +477,7 @@
           if (global.RuntimeTelemetry && spanId !== null) {
             global.RuntimeTelemetry.endSpan(spanId, 'ok');
           }
+          _telStream('done', { streamId: streamId });
           resolve(d);
 
         } else if (d.type === 'stream-error') {

@@ -270,6 +270,32 @@
   <script src="/js/crash-recovery-ui.js"></script>
   <!-- 7I: Production certification (dev + console diagnostics only) -->
   <script src="/js/runtime-production-certification.js" defer></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 8 — Final Production Platform + Enterprise Hardening         -->
+  <!-- Load order: security (8I) first so all subsequent modules can use  -->
+  <!-- its validation APIs. Memory defense (8D) before AI/stream layers.  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- 8I: Security hardening — worker validation, prompt sanitization, OPFS guards -->
+  <script src="/js/runtime-security.js"></script>
+  <!-- 8D: Predictive OOM memory defense — must load before stream bridge + AI -->
+  <script src="/js/runtime-memory-defense.js"></script>
+  <!-- 8A: Benchmark engine — baseline CPU/IO/WASM benchmarks for adaptive tuning -->
+  <script src="/js/runtime-benchmark-engine.js"></script>
+  <!-- 8C: Distributed cross-tab scheduler — BroadcastChannel task coordination -->
+  <script src="/js/runtime-distributed-scheduler.js"></script>
+  <!-- 8E: Result cache — 3-tier LRU/OPFS/IDB output caching with SHA-256 keying -->
+  <script src="/js/runtime-result-cache.js"></script>
+  <!-- 8F: AI upgrade — scored provider routing, priority queue, batching, retry -->
+  <script src="/js/runtime-ai-upgrade.js"></script>
+  <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
+  <script src="/js/runtime-telemetry-enterprise.js"></script>
+  <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
+  <script src="/js/runtime-devtools-dashboard.js" defer></script>
+  <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
+  <script src="/js/runtime-enterprise-certification.js" defer></script>
+
   <!-- Phase 6D — Cross-tab BroadcastChannel Coordination -->
   <script src="/js/runtime-cross-tab.js"></script>
   <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->
