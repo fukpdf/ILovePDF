@@ -66,6 +66,13 @@ self.addEventListener('activate', event => {
       .then(() => Promise.all(
         Object.entries(CACHE_MAX_ENTRIES).map(([name, max]) => pruneCache(name, max))
       ))
+      // Phase 23: broadcast SW_ACTIVATED so RuntimeUpdater can detect version changes
+      .then(() => self.clients.matchAll({ includeUncontrolled: true, type: 'window' }))
+      .then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_ACTIVATED', version: CACHE_VERSION });
+        });
+      })
   );
 });
 

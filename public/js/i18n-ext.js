@@ -189,6 +189,25 @@
     'hls.footer_desc': 'Free PDF & Image tools online. Files are deleted automatically after processing \u2014 your privacy comes first.',
     'hls.footer_rights': '\u00a9 2026 ILovePDF \u2014 All rights reserved.',
     'hls.footer_deleted': 'Files are deleted automatically within seconds.',
+    /* update toast (Phase 23) */
+    'update.available': 'Update available',
+    'update.desc':      'Reload to get the latest version',
+    'update.refresh':   'Reload',
+    'update.dismiss':   'Dismiss',
+    'update.installing':'Installing update\u2026',
+    'update.applied':   'App updated',
+    /* changelog panel */
+    'changelog.title':  "What\u2019s New",
+    'changelog.dismiss':'Got it',
+    /* runtime recovery (Phase 24) */
+    'recovery.crashed':        'Something went wrong',
+    'recovery.desc':           'The runtime encountered an error. Click Recover to heal.',
+    'recovery.retry':          'Recover',
+    'recovery.report':         'Report',
+    'recovery.dismiss_overlay':'Continue Anyway',
+    'recovery.recovering':     'Recovering\u2026',
+    'recovery.recovered':      'Recovered',
+    'recovery.copied':         'Copied!',
     /* offline indicator */
     'offline.no_connection': 'No internet connection',
     'offline.reconnecting':  'Reconnecting\u2026',
@@ -1752,6 +1771,146 @@
   Object.keys(OFFLINE_EXT).forEach(function (lang) {
     if (!EXT[lang]) EXT[lang] = {};
     Object.assign(EXT[lang], OFFLINE_EXT[lang]);
+  });
+
+  /* ── Update / Recovery supplemental translations (Phase 23-24) ─────────── */
+  var UPDATE_EXT = {
+    ar: {
+      'update.available': '\u062a\u062d\u062f\u064a\u062b \u0645\u062a\u0627\u062d',
+      'update.desc':      '\u0623\u0639\u062f \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0635\u0641\u062d\u0629 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u0622\u062e\u0631 \u0625\u0635\u062f\u0627\u0631',
+      'update.refresh':   '\u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644',
+      'update.dismiss':   '\u0625\u063a\u0644\u0627\u0642',
+      'recovery.crashed': '\u062d\u062f\u062b \u062e\u0637\u0623 \u0645\u0627',
+      'recovery.retry':   '\u0627\u0633\u062a\u0631\u062f\u0627\u062f',
+      'recovery.report':  '\u0625\u0628\u0644\u0627\u063a',
+      'changelog.title':  '\u0645\u0627 \u0627\u0644\u062c\u062f\u064a\u062f',
+      'changelog.dismiss':'\u062a\u0645',
+    },
+    ur: {
+      'update.available': '\u0627\u067e\u0688\u06cc\u0679 \u062f\u0633\u062a\u06cc\u0627\u0628',
+      'update.refresh':   '\u0631\u06cc\u0644\u0648\u0688',
+      'update.dismiss':   '\u0628\u0646\u062f \u06a9\u0631\u06cc\u06ba',
+      'recovery.crashed': '\u06a9\u0686\u06be \u063a\u0644\u0637 \u06c1\u0648 \u06af\u06cc\u0627',
+      'recovery.retry':   '\u0628\u062d\u0627\u0644 \u06a9\u0631\u06cc\u06ba',
+      'changelog.title':  '\u06a9\u06cc\u0627 \u0646\u06cc\u0627 \u06c1\u06d2',
+      'changelog.dismiss':'\u0633\u0645\u062c\u06be \u06af\u06cc\u0627',
+    },
+    fa: {
+      'update.available': '\u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u0645\u0648\u062c\u0648\u062f \u0627\u0633\u062a',
+      'update.refresh':   '\u0628\u0627\u0631\u06af\u0630\u0627\u0631\u06cc \u0645\u062c\u062f\u062f',
+      'update.dismiss':   '\u0628\u0633\u062a\u0646',
+      'recovery.crashed': '\u062e\u0637\u0627\u06cc\u06cc \u0631\u062e \u062f\u0627\u062f',
+      'recovery.retry':   '\u0628\u0627\u0632\u06cc\u0627\u0628\u06cc',
+      'changelog.title':  '\u0686\u0647 \u0686\u06cc\u0632\u06cc \u062c\u062f\u06cc\u062f \u0627\u0633\u062a',
+      'changelog.dismiss':'\u0645\u062a\u0648\u062c\u0647 \u0634\u062f\u0645',
+    },
+    hi: {
+      'update.available': '\u0905\u092a\u0921\u0947\u091f \u0909\u092a\u0932\u092c\u094d\u0927',
+      'update.refresh':   '\u092a\u0941\u0928\u0903 \u0932\u094b\u0921 \u0915\u0930\u0947\u0902',
+      'update.dismiss':   '\u0959\u093e\u0930\u093f\u091c \u0915\u0930\u0947\u0902',
+      'recovery.crashed': '\u0915\u0941\u091b \u0917\u0932\u0924 \u0939\u0941\u0906',
+      'recovery.retry':   '\u092a\u0941\u0928\u0930\u094d\u092a\u094d\u0930\u093e\u092a\u094d\u0924',
+      'changelog.title':  '\u0928\u092f\u093e \u0915\u094d\u092f\u093e \u0939\u0948',
+      'changelog.dismiss':'\u0920\u0940\u0915 \u0939\u0948',
+    },
+    zh: {
+      'update.available': '\u6709\u65b0\u7248\u672c',
+      'update.refresh':   '\u91cd\u65b0\u52a0\u8f7d',
+      'update.dismiss':   '\u5173\u95ed',
+      'recovery.crashed': '\u53d1\u751f\u9519\u8bef',
+      'recovery.retry':   '\u6062\u590d',
+      'changelog.title':  '\u66f4\u65b0\u5185\u5bb9',
+      'changelog.dismiss':'\u77e5\u9053\u4e86',
+    },
+    fr: {
+      'update.available': 'Mise \u00e0 jour disponible',
+      'update.desc':      'Rechargez pour obtenir la derni\u00e8re version',
+      'update.refresh':   'Recharger',
+      'update.dismiss':   'Ignorer',
+      'recovery.crashed': 'Une erreur est survenue',
+      'recovery.retry':   'R\u00e9cup\u00e9rer',
+      'changelog.title':  "Nouveaut\u00e9s",
+      'changelog.dismiss':'Compris',
+    },
+    de: {
+      'update.available': 'Update verf\u00fcgbar',
+      'update.desc':      'Neu laden f\u00fcr die aktuellste Version',
+      'update.refresh':   'Neu laden',
+      'update.dismiss':   'Sp\u00e4ter',
+      'recovery.crashed': 'Ein Fehler ist aufgetreten',
+      'recovery.retry':   'Wiederherstellen',
+      'changelog.title':  'Was ist neu',
+      'changelog.dismiss':'Verstanden',
+    },
+    es: {
+      'update.available': 'Actualización disponible',
+      'update.desc':      'Recarga para obtener la última versión',
+      'update.refresh':   'Recargar',
+      'update.dismiss':   'Ignorar',
+      'recovery.crashed': 'Algo salió mal',
+      'recovery.retry':   'Recuperar',
+      'changelog.title':  'Novedades',
+      'changelog.dismiss':'Entendido',
+    },
+    pt: {
+      'update.available': 'Atualização disponível',
+      'update.refresh':   'Recarregar',
+      'update.dismiss':   'Ignorar',
+      'recovery.crashed': 'Algo deu errado',
+      'recovery.retry':   'Recuperar',
+      'changelog.title':  'Novidades',
+      'changelog.dismiss':'Entendido',
+    },
+    ru: {
+      'update.available': '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u043e \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435',
+      'update.refresh':   '\u041f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c',
+      'update.dismiss':   '\u041f\u043e\u0437\u0436\u0435',
+      'recovery.crashed': '\u0427\u0442\u043e-\u0442\u043e \u043f\u043e\u0448\u043b\u043e \u043d\u0435 \u0442\u0430\u043a',
+      'recovery.retry':   '\u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c',
+      'changelog.title':  '\u0427\u0442\u043e \u043d\u043e\u0432\u043e\u0433\u043e',
+      'changelog.dismiss':'\u041f\u043e\u043d\u044f\u0442\u043d\u043e',
+    },
+    tr: {
+      'update.available': 'G\u00fcncelleme mevcut',
+      'update.refresh':   'Yenile',
+      'update.dismiss':   'Yoksay',
+      'recovery.crashed': 'Bir hata olu\u015ftu',
+      'recovery.retry':   'Kurtar',
+      'changelog.title':  'Yenilikler',
+      'changelog.dismiss':'Tamam',
+    },
+    id: {
+      'update.available': 'Pembaruan tersedia',
+      'update.refresh':   'Muat ulang',
+      'update.dismiss':   'Abaikan',
+      'recovery.crashed': 'Terjadi kesalahan',
+      'recovery.retry':   'Pulihkan',
+      'changelog.title':  'Yang Baru',
+      'changelog.dismiss':'Mengerti',
+    },
+    ja: {
+      'update.available': '\u30a2\u30c3\u30d7\u30c7\u30fc\u30c8\u304c\u3042\u308a\u307e\u3059',
+      'update.refresh':   '\u518d\u8aad\u307f\u8fbc\u307f',
+      'update.dismiss':   '\u9589\u3058\u308b',
+      'recovery.crashed': '\u30a8\u30e9\u30fc\u304c\u767a\u751f\u3057\u307e\u3057\u305f',
+      'recovery.retry':   '\u56de\u5fa9',
+      'changelog.title':  '\u65b0\u6a5f\u80fd',
+      'changelog.dismiss':'\u4e86\u89e3',
+    },
+    ko: {
+      'update.available': '\uc5c5\ub370\uc774\ud2b8 \uc0ac\uc6a9 \uac00\ub2a5',
+      'update.refresh':   '\uc0c8\ub85c\uace0\uce68',
+      'update.dismiss':   '\ub2eb\uae30',
+      'recovery.crashed': '\uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4',
+      'recovery.retry':   '\ubcf5\uad6c',
+      'changelog.title':  '\uc0c8\ub85c\uc6b4 \uae30\ub2a5',
+      'changelog.dismiss':'\ud655\uc778',
+    },
+  };
+
+  Object.keys(UPDATE_EXT).forEach(function (lang) {
+    if (!EXT[lang]) EXT[lang] = {};
+    Object.assign(EXT[lang], UPDATE_EXT[lang]);
   });
 
   var _hooked = false;
