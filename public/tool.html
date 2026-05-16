@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="shortcut icon" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -315,6 +316,7 @@
   <script src="/js/runtime-wasm-engine.js"></script>
   <!-- 9B: GPU compute engine — WebGPU device, WebGL2/WebGL1/CPU fallback tier -->
   <script src="/js/runtime-gpu-engine.js"></script>
+  <script src="/js/webgpu-phase23.js" defer></script>
   <!-- 9G: Browser OS microkernel — single arbitration point for all compute slots -->
   <script src="/js/runtime-kernel.js"></script>
   <!-- 9C: SharedWorker cluster — persistent multi-tab brain, priority task queue -->
@@ -392,6 +394,8 @@
   <script src="/js/tool-page.js" defer></script>
   <script src="/js/shared.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>
+  <script src="/js/i18n.js" defer></script>
+  <script src="/js/tool-i18n-bridge.js" defer></script>
   <!-- Laba AI Assistant — widget CSS + button UI load eagerly for instant chat bubble -->
   <link rel="stylesheet" href="/laba/laba-widget.css">
   <script src="/laba/laba-widget.js" defer></script>
@@ -431,5 +435,20 @@
   <script src="/core/production-mode.js" defer></script>
 
   <script src="/js/homepage-lazy-loader.js" defer></script>
+
+  <!-- Phase 22: PWA Service Worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function (reg) {
+            console.info('[SW] registered, scope:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('[SW] registration failed:', err);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

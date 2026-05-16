@@ -138,9 +138,54 @@ self.addEventListener('sync', event => {
   }
 });
 
+const IDB_DB   = 'iplv-sync';
+const IDB_STORE = 'pending-uploads';
+
+function openSyncDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB, 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
 async function retryPendingUploads() {
-  // Placeholder: real implementation would read from IDB queue
-  // and retry any uploads that failed while offline
+  let db;
+  try {
+    db = await openSyncDb();
+  } catch {
+    return; // IDB unavailable — nothing to retry
+  }
+
+  const tx      = db.transaction(IDB_STORE, 'readwrite');
+  const store   = tx.objectStore(IDB_STORE);
+  const records = await new Promise((res, rej) => {
+    const r = store.getAll();
+    r.onsuccess = () => res(r.result);
+    r.onerror   = () => rej(r.error);
+  });
+
+  for (const record of records) {
+    try {
+      const resp = await fetch(record.url, {
+        method:  record.method || 'POST',
+        headers: record.headers || {},
+        body:    record.body,
+      });
+      if (resp.ok) {
+        store.delete(record.id);
+        console.info('[SW] retried upload', record.id, resp.status);
+      }
+    } catch (err) {
+      console.warn('[SW] retry failed for', record.id, err.message);
+      // leave in queue for next sync opportunity
+    }
+  }
+
+  db.close();
 }
 
 // ── Push notifications (future use) ───────────────────────────────────────

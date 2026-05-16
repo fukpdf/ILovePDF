@@ -71,7 +71,28 @@ app.get('/api/geo', (req, res) => {
 // /ping-index. Mounted before static so it can override sitemap/robots files.
 app.use(seoRouter);
 
-app.use(express.static('public'));
+// Phase 24: Tiered static file serving with long-lived cache headers.
+// JS/CSS/fonts/images get 1-year immutable headers so browsers never
+// re-fetch them on subsequent visits (service worker handles freshness).
+// HTML and JSON files stay short-lived so they always reflect updates.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag:         true,
+  lastModified: true,
+  setHeaders(res, filePath) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    if (/^(js|css|woff2?|ttf|otf|ico|png|jpg|jpeg|gif|webp|svg)$/.test(ext)) {
+      // Versioned/fingerprinted assets — cache aggressively
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (ext === 'json' && !filePath.includes('/locales/')) {
+      // Non-locale JSON (manifest, config) — 1 hour
+      res.set('Cache-Control', 'public, max-age=3600');
+    } else if (ext === 'json') {
+      // Locale files — stale-while-revalidate 24 h, bg revalidate 7 d
+      res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+    // HTML falls through to Express default (no-cache / etag only)
+  },
+}));
 
 console.log(`[ilovepdf] uploads dir: ${UPLOAD_DIR}`);
 console.log(`[ilovepdf] firebase: ${isFirebaseConfigured() ? 'enabled' : 'disabled'}`);
@@ -136,7 +157,6 @@ const apiLimiter = rateLimit({
 
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Admin dashboard — mounted before main API so /admin/* is not rate-limited
 // adminRouter  : serves /admin/login, /admin/setup, /admin/*, /api/admin/auth/*
