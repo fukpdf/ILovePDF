@@ -11,9 +11,9 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1045.0",
-    "@aws-sdk/s3-request-presigner": "^3.1045.0",
-    "@types/node": "^22.19.18",
+    "@aws-sdk/client-s3": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
+    "@types/node": "^22.19.19",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^9.6.0",
     "compression": "^1.8.1",
@@ -22,7 +22,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
-    "firebase-admin": "^13.9.0",
+    "firebase-admin": "^13.10.0",
     "jsonwebtoken": "^9.0.3",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
