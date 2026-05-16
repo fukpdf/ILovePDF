@@ -447,5 +447,24 @@
   "cookie": {
     "accept":     "Accept",
     "learn_more": "Learn More"
+  },
+  "community": {
+    "live_label":    "Live Community Impact",
+    "section_title": "Real Impact, Real People",
+    "section_desc":  "Every file processed saves real money. Here's what our community has achieved together — for free.",
+    "today_title":   "Today's Impact",
+    "alltime_title": "All-Time Impact",
+    "files_today":   "Files Processed Today",
+    "users_today":   "Active Users Today",
+    "saved_today":   "Saved Today",
+    "live_users":    "Online Now",
+    "total_files":   "Total Files Processed",
+    "total_users":   "Total Users Served",
+    "total_saved":   "Total Money Saved",
+    "total_ai":      "AI Operations Completed",
+    "ticker_title":  "Live Activity",
+    "support_text":  "Your support helps keep these tools free for everyone.",
+    "support_btn":   "Support Platform",
+    "coffee_btn":    "Buy Me a Coffee"
   }
 }

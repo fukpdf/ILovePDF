@@ -39,6 +39,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/home.css">
   <link rel="stylesheet" href="/css/economy.css">
+  <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
@@ -351,6 +352,105 @@
       </div>
     </section>
 
+    <!-- ── 3.5 Community Impact ──────────────────────────────────────── -->
+    <!-- SEO: section heading + description are crawlable static content.  -->
+    <!-- Numbers are populated by community-economy.js after load.         -->
+    <section class="ce-impact-section" aria-labelledby="ce-impact-title">
+      <div class="ce-impact-inner">
+
+        <div class="ce-impact-head">
+          <div class="ce-impact-label">
+            <span class="ce-impact-label-dot" aria-hidden="true"></span>
+            <span data-i18n="community.live_label">Live Community Impact</span>
+          </div>
+          <h2 id="ce-impact-title" class="ce-impact-title" data-i18n="community.section_title">Real Impact, Real People</h2>
+          <p class="ce-impact-desc" data-i18n="community.section_desc">Every file processed saves real money. Here's what our community has achieved together — for free.</p>
+        </div>
+
+        <div class="ce-impact-grid">
+
+          <!-- Today live -->
+          <div>
+            <p class="ce-impact-col-title">
+              <span class="ce-live-badge" aria-label="Live data"><span class="ce-live-badge-dot" aria-hidden="true"></span> <span data-i18n="community.today_title">Today's Impact</span></span>
+            </p>
+            <div class="ce-impact-cards">
+              <div class="ce-impact-card ce-impact-card--live">
+                <div class="ce-impact-card-icon" aria-hidden="true">📄</div>
+                <div class="ce-impact-card-val" id="ce-today-files" aria-live="polite">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.files_today">Files Processed Today</div>
+              </div>
+              <div class="ce-impact-card ce-impact-card--live">
+                <div class="ce-impact-card-icon" aria-hidden="true">👥</div>
+                <div class="ce-impact-card-val" id="ce-today-users" aria-live="polite">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.users_today">Active Users Today</div>
+              </div>
+              <div class="ce-impact-card ce-impact-card--live">
+                <div class="ce-impact-card-icon" aria-hidden="true">💰</div>
+                <div class="ce-impact-card-val" id="ce-today-savings" aria-live="polite">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.saved_today">Saved Today</div>
+              </div>
+              <div class="ce-impact-card ce-impact-card--live">
+                <div class="ce-impact-card-icon" aria-hidden="true">🟢</div>
+                <div class="ce-impact-card-val" id="ce-today-live" aria-live="polite">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.live_users">Online Now</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- All-time -->
+          <div>
+            <p class="ce-impact-col-title" data-i18n="community.alltime_title">All-Time Impact</p>
+            <div class="ce-impact-cards">
+              <div class="ce-impact-card">
+                <div class="ce-impact-card-icon" aria-hidden="true">📦</div>
+                <div class="ce-impact-card-val" id="ce-all-files">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.total_files">Total Files Processed</div>
+              </div>
+              <div class="ce-impact-card">
+                <div class="ce-impact-card-icon" aria-hidden="true">🌍</div>
+                <div class="ce-impact-card-val" id="ce-all-users">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.total_users">Total Users Served</div>
+              </div>
+              <div class="ce-impact-card">
+                <div class="ce-impact-card-icon" aria-hidden="true">💎</div>
+                <div class="ce-impact-card-val" id="ce-all-savings">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.total_saved">Total Money Saved</div>
+              </div>
+              <div class="ce-impact-card ce-impact-card--ai">
+                <div class="ce-impact-card-icon" aria-hidden="true">🤖</div>
+                <div class="ce-impact-card-val" id="ce-all-ai">—</div>
+                <div class="ce-impact-card-label" data-i18n="community.total_ai">AI Operations Completed</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live activity ticker -->
+        <div class="ce-ticker-wrap" aria-label="Live community activity">
+          <div class="ce-ticker-head">
+            <span class="ce-live-badge"><span class="ce-live-badge-dot" aria-hidden="true"></span> <span data-i18n="community.ticker_title">Live Activity</span></span>
+          </div>
+          <div class="ce-ticker-stage" id="ce-ticker-stage" aria-live="polite" aria-atomic="true"></div>
+        </div>
+
+        <!-- CTA -->
+        <div class="ce-impact-cta">
+          <p class="ce-impact-cta-text" data-i18n="community.support_text">Your support helps keep these tools free for everyone.</p>
+          <div class="ce-impact-cta-btns">
+            <a href="/blog/support-the-project.html" class="ce-btn-support">
+              <span aria-hidden="true">❤️</span> <span data-i18n="community.support_btn">Support Platform</span>
+            </a>
+            <a href="https://www.buymeacoffee.com/msafdar" target="_blank" rel="noopener noreferrer" class="ce-btn-coffee">
+              <span aria-hidden="true">☕</span> <span data-i18n="community.coffee_btn">Buy Me a Coffee</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- ── 4. Support Awareness ───────────────────────────────────────── -->
     <section class="hls-section hls-support-section" aria-labelledby="hls-support-title">
       <div class="hls-inner">
@@ -550,6 +650,9 @@
   <script src="/js/runtime-ai-scheduler.js" defer></script>
   <script src="/js/runtime-perf.js" defer></script>
   <script src="/js/homepage-lazy-loader.js" defer></script>
+  <!-- Phase Community: savings animation + community economy runtime -->
+  <script src="/js/savings-animation.js" defer></script>
+  <script src="/js/community-economy.js" defer></script>
 
   <!-- Phase 18/20: Production mode guard.
        Detects environment, suppresses Phase-tagged console noise in production,

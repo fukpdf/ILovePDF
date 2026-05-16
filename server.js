@@ -18,6 +18,7 @@ import searchRouter from './routes/search.js';
 import liveIntelRouter from './routes/live-intelligence.js';
 import adminRouter from './routes/admin.js';
 import adminApiRouter from './routes/admin-api.js';
+import communityApiRouter from './routes/community-api.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
@@ -163,6 +164,11 @@ app.use(cookieParser());
 // adminApiRouter: all /api/admin/* CRUD (protected by adminGuard inside)
 app.use(adminRouter);
 app.use('/api/admin', adminApiRouter);
+
+// Community economy API — polled every 10s with 30s server-side cache.
+// Mounted BEFORE the general rate limiter so the cached aggregate stats
+// endpoint doesn't exhaust the 80-req/15min budget on poll cycles.
+app.use('/api/community', communityApiRouter);
 
 // Rate limiter applied FIRST — before any /api/* handler
 app.use('/api', apiLimiter);
