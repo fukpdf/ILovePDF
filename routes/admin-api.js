@@ -26,14 +26,28 @@ const router = express.Router();
 
 // Analytics ingest — called from public tool pages
 router.post('/analytics/event', express.json(), (req, res) => {
-  const { event, tool_id, path: p, referrer } = req.body || {};
+  const {
+    event, tool_id, path: p, referrer,
+    uid, fp_hash, trust_score, savings_pkr, gpu_tier, pwa_installed, extra,
+  } = req.body || {};
   if (!event) return res.status(400).json({ error: 'event required' });
-  const ua = req.headers['user-agent'] || '';
+  const ua     = req.headers['user-agent'] || '';
   const uaType = /mobile|android|iphone/i.test(ua) ? 'mobile' : 'desktop';
   try {
     db.prepare(
-      'INSERT INTO adm_analytics (event,tool_id,path,referrer,ua_type) VALUES (?,?,?,?,?)'
-    ).run(event, tool_id || null, p || '', referrer || '', uaType);
+      `INSERT INTO adm_analytics
+         (event,tool_id,path,referrer,ua_type,uid,fp_hash,trust_score,savings_pkr,gpu_tier,pwa_installed,extra)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(
+      event, tool_id || null, p || '', referrer || '', uaType,
+      uid     || null,
+      fp_hash || null,
+      trust_score != null ? trust_score : null,
+      savings_pkr || null,
+      gpu_tier    || null,
+      pwa_installed ? 1 : 0,
+      extra || null,
+    );
   } catch {}
   res.json({ ok: true });
 });
@@ -469,6 +483,74 @@ router.get('/analytics', (req, res) => {
   ).all(...params);
 
   res.json({ toolUsage, dailyEvents, uaBreakdown, totalEvents, eventBreakdown, toolIds, days, since, until });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 8B — ECONOMY ANALYTICS (Phase 27)
+// Credits · Savings · Donations · Ads · GPU · PWA · Abuse Detection
+// ═══════════════════════════════════════════════════════════════════════════════
+
+router.get('/analytics/economy', (req, res) => {
+  const days  = Math.min(365, Math.max(1, parseInt(req.query.days || '30')));
+  const since = Math.floor((Date.now() - days * 86400000) / 1000);
+
+  const q = (sql, ...p) => { try { return db.prepare(sql).get(...p) || {}; } catch { return {}; } };
+  const a = (sql, ...p) => { try { return db.prepare(sql).all(...p) || []; } catch { return []; } };
+
+  // ── Economy KPIs ──
+  const rewardsTotal     = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='credits_rewarded' AND created_at>?", since).c || 0;
+  const savingsTotal     = q("SELECT COALESCE(SUM(savings_pkr),0) as s FROM adm_analytics WHERE event='savings_added' AND created_at>?", since).s || 0;
+  const donationsClicked = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='donation_clicked' AND created_at>?", since).c || 0;
+  const quotaExceeded    = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='quota_exceeded' AND created_at>?", since).c || 0;
+  const adShown          = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='ad_shown' AND created_at>?", since).c || 0;
+  const adCompleted      = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='ad_completed' AND created_at>?", since).c || 0;
+  const pwaInstalls      = q("SELECT COUNT(*) as c FROM adm_analytics WHERE event='pwa_installed' AND created_at>?", since).c || 0;
+
+  // ── Unique users / fingerprints ──
+  const uniqueFingerprints = q("SELECT COUNT(DISTINCT fp_hash) as c FROM adm_analytics WHERE fp_hash IS NOT NULL AND created_at>?", since).c || 0;
+  const activeUsers        = q("SELECT COUNT(DISTINCT uid) as c FROM adm_analytics WHERE uid IS NOT NULL AND uid!='' AND created_at>?", since).c || 0;
+  const lowTrustCount      = q("SELECT COUNT(DISTINCT fp_hash) as c FROM adm_analytics WHERE trust_score<50 AND trust_score>=0 AND fp_hash IS NOT NULL AND created_at>?", since).c || 0;
+
+  // ── GPU tier breakdown ──
+  const gpuBreakdown = a("SELECT gpu_tier, COUNT(*) as c FROM adm_analytics WHERE gpu_tier IS NOT NULL AND created_at>? GROUP BY gpu_tier ORDER BY c DESC", since);
+
+  // ── Trust distribution ──
+  const trustDist = a(`
+    SELECT
+      CASE WHEN trust_score>=90 THEN 'high'
+           WHEN trust_score>=60 THEN 'medium'
+           WHEN trust_score>=0  THEN 'low'
+           ELSE 'unknown' END as tier,
+      COUNT(DISTINCT fp_hash) as c
+    FROM adm_analytics WHERE created_at>? GROUP BY tier`, since);
+
+  // ── Abuse detection — reward farming (>3 rewards from same fingerprint) ──
+  const abuseSuspects = a(`
+    SELECT fp_hash, COUNT(*) as reward_count
+    FROM adm_analytics
+    WHERE event='credits_rewarded' AND fp_hash IS NOT NULL AND fp_hash!='' AND created_at>?
+    GROUP BY fp_hash HAVING COUNT(*)>3
+    ORDER BY reward_count DESC LIMIT 10`, since)
+    .map(r => ({ fp: (r.fp_hash || '').slice(-10), rewards: r.reward_count }));
+
+  // ── Top donation providers ──
+  const donationProviders = a(`
+    SELECT json_extract(extra,'$.provider') as provider, COUNT(*) as c
+    FROM adm_analytics WHERE event='donation_clicked' AND extra IS NOT NULL AND created_at>?
+    GROUP BY provider ORDER BY c DESC LIMIT 8`, since);
+
+  // ── Daily reward trend (last 14 days) ──
+  const rewardTrend = a(`
+    SELECT strftime('%Y-%m-%d', created_at, 'unixepoch') as day, COUNT(*) as c
+    FROM adm_analytics WHERE event='credits_rewarded' AND created_at>?
+    GROUP BY day ORDER BY day`, Math.floor((Date.now() - 14 * 86400000) / 1000));
+
+  res.json({
+    days, rewardsTotal, savingsTotal, donationsClicked, quotaExceeded,
+    adShown, adCompleted, pwaInstalls,
+    uniqueFingerprints, activeUsers, lowTrustCount,
+    gpuBreakdown, trustDist, abuseSuspects, donationProviders, rewardTrend,
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

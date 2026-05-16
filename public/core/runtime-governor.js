@@ -158,6 +158,49 @@
     }
   }
 
+  /* ── 2E: GPU overload protection ──────────────────────────────────────── */
+  function _checkGpu() {
+    var gpuStats = _safe(function () {
+      return G.RuntimeGpuEngine ? G.RuntimeGpuEngine.getStats() : null;
+    }, null);
+    if (!gpuStats) return;
+
+    var activeOps = gpuStats.activeOps || gpuStats.active || 0;
+    var queuedOps = gpuStats.queuedOps || gpuStats.queued || 0;
+
+    if (activeOps > 10 || queuedOps > 20) {
+      console.warn(LOG, 'GPU overload — active:', activeOps, 'queued:', queuedOps, '— throttle ON');
+      G.__IPLV_GPU_THROTTLE__ = true;
+      _safe(function () {
+        if (G.RuntimeEventBus) G.RuntimeEventBus.emit('governor:gpu-overload', gpuStats);
+      });
+    } else if (G.__IPLV_GPU_THROTTLE__) {
+      G.__IPLV_GPU_THROTTLE__ = false;
+      console.debug(LOG, 'GPU overload cleared — throttle OFF');
+    }
+  }
+
+  /* ── 2F: Stale AI/worker queue cleanup ─────────────────────────────────── */
+  var _lastStaleCheckTs = 0;
+  var STALE_QUEUE_MS    = 10 * 60 * 1000; // 10 min
+
+  function _checkStaleQueues() {
+    var now = Date.now();
+    if (now - _lastStaleCheckTs < GUARD_INTERVAL_MS * 2) return;
+    _lastStaleCheckTs = now;
+
+    _safe(function () {
+      if (G.RuntimeAIOrchestrator && typeof G.RuntimeAIOrchestrator.cancelStale === 'function') {
+        G.RuntimeAIOrchestrator.cancelStale(STALE_QUEUE_MS, 'governor:stale-queue');
+      }
+    });
+    _safe(function () {
+      if (G.RuntimeTaskScheduler && typeof G.RuntimeTaskScheduler.pruneExpired === 'function') {
+        G.RuntimeTaskScheduler.pruneExpired('governor:stale-queue');
+      }
+    });
+  }
+
   /* ── Governor loop ─────────────────────────────────────────────────────── */
   var _guardTimer = null;
 
@@ -166,6 +209,8 @@
     _checkWorkers();
     _checkAi();
     _checkStreams();
+    _checkGpu();
+    _checkStaleQueues();
   }
 
   function _startGuards() {

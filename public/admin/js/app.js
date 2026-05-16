@@ -609,7 +609,8 @@ async function renderAnalytics(sec) {
         <button class="btn btn-secondary btn-sm" id="an-refresh" style="padding:7px 12px;margin-left:auto" title="Refresh">↻ Refresh</button>
       </div>
     </div>
-    <div id="analytics-body"><div style="text-align:center;padding:48px;color:var(--muted,#9ca3af)">Loading analytics…</div></div>`;
+    <div id="analytics-body"><div style="text-align:center;padding:48px;color:var(--muted,#9ca3af)">Loading analytics…</div></div>
+    <div id="analytics-economy"></div>`;
 
   const applyFilters = () => {
     const r = ($('#an-range')||{}).value || '30';
@@ -632,6 +633,104 @@ async function renderAnalytics(sec) {
   if ($('#an-refresh')) $('#an-refresh').onclick   = applyFilters;
 
   await loadAnalytics();
+  loadEconomyAnalytics();
+}
+
+async function loadEconomyAnalytics() {
+  const el = $('#analytics-economy');
+  if (!el) return;
+  try {
+    const r   = _an.range;
+    const days = r === 'today' ? 1 : r === 'yesterday' ? 1 : (parseInt(r) || 30);
+    const d    = await API.get(`/analytics/economy?days=${days}`);
+
+    const gpuRows = Array.isArray(d.gpuBreakdown) ? d.gpuBreakdown : [];
+    const gpuHtml = gpuRows.length
+      ? gpuRows.map(r => `<div class="flex justify-between text-sm"><span class="text-muted">${esc(r.gpu_tier||'—')}</span><span class="font-bold">${fmt.num(r.c)}</span></div>`).join('')
+      : '<div class="text-sm text-muted">No data yet</div>';
+
+    const trustRows = Array.isArray(d.trustDist) ? d.trustDist : [];
+    const trustColor = { high:'icon-green', medium:'icon-yellow', low:'icon-red', unknown:'icon-gray' };
+    const trustHtml  = trustRows.length
+      ? trustRows.map(r => `<div class="flex justify-between text-sm"><span class="text-muted" style="text-transform:capitalize">${esc(r.tier||'—')}</span><span class="font-bold">${fmt.num(r.c)}</span></div>`).join('')
+      : '<div class="text-sm text-muted">No data yet</div>';
+
+    const abuseSuspects = Array.isArray(d.abuseSuspects) ? d.abuseSuspects : [];
+    const abuseHtml = abuseSuspects.length
+      ? `<table style="width:100%;font-size:13px"><thead><tr><th style="text-align:left;padding:4px 0;color:var(--muted)">Fingerprint</th><th style="text-align:right;padding:4px 0;color:var(--muted)">Rewards</th></tr></thead><tbody>
+          ${abuseSuspects.map(s => `<tr><td style="padding:3px 0;font-family:monospace">${esc(s.fp)}</td><td style="text-align:right;padding:3px 0;color:var(--danger)">${s.rewards}</td></tr>`).join('')}
+        </tbody></table>`
+      : '<div class="text-sm" style="color:var(--success,#22c55e)">No abuse suspects detected</div>';
+
+    const donProviders = Array.isArray(d.donationProviders) ? d.donationProviders : [];
+    const donHtml = donProviders.length
+      ? donProviders.map(r => `<div class="flex justify-between text-sm"><span class="text-muted">${esc(r.provider||'unknown')}</span><span class="font-bold">${fmt.num(r.c)}</span></div>`).join('')
+      : '<div class="text-sm text-muted">No clicks recorded</div>';
+
+    el.innerHTML = `
+      <div class="page-header" style="margin-top:32px">
+        <div><div class="page-title" style="font-size:18px">Economy Analytics</div><div class="page-sub">Credits · Savings · Donations · Ads · Trust · GPU · PWA</div></div>
+      </div>
+      <div class="stat-grid mb-4">
+        <div class="stat-card">
+          <div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <div class="stat-label">Credits Rewarded</div>
+          <div class="stat-value">${fmt.num(d.rewardsTotal||0)}</div>
+          <div class="stat-sub">Quota resets: ${fmt.num(d.quotaExceeded||0)} exceeded</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+          <div class="stat-label">Savings Tracked</div>
+          <div class="stat-value">Rs ${fmt.num(d.savingsTotal||0)}</div>
+          <div class="stat-sub">Equivalent cost avoided</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-yellow"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="stat-label">Donation Clicks</div>
+          <div class="stat-value">${fmt.num(d.donationsClicked||0)}</div>
+          <div class="stat-sub">Support intent signals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-blue"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+          <div class="stat-label">Ads Shown / Completed</div>
+          <div class="stat-value">${fmt.num(d.adShown||0)}</div>
+          <div class="stat-sub">${fmt.num(d.adCompleted||0)} completed · ${d.adShown?Math.round((d.adCompleted/d.adShown)*100):0}% rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-purple"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="stat-label">Unique Visitors</div>
+          <div class="stat-value">${fmt.num(d.uniqueFingerprints||0)}</div>
+          <div class="stat-sub">${fmt.num(d.activeUsers||0)} logged-in · ${fmt.num(d.lowTrustCount||0)} low-trust</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="stat-label">PWA Installs</div>
+          <div class="stat-value">${fmt.num(d.pwaInstalls||0)}</div>
+          <div class="stat-sub">App added to home screen</div>
+        </div>
+      </div>
+      <div class="grid-2 mb-4">
+        <div class="card">
+          <div class="card-header"><span class="card-title">GPU Tier Breakdown</span></div>
+          <div class="card-body" style="display:grid;gap:10px">${gpuHtml}</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Trust Score Distribution</span></div>
+          <div class="card-body" style="display:grid;gap:10px">${trustHtml}</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Donation Providers</span></div>
+          <div class="card-body" style="display:grid;gap:10px">${donHtml}</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title" style="color:var(--danger)">Abuse Suspects (reward farming)</span></div>
+          <div class="card-body">${abuseHtml}</div>
+        </div>
+      </div>`;
+  } catch (e) {
+    const el2 = $('#analytics-economy');
+    if (el2) el2.innerHTML = `<div class="card mb-4"><div class="card-body text-sm text-muted">Economy analytics unavailable — ${esc(e.message)}</div></div>`;
+  }
 }
 
 async function loadAnalytics() {

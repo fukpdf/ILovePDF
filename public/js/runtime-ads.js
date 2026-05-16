@@ -280,7 +280,26 @@
       return Object.keys(_providers).map(function (n) {
         return { name: n, ready: _providers[n].isReady() };
       });
-    }
+    },
+
+    // Phase 26 complete API surface
+    init: function () {
+      console.info(LOG, 'init — active provider:', pickProvider());
+      return global.RuntimeAds;
+    },
+
+    isAvailable: function () {
+      var live = ['adsense', 'monetag', 'propellerads', 'adsterra'];
+      return live.some(function (n) { return _providers[n] && _providers[n].isReady(); });
+    },
+
+    getProvider: function () {
+      return _activeProvider || pickProvider();
+    },
+
+    getStats: function () {
+      return global.RuntimeAds.status();
+    },
   };
 
   // Integrate with RuntimeKernel

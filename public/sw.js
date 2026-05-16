@@ -34,7 +34,27 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── Activate: delete stale caches ─────────────────────────────────────────
+// ── Cache entry limits (Phase 28C — prevents unbounded growth) ────────────────
+const CACHE_MAX_ENTRIES = {
+  [CACHE_STATIC]: 180,   // JS/CSS/fonts/images
+  [CACHE_PAGES]:   60,   // HTML navigation pages
+  [CACHE_LOCALE]:  40,   // locale JSON files
+};
+
+async function pruneCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys  = await cache.keys();
+    if (keys.length <= maxEntries) return;
+    const excess = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(excess.map(k => cache.delete(k)));
+    console.info('[SW] pruned', excess.length, 'stale entries from', cacheName);
+  } catch (err) {
+    console.warn('[SW] pruneCache error:', err.message);
+  }
+}
+
+// ── Activate: delete stale caches + prune oversized ones ──────────────────────
 self.addEventListener('activate', event => {
   const current = new Set([CACHE_STATIC, CACHE_PAGES, CACHE_LOCALE]);
   event.waitUntil(
@@ -43,6 +63,9 @@ self.addEventListener('activate', event => {
         keys.filter(k => !current.has(k)).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
+      .then(() => Promise.all(
+        Object.entries(CACHE_MAX_ENTRIES).map(([name, max]) => pruneCache(name, max))
+      ))
   );
 });
 

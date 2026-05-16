@@ -164,7 +164,37 @@
       return Object.assign({}, DONATION_LINKS);
     },
 
-    isDismissed: isDismissed
+    isDismissed: isDismissed,
+
+    // Phase 25 complete API surface
+    open: function (trigger) { return global.RuntimeDonation.show(trigger || 'manual'); },
+
+    trackClick: function (provider) {
+      document.dispatchEvent(new CustomEvent('donation:clicked', { detail: { provider: provider } }));
+      if (global.RuntimeAnalytics) {
+        global.RuntimeAnalytics.track('donation_clicked', { extra: { provider: provider } });
+      }
+    },
+
+    trackSuccess: function (provider, amount) {
+      if (global.RuntimeAnalytics) {
+        global.RuntimeAnalytics.track('donation_success', { extra: { provider: provider, amount: amount } });
+      }
+    },
+
+    shouldShow: shouldShow,
+
+    getStats: function () {
+      return {
+        showsThisSession: _showsThisSession,
+        dismissed:        isDismissed(),
+        totalShown:       parseInt(lsGet(LS_SHOWN_COUNT) || '0', 10),
+        providers:        Object.keys(DONATION_LINKS),
+        savingsThreshold: SAVINGS_THRESHOLD,
+        opsThreshold:     OPS_THRESHOLD,
+        dismissDays:      DISMISS_DAYS,
+      };
+    },
   };
 
   // ── Auto-trigger on savings milestone ───────────────────────────────

@@ -146,6 +146,25 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_adm_analytics_tool    ON adm_analytics(tool_id, created_at DESC);
 `);
 
+// ─── Phase 27: Expand analytics table with economy + identity columns ─────────
+// SQLite has no ALTER TABLE ... ADD COLUMN IF NOT EXISTS — use try/catch per col.
+const _analyticsNewCols = [
+  'ALTER TABLE adm_analytics ADD COLUMN uid           TEXT',
+  'ALTER TABLE adm_analytics ADD COLUMN fp_hash       TEXT',
+  'ALTER TABLE adm_analytics ADD COLUMN trust_score   INTEGER',
+  'ALTER TABLE adm_analytics ADD COLUMN savings_pkr   INTEGER',
+  'ALTER TABLE adm_analytics ADD COLUMN gpu_tier      TEXT',
+  'ALTER TABLE adm_analytics ADD COLUMN pwa_installed INTEGER DEFAULT 0',
+  'ALTER TABLE adm_analytics ADD COLUMN extra         TEXT',
+];
+for (const _sql of _analyticsNewCols) {
+  try { db.exec(_sql); } catch (_) { /* column already exists — safe to ignore */ }
+}
+try {
+  db.exec('CREATE INDEX IF NOT EXISTS idx_adm_analytics_fp  ON adm_analytics(fp_hash, created_at DESC)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_adm_analytics_uid ON adm_analytics(uid, created_at DESC)');
+} catch (_) {}
+
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
 export function getConfig(key, defaultVal = null) {

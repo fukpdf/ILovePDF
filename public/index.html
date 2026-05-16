@@ -18,6 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/home.css">
+  <link rel="stylesheet" href="/css/economy.css">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
 </head>
@@ -510,6 +511,13 @@
        Crawlers: skipped entirely (SEO/translations unaffected).
        Real users: heavy AI stack loads after 4 s idle OR first Laba interaction.
        Order of each module is preserved exactly as before. -->
+  <!-- Phase 25–27: Economy + Analytics runtime -->
+  <script src="/js/runtime-identity.js" defer></script>
+  <script src="/js/runtime-savings.js" defer></script>
+  <script src="/js/runtime-ads.js" defer></script>
+  <script src="/js/runtime-credits.js" defer></script>
+  <script src="/js/runtime-donation.js" defer></script>
+  <script src="/js/runtime-analytics.js" defer></script>
   <script src="/js/homepage-lazy-loader.js" defer></script>
 
   <!-- Phase 18/20: Production mode guard.
