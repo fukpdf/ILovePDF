@@ -698,6 +698,38 @@ router.post('/auth/change-password', express.json(), (req, res) => {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 9 — RUNTIME DIAGNOSTICS SNAPSHOT
+// Returns server-side process/memory/env data for the admin diagnostics panel.
+// Protected by adminGuard (already applied via router.use above).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+router.get('/diagnostics/snapshot', (req, res) => {
+  try {
+    const mem = process.memoryUsage();
+    res.json({
+      ts:          Date.now(),
+      uptimeSec:   Math.round(process.uptime()),
+      nodeVersion: process.version,
+      platform:    process.platform,
+      arch:        process.arch,
+      env:         process.env.NODE_ENV || 'development',
+      memoryMB: {
+        rss:       Math.round(mem.rss        / 1048576),
+        heapUsed:  Math.round(mem.heapUsed   / 1048576),
+        heapTotal: Math.round(mem.heapTotal  / 1048576),
+        external:  Math.round(mem.external   / 1048576),
+      },
+      loadAvg:    os.loadavg().map(v => Math.round(v * 100) / 100),
+      totalMemMB: Math.round(os.totalmem() / 1048576),
+      freeMemMB:  Math.round(os.freemem()  / 1048576),
+      cpus:       os.cpus().length,
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'diagnostics unavailable', detail: e.message });
+  }
+});
+
 function slugify(text) {
   return String(text).toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')

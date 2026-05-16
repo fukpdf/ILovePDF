@@ -340,6 +340,25 @@
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
   <script src="/js/runtime-browser-os-certification.js" defer></script>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 27–30 RUNTIME LAYER                                           -->
+  <!-- 27: RuntimeDiagnosticsCenter — enterprise diagnostics, IDB         -->
+  <!--     timeline, live admin panel, JSON/TXT export                    -->
+  <!-- 28: RuntimePrefetch — predictive route prefetch, tool adjacency,   -->
+  <!--     locale-aware prefetch, SW heat scoring, adaptive quality       -->
+  <!-- 29: RuntimeAIGraph — pipeline DAG visualiser, smart OCR routing,   -->
+  <!--     AI worker pool, inference telemetry                            -->
+  <!-- 30: RuntimeHardening — leak guard (setInterval/RAF patching),      -->
+  <!--     memory compaction, crash protection, 6-level escalation        -->
+  <!-- Load order: after all Phase 9 systems (RuntimePerf, AIScheduler,  -->
+  <!-- Kernel, GpuEngine loaded). All use _s() guards so missing deps     -->
+  <!-- are silently tolerated — no SEO or crawler impact.                -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <script src="/js/runtime-diagnostics-center.js"></script>
+  <script src="/js/runtime-prefetch.js"></script>
+  <script src="/js/runtime-ai-graph.js"></script>
+  <script src="/js/runtime-hardening.js"></script>
+
   <!-- Phase 6D — Cross-tab BroadcastChannel Coordination -->
   <script src="/js/runtime-cross-tab.js"></script>
   <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->

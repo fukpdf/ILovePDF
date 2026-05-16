@@ -227,26 +227,84 @@ async function retryPendingUploads() {
   db.close();
 }
 
-// ── Message handler: CACHE_STATS for RuntimeOffline.getCacheStats() ──────
-self.addEventListener('message', event => {
-  if (!event.data || event.data.type !== 'CACHE_STATS') return;
-  const port = event.ports && event.ports[0];
-  if (!port) return;
+// ── Phase 28: URL heat map for RuntimePrefetch.getHeatMap() ──────────────
+// Tracks per-URL visit counts across SW lifetime. Keyed by pathname only.
+const _urlHeat = new Map();  // pathname → hit count
 
-  Promise.all([
-    caches.open(CACHE_STATIC).then(c => c.keys().then(k => k.length)),
-    caches.open(CACHE_PAGES).then(c  => c.keys().then(k => k.length)),
-    caches.open(CACHE_LOCALE).then(c => c.keys().then(k => k.length)),
-  ]).then(([staticCount, pagesCount, localeCount]) => {
-    port.postMessage({
-      available:   true,
-      version:     CACHE_VERSION,
-      staticCount, pagesCount, localeCount,
-      maxStatic:   CACHE_MAX_ENTRIES[CACHE_STATIC],
-      maxPages:    CACHE_MAX_ENTRIES[CACHE_PAGES],
-      maxLocale:   CACHE_MAX_ENTRIES[CACHE_LOCALE],
-    });
-  }).catch(() => port.postMessage({ available: false }));
+function _heatKey(url) {
+  try { return new URL(url, 'https://x').pathname; } catch { return url; }
+}
+
+// ── Message handler: multi-type (CACHE_STATS, PREFETCH_URLS, TRACK_URL, HEAT_REPORT) ──
+self.addEventListener('message', event => {
+  if (!event.data) return;
+  const { type } = event.data;
+
+  // ── CACHE_STATS: RuntimeOffline.getCacheStats() ──────────────────────────
+  if (type === 'CACHE_STATS') {
+    const port = event.ports && event.ports[0];
+    if (!port) return;
+    Promise.all([
+      caches.open(CACHE_STATIC).then(c => c.keys().then(k => k.length)),
+      caches.open(CACHE_PAGES).then(c  => c.keys().then(k => k.length)),
+      caches.open(CACHE_LOCALE).then(c => c.keys().then(k => k.length)),
+    ]).then(([staticCount, pagesCount, localeCount]) => {
+      port.postMessage({
+        available:   true,
+        version:     CACHE_VERSION,
+        staticCount, pagesCount, localeCount,
+        maxStatic:   CACHE_MAX_ENTRIES[CACHE_STATIC],
+        maxPages:    CACHE_MAX_ENTRIES[CACHE_PAGES],
+        maxLocale:   CACHE_MAX_ENTRIES[CACHE_LOCALE],
+      });
+    }).catch(() => port.postMessage({ available: false }));
+    return;
+  }
+
+  // ── PREFETCH_URLS: RuntimePrefetch — cache predicted tool routes ─────────
+  // Caches a list of URLs into CACHE_PAGES so subsequent navigations are instant.
+  // Only caches HTML navigation responses; skips API/admin paths.
+  if (type === 'PREFETCH_URLS') {
+    const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
+    event.waitUntil(
+      caches.open(CACHE_PAGES).then(cache => {
+        const fetches = urls
+          .filter(u => {
+            try {
+              const p = new URL(u, self.location.origin).pathname;
+              return !API_PATH.test(p) && !ADMIN_PATH.test(p) && !STATIC_EXTS.test(p);
+            } catch { return false; }
+          })
+          .map(u =>
+            fetch(u, { credentials: 'same-origin' })
+              .then(r => {
+                if (r.ok && r.status < 400) return cache.put(u, r);
+              })
+              .catch(() => {})
+          );
+        return Promise.all(fetches);
+      })
+    );
+    return;
+  }
+
+  // ── TRACK_URL: RuntimePrefetch — increment heat score for a URL ──────────
+  if (type === 'TRACK_URL') {
+    const key = _heatKey(event.data.url || '');
+    if (key) _urlHeat.set(key, (_urlHeat.get(key) || 0) + 1);
+    return;
+  }
+
+  // ── HEAT_REPORT: RuntimePrefetch.getHeatMap() — return URL heat scores ───
+  if (type === 'HEAT_REPORT') {
+    const port = event.ports && event.ports[0];
+    if (!port) return;
+    const hits = [];
+    _urlHeat.forEach((count, url) => hits.push({ url, count }));
+    hits.sort((a, b) => b.count - a.count);
+    port.postMessage({ hits });
+    return;
+  }
 });
 
 // ── Push notifications (future use) ───────────────────────────────────────
