@@ -1,5 +1,7 @@
 {pkgs}: {
   deps = [
+    pkgs.sqlite
+    pkgs.vips
     pkgs.pkg-config
     pkgs.gcc
     pkgs.gnumake
