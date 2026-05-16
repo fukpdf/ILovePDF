@@ -67,7 +67,7 @@
         b.disabled = true;
         if (b.dataset.vote === prior) b.classList.add('is-selected');
       });
-      msg.textContent = 'Thanks for your feedback!';
+      msg.textContent = window.t ? window.t('blog_ui.feedback_thanks') : 'Thanks for your feedback!';
       msg.classList.add('is-shown');
       return;
     }
@@ -79,7 +79,7 @@
         btns.forEach((b) => { b.disabled = true; });
         btn.classList.add('is-selected');
         try { localStorage.setItem(key, vote); } catch (_) {}
-        msg.textContent = 'Thanks for your feedback!';
+        msg.textContent = window.t ? window.t('blog_ui.feedback_thanks') : 'Thanks for your feedback!';
         msg.classList.add('is-shown');
 
         // Optional: fire-and-forget POST to Formspree.

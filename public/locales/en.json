@@ -219,15 +219,19 @@
     "link_copied":         "Link copied"
   },
   "modal": {
-    "confirm":         "Confirm",
-    "cancel":          "Cancel",
-    "close":           "Close",
-    "ok":              "OK",
-    "yes":             "Yes",
-    "no":              "No",
-    "download":        "Download",
-    "process_another": "Process Another File",
-    "go_back":         "Go Back"
+    "confirm":           "Confirm",
+    "cancel":            "Cancel",
+    "close":             "Close",
+    "ok":                "OK",
+    "yes":               "Yes",
+    "no":                "No",
+    "download":          "Download",
+    "process_another":   "Process Another File",
+    "go_back":           "Go Back",
+    "coming_soon_title": "Coming Soon",
+    "coming_soon_msg":   "We're actively building this tool and it will be available soon.",
+    "got_it":            "Got It",
+    "file_too_large":    "File too large"
   },
   "progress": {
     "page":    "Page {{current}} of {{total}}",
@@ -396,5 +400,52 @@
     "footer_desc":    "Free PDF & Image tools online. Files are deleted automatically after processing — your privacy comes first.",
     "footer_rights":  "© 2026 ILovePDF — All rights reserved.",
     "footer_deleted": "Files are deleted automatically within seconds."
+  },
+  "blog_ui_extra": {
+    "feedback_thanks":    "Thanks for your feedback!",
+    "read_article":       "Read article",
+    "no_match":           "No articles match your search. Try a different keyword or category.",
+    "search_blog":        "Search guides\u2026"
+  },
+  "tool": {
+    "all_tools":      "All Tools",
+    "live_ready":     "Live & Ready",
+    "coming_soon":    "Coming Soon",
+    "options":        "Options",
+    "upload_file":    "Upload File",
+    "upload_files":   "Upload Files",
+    "back_to_upload": "Back to upload",
+    "step_upload":    "Upload",
+    "step_preview":   "Preview",
+    "step_download":  "Download",
+    "trust_secure":       "Secure processing",
+    "trust_deleted":      "Files deleted after download for your privacy",
+    "trust_no_install":   "No installation required"
+  },
+  "status": {
+    "not_found":          "Page not found",
+    "taking_back":        "Taking you back to all tools in",
+    "no_file":            "No file selected",
+    "no_file_msg":        "Please upload a file before processing.",
+    "no_pages":           "No pages selected",
+    "no_pages_msg":       "Please keep at least one page before processing.",
+    "result_incomplete":  "Result incomplete",
+    "processing_failed":  "Processing failed",
+    "tool_unavailable":   "Tool unavailable",
+    "tool_unavailable_msg": "This tool is not yet available in your browser. Please try again in a moment.",
+    "file_ready":         "Your file is ready",
+    "click_download":     "Click the Download button below to save your file.",
+    "already_opt":        "Already optimised",
+    "already_opt_msg":    "Your PDF is already well-optimised. Use the deep compression option below for a stronger result.",
+    "export_failed":      "Export failed",
+    "export_empty":       "The output appears empty. Please try again."
+  },
+  "processing": {
+    "alt_approach":       "Applying an alternative approach\u2026",
+    "alt_approach_msg":   "This may take a moment."
+  },
+  "cookie": {
+    "accept":     "Accept",
+    "learn_more": "Learn More"
   }
 }

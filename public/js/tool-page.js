@@ -1,3 +1,14 @@
+// ── i18n translation helper ─────────────────────────────────────────────────
+// Uses window.t() when available AND resolved; falls back to English string.
+// Prevents raw key names from ever rendering (e.g. during async locale fetch).
+function _tp(key, fallback) {
+  if (typeof window.t === 'function') {
+    var v = window.t(key);
+    if (v !== key) return v; // real translation found
+  }
+  return fallback; // English fallback (covers cache-empty race condition)
+}
+
 let currentTool = null;
 let selectedFiles = [];   // array of { file, rotation, id, _thumbUrl? }
 let dragSrcIndex = null;
@@ -211,6 +222,7 @@ window.addEventListener('popstate', () => {
 });
 
 window.Flow = Flow; // exposed for queue-client and any future hookups
+window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
 document.addEventListener('DOMContentLoaded', () => {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
@@ -333,15 +345,15 @@ function renderNotFound(toolId, slug) {
     <div class="tool-page">
       <div class="tool-header">
         <a href="/" class="back-link" onclick="clearTimeout(window.__aeNotFoundTimer)">
-          <i data-lucide="arrow-left"></i> All Tools
+          <i data-lucide="arrow-left"></i> ${_tp('tool.all_tools', 'All Tools')}
         </a>
       </div>
       <div class="status-card status-error" style="margin-top:24px">
         <i data-lucide="home"></i>
         <div>
-          <div class="status-card-title">Page not found</div>
+          <div class="status-card-title">${_tp('status.not_found', 'Page not found')}</div>
           <div class="status-card-msg">
-            Taking you back to all tools in
+            ${_tp('status.taking_back', 'Taking you back to all tools in')}
             <strong id="ae-nf-count">3</strong> second(s)…
             <br><a href="/" style="color:#E5322E;font-weight:600"
                   onclick="clearTimeout(window.__aeNotFoundTimer)">Go now →</a>
@@ -389,14 +401,14 @@ function toolHeaderBlock(tool, opts = {}) {
   const color = catMeta ? catMeta.color : '#E5322E';
   const bgAlpha = hexToRgba(color, 0.12);
   const statusHtml = !opts.hideStatus && tool.working
-    ? `<span class="tool-status status-live"><span class="status-dot"></span>Live &amp; Ready</span>`
+    ? `<span class="tool-status status-live"><span class="status-dot"></span>${_tp('tool.live_ready', 'Live &amp; Ready')}</span>`
     : (!opts.hideStatus && !tool.working
-        ? `<span class="tool-status status-soon"><span class="status-dot"></span>Coming Soon</span>`
+        ? `<span class="tool-status status-soon"><span class="status-dot"></span>${_tp('tool.coming_soon', 'Coming Soon')}</span>`
         : '');
   const heading = opts.heading || tool.name;
   const desc    = opts.desc    || tool.description;
   const icon    = opts.icon    || tool.icon;
-  const back    = opts.back    || { href: '/', label: 'All Tools' };
+  const back    = opts.back    || { href: '/', label: _tp('tool.all_tools', 'All Tools') };
   const backHtml = back.href.startsWith('#step:')
     ? `<button type="button" class="back-link" data-go-step="${back.href.slice(6)}"><i data-lucide="arrow-left"></i> ${back.label}</button>`
     : `<a href="${back.href}" class="back-link"><i data-lucide="arrow-left"></i> ${back.label}</a>`;
@@ -421,9 +433,9 @@ function toolHeaderBlock(tool, opts = {}) {
 // current step is highlighted; future steps are dimmed and not interactive.
 function stepIndicatorHtml(currentStep) {
   const steps = [
-    { id: 'upload',   label: 'Upload',   icon: 'upload' },
-    { id: 'preview',  label: 'Preview',  icon: 'eye' },
-    { id: 'download', label: 'Download', icon: 'download' },
+    { id: 'upload',   label: _tp('tool.step_upload',   'Upload'),   icon: 'upload' },
+    { id: 'preview',  label: _tp('tool.step_preview',  'Preview'),  icon: 'eye' },
+    { id: 'download', label: _tp('tool.step_download', 'Download'), icon: 'download' },
   ];
   const order = { upload: 0, preview: 1, download: 2 };
   const cur = order[currentStep] ?? 0;
@@ -486,7 +498,7 @@ function buildOptionsHtml(tool) {
   }).join('');
   return `
     <div class="options-section">
-      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Options</div>
+      <div class="options-title"><i data-lucide="sliders-horizontal"></i> ${_tp('tool.options', 'Options')}</div>
       <div class="options-grid">${fields}</div>
     </div>`;
 }
@@ -497,9 +509,9 @@ function buildOptionsHtml(tool) {
 function trustStripHtml() {
   return `
     <ul class="trust-strip" aria-label="Why you can trust this tool">
-      <li><i data-lucide="shield-check"></i> Secure processing</li>
-      <li><i data-lucide="trash-2"></i> Files deleted after download for your privacy</li>
-      <li><i data-lucide="cloud-off"></i> No installation required</li>
+      <li><i data-lucide="shield-check"></i> ${_tp('tool.trust_secure', 'Secure processing')}</li>
+      <li><i data-lucide="trash-2"></i> ${_tp('tool.trust_deleted', 'Files deleted after download for your privacy')}</li>
+      <li><i data-lucide="cloud-off"></i> ${_tp('tool.trust_no_install', 'No installation required')}</li>
     </ul>`;
 }
 
@@ -598,7 +610,9 @@ function renderUploadStep(tool) {
   if (!container) return;
   container.classList.remove('ew-wide');
 
-  const fileLabel = tool.multipleFiles ? 'Upload Files' : 'Upload File';
+  const fileLabel = tool.multipleFiles
+    ? _tp('tool.upload_files', 'Upload Files')
+    : _tp('tool.upload_file', 'Upload File');
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   const fileType  = tool.group === 'image' ? 'image' : 'PDF';
 
@@ -659,7 +673,7 @@ function renderProPreviewStep(tool) {
                       : 'Edit your file in the interactive editor below, then click Download when done.',
         icon:       tool.icon || 'edit-3',
         hideStatus: true,
-        back: { href: '#step:upload', label: 'Back to upload' },
+        back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
       <div id="pro-editor-mount" style="margin-top:12px;flex:1;${isBgRemover ? '' : 'min-height:520px;'}"></div>
@@ -676,7 +690,7 @@ function renderProPreviewStep(tool) {
   // onResult: used by EditPdfPro — shows the Download button for manual save.
   function onResult(blob, filename, mime) {
     if (!blob || blob.size < 10) {
-      showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
+      showStatus('error', _tp('status.export_failed', 'Export failed'), _tp('status.export_empty', 'The output appears empty. Please try again.'));
       return;
     }
     // Route through ObjectURLRegistry so memory-pressure and pagehide both revoke.
@@ -687,8 +701,8 @@ function renderProPreviewStep(tool) {
     }, 60 * 60 * 1000);
     showStatus(
       'success',
-      'Your file is ready',
-      'Click the Download button below to save ' + filename + '.',
+      _tp('status.file_ready', 'Your file is ready'),
+      _tp('status.click_download', 'Click the Download button below to save your file.'),
       url,
       filename
     );
@@ -698,7 +712,7 @@ function renderProPreviewStep(tool) {
   // in-editor button, so we just show the success card and commit the flow.
   function commitResult(blob, filename, mime) {
     if (!blob || blob.size < 10) {
-      showStatus('error', 'Export failed', 'The output appears empty. Please try again.');
+      showStatus('error', _tp('status.export_failed', 'Export failed'), _tp('status.export_empty', 'The output appears empty. Please try again.'));
       return;
     }
     const reg = window.ObjectURLRegistry;
@@ -761,7 +775,7 @@ function renderPreviewStep(tool) {
         desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
         icon: 'eye',
         hideStatus: true,
-        back: { href: '#step:upload', label: 'Back to upload' },
+        back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
 
@@ -828,11 +842,11 @@ function renderDownloadStep(tool) {
   container.innerHTML = `
     <div class="tool-page">
       ${toolHeaderBlock(tool, {
-        heading: `Your file is ready`,
+        heading: _tp('status.file_ready', 'Your file is ready'),
         desc: `Files are deleted automatically — download below or try another tool.`,
         icon: 'check-circle-2',
         hideStatus: true,
-        back: { href: '/', label: 'All Tools' },
+        back: { href: '/', label: _tp('tool.all_tools', 'All Tools') },
       })}
       ${stepIndicatorHtml('download')}
 
@@ -1255,7 +1269,7 @@ async function tryWithRetry(toolId, files, opts) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       if (attempt > 0) {
-        showProcessing('Applying an alternative approach…', 'This may take a moment.');
+        showProcessing(_tp('processing.alt_approach', 'Applying an alternative approach…'), _tp('processing.alt_approach_msg', 'This may take a moment.'));
         await new Promise(r => setTimeout(r, 700));
       }
       return await window.BrowserTools.process(toolId, files, opts);
@@ -1287,7 +1301,7 @@ async function processFile() {
   if (_processingInFlight) return;
   if (!currentTool) return;
   if (selectedFiles.length === 0) {
-    showStatus('error', 'No file selected', 'Please upload a file before processing.');
+    showStatus('error', _tp('status.no_file', 'No file selected'), _tp('status.no_file_msg', 'Please upload a file before processing.'));
     return;
   }
   if (!currentTool.working) { showComingSoon(currentTool.name); return; }
@@ -1316,10 +1330,10 @@ async function processFile() {
     if (pageOrganizer && selectedFiles.length === 1) {
       try {
         if (pageOrganizer.getPageCount() === 0) {
-          showStatus('error', 'No pages selected', 'Please keep at least one page before processing.');
+          showStatus('error', _tp('status.no_pages', 'No pages selected'), _tp('status.no_pages_msg', 'Please keep at least one page before processing.'));
           return;
         }
-        showProcessing('Processing your file…', 'Just a moment.');
+        showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
         const { file: editedFile } = await pageOrganizer.getEditedPdf();
         if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
         selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
@@ -1358,7 +1372,7 @@ async function processFile() {
       if (lvl) formData.append('level', lvl);
     }
 
-    showProcessing(`Processing your file…`, 'This usually takes only a few seconds.');
+    showProcessing(_tp('steps.processing_file', 'Processing your file…'), _tp('steps.usual_time', 'This usually takes only a few seconds.'));
     if (processBtn) processBtn.disabled = true;
 
     // ── Browser-side path FIRST: zero upload, instant result for any tool
@@ -1383,7 +1397,7 @@ async function processFile() {
         const validation = await OutputValidator.check(currentTool.id, result);
         if (!validation.ok) {
           hideProcessing();
-          showStatus('error', 'Result incomplete', validation.msg);
+          showStatus('error', _tp('status.result_incomplete', 'Result incomplete'), validation.msg);
           return;
         }
 
@@ -1394,10 +1408,10 @@ async function processFile() {
         const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
         showStatus(
           'success',
-          isAlreadyOpt ? 'Already optimised' : 'Your file is ready',
+          isAlreadyOpt ? _tp('status.already_opt', 'Already optimised') : _tp('status.file_ready', 'Your file is ready'),
           isAlreadyOpt
-            ? 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.'
-            : 'Click the Download button below to save your file.',
+            ? _tp('status.already_opt_msg', 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.')
+            : _tp('status.click_download', 'Click the Download button below to save your file.'),
           createStatusUrl(blob),
           filename,
         );
@@ -1423,15 +1437,15 @@ async function processFile() {
                    rawMsg.length < 220) {
           userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
         }
-        showStatus('error', 'Processing failed', userMsg);
+        showStatus('error', _tp('status.processing_failed', 'Processing failed'), userMsg);
         return;
       }
     }
 
     // No browser handler found for this tool
     hideProcessing();
-    showStatus('error', 'Tool unavailable',
-      'This tool is not yet available in your browser. Please try again in a moment.');
+    showStatus('error', _tp('status.tool_unavailable', 'Tool unavailable'),
+      _tp('status.tool_unavailable_msg', 'This tool is not yet available in your browser. Please try again in a moment.'));
   } finally {
     // Always restore button state and clear the re-entrancy guard — regardless
     // of which exit path fired (success return, error return, or uncaught throw).

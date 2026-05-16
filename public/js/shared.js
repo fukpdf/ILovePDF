@@ -33,7 +33,7 @@ function showSignupModal(file) {
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       <div>
-        <div style="font-weight:700;margin-bottom:3px">File too large</div>
+        <div style="font-weight:700;margin-bottom:3px">${window.t ? window.t('modal.file_too_large') : 'File too large'}</div>
         <div id="size-limit-msg"></div>
       </div>`;
     document.body.appendChild(banner);

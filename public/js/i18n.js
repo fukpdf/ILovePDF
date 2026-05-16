@@ -55,6 +55,7 @@
   var _currentLang = DEFAULT_LANG;
   var _cache       = {};   // lang → flat key→value map
   var _loading     = {};   // lang → Promise (deduplicates concurrent fetches)
+  var _fetched     = {};   // lang → true when fully fetched from JSON file
   var _fallback    = {};   // English flat map (always loaded as fallback)
   var _observer    = null; // MutationObserver instance
   var _obsTimer    = null; // debounce timer for observer
@@ -77,11 +78,16 @@
     if (_loading[lang]) return _loading[lang];
     _loading[lang] = fetch(LOCALES_BASE + lang + '.json', { cache: 'force-cache' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (data) { _cache[lang] = flatten(data); return _cache[lang]; })
+      .then(function (data) {
+        _cache[lang] = Object.assign(_cache[lang] || {}, flatten(data));
+        _fetched[lang] = true;
+        return _cache[lang];
+      })
       .catch(function (err) {
         console.warn('[RuntimeI18n] Failed to load locale "' + lang + '":', err);
-        _cache[lang] = {};
-        return {};
+        if (!_cache[lang]) _cache[lang] = {};
+        _fetched[lang] = true;
+        return _cache[lang];
       });
     return _loading[lang];
   }
@@ -89,7 +95,7 @@
   var RuntimeI18n = {
 
     loadLocale: function (lang) {
-      if (_cache[lang]) return Promise.resolve(_cache[lang]);
+      if (_fetched[lang]) return Promise.resolve(_cache[lang]);
       return fetchLocale(lang);
     },
 
@@ -381,6 +387,17 @@
           });
       });
     },
+  };
+
+  RuntimeI18n.audit = function () {
+    var lang = RuntimeI18n.getLanguage ? RuntimeI18n.getLanguage() : 'en';
+    var cache = RuntimeI18n._cache || {};
+    var keys = cache[lang] ? Object.keys(cache[lang]) : [];
+    console.group('[i18n audit] lang=' + lang + '  keys=' + keys.length);
+    console.log('Cached languages:', Object.keys(cache));
+    console.log('Sample keys:', keys.slice(0, 20));
+    console.groupEnd();
+    return { lang: lang, keyCount: keys.length, languages: Object.keys(cache) };
   };
 
   window.RuntimeI18n = RuntimeI18n;
