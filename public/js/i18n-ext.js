@@ -189,6 +189,16 @@
     'hls.footer_desc': 'Free PDF & Image tools online. Files are deleted automatically after processing \u2014 your privacy comes first.',
     'hls.footer_rights': '\u00a9 2026 ILovePDF \u2014 All rights reserved.',
     'hls.footer_deleted': 'Files are deleted automatically within seconds.',
+    /* offline indicator */
+    'offline.no_connection': 'No internet connection',
+    'offline.reconnecting':  'Reconnecting\u2026',
+    'offline.retry':         'Retry',
+    'offline.queue_pending': '{{n}} pending',
+    'offline.back_online':   'Back online',
+    /* pwa install */
+    'pwa.install':      'Install App',
+    'pwa.install_desc': 'Add ILovePDF to your home screen',
+    'pwa.install_ios':  'Tap Share \u203a \u201cAdd to Home Screen\u201d',
   };
 
   /* ── Arabic (ar) ─────────────────────────────────────────────────────── */
@@ -1586,6 +1596,163 @@
   /* ─────────────────────────────────────────────────────────────────────────
      Merge logic
   ───────────────────────────────────────────────────────────────────────── */
+
+  /* ── Offline / PWA supplemental translations for non-English locales ──
+     These merge into their respective caches in addition to the main EXT
+     blocks above. Kept separate so the main blocks stay diff-friendly.   */
+  var OFFLINE_EXT = {
+    ar: {
+      'offline.no_connection': '\u0644\u0627 \u064a\u0648\u062c\u062f \u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a',
+      'offline.reconnecting':  '\u062c\u0627\u0631\u064a \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0627\u062a\u0635\u0627\u0644\u2026',
+      'offline.retry':         '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629',
+      'offline.queue_pending': '{{n}} \u0645\u0639\u0644\u0651\u0642',
+      'offline.back_online':   '\u0639\u0627\u062f \u0627\u0644\u0627\u062a\u0635\u0627\u0644',
+      'pwa.install':           '\u062a\u062b\u0628\u064a\u062a \u0627\u0644\u062a\u0637\u0628\u064a\u0642',
+      'pwa.install_desc':      '\u0623\u0636\u0641 ILovePDF \u0625\u0644\u0649 \u0627\u0644\u0634\u0627\u0634\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
+    },
+    ur: {
+      'offline.no_connection': '\u0627\u0646\u0679\u0631\u0646\u06cc\u0679 \u06a9\u0646\u06a9\u0634\u0646 \u0646\u06c1\u06cc\u06ba',
+      'offline.reconnecting':  '\u062f\u0648\u0628\u0627\u0631\u06c1 \u06a9\u0646\u06a9\u0634\u0646 \u06c1\u0648 \u0631\u06c1\u0627 \u06c1\u06d2\u2026',
+      'offline.retry':         '\u062f\u0648\u0628\u0627\u0631\u06c1 \u06a9\u0648\u0634\u0634 \u06a9\u0631\u06cc\u06ba',
+      'offline.queue_pending': '{{n}} \u0632\u06cc\u0631 \u0627\u0646\u062a\u0638\u0627\u0631',
+      'offline.back_online':   '\u0622\u0646 \u0644\u0627\u0626\u0646 \u0648\u0627\u067e\u0633',
+      'pwa.install':           '\u0627\u06cc\u067e \u0627\u0646\u0633\u0679\u0627\u0644 \u06a9\u0631\u06cc\u06ba',
+    },
+    fa: {
+      'offline.no_connection': '\u0627\u06cc\u0646\u062a\u0631\u0646\u062a \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u0646\u06cc\u0633\u062a',
+      'offline.reconnecting':  '\u062f\u0631 \u062d\u0627\u0644 \u0627\u062a\u0635\u0627\u0644 \u0645\u062c\u062f\u062f\u2026',
+      'offline.retry':         '\u062a\u0644\u0627\u0634 \u0645\u062c\u062f\u062f',
+      'offline.queue_pending': '{{n}} \u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631',
+      'offline.back_online':   '\u0627\u062a\u0635\u0627\u0644 \u0628\u0631\u0642\u0631\u0627\u0631 \u0634\u062f',
+      'pwa.install':           '\u0646\u0635\u0628 \u0628\u0631\u0646\u0627\u0645\u0647',
+    },
+    hi: {
+      'offline.no_connection': '\u0907\u0902\u091f\u0930\u0928\u0947\u091f \u0915\u0928\u0947\u0915\u094d\u0936\u0928 \u0928\u0939\u0940\u0902',
+      'offline.reconnecting':  '\u092a\u0941\u0928\u0903 \u0915\u0928\u0947\u0915\u094d\u091f \u0939\u094b \u0930\u0939\u093e \u0939\u0948\u2026',
+      'offline.retry':         '\u092a\u0941\u0928\u0903 \u092a\u094d\u0930\u092f\u093e\u0938 \u0915\u0930\u0947\u0902',
+      'offline.queue_pending': '{{n}} \u0932\u0902\u092c\u093f\u0924',
+      'offline.back_online':   '\u0911\u0928\u0932\u093e\u0907\u0928 \u0935\u093e\u092a\u0938',
+      'pwa.install':           '\u090f\u092a \u0907\u0902\u0938\u094d\u091f\u0949\u0932 \u0915\u0930\u0947\u0902',
+    },
+    zh: {
+      'offline.no_connection': '\u65e0\u7f51\u7edc\u8fde\u63a5',
+      'offline.reconnecting':  '\u91cd\u65b0\u8fde\u63a5\u4e2d\u2026',
+      'offline.retry':         '\u91cd\u8bd5',
+      'offline.queue_pending': '{{n}} \u4e2a\u5f85\u5904\u7406',
+      'offline.back_online':   '\u5df2\u91cd\u65b0\u8fde\u63a5',
+      'pwa.install':           '\u5b89\u88c5\u5e94\u7528',
+    },
+    ja: {
+      'offline.no_connection': '\u30a4\u30f3\u30bf\u30fc\u30cd\u30c3\u30c8\u306b\u63a5\u7d9a\u3067\u304d\u307e\u305b\u3093',
+      'offline.reconnecting':  '\u518d\u63a5\u7d9a\u4e2d\u2026',
+      'offline.retry':         '\u518d\u8a66\u884c',
+      'offline.queue_pending': '{{n}} \u4ef6\u4fdd\u7559\u4e2d',
+      'offline.back_online':   '\u30aa\u30f3\u30e9\u30a4\u30f3\u306b\u623b\u308a\u307e\u3057\u305f',
+      'pwa.install':           '\u30a2\u30d7\u30ea\u3092\u30a4\u30f3\u30b9\u30c8\u30fc\u30eb',
+    },
+    ko: {
+      'offline.no_connection': '\uc778\ud130\ub137 \uc5f0\uacb0 \uc5c6\uc74c',
+      'offline.reconnecting':  '\uc7ac\uc5f0\uacb0 \uc911\u2026',
+      'offline.retry':         '\uc7ac\uc2dc\ub3c4',
+      'offline.queue_pending': '{{n}}\uac74 \ub300\uae30 \uc911',
+      'offline.back_online':   '\uc628\ub77c\uc778 \ubcf5\uad6c',
+      'pwa.install':           '\uc571 \uc124\uce58',
+    },
+    fr: {
+      'offline.no_connection': 'Pas de connexion internet',
+      'offline.reconnecting':  'Reconnexion\u2026',
+      'offline.retry':         'R\u00e9essayer',
+      'offline.queue_pending': '{{n}} en attente',
+      'offline.back_online':   'Connexion r\u00e9tablie',
+      'pwa.install':           'Installer l\u2019application',
+    },
+    de: {
+      'offline.no_connection': 'Keine Internetverbindung',
+      'offline.reconnecting':  'Verbindung wird wiederhergestellt\u2026',
+      'offline.retry':         'Wiederholen',
+      'offline.queue_pending': '{{n}} ausstehend',
+      'offline.back_online':   'Wieder online',
+      'pwa.install':           'App installieren',
+    },
+    es: {
+      'offline.no_connection': 'Sin conexi\u00f3n a internet',
+      'offline.reconnecting':  'Reconectando\u2026',
+      'offline.retry':         'Reintentar',
+      'offline.queue_pending': '{{n}} pendiente(s)',
+      'offline.back_online':   'De vuelta en l\u00ednea',
+      'pwa.install':           'Instalar aplicaci\u00f3n',
+    },
+    pt: {
+      'offline.no_connection': 'Sem conex\u00e3o com a internet',
+      'offline.reconnecting':  'Reconectando\u2026',
+      'offline.retry':         'Tentar novamente',
+      'offline.queue_pending': '{{n}} pendente(s)',
+      'offline.back_online':   'De volta online',
+      'pwa.install':           'Instalar aplicativo',
+    },
+    it: {
+      'offline.no_connection': 'Nessuna connessione internet',
+      'offline.reconnecting':  'Riconnessione\u2026',
+      'offline.retry':         'Riprova',
+      'offline.queue_pending': '{{n}} in attesa',
+      'offline.back_online':   'Tornato online',
+      'pwa.install':           'Installa app',
+    },
+    nl: {
+      'offline.no_connection': 'Geen internetverbinding',
+      'offline.reconnecting':  'Opnieuw verbinden\u2026',
+      'offline.retry':         'Opnieuw proberen',
+      'offline.queue_pending': '{{n}} in behandeling',
+      'offline.back_online':   'Weer online',
+      'pwa.install':           'App installeren',
+    },
+    pl: {
+      'offline.no_connection': 'Brak po\u0142\u0105czenia z internetem',
+      'offline.reconnecting':  'Ponowne \u0142\u0105czenie\u2026',
+      'offline.retry':         'Spr\u00f3buj ponownie',
+      'offline.queue_pending': '{{n}} oczekuj\u0105ce',
+      'offline.back_online':   'Z powrotem online',
+      'pwa.install':           'Zainstaluj aplikacj\u0119',
+    },
+    ru: {
+      'offline.no_connection': '\u041d\u0435\u0442 \u0438\u043d\u0442\u0435\u0440\u043d\u0435\u0442-\u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f',
+      'offline.reconnecting':  '\u041f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026',
+      'offline.retry':         '\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c',
+      'offline.queue_pending': '{{n}} \u043e\u0436\u0438\u0434\u0430\u044e\u0442',
+      'offline.back_online':   '\u0421\u043d\u043e\u0432\u0430 \u043e\u043d\u043b\u0430\u0439\u043d',
+      'pwa.install':           '\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435',
+    },
+    tr: {
+      'offline.no_connection': '\u0130nternet ba\u011flant\u0131s\u0131 yok',
+      'offline.reconnecting':  'Yeniden ba\u011flan\u0131l\u0131yor\u2026',
+      'offline.retry':         'Tekrar dene',
+      'offline.queue_pending': '{{n}} bekliyor',
+      'offline.back_online':   'Tekrar \u00e7evrimi\u00e7i',
+      'pwa.install':           'Uygulamay\u0131 y\u00fckle',
+    },
+    id: {
+      'offline.no_connection': 'Tidak ada koneksi internet',
+      'offline.reconnecting':  'Menyambung kembali\u2026',
+      'offline.retry':         'Coba lagi',
+      'offline.queue_pending': '{{n}} tertunda',
+      'offline.back_online':   'Kembali online',
+      'pwa.install':           'Pasang aplikasi',
+    },
+    bn: {
+      'offline.no_connection': '\u0987\u09a8\u09cd\u099f\u09be\u09b0\u09a8\u09c7\u099f \u09b8\u0982\u09af\u09cb\u0997 \u09a8\u09c7\u0987',
+      'offline.reconnecting':  '\u09aa\u09c1\u09a8\u09b0\u09be\u09af\u09bc \u09b8\u0982\u09af\u09c1\u0995\u09cd\u09a4 \u09b9\u099a\u09cd\u099b\u09c7\u2026',
+      'offline.retry':         '\u0986\u09ac\u09be\u09b0 \u099a\u09c7\u09b7\u09cd\u099f\u09be \u0995\u09b0\u09c1\u09a8',
+      'offline.queue_pending': '{{n}} \u09aa\u09cd\u09b0\u09a4\u09c0\u0995\u09cd\u09b7\u09be\u09b0\u09a4',
+      'offline.back_online':   '\u0986\u09ac\u09be\u09b0 \u0985\u09a8\u09b2\u09be\u0987\u09a8',
+      'pwa.install':           '\u0985\u09cd\u09af\u09be\u09aa \u0987\u09a8\u09b8\u09cd\u099f\u09b2 \u0995\u09b0\u09c1\u09a8',
+    },
+  };
+
+  /* Merge OFFLINE_EXT into the main EXT so they reach the cache via applyExt */
+  Object.keys(OFFLINE_EXT).forEach(function (lang) {
+    if (!EXT[lang]) EXT[lang] = {};
+    Object.assign(EXT[lang], OFFLINE_EXT[lang]);
+  });
 
   var _hooked = false;
 

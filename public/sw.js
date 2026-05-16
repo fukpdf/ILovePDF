@@ -139,15 +139,24 @@ async function networkFirstNavigation(request) {
       headers.set(k, v);
     }
     const body = await response.arrayBuffer();
-    return new Response(body, {
+    const cloned = new Response(body, {
       status:     response.status,
       statusText: response.statusText,
       headers,
     });
+    // Cache successful page responses for offline access
+    if (response.ok) {
+      const cache = await caches.open(CACHE_PAGES);
+      cache.put(request, cloned.clone());
+      pruneCache(CACHE_PAGES, CACHE_MAX_ENTRIES[CACHE_PAGES]);
+    }
+    return cloned;
   } catch {
-    // Offline fallback
-    const cached = await caches.match('/offline.html', { cacheName: CACHE_STATIC });
-    return cached || new Response(
+    // Try page cache first, then offline fallback
+    const cachedPage = await caches.match(request, { cacheName: CACHE_PAGES });
+    if (cachedPage) return cachedPage;
+    const offline = await caches.match('/offline.html', { cacheName: CACHE_STATIC });
+    return offline || new Response(
       '<!DOCTYPE html><html><body><h1>You\'re offline</h1><p>Please check your connection.</p></body></html>',
       { status: 503, headers: { 'Content-Type': 'text/html' } }
     );
@@ -210,6 +219,28 @@ async function retryPendingUploads() {
 
   db.close();
 }
+
+// ── Message handler: CACHE_STATS for RuntimeOffline.getCacheStats() ──────
+self.addEventListener('message', event => {
+  if (!event.data || event.data.type !== 'CACHE_STATS') return;
+  const port = event.ports && event.ports[0];
+  if (!port) return;
+
+  Promise.all([
+    caches.open(CACHE_STATIC).then(c => c.keys().then(k => k.length)),
+    caches.open(CACHE_PAGES).then(c  => c.keys().then(k => k.length)),
+    caches.open(CACHE_LOCALE).then(c => c.keys().then(k => k.length)),
+  ]).then(([staticCount, pagesCount, localeCount]) => {
+    port.postMessage({
+      available:   true,
+      version:     CACHE_VERSION,
+      staticCount, pagesCount, localeCount,
+      maxStatic:   CACHE_MAX_ENTRIES[CACHE_STATIC],
+      maxPages:    CACHE_MAX_ENTRIES[CACHE_PAGES],
+      maxLocale:   CACHE_MAX_ENTRIES[CACHE_LOCALE],
+    });
+  }).catch(() => port.postMessage({ available: false }));
+});
 
 // ── Push notifications (future use) ───────────────────────────────────────
 self.addEventListener('push', event => {

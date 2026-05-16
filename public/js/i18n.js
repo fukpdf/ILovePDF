@@ -60,6 +60,17 @@
   var _observer    = null; // MutationObserver instance
   var _obsTimer    = null; // debounce timer for observer
 
+  /* Convert a dot-notation key to a human-readable fallback string.
+     'steps.processing_file' → 'Processing file'
+     'offline.no_connection' → 'No connection'
+     Never returns the raw key — always a readable English phrase.       */
+  function _humaniseKey(key) {
+    if (!key) return '';
+    var last = key.split('.').pop() || key;
+    return last.charAt(0).toUpperCase() +
+           last.slice(1).replace(/_/g, ' ');
+  }
+
   function flatten(obj, prefix) {
     var result = {};
     prefix = prefix || '';
@@ -137,9 +148,14 @@
 
     translate: function (key, vars) {
       var locale = _cache[_currentLang] || {};
-      var text   = locale[key] !== undefined ? locale[key]
+      var raw    = locale[key] !== undefined ? locale[key]
                  : _fallback[key] !== undefined ? _fallback[key]
-                 : key;
+                 : null;
+
+      /* Smart fallback: NEVER return the raw key string.
+         Convert 'steps.processing_file' → 'Processing file'            */
+      var text = raw !== null ? raw : _humaniseKey(key);
+
       if (vars && typeof vars === 'object') {
         text = text.replace(/\{\{(\w+)\}\}/g, function (_, k) {
           return vars[k] != null ? vars[k] : '{{' + k + '}}';
@@ -389,15 +405,86 @@
     },
   };
 
+  /* ── Full DOM + cache audit ────────────────────────────────────────────
+     RuntimeI18n.audit()
+     Returns a structured report:
+       {
+         lang, keyCount, languages,
+         untranslatedNodes: [{key, tag, text}],  // [data-i18n] not resolved
+         rawKeyNodes:       [{key, tag, text}],  // nodes still showing raw key
+         missingInLocale:   [key],               // in EN but missing in current lang
+         hardcodedEnglish:  [{tag, text}],       // heuristic: short EN-looking text
+         summary: { ok, warnings, errors }
+       }
+  ─────────────────────────────────────────────────────────────────────── */
   RuntimeI18n.audit = function () {
-    var lang = RuntimeI18n.getLanguage ? RuntimeI18n.getLanguage() : 'en';
-    var cache = RuntimeI18n._cache || {};
-    var keys = cache[lang] ? Object.keys(cache[lang]) : [];
-    console.group('[i18n audit] lang=' + lang + '  keys=' + keys.length);
-    console.log('Cached languages:', Object.keys(cache));
-    console.log('Sample keys:', keys.slice(0, 20));
+    var lang     = _currentLang;
+    var locale   = _cache[lang]          || {};
+    var enCache  = _cache[DEFAULT_LANG]  || {};
+    var report   = {
+      lang:             lang,
+      keyCount:         Object.keys(locale).length,
+      enKeyCount:       Object.keys(enCache).length,
+      languages:        Object.keys(_cache),
+      untranslatedNodes: [],
+      rawKeyNodes:       [],
+      missingInLocale:   [],
+      summary:          { ok: 0, warnings: 0, errors: 0 },
+    };
+
+    /* 1. DOM scan — find [data-i18n] nodes */
+    var ATTR_SEL = '[data-i18n],[data-i18n-placeholder],[data-i18n-html],[data-i18n-title]';
+    try {
+      document.querySelectorAll(ATTR_SEL).forEach(function (el) {
+        var key = el.getAttribute('data-i18n') ||
+                  el.getAttribute('data-i18n-placeholder') ||
+                  el.getAttribute('data-i18n-html') ||
+                  el.getAttribute('data-i18n-title');
+        if (!key) return;
+
+        var inLocale = locale[key] !== undefined;
+        var inFb     = enCache[key] !== undefined;
+
+        if (!inLocale && !inFb) {
+          report.untranslatedNodes.push({ key: key, tag: el.tagName.toLowerCase() });
+          report.summary.errors++;
+        } else if (!inLocale && inFb) {
+          /* falling back to EN — ok but warn for non-EN lang */
+          if (lang !== DEFAULT_LANG) report.summary.warnings++;
+          report.summary.ok++;
+        } else {
+          /* Check if element text is literally the key (raw key leak) */
+          var text = el.textContent || el.value || '';
+          if (text.trim() === key) {
+            report.rawKeyNodes.push({ key: key, tag: el.tagName.toLowerCase(), text: text.trim() });
+            report.summary.errors++;
+          } else {
+            report.summary.ok++;
+          }
+        }
+      });
+    } catch (_) {}
+
+    /* 2. Missing-in-locale scan (keys in EN not in current lang) */
+    if (lang !== DEFAULT_LANG) {
+      Object.keys(enCache).forEach(function (k) {
+        if (locale[k] === undefined) report.missingInLocale.push(k);
+      });
+    }
+
+    /* Console summary */
+    console.group('[RuntimeI18n.audit]  lang=' + lang + '  keys=' + report.keyCount);
+    console.log('DOM nodes scanned:  ok=' + report.summary.ok +
+                '  warn=' + report.summary.warnings + '  err=' + report.summary.errors);
+    if (report.untranslatedNodes.length)
+      console.warn('Untranslated nodes:', report.untranslatedNodes);
+    if (report.rawKeyNodes.length)
+      console.warn('Raw key leaks in DOM:', report.rawKeyNodes);
+    if (report.missingInLocale.length > 0)
+      console.info('Missing in ' + lang + ' (vs EN):', report.missingInLocale.length, 'keys');
     console.groupEnd();
-    return { lang: lang, keyCount: keys.length, languages: Object.keys(cache) };
+
+    return report;
   };
 
   window.RuntimeI18n = RuntimeI18n;

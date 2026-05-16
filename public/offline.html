@@ -7,6 +7,8 @@
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{--indigo:#4f46e5;--indigo-dk:#3730a3;--gray:#6b7280;--bg:#f9fafb}
@@ -33,6 +35,10 @@
     .dot.online{background:#10b981}
     footer{margin-top:auto;padding-top:2rem;font-size:.8125rem;color:#9ca3af}
     footer a{color:var(--indigo);text-decoration:none}
+    /* RTL support */
+    [dir="rtl"] .actions{flex-direction:row-reverse}
+    [dir="rtl"] .btn{flex-direction:row-reverse}
+    [dir="rtl"] .status{flex-direction:row-reverse}
     @media(prefers-color-scheme:dark){
       body{background:#0f172a;color:#f1f5f9}
       .icon{background:#1e1b4b}
@@ -53,17 +59,17 @@
     </svg>
   </div>
 
-  <h1>You're Offline</h1>
-  <p>It looks like you've lost your internet connection. Check your network and try again — ILovePDF will be ready when you're back.</p>
+  <h1 id="offline-title">You're Offline</h1>
+  <p id="offline-desc">It looks like you've lost your internet connection. Check your network and try again — ILovePDF will be ready when you're back.</p>
 
   <div class="actions">
-    <button class="btn btn-primary" onclick="window.location.reload()">
+    <button class="btn btn-primary" id="btn-retry" onclick="window.location.reload()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-      Try Again
+      <span id="retry-label">Try Again</span>
     </button>
-    <a href="/" class="btn btn-secondary">
+    <a href="/" class="btn btn-secondary" id="btn-home">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      Home
+      <span id="home-label">Home</span>
     </a>
   </div>
 
@@ -73,20 +79,75 @@
   </div>
 
   <footer>
-    <a href="/">ILovePDF</a> — Free PDF &amp; Image Tools
+    <a href="/">ILovePDF</a> &mdash; Free PDF &amp; Image Tools
   </footer>
 
   <script>
+    /* Inline multilingual strings for offline page (no network available).
+       Covers RTL languages + high-traffic locales. Falls back to English. */
+    var STRINGS = {
+      ar:{ title:'أنت غير متصل',desc:'يبدو أنك فقدت اتصالك بالإنترنت. تحقق من شبكتك وحاول مجدداً.',retry:'إعادة المحاولة',home:'الرئيسية',status_off:'لا يوجد اتصال',status_on:'تم استعادة الاتصال — اضغط إعادة المحاولة',dir:'rtl' },
+      ur:{ title:'آپ آف لائن ہیں',desc:'آپ کا انٹرنیٹ کنکشن منقطع ہو گیا ہے۔ نیٹ ورک چیک کریں اور دوبارہ کوشش کریں۔',retry:'دوبارہ کوشش کریں',home:'ہوم',status_off:'انٹرنیٹ کنکشن نہیں',status_on:'کنکشن بحال ہوا',dir:'rtl' },
+      fa:{ title:'شما آفلاین هستید',desc:'به نظر می‌رسد اتصال اینترنت شما قطع شده است. شبکه را بررسی کنید.',retry:'تلاش مجدد',home:'خانه',status_off:'اینترنت در دسترس نیست',status_on:'اتصال برقرار شد',dir:'rtl' },
+      hi:{ title:'आप ऑफ़लाइन हैं',desc:'आपका इंटरनेट कनेक्शन खो गया है। नेटवर्क जांचें और पुनः प्रयास करें।',retry:'पुनः प्रयास करें',home:'होम',status_off:'इंटरनेट कनेक्शन नहीं',status_on:'कनेक्शन वापस आया',dir:'ltr' },
+      zh:{ title:'您已离线',desc:'您的网络连接已断开，请检查网络后重试。',retry:'重试',home:'主页',status_off:'无网络连接',status_on:'网络已恢复',dir:'ltr' },
+      fr:{ title:'Vous êtes hors ligne',desc:'Il semble que vous ayez perdu votre connexion internet. Vérifiez votre réseau et réessayez.',retry:'Réessayer',home:'Accueil',status_off:'Pas de connexion',status_on:'Connexion rétablie',dir:'ltr' },
+      de:{ title:'Sie sind offline',desc:'Ihre Internetverbindung wurde unterbrochen. Bitte überprüfen Sie Ihr Netzwerk.',retry:'Erneut versuchen',home:'Startseite',status_off:'Keine Verbindung',status_on:'Verbindung wiederhergestellt',dir:'ltr' },
+      es:{ title:'Estás sin conexión',desc:'Parece que has perdido tu conexión a internet. Comprueba tu red e inténtalo de nuevo.',retry:'Reintentar',home:'Inicio',status_off:'Sin conexión',status_on:'Conexión restaurada',dir:'ltr' },
+      pt:{ title:'Você está offline',desc:'Parece que você perdeu a conexão com a internet. Verifique sua rede e tente novamente.',retry:'Tentar novamente',home:'Início',status_off:'Sem conexão',status_on:'Conexão restaurada',dir:'ltr' },
+      ru:{ title:'Вы не в сети',desc:'Похоже, вы потеряли интернет-соединение. Проверьте сеть и попробуйте снова.',retry:'Повторить',home:'Главная',status_off:'Нет соединения',status_on:'Соединение восстановлено',dir:'ltr' },
+      tr:{ title:'Çevrimdışısınız',desc:'İnternet bağlantınız kesilmiş gibi görünüyor. Ağınızı kontrol edin ve tekrar deneyin.',retry:'Tekrar dene',home:'Ana sayfa',status_off:'Bağlantı yok',status_on:'Bağlantı sağlandı',dir:'ltr' },
+      id:{ title:'Anda sedang offline',desc:'Sepertinya Anda kehilangan koneksi internet. Periksa jaringan dan coba lagi.',retry:'Coba lagi',home:'Beranda',status_off:'Tidak ada koneksi',status_on:'Koneksi pulih',dir:'ltr' },
+    };
+
+    function detectLang() {
+      try {
+        var stored = localStorage.getItem('ilovepdf_lang');
+        if (stored) return stored;
+      } catch (_) {}
+      var langs = navigator.languages || [navigator.language || 'en'];
+      for (var i = 0; i < langs.length; i++) {
+        var code = langs[i].toLowerCase().split('-')[0];
+        if (STRINGS[code]) return code;
+      }
+      return 'en';
+    }
+
+    function applyLang() {
+      var lang = detectLang();
+      var s = STRINGS[lang];
+      if (!s) return;
+      if (s.dir === 'rtl') {
+        document.documentElement.setAttribute('dir', 'rtl');
+        document.documentElement.setAttribute('lang', lang);
+      } else {
+        document.documentElement.setAttribute('lang', lang);
+      }
+      var t = document.getElementById('offline-title');
+      var d = document.getElementById('offline-desc');
+      var rl = document.getElementById('retry-label');
+      var hl = document.getElementById('home-label');
+      if (t) t.textContent = s.title;
+      if (d) d.textContent = s.desc;
+      if (rl) rl.textContent = s.retry;
+      if (hl) hl.textContent = s.home;
+      document.title = s.title + ' \u2014 ILovePDF';
+      window._offlineStrings = s;
+    }
+
     function updateStatus() {
-      const online = navigator.onLine;
+      var online = navigator.onLine;
+      var s = window._offlineStrings || {};
       document.getElementById('dot').className = 'dot' + (online ? ' online' : '');
       document.getElementById('status-text').textContent = online
-        ? 'Connection restored — click Try Again'
-        : 'No internet connection';
+        ? (s.status_on || 'Connection restored \u2014 click Try Again')
+        : (s.status_off || 'No internet connection');
       if (online) {
-        setTimeout(() => window.location.reload(), 800);
+        setTimeout(function () { window.location.reload(); }, 800);
       }
     }
+
+    applyLang();
     window.addEventListener('online',  updateStatus);
     window.addEventListener('offline', updateStatus);
     updateStatus();
