@@ -1,14 +1,21 @@
-/* RuntimeI18n — Phase 10B-H: Global Multilingual Translation Engine
+/* RuntimeI18n — Phase 21 Complete: Global Multilingual Translation Engine
    Supports 20 languages, RTL auto-detection, lazy locale loading,
-   DOM translation via data-i18n attributes, and localStorage persistence.
+   DOM translation via data-i18n attributes, localStorage persistence,
+   MutationObserver auto-translation, and dynamic content patching.
 
    API:
      RuntimeI18n.setLanguage(lang)       async — switch active language
      RuntimeI18n.getLanguage()                  — current language code
      RuntimeI18n.translate(key, vars)           — resolve a translation key
      RuntimeI18n.t(key, vars)                   — alias for translate
+     RuntimeI18n.extend(lang, flatKeys)         — merge extra translation keys
+     RuntimeI18n.patch(node)                    — translate a DOM subtree
+     RuntimeI18n.rerender()                     — re-apply all [data-i18n] in DOM
+     RuntimeI18n.observe()                      — start MutationObserver
+     RuntimeI18n.refreshDynamic()               — rerender + trigger bridge
+     RuntimeI18n.translateNode(node)            — alias for patch
      RuntimeI18n.loadLocale(lang)        async  — pre-load a locale pack
-     RuntimeI18n.availableLanguages()           — array of {code, name, nativeName, flag, rtl?}
+     RuntimeI18n.availableLanguages()           — array of {code,name,nativeName,flag,rtl?}
      RuntimeI18n.detectBrowserLanguage()        — auto-detect from navigator.languages
      RuntimeI18n.isRTL(lang?)                   — true if RTL language
      RuntimeI18n.init()                  async  — bootstrap (called automatically)
@@ -18,12 +25,12 @@
 (function () {
   'use strict';
 
-  const LOCALES_BASE  = '/locales/';
-  const STORAGE_KEY   = 'ilovepdf_lang';
-  const DEFAULT_LANG  = 'en';
-  const RTL_LANGS     = new Set(['ar', 'ur', 'fa', 'he', 'yi', 'dv', 'ps', 'sd']);
+  var LOCALES_BASE  = '/locales/';
+  var STORAGE_KEY   = 'ilovepdf_lang';
+  var DEFAULT_LANG  = 'en';
+  var RTL_LANGS     = new Set(['ar', 'ur', 'fa', 'he', 'yi', 'dv', 'ps', 'sd']);
 
-  const AVAILABLE = [
+  var AVAILABLE = [
     { code:'en', name:'English',    nativeName:'English',    flag:'🇬🇧' },
     { code:'ar', name:'Arabic',     nativeName:'العربية',    flag:'🇸🇦', rtl:true },
     { code:'ur', name:'Urdu',       nativeName:'اردو',       flag:'🇵🇰', rtl:true },
@@ -45,16 +52,18 @@
     { code:'pl', name:'Polish',     nativeName:'Polski',     flag:'🇵🇱' },
   ];
 
-  let _currentLang = DEFAULT_LANG;
-  let _cache       = {};   // lang → flat key→value map
-  let _loading     = {};   // lang → Promise (deduplicates concurrent fetches)
-  let _fallback    = {};   // English flat map (always loaded as fallback)
+  var _currentLang = DEFAULT_LANG;
+  var _cache       = {};   // lang → flat key→value map
+  var _loading     = {};   // lang → Promise (deduplicates concurrent fetches)
+  var _fallback    = {};   // English flat map (always loaded as fallback)
+  var _observer    = null; // MutationObserver instance
+  var _obsTimer    = null; // debounce timer for observer
 
   function flatten(obj, prefix) {
-    const result = {};
+    var result = {};
     prefix = prefix || '';
     Object.keys(obj).forEach(function (k) {
-      const fullKey = prefix ? (prefix + '.' + k) : k;
+      var fullKey = prefix ? (prefix + '.' + k) : k;
       if (obj[k] !== null && typeof obj[k] === 'object' && !Array.isArray(obj[k])) {
         Object.assign(result, flatten(obj[k], fullKey));
       } else {
@@ -82,6 +91,18 @@
     loadLocale: function (lang) {
       if (_cache[lang]) return Promise.resolve(_cache[lang]);
       return fetchLocale(lang);
+    },
+
+    /* Merge additional flat translation keys into a locale cache.
+       Useful for runtime extensions without modifying locale JSON files. */
+    extend: function (lang, keys) {
+      if (!lang || typeof keys !== 'object') return;
+      if (!_cache[lang]) _cache[lang] = {};
+      Object.assign(_cache[lang], keys);
+      if (lang === DEFAULT_LANG) _fallback = _cache[DEFAULT_LANG];
+      if (lang === _currentLang || lang === DEFAULT_LANG) {
+        this._applyToDOM();
+      }
     },
 
     setLanguage: function (lang) {
@@ -141,6 +162,8 @@
       var rtl = RTL_LANGS.has(lang);
       document.documentElement.setAttribute('dir',  rtl ? 'rtl' : 'ltr');
       document.documentElement.setAttribute('lang', lang);
+      /* RTL-specific body class for targeted CSS overrides */
+      document.body && document.body.classList.toggle('rtl', rtl);
     },
 
     _applyToDOM: function () {
@@ -179,26 +202,143 @@
         var text = resolve(el.getAttribute('data-i18n-title'));
         if (text !== null) el.title = text;
       });
+
+      document.querySelectorAll('[data-i18n-aria-label]').forEach(function (el) {
+        var text = resolve(el.getAttribute('data-i18n-aria-label'));
+        if (text !== null) el.setAttribute('aria-label', text);
+      });
+    },
+
+    /* Translate a specific DOM node and all its [data-i18n] descendants. */
+    patch: function (node) {
+      if (!node || node.nodeType !== 1) return;
+      var self     = this;
+      var locale   = _cache[_currentLang] || {};
+      var fallback = _fallback;
+
+      function resolve(key) {
+        var v = locale[key];
+        if (v !== undefined) return v;
+        v = fallback[key];
+        return v !== undefined ? v : null;
+      }
+
+      function applyNode(el) {
+        if (el.hasAttribute('data-i18n')) {
+          var text = resolve(el.getAttribute('data-i18n'));
+          if (text !== null) {
+            var tag = el.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') {
+              if (el.hasAttribute('placeholder')) el.placeholder = text;
+              else el.value = text;
+            } else { el.textContent = text; }
+          }
+        }
+        if (el.hasAttribute('data-i18n-placeholder')) {
+          var t2 = resolve(el.getAttribute('data-i18n-placeholder'));
+          if (t2 !== null) el.placeholder = t2;
+        }
+        if (el.hasAttribute('data-i18n-html')) {
+          var t3 = resolve(el.getAttribute('data-i18n-html'));
+          if (t3 !== null) el.innerHTML = t3;
+        }
+        if (el.hasAttribute('data-i18n-title')) {
+          var t4 = resolve(el.getAttribute('data-i18n-title'));
+          if (t4 !== null) el.title = t4;
+        }
+        if (el.hasAttribute('data-i18n-aria-label')) {
+          var t5 = resolve(el.getAttribute('data-i18n-aria-label'));
+          if (t5 !== null) el.setAttribute('aria-label', t5);
+        }
+      }
+
+      applyNode(node);
+      node.querySelectorAll(
+        '[data-i18n],[data-i18n-placeholder],[data-i18n-html],[data-i18n-title],[data-i18n-aria-label]'
+      ).forEach(applyNode);
+    },
+
+    /* Alias for patch() — named for discoverability. */
+    translateNode: function (node) { return this.patch(node); },
+
+    /* Re-apply all translations to the current DOM. */
+    rerender: function () { this._applyToDOM(); },
+
+    /* Full refresh: rerender DOM + trigger tool card bridge. */
+    refreshDynamic: function () {
+      this._applyToDOM();
+      if (window.ToolI18nBridge && typeof window.ToolI18nBridge.patch === 'function') {
+        window.ToolI18nBridge.patch();
+      }
+    },
+
+    /* Start MutationObserver — auto-translates newly injected [data-i18n] nodes.
+       Called once inside init(). Safe to call multiple times (no-op after first). */
+    observe: function () {
+      if (_observer || typeof MutationObserver === 'undefined') return;
+      var self = this;
+      _observer = new MutationObserver(function (mutations) {
+        var needsTranslate = false;
+        var ATTRS = ['data-i18n','data-i18n-placeholder','data-i18n-html','data-i18n-title','data-i18n-aria-label'];
+        var SELECTOR = ATTRS.map(function(a){ return '[' + a + ']'; }).join(',');
+
+        for (var i = 0; i < mutations.length && !needsTranslate; i++) {
+          var m = mutations[i];
+          for (var j = 0; j < m.addedNodes.length && !needsTranslate; j++) {
+            var node = m.addedNodes[j];
+            if (node.nodeType !== 1) continue;
+            var hasAttr = ATTRS.some(function(a){ return node.hasAttribute(a); });
+            if (hasAttr || node.querySelector(SELECTOR)) {
+              needsTranslate = true;
+            }
+          }
+        }
+
+        if (needsTranslate) {
+          clearTimeout(_obsTimer);
+          _obsTimer = setTimeout(function () {
+            self._applyToDOM();
+          }, 20);
+        }
+      });
+
+      if (document.body) {
+        _observer.observe(document.body, { childList: true, subtree: true });
+      } else {
+        document.addEventListener('DOMContentLoaded', function () {
+          _observer.observe(document.body, { childList: true, subtree: true });
+        });
+      }
     },
 
     init: function () {
       var self = this;
       return self.loadLocale(DEFAULT_LANG).then(function () {
         _fallback = _cache[DEFAULT_LANG] || {};
-        // 1. Saved preference always wins — user's explicit choice is sticky.
+        /* 1. Saved preference always wins. */
         var stored = null;
         try { stored = localStorage.getItem(STORAGE_KEY); } catch (_) {}
-        if (stored) return self.setLanguage(stored);
-        // 2. Browser language detection.
+        if (stored) {
+          return self.setLanguage(stored).then(function(lang) {
+            self.observe();
+            return lang;
+          });
+        }
+        /* 2. Browser language detection. */
         var browserLang = self.detectBrowserLanguage();
-        // 3. If browser reports English (the default), try lightweight geo lookup.
-        //    Geo check is capped at 1.5 s so it never blocks the page.
+        /* 3. Geo lookup for English browsers. */
         if (browserLang === DEFAULT_LANG) {
           return self._detectGeoLanguage().then(function (geoLang) {
             return self.setLanguage(geoLang || DEFAULT_LANG);
+          }).then(function(lang) {
+            self.observe();
+            return lang;
           });
         }
-        return self.setLanguage(browserLang);
+        return self.setLanguage(browserLang).then(function(lang) {
+          self.observe();
+          return lang;
+        });
       });
     },
 

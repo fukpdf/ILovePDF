@@ -60,10 +60,10 @@ function renderTools(){
     cta.innerHTML = `
       <a href="/tools" class="view-all-tools-btn">
         <i data-lucide="grid-3x3"></i>
-        View All 33+ Tools
+        <span data-i18n="section.view_all_cta">View All 33+ Tools</span>
         <i data-lucide="arrow-right"></i>
       </a>
-      <p class="view-all-tools-sub">Advanced tools, AI features, image editing and more</p>
+      <p class="view-all-tools-sub" data-i18n="section.view_all_sub">Advanced tools, AI features, image editing and more</p>
     `;
     root.after(cta);
   }
@@ -128,9 +128,9 @@ function wireCalc(){
     const val = (input.value || '').trim();
     out.classList.remove('err');
     if (wrap) wrap.hidden = false;
-    if (!val) { out.textContent = 'Please enter a number.'; out.classList.add('err'); return; }
+    if (!val) { out.textContent = (window.t ? window.t('errors.enter_number') : 'Please enter a number.'); out.classList.add('err'); return; }
     if (typeof window.convertNumberToWords !== 'function') {
-      out.textContent = 'Converter is loading…'; out.classList.add('err'); return;
+      out.textContent = (window.t ? window.t('calc.converter_loading') : 'Converter is loading\u2026'); out.classList.add('err'); return;
     }
     lastNumber = val;
     const res = window.convertNumberToWords(val, {
@@ -164,7 +164,7 @@ function wireCalc(){
       }
       const span = copyBtn.querySelector('span');
       const orig = span.textContent;
-      span.textContent = 'Copied!';
+      span.textContent = (window.t ? window.t('notifications.copied_short') : 'Copied!');
       copyBtn.classList.add('copied');
       setTimeout(() => { span.textContent = orig; copyBtn.classList.remove('copied'); }, 1400);
     });
@@ -308,13 +308,13 @@ async function wireFx(){
 
   const update = () => {
     const a = parseFloat(amount.value);
-    if (!isFinite(a) || a < 0) { result.textContent = '—'; rate.textContent = 'Enter a valid amount.'; return; }
-    if (!FX_RATES) { result.textContent = '—'; rate.textContent = 'Loading rates…'; return; }
+    if (!isFinite(a) || a < 0) { result.textContent = '—'; rate.textContent = (window.t ? window.t('calc.invalid_amount') : 'Enter a valid amount.'); return; }
+    if (!FX_RATES) { result.textContent = '—'; rate.textContent = (window.t ? window.t('calc.loading_rates') : 'Loading rates\u2026'); return; }
     const v = fxConvert(a, from.value, to.value);
-    if (v === null) { result.textContent = '—'; rate.textContent = 'Rate unavailable for this pair.'; return; }
+    if (v === null) { result.textContent = '—'; rate.textContent = (window.t ? window.t('calc.rate_unavailable') : 'Rate unavailable for this pair.'); return; }
     result.textContent = fmtMoney(v, to.value);
     const one = fxConvert(1, from.value, to.value);
-    const note = FX_FALLBACK_USED ? '  (offline rates)' : '';
+    const note = FX_FALLBACK_USED ? '  ' + (window.t ? window.t('calc.offline_rates') : '(offline rates)') : '';
     rate.textContent = `1 ${from.value} = ${one.toFixed(4)} ${to.value}${note}`;
   };
 
@@ -323,7 +323,7 @@ async function wireFx(){
   swap.addEventListener('click', () => { const t = from.value; from.value = to.value; to.value = t; update(); });
   goBtn && goBtn.addEventListener('click', update);
 
-  rate.textContent = 'Loading rates…';
+  rate.textContent = (window.t ? window.t('calc.loading_rates') : 'Loading rates\u2026');
   const timeout = new Promise(res => setTimeout(() => { FX_FALLBACK_USED = true; res(FX_STATIC); }, 6000));
   FX_RATES = await Promise.race([loadRates(), timeout]);
   update();

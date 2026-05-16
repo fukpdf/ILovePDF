@@ -68,16 +68,16 @@
             </div>
           </div>
           <div class="calc-body">
-            <label class="calc-label" for="calc-input">Enter a number</label>
+            <label class="calc-label" for="calc-input" data-i18n="calc.enter_num">Enter a number</label>
             <input id="calc-input" class="calc-input" type="text" placeholder="e.g. 12345.67" autocomplete="off">
             <div class="calc-modes" role="radiogroup" aria-label="Output mode">
               <label class="calc-mode active" data-mode="words">
                 <input type="radio" name="calc-mode" value="words" checked>
-                Words
+                <span data-i18n="calc.words">Words</span>
               </label>
               <label class="calc-mode" data-mode="currency">
                 <input type="radio" name="calc-mode" value="currency">
-                Currency
+                <span data-i18n="calc.currency">Currency</span>
               </label>
             </div>
             <select id="calc-currency" class="calc-currency" aria-label="Currency">
@@ -88,7 +88,7 @@
               <option value="JPY">JPY — Yen</option>
             </select>
 
-            <label class="calc-label" style="margin-top:10px;" for="calc-case">Case</label>
+            <label class="calc-label" style="margin-top:10px;" for="calc-case" data-i18n="calc.case">Case</label>
             <select id="calc-case" class="calc-currency show" aria-label="Letter case">
               <option value="lowercase">lowercase</option>
               <option value="UPPERCASE">UPPERCASE</option>
@@ -115,22 +115,22 @@
             </div>
           </div>
           <div class="calc-body">
-            <label class="calc-label" for="fx-amount">Amount</label>
+            <label class="calc-label" for="fx-amount" data-i18n="calc.amount">Amount</label>
             <input id="fx-amount" class="calc-input" type="number" inputmode="decimal" value="1" min="0" step="any">
             <div class="fx-row">
               <div>
-                <label class="calc-label" for="fx-from">From</label>
+                <label class="calc-label" for="fx-from" data-i18n="calc.from">From</label>
                 <select id="fx-from" class="calc-input"></select>
               </div>
               <button id="fx-swap" class="fx-swap" aria-label="Swap currencies" title="Swap">
                 <i data-lucide="arrow-left-right"></i>
               </button>
               <div>
-                <label class="calc-label" for="fx-to">To</label>
+                <label class="calc-label" for="fx-to" data-i18n="calc.to">To</label>
                 <select id="fx-to" class="calc-input"></select>
               </div>
             </div>
-            <button id="fx-go" class="calc-btn" type="button">Convert</button>
+            <button id="fx-go" class="calc-btn" type="button" data-i18n="calc.convert_btn">Convert</button>
             <div id="fx-out" class="calc-out show fx-out">
               <div class="fx-result" id="fx-result">—</div>
               <div class="fx-rate" id="fx-rate">Loading rates…</div>
@@ -163,7 +163,7 @@
       <button class="calc-toggle" id="calc-toggle" type="button" aria-expanded="false" aria-controls="calc-mobile-slot">
         <span class="ct-left">
           <span class="ct-ico"><i data-lucide="calculator"></i></span>
-          <span>Open Calculators <span style="display:block;font-size:.75rem;font-weight:500;color:var(--text-mute);margin-top:1px;">Numbers &amp; live currency converter</span></span>
+          <span data-i18n="hls.calc_toggle">Open Calculators <span style="display:block;font-size:.75rem;font-weight:500;color:var(--text-mute);margin-top:1px;" data-i18n="hls.calc_toggle_sub">Numbers &amp; live currency converter</span></span>
         </span>
         <i data-lucide="chevron-down" class="chev"></i>
       </button>
@@ -175,24 +175,24 @@
         <a class="qa-card qa-pdf" href="#cat-core">
           <span class="qa-ico"><i data-lucide="file-text"></i></span>
           <div>
-            <h3>PDF Tools</h3>
-            <p>Merge, split, compress, convert &amp; more</p>
+            <h3 data-i18n="quick.pdf_title">PDF Tools</h3>
+            <p data-i18n="quick.pdf_desc">Merge, split, compress, convert &amp; more</p>
           </div>
           <span class="qa-arrow"><i data-lucide="arrow-right"></i></span>
         </a>
         <a class="qa-card qa-image" href="/tools#image">
           <span class="qa-ico"><i data-lucide="image"></i></span>
           <div>
-            <h3>Image Tools</h3>
-            <p>Background remover, crop, resize, filters</p>
+            <h3 data-i18n="quick.image_title">Image Tools</h3>
+            <p data-i18n="quick.image_desc">Background remover, crop, resize, filters</p>
           </div>
           <span class="qa-arrow"><i data-lucide="arrow-right"></i></span>
         </a>
         <a class="qa-card qa-utils" href="/tools#utilities">
           <span class="qa-ico"><i data-lucide="calculator"></i></span>
           <div>
-            <h3>Utilities</h3>
-            <p>Currency converter, numbers to words</p>
+            <h3 data-i18n="quick.utils_title">Utilities</h3>
+            <p data-i18n="quick.utils_desc">Currency converter, numbers to words</p>
           </div>
           <span class="qa-arrow"><i data-lucide="arrow-right"></i></span>
         </a>
@@ -219,14 +219,14 @@
     <section class="hls-section hls-categories" aria-labelledby="hls-cat-title">
       <div class="hls-inner">
         <div class="hls-head">
-          <h2 id="hls-cat-title">Everything You Need to Manage PDFs</h2>
-          <p>33+ free tools organised by task — pick a category and go. No signup, no watermarks.</p>
+          <h2 id="hls-cat-title" data-i18n="hls.cat_title">Everything You Need to Manage PDFs</h2>
+          <p data-i18n="hls.cat_desc">33+ free tools organised by task — pick a category and go. No signup, no watermarks.</p>
         </div>
         <div class="hls-cat-grid">
 
           <div class="hls-cat-card">
             <div class="hls-cat-icon"><i data-lucide="list-ordered"></i></div>
-            <h3>Organize PDF</h3>
+            <h3 data-i18n="hls.organize">Organize PDF</h3>
             <ul class="hls-cat-links">
               <li><a href="/merge-pdf">Merge PDF</a></li>
               <li><a href="/split-pdf">Split PDF</a></li>
@@ -234,12 +234,12 @@
               <li><a href="/organize-pdf">Organize Pages</a></li>
               <li><a href="/crop-pdf">Crop PDF</a></li>
             </ul>
-            <a href="/#tools-root" class="hls-cat-viewall">View all <i data-lucide="arrow-right"></i></a>
+            <a href="/#tools-root" class="hls-cat-viewall"><span data-i18n="hls.view_all">View all</span> <i data-lucide="arrow-right"></i></a>
           </div>
 
           <div class="hls-cat-card">
             <div class="hls-cat-icon" style="background:#fff7ed;color:#ea580c"><i data-lucide="file-output"></i></div>
-            <h3>Convert PDF</h3>
+            <h3 data-i18n="hls.convert">Convert PDF</h3>
             <ul class="hls-cat-links">
               <li><a href="/pdf-to-word">PDF to Word</a></li>
               <li><a href="/pdf-to-excel">PDF to Excel</a></li>
@@ -247,12 +247,12 @@
               <li><a href="/pdf-to-jpg">PDF to JPG</a></li>
               <li><a href="/word-to-pdf">Word to PDF</a></li>
             </ul>
-            <a href="/#tools-root" class="hls-cat-viewall" style="color:#ea580c">View all <i data-lucide="arrow-right"></i></a>
+            <a href="/#tools-root" class="hls-cat-viewall" style="color:#ea580c"><span data-i18n="hls.view_all">View all</span> <i data-lucide="arrow-right"></i></a>
           </div>
 
           <div class="hls-cat-card">
             <div class="hls-cat-icon" style="background:#ecfdf5;color:#059669"><i data-lucide="minimize-2"></i></div>
-            <h3>Compress &amp; Optimize</h3>
+            <h3 data-i18n="hls.compress">Compress &amp; Optimize</h3>
             <ul class="hls-cat-links">
               <li><a href="/compress-pdf">Compress PDF</a></li>
               <li><a href="/repair-pdf">Repair PDF</a></li>
@@ -260,12 +260,12 @@
               <li><a href="/ai-summarizer">AI Summarize</a></li>
               <li><a href="/translate-pdf">Translate PDF</a></li>
             </ul>
-            <a href="/#tools-root" class="hls-cat-viewall" style="color:#059669">View all <i data-lucide="arrow-right"></i></a>
+            <a href="/#tools-root" class="hls-cat-viewall" style="color:#059669"><span data-i18n="hls.view_all">View all</span> <i data-lucide="arrow-right"></i></a>
           </div>
 
           <div class="hls-cat-card">
             <div class="hls-cat-icon" style="background:#fef2f2;color:#dc2626"><i data-lucide="shield-check"></i></div>
-            <h3>Edit &amp; Security</h3>
+            <h3 data-i18n="hls.edit_security">Edit &amp; Security</h3>
             <ul class="hls-cat-links">
               <li><a href="/edit">Edit PDF</a></li>
               <li><a href="/watermark-pdf">Add Watermark</a></li>
@@ -273,7 +273,7 @@
               <li><a href="/protect-pdf">Protect PDF</a></li>
               <li><a href="/unlock-pdf">Unlock PDF</a></li>
             </ul>
-            <a href="/#tools-root" class="hls-cat-viewall" style="color:#dc2626">View all <i data-lucide="arrow-right"></i></a>
+            <a href="/#tools-root" class="hls-cat-viewall" style="color:#dc2626"><span data-i18n="hls.view_all">View all</span> <i data-lucide="arrow-right"></i></a>
           </div>
 
         </div>
@@ -284,33 +284,33 @@
     <section class="hls-section hls-trust" aria-labelledby="hls-trust-title">
       <div class="hls-inner">
         <div class="hls-head">
-          <h2 id="hls-trust-title">Why Users Trust ILovePDF.cyou</h2>
-          <p>Built around your privacy. Every file is handled with care and deleted automatically after processing.</p>
+          <h2 id="hls-trust-title" data-i18n="hls.trust_title">Why Users Trust ILovePDF.cyou</h2>
+          <p data-i18n="hls.trust_desc">Built around your privacy. Every file is handled with care and deleted automatically after processing.</p>
         </div>
         <div class="hls-trust-grid">
 
           <div class="hls-trust-card">
             <div class="hls-trust-ico" style="background:#eef2ff;color:#4f46e5"><i data-lucide="shield"></i></div>
-            <h3>Privacy Focused</h3>
-            <p>Your files are processed securely and automatically deleted after each session. We never store or share your documents.</p>
+            <h3 data-i18n="hls.privacy_title">Privacy Focused</h3>
+            <p data-i18n="hls.privacy_desc">Your files are processed securely and automatically deleted after each session. We never store or share your documents.</p>
           </div>
 
           <div class="hls-trust-card">
             <div class="hls-trust-ico" style="background:#fef3c7;color:#b45309"><i data-lucide="zap"></i></div>
-            <h3>Fast Processing</h3>
-            <p>Most tools deliver results in seconds. No queues, no waiting — just upload and get your processed file right away.</p>
+            <h3 data-i18n="hls.fast_title">Fast Processing</h3>
+            <p data-i18n="hls.fast_desc">Most tools deliver results in seconds. No queues, no waiting — just upload and get your processed file right away.</p>
           </div>
 
           <div class="hls-trust-card">
             <div class="hls-trust-ico" style="background:#ecfdf5;color:#059669"><i data-lucide="lock"></i></div>
-            <h3>Secure &amp; Safe</h3>
-            <p>All uploads travel over HTTPS. Files are handled with safe, privacy-first practices from start to finish.</p>
+            <h3 data-i18n="hls.secure_title">Secure &amp; Safe</h3>
+            <p data-i18n="hls.secure_desc">All uploads travel over HTTPS. Files are handled with safe, privacy-first practices from start to finish.</p>
           </div>
 
           <div class="hls-trust-card">
             <div class="hls-trust-ico" style="background:#fdf4ff;color:#a855f7"><i data-lucide="heart"></i></div>
-            <h3>Free &amp; Accessible</h3>
-            <p>Every tool is free for files up to 100 MB. No account required, no credit card, no watermarks — ever.</p>
+            <h3 data-i18n="hls.free_title">Free &amp; Accessible</h3>
+            <p data-i18n="hls.free_desc">Every tool is free for files up to 100 MB. No account required, no credit card, no watermarks — ever.</p>
           </div>
 
         </div>
@@ -324,9 +324,9 @@
           <!-- Profile image: swap src below for a real photo when available -->
           <div class="hls-founder-avatar" aria-label="Muhammad Safdar profile picture">MS</div>
           <div class="hls-founder-body">
-            <span class="hls-founder-role"><i data-lucide="user-check"></i> Founder &amp; Privacy-First Developer</span>
-            <h2 id="hls-founder-title">Hi, I'm Muhammad Safdar</h2>
-            <p>
+            <span class="hls-founder-role"><i data-lucide="user-check"></i> <span data-i18n="hls.founder_role">Founder &amp; Privacy-First Developer</span></span>
+            <h2 id="hls-founder-title" data-i18n="hls.founder_title">Hi, I'm Muhammad Safdar</h2>
+            <p data-i18n="hls.founder_text">
               I'm a student and independent developer who built ILovePDF.cyou after noticing
               that most online PDF tools either upload your files to remote servers with unclear
               privacy policies, require expensive subscriptions, or lock core features behind
@@ -336,10 +336,10 @@
               real feedback from users like you.
             </p>
             <div class="hls-founder-badges">
-              <span class="hls-badge"><i data-lucide="shield"></i> Privacy First</span>
-              <span class="hls-badge"><i data-lucide="code-2"></i> Independent Project</span>
-              <span class="hls-badge"><i data-lucide="users"></i> User Focused</span>
-              <span class="hls-badge"><i data-lucide="trending-up"></i> Improving Daily</span>
+              <span class="hls-badge"><i data-lucide="shield"></i> <span data-i18n="hls.badge_privacy">Privacy First</span></span>
+              <span class="hls-badge"><i data-lucide="code-2"></i> <span data-i18n="hls.badge_indie">Independent Project</span></span>
+              <span class="hls-badge"><i data-lucide="users"></i> <span data-i18n="hls.badge_user">User Focused</span></span>
+              <span class="hls-badge"><i data-lucide="trending-up"></i> <span data-i18n="hls.badge_improving">Improving Daily</span></span>
             </div>
           </div>
         </div>
@@ -351,28 +351,28 @@
       <div class="hls-inner">
         <div class="hls-support-card">
           <div class="hls-support-text">
-            <h2 id="hls-support-title">Support Independent Development</h2>
-            <p>
+            <h2 id="hls-support-title" data-i18n="hls.support_title">Support Independent Development</h2>
+            <p data-i18n="hls.support_desc">
               ILovePDF.cyou is built and maintained by one person, entirely independently.
               Keeping 33+ tools free, fast, and privacy-first has real running costs.
               Your support — however small — makes a direct difference.
             </p>
             <ul class="hls-support-points">
-              <li>Keep all tools free for everyone</li>
-              <li>Improve processing speed &amp; reliability</li>
-              <li>Add new tools and features regularly</li>
-              <li>Continue privacy-first development</li>
+              <li data-i18n="hls.support_p1">Keep all tools free for everyone</li>
+              <li data-i18n="hls.support_p2">Improve processing speed &amp; reliability</li>
+              <li data-i18n="hls.support_p3">Add new tools and features regularly</li>
+              <li data-i18n="hls.support_p4">Continue privacy-first development</li>
             </ul>
           </div>
           <!-- Donate CTA — feature-flagged off. To enable: add class hls-donate-cta--visible -->
           <div class="hls-donate-cta" aria-hidden="true">
             <a href="/blog/support-the-project.html" class="hls-donate-btn">
-              <i data-lucide="heart"></i> Learn How to Help
+              <i data-lucide="heart"></i> <span data-i18n="hls.support_learn">Learn How to Help</span>
             </a>
           </div>
           <div class="hls-support-icon-block" aria-hidden="true">
             <div class="hls-support-icon"><i data-lucide="coffee"></i></div>
-            <span>Thank you for using ILovePDF</span>
+            <span data-i18n="hls.support_thank">Thank you for using ILovePDF</span>
           </div>
         </div>
       </div>
@@ -382,8 +382,8 @@
     <section class="hls-section hls-blog-section" aria-labelledby="hls-blog-title">
       <div class="hls-inner">
         <div class="hls-head">
-          <h2 id="hls-blog-title">Latest from Our Blog</h2>
-          <p>Guides, tips and insights to help you get the most out of your PDF workflow.</p>
+          <h2 id="hls-blog-title" data-i18n="hls.blog_title">Latest from Our Blog</h2>
+          <p data-i18n="hls.blog_desc">Guides, tips and insights to help you get the most out of your PDF workflow.</p>
         </div>
         <div class="hls-blog-grid">
 
@@ -392,10 +392,10 @@
               <div class="hls-blog-img-icon"><i data-lucide="shield"></i></div>
             </div>
             <div class="hls-blog-body">
-              <span class="hls-blog-tag">Privacy</span>
-              <h3>Privacy in Online PDF Tools — What You Should Know</h3>
-              <p>Not all online PDF tools handle your files the same way. Here's what to look for to keep your documents safe.</p>
-              <a href="/blog/protect-pdf-guide.html" class="hls-blog-read">Read article <i data-lucide="arrow-right"></i></a>
+              <span class="hls-blog-tag" data-i18n="hls.blog1_tag">Privacy</span>
+              <h3 data-i18n="hls.blog1_title">Privacy in Online PDF Tools — What You Should Know</h3>
+              <p data-i18n="hls.blog1_desc">Not all online PDF tools handle your files the same way. Here's what to look for to keep your documents safe.</p>
+              <a href="/blog/protect-pdf-guide.html" class="hls-blog-read"><span data-i18n="hls.blog_read">Read article</span> <i data-lucide="arrow-right"></i></a>
             </div>
           </article>
 
@@ -404,10 +404,10 @@
               <div class="hls-blog-img-icon" style="background:linear-gradient(135deg,#059669,#10b981)"><i data-lucide="minimize-2"></i></div>
             </div>
             <div class="hls-blog-body">
-              <span class="hls-blog-tag" style="background:#ecfdf5;color:#059669">Compression</span>
-              <h3>How to Compress PDFs Without Losing Quality</h3>
-              <p>Reduce file sizes dramatically while keeping your text sharp and images crisp. A step-by-step walkthrough.</p>
-              <a href="/blog/compress-pdf-guide.html" class="hls-blog-read" style="color:#059669">Read article <i data-lucide="arrow-right"></i></a>
+              <span class="hls-blog-tag" style="background:#ecfdf5;color:#059669" data-i18n="hls.blog2_tag">Compression</span>
+              <h3 data-i18n="hls.blog2_title">How to Compress PDFs Without Losing Quality</h3>
+              <p data-i18n="hls.blog2_desc">Reduce file sizes dramatically while keeping your text sharp and images crisp. A step-by-step walkthrough.</p>
+              <a href="/blog/compress-pdf-guide.html" class="hls-blog-read" style="color:#059669"><span data-i18n="hls.blog_read">Read article</span> <i data-lucide="arrow-right"></i></a>
             </div>
           </article>
 
@@ -416,17 +416,17 @@
               <div class="hls-blog-img-icon" style="background:linear-gradient(135deg,#b45309,#d97706)"><i data-lucide="graduation-cap"></i></div>
             </div>
             <div class="hls-blog-body">
-              <span class="hls-blog-tag" style="background:#fef3c7;color:#b45309">Students</span>
-              <h3>Best Free PDF Tools for Students in 2026</h3>
-              <p>Merge assignments, compress submissions, and convert files — everything a student needs, completely free.</p>
-              <a href="/blog/best-pdf-tools.html" class="hls-blog-read" style="color:#b45309">Read article <i data-lucide="arrow-right"></i></a>
+              <span class="hls-blog-tag" style="background:#fef3c7;color:#b45309" data-i18n="hls.blog3_tag">Students</span>
+              <h3 data-i18n="hls.blog3_title">Best Free PDF Tools for Students in 2026</h3>
+              <p data-i18n="hls.blog3_desc">Merge assignments, compress submissions, and convert files — everything a student needs, completely free.</p>
+              <a href="/blog/best-pdf-tools.html" class="hls-blog-read" style="color:#b45309"><span data-i18n="hls.blog_read">Read article</span> <i data-lucide="arrow-right"></i></a>
             </div>
           </article>
 
         </div>
         <div class="hls-viewall-wrap">
           <a href="/blog.html" class="hls-viewall-btn">
-            <i data-lucide="book-open"></i> View All Articles
+            <i data-lucide="book-open"></i> <span data-i18n="hls.blog_view_all">View All Articles</span>
           </a>
         </div>
       </div>
@@ -441,7 +441,7 @@
           <span class="brand-mark"><i data-lucide="file-text"></i></span>
           <span class="brand-name">ILove<span>PDF</span></span>
         </a>
-        <p>Free PDF &amp; Image tools online. Files are deleted automatically after processing — your privacy comes first.</p>
+        <p data-i18n="hls.footer_desc">Free PDF &amp; Image tools online. Files are deleted automatically after processing — your privacy comes first.</p>
       </div>
       <div class="footer-col">
         <h4 data-i18n="footer.product">Product</h4>
@@ -498,8 +498,8 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span>© 2026 ILovePDF — All rights reserved.</span>
-      <span>Files are deleted automatically within seconds.</span>
+      <span data-i18n="hls.footer_rights">© 2026 ILovePDF — All rights reserved.</span>
+      <span data-i18n="hls.footer_deleted">Files are deleted automatically within seconds.</span>
     </div>
   </footer>
 
@@ -512,6 +512,7 @@
   <script src="/js/n2w-converter.js" defer></script>
   <script src="/js/i18n.js" defer></script>
   <script src="/js/tool-i18n-bridge.js" defer></script>
+  <script src="/js/i18n-ext.js" defer></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <script src="/js/home.js" defer></script>

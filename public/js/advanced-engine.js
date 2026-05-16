@@ -1314,20 +1314,38 @@
       if (_feedActive) this.hide();
       _feedActive = true;
       _injectFeedCss();
-      this._steps = steps || [];
-      this._title = title || 'Processing your file\u2026';
+      /* Translate step keys using window.t() if available. */
+      var _tStep = function (k) {
+        if (typeof window.t === 'function') {
+          var v = window.t(k);
+          if (v && v !== k) return v;
+        }
+        /* Graceful fallback: convert key suffix to readable text */
+        return k.replace(/^steps\./, '').replace(/_/g, ' ');
+      };
+      var translatedSteps = (steps || []).map(_tStep);
+      this._steps = translatedSteps;
+      this._title = title ||
+        (typeof window.t === 'function' ? window.t('steps.processing_file') : 'Processing your file\u2026');
 
       var titleEl = document.getElementById('processing-title');
       var msgEl   = document.getElementById('processing-msg');
       if (titleEl) titleEl.textContent = this._title;
-      if (msgEl)   msgEl.textContent   = 'Preparing your file\u2026';
+      if (msgEl)   msgEl.textContent   = (typeof window.t === 'function')
+        ? window.t('steps.preparing_file') : 'Preparing your file\u2026';
 
       var area = document.getElementById('result-area');
       if (!area) return;
-      var stepsHtml = steps.map(function (label, i) {
+      var stepsHtml = translatedSteps.map(function (label, i) {
         return '<div class="ae-step" id="ae-s-' + i + '" data-s="pending">' +
                '<span class="ae-dot"></span><span>' + _escHtml(label) + '</span></div>';
       }).join('');
+      var _privacyText = (typeof window.t === 'function')
+        ? window.t('steps.privacy_notice')
+        : 'Your file is processed securely \u2014 automatically deleted after use';
+      var _perfKey = PERF_MODE === 'high' ? 'steps.perf_optimal'
+                  : PERF_MODE === 'medium' ? 'steps.perf_moderate' : 'steps.perf_high_load';
+      var _perfText = (typeof window.t === 'function') ? window.t(_perfKey) : PERF_LABEL;
       area.innerHTML =
         '<div class="ae-feed" id="ae-feed">' +
           '<div class="ae-feed-hdr"><div class="ae-spin"></div>' +
@@ -1339,9 +1357,9 @@
             '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5">' +
               '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>' +
             '</svg>' +
-            'Your file is processed securely \u2014 automatically deleted after use' +
+            _escHtml(_privacyText) +
           '</div>' +
-          '<div class="ae-perf">' + _escHtml(PERF_LABEL) + '</div>' +
+          '<div class="ae-perf">' + _escHtml(_perfText) + '</div>' +
         '</div>';
 
       ProgressSmoother.reset();
@@ -1359,7 +1377,8 @@
         } else if (state === 'active') {
           msgEl.textContent = label + '\u2026';
         } else if (state === 'done' && idx === this._steps.length - 1) {
-          msgEl.textContent = 'Finalizing output\u2026';
+          msgEl.textContent = (typeof window.t === 'function')
+            ? window.t('steps.finalizing') : 'Finalizing output\u2026';
         }
       }
 
@@ -1386,7 +1405,8 @@
       OutputEstimator.hide();
       _feedActive = false;
       var msgEl = document.getElementById('processing-msg');
-      if (msgEl) msgEl.textContent = 'This usually takes only a few seconds.';
+      if (msgEl) msgEl.textContent = (typeof window.t === 'function')
+        ? window.t('steps.usual_time') : 'This usually takes only a few seconds.';
     },
 
     hide: function () {
@@ -2452,41 +2472,40 @@
 
   // ── TOOL STEPS (stealth labels — Phase 11 enhanced) ───────────────────────
   var TOOL_STEPS = {
-    'compress':           ['Analyzing document',    'Optimizing content',    'Applying improvements',  'Preparing download'],
-    'pdf-to-word':        ['Analyzing document',    'Processing content',    'Building document',      'Preparing download'],
-    'pdf-to-excel':       ['Analyzing document',    'Processing content',    'Building spreadsheet',   'Preparing download'],
-    'pdf-to-powerpoint':  ['Analyzing document',    'Processing content',    'Building presentation',  'Preparing download'],
-    'word-to-pdf':        ['Analyzing document',    'Processing layout',     'Generating result',      'Preparing download'],
-    'excel-to-pdf':       ['Analyzing document',    'Processing layout',     'Generating result',      'Preparing download'],
-    'html-to-pdf':        ['Analyzing document',    'Processing layout',     'Generating result',      'Preparing download'],
-    'ocr':                ['Analyzing document',    'Processing pages',      'Extracting content',     'Preparing result'],
-    'scan-to-pdf':        ['Analyzing images',      'Optimizing quality',    'Creating document',      'Preparing download'],
-    'background-remover': ['Loading image',         'Analyzing image',       'Processing image',       'Saving result'],
-    'repair':             ['Analyzing document',    'Checking integrity',    'Restoring document',     'Preparing download'],
-    'compare':            ['Analyzing documents',   'Processing content',    'Finding differences',    'Building report'],
-    'ai-summarize':       ['Analyzing document',    'Processing content',    'Generating summary',     'Preparing result'],
-    'translate':          ['Analyzing document',    'Processing content',    'Translating document',   'Preparing result'],
-    'workflow':           ['Analyzing document',    'Applying operations',   'Processing steps',       'Preparing download'],
-    // Phase 22: Global Advanced Engine Integration — remaining 18 tools
-    'merge':              ['Loading documents',     'Combining pages',       'Building result',        'Preparing download'],
-    'split':              ['Analyzing document',    'Selecting pages',       'Building result',        'Preparing download'],
-    'rotate':             ['Analyzing document',    'Rotating pages',        'Saving changes',         'Preparing download'],
-    'organize':           ['Analyzing document',    'Reordering pages',      'Building result',        'Preparing download'],
-    'page-numbers':       ['Analyzing document',    'Preparing layout',      'Adding page numbers',    'Preparing download'],
-    'watermark':          ['Analyzing document',    'Preparing layout',      'Applying watermark',     'Preparing download'],
-    'crop':               ['Analyzing document',    'Calculating crop',      'Applying crop',          'Preparing download'],
-    'jpg-to-pdf':         ['Loading images',        'Embedding content',     'Building PDF',           'Preparing download'],
-    'protect':            ['Analyzing document',    'Applying encryption',   'Securing document',      'Preparing download'],
-    'unlock':             ['Analyzing document',    'Removing protection',   'Saving document',        'Preparing download'],
-    'pdf-to-jpg':         ['Analyzing document',    'Rendering pages',       'Processing images',      'Preparing download'],
-    'crop-image':         ['Loading image',         'Analyzing dimensions',  'Applying crop',          'Preparing download'],
-    'resize-image':       ['Loading image',         'Calculating resize',    'Applying resize',        'Preparing download'],
-    'image-filters':      ['Loading image',         'Analyzing image',       'Applying filters',       'Preparing download'],
-    'edit':               ['Analyzing document',    'Processing layout',     'Applying edits',         'Preparing download'],
-    'sign':               ['Analyzing document',    'Processing signature',  'Applying signature',     'Preparing download'],
-    'redact':             ['Analyzing document',    'Locating content',      'Applying redaction',     'Preparing download'],
-    'powerpoint-to-pdf':  ['Analyzing document',    'Processing slides',     'Generating result',      'Preparing download'],
-    'word-to-excel':      ['Analyzing document',    'Extracting content',    'Building spreadsheet',   'Preparing download'],
+    'compress':           ['steps.analyzing_doc',   'steps.optimizing_content',   'steps.applying_improvements', 'steps.preparing_download'],
+    'pdf-to-word':        ['steps.analyzing_doc',   'steps.processing_content',   'steps.building_doc',          'steps.preparing_download'],
+    'pdf-to-excel':       ['steps.analyzing_doc',   'steps.processing_content',   'steps.building_sheet',        'steps.preparing_download'],
+    'pdf-to-powerpoint':  ['steps.analyzing_doc',   'steps.processing_content',   'steps.building_presentation', 'steps.preparing_download'],
+    'word-to-pdf':        ['steps.analyzing_doc',   'steps.processing_layout',    'steps.generating_result',     'steps.preparing_download'],
+    'excel-to-pdf':       ['steps.analyzing_doc',   'steps.processing_layout',    'steps.generating_result',     'steps.preparing_download'],
+    'html-to-pdf':        ['steps.analyzing_doc',   'steps.processing_layout',    'steps.generating_result',     'steps.preparing_download'],
+    'ocr':                ['steps.analyzing_doc',   'steps.processing_pages',     'steps.extracting_content',    'steps.preparing_result'],
+    'scan-to-pdf':        ['steps.analyzing_images','steps.optimizing_quality',   'steps.creating_doc',          'steps.preparing_download'],
+    'background-remover': ['steps.loading_image',   'steps.analyzing_image',      'steps.processing_image',      'steps.saving_result'],
+    'repair':             ['steps.analyzing_doc',   'steps.checking_integrity',   'steps.restoring_doc',         'steps.preparing_download'],
+    'compare':            ['steps.analyzing_docs',  'steps.processing_content',   'steps.finding_diffs',         'steps.building_report'],
+    'ai-summarize':       ['steps.analyzing_doc',   'steps.processing_content',   'steps.generating_summary',    'steps.preparing_result'],
+    'translate':          ['steps.analyzing_doc',   'steps.processing_content',   'steps.translating_doc',       'steps.preparing_result'],
+    'workflow':           ['steps.analyzing_doc',   'steps.applying_ops',         'steps.processing_steps_tool', 'steps.preparing_download'],
+    'merge':              ['steps.loading_docs',    'steps.combining_pages',      'steps.building_result',       'steps.preparing_download'],
+    'split':              ['steps.analyzing_doc',   'steps.selecting_pages',      'steps.building_result',       'steps.preparing_download'],
+    'rotate':             ['steps.analyzing_doc',   'steps.rotating_pages',       'steps.saving_changes',        'steps.preparing_download'],
+    'organize':           ['steps.analyzing_doc',   'steps.reordering_pages',     'steps.building_result',       'steps.preparing_download'],
+    'page-numbers':       ['steps.analyzing_doc',   'steps.preparing_layout',     'steps.adding_page_nums',      'steps.preparing_download'],
+    'watermark':          ['steps.analyzing_doc',   'steps.preparing_layout',     'steps.applying_watermark',    'steps.preparing_download'],
+    'crop':               ['steps.analyzing_doc',   'steps.calculating_crop',     'steps.applying_crop',         'steps.preparing_download'],
+    'jpg-to-pdf':         ['steps.loading_images',  'steps.embedding_content',    'steps.building_pdf',          'steps.preparing_download'],
+    'protect':            ['steps.analyzing_doc',   'steps.applying_encryption',  'steps.securing_doc',          'steps.preparing_download'],
+    'unlock':             ['steps.analyzing_doc',   'steps.removing_protection',  'steps.saving_changes',        'steps.preparing_download'],
+    'pdf-to-jpg':         ['steps.analyzing_doc',   'steps.rendering_pages',      'steps.processing_images',     'steps.preparing_download'],
+    'crop-image':         ['steps.loading_image',   'steps.analyzing_dims',       'steps.applying_crop',         'steps.preparing_download'],
+    'resize-image':       ['steps.loading_image',   'steps.analyzing_dims',       'steps.applying_resize',       'steps.preparing_download'],
+    'image-filters':      ['steps.loading_image',   'steps.analyzing_image',      'steps.applying_filters',      'steps.preparing_download'],
+    'edit':               ['steps.analyzing_doc',   'steps.processing_layout',    'steps.applying_edits',        'steps.preparing_download'],
+    'sign':               ['steps.analyzing_doc',   'steps.processing_sig',       'steps.applying_sig',          'steps.preparing_download'],
+    'redact':             ['steps.analyzing_doc',   'steps.locating_content',     'steps.applying_redaction',    'steps.preparing_download'],
+    'powerpoint-to-pdf':  ['steps.analyzing_doc',   'steps.processing_slides',    'steps.generating_result',     'steps.preparing_download'],
+    'word-to-excel':      ['steps.analyzing_doc',   'steps.extracting_content',   'steps.building_sheet',        'steps.preparing_download'],
   };
 
   var ADVANCED_IDS = new Set(Object.keys(TOOL_STEPS));
@@ -6466,7 +6485,9 @@
         DT().log('smart-retry-v54', { toolId: toolId, attempt: _attempt, opts: Object.keys(_SMART_RETRY_OPTS[toolId] || {}) });
         // Neutral UX message — Stealth Mode (never expose internals)
         LiveFeed.update(1, 'active', 38,
-          _attempt === 2 ? 'Improving result\u2026' : 'Optimizing output\u2026');
+          _attempt === 2
+            ? (typeof window.t === 'function' ? window.t('steps.improving_result') : 'Improving result\u2026')
+            : (typeof window.t === 'function' ? window.t('steps.optimizing_output') : 'Optimizing output\u2026'));
       }
 
       var _procErr = null;
@@ -6483,7 +6504,7 @@
 
         if (_isOrig) {
           // Seamless handoff to browser-tools.js fallback — no retry
-          LiveFeed.update(1, 'active', 30, 'Preparing content\u2026');
+          LiveFeed.update(1, 'active', 30, (typeof window.t === 'function' ? window.t('steps.preparing_content') : 'Preparing content\u2026'));
           try {
             result = await origProcess(toolId, files, opts);
           } catch (origErr) {
@@ -6546,7 +6567,7 @@
         DT().log('validation-fail', { toolId: toolId, attempt: _attempt, reason: _valReason });
         if (_attempt < _maxAttempts && _canRetry) {
           DT().log('smart-retry-quality', { toolId: toolId, attempt: _attempt, reason: _valReason });
-          LiveFeed.update(1, 'active', 40, 'Optimizing output\u2026');
+          LiveFeed.update(1, 'active', 40, (typeof window.t === 'function' ? window.t('steps.optimizing_output') : 'Optimizing output\u2026'));
           result = null;
           continue;
         }

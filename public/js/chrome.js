@@ -95,16 +95,18 @@ window.TOOL_PRIO_LABEL = {
   advanced: '☁️ Advanced',
 };
 window.toolBadgeHtml = function (prio) {
+  var _b = (typeof window.t === 'function') ? window.t : null;
+  var bi = '⚡ ' + (_b ? _b('badge.instant')  : 'Instant');
+  var ba = '☁️ ' + (_b ? _b('badge.advanced') : 'Advanced');
   if (!prio) return '';
   if (prio === 'compress') {
     return '<span class="tool-badges">' +
-      '<span class="tool-badge tool-badge--instant">⚡ Instant</span>' +
-      '<span class="tool-badge tool-badge--advanced">☁️ Advanced</span>' +
+      '<span class="tool-badge tool-badge--instant">' + bi + '</span>' +
+      '<span class="tool-badge tool-badge--advanced">' + ba + '</span>' +
       '</span>';
   }
-  const cls  = prio === 'instant' ? 'tool-badge tool-badge--instant'
-                                  : 'tool-badge tool-badge--advanced';
-  const text = prio === 'instant' ? '⚡ Instant' : '☁️ Advanced';
+  var cls  = prio === 'instant' ? 'tool-badge tool-badge--instant' : 'tool-badge tool-badge--advanced';
+  var text = prio === 'instant' ? bi : ba;
   return '<span class="' + cls + '" aria-label="' + text + '">' + text + '</span>';
 };
 // TOOL_PRIORITY_BANDS — kept for back-compat (mobile overlay, mega-menu, other components).
@@ -148,6 +150,23 @@ const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // without a slug (e.g. legacy entries) and to an explicit `url` when set.
 const toolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
+/* Translate a tool field. Resolves 'tools.<tid>.<field>' and falls back to
+   the raw value if no translation is found. Safe when window.t is absent. */
+function tTool(tid, field, fallback) {
+  if (typeof window.t !== 'function' || !tid) return fallback;
+  var key = 'tools.' + tid + '.' + field;
+  var v = window.t(key);
+  return (v && v !== key) ? v : fallback;
+}
+
+/* Translate a nav-band key (e.g. 'band.organize_title'). Falls back to
+   the raw title string. */
+function tBand(key, fallback) {
+  if (typeof window.t !== 'function') return fallback;
+  var v = window.t(key);
+  return (v && v !== key) ? v : fallback;
+}
+
 function renderHeader(){
   const nav = document.getElementById('nav');
   if (!nav) return;
@@ -158,13 +177,14 @@ function renderHeader(){
   const MEGA_KEYS = ['organize','security','image','edit','utilities','convert','advanced'];
   const megaCols = MEGA_KEYS.map(k => {
     const g = groupBy(k); if (!g) return '';
+    const bandTitle = tBand('band.' + k + '_title', g.title);
     return `
       <div class="mega-col">
-        <h5>${g.title}</h5>
+        <h5>${bandTitle}</h5>
         ${g.items.map(t => `
-          <a class="mega-link" href="${toolUrl(t)}" title="${t.desc||''}" data-prio="${t.prio||'instant'}">
+          <a class="mega-link" href="${toolUrl(t)}" title="${tTool(t.tid,'desc',t.desc||'')}" data-prio="${t.prio||'instant'}">
             <span class="mi"><i data-lucide="${t.icon}"></i></span>
-            <span class="mega-link-name">${t.name}</span>
+            <span class="mega-link-name">${tTool(t.tid, 'title', t.name)}</span>
             ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
           </a>`).join('')}
       </div>`;
@@ -172,22 +192,22 @@ function renderHeader(){
 
   // Simple dropdown item lists — reordered: instant browser tools first.
   const ORGANIZE_ITEMS = [
-    { name:'Merge PDF',    href:'/merge-pdf',    icon:'layers'       },
-    { name:'Split PDF',    href:'/split-pdf',    icon:'scissors'     },
-    { name:'Rotate PDF',   href:'/rotate-pdf',   icon:'rotate-cw'    },
-    { name:'Crop PDF',     href:'/crop-pdf',     icon:'crop'         },
-    { name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
+    { tid:'merge',    name:'Merge PDF',    href:'/merge-pdf',    icon:'layers'       },
+    { tid:'split',    name:'Split PDF',    href:'/split-pdf',    icon:'scissors'     },
+    { tid:'rotate',   name:'Rotate PDF',   href:'/rotate-pdf',   icon:'rotate-cw'    },
+    { tid:'crop',     name:'Crop PDF',     href:'/crop-pdf',     icon:'crop'         },
+    { tid:'organize', name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
   ];
   const CONVERT_ITEMS = [
-    { name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
-    { name:'PDF to Word',       href:'/pdf-to-word',       icon:'file-text'    },
-    { name:'PDF to PowerPoint', href:'/pdf-to-powerpoint', icon:'presentation' },
-    { name:'PDF to Excel',      href:'/pdf-to-excel',      icon:'sheet'        },
+    { tid:'pdf-to-jpg',        name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
+    { tid:'pdf-to-word',       name:'PDF to Word',       href:'/pdf-to-word',       icon:'file-text'    },
+    { tid:'pdf-to-powerpoint', name:'PDF to PowerPoint', href:'/pdf-to-powerpoint', icon:'presentation' },
+    { tid:'pdf-to-excel',      name:'PDF to Excel',      href:'/pdf-to-excel',      icon:'sheet'        },
   ];
   const ddLinks = arr => arr.map(i =>
     `<a class="dd-link" href="${i.href}">
        <span class="mi"><i data-lucide="${i.icon}"></i></span>
-       <span>${i.name}</span>
+       <span>${tTool(i.tid, 'title', i.name)}</span>
      </a>`).join('');
 
   nav.innerHTML = `
@@ -843,6 +863,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMobileNav();
   wireLangSelector();
   wireFooterLangSelector();
+  /* Re-render header (mega-menu names + badges) whenever language changes. */
+  window.addEventListener('i18n:change', function () {
+    renderHeader();
+    if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+  });
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
   tryIcons();
   setTimeout(tryIcons, 150);
