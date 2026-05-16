@@ -19,11 +19,29 @@ function renderTools(){
   if (!bands.length) return;
 
   const badge = (window.toolBadgeHtml || (()=> ''));
+
+  /* t18 — resolves an i18n key with an explicit English fallback.
+     Guards against two false-positive cases that cause blank cards:
+       1. _humaniseKey output: i18n returns the last dot-segment capitalised
+          (e.g. 'tools.merge.title' → 'Title') when the key is missing from
+          the locale cache. Since 'Title' !== raw key the old v!==key check
+          passed, discarding the real fallback. We detect and reject these.
+       2. Cold-cache on first load: locale JSON hasn't arrived yet, so every
+          key returns the humanised fallback. We always prefer the explicit
+          English string from TOOL_GROUPS in that case.                       */
   const t18 = (key, fallback) => {
     if (!window.t) return fallback;
     const v = window.t(key);
-    return (v && v !== key) ? v : fallback;
+    if (!v || v === key) return fallback;
+    // Detect _humaniseKey output: last dot-segment, first-char upper, rest lower+spaces.
+    // e.g. 'tools.merge.title' → last='title' → humanised='Title'
+    //      'band.instant_title' → last='instant_title' → humanised='Instant title'
+    const lastSeg = key.split('.').pop();
+    const humanised = lastSeg.charAt(0).toUpperCase() + lastSeg.slice(1).replace(/_/g, ' ');
+    if (v === humanised) return fallback;
+    return v;
   };
+
   root.innerHTML = bands.map(b => {
     if (!b.items || !b.items.length) return '';
     const titleText = t18(`band.${b.key}_title`, b.title);
@@ -37,16 +55,30 @@ function renderTools(){
         </div>
         ${b.subtitle ? `<p class="cat-sub" data-i18n="band.${b.key}_sub">${subText}</p>` : ''}
         <div class="tools-grid">
-          ${b.items.map(t => `
-            <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}" href="${homeToolUrl(t)}">
+          ${b.items.map(t => {
+            /* Derive the canonical tool ID (tid).
+               Utility tools (currency-converter, numbers-to-words) have no tid
+               but their url path matches the locale key directly.            */
+            const tid = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
+            const titleKey = tid ? `tools.${tid}.title` : '';
+            const descKey  = tid ? `tools.${tid}.desc`  : '';
+            const titleText = tid ? t18(titleKey, t.name) : t.name;
+            const descText  = tid ? t18(descKey,  t.desc) : t.desc;
+            /* Embed data-i18n + data-tid so:
+               a) RuntimeI18n._applyToDOM() translates on every locale switch
+                  without needing a full re-render.
+               b) MutationObserver auto-translates cards the moment they mount.
+               c) tool-i18n-bridge can read tid directly — no SLUG_MAP needed. */
+            return `
+            <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}"${tid ? ` data-tid="${tid}"` : ''} href="${homeToolUrl(t)}">
               <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
               <div class="tool-text">
-                <h4>${t.name}</h4>
-                <p>${t.desc}</p>
+                <h4${titleKey ? ` data-i18n="${titleKey}"` : ''}>${titleText}</h4>
+                <p${descKey ? ` data-i18n="${descKey}"` : ''}>${descText}</p>
               </div>
               ${badge(t.prio)}
-            </a>
-          `).join('')}
+            </a>`;
+          }).join('')}
         </div>
       </section>
     `;
@@ -340,9 +372,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(tryIcons, 700);
 
   // Re-render tool grid + re-apply DOM translations when language changes.
-  // This handles band titles/subtitles (data-i18n) and refreshes icon bindings.
+  // After renderTools() rebuilds the DOM, call RuntimeI18n.patch() immediately
+  // on the grid root so every new [data-i18n] node is translated in the same
+  // task — no waiting for MutationObserver's 20 ms debounce, no flash of
+  // English text on non-English locales.
   window.addEventListener('i18n:change', () => {
     renderTools();
+    if (window.RuntimeI18n) {
+      const root = document.getElementById('tools-root');
+      if (root) window.RuntimeI18n.patch(root);
+      const cta = document.getElementById('view-all-tools-cta');
+      if (cta) window.RuntimeI18n.patch(cta);
+    }
     tryIcons();
     setTimeout(tryIcons, 100);
   });
