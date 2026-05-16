@@ -1,0 +1,431 @@
+/* ============================================================
+   Economy UI — Phase 23–26
+   Covers: Quota modal, Coin burst, Savings panel,
+           Ad overlay, Donation modal, Header widget
+   ============================================================ */
+
+/* ── Quota Modal ──────────────────────────────────────────── */
+#ilpdf-quota-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quota-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+}
+.quota-modal-card {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  max-width: 440px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 24px 80px rgba(0,0,0,.25);
+  text-align: center;
+  animation: quota-card-in .25s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes quota-card-in {
+  from { opacity:0; transform:scale(.88) translateY(20px); }
+  to   { opacity:1; transform:none; }
+}
+.quota-modal-icon {
+  font-size: 3rem;
+  margin-bottom: .75rem;
+  line-height: 1;
+}
+.quota-modal-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e1e2e;
+  margin: 0 0 .5rem;
+}
+.quota-modal-body {
+  color: #555;
+  font-size: .95rem;
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+}
+.quota-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.quota-btn-reward {
+  background: linear-gradient(135deg,#6c63ff,#4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: .9rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s,box-shadow .15s;
+}
+.quota-btn-reward:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(79,70,229,.4);
+}
+.quota-btn-dismiss {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: .9rem;
+  cursor: pointer;
+  padding: .4rem;
+}
+.quota-btn-dismiss:hover { color: #333; }
+.quota-modal-reset {
+  font-size: .8rem;
+  color: #aaa;
+  margin: 1rem 0 0;
+}
+.quota-modal-reset a { color: #4f46e5; text-decoration: none; }
+
+/* ── Coin Burst ───────────────────────────────────────────── */
+.ilpdf-coin-burst {
+  position: absolute;
+  pointer-events: none;
+  z-index: 9999;
+}
+.ilpdf-coin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: var(--size, 18px);
+  animation: coin-fly .9s cubic-bezier(.2,.6,.4,1) var(--delay, 0s) both;
+  transform-origin: center center;
+}
+@keyframes coin-fly {
+  0%   { opacity:1; transform:translate(0,0) scale(1) rotate(0deg); }
+  100% { opacity:0; transform:
+    translateX(calc(cos(var(--angle)) * var(--dist)))
+    translateY(calc(sin(var(--angle)) * var(--dist) - 40px))
+    scale(.5) rotate(360deg); }
+}
+.ilpdf-savings-popup {
+  position: absolute;
+  left: 50%;
+  top: -48px;
+  transform: translateX(-50%);
+  background: #4f46e5;
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .4rem .9rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  animation: popup-in .3s ease both, popup-out .4s ease 1.5s both;
+  box-shadow: 0 4px 16px rgba(79,70,229,.4);
+}
+@keyframes popup-in { from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes popup-out { to{opacity:0;transform:translateX(-50%) translateY(-6px)} }
+
+/* ── Download Success Panel ──────────────────────────────── */
+.ilpdf-success-panel {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9998;
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  max-width: 340px;
+  box-shadow: 0 16px 56px rgba(0,0,0,.18);
+  border-left: 4px solid #4f46e5;
+  animation: panel-slide-in .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes panel-slide-in {
+  from { opacity:0; transform:translateX(120%) }
+  to   { opacity:1; transform:none }
+}
+.ilpdf-success-close {
+  position: absolute;
+  top: .6rem;
+  right: .6rem;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  padding: .2rem .4rem;
+}
+.ilpdf-success-close:hover { color: #333; }
+.ilpdf-success-coins {
+  display: flex;
+  gap: .25rem;
+  margin-bottom: .5rem;
+  font-size: 1.5rem;
+}
+.ilpdf-coin-pile { animation: pile-bounce .6s ease infinite alternate; }
+.ilpdf-coin-pile--2 { animation-delay: .1s; }
+.ilpdf-coin-pile--3 { animation-delay: .2s; }
+@keyframes pile-bounce { from{transform:translateY(0)} to{transform:translateY(-4px)} }
+.ilpdf-success-saved {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e1e2e;
+  margin: 0 0 .25rem;
+}
+.ilpdf-saved-amount { color: #4f46e5; }
+.ilpdf-success-today { font-size: .8rem; color: #666; margin: 0 0 .4rem; }
+.ilpdf-success-quote { font-size: .8rem; color: #888; margin: 0 0 .75rem; }
+.ilpdf-success-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.ilpdf-btn-support {
+  background: #4f46e5;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  padding: .45rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+  transition: background .15s;
+}
+.ilpdf-btn-support:hover { background: #3730a3; }
+.ilpdf-btn-share {
+  background: none;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 8px;
+  padding: .45rem .9rem;
+  font-size: .82rem;
+  cursor: pointer;
+  color: #555;
+  transition: border-color .15s;
+}
+.ilpdf-btn-share:hover { border-color: #4f46e5; color: #4f46e5; }
+
+/* ── Header Savings Widget ───────────────────────────────── */
+.ilpdf-savings-widget {
+  font-size: .82rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: rgba(79,70,229,.08);
+  border-radius: 20px;
+  padding: .3rem .75rem;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  cursor: default;
+  user-select: none;
+  transition: background .2s;
+}
+.ilpdf-savings-widget:hover { background: rgba(79,70,229,.14); }
+.ilpdf-savings-widget-val { color: #1e1e2e; }
+
+/* ── Ad Overlay ──────────────────────────────────────────── */
+#ilpdf-ad-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ad-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  backdrop-filter: blur(6px);
+}
+.ad-overlay-card {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  max-width: 420px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 32px 96px rgba(0,0,0,.3);
+  overflow: hidden;
+  animation: quota-card-in .25s ease both;
+}
+.ad-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .75rem 1.25rem;
+  background: #f8f8ff;
+  border-bottom: 1px solid #e5e5f5;
+}
+.ad-overlay-label { font-size: .75rem; color: #aaa; font-weight: 500; }
+.ad-overlay-countdown {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef;
+  padding: .15rem .5rem;
+  border-radius: 8px;
+}
+.ad-overlay-content {
+  padding: 2rem 2rem 1rem;
+  text-align: center;
+}
+.ad-overlay-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+.ad-overlay-content h3 { font-size: 1.15rem; font-weight: 700; color: #1e1e2e; margin: 0 0 .5rem; }
+.ad-overlay-content p { color: #666; font-size: .9rem; line-height: 1.6; margin: 0 0 1.25rem; }
+.ad-overlay-progress {
+  height: 6px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ad-overlay-bar {
+  height: 100%;
+  background: linear-gradient(90deg,#6c63ff,#4f46e5);
+  border-radius: 3px;
+  transition: width .1s linear;
+  width: 0%;
+}
+.ad-overlay-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e5f5;
+  gap: .5rem;
+}
+.ad-overlay-support {
+  font-size: .78rem;
+  color: #4f46e5;
+  text-decoration: none;
+  flex: 1;
+}
+.ad-overlay-close {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1.25rem;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s,opacity .15s;
+}
+.ad-overlay-close--disabled { opacity: .5; cursor: not-allowed; background: #aaa; }
+.ad-overlay-close--ready { background: #16a34a; cursor: pointer; opacity: 1; }
+
+/* ── Donation Modal ──────────────────────────────────────── */
+.ilpdf-donation-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .ilpdf-donation-modal { align-items: center; }
+}
+.donation-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(3px);
+}
+.donation-card {
+  position: relative;
+  background: #fff;
+  border-radius: 20px 20px 12px 12px;
+  padding: 1.75rem 2rem;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 24px 80px rgba(0,0,0,.22);
+  animation: panel-slide-in .3s ease both;
+  text-align: center;
+}
+@media (min-width: 640px) {
+  .donation-card { border-radius: 20px; }
+}
+.donation-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #bbb;
+  cursor: pointer;
+}
+.donation-close:hover { color: #333; }
+.donation-heart { font-size: 2.5rem; margin-bottom: .5rem; }
+.donation-headline {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e1e2e;
+  margin: 0 0 .6rem;
+}
+.donation-body {
+  font-size: .88rem;
+  color: #666;
+  line-height: 1.6;
+  margin: 0 0 1.25rem;
+}
+.donation-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+  margin-bottom: 1.25rem;
+}
+.donation-link {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .7rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid #e5e5e5;
+  text-decoration: none;
+  color: #1e1e2e;
+  font-weight: 600;
+  font-size: .85rem;
+  transition: border-color .15s, background .15s;
+}
+.donation-link:hover {
+  border-color: var(--donation-color, #4f46e5);
+  background: rgba(0,0,0,.02);
+}
+.donation-link-icon { font-size: 1.2rem; }
+.donation-footer {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.donation-dismiss, .donation-skip {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: .82rem;
+  cursor: pointer;
+  padding: .3rem;
+}
+.donation-dismiss:hover { color: #4f46e5; }
+.donation-skip:hover { color: #555; }
+
+/* ── Responsive tweaks ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .quota-modal-card, .donation-card { padding: 1.5rem 1.25rem; }
+  .ilpdf-success-panel { right: .75rem; left: .75rem; max-width: none; }
+  .donation-links { grid-template-columns: 1fr; }
+}
+
+/* ── Dark mode ───────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .quota-modal-card, .donation-card, .ilpdf-success-panel,
+  .ad-overlay-card { background: #1e1e2e; color: #e5e5f5; }
+  .quota-modal-title, .donation-headline, .ilpdf-success-panel { color: #e5e5f5; }
+  .quota-modal-body, .donation-body, .ilpdf-success-today,
+  .ilpdf-success-quote { color: #a0a0b8; }
+  .donation-link { border-color: #333; color: #e5e5f5; }
+  .ad-overlay-header { background: #16162a; border-color: #2a2a3e; }
+  .ad-overlay-footer { border-color: #2a2a3e; }
+  .ad-overlay-content h3 { color: #e5e5f5; }
+  .ad-overlay-content p { color: #a0a0b8; }
+  .ad-overlay-progress { background: #333; }
+}
