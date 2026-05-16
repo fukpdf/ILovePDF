@@ -113,14 +113,21 @@
     },
   });
 
-  // 2c — Ollama-compatible provider (local LLM)
+  // 2c — Ollama-compatible provider (local LLM — development only)
+  // probe() and generate() are intentionally suppressed in production to prevent
+  // http://localhost:11434 from appearing in Google Search Console resource reports.
   ProviderRegistry.register('ollama-compat', {
     priority: 3,
     probe: async function () {
+      // Hard-block in production: never fetch localhost from a public hostname.
+      var h = (typeof window !== 'undefined' && window.location) ? window.location.hostname : '';
+      if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') return false;
       var url = (window.__GAE_OLLAMA_URL || 'http://localhost:11434') + '/api/tags';
       try { var r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(2000) : undefined }); return r.ok; } catch (_) { return false; }
     },
     generate: async function (prompt, opts) {
+      var h = (typeof window !== 'undefined' && window.location) ? window.location.hostname : '';
+      if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') throw new Error('ollama-compat: not available in production');
       var url  = (window.__GAE_OLLAMA_URL || 'http://localhost:11434') + '/api/generate';
       var body = { model: window.__GAE_OLLAMA_MODEL || 'llama3.2:1b', prompt: prompt, stream: !!opts.stream };
       if (!opts.stream) {

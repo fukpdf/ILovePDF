@@ -1,9 +1,16 @@
 // routes/seo-routes.js
-// Phase-3 SEO endpoints: dynamic sitemap.xml, optimized robots.txt, category
-// hub pages, and indexing-boost endpoints (/ping-index, /submit-urls).
+// Enterprise-grade SEO + sitemap architecture.
 //
-// All HTML responses are pre-built at boot and cached in memory so per-request
-// cost is just `res.send(string)`.
+// Sitemap hierarchy (sitemapindex):
+//   /sitemap.xml           → sitemapindex master
+//   /sitemaps/pages.xml    → homepage + categories + utility pages
+//   /sitemaps/tools.xml    → all 33+ tool pages
+//   /sitemaps/blog.xml     → static guides + DB-published posts (per-request)
+//   /sitemaps/images.xml   → key site images
+//   /sitemaps/locales.xml  → hreflang-ready structure (en + x-default)
+//
+// All XML payloads except blog.xml are pre-built at boot and served from
+// memory so per-request cost is just res.send(string).
 
 import express from 'express';
 import path from 'path';
@@ -11,27 +18,30 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SLUG_MAP, buildCategoryHtml } from '../utils/seo.js';
 import { CATEGORIES, allPublicSlugs } from '../utils/seo-categories.js';
+import db from '../utils/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 const SITE = (process.env.SITE_URL || 'https://ilovepdf.cyou').replace(/\/$/, '');
 
-// Tools considered "top" (priority 0.9). Others get 0.8.
 const TOP_TOOLS = new Set([
   'merge-pdf', 'split-pdf', 'compress-pdf',
   'pdf-to-word', 'pdf-to-jpg', 'word-to-pdf', 'jpg-to-pdf',
   'edit-pdf', 'protect-pdf', 'background-remover',
 ]);
 
-// Utility / legal pages and current static blogs.
 const UTILITY_PAGES = [
   { path: '/privacy.html',    priority: 0.5, changefreq: 'yearly'  },
   { path: '/terms.html',      priority: 0.5, changefreq: 'yearly'  },
   { path: '/disclaimer.html', priority: 0.5, changefreq: 'yearly'  },
   { path: '/blog.html',       priority: 0.7, changefreq: 'weekly'  },
+  { path: '/about',           priority: 0.5, changefreq: 'monthly' },
+  { path: '/tools',           priority: 0.8, changefreq: 'weekly'  },
 ];
-const BLOG_POSTS = [
+
+// Static guide blog posts that exist as public/blog/*.html
+const STATIC_BLOG_PATHS = [
   '/blog/merge-pdf-guide.html',
   '/blog/split-pdf-guide.html',
   '/blog/rotate-pdf-guide.html',
@@ -71,89 +81,213 @@ const BLOG_POSTS = [
   '/blog/support-the-project.html',
 ];
 
-function escXml(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+// ── XML helpers ───────────────────────────────────────────────────────────────
+function escXml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
-// ── Sitemap ──────────────────────────────────────────────────────────────────
-function buildSitemap(){
+function buildUrlset(urls, extraNs = '') {
+  const body = urls.map(u =>
+    `  <url><loc>${escXml(u.loc)}</loc><lastmod>${u.lastmod}</lastmod>` +
+    `<changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`,
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${extraNs}>\n` +
+    `${body}\n</urlset>\n`;
+}
+
+// ── Sitemap index ─────────────────────────────────────────────────────────────
+function buildSitemapIndex() {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = [];
+  const subs  = ['pages', 'tools', 'blog', 'images', 'locales'];
+  const body  = subs.map(s =>
+    `  <sitemap><loc>${escXml(`${SITE}/sitemaps/${s}.xml`)}</loc><lastmod>${today}</lastmod></sitemap>`,
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    `${body}\n</sitemapindex>\n`;
+}
 
-  urls.push({ loc: `${SITE}/`, lastmod: today, changefreq: 'weekly', priority: '1.0' });
+// ── Sub-sitemaps ──────────────────────────────────────────────────────────────
+function buildPagesSitemap() {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = [
+    { loc: `${SITE}/`, lastmod: today, changefreq: 'weekly', priority: '1.0' },
+    ...Object.entries(CATEGORIES).map(([s, c]) => ({
+      loc: `${SITE}/${s}`, lastmod: today, changefreq: 'weekly',
+      priority: (c.priority ?? 0.8).toFixed(1),
+    })),
+    ...UTILITY_PAGES.map(u => ({
+      loc: `${SITE}${u.path}`, lastmod: today,
+      changefreq: u.changefreq, priority: u.priority.toFixed(1),
+    })),
+  ];
+  return buildUrlset(urls);
+}
 
-  for (const catSlug of Object.keys(CATEGORIES)) {
-    urls.push({
-      loc: `${SITE}/${catSlug}`,
-      lastmod: today,
-      changefreq: 'weekly',
-      priority: (CATEGORIES[catSlug].priority ?? 0.8).toFixed(1),
-    });
-  }
+function buildToolsSitemap() {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls  = Object.keys(SLUG_MAP).map(slug => ({
+    loc: `${SITE}/${slug}`, lastmod: today, changefreq: 'monthly',
+    priority: (TOP_TOOLS.has(slug) ? 0.9 : 0.8).toFixed(1),
+  }));
+  return buildUrlset(urls);
+}
 
-  for (const slug of Object.keys(SLUG_MAP)) {
-    urls.push({
-      loc: `${SITE}/${slug}`,
-      lastmod: today,
-      changefreq: 'monthly',
-      priority: (TOP_TOOLS.has(slug) ? 0.9 : 0.8).toFixed(1),
-    });
-  }
+// Blog sitemap is built per-request so new DB posts appear without restart.
+function buildBlogSitemap() {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls  = [];
 
-  for (const u of UTILITY_PAGES) {
-    urls.push({ loc: `${SITE}${u.path}`, lastmod: today, changefreq: u.changefreq, priority: u.priority.toFixed(1) });
-  }
-  for (const p of BLOG_POSTS) {
+  for (const p of STATIC_BLOG_PATHS) {
     urls.push({ loc: `${SITE}${p}`, lastmod: today, changefreq: 'monthly', priority: '0.6' });
   }
 
-  const body = urls.map(u =>
-    `  <url><loc>${escXml(u.loc)}</loc><lastmod>${u.lastmod}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`,
-  ).join('\n');
+  try {
+    const posts = db.prepare(
+      `SELECT slug, updated_at, published_at FROM adm_blog_posts
+       WHERE status='published' ORDER BY published_at DESC`,
+    ).all();
+    for (const post of posts) {
+      const ts  = post.updated_at || post.published_at || Math.floor(Date.now() / 1000);
+      const lm  = new Date(ts * 1000).toISOString().slice(0, 10);
+      const loc = `${SITE}/blog/${post.slug}`;
+      if (!urls.find(u => u.loc === loc)) {
+        urls.push({ loc, lastmod: lm, changefreq: 'monthly', priority: '0.6' });
+      }
+    }
+  } catch (e) {
+    console.warn('[seo-routes] blog DB query failed (non-fatal):', e.message);
+  }
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${body}
-</urlset>
-`;
+  return buildUrlset(urls);
 }
 
-// ── Robots.txt ───────────────────────────────────────────────────────────────
-function buildRobots(){
+function buildImagesSitemap() {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows  = [
+    { loc: `${SITE}/`,               img: `${SITE}/favicon.svg`,
+      title: 'ILovePDF Logo',        caption: 'ILovePDF — Free Online PDF and Image Tools' },
+    { loc: `${SITE}/merge-pdf`,      img: `${SITE}/favicon.svg`,
+      title: 'Merge PDF',            caption: 'Combine multiple PDF files into one' },
+    { loc: `${SITE}/compress-pdf`,   img: `${SITE}/favicon.svg`,
+      title: 'Compress PDF',         caption: 'Reduce PDF file size without quality loss' },
+    { loc: `${SITE}/pdf-to-word`,    img: `${SITE}/favicon.svg`,
+      title: 'PDF to Word',          caption: 'Convert PDF to editable Word document' },
+    { loc: `${SITE}/background-remover`, img: `${SITE}/favicon.svg`,
+      title: 'Background Remover',   caption: 'Remove image background with AI' },
+  ];
+
+  const body = rows.map(r =>
+    `  <url>\n    <loc>${escXml(r.loc)}</loc>\n    <lastmod>${today}</lastmod>\n` +
+    `    <image:image>\n      <image:loc>${escXml(r.img)}</image:loc>\n` +
+    `      <image:title>${escXml(r.title)}</image:title>\n` +
+    `      <image:caption>${escXml(r.caption)}</image:caption>\n` +
+    `    </image:image>\n  </url>`,
+  ).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n` +
+    `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n` +
+    `${body}\n</urlset>\n`;
+}
+
+function buildLocalesSitemap() {
+  const today = new Date().toISOString().slice(0, 10);
+  // hreflang-ready structure. Currently English-only (en + x-default).
+  // When locale prefixes (/es/, /fr/, ...) are added, extend this list.
+  const pages = [
+    { path: '/',    priority: '1.0' },
+    ...Object.keys(CATEGORIES).map(s => ({ path: `/${s}`, priority: '0.85' })),
+    ...Object.keys(SLUG_MAP).map(s    => ({ path: `/${s}`, priority: '0.8'  })),
+  ];
+
+  const body = pages.map(p => {
+    const loc = `${SITE}${p.path}`;
+    return `  <url>\n    <loc>${escXml(loc)}</loc>\n    <lastmod>${today}</lastmod>` +
+      `\n    <priority>${p.priority}</priority>` +
+      `\n    <xhtml:link rel="alternate" hreflang="en" href="${escXml(loc)}"/>` +
+      `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${escXml(loc)}"/>` +
+      `\n  </url>`;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n` +
+    `        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n` +
+    `${body}\n</urlset>\n`;
+}
+
+// ── robots.txt ────────────────────────────────────────────────────────────────
+function buildRobots() {
   return `# robots.txt — ILovePDF
+# Updated for Google Search Console compatibility
+
 User-agent: *
 Allow: /
 
-# Block private / non-public surfaces
+# ── Rendering resources — explicitly allowed so Googlebot can render pages ──
+Allow: /js/
+Allow: /css/
+Allow: /core/
+Allow: /locales/
+Allow: /laba/
+Allow: /images/
+Allow: /fonts/
+Allow: /favicon.svg
+Allow: /manifest.json
+Allow: /sw.js
+Allow: /sitemaps/
+
+# ── Block admin + private surfaces ──────────────────────────────────────────
 Disallow: /admin
 Disallow: /admin/
-Disallow: /dashboard/private
-Disallow: /api/temp
+Disallow: /api/admin/
 Disallow: /api/temp/
-Disallow: /uploads/tmp
-Disallow: /uploads/tmp/
 Disallow: /api/auth/
 Disallow: /api/r2/
+Disallow: /uploads/tmp/
+Disallow: /dashboard/private/
+
+# ── Block non-indexable tool sub-steps (carry noindex meta anyway) ───────────
+Disallow: /*/preview
+Disallow: /*/download
+
+# ── Block debug / internal-only endpoints ───────────────────────────────────
+Disallow: /live-intel
+Disallow: /ping-index
+Disallow: /verify-signup
 
 # Crawl politeness
 Crawl-delay: 1
 
 Sitemap: ${SITE}/sitemap.xml
+Sitemap: ${SITE}/sitemaps/tools.xml
+Sitemap: ${SITE}/sitemaps/blog.xml
+Sitemap: ${SITE}/sitemaps/pages.xml
 `;
 }
 
-// ── Pre-build all HTML / text payloads at boot ───────────────────────────────
-function loadToolShell(){
+// ── Pre-build static payloads at boot ─────────────────────────────────────────
+function loadToolShell() {
   return fs.readFileSync(path.join(__dirname, '..', 'public', 'tool.html'), 'utf8');
 }
 
-const SITEMAP_XML = buildSitemap();
-const ROBOTS_TXT  = buildRobots();
+const SITEMAP_INDEX = buildSitemapIndex();
+const PAGES_XML     = buildPagesSitemap();
+const TOOLS_XML     = buildToolsSitemap();
+const IMAGES_XML    = buildImagesSitemap();
+const LOCALES_XML   = buildLocalesSitemap();
+const ROBOTS_TXT    = buildRobots();
 
 const CATEGORY_HTML = (() => {
   try {
     const shell = loadToolShell();
-    const out = {};
+    const out   = {};
     for (const [slug, cat] of Object.entries(CATEGORIES)) {
       out[slug] = buildCategoryHtml(slug, shell, cat);
     }
@@ -164,21 +298,49 @@ const CATEGORY_HTML = (() => {
   }
 })();
 
-// ── Router ───────────────────────────────────────────────────────────────────
+// ── Router ────────────────────────────────────────────────────────────────────
 const router = express.Router();
 
+// Master sitemap index
 router.get('/sitemap.xml', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600');
-  res.type('application/xml').send(SITEMAP_XML);
+  res.type('application/xml').send(SITEMAP_INDEX);
 });
 
+// Sub-sitemaps — static (built at boot)
+router.get('/sitemaps/pages.xml', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.type('application/xml').send(PAGES_XML);
+});
+
+router.get('/sitemaps/tools.xml', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.type('application/xml').send(TOOLS_XML);
+});
+
+router.get('/sitemaps/images.xml', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.type('application/xml').send(IMAGES_XML);
+});
+
+router.get('/sitemaps/locales.xml', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.type('application/xml').send(LOCALES_XML);
+});
+
+// Blog sitemap — built per-request to include freshly published DB posts
+router.get('/sitemaps/blog.xml', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=1800');
+  res.type('application/xml').send(buildBlogSitemap());
+});
+
+// robots.txt
 router.get('/robots.txt', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600');
   res.type('text/plain').send(ROBOTS_TXT);
 });
 
-// Category hub pages — registered as a parametrised handler that only matches
-// known category slugs. Anything else falls through to the next route.
+// Category hub pages — only matches known category slugs; anything else falls through.
 router.get('/:catSlug', (req, res, next) => {
   const slug = req.params.catSlug;
   const html = CATEGORY_HTML[slug];
@@ -187,13 +349,10 @@ router.get('/:catSlug', (req, res, next) => {
   res.type('html').send(html);
 });
 
-// ── Indexing boost endpoints ─────────────────────────────────────────────────
-// Returns the full URL list (homepage + categories + tools + utility + blog)
-// in JSON so it's easy to feed to Google Search Console / Bing Webmaster /
-// IndexNow tools, scripts, or curl. Lightweight and safe to expose publicly.
+// ── Indexing boost endpoints ──────────────────────────────────────────────────
 router.get('/submit-urls', (_req, res) => {
   const slugs = allPublicSlugs();
-  const urls = [
+  const urls  = [
     `${SITE}/`,
     ...slugs.categories.map(s => `${SITE}/${s}`),
     ...slugs.tools.map(s => `${SITE}/${s}`),
@@ -202,10 +361,8 @@ router.get('/submit-urls', (_req, res) => {
   ];
   res.set('Cache-Control', 'public, max-age=3600');
   res.json({
-    site: SITE,
-    sitemap: `${SITE}/sitemap.xml`,
-    count: urls.length,
-    urls,
+    site: SITE, sitemap: `${SITE}/sitemap.xml`,
+    count: urls.length, urls,
     submitTargets: {
       googleSearchConsole: 'https://search.google.com/search-console/sitemaps',
       bingWebmaster: 'https://www.bing.com/webmasters/sitemaps',
@@ -214,17 +371,12 @@ router.get('/submit-urls', (_req, res) => {
   });
 });
 
-// Pings the major search engines with the sitemap location. Google deprecated
-// their sitemap-ping endpoint in 2023, so we hit Bing, IndexNow and Yandex
-// (still active) and return what each responded. ?key= can override the
-// IndexNow key for site owners that have one configured.
 router.get('/ping-index', async (_req, res) => {
   const sitemap = encodeURIComponent(`${SITE}/sitemap.xml`);
   const targets = [
     { name: 'bing',   url: `https://www.bing.com/ping?sitemap=${sitemap}` },
     { name: 'yandex', url: `https://blogs.yandex.ru/pings/?status=success&url=${sitemap}` },
   ];
-
   const results = await Promise.all(targets.map(async t => {
     try {
       const r = await fetch(t.url, { method: 'GET' });
@@ -233,12 +385,9 @@ router.get('/ping-index', async (_req, res) => {
       return { engine: t.name, ok: false, error: e.message };
     }
   }));
-
   res.set('Cache-Control', 'no-store');
   res.json({
-    site: SITE,
-    sitemap: `${SITE}/sitemap.xml`,
-    pinged: results,
+    site: SITE, sitemap: `${SITE}/sitemap.xml`, pinged: results,
     note: 'Google sitemap ping was retired in 2023. Submit via Search Console: https://search.google.com/search-console',
   });
 });

@@ -80,15 +80,22 @@ function buildSeoExtras(slug, name, canon, title, desc){
     aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', ratingCount: '1284' },
   };
 
+  const OG_IMAGE = 'https://ilovepdf.cyou/favicon.svg';
+
   const headExtras = [
     `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
     `<meta name="googlebot" content="index, follow">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:url" content="${escAttr(canon)}">`,
     `<meta property="og:site_name" content="ILovePDF">`,
+    `<meta property="og:locale" content="en_US">`,
+    `<meta property="og:image" content="${escAttr(OG_IMAGE)}">`,
+    `<meta property="og:image:width" content="512">`,
+    `<meta property="og:image:height" content="512">`,
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${escAttr(title)}">`,
     `<meta name="twitter:description" content="${escAttr(desc)}">`,
+    `<meta name="twitter:image" content="${escAttr(OG_IMAGE)}">`,
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(faqJson))}</script>`,
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(appJson))}</script>`,
   ].join('');
