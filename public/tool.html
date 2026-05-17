@@ -410,6 +410,14 @@
   <script src="/js/ocr-runtime.js"></script>
   <script src="/js/translate-runtime.js"></script>
   <script src="/js/advanced-engine.js" defer></script>
+  <!-- Phase 2: Microfrontend ToolApp Architecture — ADDITIVE, zero changes to existing files.
+       Load order (all defer, executes after AE in document order):
+         shared-core      — SharedCore event bus + service bridges
+         tool-app-manager — ToolAppManager lifecycle + BrowserTools.process interceptor API
+         pdf-word-app     — Isolated pdf-to-word pipeline (fixes first-fail/second-hang bug) -->
+  <script src="/js/shared-core.js" defer></script>
+  <script src="/js/tool-app-manager.js" defer></script>
+  <script src="/js/pdf-word-app.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
   <script src="/js/live-preview.js"></script>
