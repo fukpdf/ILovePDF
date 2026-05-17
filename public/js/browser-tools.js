@@ -1326,7 +1326,13 @@
     }
 
     // ── Font property detection from PDF.js fontName ──────────────────────────
+    // Enhanced via FontMapper module when available (Phase 7 — font-mapper.js)
     function parseFontProps(fontName) {
+      const FM = window.PDFPipeline && window.PDFPipeline.FontMapper;
+      if (FM) {
+        const fp = FM.parseFont(fontName);
+        return { bold: fp.bold, italic: fp.italic, mono: fp.mono, family: fp.family };
+      }
       const fn = (fontName || '').toLowerCase();
       return {
         bold:   /bold|heavy|black|demi/.test(fn),
@@ -1362,10 +1368,22 @@
     }
 
     // ── Multi-column detection ────────────────────────────────────────────────
-    // Returns the X split-point if the page clearly has 2 text columns, else null.
+    // Phase 5 (column-engine.js) used when available — returns full column result.
+    // Falls back to the original 2-column midpoint heuristic.
     function detectColumnSplit(lines, pageWidth) {
+      // Enhanced path: ColumnEngine with river analysis (Phase 5)
+      const CE = window.PDFPipeline && window.PDFPipeline.ColumnEngine;
+      if (CE && lines.length >= 8) {
+        const result = CE.detectColumns(lines, pageWidth);
+        if (result.columnCount >= 2 && result.confidence > 0.45) {
+          // Return the first river X as a compatible split point
+          return result.rivers.length ? result.rivers[0] : pageWidth / 2;
+        }
+        return null;
+      }
+      // Legacy 2-column heuristic fallback
       if (lines.length < 6) return null;
-      const midX = pageWidth / 2;
+      const midX   = pageWidth / 2;
       const margin = pageWidth * 0.07;
       let leftOnly = 0, rightOnly = 0;
       for (const l of lines) {
@@ -1589,12 +1607,13 @@
 
     // ── Inline runs XML for a line block ─────────────────────────────────────
     // Emits one <w:r> per PDF.js text item, preserving bold/italic/mono/RTL.
-    // Adjacent runs with identical properties are NOT merged (simpler + safer).
+    // Phase 7 (FontMapper): adds proper font-family <w:rFonts> when available.
     // Tab characters are inserted between runs when a significant X gap exists.
     function buildRunsXml(runs, basePtSize, pageWidth) {
       if (!runs || !runs.length) return '';
-      const gap    = (pageWidth || 612) * 0.04;
-      const parts  = [];
+      const FM  = window.PDFPipeline && window.PDFPipeline.FontMapper;
+      const gap = (pageWidth || 612) * 0.04;
+      const parts = [];
       for (let i = 0; i < runs.length; i++) {
         const run  = runs[i];
         const prev = runs[i - 1];
@@ -1603,12 +1622,28 @@
           const tsz = Math.max(16, Math.round((basePtSize || 11) * 2));
           parts.push(`<w:r><w:rPr><w:sz w:val="${tsz}"/></w:rPr><w:tab/></w:r>`);
         }
-        const sz   = run.fontSize > 0 ? Math.round(run.fontSize * 2) : Math.round((basePtSize || 11) * 2);
-        const szV  = Math.max(16, Math.min(144, sz));
+
+        // Resolve font properties — FontMapper gives family + accurate bold/italic
+        const fp   = FM ? FM.parseFont(run.fontName || run.fontFamily || '') : null;
+        const bold   = run.bold   || (fp && fp.bold);
+        const italic = run.italic || (fp && fp.italic);
+        const mono   = run.mono   || (fp && fp.mono);
+
+        const rawSz = run.fontSize > 0 ? run.fontSize : (basePtSize || 11);
+        const szV   = FM ? FM.mapFontSize(rawSz, basePtSize || 11)
+                        : Math.max(16, Math.min(144, Math.round(rawSz * 2)));
+
         let rPr = `<w:sz w:val="${szV}"/><w:szCs w:val="${szV}"/>`;
-        if (run.bold)   rPr += '<w:b/><w:bCs/>';
-        if (run.italic) rPr += '<w:i/><w:iCs/>';
-        if (run.mono)   rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>';
+
+        // Font family (Phase 7)
+        if (FM && fp) {
+          rPr += FM.rFontsXml(mono ? 'Courier New' : fp.family);
+        } else if (mono) {
+          rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>';
+        }
+
+        if (bold)        rPr += '<w:b/><w:bCs/>';
+        if (italic)      rPr += '<w:i/><w:iCs/>';
         if (isRtl(run.text)) rPr += '<w:rtl/>';
         parts.push(`<w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${escXml(run.text)}</w:t></w:r>`);
       }
@@ -2103,6 +2138,32 @@
           return buildTableXml(block.rows, block.pageWidth);
         }
 
+        // ── Phase 4 — DocxEngine enhanced rendering (Phases 2/7/9 integrated) ──
+        // Handles h1/h2/h3/list/p/signature with:
+        //   • FontMapper font families        (Phase 7)
+        //   • VisualReconstruction spacing    (Phase 2)
+        //   • FormReconstruction form batching(Phase 9)
+        //   • Alignment + indentation         (Phase 4)
+        // Falls through to legacy renderers below if module not loaded.
+        const _DE = window.PDFPipeline && window.PDFPipeline.DocxEngine;
+        if (_DE) {
+          const _VR = window.PDFPipeline && window.PDFPipeline.VisualReconstruction;
+          const rendered = _DE._renderBlock(block, {
+            basePt: b,
+            pageWidth: block.pageWidth || 612,
+            escXml,
+            normalizeSymbols,
+            isRtl,
+            fontMapper:          window.PDFPipeline.FontMapper,
+            visualReconstruction: _VR,
+            formReconstruction:  window.PDFPipeline.FormReconstruction,
+            sz,
+          });
+          if (rendered != null && rendered !== '') return rendered;
+        }
+
+        // ── Legacy renderers (active when pipeline modules not loaded) ─────────
+
         if (block.type === 'list') {
           const numId = block.listType === 'bullet' ? '1' : '2';
           return block.items.map(item => {
@@ -2139,15 +2200,19 @@
           return `<w:p><w:pPr><w:pStyle w:val="Heading3"/><w:spacing w:before="160" w:after="40"/>${bidiXml}</w:pPr>${runs}</w:p>`;
         }
 
-        // Regular paragraph
+        // Regular paragraph — includes alignment + spacing if VisualReconstruction ran
         const bidiXml   = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+        const alignXml  = (!isRtl(block.text) && block.alignment === 'center') ? '<w:jc w:val="center"/>'
+                        : (!isRtl(block.text) && block.alignment === 'right')  ? '<w:jc w:val="right"/>' : '';
+        const indentXml = block.indentTwips ? `<w:ind w:left="${block.indentTwips}"/>` : '';
+        const spaceXml  = `<w:spacing w:before="${block.spacingBefore || 40}" w:after="${block.spacingAfter || 100}" w:line="${block.lineSpacing || 276}" w:lineRule="auto"/>`;
         const tabXml    = block.singleLine
           ? buildTabStopsXml(block.xPositions || [], block.pageWidth || 612)
           : '';
         const runs = block.runs && block.runs.length
           ? buildRunsXml(block.runs, b, block.pageWidth || 612)
           : `<w:r><w:rPr><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
-        return `<w:p><w:pPr><w:spacing w:after="100"/>${bidiXml}${tabXml}</w:pPr>${runs}</w:p>`;
+        return `<w:p><w:pPr>${spaceXml}${bidiXml}${alignXml}${indentXml}${tabXml}</w:pPr>${runs}</w:p>`;
       });
 
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -2158,18 +2223,54 @@
              `</w:body></w:document>`;
     }
 
-    // ── Package DOCX zip ──────────────────────────────────────────────────────
-    async function buildDocxBlob(structure, basePt) {
+    // ── Package DOCX zip (Phase 6 — image-aware) ─────────────────────────────
+    // images: optional array of { dataUrl, widthPx, heightPx, pageNum, name }
+    async function buildDocxBlob(structure, basePt, images) {
       if (!structure || !structure.length) throw new Error('No content extracted from document.');
-      const hasLists = structure.some(b => b.type === 'list');
+      const hasLists  = structure.some(b => b.type === 'list');
+      const IA        = window.PDFPipeline && window.PDFPipeline.ImageAnchor;
 
+      // ── Prepare image relationships (Phase 6) ────────────────────────────────
+      const imgRels    = [];   // { rId, fileName, base64, mimeType, relXml }
+      const imgXmlParts= [];   // OOXML paragraphs: one per image, appended at end
+      const hasImages  = IA && images && images.length > 0;
+
+      if (hasImages) {
+        // Deduplicate by name
+        const seen = new Set();
+        const unique = images.filter(img => {
+          if (seen.has(img.name)) return false;
+          seen.add(img.name); return true;
+        });
+        // Limit to first 30 images to prevent memory/size explosions
+        const toEmbed = unique.slice(0, 30);
+        const rIdBase = hasLists ? 3 : 2; // rId1=styles, rId2=numbering if present
+
+        for (let idx = 0; idx < toEmbed.length; idx++) {
+          const img = toEmbed[idx];
+          try {
+            const rel = IA.prepareImageRelationship(img.dataUrl, rIdBase + idx);
+            imgRels.push(rel);
+            const imgXml = IA.buildImageXml(rIdBase + idx, img.width || img.widthPx || 100, img.height || img.heightPx || 100);
+            imgXmlParts.push(imgXml);
+          } catch (_imgErr) {}
+        }
+      }
+
+      // ── Content types ─────────────────────────────────────────────────────────
+      const imgCtOverrides = imgRels.map(r =>
+        `<Override PartName="/word/media/${r.fileName}" ContentType="${r.mimeType}"/>`
+      ).join('');
       const ctXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
         `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
         `<Default Extension="xml" ContentType="application/xml"/>` +
+        (imgRels.some(r => r.mimeType === 'image/png')  ? `<Default Extension="png" ContentType="image/png"/>` : '') +
+        (imgRels.some(r => r.mimeType === 'image/jpeg') ? `<Default Extension="jpg" ContentType="image/jpeg"/>` : '') +
         `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
         `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
         (hasLists ? `<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>` : '') +
+        imgCtOverrides +
         `</Types>`;
 
       const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -2177,19 +2278,40 @@
         `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>` +
         `</Relationships>`;
 
+      // ── word/_rels/document.xml.rels ─────────────────────────────────────────
+      const imgRelEntries = imgRels.map(r => r.relXml).join('');
       const wRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
         `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
         (hasLists ? `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>` : '') +
+        imgRelEntries +
         `</Relationships>`;
+
+      // ── Build document.xml — optionally append image gallery ─────────────────
+      const docBodyXml = buildDocXml(structure, basePt);
+      let finalDocXml = docBodyXml;
+      if (imgXmlParts.length > 0) {
+        // Insert image paragraphs before the closing </w:body>
+        const galleryXml =
+          `<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:spacing w:before="280" w:after="80"/></w:pPr>` +
+          `<w:r><w:rPr><w:b/><w:color w:val="2E4057"/></w:rPr><w:t>Images</w:t></w:r></w:p>` +
+          imgXmlParts.join('');
+        finalDocXml = docBodyXml.replace(/<w:sectPr>/, galleryXml + '<w:sectPr>');
+      }
 
       const zip = new JSZip();
       zip.file('[Content_Types].xml', ctXml);
       zip.file('_rels/.rels', relsXml);
-      zip.file('word/document.xml', buildDocXml(structure, basePt));
+      zip.file('word/document.xml', finalDocXml);
       zip.file('word/styles.xml', buildStylesXml(basePt));
       zip.file('word/_rels/document.xml.rels', wRelsXml);
       if (hasLists) zip.file('word/numbering.xml', buildNumberingXml());
+
+      // Add image media files
+      for (const rel of imgRels) {
+        zip.file(`word/media/${rel.fileName}`, rel.base64, { base64: true });
+      }
+
       return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     }
 
@@ -2232,15 +2354,49 @@
           const srcItems      = nonTableItems.length >= 2 ? nonTableItems : items;
           const lines         = groupIntoLines(srcItems, pageWidth);
 
-          // Multi-column ordering for text lines
-          const colSplit = detectColumnSplit(lines, pageWidth);
+          // ── Multi-column ordering (Phase 5 — ColumnEngine with river analysis) ──
+          // detectColumnSplit now delegates to ColumnEngine when available;
+          // for 3+ columns, use ColumnEngine.mergeColumnsToReadingOrder directly.
+          const CE = window.PDFPipeline && window.PDFPipeline.ColumnEngine;
           let orderedLines;
-          if (colSplit) {
-            const left  = lines.filter(l => l.xPositions[0] <  colSplit);
-            const right = lines.filter(l => l.xPositions[0] >= colSplit);
-            orderedLines = [...left, ...right];
+          if (CE && lines.length >= 8) {
+            const cr = CE.detectColumns(lines, pageWidth);
+            if (cr.columnCount >= 2 && cr.confidence > 0.45) {
+              orderedLines = CE.mergeColumnsToReadingOrder(cr);
+              if (window.PDFFidelityDebug) window.PDFFidelityDebug.logColumns(i, cr);
+            } else {
+              orderedLines = lines;
+            }
           } else {
-            orderedLines = lines;
+            const colSplit = detectColumnSplit(lines, pageWidth);
+            if (colSplit) {
+              const left  = lines.filter(l => l.xPositions[0] <  colSplit);
+              const right = lines.filter(l => l.xPositions[0] >= colSplit);
+              orderedLines = [...left, ...right];
+            } else {
+              orderedLines = lines;
+            }
+          }
+
+          // ── Image extraction (Phase 6 — ImageAnchor) ─────────────────────────
+          // Extract raster images from page before cleanup; store for DOCX packaging.
+          const IA = window.PDFPipeline && window.PDFPipeline.ImageAnchor;
+          if (IA && _docxImages) {
+            try {
+              const pageImgs = await IA.extractPageImages(page, 28);
+              for (const img of pageImgs) _docxImages.push({ ...img, pageNum: i });
+            } catch (_imgErr) {}
+          }
+
+          // Debug page summary (Phase 12)
+          if (window.PDFFidelityDebug) {
+            window.PDFFidelityDebug.logPage(i, {
+              charCount, needsOcr: false,
+              tables: pageTables.length,
+              columns: (CE && lines.length >= 8)
+                ? (CE.detectColumns(lines, pageWidth).columnCount) : 1,
+            });
+            if (pageTables.length) window.PDFFidelityDebug.logTables(i, pageTables);
           }
 
           // Merge text lines + table blocks in correct reading order (by Y desc)
@@ -2252,6 +2408,7 @@
           try {
             const ocrLines = await ocrPageToLines(page, pageWidth);
             allLines.push(...ocrLines);
+            if (window.PDFFidelityDebug) window.PDFFidelityDebug.logPage(i, { charCount: 0, needsOcr: true });
           } catch (_) {}
           page.cleanup();
         }
@@ -2278,13 +2435,38 @@
       return allLines;
     }
 
+    // ── Shared image store (Phase 6 — ImageAnchor populates during buildAllLines)
+    const _docxImages = [];
+
+    // ── Phase 12 — Debug session start ────────────────────────────────────────
+    const _fileName = (files[0] && (files[0].name || files[0].fileName)) || 'document.pdf';
+    if (window.PDFFidelityDebug) {
+      const _activeMods = [];
+      const _FP = window.PDFPipeline || {};
+      if (_FP.FontMapper)          _activeMods.push('FontMapper');
+      if (_FP.ColumnEngine)        _activeMods.push('ColumnEngine');
+      if (_FP.FormReconstruction)  _activeMods.push('FormReconstruction');
+      if (_FP.LayoutGraph)         _activeMods.push('LayoutGraph');
+      if (_FP.VisualReconstruction)_activeMods.push('VisualReconstruction');
+      if (_FP.DocxEngine)          _activeMods.push('DocxEngine');
+      if (_FP.OcrZoning)           _activeMods.push('OcrZoning');
+      if (_FP.ImageAnchor)         _activeMods.push('ImageAnchor');
+      if (_FP.FidelityValidator)   _activeMods.push('FidelityValidator');
+      window.PDFFidelityDebug.start(_fileName, _activeMods.length ? 'enhanced' : 'legacy');
+      window.PDFFidelityDebug.stage('Init', `${_activeMods.length} modules: ${_activeMods.join(', ')}`);
+    }
+
     // ── Main processing + smart retry ─────────────────────────────────────────
     let allLines = [];
-    try { allLines = await buildAllLines(forceOcr); } catch (_) {}
+    try {
+      if (window.PDFFidelityDebug) window.PDFFidelityDebug.stage('buildAllLines', 'digital+OCR hybrid');
+      allLines = await buildAllLines(forceOcr);
+    } catch (_) {}
 
     // Retry with full OCR when digital pass returned nothing
     const hasContent = () => allLines.some(l => !l.__pageBreak);
     if (!hasContent() && !forceOcr) {
+      if (window.PDFFidelityDebug) window.PDFFidelityDebug.logFallback('No digital text found', 'full-OCR');
       try { allLines = await buildAllLinesOcr(); } catch (_) {}
     }
 
@@ -2294,16 +2476,45 @@
 
     const contentLines = allLines.filter(l => !l.__pageBreak);
     const basePt       = computeBaseFontSize(contentLines);
+    if (window.PDFFidelityDebug) window.PDFFidelityDebug.stage('buildStructure', `basePt=${basePt}`);
     let structure      = buildStructure(allLines);
 
     if (!structure.length) {
       throw new Error('This PDF does not contain usable document content.');
     }
 
-    let docxBlob = await buildDocxBlob(structure, basePt);
+    // ── Phase 2 — Visual Reconstruction: add spacing/alignment/indent ─────────
+    const _VR = window.PDFPipeline && window.PDFPipeline.VisualReconstruction;
+    if (_VR) {
+      if (window.PDFFidelityDebug) window.PDFFidelityDebug.stage('VisualReconstruction', `${structure.length} blocks`);
+      try { structure = _VR.enhanceBlocks(structure, { basePt, pageWidth: 612 }); } catch (_vrErr) {}
+    }
+
+    // ── Phase 10 — Fidelity Validation ───────────────────────────────────────
+    const _FV = window.PDFPipeline && window.PDFPipeline.FidelityValidator;
+    if (_FV) {
+      const _origChars = contentLines.reduce((s, l) => s + (l.text || '').replace(/\s/g, '').length, 0);
+      const _fvResult  = _FV.validateStructure(structure, pdf.numPages, _origChars);
+      if (window.PDFFidelityDebug) window.PDFFidelityDebug.logValidation(_fvResult);
+      // On very low score with OCR fallback recommended: retry with full OCR
+      if (_fvResult.fallbackMode === 'ocr' && !forceOcr) {
+        if (window.PDFFidelityDebug) window.PDFFidelityDebug.logFallback('FidelityValidator: score=' + _fvResult.score, 'full-OCR');
+        try {
+          const _fbLines = await buildAllLinesOcr();
+          if (_fbLines.some(l => !l.__pageBreak)) {
+            const _fbStruct = buildStructure(_fbLines);
+            if (_fbStruct.length) structure = _VR ? _VR.enhanceBlocks(_fbStruct, { basePt, pageWidth: 612 }) : _fbStruct;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (window.PDFFidelityDebug) window.PDFFidelityDebug.stage('buildDocxBlob', `images=${_docxImages.length}`);
+    let docxBlob = await buildDocxBlob(structure, basePt, _docxImages.length ? _docxImages : null);
 
     // Blob sanity check — retry with full OCR when output is suspiciously small
     if (docxBlob.size < 1200 && !forceOcr) {
+      if (window.PDFFidelityDebug) window.PDFFidelityDebug.logFallback('DOCX too small (' + docxBlob.size + 'B)', 'full-OCR');
       try {
         const retryLines = await buildAllLinesOcr();
         if (retryLines.some(l => !l.__pageBreak)) {
@@ -2311,7 +2522,7 @@
           const retryBase    = computeBaseFontSize(retryContent);
           const retryStruct  = buildStructure(retryLines);
           if (retryStruct.length) {
-            const retryBlob = await buildDocxBlob(retryStruct, retryBase);
+            const retryBlob = await buildDocxBlob(retryStruct, retryBase, null);
             if (retryBlob.size > docxBlob.size) docxBlob = retryBlob;
           }
         }
@@ -2320,6 +2531,12 @@
 
     if (!docxBlob || docxBlob.size < 1000) {
       throw new Error('This PDF does not contain usable document content.');
+    }
+
+    // ── Phase 12 — Debug finish ───────────────────────────────────────────────
+    if (window.PDFFidelityDebug) {
+      window.PDFFidelityDebug.finish(docxBlob.size);
+      setTimeout(() => { try { window.PDFFidelityDebug.panel(); } catch (_) {} }, 400);
     }
 
     await pdf.destroy();

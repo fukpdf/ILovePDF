@@ -364,6 +364,19 @@
   <script src="/js/runtime-cross-tab.js"></script>
   <!-- Phase 6E — AI Task Orchestration (wires CentralRuntime.runAiTask) -->
   <script src="/js/runtime-ai-orchestrator.js"></script>
+  <!-- PDF→Word Fidelity Pipeline — Phases 1–12 (loaded before browser-tools so modules
+       are available when pdfToWord() first runs; all are additive/opt-in IIFE modules
+       that register on window.PDFPipeline = window.PDFPipeline || {}) -->
+  <script src="/js/pdf-pipeline/font-mapper.js"></script>
+  <script src="/js/pdf-pipeline/column-engine.js"></script>
+  <script src="/js/pdf-pipeline/form-reconstruction.js"></script>
+  <script src="/js/pdf-pipeline/fidelity-validator.js"></script>
+  <script src="/js/pdf-pipeline/visual-reconstruction.js"></script>
+  <script src="/js/pdf-pipeline/ocr-zoning.js"></script>
+  <script src="/js/pdf-pipeline/image-anchor-engine.js"></script>
+  <script src="/js/pdf-pipeline/layout-graph.js"></script>
+  <script src="/js/pdf-pipeline/docx-coordinate-engine.js"></script>
+  <script src="/js/pdf-pipeline/fidelity-debug.js"></script>
   <script src="/js/browser-tools.js"></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
   <script src="/js/merge-worker-adapter.js"></script>
