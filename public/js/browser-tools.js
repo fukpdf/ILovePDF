@@ -1382,10 +1382,15 @@
     // ── Group PDF.js items into visual lines with per-item run data ───────────
     // Each run carries: text, x, y, fontSize, fontName, bold, italic, mono, width
     function groupIntoLines(items, pageWidth) {
+      // Adaptive Y-bucket: use median font height so items on the same visual
+      // line are always grouped together regardless of mixed font sizes.
+      const _allH = items.map(it => it.height || 0).filter(h => h > 0).sort((a, b) => a - b);
+      const _medH = _allH.length ? (_allH[Math.floor(_allH.length / 2)] || 6) : 6;
+      const _yBucket = Math.max(2, Math.min(10, Math.round(_medH * 0.42)));
       const buckets = {};
       for (const item of items) {
         if (!item.str || !item.str.trim()) continue;
-        const yKey = Math.round(item.transform[5] / 3) * 3;
+        const yKey = Math.round(item.transform[5] / _yBucket) * _yBucket;
         if (!buckets[yKey]) buckets[yKey] = { runs: [], maxFs: 0, y: item.transform[5] };
         const fs = item.height || 0;
         const fp = parseFontProps(item.fontName);
@@ -1671,6 +1676,238 @@
              `<w:tblW w:w="5000" w:type="pct"/>${allBdr}</w:tblPr>${tRows}</w:tbl>`;
     }
 
+    // ── Pre-pass table region detector ────────────────────────────────────────
+    // Works on raw PDF.js items (before line-grouping) so it can detect tables
+    // whose rows span multiple Y-bucket groups or have mixed column counts.
+    // Returns { tableItems: Set<item>, tables: Array<tableSpec> }
+    function detectTableRegionsFromItems(items, pageWidth) {
+      if (!items || items.length < 6) return { tableItems: new Set(), tables: [] };
+      const pw  = pageWidth || 612;
+      const gap = pw * 0.028;   // ~17pt column gap for A4
+
+      // Compute median item height for adaptive row tolerance
+      const _hs  = items.map(it => it.height || 0).filter(h => h > 0).sort((a, b) => a - b);
+      const medH = _hs.length ? (_hs[Math.floor(_hs.length / 2)] || 10) : 10;
+      const rowTol = Math.max(2, medH * 0.55);
+
+      // Group items into rows by Y position
+      const rowMap = {};
+      for (const it of items) {
+        const yKey = Math.round(it.transform[5] / rowTol) * rowTol;
+        if (!rowMap[yKey]) rowMap[yKey] = { y: it.transform[5], items: [] };
+        rowMap[yKey].items.push(it);
+      }
+
+      // Sort rows top→bottom (descending Y in PDF space = reading order)
+      const rows = Object.values(rowMap)
+        .sort((a, b) => b.y - a.y)
+        .map(r => ({
+          y:     r.y,
+          items: r.items.sort((a, b) => a.transform[4] - b.transform[4]),
+          xs:    r.items.map(it => it.transform[4]),
+        }));
+
+      // Count logical columns by counting X gaps ≥ gap
+      function countCols(xs) {
+        if (!xs.length) return 0;
+        let c = 1;
+        for (let k = 1; k < xs.length; k++) if (xs[k] - xs[k - 1] >= gap) c++;
+        return c;
+      }
+
+      // True if at least one x in A is within tolerance of any x in B
+      function colsOverlap(xa, xb, tol) {
+        for (const a of xa) for (const b of xb) if (Math.abs(a - b) <= tol) return true;
+        return false;
+      }
+
+      // True if x falls inside the X span of a known column set
+      function withinBounds(x, xs) {
+        return x >= Math.min(...xs) - gap && x <= Math.max(...xs) + pw * 0.5;
+      }
+
+      // Cluster X positions into column boundary objects
+      function buildColClusters(sortedXs) {
+        const cls = [];
+        for (const x of sortedXs) {
+          const last = cls[cls.length - 1];
+          if (!last || x - last.max > gap) cls.push({ min: x, max: x, center: x, count: 1 });
+          else { last.max = x; last.center = (last.min + last.max) / 2; last.count++; }
+        }
+        return cls;
+      }
+
+      // Assign item X to nearest column cluster index
+      function nearestCol(x, cls) {
+        let best = 0, bd = Infinity;
+        for (let k = 0; k < cls.length; k++) {
+          const d = Math.abs(x - cls[k].center);
+          if (d < bd) { bd = d; best = k; }
+        }
+        return best;
+      }
+
+      const tableItems = new Set();
+      const tables     = [];
+
+      let i = 0;
+      while (i < rows.length) {
+        const row = rows[i];
+        if (countCols(row.xs) >= 2) {
+          // Potential table start — accumulate consecutive compatible rows
+          const region  = [row];
+          const refXs   = row.xs;
+
+          let j = i + 1;
+          while (j < rows.length) {
+            const next  = rows[j];
+            const yDiff = region[region.length - 1].y - next.y;
+            if (yDiff > medH * 3.2) break; // large gap = table ended
+
+            const nc = countCols(next.xs);
+            if (nc >= 2 && colsOverlap(next.xs, refXs, gap * 1.8)) {
+              region.push(next);
+            } else if (nc === 1 && withinBounds(next.xs[0], refXs)) {
+              // Spanning / merged cell row — include but don't break
+              region.push(next);
+            } else {
+              break;
+            }
+            j++;
+          }
+
+          const multiColRows = region.filter(r => countCols(r.xs) >= 2);
+          if (region.length >= 2 && multiColRows.length >= 2) {
+            // Build global column clusters from all rows in region
+            const allXs  = region.flatMap(r => r.xs).sort((a, b) => a - b);
+            const colCls = buildColClusters(allXs);
+
+            // Build string[][] cell grid
+            const cellRows = region.map(r => {
+              const cells = new Array(colCls.length).fill('');
+              for (const it of r.items) {
+                const ci = nearestCol(it.transform[4], colCls);
+                const t  = it.str.trim();
+                cells[ci] = cells[ci] ? cells[ci] + ' ' + t : t;
+              }
+              return cells.map(c => c.trim());
+            });
+
+            // Column widths proportional to cluster span
+            const colWidths = colCls.map((col, ci) => {
+              const nxt = colCls[ci + 1];
+              return nxt ? nxt.center - col.center : pw - col.center;
+            });
+
+            // Heuristic: is this a form (2-column label:value layout)?
+            const isForm = colCls.length === 2 &&
+              cellRows.filter(r => /^[A-Za-z\u0600-\u06FF][^:]{0,35}[:\s]*$/.test(r[0] || '')).length
+              / cellRows.length > 0.38;
+
+            // Mark all items in this region as consumed
+            for (const r of region) for (const it of r.items) tableItems.add(it);
+
+            tables.push({
+              rows:     cellRows,
+              colCount: colCls.length,
+              colWidths,
+              isForm,
+              yStart:   region[0].y,
+              yEnd:     region[region.length - 1].y,
+            });
+
+            i = j;
+            continue;
+          }
+        }
+        i++;
+      }
+
+      tables.sort((a, b) => b.yStart - a.yStart);
+      return { tableItems, tables };
+    }
+
+    // ── Render pre-detected cell-grid tables to OOXML ────────────────────────
+    // cellRows is string[][], colWidths is number[] (PDF-unit widths, proportional)
+    function buildTableXmlFromCells(cellRows, colWidths, isForm, colCount, pageWidth) {
+      if (!cellRows || !cellRows.length) return '';
+      const USABLE  = 9360;  // twips for A4 with standard margins
+      const numCols = Math.max(2, colCount || cellRows.reduce((m, r) => Math.max(m, r.length), 0));
+
+      // Compute column widths in twips
+      let colW;
+      if (colWidths && colWidths.length >= numCols) {
+        const total = colWidths.reduce((s, w) => s + w, 0) || 1;
+        colW = colWidths.slice(0, numCols).map(w => Math.max(480, Math.round(USABLE * w / total)));
+        const diff = USABLE - colW.reduce((s, w) => s + w, 0);
+        if (diff) colW[colW.length - 1] = Math.max(480, colW[colW.length - 1] + diff);
+      } else if (isForm && numCols === 2) {
+        colW = [Math.round(USABLE * 0.36), Math.round(USABLE * 0.64)];
+      } else {
+        const eq = Math.max(480, Math.floor(USABLE / numCols));
+        colW = new Array(numCols).fill(eq);
+      }
+
+      const bdr = s => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="9CA3AF"/>`;
+      const borders = `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(bdr).join('')}</w:tblBorders>`;
+
+      let xml  = `<w:tbl>`;
+      xml += `<w:tblPr><w:tblStyle w:val="TableGrid"/>`;
+      xml += `<w:tblW w:w="${USABLE}" w:type="dxa"/>`;
+      xml += `<w:tblLayout w:type="fixed"/>`;
+      xml += borders;
+      xml += `<w:tblCellMar>`;
+      xml += `<w:top w:w="80" w:type="dxa"/><w:left w:w="115" w:type="dxa"/>`;
+      xml += `<w:bottom w:w="80" w:type="dxa"/><w:right w:w="115" w:type="dxa"/>`;
+      xml += `</w:tblCellMar></w:tblPr>`;
+      xml += `<w:tblGrid>`;
+      for (const w of colW) xml += `<w:gridCol w:w="${w}"/>`;
+      xml += `</w:tblGrid>`;
+
+      cellRows.forEach((row, ri) => {
+        const isHeader = ri === 0 && !isForm && cellRows.length > 1;
+        const rowFill  = isHeader ? 'E8EEF5' : (ri % 2 === 1 ? 'F9FAFB' : 'FFFFFF');
+        xml += `<w:tr>`;
+        xml += `<w:trPr>`;
+        if (isHeader) xml += `<w:tblHeader/>`;
+        xml += `<w:trHeight w:val="320" w:hRule="atLeast"/>`;
+        xml += `</w:trPr>`;
+
+        for (let ci = 0; ci < numCols; ci++) {
+          const raw      = (row[ci] || '').trim();
+          const cellText = normalizeSymbols(raw);
+          const cw       = colW[ci] || Math.floor(USABLE / numCols);
+          const isLabel  = isForm && ci === 0;
+          const bold     = (isHeader || isLabel) ? '<w:b/><w:bCs/>' : '';
+          const clr      = (isHeader || isLabel) ? '1E3A5F' : '374151';
+          const rtl      = isRtl(cellText);
+          const jc       = rtl ? '<w:jc w:val="right"/>' : '';
+          const bidi     = rtl ? '<w:bidi/>' : '';
+          const runRtl   = rtl ? '<w:rtl/>' : '';
+          const fill     = `<w:shd w:val="clear" w:color="auto" w:fill="${rowFill}"/>`;
+
+          xml += `<w:tc>`;
+          xml += `<w:tcPr><w:tcW w:w="${cw}" w:type="dxa"/>${fill}`;
+          xml += `<w:tcBorders>${['top','left','bottom','right'].map(bdr).join('')}</w:tcBorders>`;
+          xml += `</w:tcPr>`;
+          xml += `<w:p><w:pPr><w:spacing w:before="40" w:after="40"/>${bidi}${jc}</w:pPr>`;
+          if (cellText) {
+            xml += `<w:r><w:rPr>${bold}${runRtl}`;
+            xml += `<w:sz w:val="20"/><w:szCs w:val="20"/>`;
+            xml += `<w:color w:val="${clr}"/>`;
+            xml += `<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Arial"/>`;
+            xml += `</w:rPr><w:t xml:space="preserve">${escXml(cellText)}</w:t></w:r>`;
+          }
+          xml += `</w:p></w:tc>`;
+        }
+        xml += `</w:tr>`;
+      });
+
+      xml += `</w:tbl>`;
+      xml += `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr></w:p>`;
+      return xml;
+    }
+
     // ── Build document structure ──────────────────────────────────────────────
     function buildStructure(allLines) {
       if (!allLines.length) return [];
@@ -1715,6 +1952,20 @@
 
       for (let i = 0; i < allLines.length; i++) {
         const line = allLines[i];
+
+        // Pre-detected table block (from detectTableRegionsFromItems pre-pass)
+        if (line.__table) {
+          flushPara(); flushTable(); flushList();
+          blocks.push({
+            type:     'table',
+            cellRows: line.rows,
+            colCount: line.colCount,
+            colWidths: line.colWidths,
+            isForm:   line.isForm || false,
+            pageWidth: line.pageWidth || 612,
+          });
+          continue;
+        }
 
         // Page break sentinel
         if (line.__pageBreak) {
@@ -1846,6 +2097,9 @@
         }
 
         if (block.type === 'table') {
+          if (block.cellRows) {
+            return buildTableXmlFromCells(block.cellRows, block.colWidths, block.isForm, block.colCount, block.pageWidth);
+          }
           return buildTableXml(block.rows, block.pageWidth);
         }
 
@@ -1956,17 +2210,43 @@
         const needsOcr  = useForceOcr || charCount < 5;
 
         if (!needsOcr) {
-          const lines    = groupIntoLines(items, pageWidth);
+          // ── Pre-pass: detect table regions from raw items before line grouping ──
+          // This catches tables where individual cells have different Y values
+          // (which line-by-line detection misses entirely).
+          const { tableItems, tables: pageTables } =
+            detectTableRegionsFromItems(items, pageWidth);
+
+          // Convert table specs → __table sentinel objects (sorted top→bottom)
+          const tableBlocks = pageTables.map(t => ({
+            __table:   true,
+            rows:      t.rows,
+            colCount:  t.colCount,
+            colWidths: t.colWidths,
+            isForm:    t.isForm,
+            y:         t.yStart,
+            pageWidth,
+          }));
+
+          // Group non-table items through the normal line pipeline
+          const nonTableItems = items.filter(it => !tableItems.has(it));
+          const srcItems      = nonTableItems.length >= 2 ? nonTableItems : items;
+          const lines         = groupIntoLines(srcItems, pageWidth);
+
+          // Multi-column ordering for text lines
           const colSplit = detectColumnSplit(lines, pageWidth);
+          let orderedLines;
           if (colSplit) {
-            // Two-column layout: emit left column lines then right column lines
             const left  = lines.filter(l => l.xPositions[0] <  colSplit);
             const right = lines.filter(l => l.xPositions[0] >= colSplit);
-            // Both are already sorted top→bottom (descending Y) from groupIntoLines
-            allLines.push(...left, ...right);
+            orderedLines = [...left, ...right];
           } else {
-            allLines.push(...lines);
+            orderedLines = lines;
           }
+
+          // Merge text lines + table blocks in correct reading order (by Y desc)
+          const allPageContent = [...orderedLines, ...tableBlocks]
+            .sort((a, b) => (b.y || 0) - (a.y || 0));
+          allLines.push(...allPageContent);
           page.cleanup();
         } else {
           try {

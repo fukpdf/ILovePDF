@@ -146,9 +146,16 @@ router.post('/pdf-to-word', upload.single('pdf'), async (req, res) => {
       return null;
     };
 
-    // Table-like line: split on 2+ spaces → ≥ 2 cells
+    // Table-like line: split on tabs or 3+ spaces → ≥ 2 cells
+    // Using 3+ spaces (not 2) to avoid false-positives on normal prose
     const splitTableRow = t => {
-      const cols = t.split(/\s{2,}/).map(c => c.trim()).filter(Boolean);
+      // Tab-separated columns are unambiguous
+      if (t.includes('\t')) {
+        const cols = t.split('\t').map(c => c.trim()).filter(Boolean);
+        if (cols.length >= 2) return cols;
+      }
+      // 3+ spaces = column separator; 2 spaces is common in normal text
+      const cols = t.split(/\s{3,}/).map(c => c.trim()).filter(Boolean);
       return cols.length >= 2 ? cols : null;
     };
 
