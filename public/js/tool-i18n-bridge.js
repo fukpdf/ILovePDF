@@ -159,19 +159,69 @@
     }, 50);
   }
 
+  /* ── Debug Corruption Scanner (Requirement 9) ───────────────────────────
+     Scans every rendered tool card across ALL rendering pipelines:
+       a.tool       — homepage grid (home.js)
+       a.tp-tool    — /tools directory page (tools-page.js)
+       a.mo-row     — mobile overlay (mobile-nav.js)
+     Logs a warning for any card whose name/desc element contains the
+     placeholder strings 'Title' or 'Desc', or is completely empty.
+     Call conditions: after patchToolCards() and after i18n:change.
+     In production this is a silent no-op; in development it surfaces
+     hidden rendering bugs before users see them.                            */
+  function debugScanForCorruption() {
+    try {
+      var bad = [];
+      var selectors = [
+        { sel: 'a.tool',    nameEl: 'h4',             descEl: 'p'              },
+        { sel: 'a.tp-tool', nameEl: '.tp-tool-name',  descEl: '.tp-tool-desc'  },
+        { sel: 'a.mo-row',  nameEl: '.mo-row-name',   descEl: null             },
+      ];
+      selectors.forEach(function (s) {
+        document.querySelectorAll(s.sel).forEach(function (card) {
+          var tid = card.dataset.tid || '(no-tid)';
+          var nameEl = s.nameEl ? card.querySelector(s.nameEl) : null;
+          var descEl = s.descEl ? card.querySelector(s.descEl) : null;
+          var name = nameEl ? nameEl.textContent.trim() : null;
+          var desc = descEl ? descEl.textContent.trim() : null;
+          if (name === 'Title' || name === '') {
+            bad.push({ type: 'TITLE_CORRUPT', tid: tid, text: name, sel: s.sel });
+          }
+          if (desc === 'Desc' || desc === '') {
+            bad.push({ type: 'DESC_CORRUPT',  tid: tid, text: desc, sel: s.sel });
+          }
+        });
+      });
+      if (bad.length > 0) {
+        console.warn('[ToolI18nBridge] \u26a0 CORRUPTION: ' + bad.length + ' card(s) showing placeholder text. Details:');
+        bad.forEach(function (b) {
+          console.warn('  [' + b.type + '] selector=' + b.sel + ' tid=' + b.tid + ' text="' + b.text + '"');
+        });
+      }
+    } catch (_) { /* scanner must never throw */ }
+  }
+
   // Listen for language changes
   window.addEventListener('i18n:change', function () {
     scheduleToolPatch();
     scheduleToolPageRerender();
+    /* Run scanner 500 ms after locale switch — enough time for all renderers
+       (home.js, tools-page.js, mobile-nav.js) to finish their re-renders.   */
+    setTimeout(debugScanForCorruption, 500);
   });
 
   // Run on initial page load (after i18n engine has loaded and applied a locale)
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(scheduleToolPatch, 100));
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(scheduleToolPatch, 100);
+      /* Initial load scan: 2 s gives all lazy renderers time to hydrate.    */
+      setTimeout(debugScanForCorruption, 2000);
+    });
   } else {
     setTimeout(scheduleToolPatch, 100);
+    setTimeout(debugScanForCorruption, 2000);
   }
 
   // Also expose manual trigger for third-party callers
-  window.ToolI18nBridge = { patch: patchToolCards };
+  window.ToolI18nBridge = { patch: patchToolCards, scan: debugScanForCorruption };
 })();

@@ -15,14 +15,30 @@
 
   function go(href) { window.location.href = href; }
 
+  /* Translation helper — mirrors the guard in home.js / tools-page.js.
+     Returns `fallback` whenever window.t hasn't loaded or the result is a
+     _humaniseKey placeholder ('Title', 'Desc', …).                          */
+  function _tMob(tid, field, fallback) {
+    if (!tid || typeof window.t !== 'function') return fallback;
+    var key = 'tools.' + tid + '.' + field;
+    var v = window.t(key);
+    if (!v || v === key) return fallback;
+    var humanised = field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ');
+    if (v === humanised) return fallback;
+    return v;
+  }
+
   // Build the flat tool index used by the search overlay. Lazy because
   // TOOL_GROUPS may not be defined yet at script-load.
+  // tid is preserved so we can translate names on render.
   function buildIndex() {
     const out = [];
     (window.TOOL_GROUPS || []).forEach(g => {
       (g.items || []).forEach(t => {
         const slug = t.slug || (t.id || t.name).toLowerCase().replace(/\s+/g, '-');
+        const tid  = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
         out.push({
+          tid:  tid,
           name: t.name,
           desc: t.desc || '',
           icon: t.icon || 'wrench',
@@ -140,16 +156,21 @@
       return;
     }
 
-    out.innerHTML = list.map(t => `
-      <a class="mo-row" href="${t.url}" role="option" data-prio="${t.prio||'instant'}">
+    out.innerHTML = list.map(t => {
+      const name = escapeHtml(_tMob(t.tid, 'title', t.name));
+      const tidAttr = t.tid ? ` data-tid="${t.tid}"` : '';
+      const i18nAttr = t.tid ? ` data-i18n="tools.${t.tid}.title"` : '';
+      return `
+      <a class="mo-row" href="${t.url}" role="option" data-prio="${t.prio||'instant'}"${tidAttr}>
         <span class="mo-row-icon"><i data-lucide="${t.icon}"></i></span>
         <span class="mo-row-text">
-          <span class="mo-row-name">${escapeHtml(t.name)}</span>
+          <span class="mo-row-name"${i18nAttr}>${name}</span>
           <span class="mo-row-cat">${escapeHtml(t.cat)}</span>
         </span>
         ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
         <i class="mo-row-arrow" data-lucide="chevron-right"></i>
-      </a>`).join('');
+      </a>`;
+    }).join('');
     if (window.lucide) lucide.createIcons();
   }
 
@@ -162,12 +183,18 @@
       const items = (g.items || []).map(t => {
         const slug = t.slug || (t.id || t.name).toLowerCase().replace(/\s+/g, '-');
         const href = t.url || ('/' + slug);
+        const tid  = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
+        const name = escapeHtml(_tMob(tid, 'title', t.name));
+        const desc = t.desc ? escapeHtml(_tMob(tid, 'desc', t.desc)) : '';
+        const tidAttr   = tid ? ` data-tid="${tid}"` : '';
+        const i18nName  = tid ? ` data-i18n="tools.${tid}.title"` : '';
+        const i18nDesc  = tid ? ` data-i18n="tools.${tid}.desc"`  : '';
         return `
-          <a class="mo-row" href="${href}" data-prio="${t.prio||'instant'}">
+          <a class="mo-row" href="${href}" data-prio="${t.prio||'instant'}"${tidAttr}>
             <span class="mo-row-icon"><i data-lucide="${t.icon || 'wrench'}"></i></span>
             <span class="mo-row-text">
-              <span class="mo-row-name">${escapeHtml(t.name)}</span>
-              ${t.desc ? `<span class="mo-row-cat">${escapeHtml(t.desc)}</span>` : ''}
+              <span class="mo-row-name"${i18nName}>${name}</span>
+              ${desc ? `<span class="mo-row-cat"${i18nDesc}>${desc}</span>` : ''}
             </span>
             ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
             <i class="mo-row-arrow" data-lucide="chevron-right"></i>
@@ -241,4 +268,18 @@
   } else {
     init();
   }
+
+  /* Re-render open overlays when locale changes so tool names update immediately.
+     Closed overlays self-correct on next open (renderTools/renderSearch called
+     fresh each time). This covers the edge case of switching locale while an
+     overlay is already open.                                                    */
+  window.addEventListener('i18n:change', function () {
+    const toolsOv  = document.getElementById('mobile-tools-overlay');
+    const searchOv = document.getElementById('mobile-search-overlay');
+    if (toolsOv  && toolsOv.classList.contains('is-open'))  renderTools();
+    if (searchOv && searchOv.classList.contains('is-open')) {
+      const input = document.getElementById('mo-search-input');
+      renderSearch(input ? input.value : '');
+    }
+  });
 })();

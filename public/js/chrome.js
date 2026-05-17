@@ -150,21 +150,35 @@ const groupBy = key => window.TOOL_GROUPS.find(g => g.key === key);
 // without a slug (e.g. legacy entries) and to an explicit `url` when set.
 const toolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
-/* Translate a tool field. Resolves 'tools.<tid>.<field>' and falls back to
-   the raw value if no translation is found. Safe when window.t is absent. */
+/* Shared guard: return true when `v` is the _humaniseKey output for `key`.
+   _humaniseKey takes the last dot-segment and capitalises it, replacing _ with spaces.
+   e.g.  'tools.merge.title' → last='title' → humanised='Title'
+         'band.instant_title' → last='instant_title' → humanised='Instant title'
+   We must reject these as valid translations or the cold-cache returns 'Title' for
+   tool names and we silently corrupt the UI.                                       */
+function _isHumanised(key, v) {
+  var last = key.split('.').pop();
+  var h = last.charAt(0).toUpperCase() + last.slice(1).replace(/_/g, ' ');
+  return v === h;
+}
+
+/* Translate a tool field (e.g. title, desc) using its canonical tid.
+   NEVER returns a humanised placeholder — always returns `fallback` on miss. */
 function tTool(tid, field, fallback) {
   if (typeof window.t !== 'function' || !tid) return fallback;
   var key = 'tools.' + tid + '.' + field;
   var v = window.t(key);
-  return (v && v !== key) ? v : fallback;
+  if (!v || v === key || _isHumanised(key, v)) return fallback;
+  return v;
 }
 
 /* Translate a nav-band key (e.g. 'band.organize_title'). Falls back to
-   the raw title string. */
+   the raw title string. NEVER returns a humanised placeholder.           */
 function tBand(key, fallback) {
   if (typeof window.t !== 'function') return fallback;
   var v = window.t(key);
-  return (v && v !== key) ? v : fallback;
+  if (!v || v === key || _isHumanised(key, v)) return fallback;
+  return v;
 }
 
 function renderHeader(){

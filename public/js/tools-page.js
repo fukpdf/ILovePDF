@@ -5,6 +5,24 @@
 (function () {
   'use strict';
 
+  /* ── Translation helper ──────────────────────────────────────────────────
+     Guards against two failure modes that produce "Title"/"Desc" corruption:
+     1. Cold-cache miss: locale JSON not yet fetched → _humaniseKey fires
+        returning 'Title' for *.title keys and 'Desc' for *.desc keys.
+     2. Raw key passthrough: key missing from all locales → returns key itself.
+     In both cases we fall back to the English `fallback` string (t.name/t.desc)
+     which is always present in TOOL_GROUPS.                                  */
+  function _tt(tid, field, fallback) {
+    if (!tid || typeof window.t !== 'function') return fallback;
+    var key = 'tools.' + tid + '.' + field;
+    var v = window.t(key);
+    if (!v || v === key) return fallback;
+    // field IS the last dot-segment ('title' or 'desc'), so humanised is trivial
+    var humanised = field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ');
+    if (v === humanised) return fallback;
+    return v;
+  }
+
   // ── Badge definitions ────────────────────────────────────────────────────
   const POPULAR = new Set(['merge','split','compress','pdf-to-word','pdf-to-jpg',
                            'jpg-to-pdf','protect','unlock','ocr','organize']);
@@ -80,14 +98,21 @@
         const badgeHtml = badges.map(b =>
           `<span class="tp-badge ${b.cls}">${b.label}</span>`
         ).join('');
+        /* Derive canonical tid — utility tools use url path, all others have tid.
+           This matches EXACTLY how en.json keys are structured.                  */
+        const tid = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
+        const nameText = escHtml(_tt(tid, 'title', t.name));
+        const descText = escHtml(_tt(tid, 'desc',  t.desc || ''));
+        const titleAttr = tid ? ` data-i18n="tools.${tid}.title"` : '';
+        const descAttr  = tid ? ` data-i18n="tools.${tid}.desc"`  : '';
         return `
-          <a class="tp-tool" href="${toolUrl(t)}" title="${(t.desc||'').replace(/"/g,'&quot;')}">
+          <a class="tp-tool"${tid ? ` data-tid="${tid}"` : ''} href="${toolUrl(t)}" title="${escHtml(_tt(tid, 'desc', t.desc||''))}">
             <div class="tp-tool-top">
               <div class="tp-tool-ico">${iconSvg(t.icon||'file')}</div>
               ${badgeHtml ? `<div class="tp-tool-badges">${badgeHtml}</div>` : ''}
             </div>
-            <div class="tp-tool-name">${escHtml(t.name)}</div>
-            <div class="tp-tool-desc">${escHtml(t.desc||'')}</div>
+            <div class="tp-tool-name"${titleAttr}>${nameText}</div>
+            <div class="tp-tool-desc"${descAttr}>${descText}</div>
           </a>`;
       }).join('');
 
@@ -111,6 +136,11 @@
         </div>`;
     } else {
       container.innerHTML = html;
+      /* Immediately patch data-i18n nodes so translated text appears in the
+         same task as the render — no waiting for MutationObserver's debounce. */
+      if (window.RuntimeI18n && typeof window.RuntimeI18n.patch === 'function') {
+        window.RuntimeI18n.patch(container);
+      }
     }
 
     // Re-render lucide icons
@@ -185,4 +215,11 @@
   } else {
     boot();
   }
+
+  /* Re-render the grid when language changes so all tool names, descriptions,
+     and category labels update immediately. RuntimeI18n.patch() is called
+     inside render() above so no additional explicit patch needed here.       */
+  window.addEventListener('i18n:change', function () {
+    render();
+  });
 })();

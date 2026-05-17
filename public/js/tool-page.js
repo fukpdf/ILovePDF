@@ -1,10 +1,19 @@
 // ── i18n translation helper ─────────────────────────────────────────────────
 // Uses window.t() when available AND resolved; falls back to English string.
-// Prevents raw key names from ever rendering (e.g. during async locale fetch).
+// Guards against TWO failure modes that cause corruption:
+//   1. Raw key returned when locale missing → `v === key` guard
+//   2. _humaniseKey fallback (last dot-segment capitalised, e.g. 'Title', 'Desc',
+//      'Upload files') returned when key absent from locale cache → humanised guard.
+//      Without this guard the old code accepted 'Title' as a real translation.
 function _tp(key, fallback) {
   if (typeof window.t === 'function') {
     var v = window.t(key);
-    if (v !== key) return v; // real translation found
+    if (v && v !== key) {
+      // Reject _humaniseKey output: last dot-segment, first-char upper, underscores→spaces
+      var last = key.split('.').pop();
+      var humanised = last.charAt(0).toUpperCase() + last.slice(1).replace(/_/g, ' ');
+      if (v !== humanised) return v; // genuine translation
+    }
   }
   return fallback; // English fallback (covers cache-empty race condition)
 }
