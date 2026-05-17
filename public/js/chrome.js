@@ -287,6 +287,8 @@ function renderHeader(){
       <i data-lucide="heart"></i>
       <span class="btn-donate-text">Donate</span>
     </a>
+
+    <div class="v2-auth" id="chrome-auth"></div>
   `;
 
   const allItem = document.getElementById('all-tools-item');
