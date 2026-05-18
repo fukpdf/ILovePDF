@@ -444,6 +444,37 @@
   <script src="/js/scan-pdf-app.js" defer></script>
   <script src="/js/image-pdf-app.js" defer></script>
   <script src="/js/runtime-inspector.js" defer></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 2D — Global WorkerPool Healing + Runtime Self-Recovery       -->
+  <!-- Additive-only overlay layer. None of these files modify any        -->
+  <!-- existing runtime system. All fail-safe: if a healer crashes, the  -->
+  <!-- original runtime continues working.                                -->
+  <!-- Load order (each may depend on prior Phase 2D scripts):           -->
+  <!--   1. timeout-reaper   — centralized timeout tracking + cleanup    -->
+  <!--   2. zombie-cleaner   — orphaned promise / listener / worker GC   -->
+  <!--   3. pdf-cleaner      — PDF.js doc registry + auto-destroy        -->
+  <!--   4. tesseract-cleaner— Tesseract worker registry + auto-terminate-->
+  <!--   5. canvas-gc        — canvas pixel memory auto-GC               -->
+  <!--   6. healer           — WorkerPool healer + scheduler recovery    -->
+  <!--   7. panic-manager    — catastrophic state detection + PANIC MODE -->
+  <!--   8. circuit-breakers — per-subsystem auto circuit breakers       -->
+  <!--   9. soft-reset       — window.RuntimeSoftReset() without reload  -->
+  <!--  10. health-monitor   — Phase 2D telemetry augmentation on RH     -->
+  <!--  11. watchdog         — CTRL+SHIFT+H debug overlay (dev-only)     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <script src="/js/runtime-timeout-reaper.js" defer></script>
+  <script src="/js/runtime-zombie-cleaner.js" defer></script>
+  <script src="/js/runtime-pdf-cleaner.js" defer></script>
+  <script src="/js/runtime-tesseract-cleaner.js" defer></script>
+  <script src="/js/runtime-canvas-gc.js" defer></script>
+  <script src="/js/runtime-healer.js" defer></script>
+  <script src="/js/runtime-panic-manager.js" defer></script>
+  <script src="/js/runtime-circuit-breakers.js" defer></script>
+  <script src="/js/runtime-soft-reset.js" defer></script>
+  <script src="/js/runtime-health-monitor.js" defer></script>
+  <script src="/js/runtime-watchdog.js" defer></script>
+
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
   <script src="/js/live-preview.js"></script>
