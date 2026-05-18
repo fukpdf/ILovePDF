@@ -443,6 +443,43 @@
   <script src="/js/remove-background-app.js" defer></script>
   <script src="/js/scan-pdf-app.js" defer></script>
   <script src="/js/image-pdf-app.js" defer></script>
+  <!-- Phase 3: Full Enterprise Isolation — dedicated worker per tool, terminate-after-job.
+       Batch 1: pure pdf-lib tools (was: main thread in browser-tools.js)
+         merge-pdf-app    — intercepts 'merge'        → pdf-lib-worker.js (dedicated)
+         split-pdf-app    — intercepts 'split'        → pdf-lib-worker.js (dedicated)
+         rotate-pdf-app   — intercepts 'rotate'       → pdf-lib-worker.js (dedicated)
+         crop-pdf-app     — intercepts 'crop'         → pdf-lib-worker.js (dedicated, CropBox)
+         protect-pdf-app  — intercepts 'protect'      → pdf-lib-worker.js (dedicated)
+         unlock-pdf-app   — intercepts 'unlock'       → pdf-lib-worker.js (dedicated)
+         watermark-pdf-app— intercepts 'watermark'    → pdf-lib-worker.js (dedicated)
+         page-numbers-app — intercepts 'page-numbers' → pdf-lib-worker.js (dedicated)
+       Batch 2: shared-WorkerPool runtime upgrade (was: PdfWorkerRuntimeFactory → shared pdf-worker.js)
+         organize-app     — intercepts 'organize'     → pdf-lib-worker.js (dedicated, beats organize-runtime.js)
+         sign-app         — intercepts 'sign'         → pdf-lib-worker.js (dedicated, beats sign-runtime.js)
+         edit-pdf-app     — intercepts 'edit'         → pdf-lib-worker.js (dedicated, beats edit-runtime.js)
+         redact-pdf-app   — intercepts 'redact'       → pdf-lib-worker.js (dedicated, beats redact-runtime.js)
+       Batch 3: image tools — OffscreenCanvas in worker (was: main thread canvas)
+         crop-image-app   — intercepts 'crop-image'   → image-tools-worker.js (dedicated)
+         resize-image-app — intercepts 'resize-image' → image-tools-worker.js (dedicated)
+         image-filters-app— intercepts 'image-filters'→ image-tools-worker.js (dedicated, sharpen convolution)
+       Batch 4: DOM-dependent (no worker possible — inline isolation + canvas tracker)
+         html-pdf-app     — intercepts 'html-to-pdf'  → inline html2pdf.js + canvas zeroing lifecycle -->
+  <script src="/js/merge-pdf-app.js" defer></script>
+  <script src="/js/split-pdf-app.js" defer></script>
+  <script src="/js/rotate-pdf-app.js" defer></script>
+  <script src="/js/crop-pdf-app.js" defer></script>
+  <script src="/js/protect-pdf-app.js" defer></script>
+  <script src="/js/unlock-pdf-app.js" defer></script>
+  <script src="/js/watermark-pdf-app.js" defer></script>
+  <script src="/js/page-numbers-app.js" defer></script>
+  <script src="/js/organize-app.js" defer></script>
+  <script src="/js/sign-app.js" defer></script>
+  <script src="/js/edit-pdf-app.js" defer></script>
+  <script src="/js/redact-pdf-app.js" defer></script>
+  <script src="/js/crop-image-app.js" defer></script>
+  <script src="/js/resize-image-app.js" defer></script>
+  <script src="/js/image-filters-app.js" defer></script>
+  <script src="/js/html-pdf-app.js" defer></script>
   <script src="/js/runtime-inspector.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
