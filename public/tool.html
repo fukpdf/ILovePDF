@@ -425,6 +425,25 @@
   <script src="/js/pdf-excel-app.js" defer></script>
   <script src="/js/pdf-ppt-app.js" defer></script>
   <script src="/js/ocr-tool-app.js" defer></script>
+  <!-- Phase 2C: Isolated ToolApps — fix "first fail / second hang" WorkerPool+Tesseract leaks -->
+  <!--   compress-pdf-app   — intercepts 'compress'           → compress-worker.js (dedicated) -->
+  <!--   repair-pdf-app     — intercepts 'repair'             → repair-worker.js (dedicated) -->
+  <!--   compare-pdf-app    — intercepts 'compare'            → PDF.js + isolated Tesseract + compare-worker.js -->
+  <!--   ai-summarizer-app  — intercepts 'ai-summarize'       → PDF.js + isolated Tesseract + summary-worker.js -->
+  <!--   translate-pdf-app  — intercepts 'translate'          → PDF.js + isolated Tesseract + mymemory API -->
+  <!--   remove-background-app — intercepts 'background-remover' → remove-bg-worker.js (dedicated) -->
+  <!--   scan-pdf-app       — intercepts 'scan-to-pdf'        → canvas + isolated Tesseract + pdf-lib -->
+  <!--   image-pdf-app      — intercepts 'jpg-to-pdf' + 'pdf-to-jpg' → image-pipeline-worker.js + PDF.js -->
+  <!--   runtime-inspector  — CTRL+SHIFT+I debug panel (dev-only) -->
+  <script src="/js/compress-pdf-app.js" defer></script>
+  <script src="/js/repair-pdf-app.js" defer></script>
+  <script src="/js/compare-pdf-app.js" defer></script>
+  <script src="/js/ai-summarizer-app.js" defer></script>
+  <script src="/js/translate-pdf-app.js" defer></script>
+  <script src="/js/remove-background-app.js" defer></script>
+  <script src="/js/scan-pdf-app.js" defer></script>
+  <script src="/js/image-pdf-app.js" defer></script>
+  <script src="/js/runtime-inspector.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
   <script src="/js/live-preview.js"></script>
