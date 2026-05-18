@@ -414,10 +414,17 @@
        Load order (all defer, executes after AE in document order):
          shared-core      — SharedCore event bus + service bridges
          tool-app-manager — ToolAppManager lifecycle + BrowserTools.process interceptor API
-         pdf-word-app     — Isolated pdf-to-word pipeline (fixes first-fail/second-hang bug) -->
+         pdf-word-app     — Isolated pdf-to-word pipeline (fixes first-fail/second-hang bug)
+       Phase 2B additions (same pattern, four more tools):
+         pdf-excel-app    — Isolated pdf-to-excel pipeline + dedicated xlsx worker
+         pdf-ppt-app      — Isolated pdf-to-powerpoint pipeline + dedicated pptx worker
+         ocr-tool-app     — Isolated OCR pipeline (covers 'ocr') + reuses docx worker -->
   <script src="/js/shared-core.js" defer></script>
   <script src="/js/tool-app-manager.js" defer></script>
   <script src="/js/pdf-word-app.js" defer></script>
+  <script src="/js/pdf-excel-app.js" defer></script>
+  <script src="/js/pdf-ppt-app.js" defer></script>
+  <script src="/js/ocr-tool-app.js" defer></script>
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
   <script src="/js/live-preview.js"></script>
