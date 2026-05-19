@@ -35,10 +35,12 @@ window.TOOL_GROUPS = [
   {
     key:'image', title:'Image',
     items:[
-      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',      desc:'Trim images precisely',     prio:'instant'  },
-      { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',  desc:'Change image dimensions',   prio:'instant'  },
-      { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',   desc:'Apply photo filters',       prio:'instant'  },
-      { tid:'background-remover', slug:'background-remover', name:'Background Remover', icon:'image-off', desc:'Erase image backgrounds',   prio:'advanced' },
+      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',       desc:'Trim images precisely',          prio:'instant'  },
+      { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',   desc:'Change image dimensions',        prio:'instant'  },
+      { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',    desc:'Apply photo filters',            prio:'instant'  },
+      { url:'/image-compressor',  name:'Image Compressor',   icon:'minimize-2',         desc:'Compress JPG/PNG/WebP images',   prio:'instant'  },
+      { url:'/image-converter',   name:'Image Converter',    icon:'refresh-cw',         desc:'Convert between image formats',  prio:'instant'  },
+      { tid:'background-remover', slug:'background-remover', name:'Background Remover', icon:'image-off',  desc:'Erase image backgrounds',        prio:'advanced' },
     ]
   },
   {
@@ -54,8 +56,11 @@ window.TOOL_GROUPS = [
   {
     key:'utilities', title:'Utilities',
     items:[
-      { url:'/currency-converter', name:'Currency Converter', icon:'dollar-sign', desc:'Live exchange rates for 160+ currencies', prio:'instant' },
-      { url:'/numbers-to-words',   name:'Numbers to Words',   icon:'calculator',  desc:'Convert numbers and currency to words',   prio:'instant' },
+      { url:'/currency-converter', name:'Currency Converter', icon:'dollar-sign',  desc:'Live exchange rates for 160+ currencies', prio:'instant' },
+      { url:'/numbers-to-words',   name:'Numbers to Words',   icon:'calculator',   desc:'Convert numbers and currency to words',   prio:'instant' },
+      { url:'/qr-code-generator',  name:'QR Code Generator',  icon:'qr-code',      desc:'Generate QR codes instantly',             prio:'instant' },
+      { url:'/barcode-generator',  name:'Barcode Generator',  icon:'bar-chart-2',  desc:'Create barcodes for any format',          prio:'instant' },
+      { url:'/zip-builder',        name:'ZIP Builder',        icon:'package',      desc:'Bundle files into a ZIP archive',         prio:'instant' },
     ]
   },
   {
@@ -250,45 +255,6 @@ function renderHeader(){
       <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
     </div>
 
-    <div class="header-search" id="header-search" role="search">
-      <button class="hs-mob-btn" id="hs-mob-btn" type="button" aria-label="Search tools">
-        <i data-lucide="search"></i>
-      </button>
-      <div class="hs-bar">
-        <span class="hs-icon" aria-hidden="true"><i data-lucide="search"></i></span>
-        <input
-          type="search"
-          id="hs-input"
-          class="hs-input"
-          placeholder="Search 33+ tools…"
-          data-i18n-placeholder="nav.search"
-          autocomplete="off"
-          aria-label="Search tools"
-          aria-expanded="false"
-          aria-controls="hs-results"
-        >
-      </div>
-      <div class="hs-results" id="hs-results" role="listbox" hidden></div>
-    </div>
-
-    <div class="lang-sel" id="lang-sel">
-      <button class="lang-btn" id="lang-btn" type="button" aria-label="Select language" aria-expanded="false" aria-haspopup="listbox">
-        <i data-lucide="globe"></i>
-        <span id="lang-code">EN</span>
-        <i data-lucide="chevron-down" class="lang-chev"></i>
-      </button>
-      <div class="lang-drop" id="lang-drop" hidden>
-        <input class="lang-search-input" type="search" id="lang-search-input" placeholder="Search languages…" aria-label="Search languages" autocomplete="off">
-        <ul class="lang-list" id="lang-list" role="listbox" aria-label="Available languages"></ul>
-      </div>
-    </div>
-
-    <a class="btn-donate" href="https://buymeacoffee.com/ilovepdf" target="_blank" rel="noopener noreferrer" aria-label="Support ILovePDF — Buy us a coffee" style="display:none"><!-- FEATURE FLAG: remove style="display:none" to show donate button -->
-      <i data-lucide="heart"></i>
-      <span class="btn-donate-text">Donate</span>
-    </a>
-
-    <div class="v2-auth" id="chrome-auth"></div>
   `;
 
   const allItem = document.getElementById('all-tools-item');
@@ -297,8 +263,6 @@ function renderHeader(){
   wireSimpleDropdowns();
   wireAllToolsToggle();
   wireHoverPrefetch(nav);
-  wireHeaderSearch();
-  wireMobileSearchBtn();
 }
 
 /* SPA navigation helper — navigates to a tool URL without a full page reload
@@ -877,8 +841,20 @@ document.addEventListener('DOMContentLoaded', () => {
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
-  wireLangSelector();
   wireFooterLangSelector();
+  /* Track which tool page is being viewed so the homepage Recent Use section
+     can show the user's most-recently-used tools. Runs on every page load
+     because chrome.js is universal. Silently no-ops if localStorage is blocked. */
+  try {
+    var _tid = window.__TOOL_ID;
+    if (_tid) {
+      var _rk = 'ilpdf_recent_v1';
+      var _rec = JSON.parse(localStorage.getItem(_rk) || '[]');
+      _rec = _rec.filter(function(r){ return r.id !== _tid; });
+      _rec.unshift({ id: _tid, ts: Date.now() });
+      localStorage.setItem(_rk, JSON.stringify(_rec.slice(0, 6)));
+    }
+  } catch(_) {}
   /* Re-render header (mega-menu names + badges) whenever language changes. */
   window.addEventListener('i18n:change', function () {
     renderHeader();

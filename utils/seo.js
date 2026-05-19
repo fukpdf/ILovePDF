@@ -149,6 +149,11 @@ export const SLUG_MAP = {
   'crop-image':     { id:'crop-image',   name:'Crop Image' },
   'resize-image':   { id:'resize-image', name:'Image Resize' },
   'image-filters':  { id:'image-filters', name:'Image Filters' },
+  'image-compressor':  { id:'image-compressor',  name:'Image Compressor',  direct:'/image-compressor.html'  },
+  'image-converter':   { id:'image-converter',   name:'Image Converter',   direct:'/image-converter.html'   },
+  'qr-code-generator': { id:'qr-code-generator', name:'QR Code Generator', direct:'/qr-code-generator.html' },
+  'barcode-generator': { id:'barcode-generator', name:'Barcode Generator', direct:'/barcode-generator.html' },
+  'zip-builder':       { id:'zip-builder',       name:'ZIP Builder',       direct:'/zip-builder.html'       },
 };
 
 const RELATED = {
@@ -188,6 +193,11 @@ const RELATED = {
   'crop-image':      ['resize-image','background-remover','image-filters','jpg-to-pdf'],
   'resize-image':    ['crop-image','background-remover','image-filters','pdf-to-jpg'],
   'image-filters':   ['crop-image','resize-image','background-remover','jpg-to-pdf'],
+  'image-compressor':  ['image-converter','background-remover','crop-image','resize-image'],
+  'image-converter':   ['image-compressor','background-remover','crop-image','image-filters'],
+  'qr-code-generator': ['barcode-generator','numbers-to-words','currency-converter','zip-builder'],
+  'barcode-generator': ['qr-code-generator','numbers-to-words','currency-converter','zip-builder'],
+  'zip-builder':       ['qr-code-generator','barcode-generator','numbers-to-words','currency-converter'],
 };
 
 const VERB = {

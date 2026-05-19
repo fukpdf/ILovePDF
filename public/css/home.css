@@ -2679,3 +2679,106 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   #lang-code { display: none; }
   .lang-btn { padding: 0 8px; gap: 2px; }
 }
+
+/* ── Homepage Category Sections ─────────────────────────────────────────── */
+.home-cat-section {
+  padding: 52px 0 8px;
+  scroll-margin-top: 80px;
+}
+.home-cat-section + .home-cat-section {
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+.home-cat-inner {
+  /* width is inherited from parent container */
+}
+.home-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+.home-cat-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+.home-cat-ico svg { width: 26px; height: 26px; }
+.home-cat-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--text, #111827);
+}
+.home-cat-sub {
+  margin: 5px 0 0;
+  font-size: .95rem;
+  color: var(--text-soft, #6b7280);
+  line-height: 1.5;
+}
+/* Related Articles block inside a category section */
+.cat-articles {
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+.cat-articles-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--text, #111827);
+}
+.cat-articles-title svg { width: 18px; height: 18px; }
+.cat-articles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.cat-article-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text, #111827);
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.cat-article-card:hover {
+  background: #fff;
+  border-color: var(--primary, #4f46e5);
+  transform: translateY(-2px);
+}
+.cat-article-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: var(--primary-pale, #eef2ff);
+  color: var(--primary, #4f46e5);
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.cat-article-icon svg { width: 18px; height: 18px; }
+.cat-article-body h5 {
+  margin: 0 0 3px;
+  font-size: .88rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.cat-article-body p {
+  margin: 0;
+  font-size: .82rem;
+  color: var(--text-soft, #6b7280);
+  line-height: 1.45;
+}

@@ -39,6 +39,11 @@ window.SLUG_MAP = {
   'crop-image':        { id:'crop-image'    },
   'resize-image':      { id:'resize-image'  },
   'image-filters':     { id:'image-filters' },
+  'image-compressor':  { id:'image-compressor',  special:'/image-compressor.html'  },
+  'image-converter':   { id:'image-converter',   special:'/image-converter.html'   },
+  'qr-code-generator': { id:'qr-code-generator', special:'/qr-code-generator.html' },
+  'barcode-generator': { id:'barcode-generator', special:'/barcode-generator.html' },
+  'zip-builder':       { id:'zip-builder',       special:'/zip-builder.html'       },
 };
 
 // Resolve current page URL → tool-id. Falls back through:

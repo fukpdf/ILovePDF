@@ -1,137 +1,197 @@
-/* Homepage-only logic — tools grid, calculators, mobile toggle, currency converter.
-   Header + drawer + auth modal live in chrome.js (loaded on every page). */
+/* Homepage-only logic — Recent Use section, category sections, calculators.
+   Header + auth modal live in chrome.js (loaded on every page). */
 
-// In-app navigation prefers the clean SEO slug ( /merge-pdf ) when present.
-// Items can also override with an explicit `url` (e.g. utility pages).
 const homeToolUrl = t => t.url || (t.slug ? `/${t.slug}` : `/tool.html?id=${t.tid}`);
 
-/* ----------------------- render tools grid ----------------------- */
-// Renders the homepage tool bands (core tools + compression only).
-// ALL 33+ tools are accessible via the /tools directory page.
-// The mega-menu still shows every tool in functional categories.
-function renderTools(){
-  const root = document.getElementById('tools-root');
-  if (!root) return;
+/* ─── RECENT USE — localStorage helpers ────────────────────────────────── */
+const RECENT_KEY = 'ilpdf_recent_v1';
 
-  // Use the curated homepage bands (core + compress).
-  // Falls back to full priority bands if homepage bands not yet defined.
-  const bands = window.HOMEPAGE_BANDS || window.TOOL_PRIORITY_BANDS || [];
-  if (!bands.length) return;
+function getRecentTools() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); }
+  catch (_) { return []; }
+}
 
-  const badge = (window.toolBadgeHtml || (()=> ''));
+/* Build a flat map: id/url-slug → tool object from TOOL_GROUPS */
+function buildToolMap() {
+  const map = {};
+  (window.TOOL_GROUPS || []).forEach(g => {
+    (g.items || []).forEach(t => {
+      if (t.tid) map[t.tid] = t;
+      if (t.url) map[t.url.replace(/^\/+/, '')] = t;
+    });
+  });
+  return map;
+}
 
-  /* t18 — resolves an i18n key with an explicit English fallback.
-     Guards against two false-positive cases that cause blank cards:
-       1. _humaniseKey output: i18n returns the last dot-segment capitalised
-          (e.g. 'tools.merge.title' → 'Title') when the key is missing from
-          the locale cache. Since 'Title' !== raw key the old v!==key check
-          passed, discarding the real fallback. We detect and reject these.
-       2. Cold-cache on first load: locale JSON hasn't arrived yet, so every
-          key returns the humanised fallback. We always prefer the explicit
-          English string from TOOL_GROUPS in that case.                       */
-  const t18 = (key, fallback) => {
-    if (!window.t) return fallback;
-    const v = window.t(key);
-    if (!v || v === key) return fallback;
-    // Detect _humaniseKey output: last dot-segment, first-char upper, rest lower+spaces.
-    // e.g. 'tools.merge.title' → last='title' → humanised='Title'
-    //      'band.instant_title' → last='instant_title' → humanised='Instant title'
-    const lastSeg = key.split('.').pop();
-    const humanised = lastSeg.charAt(0).toUpperCase() + lastSeg.slice(1).replace(/_/g, ' ');
-    if (v === humanised) return fallback;
-    return v;
-  };
+/* Safe i18n with humanised-key guard (prevents blank cards on cold cache) */
+const t18 = (key, fallback) => {
+  if (!window.t) return fallback;
+  const v = window.t(key);
+  if (!v || v === key) return fallback;
+  const lastSeg = key.split('.').pop();
+  const humanised = lastSeg.charAt(0).toUpperCase() + lastSeg.slice(1).replace(/_/g, ' ');
+  if (v === humanised) return fallback;
+  return v;
+};
 
-  root.innerHTML = bands.map(b => {
-    if (!b.items || !b.items.length) return '';
-    const titleText = t18(`band.${b.key}_title`, b.title);
-    const subText   = b.subtitle ? t18(`band.${b.key}_sub`, b.subtitle) : '';
-    return `
-      <section class="cat-block cat-block--${b.key}" id="cat-${b.key}" data-prio="${b.key}">
-        <div class="cat-title cat-title--${b.key}">
-          <span class="cat-title-ico"><i data-lucide="${b.icon}"></i></span>
-          <span class="cat-title-text" data-i18n="band.${b.key}_title">${titleText}</span>
-          <span class="cat-title-count">${b.items.length}</span>
-        </div>
-        ${b.subtitle ? `<p class="cat-sub" data-i18n="band.${b.key}_sub">${subText}</p>` : ''}
-        <div class="tools-grid">
-          ${b.items.map(t => {
-            /* Derive the canonical tool ID (tid).
-               Utility tools (currency-converter, numbers-to-words) have no tid
-               but their url path matches the locale key directly.            */
-            const tid = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
-            const titleKey = tid ? `tools.${tid}.title` : '';
-            const descKey  = tid ? `tools.${tid}.desc`  : '';
-            const titleText = tid ? t18(titleKey, t.name) : t.name;
-            const descText  = tid ? t18(descKey,  t.desc) : t.desc;
-            /* Embed data-i18n + data-tid so:
-               a) RuntimeI18n._applyToDOM() translates on every locale switch
-                  without needing a full re-render.
-               b) MutationObserver auto-translates cards the moment they mount.
-               c) tool-i18n-bridge can read tid directly — no SLUG_MAP needed. */
-            return `
-            <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}"${tid ? ` data-tid="${tid}"` : ''} href="${homeToolUrl(t)}">
-              <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
-              <div class="tool-text">
-                <h4${titleKey ? ` data-i18n="${titleKey}"` : ''}>${titleText}</h4>
-                <p${descKey ? ` data-i18n="${descKey}"` : ''}>${descText}</p>
-              </div>
-              ${badge(t.prio)}
-            </a>`;
-          }).join('')}
-        </div>
-      </section>
-    `;
-  }).join('');
+/* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
+function renderRecentUse() {
+  const section = document.getElementById('recent-use-section');
+  const root    = document.getElementById('tools-root');
+  if (!section) return;
 
-  // "View All Tools" CTA — appended directly after the grid container
-  const existing = document.getElementById('view-all-tools-cta');
-  if (!existing) {
-    const cta = document.createElement('div');
-    cta.id = 'view-all-tools-cta';
-    cta.innerHTML = `
-      <a href="/tools" class="view-all-tools-btn">
-        <i data-lucide="grid-3x3"></i>
-        <span data-i18n="section.view_all_cta">View All 33+ Tools</span>
-        <i data-lucide="arrow-right"></i>
-      </a>
-      <p class="view-all-tools-sub" data-i18n="section.view_all_sub">Advanced tools, AI features, image editing and more</p>
-    `;
-    root.after(cta);
+  const recent = getRecentTools();
+  if (!recent.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const tMap  = buildToolMap();
+  const badge = (window.toolBadgeHtml || (() => ''));
+
+  if (root) {
+    root.innerHTML = recent.map(r => {
+      const t = tMap[r.id];
+      if (!t) return '';
+      const tid      = t.tid || r.id;
+      const titleKey = `tools.${tid}.title`;
+      const descKey  = `tools.${tid}.desc`;
+      return `
+        <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
+          <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
+          <div class="tool-text">
+            <h4 data-i18n="${titleKey}">${t18(titleKey, t.name)}</h4>
+            <p  data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
+          </div>
+          ${badge(t.prio)}
+        </a>`;
+    }).filter(Boolean).join('');
   }
 }
 
-/* ----------------------- mobile calculator toggle ----------------------- */
-// Uses CSS class toggling only — no DOM node movement.
-// The CSS already has `.calc-card.mobile-open { display:block }` which overrides
-// the `@media (max-width:1024px) .rail-sticky .calc-card { display:none }` rule
-// (same specificity, later declaration wins). This means the calculator cards
-// always stay in .rail-sticky — they are simply shown/hidden via CSS.
-// A MediaQueryList listener auto-resets state on desktop resize so there is
-// never a stale open/closed mismatch across breakpoints.
+/* ─── CATEGORY SECTION CONFIG ───────────────────────────────────────────── */
+const CAT_CONFIG = {
+  pdf: {
+    title: 'PDF Tools',
+    sub: 'Everything you need to manage, convert, edit, and secure your PDFs — all browser-powered.',
+    icon: 'file-text', bg: '#eef2ff', color: '#4f46e5',
+  },
+  image: {
+    title: 'Image Tools',
+    sub: 'Compress, convert, crop, resize, filter, and transform your images with zero uploads needed.',
+    icon: 'image', bg: '#f0fdf4', color: '#16a34a',
+  },
+  utilities: {
+    title: 'Utilities',
+    sub: 'Handy browser-based tools for everyday tasks — QR codes, barcodes, currency, ZIP files and more.',
+    icon: 'wrench', bg: '#fef3c7', color: '#b45309',
+  },
+};
+
+const CAT_ARTICLES = {
+  pdf: [
+    { title:'How to Merge PDFs',              desc:'Step-by-step guide to combining multiple PDFs into one.',   icon:'layers',       url:'/blog' },
+    { title:'Best PDF Compression Methods',   desc:'Reduce file size without sacrificing visual quality.',      icon:'archive',      url:'/blog' },
+    { title:'Organizing Large PDF Documents', desc:'Tips for reordering, splitting and managing pages.',        icon:'list-ordered', url:'/blog' },
+    { title:'PDF Security Best Practices',    desc:'Protect documents with passwords and permissions.',         icon:'shield',       url:'/blog' },
+    { title:'OCR Explained',                  desc:'How optical character recognition works and when to use it.',icon:'type',        url:'/blog' },
+    { title:'Repairing Corrupted PDFs',       desc:'What causes PDF corruption and how to fix it.',            icon:'wrench',       url:'/blog' },
+  ],
+  image: [
+    { title:'How to Remove Image Backgrounds', desc:'Use AI to erase backgrounds from photos in seconds.',  icon:'image-off',  url:'/blog' },
+    { title:'Image Compression Guide',         desc:'Reduce file size while keeping quality.',              icon:'minimize-2', url:'/blog' },
+    { title:'JPEG vs PNG vs WebP',             desc:'Which image format should you use and when?',         icon:'image',      url:'/blog' },
+    { title:'How to Resize Images',            desc:'Resize images for web, print, and social media.',     icon:'maximize',   url:'/blog' },
+  ],
+  utilities: [
+    { title:'QR Codes Explained',       desc:'What QR codes are, how they work, and when to use them.',    icon:'qr-code',    url:'/blog' },
+    { title:'How to Create Barcodes',   desc:'Generate barcodes for products, books, and inventory.',      icon:'bar-chart-2',url:'/blog' },
+    { title:'Working with ZIP Files',   desc:'Package and share multiple files in one compressed archive.', icon:'package',    url:'/blog' },
+    { title:'Currency Conversion Tips', desc:'Understanding exchange rates and conversion formulas.',       icon:'dollar-sign',url:'/blog' },
+  ],
+};
+
+/* ─── RENDER CATEGORY SECTIONS ──────────────────────────────────────────── */
+function renderCategorySections() {
+  _renderOneCatSection('cat-pdf-tools',   ['organize','security','edit','convert','advanced'], 'pdf');
+  _renderOneCatSection('cat-image-tools', ['image'],     'image');
+  _renderOneCatSection('cat-utilities',   ['utilities'], 'utilities');
+}
+
+function _renderOneCatSection(containerId, groupKeys, type) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const badge = (window.toolBadgeHtml || (() => ''));
+  const items = (window.TOOL_GROUPS || [])
+    .filter(g => groupKeys.includes(g.key))
+    .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)));
+
+  if (!items.length) { el.style.display = 'none'; return; }
+
+  const toolCards = items.map(t => {
+    const tid      = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
+    const titleKey = tid ? `tools.${tid}.title` : '';
+    const descKey  = tid ? `tools.${tid}.desc`  : '';
+    const name     = tid ? t18(titleKey, t.name) : t.name;
+    const desc     = tid ? t18(descKey, t.desc || '') : (t.desc || '');
+    return `
+      <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}"${tid ? ` data-tid="${tid}"` : ''} href="${homeToolUrl(t)}">
+        <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
+        <div class="tool-text">
+          <h4${titleKey ? ` data-i18n="${titleKey}"` : ''}>${name}</h4>
+          <p${descKey  ? ` data-i18n="${descKey}"` : ''}>${desc}</p>
+        </div>
+        ${badge(t.prio)}
+      </a>`;
+  }).join('');
+
+  const cfg = CAT_CONFIG[type] || {};
+  const articles = (CAT_ARTICLES[type] || []).map(a => `
+    <a class="cat-article-card" href="${a.url}">
+      <span class="cat-article-icon"><i data-lucide="${a.icon}"></i></span>
+      <div class="cat-article-body">
+        <h5>${a.title}</h5>
+        <p>${a.desc}</p>
+      </div>
+    </a>`).join('');
+
+  el.innerHTML = `
+    <div class="home-cat-inner">
+      <div class="home-cat-head">
+        <span class="home-cat-ico" style="background:${cfg.bg};color:${cfg.color}">
+          <i data-lucide="${cfg.icon}"></i>
+        </span>
+        <div>
+          <h2 class="home-cat-title" id="${containerId}-title">${cfg.title}</h2>
+          <p class="home-cat-sub">${cfg.sub}</p>
+        </div>
+      </div>
+      <div class="tools-grid">${toolCards}</div>
+      ${articles ? `
+      <div class="cat-articles">
+        <h4 class="cat-articles-title"><i data-lucide="book-open"></i> Related Articles</h4>
+        <div class="cat-articles-grid">${articles}</div>
+      </div>` : ''}
+    </div>`;
+}
+
+/* ─── MOBILE CALCULATOR TOGGLE ──────────────────────────────────────────── */
 function wireCalcToggle(){
-  const btn   = document.getElementById('calc-toggle');
+  const btn = document.getElementById('calc-toggle');
   if (!btn) return;
-
   const cards = () => document.querySelectorAll('.rail-sticky .calc-card');
-
   const setOpen = (open) => {
     btn.classList.toggle('open', open);
     btn.setAttribute('aria-expanded', String(open));
     cards().forEach(c => c.classList.toggle('mobile-open', open));
   };
-
   btn.addEventListener('click', () => setOpen(!btn.classList.contains('open')));
-
-  // Auto-collapse when the viewport crosses back to desktop (≥1025 px).
-  // This prevents the "open on mobile, resize to desktop, rail is broken" bug.
   const mq = window.matchMedia('(min-width: 1025px)');
   const onMqChange = (e) => { if (e.matches) setOpen(false); };
   if (mq.addEventListener) mq.addEventListener('change', onMqChange);
-  else if (mq.addListener)  mq.addListener(onMqChange); // Safari 13 fallback
+  else if (mq.addListener)  mq.addListener(onMqChange);
 }
 
-/* ----------------------- numbers-to-words calculator ----------------------- */
+/* ─── NUMBERS-TO-WORDS CALCULATOR ──────────────────────────────────────── */
 function wireCalc(){
   const input    = document.getElementById('calc-input');
   const btn      = document.getElementById('calc-go');
@@ -170,26 +230,19 @@ function wireCalc(){
       letterCase: caseSel ? caseSel.value : 'lowercase',
     });
     if (res.error) { out.textContent = res.error; out.classList.add('err'); return; }
-    // Always append " Only" so it's part of both display and copy.
     out.textContent = res.text.replace(/\s+$/, '') + ' Only';
   };
 
   btn.addEventListener('click', run);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  if (caseSel) caseSel.addEventListener('change', () => { if (lastNumber) run(); });
 
-  // Re-apply case INSTANTLY when dropdown changes (no Convert click required)
-  if (caseSel) {
-    caseSel.addEventListener('change', () => { if (lastNumber) run(); });
-  }
-
-  // Copy button
   if (copyBtn) {
     copyBtn.addEventListener('click', async () => {
       const text = out.textContent || '';
       if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
+      try { await navigator.clipboard.writeText(text); }
+      catch {
         const ta = document.createElement('textarea');
         ta.value = text; document.body.appendChild(ta); ta.select();
         document.execCommand('copy'); ta.remove();
@@ -203,7 +256,7 @@ function wireCalc(){
   }
 }
 
-/* ----------------------- live currency converter (160+ currencies) ----------------------- */
+/* ─── LIVE CURRENCY CONVERTER (160+ currencies) ─────────────────────────── */
 const FX_LIST = [
   ['USD','US Dollar'],['EUR','Euro'],['GBP','British Pound'],['JPY','Japanese Yen'],
   ['CNY','Chinese Yuan'],['INR','Indian Rupee'],['PKR','Pakistani Rupee'],
@@ -258,7 +311,6 @@ const FX_LIST = [
   ['BTC','Bitcoin'],['ETH','Ethereum'],['USDT','Tether'],['BNB','BNB'],['XRP','XRP'],
 ];
 
-/* Static fallback (rates per 1 USD, approx). Used only if all APIs fail. */
 const FX_STATIC = {
   usd:1, eur:0.92, gbp:0.79, jpy:155.0, chf:0.88, cad:1.36, aud:1.52, nzd:1.65,
   cny:7.25, hkd:7.82, twd:32.0, krw:1370, sgd:1.34, myr:4.7, thb:36.0, idr:15800,
@@ -333,7 +385,6 @@ async function wireFx(){
   const rate   = document.getElementById('fx-rate');
   if (!amount || !from || !to) return;
 
-  // Populate dropdowns IMMEDIATELY (independent of rate fetch).
   const opts = FX_LIST.map(([c,n]) => `<option value="${c}">${c} — ${n}</option>`).join('');
   from.innerHTML = opts; to.innerHTML = opts;
   from.value = 'USD'; to.value = 'EUR';
@@ -361,8 +412,10 @@ async function wireFx(){
   update();
 }
 
+/* ─── INIT ──────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  renderTools();
+  renderRecentUse();
+  renderCategorySections();
   wireCalc();
   wireCalcToggle();
   wireFx();
@@ -371,18 +424,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
 
-  // Re-render tool grid + re-apply DOM translations when language changes.
-  // After renderTools() rebuilds the DOM, call RuntimeI18n.patch() immediately
-  // on the grid root so every new [data-i18n] node is translated in the same
-  // task — no waiting for MutationObserver's 20 ms debounce, no flash of
-  // English text on non-English locales.
   window.addEventListener('i18n:change', () => {
-    renderTools();
+    renderRecentUse();
+    renderCategorySections();
     if (window.RuntimeI18n) {
       const root = document.getElementById('tools-root');
       if (root) window.RuntimeI18n.patch(root);
-      const cta = document.getElementById('view-all-tools-cta');
-      if (cta) window.RuntimeI18n.patch(cta);
+      ['cat-pdf-tools','cat-image-tools','cat-utilities'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) window.RuntimeI18n.patch(el);
+      });
     }
     tryIcons();
     setTimeout(tryIcons, 100);

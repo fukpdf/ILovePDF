@@ -64,33 +64,10 @@
       <a class="mbn-btn" href="/" data-action="home" aria-label="Home">
         <i data-lucide="home"></i><span>Home</span>
       </a>
-      <button class="mbn-btn" type="button" data-action="search" aria-label="Search tools">
-        <i data-lucide="search"></i><span>Search</span>
-      </button>
       <button class="mbn-btn" type="button" data-action="tools" aria-label="All tools">
         <i data-lucide="layout-grid"></i><span>Tools</span>
       </button>`;
     document.body.appendChild(bar);
-
-    // Search overlay
-    const search = document.createElement('div');
-    search.id = 'mobile-search-overlay';
-    search.className = 'mobile-overlay';
-    search.setAttribute('aria-hidden', 'true');
-    search.setAttribute('role', 'dialog');
-    search.setAttribute('aria-label', 'Search tools');
-    search.innerHTML = `
-      <div class="mo-head">
-        <button type="button" class="mo-close" data-close aria-label="Close">
-          <i data-lucide="x"></i>
-        </button>
-        <div class="mo-search">
-          <i data-lucide="search"></i>
-          <input id="mo-search-input" type="search" placeholder="Search 33+ tools…" autocomplete="off" aria-label="Search tools">
-        </div>
-      </div>
-      <div class="mo-body" id="mo-search-results" role="listbox"></div>`;
-    document.body.appendChild(search);
 
     // Tools overlay
     const tools = document.createElement('div');
@@ -228,25 +205,11 @@
       const btn = e.target.closest('.mbn-btn');
       if (!btn) return;
       const action = btn.getAttribute('data-action');
-      if (action === 'search') {
-        e.preventDefault();
-        openOverlay('mobile-search-overlay', () => {
-          renderSearch('');
-          const input = document.getElementById('mo-search-input');
-          if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
-        });
-      } else if (action === 'tools') {
+      if (action === 'tools') {
         e.preventDefault();
         openOverlay('mobile-tools-overlay', renderTools);
       }
       // 'home' is a regular anchor — no special handling needed.
-    });
-
-    // Live search input
-    document.body.addEventListener('input', (e) => {
-      if (e.target && e.target.id === 'mo-search-input') {
-        renderSearch(e.target.value);
-      }
     });
 
     // Esc closes any open overlay
@@ -277,9 +240,5 @@
     const toolsOv  = document.getElementById('mobile-tools-overlay');
     const searchOv = document.getElementById('mobile-search-overlay');
     if (toolsOv  && toolsOv.classList.contains('is-open'))  renderTools();
-    if (searchOv && searchOv.classList.contains('is-open')) {
-      const input = document.getElementById('mo-search-input');
-      renderSearch(input ? input.value : '');
-    }
   });
 })();
