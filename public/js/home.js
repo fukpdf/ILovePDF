@@ -86,28 +86,6 @@ const CAT_CONFIG = {
   },
 };
 
-const CAT_ARTICLES = {
-  pdf: [
-    { title:'How to Merge PDFs',              desc:'Step-by-step guide to combining multiple PDFs into one.',   icon:'layers',       url:'/blog' },
-    { title:'Best PDF Compression Methods',   desc:'Reduce file size without sacrificing visual quality.',      icon:'archive',      url:'/blog' },
-    { title:'Organizing Large PDF Documents', desc:'Tips for reordering, splitting and managing pages.',        icon:'list-ordered', url:'/blog' },
-    { title:'PDF Security Best Practices',    desc:'Protect documents with passwords and permissions.',         icon:'shield',       url:'/blog' },
-    { title:'OCR Explained',                  desc:'How optical character recognition works and when to use it.',icon:'type',        url:'/blog' },
-    { title:'Repairing Corrupted PDFs',       desc:'What causes PDF corruption and how to fix it.',            icon:'wrench',       url:'/blog' },
-  ],
-  image: [
-    { title:'How to Remove Image Backgrounds', desc:'Use AI to erase backgrounds from photos in seconds.',  icon:'image-off',  url:'/blog' },
-    { title:'Image Compression Guide',         desc:'Reduce file size while keeping quality.',              icon:'minimize-2', url:'/blog' },
-    { title:'JPEG vs PNG vs WebP',             desc:'Which image format should you use and when?',         icon:'image',      url:'/blog' },
-    { title:'How to Resize Images',            desc:'Resize images for web, print, and social media.',     icon:'maximize',   url:'/blog' },
-  ],
-  utilities: [
-    { title:'QR Codes Explained',       desc:'What QR codes are, how they work, and when to use them.',    icon:'qr-code',    url:'/blog' },
-    { title:'How to Create Barcodes',   desc:'Generate barcodes for products, books, and inventory.',      icon:'bar-chart-2',url:'/blog' },
-    { title:'Working with ZIP Files',   desc:'Package and share multiple files in one compressed archive.', icon:'package',    url:'/blog' },
-    { title:'Currency Conversion Tips', desc:'Understanding exchange rates and conversion formulas.',       icon:'dollar-sign',url:'/blog' },
-  ],
-};
 
 /* ─── RENDER CATEGORY SECTIONS ──────────────────────────────────────────── */
 function renderCategorySections() {
@@ -145,14 +123,6 @@ function _renderOneCatSection(containerId, groupKeys, type) {
   }).join('');
 
   const cfg = CAT_CONFIG[type] || {};
-  const articles = (CAT_ARTICLES[type] || []).map(a => `
-    <a class="cat-article-card" href="${a.url}">
-      <span class="cat-article-icon"><i data-lucide="${a.icon}"></i></span>
-      <div class="cat-article-body">
-        <h5>${a.title}</h5>
-        <p>${a.desc}</p>
-      </div>
-    </a>`).join('');
 
   el.innerHTML = `
     <div class="home-cat-inner">
@@ -166,11 +136,6 @@ function _renderOneCatSection(containerId, groupKeys, type) {
         </div>
       </div>
       <div class="tools-grid">${toolCards}</div>
-      ${articles ? `
-      <div class="cat-articles">
-        <h4 class="cat-articles-title"><i data-lucide="book-open"></i> Related Articles</h4>
-        <div class="cat-articles-grid">${articles}</div>
-      </div>` : ''}
     </div>`;
 }
 

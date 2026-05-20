@@ -33,12 +33,8 @@
   var _paused  = false;
   var _dismissed = false;
 
-  // ── Detect low-end device — skip dashboard ─────────────────────────────────
-  var _isLowEnd = (function () {
-    var cores = navigator.hardwareConcurrency || 2;
-    var ram   = navigator.deviceMemory || 2;
-    return cores <= 2 && ram <= 2;
-  }());
+  // Debug dashboard disabled — hidden from all users
+  var _isLowEnd = true;
 
   // ── CSS ────────────────────────────────────────────────────────────────────
   var PANEL_CSS = [
