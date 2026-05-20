@@ -3691,3 +3691,105 @@ input[type="range"] {
     transition-duration: .01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENTERPRISE MOBILE OPTIMIZATION — Phase Mobile v1
+   Appended only — zero existing rules touched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Touch-target floor (44 px WCAG minimum) ─────────────────────────── */
+@media (max-width: 1023px) {
+  .btn                        { min-height: 44px; touch-action: manipulation; }
+  .btn-lg                     { min-height: 52px; }
+  .v2-nav-btn                 { min-height: 44px; touch-action: manipulation; }
+  .v2-auth .btn-login,
+  .v2-auth .btn-signup        { min-height: 44px; touch-action: manipulation; }
+  .form-input,
+  .form-select                { min-height: 44px; }
+  .upload-file-remove         { min-width: 36px; min-height: 36px; justify-content: center; }
+  /* Bottom-nav clearance for tool pages */
+  .tool-page                  { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ── 2. Mid-mobile layout fixes (≤768 px) ───────────────────────────────── */
+@media (max-width: 768px) {
+  /* Upload zone — smaller vertical footprint */
+  .upload-area                { padding: 28px 16px; }
+  .upload-icon [data-lucide]  { width: 34px; height: 34px; }
+
+  /* Process button — full-width stack */
+  .process-btn-wrap           { flex-direction: column; }
+  .process-btn-wrap .btn      { width: 100%; justify-content: center; }
+
+  /* Status card — compact */
+  .status-card                { padding: 14px 16px; gap: 10px; }
+
+  /* Options grid — always single column */
+  .options-grid               { grid-template-columns: 1fr !important; gap: 10px; }
+
+  /* Related grid — 2-col */
+  .related-grid               { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
+
+  /* Auth modal — tighter padding */
+  .auth-modal-card            { padding: 22px 18px 20px; border-radius: 16px; }
+
+  /* Mega nav inner — edge padding */
+  .v2-mega-inner              { padding: 16px 12px 24px; }
+  .v2-mega-grid               { gap: 6px 12px; }
+}
+
+/* ── 3. Small-phone optimisations (≤480 px) ─────────────────────────────── */
+@media (max-width: 480px) {
+  /* Upload zone — ultra-compact */
+  .upload-area                { padding: 20px 12px; }
+  .upload-icon [data-lucide]  { width: 28px; height: 28px; }
+  .upload-text                { font-size: .85rem; }
+
+  /* Tool header — compact */
+  .tool-header-name           { font-size: 1.2rem; }
+  .tool-header-icon           { width: 44px; height: 44px; }
+  .tool-header-icon [data-lucide] { width: 20px; height: 20px; }
+  .tool-header-desc           { font-size: .82rem; }
+
+  /* Processing modal — prevents overflow on narrow viewports */
+  .processing-card {
+    padding: 22px 16px !important;
+    max-width: calc(100vw - 20px) !important;
+    margin: 10px !important;
+    border-radius: 14px !important;
+  }
+
+  /* Status card — stack icon above text */
+  .status-card                { flex-direction: column; }
+
+  /* Process button — prominent */
+  .btn-lg                     { font-size: .95rem; padding: 14px 20px; }
+
+  /* Related grid — single column */
+  .related-grid               { grid-template-columns: 1fr !important; }
+
+  /* SEO block — full-width tighter */
+  .seo-block                  { padding: 0 12px; margin: 20px auto 12px; }
+  .seo-inner                  { padding: 18px 14px; border-radius: 14px; }
+  .seo-h1                     { font-size: 1.2rem; }
+
+  /* Auth modal */
+  .auth-modal                 { padding: 10px; }
+  .auth-modal-card            { border-radius: 12px; padding: 18px 14px; }
+
+  /* Mega dropdown — tight 2-col, single-col tool list */
+  .v2-mega-grid               { grid-template-columns: 1fr 1fr !important; }
+  .v2-mega-cat                { grid-column: span 1; }
+  .v2-mega-cat .cat-tools     { grid-template-columns: 1fr; }
+  .v2-mega                    { max-height: 70vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* ── 4. Hover-transform kill on touch devices (prevents stuck pressed states) */
+@media (hover: none) {
+  .tool-card:hover            { transform: none !important; box-shadow: var(--shadow-soft) !important; }
+  .btn-primary:hover          { transform: none !important; }
+  .v2-tool:hover              { transform: none !important; }
+  .v2-nav-btn.is-primary:hover{ transform: none !important; }
+  .btn-donate:hover           { transform: none !important; }
+  .popular-card:hover         { transform: none !important; }
+}

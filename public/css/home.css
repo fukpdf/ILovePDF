@@ -2782,3 +2782,79 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   color: var(--text-soft, #6b7280);
   line-height: 1.45;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENTERPRISE MOBILE OPTIMIZATION — Home Lower Sections
+   Appended only — zero existing rules touched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Category grid: 4-col → 2-col → 1-col ──────────────────────────────── */
+@media (max-width: 900px) {
+  .hls-cat-grid               { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .hls-trust-grid             { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+}
+
+@media (max-width: 560px) {
+  .hls-cat-grid               { grid-template-columns: 1fr; gap: 12px; }
+  .hls-cat-card               { padding: 18px 16px; }
+  .hls-trust-grid             { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .hls-trust-card             { padding: 20px 14px; }
+  .hls-section                { padding: 36px clamp(12px,4vw,20px); }
+  .hls-head                   { margin-bottom: 24px; }
+  .hls-head h2                { font-size: clamp(1.2rem,5vw,1.5rem); }
+}
+
+/* ── Founder card — stack on narrow screens ─────────────────────────────── */
+@media (max-width: 640px) {
+  .hls-founder-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 22px 18px;
+    gap: 18px;
+  }
+  .hls-founder-badges         { justify-content: center; }
+  .hls-founder-body h2        { font-size: 1.05rem; }
+}
+
+/* ── Support card — stack on narrow screens ─────────────────────────────── */
+@media (max-width: 640px) {
+  .hls-support-card {
+    flex-direction: column;
+    padding: 22px 18px;
+    gap: 18px;
+  }
+  .hls-support-icon-block     { flex-direction: row; gap: 14px; align-items: center; }
+  .hls-support-text           { min-width: 0; }
+  .hls-support-card           { border-radius: 16px; }
+}
+
+/* ── Popular-tools grid — 2-col on small phones ─────────────────────────── */
+@media (max-width: 480px) {
+  .popular-grid               { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .popular-card               { padding: 10px; gap: 8px; }
+  .popular-card-icon          { width: 30px; height: 30px; border-radius: 8px; }
+  .popular-card-icon svg      { width: 15px; height: 15px; }
+  .popular-card-name          { font-size: .82rem; }
+  .popular-tools              { margin: 32px 0 6px; }
+}
+
+/* ── Community-economy stat grids — 2-col on small screens ─────────────── */
+@media (max-width: 640px) {
+  .ce-stats-grid              { grid-template-columns: repeat(2,1fr) !important; gap: 12px !important; }
+  .ce-impact-grid             { grid-template-columns: repeat(2,1fr) !important; gap: 12px !important; }
+}
+
+/* ── Active state indicator for bottom-nav items ────────────────────────── */
+.mobile-bottom-nav .mbn-btn.is-active {
+  color: var(--primary);
+  background: var(--grad-soft);
+}
+
+/* ── Disable hover transforms on touch devices ──────────────────────────── */
+@media (hover: none) {
+  .hls-cat-card:hover         { transform: none !important; }
+  .hls-trust-card:hover       { transform: none !important; }
+  .popular-card:hover         { transform: none !important; }
+  .tool:hover                 { transform: none !important; }
+}

@@ -51,6 +51,39 @@
     });
   } catch (_) {}
 
+  /* ── Production: seal PDFFidelityDebug so it cannot be set from console ── */
+  try {
+    Object.defineProperty(G, 'PDFFidelityDebug', {
+      get: function () { return undefined; },
+      set: function () {},
+      configurable: false,
+      enumerable: false,
+    });
+  } catch (_) {}
+
+  /* ── Production: seal RuntimeDashboard read-access after page load ──────── */
+  if (typeof G.addEventListener === 'function') {
+    G.addEventListener('load', function () {
+      if (G.RuntimeDashboard) {
+        try {
+          var _rd = G.RuntimeDashboard;
+          var _safe = {
+            version: _rd.version || '',
+            ready:   typeof _rd.ready   === 'function' ? _rd.ready.bind(_rd)   : noop,
+            register:typeof _rd.register=== 'function' ? _rd.register.bind(_rd): noop,
+          };
+          try {
+            Object.defineProperty(G, 'RuntimeDashboard', {
+              value: Object.freeze(_safe),
+              writable: false,
+              configurable: false,
+            });
+          } catch (_) { G.RuntimeDashboard = Object.freeze(_safe); }
+        } catch (_) {}
+      }
+    }, { once: true, passive: true });
+  }
+
   /* ── Production: silence Phase-tagged console spam ─────────────────────── */
   var PHASE_TAG = /^\[(?:DASH17|JD|AOSU|RT|KRN|FED|AI|WRK|MEM|STR|RTDB|LABA|P\d+)\]/;
   var noop      = function () {};

@@ -125,4 +125,32 @@
   };
 
   window.DebugTrace = DebugTrace;
+
+  /* ── Production hardening: block public read-access from DevTools ───────
+     Internal write-paths (log/error/result/validate) remain fully functional
+     so no tool processing is affected.  Read-access methods are replaced with
+     no-ops so session data cannot be extracted from the console.             */
+  (function () {
+    function _isProd() {
+      try {
+        if (window.__IPLV_IS_PROD__ === true) return true;
+        var h = (window.location || {}).hostname || '';
+        if (!h) return false;
+        return h !== 'localhost' && h !== '127.0.0.1' &&
+               !(/\.replit\.dev$|\.repl\.co$/.test(h));
+      } catch (_) { return false; }
+    }
+    if (!_isProd()) return;
+    var _noArr = function () { return []; };
+    var _noObj = function () { return {}; };
+    var _noStr = function () { return ''; };
+    var _noop  = function () {};
+    DebugTrace.getLogs        = _noArr;
+    DebugTrace.getByType      = _noArr;
+    DebugTrace.last           = _noArr;
+    DebugTrace.qualitySummary = _noObj;
+    DebugTrace.report         = _noStr;
+    DebugTrace.dump           = _noop;
+    DebugTrace.clear          = _noop;
+  }());
 }());
