@@ -623,6 +623,12 @@
   <script src="/js/runtime-shield-integrity.js" defer></script>
   <script src="/js/runtime-shield-workers.js" defer></script>
   <script src="/js/runtime-shield-dependency.js" defer></script>
+  <!-- Phase 2: Trusted Module Manifest + Script Registry + Import Guard -->
+  <script src="/js/runtime-manifest.js" defer></script>
+  <!-- Phase 2: Centralized Worker Factory + Spawn Hardening             -->
+  <script src="/js/runtime-worker-factory.js" defer></script>
+  <!-- Phase 2: Runtime Chunk Manifest (Task 5 + Task 11 hooks)         -->
+  <script src="/core/runtime-chunk-manifest.js" defer></script>
   <script src="/js/app-router.js" defer></script>
   <script src="https://unpkg.com/lucide@latest" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
@@ -682,34 +688,10 @@
        is now served exclusively at /admin/runtime for authenticated admins). -->
   <script src="/core/production-mode.js" defer></script>
 
-  <!-- Phase 22: PWA Service Worker registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then(function (reg) {
-            console.info('[SW] registered, scope:', reg.scope);
-          })
-          .catch(function (err) {
-            console.warn('[SW] registration failed:', err);
-          });
-      });
-    }
-  </script>
+  <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
+  <script src="/js/pwa-register.js" defer></script>
 
-  <!-- Phase 10H: Footer language links -->
-  <script defer>
-    document.addEventListener('click', function (e) {
-      var link = e.target.closest('.footer-lang-link[data-lang]');
-      if (!link) return;
-      e.preventDefault();
-      var lang = link.getAttribute('data-lang');
-      if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
-        window.RuntimeI18n.setLanguage(lang).then(function () {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-      }
-    });
-  </script>
+  <!-- Phase 10H: Footer language links — extracted (Phase 2 nonce hardening) -->
+  <script src="/js/footer-lang.js" defer></script>
 </body>
 </html>

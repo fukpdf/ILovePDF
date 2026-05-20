@@ -17,6 +17,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SLUG_MAP, buildCategoryHtml } from '../utils/seo.js';
+import { injectNonce } from '../utils/csp-nonce.js';
 import { CATEGORIES, allPublicSlugs } from '../utils/seo-categories.js';
 import { COMPARISONS, buildComparisonHtml, buildCompareIndexHtml } from '../utils/seo-comparison.js';
 import { GUIDES, buildGuideHtml, buildGuideIndexHtml } from '../utils/seo-guides.js';
@@ -385,31 +386,35 @@ router.get('/robots.txt', (_req, res) => {
 });
 
 // ── Comparison pages ──────────────────────────────────────────────────────────
+// Phase 2: all HTML responses inject the per-request nonce so that
+// __CSP_NONCE__ placeholders in pre-built templates are replaced with
+// the real nonce before the response is sent. Cache-Control is set to
+// no-store because nonces change per request and must not be cached.
 router.get('/compare', (_req, res, next) => {
   if (!COMPARE_INDEX_HTML) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(COMPARE_INDEX_HTML);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(COMPARE_INDEX_HTML, res.locals.nonce));
 });
 
 router.get('/compare/:slug', (req, res, next) => {
   const html = COMPARISON_HTML[req.params.slug];
   if (!html) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
 });
 
 // ── Guide / tutorial pages ────────────────────────────────────────────────────
 router.get('/guides', (_req, res, next) => {
   if (!GUIDE_INDEX_HTML) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(GUIDE_INDEX_HTML);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(GUIDE_INDEX_HTML, res.locals.nonce));
 });
 
 router.get('/guides/:slug', (req, res, next) => {
   const html = GUIDE_HTML[req.params.slug];
   if (!html) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
 });
 
 // Category hub pages — only matches known category slugs; anything else falls through.
@@ -417,8 +422,8 @@ router.get('/:catSlug', (req, res, next) => {
   const slug = req.params.catSlug;
   const html = CATEGORY_HTML[slug];
   if (!html) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
 });
 
 // ── Indexing boost endpoints ──────────────────────────────────────────────────

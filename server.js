@@ -27,6 +27,7 @@ import { checkUsage, enforcePerFile } from './utils/usage.js';
 import { isR2Configured, startR2Sweeper } from './utils/r2.js';
 import { isFirebaseConfigured, firebaseWebApiKey } from './utils/firebase-admin.js';
 import { isHfConfigured } from './utils/ai.js';
+import { generateNonce, injectNonce } from './utils/csp-nonce.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,8 +50,9 @@ const __HOME_HTML = (() => {
 })();
 app.get('/', (_req, res, next) => {
   if (!__HOME_HTML) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(__HOME_HTML);
+  // no-store: nonce changes every request — cannot be publicly cached
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(__HOME_HTML, res.locals.nonce));
 });
 
 // Lightweight geo-language hint. Reads country from CDN headers (Cloudflare,
@@ -136,6 +138,15 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
+  // ── Phase 2: Per-request CSP nonce ───────────────────────────────────────
+  // A fresh cryptographically-secure 128-bit nonce is generated for every
+  // request. It is stored on res.locals.nonce so downstream route handlers
+  // can call injectNonce(html, res.locals.nonce) before sending HTML.
+  // HTML templates pre-built at boot contain  __CSP_NONCE__  placeholders
+  // that are replaced by injectNonce() in O(n) string time — no re-parsing.
+  const nonce = generateNonce();
+  res.locals.nonce = nonce;
+
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -146,50 +157,52 @@ app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
 
-  // ── Enterprise Content-Security-Policy ─────────────────────────────────
-  // Phase 1: establishes hard blocks on the highest-risk injection vectors
-  // while remaining compatible with workers (blob:), WASM, AdSense, and
-  // Google Fonts. 'unsafe-inline' for script-src is retained in Phase 1
-  // because tool.html contains necessary inline configuration scripts;
-  // a nonce-based upgrade is planned for Phase 2.
+  // ── Enterprise Content-Security-Policy — Phase 2 ───────────────────────
+  // Phase 2 removes 'unsafe-inline' from script-src entirely.
+  // Inline scripts are secured by one of two methods:
+  //   (a) Extracted to external .js files (Task 2) — covered by 'self'
+  //   (b) Server-injected config scripts (window.__TOOL_ID etc.) use
+  //       nonce="__CSP_NONCE__" in the template, replaced per-request.
   //
-  // Key wins vs no CSP:
-  //   object-src 'none'   — blocks Flash / plugin injection entirely
+  // Phase 1 wins retained:
+  //   object-src 'none'   — blocks Flash / plugin injection
   //   base-uri   'self'   — prevents <base href> hijacking
-  //   form-action 'self'  — blocks form exfiltration to external hosts
-  //   frame-ancestors     — prevents clickjacking (stronger than X-Frame-Options)
+  //   form-action         — blocks form exfiltration
+  //   frame-ancestors     — prevents clickjacking
   //   worker-src          — restricts worker origins to same-origin + blob:
-  //   upgrade-insecure-requests — forces HTTPS for all sub-resources
+  //   upgrade-insecure-requests
   const CSP = [
     // Fallback for unspecified resource types
     "default-src 'self'",
 
-    // Scripts: self + necessary CDN partners + WASM eval
-    // 'unsafe-inline' required for inline <script> blocks in tool.html / index.html
-    // 'wasm-unsafe-eval' required for Tesseract / ONNX WASM modules (not full eval)
+    // Scripts: self + per-request nonce (inline scripts) + CDN partners + WASM
+    // 'unsafe-inline' REMOVED in Phase 2 — replaced by per-request nonce.
+    // 'wasm-unsafe-eval' required for Tesseract / ONNX WASM (not full eval).
+    // CDN allowlist covers pdfjs (jsdelivr), Lucide (unpkg), AdSense, GTM/GA.
     [
       "script-src",
       "'self'",
-      "'unsafe-inline'",
+      `'nonce-${nonce}'`,
       "'wasm-unsafe-eval'",
       "https://pagead2.googlesyndication.com",
       "https://partner.googleadservices.com",
       "https://tpc.googlesyndication.com",
       "https://unpkg.com",
+      "https://cdn.jsdelivr.net",
       "https://www.googletagmanager.com",
       "https://www.google-analytics.com",
     ].join(' '),
 
-    // Styles: self + Google Fonts + inline styles (UI framework)
+    // Styles: self + Google Fonts + inline styles (UI components use inline style=)
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 
     // Fonts: self + Google Fonts + data: (icon fonts)
     "font-src 'self' https://fonts.gstatic.com data:",
 
-    // Images: self + data URIs (canvas exports) + blob: (processed images)
+    // Images: self + data URIs (canvas exports) + blob: (processed images) + https
     "img-src 'self' data: blob: https:",
 
-    // Network: self + HuggingFace AI + Firebase + AdSense reporting
+    // Network: self + HuggingFace AI + Firebase + AdSense + Formspree (contact form)
     [
       "connect-src",
       "'self'",
@@ -201,6 +214,7 @@ app.use((req, res, next) => {
       "https://firebaseinstallations.googleapis.com",
       "https://pagead2.googlesyndication.com",
       "https://adservice.google.com",
+      "https://formspree.io",
       "wss:",
     ].join(' '),
 
@@ -219,8 +233,8 @@ app.use((req, res, next) => {
     // Blocks <base href="https://attacker.com"> hijacking
     "base-uri 'self'",
 
-    // Blocks forms submitting to external URLs
-    "form-action 'self'",
+    // Blocks forms submitting to external URLs (Formspree allowed for contact form)
+    "form-action 'self' https://formspree.io",
 
     // Prevents this page from being embedded in foreign frames (clickjacking)
     "frame-ancestors 'self'",
@@ -364,8 +378,8 @@ app.get('/:slug', (req, res, next) => {
   if (redir) return res.redirect(302, redir);
   const html = buildHtml(slug, TOOL_HTML, 'upload');
   if (!html) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
 });
 
 // 3-step flow sub-routes: /:slug/preview and /:slug/download.
@@ -381,8 +395,8 @@ app.get('/:slug/:step', (req, res, next) => {
   if (getDirectFile(slug) || getRedirect(slug)) return next();
   const html = buildHtml(slug, TOOL_HTML, step);
   if (!html) return next();
-  res.set('Cache-Control', 'public, max-age=300');
-  res.type('html').send(html);
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
 });
 
 // /tools — dedicated tools directory page

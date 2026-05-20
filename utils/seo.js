@@ -416,7 +416,7 @@ export function buildHtml(slug, baseHtml, step = 'upload'){
 
   // Inject the tool-id, slug and step so tool-page.js renders correctly.
   html = html.replace('</body>',
-    `<script>window.__TOOL_ID=${JSON.stringify(meta.id)};window.__TOOL_SLUG=${JSON.stringify(slug)};window.__STEP=${JSON.stringify(step)};</script></body>`);
+    `<script nonce="__CSP_NONCE__">window.__TOOL_ID=${JSON.stringify(meta.id)};window.__TOOL_SLUG=${JSON.stringify(slug)};window.__STEP=${JSON.stringify(step)};</script></body>`);
 
   return html;
 }
@@ -516,7 +516,7 @@ export function buildCategoryHtml(catSlug, baseHtml, category){
     .replace(/<\/main>/, `${body}</main>`)
     // Don't set window.__TOOL_ID — the JS in tool.html will then leave the
     // empty <main id="tool-content"> alone and only the SEO body renders.
-    .replace('</body>', `<script>window.__CATEGORY_PAGE=true;</script></body>`);
+    .replace('</body>', `<script nonce="__CSP_NONCE__">window.__CATEGORY_PAGE=true;</script></body>`);
 }
 
 export function getRedirect(slug){

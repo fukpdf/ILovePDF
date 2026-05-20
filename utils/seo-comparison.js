@@ -219,7 +219,7 @@ export function buildComparisonHtml(compSlug, baseHtml) {
     .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
     .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}">${headExtras}</head>`)
     .replace(/<\/main>/, `${body}</main>`)
-    .replace('</body>', `<script>window.__CATEGORY_PAGE=true;window.__COMP_SLUG=${JSON.stringify(compSlug)};</script></body>`);
+    .replace('</body>', `<script nonce="__CSP_NONCE__">window.__CATEGORY_PAGE=true;window.__COMP_SLUG=${JSON.stringify(compSlug)};</script></body>`);
 
   return html;
 }
@@ -268,5 +268,5 @@ export function buildCompareIndexHtml(baseHtml) {
     .replace(/<link\s+rel="canonical"[^>]*>\s*/gi, '')
     .replace(/<\/head>/, `<link rel="canonical" href="${escAttr(canon)}">${headExtras}</head>`)
     .replace(/<\/main>/, `${body}</main>`)
-    .replace('</body>', `<script>window.__CATEGORY_PAGE=true;</script></body>`);
+    .replace('</body>', `<script nonce="__CSP_NONCE__">window.__CATEGORY_PAGE=true;</script></body>`);
 }

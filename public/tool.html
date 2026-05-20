@@ -540,6 +540,12 @@
   <script src="/js/runtime-shield-workers.js"></script>
   <!-- Task 4,5,6: Dependency integrity + script injection monitor        -->
   <script src="/js/runtime-shield-dependency.js"></script>
+  <!-- Phase 2: Trusted Module Manifest + Script Registry + Import Guard -->
+  <script src="/js/runtime-manifest.js"></script>
+  <!-- Phase 2: Centralized Worker Factory + Spawn Hardening             -->
+  <script src="/js/runtime-worker-factory.js"></script>
+  <!-- Phase 2: Runtime Chunk Manifest (Task 5 + Task 11 hooks)         -->
+  <script src="/core/runtime-chunk-manifest.js" defer></script>
 
   <script src="/js/live-preview.js"></script>
   <script src="/js/page-organizer.js"></script>
@@ -549,7 +555,7 @@
   <script src="/js/chrome.js"></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
-  <script>window.buildSidebar = function(){}; window.setupMegaMenu = function(){};</script>
+  <script src="/js/chrome-shim.js"></script>
   <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
   <script src="/js/bg-ai-engine.js" defer></script>
   <script src="/js/bg-remover-pro.js" defer></script>
@@ -621,19 +627,7 @@
   <script src="/js/community-economy.js" defer></script>
   <script src="/js/homepage-lazy-loader.js" defer></script>
 
-  <!-- Phase 22: PWA Service Worker registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then(function (reg) {
-            console.info('[SW] registered, scope:', reg.scope);
-          })
-          .catch(function (err) {
-            console.warn('[SW] registration failed:', err);
-          });
-      });
-    }
-  </script>
+  <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
+  <script src="/js/pwa-register.js" defer></script>
 </body>
 </html>
