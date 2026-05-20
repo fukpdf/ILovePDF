@@ -182,11 +182,34 @@
     },
     getContext:     getContext,
     refreshContext: refreshContext,
+    getCountry:     function () { return _geoCountry; },
   };
+
+  // ── Geo context enrichment ─────────────────────────────────────────
+  var _geoCountry = null;
+
+  function _fetchGeo() {
+    try {
+      fetch('/api/geo', { method: 'GET', credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          _geoCountry = data.country || data.countryCode || null;
+          if (_geoCountry) {
+            // Merge into context so future events carry country
+            if (!_context) _context = buildContext();
+            _context.country = _geoCountry;
+          }
+        })
+        .catch(function () {});
+    } catch (_) {}
+  }
 
   // ── Boot ────────────────────────────────────────────────────────────
   function boot() {
     attachListeners();
+    // Geo lookup — runs async, enriches context before first flush (2s debounce)
+    _fetchGeo();
     setTimeout(function () {
       refreshContext();
       enqueue('page_view', {});

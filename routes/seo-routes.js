@@ -18,6 +18,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SLUG_MAP, buildCategoryHtml } from '../utils/seo.js';
 import { CATEGORIES, allPublicSlugs } from '../utils/seo-categories.js';
+import { COMPARISONS, buildComparisonHtml, buildCompareIndexHtml } from '../utils/seo-comparison.js';
+import { GUIDES, buildGuideHtml, buildGuideIndexHtml } from '../utils/seo-guides.js';
 import db from '../utils/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -125,6 +127,16 @@ function buildPagesSitemap() {
     ...UTILITY_PAGES.map(u => ({
       loc: `${SITE}${u.path}`, lastmod: today,
       changefreq: u.changefreq, priority: u.priority.toFixed(1),
+    })),
+    // Compare hub + individual comparison pages
+    { loc: `${SITE}/compare`, lastmod: today, changefreq: 'monthly', priority: '0.7' },
+    ...Object.keys(COMPARISONS).map(s => ({
+      loc: `${SITE}/compare/${s}`, lastmod: today, changefreq: 'monthly', priority: '0.7',
+    })),
+    // Guides hub + individual guide pages
+    { loc: `${SITE}/guides`, lastmod: today, changefreq: 'monthly', priority: '0.8' },
+    ...Object.keys(GUIDES).map(s => ({
+      loc: `${SITE}/guides/${s}`, lastmod: today, changefreq: 'monthly', priority: '0.75',
     })),
   ];
   return buildUrlset(urls);
@@ -298,6 +310,38 @@ const CATEGORY_HTML = (() => {
   }
 })();
 
+const COMPARE_INDEX_HTML = (() => {
+  try { return buildCompareIndexHtml(loadToolShell()); }
+  catch (e) { console.warn('[seo-routes] could not pre-build compare index:', e.message); return null; }
+})();
+
+const COMPARISON_HTML = (() => {
+  try {
+    const shell = loadToolShell();
+    const out   = {};
+    for (const slug of Object.keys(COMPARISONS)) {
+      out[slug] = buildComparisonHtml(slug, shell);
+    }
+    return out;
+  } catch (e) { console.warn('[seo-routes] could not pre-build comparison HTML:', e.message); return {}; }
+})();
+
+const GUIDE_INDEX_HTML = (() => {
+  try { return buildGuideIndexHtml(loadToolShell()); }
+  catch (e) { console.warn('[seo-routes] could not pre-build guide index:', e.message); return null; }
+})();
+
+const GUIDE_HTML = (() => {
+  try {
+    const shell = loadToolShell();
+    const out   = {};
+    for (const slug of Object.keys(GUIDES)) {
+      out[slug] = buildGuideHtml(slug, shell);
+    }
+    return out;
+  } catch (e) { console.warn('[seo-routes] could not pre-build guide HTML:', e.message); return {}; }
+})();
+
 // ── Router ────────────────────────────────────────────────────────────────────
 const router = express.Router();
 
@@ -340,6 +384,34 @@ router.get('/robots.txt', (_req, res) => {
   res.type('text/plain').send(ROBOTS_TXT);
 });
 
+// ── Comparison pages ──────────────────────────────────────────────────────────
+router.get('/compare', (_req, res, next) => {
+  if (!COMPARE_INDEX_HTML) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(COMPARE_INDEX_HTML);
+});
+
+router.get('/compare/:slug', (req, res, next) => {
+  const html = COMPARISON_HTML[req.params.slug];
+  if (!html) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(html);
+});
+
+// ── Guide / tutorial pages ────────────────────────────────────────────────────
+router.get('/guides', (_req, res, next) => {
+  if (!GUIDE_INDEX_HTML) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(GUIDE_INDEX_HTML);
+});
+
+router.get('/guides/:slug', (req, res, next) => {
+  const html = GUIDE_HTML[req.params.slug];
+  if (!html) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(html);
+});
+
 // Category hub pages — only matches known category slugs; anything else falls through.
 router.get('/:catSlug', (req, res, next) => {
   const slug = req.params.catSlug;
@@ -358,6 +430,10 @@ router.get('/submit-urls', (_req, res) => {
     ...slugs.tools.map(s => `${SITE}/${s}`),
     ...slugs.utilities.map(s => `${SITE}/${s}.html`),
     ...slugs.blogs.map(s => `${SITE}/blog/${s}.html`),
+    `${SITE}/compare`,
+    ...Object.keys(COMPARISONS).map(s => `${SITE}/compare/${s}`),
+    `${SITE}/guides`,
+    ...Object.keys(GUIDES).map(s => `${SITE}/guides/${s}`),
   ];
   res.set('Cache-Control', 'public, max-age=3600');
   res.json({

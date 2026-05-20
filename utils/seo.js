@@ -50,7 +50,44 @@ function escJsonLd(str){
   return JSON.stringify(String(str)).slice(1,-1).replace(/<\/(script)/gi,'<\\/$1');
 }
 
-// Builds per-tool head extras (FAQ + SoftwareApplication JSON-LD, OG/Twitter).
+// Per-tool HowTo steps for schema markup.
+const HOWTO_STEPS = {
+  'merge-pdf':        ['Open the Merge PDF tool', 'Upload your PDF files (drag and drop or browse)', 'Drag thumbnails to set the page order', 'Click Merge PDF', 'Download the combined PDF'],
+  'split-pdf':        ['Open the Split PDF tool', 'Upload your PDF', 'Choose split mode: all pages or custom ranges', 'Click Split PDF', 'Download the resulting files or ZIP'],
+  'compress-pdf':     ['Open the Compress PDF tool', 'Upload your PDF', 'Select a compression level (Recommended, Maximum, or Low)', 'Click Compress PDF', 'Download the smaller PDF'],
+  'rotate-pdf':       ['Open the Rotate PDF tool', 'Upload your PDF', 'Select pages to rotate and choose the angle', 'Click Rotate PDF', 'Download the corrected PDF'],
+  'crop-pdf':         ['Open the Crop PDF tool', 'Upload your PDF', 'Set the crop margins for each page', 'Click Crop PDF', 'Download the cropped PDF'],
+  'organize-pdf':     ['Open the Organize PDF tool', 'Upload your PDF', 'Drag pages to reorder, delete unwanted pages, or add blanks', 'Click Organize PDF', 'Download the reorganized PDF'],
+  'pdf-to-word':      ['Open the PDF to Word tool', 'Upload your PDF', 'Click Convert to Word', 'Download the editable .docx file', 'Open in Word, Google Docs, or LibreOffice to edit'],
+  'pdf-to-excel':     ['Open the PDF to Excel tool', 'Upload your PDF', 'Click Convert to Excel', 'Download the .xlsx spreadsheet', 'Open in Excel or Google Sheets'],
+  'pdf-to-jpg':       ['Open the PDF to JPG tool', 'Upload your PDF', 'Choose the image resolution', 'Click Convert to JPG', 'Download the ZIP of page images'],
+  'word-to-pdf':      ['Open the Word to PDF tool', 'Upload your .docx or .doc file', 'Click Convert to PDF', 'Download the PDF with original formatting preserved'],
+  'jpg-to-pdf':       ['Open the JPG to PDF tool', 'Upload your images (JPG, PNG, or WebP)', 'Arrange them in the desired page order', 'Click Convert to PDF', 'Download the multi-page PDF'],
+  'protect-pdf':      ['Open the Protect PDF tool', 'Upload your PDF', 'Enter a strong open password', 'Optionally set permissions restrictions', 'Click Protect PDF and download the encrypted file'],
+  'unlock-pdf':       ['Open the Unlock PDF tool', 'Upload your password-protected PDF', 'Enter the correct password', 'Click Unlock PDF', 'Download the unlocked version'],
+  'ocr-pdf':          ['Open the OCR PDF tool', 'Upload your scanned PDF', 'Select the document language', 'Choose output mode (Searchable PDF or Text)', 'Click Apply OCR and download'],
+  'watermark-pdf':    ['Open the Watermark PDF tool', 'Upload your PDF', 'Choose text or image watermark and customize settings', 'Preview the result', 'Click Watermark PDF and download'],
+  'sign-pdf':         ['Open the Sign PDF tool', 'Upload your PDF', 'Draw, type, or upload your signature', 'Position the signature on the page', 'Click Sign PDF and download'],
+  'background-remover': ['Open the Background Remover tool', 'Upload your image (JPG, PNG, or WebP)', 'The AI automatically detects and removes the background', 'Preview the transparent cut-out', 'Download the transparent PNG'],
+};
+
+function _buildHowToSteps(slug, name){
+  const steps = HOWTO_STEPS[slug] || [
+    `Open the ${name} tool`,
+    'Upload your file',
+    'Choose your options',
+    `Click ${name}`,
+    'Download the result',
+  ];
+  return steps.map((text, i) => ({
+    '@type': 'HowToStep',
+    position: i + 1,
+    name: text,
+    text,
+  }));
+}
+
+// Builds per-tool head extras (FAQ + SoftwareApplication + HowTo JSON-LD, OG/Twitter).
 // We deliberately do NOT emit a `<meta name="keywords">` tag or a hidden
 // keyword block — both are considered low-quality signals (or outright spam)
 // by modern search engines. SEO is driven by visible H1/H2/intro/FAQ/JSON-LD.
@@ -68,7 +105,7 @@ function buildSeoExtras(slug, name, canon, title, desc){
     })),
   };
 
-  // 4. SoftwareApplication JSON-LD for the tool itself (helps rich results).
+  // SoftwareApplication JSON-LD for the tool itself (helps rich results).
   const appJson = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -78,6 +115,16 @@ function buildSeoExtras(slug, name, canon, title, desc){
     url: canon,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', ratingCount: '1284' },
+  };
+
+  // HowTo JSON-LD — helps Google show step-by-step rich results.
+  const howToJson = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: `How to use ${name}`,
+    description: `Step-by-step guide to using ${name} on ILovePDF — free, no signup required.`,
+    tool: [{ '@type': 'HowToTool', name: 'ILovePDF — free online PDF tools' }],
+    step: _buildHowToSteps(slug, name),
   };
 
   const OG_IMAGE = 'https://ilovepdf.cyou/favicon.svg';
@@ -98,6 +145,7 @@ function buildSeoExtras(slug, name, canon, title, desc){
     `<meta name="twitter:image" content="${escAttr(OG_IMAGE)}">`,
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(faqJson))}</script>`,
     `<script type="application/ld+json">${escJsonLd(JSON.stringify(appJson))}</script>`,
+    `<script type="application/ld+json">${escJsonLd(JSON.stringify(howToJson))}</script>`,
   ].join('');
 
   return { headExtras, hiddenBlock: '' };

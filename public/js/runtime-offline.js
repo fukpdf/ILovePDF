@@ -413,15 +413,173 @@
   global.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     _pwaDeferred = e;
-    console.info(LOG, 'PWA install prompt captured — call RuntimeOffline.showInstallPrompt()');
+    console.info(LOG, 'PWA install prompt captured — will show banner on engagement');
     try { global.dispatchEvent(new CustomEvent('iplv:pwa-installable')); } catch (_) {}
+    // Schedule smart banner display after engagement trigger
+    _schedulePwaBanner();
   });
 
   global.addEventListener('appinstalled', function () {
     _pwaDeferred = null;
+    _pwaHideBanner();
     _trackAnalytics('pwa_installed');
+    try { localStorage.setItem('iplv_pwa_installed', '1'); } catch (_) {}
     console.info(LOG, 'PWA installed');
   });
+
+  // ── PWA Install Banner ─────────────────────────────────────────────────────
+  var _pwaBannerEl    = null;
+  var _pwaBannerTimer = null;
+  var _pwaEngageCount = 0;
+
+  // Snooze key + duration
+  var PWA_SNOOZE_KEY = 'iplv_pwa_snooze';
+  var PWA_SNOOZE_MS  = 7 * 24 * 3600 * 1000; // 7 days
+  var PWA_TRIGGER_N  = 2; // show after 2nd tool engagement
+
+  function _pwaSnoozed() {
+    try {
+      var v = localStorage.getItem(PWA_SNOOZE_KEY);
+      return v && (Date.now() - parseInt(v, 10)) < PWA_SNOOZE_MS;
+    } catch (_) { return false; }
+  }
+
+  function _pwaInstalled() {
+    try { return !!localStorage.getItem('iplv_pwa_installed'); } catch (_) { return false; }
+  }
+
+  function _schedulePwaBanner() {
+    // Listen for tool engagement events (processing complete / download)
+    document.addEventListener('download:triggered', _pwaEngageTick, { passive: true });
+    document.addEventListener('iplv:processing-complete', _pwaEngageTick, { passive: true });
+    document.addEventListener('task:completed', _pwaEngageTick, { passive: true });
+    // Fallback: show after 45s if banner not yet triggered and conditions met
+    _pwaBannerTimer = setTimeout(function () {
+      if (_pwaDeferred && !_pwaSnoozed() && !_pwaInstalled()) {
+        _pwaShowBanner();
+      }
+    }, 45000);
+  }
+
+  function _pwaEngageTick() {
+    _pwaEngageCount++;
+    if (_pwaEngageCount >= PWA_TRIGGER_N && _pwaDeferred && !_pwaSnoozed() && !_pwaInstalled()) {
+      clearTimeout(_pwaBannerTimer);
+      _pwaShowBanner();
+    }
+  }
+
+  function _pwaShowBanner() {
+    if (_pwaBannerEl || !document.body || !_pwaDeferred) return;
+
+    var banner = document.createElement('div');
+    banner.id  = 'iplv-pwa-banner';
+    banner.setAttribute('role', 'complementary');
+    banner.setAttribute('aria-label', 'Install ILovePDF App');
+    banner.innerHTML = [
+      '<div class="iplv-pwa-inner">',
+        '<div class="iplv-pwa-icon" aria-hidden="true">',
+          '<img src="/favicon.svg" width="36" height="36" alt="ILovePDF">',
+        '</div>',
+        '<div class="iplv-pwa-text">',
+          '<strong>Install ILovePDF</strong>',
+          '<span>Works offline &nbsp;·&nbsp; Opens instantly</span>',
+        '</div>',
+        '<button class="iplv-pwa-install-btn" id="iplv-pwa-install">Install</button>',
+        '<button class="iplv-pwa-dismiss-btn" id="iplv-pwa-dismiss" aria-label="Dismiss">✕</button>',
+      '</div>',
+    ].join('');
+
+    // Inline styles — self-contained, no external CSS dependency
+    var s = document.createElement('style');
+    s.id  = 'iplv-pwa-banner-css';
+    s.textContent = [
+      '#iplv-pwa-banner{',
+        'position:fixed;bottom:72px;right:16px;z-index:9999;',
+        'background:#fff;border-radius:12px;',
+        'box-shadow:0 4px 24px rgba(0,0,0,.18);',
+        'padding:0;overflow:hidden;',
+        'animation:iplv-pwa-slide-in .35s cubic-bezier(.34,1.56,.64,1) forwards;',
+        'max-width:320px;width:calc(100vw - 32px)',
+      '}',
+      '@keyframes iplv-pwa-slide-in{',
+        'from{transform:translateY(20px);opacity:0}',
+        'to{transform:translateY(0);opacity:1}',
+      '}',
+      '.iplv-pwa-inner{',
+        'display:flex;align-items:center;gap:10px;padding:12px 14px',
+      '}',
+      '.iplv-pwa-icon img{border-radius:8px;flex-shrink:0}',
+      '.iplv-pwa-text{flex:1;min-width:0}',
+      '.iplv-pwa-text strong{display:block;font-size:14px;font-weight:700;color:#1f2937}',
+      '.iplv-pwa-text span{display:block;font-size:12px;color:#6b7280;margin-top:1px}',
+      '.iplv-pwa-install-btn{',
+        'flex-shrink:0;padding:7px 14px;border-radius:8px;',
+        'background:#E5322E;color:#fff;border:none;cursor:pointer;',
+        'font-size:13px;font-weight:700;white-space:nowrap;',
+        'transition:background .15s',
+      '}',
+      '.iplv-pwa-install-btn:hover{background:#c0201c}',
+      '.iplv-pwa-dismiss-btn{',
+        'flex-shrink:0;background:none;border:none;cursor:pointer;',
+        'font-size:16px;color:#9ca3af;padding:4px;line-height:1',
+      '}',
+      '.iplv-pwa-dismiss-btn:hover{color:#ef4444}',
+      '@media(prefers-color-scheme:dark){',
+        '#iplv-pwa-banner{background:#1f2937}',
+        '.iplv-pwa-text strong{color:#f9fafb}',
+        '.iplv-pwa-text span{color:#9ca3af}',
+      '}',
+      'body.iplv-lite #iplv-pwa-banner{animation:none}',
+    ].join('');
+
+    document.head.appendChild(s);
+    document.body.appendChild(banner);
+    _pwaBannerEl = banner;
+
+    // Install click
+    var installBtn = document.getElementById('iplv-pwa-install');
+    if (installBtn) {
+      installBtn.addEventListener('click', function () {
+        _pwaHideBanner();
+        if (_pwaDeferred) {
+          _pwaDeferred.prompt();
+          _pwaDeferred.userChoice.then(function (choice) {
+            _trackAnalytics('pwa_install_prompt', { extra: { outcome: choice.outcome } });
+            _pwaDeferred = null;
+          }).catch(function () {});
+        }
+      });
+    }
+
+    // Dismiss click → 7-day snooze
+    var dismissBtn = document.getElementById('iplv-pwa-dismiss');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', function () {
+        try { localStorage.setItem(PWA_SNOOZE_KEY, String(Date.now())); } catch (_) {}
+        _pwaHideBanner();
+        _trackAnalytics('pwa_banner_dismissed');
+      });
+    }
+
+    _trackAnalytics('pwa_banner_shown');
+  }
+
+  function _pwaHideBanner() {
+    clearTimeout(_pwaBannerTimer);
+    if (_pwaBannerEl) {
+      _pwaBannerEl.style.animation = 'none';
+      _pwaBannerEl.style.opacity   = '0';
+      _pwaBannerEl.style.transform = 'translateY(10px)';
+      _pwaBannerEl.style.transition = 'opacity .2s, transform .2s';
+      setTimeout(function () {
+        if (_pwaBannerEl && _pwaBannerEl.parentNode) {
+          _pwaBannerEl.parentNode.removeChild(_pwaBannerEl);
+        }
+        _pwaBannerEl = null;
+      }, 250);
+    }
+  }
 
   // ── SW registration wiring ────────────────────────────────────────────────
   if (navigator.serviceWorker) {
