@@ -111,17 +111,29 @@
     return { icon: icon, text: name + ' completed — saved ' + fmtPKR(item.savings) + ' (User from ' + city + ')', savings: item.savings };
   }
 
-  // Fallback ticker messages used when DB has no data yet
-  var FALLBACK_MSGS = [
-    { icon: '📎', text: 'Merge PDF completed — saved ₨120', savings: 120 },
-    { icon: '📦', text: 'Compress PDF completed — saved ₨90', savings: 90 },
-    { icon: '🔍', text: 'OCR PDF completed — saved ₨250', savings: 250 },
-    { icon: '📄', text: 'PDF to Word completed — saved ₨180', savings: 180 },
-    { icon: '🔒', text: 'Protect PDF completed — saved ₨80', savings: 80 },
-    { icon: '🌐', text: 'Translate PDF completed — saved ₨400', savings: 400 },
-    { icon: '✍️', text: 'Sign PDF completed — saved ₨130', savings: 130 },
-    { icon: '🤖', text: 'AI Summarize completed — saved ₨350', savings: 350 },
-  ];
+  // Fallback ticker messages used when DB has no data yet.
+  // If LiveStatsSim has richer pre-built messages, those are used instead.
+  var FALLBACK_MSGS = (function () {
+    if (G._simTickerMsgs && G._simTickerMsgs.length) return G._simTickerMsgs;
+    return [
+      { icon: '📎', text: 'Merge PDF completed \u2014 saved \u20a8120 (User from Karachi)',    savings: 120 },
+      { icon: '📦', text: 'Compress PDF completed \u2014 saved \u20a890 (User from Lahore)',   savings: 90  },
+      { icon: '🔍', text: 'OCR PDF completed \u2014 saved \u20a8280 (User from Dubai)',        savings: 280 },
+      { icon: '📄', text: 'PDF to Word completed \u2014 saved \u20a8195 (User from London)',   savings: 195 },
+      { icon: '🔒', text: 'Protect PDF completed \u2014 saved \u20a895 (User from Islamabad)', savings: 95  },
+      { icon: '🌐', text: 'Translate PDF completed \u2014 saved \u20a8420 (User from Toronto)', savings: 420 },
+      { icon: '✍️', text: 'Sign PDF completed \u2014 saved \u20a8145 (User from Rawalpindi)',  savings: 145 },
+      { icon: '🤖', text: 'AI Summarize completed \u2014 saved \u20a8360 (User from Cairo)',   savings: 360 },
+      { icon: '🎨', text: 'Background Remover completed \u2014 saved \u20a8170 (User from Delhi)', savings: 170 },
+      { icon: '✂️', text: 'Split PDF completed \u2014 saved \u20a880 (User from New York)',    savings: 80  },
+      { icon: '📝', text: 'Word to PDF completed \u2014 saved \u20a8115 (User from Faisalabad)', savings: 115 },
+      { icon: '💧', text: 'Watermark PDF completed \u2014 saved \u20a8105 (User from Riyadh)', savings: 105 },
+      { icon: '🔓', text: 'Unlock PDF completed \u2014 saved \u20a875 (User from Dhaka)',      savings: 75  },
+      { icon: '🔧', text: 'Repair PDF completed \u2014 saved \u20a8145 (User from Multan)',    savings: 145 },
+      { icon: '🖼️', text: 'JPG to PDF completed \u2014 saved \u20a8100 (User from Peshawar)', savings: 100 },
+      { icon: '🛡️', text: 'Redact PDF completed \u2014 saved \u20a8180 (User from Karachi)',  savings: 180 },
+    ];
+  }());
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _stats     = null;   // last fetched community stats
@@ -466,6 +478,26 @@
   function updateHomepageSection() {
     if (!_stats) return;
     var td = _stats.today, at = _stats.allTime;
+
+    // Use LiveStatsSim values as a floor so cards never show zeros on fresh
+    // deployments. Once real usage data in the DB exceeds simulation values,
+    // the real data takes over naturally (Math.max picks the larger number).
+    var sim = G.LiveStatsSim;
+    if (sim) {
+      var st = sim.getToday(), sa = sim.getAllTime();
+      td = {
+        files:   Math.max(td.files,   st.files   || 0),
+        users:   Math.max(td.users,   st.users   || 0),
+        savings: Math.max(td.savings, st.savings || 0),
+        live:    Math.max(td.live,    st.live    || 0),
+      };
+      at = {
+        files:   Math.max(at.files,   sa.files   || 0),
+        users:   Math.max(at.users,   sa.users   || 0),
+        savings: Math.max(at.savings, sa.savings || 0),
+        aiOps:   Math.max(at.aiOps,   sa.aiOps   || 0),
+      };
+    }
 
     function setCount(id, val, fmt) {
       var el = document.getElementById(id);
