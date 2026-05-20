@@ -145,6 +145,109 @@ app.use((req, res, next) => {
   // while still enabling cross-origin isolation for large-file worker transfers.
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+
+  // ── Enterprise Content-Security-Policy ─────────────────────────────────
+  // Phase 1: establishes hard blocks on the highest-risk injection vectors
+  // while remaining compatible with workers (blob:), WASM, AdSense, and
+  // Google Fonts. 'unsafe-inline' for script-src is retained in Phase 1
+  // because tool.html contains necessary inline configuration scripts;
+  // a nonce-based upgrade is planned for Phase 2.
+  //
+  // Key wins vs no CSP:
+  //   object-src 'none'   — blocks Flash / plugin injection entirely
+  //   base-uri   'self'   — prevents <base href> hijacking
+  //   form-action 'self'  — blocks form exfiltration to external hosts
+  //   frame-ancestors     — prevents clickjacking (stronger than X-Frame-Options)
+  //   worker-src          — restricts worker origins to same-origin + blob:
+  //   upgrade-insecure-requests — forces HTTPS for all sub-resources
+  const CSP = [
+    // Fallback for unspecified resource types
+    "default-src 'self'",
+
+    // Scripts: self + necessary CDN partners + WASM eval
+    // 'unsafe-inline' required for inline <script> blocks in tool.html / index.html
+    // 'wasm-unsafe-eval' required for Tesseract / ONNX WASM modules (not full eval)
+    [
+      "script-src",
+      "'self'",
+      "'unsafe-inline'",
+      "'wasm-unsafe-eval'",
+      "https://pagead2.googlesyndication.com",
+      "https://partner.googleadservices.com",
+      "https://tpc.googlesyndication.com",
+      "https://unpkg.com",
+      "https://www.googletagmanager.com",
+      "https://www.google-analytics.com",
+    ].join(' '),
+
+    // Styles: self + Google Fonts + inline styles (UI framework)
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+
+    // Fonts: self + Google Fonts + data: (icon fonts)
+    "font-src 'self' https://fonts.gstatic.com data:",
+
+    // Images: self + data URIs (canvas exports) + blob: (processed images)
+    "img-src 'self' data: blob: https:",
+
+    // Network: self + HuggingFace AI + Firebase + AdSense reporting
+    [
+      "connect-src",
+      "'self'",
+      "blob:",
+      "https://api-inference.huggingface.co",
+      "https://*.googleapis.com",
+      "https://identitytoolkit.googleapis.com",
+      "https://securetoken.googleapis.com",
+      "https://firebaseinstallations.googleapis.com",
+      "https://pagead2.googlesyndication.com",
+      "https://adservice.google.com",
+      "wss:",
+    ].join(' '),
+
+    // Workers: same-origin JS + blob: (dynamically created workers)
+    "worker-src 'self' blob:",
+
+    // Child contexts (SharedWorker, nested workers)
+    "child-src 'self' blob:",
+
+    // Media: self + blob: (audio/video processing outputs)
+    "media-src 'self' blob:",
+
+    // CRITICAL: blocks Flash, Java, Silverlight injection
+    "object-src 'none'",
+
+    // Blocks <base href="https://attacker.com"> hijacking
+    "base-uri 'self'",
+
+    // Blocks forms submitting to external URLs
+    "form-action 'self'",
+
+    // Prevents this page from being embedded in foreign frames (clickjacking)
+    "frame-ancestors 'self'",
+
+    // Force HTTPS for all sub-resource loads
+    "upgrade-insecure-requests",
+  ].join('; ');
+
+  res.setHeader('Content-Security-Policy', CSP);
+
+  // Permissions-Policy: restrict powerful browser features not used by tools
+  res.setHeader('Permissions-Policy', [
+    'accelerometer=()',
+    'ambient-light-sensor=()',
+    'battery=()',
+    'bluetooth=()',
+    'geolocation=()',
+    'gyroscope=()',
+    'magnetometer=()',
+    'microphone=()',
+    'midi=()',
+    'payment=()',
+    'serial=()',
+    'usb=()',
+    // camera= omitted: some scan tools may need it in future
+  ].join(', '));
+
   next();
 });
 

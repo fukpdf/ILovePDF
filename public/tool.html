@@ -524,6 +524,23 @@
 
   <script src="/js/pdf-preview.js"></script>
   <script src="/js/runtime-protection.js"></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- ENTERPRISE RUNTIME SHIELD LAYER — additive hardening               -->
+  <!-- Load order: Core (lockdown) → Integrity (tamper/honeypot) →        -->
+  <!--             Workers (nonce/replay) → Dependency (CDN integrity)    -->
+  <!-- Must load after runtime-protection.js (uses its registry) and      -->
+  <!-- after runtime-security.js (workers wraps its validateWorkerMessage) -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Task 1,5,6: Window lockdown + Symbol registry + enumeration hiding -->
+  <script src="/js/runtime-shield-core.js"></script>
+  <!-- Task 3,7,8: Integrity sweeps + honeypots + DevTools degradation    -->
+  <script src="/js/runtime-shield-integrity.js"></script>
+  <!-- Task 2,6: Worker nonce + timestamp + replay protection             -->
+  <script src="/js/runtime-shield-workers.js"></script>
+  <!-- Task 4,5,6: Dependency integrity + script injection monitor        -->
+  <script src="/js/runtime-shield-dependency.js"></script>
+
   <script src="/js/live-preview.js"></script>
   <script src="/js/page-organizer.js"></script>
   <script src="/js/app-router.js"></script>
