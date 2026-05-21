@@ -6597,10 +6597,73 @@
     var origProcess = window.BrowserTools.process.bind(window.BrowserTools);
 
     window.BrowserTools.process = async function (toolId, files, opts) {
-      if (ADVANCED_IDS.has(toolId)) {
-        return runTool(toolId, files, opts, origProcess);
+      // Phase 7J: record processing start + capture forensics on failures
+      var _p7started = Date.now();
+      try {
+        var _p7Srx = window.RuntimeSessionRecorder;
+        if (_p7Srx && typeof _p7Srx.record === 'function') {
+          _p7Srx.record('ae_process_start', {
+            tool: toolId,
+            advanced: ADVANCED_IDS.has(toolId),
+          });
+        }
+      } catch (_) {}
+
+      var _p7Result;
+      try {
+        if (ADVANCED_IDS.has(toolId)) {
+          _p7Result = await runTool(toolId, files, opts, origProcess);
+        } else {
+          _p7Result = await origProcess(toolId, files, opts);
+        }
+      } catch (err) {
+        // Phase 7J: forensics snapshot + incident report + security stream on AE errors
+        try {
+          var _p7Ctx = {
+            tool: toolId,
+            error: (err && err.message || 'unknown').slice(0, 120),
+            aeType: err && err.aeType,
+            elapsed: Date.now() - _p7started,
+          };
+          var _p7Rf2 = window.RuntimeForensics;
+          if (_p7Rf2 && typeof _p7Rf2.snapshot === 'function') {
+            _p7Rf2.snapshot('ae-error', _p7Ctx);
+          }
+          var _p7Sr3 = window.RuntimeSessionRecorder;
+          if (_p7Sr3 && typeof _p7Sr3.record === 'function') {
+            _p7Sr3.record('ae_process_error', _p7Ctx);
+          }
+          // Raise incident only for worker/timeout failures — not user-facing rejections
+          var _errType = (err && err.aeType) || '';
+          if (_errType === 'WORKER_ERROR' || _errType === 'TIMEOUT_ERROR' || _errType === 'MEMORY_ERROR') {
+            var _p7Inc2 = window.RuntimeIncidentEngine;
+            if (_p7Inc2 && typeof _p7Inc2.report === 'function') {
+              var _sev = _errType === 'TIMEOUT_ERROR' ? 50 : _errType === 'WORKER_ERROR' ? 55 : 40;
+              _p7Inc2.report('ae-' + _errType.toLowerCase(), _sev, 'advanced-engine', _p7Ctx);
+            }
+            var _p7Ss4 = window.RuntimeSecurityStream;
+            if (_p7Ss4 && typeof _p7Ss4.push === 'function') {
+              _p7Ss4.push('ae-failure', 'advanced-engine', 'WARN',
+                'AdvancedEngine error: ' + toolId + ' / ' + _errType, _p7Ctx);
+            }
+          }
+        } catch (_) {}
+        throw err; // re-throw so caller sees the original error
       }
-      return origProcess(toolId, files, opts);
+
+      // Phase 7J: record success
+      try {
+        var _p7SrDone = window.RuntimeSessionRecorder;
+        if (_p7SrDone && typeof _p7SrDone.record === 'function') {
+          _p7SrDone.record('ae_process_done', {
+            tool: toolId,
+            elapsed: Date.now() - _p7started,
+            outputBytes: (_p7Result && _p7Result.blob) ? _p7Result.blob.size : null,
+          });
+        }
+      } catch (_) {}
+
+      return _p7Result;
     };
 
     window.BrowserTools.__advEngineV30 = true;
@@ -6677,11 +6740,71 @@
       var validates = entries.filter(function (e) { return e.type === 'validate'; });
       var qs = dt ? dt.qualitySummary() : null;
 
-      console.group('AdvancedEngine v5.7 — Audit Report');
-      console.log('Version: 5.7 (Phase 24 — Priority Routing + Background Queue)');
+      console.group('AdvancedEngine v5.7 — Audit Report (Phase 7J)');
+      console.log('Version: 5.7 (Phase 24 — Priority Routing + Background Queue | Phase 7J — Security Integration)');
       console.log('Tools registered:', tools.length, tools);
       console.log('DebugTrace entries:', entries.length,
         '| errors:', errors.length, '| results:', results.length, '| validates:', validates.length);
+
+      // Phase 7J: Phase 7 systems health summary
+      console.group('Phase 7 Security Systems');
+      var _p7Systems = [
+        'RuntimeHumanSignals', 'RuntimeAutomationDetection', 'RuntimeBehaviorAnalysis',
+        'RuntimeWorkerMesh', 'RuntimeWorkerAuth', 'RuntimeWorkerEncryption', 'RuntimeWorkerRouting',
+        'RuntimeIncidentEngine', 'RuntimeForensics', 'RuntimeSessionRecorder',
+        'RuntimeSecurityStream', 'RuntimeSecurityDashboard',
+        'RuntimeExecutionCrypto', 'RuntimeSessionKeys', 'RuntimePacketIntegrity',
+        'RuntimeDeploymentRegistry', 'RuntimeBuildChain', 'RuntimeReleaseChannel',
+        'RuntimeEdgeRuntime', 'RuntimeEdgePolicy', 'RuntimeEdgeProof',
+        'RuntimeWasmMesh', 'RuntimeWasmScheduler', 'RuntimeWasmAttestation',
+      ];
+      var _p7Loaded = 0, _p7Missing = [];
+      _p7Systems.forEach(function (name) {
+        if (window[name]) { _p7Loaded++; }
+        else { _p7Missing.push(name); }
+      });
+      console.log('P7 systems loaded:', _p7Loaded + '/' + _p7Systems.length);
+      if (_p7Missing.length) console.warn('Not yet loaded:', _p7Missing);
+
+      // Behavior analysis summary
+      try {
+        var _ba = window.RuntimeBehaviorAnalysis;
+        if (_ba) {
+          console.log('BehaviorAnalysis — risk:', _ba.getRiskLevel(), '| score:', _ba.getHealthScore());
+        }
+      } catch (_) {}
+
+      // Worker mesh summary
+      try {
+        var _wm = window.RuntimeWorkerMesh;
+        if (_wm) console.log('WorkerMesh health:', JSON.stringify(_wm.getMeshHealth()));
+      } catch (_) {}
+
+      // Incident engine summary
+      try {
+        var _ie = window.RuntimeIncidentEngine;
+        if (_ie) console.log('IncidentEngine:', JSON.stringify(_ie.getSummary()));
+      } catch (_) {}
+
+      // Automation detection summary
+      try {
+        var _adx = window.RuntimeAutomationDetection;
+        if (_adx) console.log('AutomationDetection — score:', _adx.getScore(), '| automated:', _adx.isAutomated());
+      } catch (_) {}
+
+      // Forensics snapshot count
+      try {
+        var _rf = window.RuntimeForensics;
+        if (_rf) console.log('Forensics — snapshots:', _rf.listSnapshots ? _rf.listSnapshots().length : 'n/a');
+      } catch (_) {}
+
+      // Session recorder status
+      try {
+        var _srx = window.RuntimeSessionRecorder;
+        if (_srx && _srx.status) console.log('SessionRecorder:', JSON.stringify(_srx.status()));
+      } catch (_) {}
+
+      console.groupEnd(); // Phase 7 Security Systems
 
       // v5.4: Input Intelligence Engine tracking
       var inputIntelChecks = entries.filter(function (e) {

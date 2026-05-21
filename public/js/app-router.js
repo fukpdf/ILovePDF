@@ -14,11 +14,16 @@
  *     Promise<Response> for callers that want full control of streaming /
  *     download / json handling.
  *
- * IMPORTANT: this module is purposefully framework-free and side-effect-free
- * so it can be loaded on any page. It DOES NOT touch the DOM. Pages that
- * need a UI for a tool should use tool-page.js instead.
+ * Phase 7J upgrades (Batch J):
+ *   - Pre-dispatch behavior analysis gate (automation detection + risk level)
+ *   - Session recorder events for every tool dispatch
+ *   - Packet integrity header on API fetch calls
+ *   - Worker routing registration for browser tool tracking
+ *   - Security stream push on dispatch failures
  */
 (function () {
+  var G = window;
+
   const browser = (id) => ({ type: 'browser', id });
   const api     = (id, endpoint, field = 'pdf') => ({ type: 'api', id, endpoint, field });
 
@@ -61,8 +66,101 @@
     'image-filters':      api('image-filters',      '/api/filters',           'image'),
   };
 
+  // ── Phase 7J: Pre-dispatch behavior analysis gate ─────────────────────────
+  // Non-blocking: if Phase 7 systems are not loaded, dispatch proceeds normally.
+  // Performs two soft checks and one hard block:
+  //   1. Automation detection score > 80 → block + telemetry (hard)
+  //   2. Behavior risk CRITICAL → telemetry only (soft, no block)
+  //   3. Session recorder → always records every dispatch event (informational)
+  function _p7Gate(toolId, fileCount) {
+    try {
+      // 1. Automation detection — block highly-automated traffic
+      var ad = G.RuntimeAutomationDetection;
+      if (ad && typeof ad.isAutomated === 'function' && ad.isAutomated()) {
+        var autoScore = typeof ad.getScore === 'function' ? ad.getScore() : 100;
+        if (autoScore > 80) {
+          try {
+            if (G.SecurityTelemetry && typeof G.SecurityTelemetry.record === 'function') {
+              G.SecurityTelemetry.record('integrity-failure', {
+                reason: 'automation-blocked',
+                tool: toolId,
+                score: autoScore,
+              });
+            }
+            var ss = G.RuntimeSecurityStream;
+            if (ss && typeof ss.push === 'function') {
+              ss.push('dispatch-blocked', 'app-router', 'WARN',
+                'Tool dispatch blocked: automation score ' + autoScore, { toolId: toolId });
+            }
+          } catch (_) {}
+          return false; // hard block for highly-automated sessions
+        }
+      }
+
+      // 2. Behavior analysis — log CRITICAL risk but do not block tool use
+      try {
+        var ba = G.RuntimeBehaviorAnalysis;
+        if (ba && typeof ba.getRiskLevel === 'function') {
+          var risk = ba.getRiskLevel();
+          if (risk === 'CRITICAL') {
+            if (G.SecurityTelemetry && typeof G.SecurityTelemetry.record === 'function') {
+              G.SecurityTelemetry.record('security-anomaly', {
+                reason: 'behavior-critical-dispatch',
+                tool: toolId,
+              });
+            }
+            var inc = G.RuntimeIncidentEngine;
+            if (inc && typeof inc.report === 'function') {
+              inc.report('behavior-critical', 70, 'app-router',
+                { tool: toolId, risk: risk });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 3. Session recorder — record every tool dispatch for forensic timeline
+      try {
+        var sr = G.RuntimeSessionRecorder;
+        if (sr && typeof sr.record === 'function') {
+          sr.record('tool_dispatch', { tool: toolId, files: fileCount, ts: Date.now() });
+        }
+      } catch (_) {}
+
+    } catch (_) {}
+    return true; // allow dispatch by default
+  }
+
+  // ── Phase 7J: Packet integrity header injection for API fetch ─────────────
+  // Adds an X-Runtime-Packet header containing the signed packet ID so the
+  // server can optionally log and correlate client-side execution tickets.
+  function _p7WrapFetchOpts(endpoint, fetchOpts) {
+    try {
+      var pi = G.RuntimePacketIntegrity;
+      if (pi && typeof pi.wrap === 'function') {
+        var pkt = pi.wrap('api-dispatch', { ep: endpoint.replace(/\?.*/, '') });
+        if (pkt && pkt.id) {
+          fetchOpts.headers = fetchOpts.headers || {};
+          fetchOpts.headers['X-Runtime-Packet'] = pkt.id;
+        }
+      }
+    } catch (_) {}
+    return fetchOpts;
+  }
+
+  // ── Phase 7J: Worker routing registration for browser tools ───────────────
+  // Informs RuntimeWorkerRouting of the capability being used so the mesh
+  // can bias future worker allocation toward the in-demand capability.
+  function _p7RegisterBrowserDispatch(toolId) {
+    try {
+      var wr = G.RuntimeWorkerRouting;
+      if (wr && typeof wr.route === 'function') {
+        wr.route('browser-tool:' + toolId);
+      }
+    } catch (_) {}
+  }
+
   function resolveBackendUrl(endpoint) {
-    if (typeof window.apiUrl === 'function') return window.apiUrl(endpoint);
+    if (typeof G.apiUrl === 'function') return G.apiUrl(endpoint);
     return endpoint;
   }
 
@@ -75,6 +173,9 @@
    * Run a tool by id. Accepts a single File or an array of Files plus an
    * optional options object (passed to BrowserTools handlers, sent as form
    * fields to API handlers).
+   *
+   * Phase 7J: applies pre-dispatch gate, session recording, packet integrity
+   * wrapping, and worker routing registration transparently.
    */
   async function runTool(toolId, files, options) {
     const tool = lookup(toolId);
@@ -84,11 +185,19 @@
     if (!fileArray.length) throw new Error('No file provided');
     const opts = options || {};
 
+    // Phase 7J: pre-dispatch gate (automation block + behavior log + session record)
+    if (!_p7Gate(toolId, fileArray.length)) {
+      throw new Error('dispatch_blocked');
+    }
+
     if (tool.type === 'browser') {
-      if (!window.BrowserTools || !window.BrowserTools.supports(tool.id)) {
+      // Phase 7J: register capability with worker routing for mesh telemetry
+      _p7RegisterBrowserDispatch(toolId);
+
+      if (!G.BrowserTools || !G.BrowserTools.supports(tool.id)) {
         throw new Error('Browser handler not loaded for ' + tool.id);
       }
-      return window.BrowserTools.process(tool.id, fileArray, opts);
+      return G.BrowserTools.process(tool.id, fileArray, opts);
     }
 
     // API path
@@ -104,15 +213,19 @@
         fd.append(k, opts[k]);
       }
     });
-    return fetch(resolveBackendUrl(tool.endpoint), {
+
+    // Phase 7J: inject packet integrity header into fetch options
+    const fetchOpts = _p7WrapFetchOpts(tool.endpoint, {
       method: 'POST',
       body: fd,
       credentials: 'include',
     });
+
+    return fetch(resolveBackendUrl(tool.endpoint), fetchOpts);
   }
 
-  window.AppRouter = { TOOL_MAP, lookup, runTool };
+  G.AppRouter = { TOOL_MAP, lookup, runTool };
   // Convenience global aliases that mirror the spec the user asked for.
-  window.TOOL_MAP = TOOL_MAP;
-  window.runTool  = runTool;
+  G.TOOL_MAP = TOOL_MAP;
+  G.runTool  = runTool;
 })();

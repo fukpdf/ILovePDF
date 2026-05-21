@@ -1331,6 +1331,18 @@ async function processFile() {
   // always restored regardless of which exit path fires (success, error, throw).
   _processingInFlight = true;
   const processBtn = document.getElementById('process-btn');
+
+  // Phase 7J: record tool processing start in session recorder + forensics
+  try {
+    var _p7Sr = window.RuntimeSessionRecorder;
+    if (_p7Sr && typeof _p7Sr.record === 'function') {
+      _p7Sr.record('tool_process_start', {
+        tool: currentTool.id,
+        files: selectedFiles.length,
+        totalBytes: selectedFiles.reduce(function (s, e) { return s + (e.file ? e.file.size : 0); }, 0),
+      });
+    }
+  } catch (_) {}
   try {
     // ── Page-organizer integration ──────────────────────────────────────────
     // If the user reordered, rotated, or deleted pages in the preview grid,
@@ -1413,6 +1425,22 @@ async function processFile() {
         const { blob, filename } = result;
         hideProcessing();
         if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
+
+        // Phase 7J: record success to session recorder + forensics snapshot
+        try {
+          var _p7SrOk = window.RuntimeSessionRecorder;
+          if (_p7SrOk && typeof _p7SrOk.record === 'function') {
+            _p7SrOk.record('tool_process_success', {
+              tool: currentTool.id,
+              outputBytes: blob ? blob.size : 0,
+            });
+          }
+          var _p7Fok = window.RuntimeForensics;
+          if (_p7Fok && typeof _p7Fok.snapshot === 'function') {
+            _p7Fok.snapshot('tool-success', { tool: currentTool.id, outputBytes: blob ? blob.size : 0 });
+          }
+        } catch (_) {}
+
         // Compress: surface "already optimised" when the PDF could not be shrunk.
         const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
         showStatus(
@@ -1446,6 +1474,36 @@ async function processFile() {
                    rawMsg.length < 220) {
           userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
         }
+
+        // Phase 7J: forensics snapshot + incident engine + session recorder on errors
+        try {
+          var _p7Tool = currentTool ? currentTool.id : 'unknown';
+          var _p7Ctx  = { tool: _p7Tool, error: rawMsg.slice(0, 120) };
+
+          var _p7Rf = window.RuntimeForensics;
+          if (_p7Rf && typeof _p7Rf.snapshot === 'function') {
+            _p7Rf.snapshot('tool-error', _p7Ctx);
+          }
+
+          var _p7Sr2 = window.RuntimeSessionRecorder;
+          if (_p7Sr2 && typeof _p7Sr2.record === 'function') {
+            _p7Sr2.record('tool_process_error', _p7Ctx);
+          }
+
+          // Only raise an incident for genuine failures (not "no browser gain")
+          if (rawMsg !== 'NO_BROWSER_GAIN' && rawMsg !== 'No browser-side compression possible') {
+            var _p7Inc = window.RuntimeIncidentEngine;
+            if (_p7Inc && typeof _p7Inc.report === 'function') {
+              _p7Inc.report('browser-tool-error', 35, 'tool-page', _p7Ctx);
+            }
+            var _p7Ss = window.RuntimeSecurityStream;
+            if (_p7Ss && typeof _p7Ss.push === 'function') {
+              _p7Ss.push('tool-error', 'tool-page', 'WARN',
+                'Browser tool error: ' + _p7Tool, _p7Ctx);
+            }
+          }
+        } catch (_) {}
+
         showStatus('error', _tp('status.processing_failed', 'Processing failed'), userMsg);
         return;
       }
@@ -1666,6 +1724,17 @@ async function runAdvancedCompress() {
 }
 
 function showStatus(type, title, message, downloadUrl, filename) {
+  // Phase 7J: push error/success events into the security stream
+  try {
+    if (type === 'error') {
+      var _p7Ss3 = window.RuntimeSecurityStream;
+      if (_p7Ss3 && typeof _p7Ss3.push === 'function') {
+        _p7Ss3.push('tool-status-error', 'tool-page', 'INFO',
+          title, { msg: (message || '').slice(0, 120) });
+      }
+    }
+  } catch (_) {}
+
   const area = document.getElementById('result-area');
   if (!area) return;
   const icons = { loading: `<div class="spinner"></div>`, success: `<i data-lucide="check-circle-2"></i>`, error: `<i data-lucide="alert-circle"></i>` };
