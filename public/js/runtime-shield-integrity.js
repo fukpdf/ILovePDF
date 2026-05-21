@@ -261,12 +261,26 @@
   var DT_CONSEC_THRESHOLD = 3; // 3 consecutive detections → degrade
   var _dtDegraded = false;
 
+  // ── P3 Stabilization: resize debounce to prevent false-positives ─────────
+  var _resizing = false;
+  var _resizeTimer = null;
+  _s(function () {
+    G.addEventListener('resize', function () {
+      _resizing = true;
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(function () { _resizing = false; }, 2000);
+    });
+  });
+
   function _detectDevTools() {
-    // Heuristic: DevTools takes space, shrinking viewport significantly
-    var wDiff = G.outerWidth  - G.innerWidth;
-    var hDiff = G.outerHeight - G.innerHeight;
-    // Threshold: 200px gap suggests a docked DevTools panel
-    return (wDiff > 200 || hDiff > 200);
+    // Heuristic: DevTools docking shrinks the viewport vs the OS window.
+    // P3 Fix: require BOTH axes AND a higher threshold (260/220px) to
+    // eliminate false-positives from split-screen, 4K UI chrome, browser
+    // zoom, and floating window decorations. Also suppressed during resize.
+    if (_resizing) return false;
+    var wDiff = (G.outerWidth  || 0) - (G.innerWidth  || 0);
+    var hDiff = (G.outerHeight || 0) - (G.innerHeight || 0);
+    return (wDiff > 260 && hDiff > 220);
   }
 
   function _devToolsCheck() {

@@ -104,6 +104,15 @@
     { id: 'w-ai-summary',        path: '/workers/ai-summary-worker.js',      version: '1.0', critical: false, lazy: true,  hash: null },
     { id: 'w-compare',           path: '/workers/compare-worker.js',         version: '1.0', critical: false, lazy: true,  hash: null },
     { id: 'w-pipeline',          path: '/workers/pipeline-worker.js',        version: '1.0', critical: false, lazy: true,  hash: null },
+
+    // ── Phase 3 Security Layer ────────────────────────────────────────────────
+    { id: 'p3-security-tiers',   path: '/js/runtime-security-tiers.js',      version: '1.0', critical: true,  lazy: false, hash: null },
+    { id: 'p3-sec-telemetry',    path: '/js/runtime-security-telemetry.js',  version: '1.0', critical: true,  lazy: false, hash: null },
+    { id: 'p3-sri-engine',       path: '/js/runtime-sri-engine.js',          version: '1.0', critical: false, lazy: false, hash: null },
+    { id: 'p3-worker-bootstrap', path: '/js/runtime-worker-bootstrap.js',    version: '1.0', critical: false, lazy: false, hash: null },
+    { id: 'p3-wasm-registry',    path: '/js/runtime-wasm-registry.js',       version: '1.0', critical: false, lazy: false, hash: null },
+    { id: 'p3-perf-safety',      path: '/js/runtime-perf-safety.js',         version: '1.0', critical: false, lazy: false, hash: null },
+    { id: 'p3-foreign-deploy',   path: '/js/runtime-foreign-deploy.js',      version: '1.0', critical: false, lazy: false, hash: null },
   ];
 
   // ── Internal map for O(1) lookup ──────────────────────────────────────────────

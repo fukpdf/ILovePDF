@@ -39,7 +39,10 @@
   // ── Constants ─────────────────────────────────────────────────────────────
   var NONCE_BYTES       = 8;
   var NONCE_POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
-  var TS_WINDOW_MS      = 8000;           // ±8 seconds clock skew
+  // P3 Fix: adaptive timestamp window by device tier.
+  // Low-end / backgrounded devices have higher clock skew risk.
+  // HIGH (≥70): ±12s | MEDIUM (40-69): ±20s | LOW (<40): ±35s
+  var TS_WINDOW_MS      = _lite ? 35000 : (_score < 70 ? 20000 : 12000);
   var NONCE_POOL_MAX    = 2000;           // max tracked nonces before LRU flush
   var POOL_CLEAN_EVERY  = 60000;          // clean expired nonces every 60s
 

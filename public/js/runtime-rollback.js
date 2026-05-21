@@ -270,7 +270,7 @@
     setTimeout(function () {
       _snapshot();
       _startPeriodicVerify();
-    }, 1000); // 1s after DOMContentLoaded — defer'd scripts finish by then
+    }, 2500); // P3 Fix: 2.5s — allow all deferred scripts to fully settle before snapshot
   }
 
   if (document.readyState === 'loading') {
