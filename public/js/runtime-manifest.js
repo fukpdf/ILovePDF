@@ -262,6 +262,11 @@
     _observer.observe(document, { childList: true, subtree: true });
   }
 
+  // ── Hash registry + WASM tracker (backing store for RuntimeChunkValidator) ─────
+  // Phase 2: advisory (logs mismatches); Phase 3 will add hard enforcement.
+  const _hashRegistry = typeof Map !== 'undefined' ? new Map() : null;
+  const _wasmModules  = typeof Map !== 'undefined' ? new Map() : null;
+
   // ── Chunk Validator (Task 5 foundation) ──────────────────────────────────────
 
   const RuntimeChunkValidator = {
@@ -285,10 +290,31 @@
       return true;
     },
 
-    /** Future hook: register a hash for a chunk. (Phase 3 placeholder) */
+    /** Register a known-good SHA-256 hex hash for a chunk filename.
+     *  Phase 2: stores and uses for advisory comparison (logs mismatches).
+     *  Phase 3 will add hard enforcement (reject mismatched chunks). */
     registerHash(filename, sha256hex) {
-      // Phase 3: store in a hash map and verify before execution
-      if (_full) console.info('[ChunkValidator] hash registered for:', filename);
+      if (!filename || typeof sha256hex !== 'string' || sha256hex.length !== 64) return;
+      _hashRegistry.set(filename, sha256hex.toLowerCase());
+      if (_full) console.debug('[ChunkValidator] hash pinned for:', filename);
+    },
+
+    /** Compare a chunk's fetched bytes against a registered hash (advisory). */
+    verifyHash(filename, sha256hex) {
+      const pinned = _hashRegistry.get(filename);
+      if (!pinned) return { verified: true, pinned: false };   // no pin — pass
+      const match = pinned === sha256hex.toLowerCase();
+      if (!match && _full) {
+        console.warn('[ChunkValidator] hash mismatch for:', filename,
+          '\n  pinned:', pinned, '\n  actual:', sha256hex);
+      }
+      return { verified: match, pinned: true };
+    },
+
+    /** WASM module tracker — records loaded WASM modules for integrity audit. */
+    trackWasm(moduleId, byteLength) {
+      _wasmModules.set(moduleId, { byteLength, ts: Date.now() });
+      if (_full) console.debug('[ChunkValidator] WASM tracked:', moduleId, byteLength + 'B');
     },
   };
 
@@ -330,26 +356,84 @@
   }
 
   // ── Build pipeline preparation hooks (Task 11) ────────────────────────────────
-  // These are empty placeholders. Phase 3 will populate them with:
-  //   - obfuscation manifest lookup
-  //   - polymorphic build tokens
-  //   - WASM module pre-validation
-  //   - encrypted chunk key retrieval
 
+  // Pre-pin known Phase 2 security chunks (advisory — not enforced yet).
+  // These will be updated with real SHA-256 hashes when a build pipeline is
+  // established in Phase 3. For now they serve as presence markers.
+  const PHASE2_KNOWN_CHUNKS = [
+    'runtime-shield-core.js',
+    'runtime-shield-integrity.js',
+    'runtime-shield-workers.js',
+    'runtime-shield-dependency.js',
+    'runtime-manifest.js',
+    'runtime-worker-factory.js',
+    'runtime-protection.js',
+    'runtime-hardening.js',
+    'runtime-compat-validator.js',
+    'runtime-rollback.js',
+    'runtime-deployment-bind.js',
+  ];
+  // Mark known chunks in KNOWN_CHUNKS set (already declared above via add)
+  PHASE2_KNOWN_CHUNKS.forEach(c => {
+    if (!KNOWN_CHUNKS.has(c)) KNOWN_CHUNKS.add(c);
+  });
+
+  // Build pipeline hooks — Phase 2 implementations (advisory / logging).
+  // Phase 3 contract: each hook must return a Promise; throw to block.
   const BuildPipelineHooks = {
     VERSION,
-    // Phase 3 placeholders — do not remove
-    onChunkLoad:    null,   // fn(filename, hash) → Promise<void>
-    onChunkVerify:  null,   // fn(filename, bytes) → boolean
-    onWasmLoad:     null,   // fn(moduleId, buffer) → Promise<void>
-    onObfuscate:    null,   // fn(chunkId) → string | null
-    onTokenRefresh: null,   // fn() → Promise<string>
 
-    /** Register a Phase-3 hook. */
-    register(name, fn) {
-      if (name in this && fn && typeof fn === 'function') {
-        this[name] = fn;
+    /** Called after a chunk is successfully loaded. Records to audit log. */
+    onChunkLoad: function (filename, hash) {
+      if (!filename) return Promise.resolve();
+      if (_full) console.debug('[BuildHooks] chunk loaded:', filename, hash ? '(hash present)' : '(no hash)');
+      if (hash && _hashRegistry) {
+        const result = RuntimeChunkValidator.verifyHash(filename, hash);
+        if (!result.verified) {
+          console.warn('[BuildHooks] advisory hash mismatch on load:', filename);
+        }
       }
+      return Promise.resolve();
+    },
+
+    /** Called to verify a chunk's bytes before execution. Returns boolean.
+     *  Phase 2: advisory — always returns true; logs mismatch. */
+    onChunkVerify: function (filename, sha256hex) {
+      if (!filename || !_hashRegistry) return true;
+      const result = RuntimeChunkValidator.verifyHash(filename, sha256hex || '');
+      return result.verified; // advisory — caller may ignore in Phase 2
+    },
+
+    /** Called when a WASM module is loaded. Tracks module for audit. */
+    onWasmLoad: function (moduleId, buffer) {
+      if (!moduleId) return Promise.resolve();
+      const byteLength = buffer && buffer.byteLength ? buffer.byteLength : 0;
+      RuntimeChunkValidator.trackWasm(moduleId, byteLength);
+      return Promise.resolve();
+    },
+
+    /** Obfuscation lookup — returns null in Phase 2 (no obfuscation yet). */
+    onObfuscate: function (chunkId) {
+      return null; // Phase 3: return obfuscated chunk ID
+    },
+
+    /** Token refresh — returns a resolved promise in Phase 2. */
+    onTokenRefresh: function () {
+      return Promise.resolve(''); // Phase 3: return fresh encrypted token
+    },
+
+    /** Register or override a hook at runtime (safe — validates type). */
+    register(name, fn) {
+      if (Object.prototype.hasOwnProperty.call(this, name) && typeof fn === 'function') {
+        this[name] = fn;
+        if (_full) console.debug('[BuildHooks] hook registered:', name);
+      }
+    },
+
+    /** List loaded WASM modules for audit. */
+    wasmModules: function () {
+      if (!_wasmModules) return [];
+      return Array.from(_wasmModules.entries()).map(([id, d]) => ({ id, byteLength: d.byteLength, ts: d.ts }));
     },
   };
 

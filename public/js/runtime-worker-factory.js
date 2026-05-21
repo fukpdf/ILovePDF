@@ -41,18 +41,33 @@
   // ── Worker path allowlist ────────────────────────────────────────────────────
   // Same-origin worker scripts — only these paths are considered "known".
   const ALLOWED_WORKER_PATHS = new Set([
+    // ── PDF processing workers ───────────────────────────────────────────────
     '/workers/compress-worker.js',
     '/workers/pdf-lib-worker.js',
+    '/workers/pdf-worker.js',
     '/workers/pdf-word-docx-worker.js',
-    '/workers/pdf-xlsx-worker.js',
-    '/workers/pdf-pptx-worker.js',
-    '/workers/image-worker.js',
+    '/workers/pdf-excel-xlsx-worker.js',
+    '/workers/pdf-xlsx-worker.js',          // legacy alias
+    '/workers/pdf-ppt-pptx-worker.js',
+    '/workers/pdf-pptx-worker.js',          // legacy alias
     '/workers/repair-worker.js',
-    '/workers/remove-bg-worker.js',
-    '/workers/ai-summary-worker.js',
     '/workers/compare-worker.js',
-    '/workers/pipeline-worker.js',
+    '/workers/advanced-worker.js',
+    // ── Image processing workers ─────────────────────────────────────────────
+    '/workers/image-worker.js',
+    '/workers/image-pipeline-worker.js',
+    '/workers/image-tools-worker.js',
+    '/workers/remove-bg-worker.js',
+    // ── AI / OCR workers ─────────────────────────────────────────────────────
     '/workers/ocr-worker.js',
+    '/workers/ocr-preprocessor-worker.js',
+    '/workers/ai-summary-worker.js',
+    '/workers/summary-worker.js',           // canonical name
+    '/workers/translation-worker.js',
+    // ── Shared / utility workers ─────────────────────────────────────────────
+    '/workers/pipeline-worker.js',
+    '/workers/shared-cluster-worker.js',
+    '/workers/workerPool.js',
     '/workers/text-worker.js',
     '/workers/sign-worker.js',
     '/workers/watermark-worker.js',
