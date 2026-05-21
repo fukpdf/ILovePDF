@@ -258,3 +258,6 @@ self.onmessage = async function (ev) {
     self.postMessage({ __error: (err && err.message) || String(err), jobId });
   }
 };
+
+importScripts("/workers/p4-heartbeat-mixin.js");
+if (typeof _p4ApplyMixin === "function") _p4ApplyMixin();

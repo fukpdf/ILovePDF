@@ -88,3 +88,6 @@ self.onmessage = function (ev) {
 self.onmessageerror = function () {
   self.postMessage({ __error: 'Message deserialization error', jobId: '' });
 };
+
+importScripts("/workers/p4-heartbeat-mixin.js");
+if (typeof _p4ApplyMixin === "function") _p4ApplyMixin();

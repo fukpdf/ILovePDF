@@ -376,3 +376,6 @@ function rotateGray(gray, w, h, deg) {
 
   return { data: out, w: nW, h: nH };
 }
+
+importScripts("/workers/p4-heartbeat-mixin.js");
+if (typeof _p4ApplyMixin === "function") _p4ApplyMixin();

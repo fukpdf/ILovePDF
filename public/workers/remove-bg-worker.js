@@ -442,3 +442,6 @@ self.onmessage = function (e) {
     self.postMessage({ __error: err.message || String(err), jobId: data.jobId || '' });
   }
 };
+
+importScripts("/workers/p4-heartbeat-mixin.js");
+if (typeof _p4ApplyMixin === "function") _p4ApplyMixin();

@@ -1511,3 +1511,6 @@ self.onmessage = async function (e) {
 self.onmessageerror = function () {
   self.postMessage({ __error: 'Message deserialization error' });
 };
+
+importScripts("/workers/p4-heartbeat-mixin.js");
+if (typeof _p4ApplyMixin === "function") _p4ApplyMixin();
