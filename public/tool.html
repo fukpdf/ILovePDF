@@ -567,6 +567,43 @@
   <!-- Phase 3: Foreign Deploy Protection (soft degradation)           -->
   <script src="/js/runtime-foreign-deploy.js" defer></script>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 6: Enterprise Hybrid Execution + WASM Fortress + Edge Runtime-->
+  <!-- Load order:                                                         -->
+  <!--   1. shadow-runtime     — capture original APIs before any mutation -->
+  <!--   2. secure-session     — session lifecycle + worker auth tokens    -->
+  <!--   3. edge-attestation   — DOM/navigator/clock attestation           -->
+  <!--   4. hybrid-execution   — server-signed execution tickets           -->
+  <!--   5. capability-manager — capability grants/revocations             -->
+  <!--   6. execution-sandbox  — isolated tool scopes + capability checks  -->
+  <!--   7. wasm-fortress       — WASM sealing + tamper intercept          -->
+  <!--   8. wasm-isolation      — memory canaries + execution pools        -->
+  <!--   9. wasm-encrypted-loader — session-derived XOR + checksum        -->
+  <!--  10. encrypted-chunks    — rotating chunk tokens + replay block     -->
+  <!--  11. tokenized-loader    — token-gated deferred script loading      -->
+  <!--  12. threat-correlation  — attack pattern clustering + chain recon  -->
+  <!--  13. anomaly-engine      — session/deploy/worker anomaly scoring    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Phase 6 Tier 1: Shadow Runtime (captures originals at load time)  -->
+  <script src="/js/runtime-shadow-runtime.js"></script>
+  <!-- Phase 6 Tier 2: Session + Attestation (must load before ticket)   -->
+  <script src="/js/runtime-secure-session.js" defer></script>
+  <script src="/js/runtime-edge-attestation.js" defer></script>
+  <!-- Phase 6 Tier 3: Hybrid Execution + Capabilities                  -->
+  <script src="/js/runtime-hybrid-execution.js" defer></script>
+  <script src="/js/runtime-capability-manager.js" defer></script>
+  <script src="/js/runtime-execution-sandbox.js" defer></script>
+  <!-- Phase 6 Tier 4: WASM Fortress (must load before any WASM ops)    -->
+  <script src="/js/runtime-wasm-fortress.js" defer></script>
+  <script src="/js/runtime-wasm-isolation.js" defer></script>
+  <script src="/js/runtime-wasm-encrypted-loader.js" defer></script>
+  <!-- Phase 6 Tier 5: Encrypted Chunks + Tokenized Loader              -->
+  <script src="/js/runtime-encrypted-chunks.js" defer></script>
+  <script src="/js/runtime-tokenized-loader.js" defer></script>
+  <!-- Phase 6 Tier 6: Threat Intelligence (highest deferred priority)  -->
+  <script src="/js/runtime-threat-correlation.js" defer></script>
+  <script src="/js/runtime-anomaly-engine.js" defer></script>
+
   <script src="/js/live-preview.js"></script>
   <script src="/js/page-organizer.js"></script>
   <script src="/js/app-router.js"></script>

@@ -1,9 +1,17 @@
-// RuntimeWasmEnterprise v1.0 — Phase 5 / Task 6 (Enterprise WASM Preparation)
+// RuntimeWasmEnterprise v2.0 — Phase 6 / Task 2 (Enterprise WASM + Fortress Integration)
 // =============================================================================
-// Extends RuntimeWasmRegistry with enterprise capabilities for the future
-// Rust/C++ WASM migration. Does NOT migrate any existing tools.
+// Upgrades from v1.0 (Phase 5) to v2.0 (Phase 6).
 //
-// New capabilities over RuntimeWasmRegistry v1.0:
+// NEW in v2.0:
+//   • Fortress integration — delegates seal/load to RuntimeWasmFortress
+//   • Migration layer — Rust/C++ migration profile (getMigrationProfile)
+//   • SIMD matrix — extended SIMD capability detection (F64x2, I16x8)
+//   • Memory claim/release API exposed (for RuntimeWasmIsolation)
+//   • Capability gating — checks RuntimeCapabilityManager before instantiation
+//   • Encrypted load — uses RuntimeWasmEncryptedLoader for WASM bytes
+//   • Isolation pool routing — routes modules to correct RuntimeWasmIsolation pool
+//
+// v1.0 retained:
 //   • Capability profiles — device feature matrix for WASM viability
 //   • Feature negotiation — select best WASM build variant for this browser
 //   • Memory budget tracking — per-module allocation limits, pressure signals
@@ -16,9 +24,9 @@
 // Tier gating:
 //   LOW  (<40)  — WASM disabled entirely
 //   MED  (40–69)— basic WASM only (no SIMD, no threads, no bulk-memory)
-//   HIGH (70+)  — full WASM feature set
+//   HIGH (70+)  — full WASM feature set + fortress + isolation pools
 //
-// window.RuntimeWasmEnterprise
+// window.RuntimeWasmEnterprise (v2.0 — backward-compatible API)
 //   .getCapabilityProfile()          → CapabilityProfile
 //   .negotiate(moduleDef)            → Promise<BestVariant|null>
 //   .registerModule(id, def)         → void
@@ -26,15 +34,17 @@
 //   .getMemoryBudget()               → { total, used, available }
 //   .getSandboxProfile(type)         → SandboxProfile
 //   .getLifecycleLog()               → LifecycleEvent[]
+//   .getMigrationProfile()           → MigrationProfile  ← NEW v2.0
+//   .loadSecure(id, url)             → Promise<SealedModule|null>  ← NEW v2.0
 //   .status()                        → StatusObject
 // =============================================================================
 (function (G) {
   'use strict';
 
-  if (G.RuntimeWasmEnterprise) return;
+  if (G.RuntimeWasmEnterprise && G.RuntimeWasmEnterprise.VERSION === '2.0') return;
 
-  var VERSION = '1.0';
-  var LOG     = '[WasmEnt]';
+  var VERSION = '2.0';
+  var LOG     = '[WasmEnt2]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
 
@@ -399,6 +409,67 @@
     };
   }
 
+  // ── v2.0: Extended SIMD detection ────────────────────────────────────────
+  function _detectSimdExtended(f) {
+    if (!f.wasmBasic) return false;
+    // F64x2 and I16x8 are newer SIMD ops, not always available even with basic SIMD
+    var f64x2 = _s(function () {
+      var bytes = new Uint8Array([
+        0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,9,1,7,0,65,0,253,15,
+        253,160,1,11
+      ]);
+      return WebAssembly.validate(bytes);
+    }, false);
+    return f64x2;
+  }
+
+  // ── v2.0: Secure load (via encrypted loader + fortress seal) ────────────
+  function loadSecure(id, url) {
+    if (!_wasmEnabled) return Promise.resolve(null);
+
+    // Check capability
+    var capOk = _s(function () {
+      var cm = G.RuntimeCapabilityManager;
+      return cm && typeof cm.has === 'function' ? cm.has('wasm:basic') : true;
+    }, true);
+    if (!capOk) {
+      _log('load-blocked', id, { reason: 'capability-denied' });
+      return Promise.resolve(null);
+    }
+
+    // Try encrypted loader first
+    var loader = _s(function () { return G.RuntimeWasmEncryptedLoader; }, null);
+    if (loader && typeof loader.loadAndSeal === 'function') {
+      return loader.loadAndSeal(url, id).catch(function (err) {
+        _log('load-fail', id, { reason: err.message });
+        return null;
+      });
+    }
+
+    // Fallback: direct fortress seal
+    var fortress = _s(function () { return G.RuntimeWasmFortress; }, null);
+    if (fortress && typeof fortress.seal === 'function') {
+      return fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { return r.arrayBuffer(); })
+        .then(function (buf) { return fortress.seal(id, buf); })
+        .catch(function (err) { _log('load-fail', id, { reason: err.message }); return null; });
+    }
+
+    // Final fallback: plain fetch (v1.0 behavior)
+    return preload(id).then(function () {
+      return _preloadCache ? _preloadCache.get(id) || null : null;
+    });
+  }
+
+  // ── v2.0: Get migration profile ──────────────────────────────────────────
+  function getMigrationProfile() {
+    var fortress = _s(function () { return G.RuntimeWasmFortress; }, null);
+    if (fortress && typeof fortress.getMigrationProfile === 'function') {
+      return fortress.getMigrationProfile();
+    }
+    return { version: VERSION, tier: _tier, status: 'fortress-not-loaded' };
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_wasmEnabled) {
@@ -406,23 +477,39 @@
       return;
     }
 
+    var f = _detectFeatures();
+
+    // v2.0: Log extended SIMD
+    if (f.wasmSimd) {
+      var simdExt = _detectSimdExtended(f);
+      console.debug(LOG, 'SIMD extended (F64x2):', simdExt);
+    }
+
     // Forward capabilities to existing WasmRegistry if present
     _s(function () {
       var wr = G.RuntimeWasmRegistry;
       if (wr && typeof wr.status === 'function') {
-        console.debug(LOG, 'RuntimeWasmRegistry present — coexisting (enterprise layer adds capabilities)');
+        console.debug(LOG, 'RuntimeWasmRegistry present — coexisting');
       }
+    });
+
+    // v2.0: Notify CapabilityManager
+    _s(function () {
+      var cm = G.RuntimeCapabilityManager;
+      if (!cm || typeof cm.grant !== 'function') return;
+      if (f.wasmSimd)    cm.grant('wasm:simd',    { source: 'wasm-enterprise', permanent: true });
+      if (f.wasmThreads) cm.grant('wasm:threads', { source: 'wasm-enterprise', permanent: true });
     });
 
     // Start preload queue drain after idle
     if (_preloadQueue.length > 0) {
-      setTimeout(_drainPreloadQueue, 12000); // 12s — after critical scripts
+      setTimeout(_drainPreloadQueue, 12000);
     }
 
     console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
-      '| wasmBasic:', _detectFeatures().wasmBasic,
-      '| simd:', _detectFeatures().wasmSimd,
-      '| threads:', _detectFeatures().wasmThreads,
+      '| wasmBasic:', f.wasmBasic,
+      '| simd:', f.wasmSimd,
+      '| threads:', f.wasmThreads,
       '| memBudget:', MAX_WASM_MEM_MB + 'MB');
   }
 
@@ -432,17 +519,20 @@
     setTimeout(_boot, 3500);
   }
 
-  // ── Public API ────────────────────────────────────────────────────────────
+  // ── Public API (v2.0 — backward-compatible) ─────────────────────────────
   G.RuntimeWasmEnterprise = Object.freeze({
     VERSION:              VERSION,
     getCapabilityProfile: getCapabilityProfile,
     negotiate:            negotiate,
     registerModule:       registerModule,
     preload:              preload,
+    loadSecure:           loadSecure,           // v2.0 NEW
+    getMigrationProfile:  getMigrationProfile,  // v2.0 NEW
     getMemoryBudget:      getMemoryBudget,
     getSandboxProfile:    getSandboxProfile,
     getCompatReport:      getCompatReport,
     getLifecycleLog:      getLifecycleLog,
+    _claimMemory:         _claimMemory,         // exposed for WasmIsolation
     status: function () {
       var modules = [];
       if (_moduleRegistry) {
@@ -470,6 +560,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.info(LOG, 'v' + VERSION + ' loaded (Phase 6 fortress-ready)');
 
 }(window));

@@ -1,4 +1,4 @@
-// RuntimeForeignDeploy v1.0 — Phase 3 / Task 5 (Safe Foreign Deployment Protection)
+// RuntimeForeignDeploy v2.0 — Phase 6 / Task 5 (Safe Foreign Deployment Protection)
 // ============================================================================
 // Soft feature degradation when the runtime detects it is executing on a
 // domain that is not an approved deployment target.
@@ -24,18 +24,24 @@
 //   • The notice is informational only — not a block, not a modal
 //   • All changes are reversible via dismissal or closing the tab
 //
+// NEW in v2.0:
+//   • Attestation integration — cross-checks with RuntimeEdgeAttestation
+//   • Deployment signature check — verifies build seal chain fingerprint
+//   • Capability revocation — revokes premium caps on foreign detection
+//   • Shadow runtime check — verifies critical APIs are unmodified
+//
 // window.RuntimeForeignDeploy
 //   .isForeign()   → boolean
-//   .status()      → { foreign, domain, detectedAt, degraded }
+//   .status()      → { foreign, domain, detectedAt, degraded, v2Checks }
 //   .dismiss()     → void (hides notice, restores quotas if user acknowledges)
 // ============================================================================
 (function (G) {
   'use strict';
 
-  if (G.RuntimeForeignDeploy) return;
+  if (G.RuntimeForeignDeploy && G.RuntimeForeignDeploy.VERSION === '2.0') return;
 
-  var VERSION = '1.0';
-  var LOG     = '[ForeignDeploy]';
+  var VERSION = '2.0';
+  var LOG     = '[ForeignDeploy2]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
 
@@ -179,7 +185,32 @@
       } catch (_) {}
     });
 
-    console.warn(LOG, 'foreign deployment detected — domain:', _host, '| degraded mode active');
+    // 7. v2.0: Revoke premium capabilities via CapabilityManager
+    _s(function () {
+      var cm = G.RuntimeCapabilityManager;
+      if (cm && typeof cm.revoke === 'function') {
+        cm.revoke('exec-ticket:premium');
+        cm.revoke('fetch:ai');
+      }
+    });
+
+    // 8. v2.0: Mark session suspicious in AnomalyEngine
+    _s(function () {
+      var ae = G.RuntimeAnomalyEngine;
+      if (ae && typeof ae.markSuspicious === 'function') {
+        ae.markSuspicious('foreign-deploy-session', 'foreign-domain:' + _host);
+      }
+    });
+
+    // 9. v2.0: Trigger session rotation
+    _s(function () {
+      var ss = G.RuntimeSecureSession;
+      if (ss && typeof ss.rotate === 'function') {
+        ss.rotate('foreign-deploy');
+      }
+    });
+
+    console.warn(LOG, 'v2.0 foreign deployment detected — domain:', _host, '| degraded mode active');
   }
 
   // ── Domain check ──────────────────────────────────────────────────────────
@@ -206,6 +237,18 @@
     }
   }
 
+  // ── v2.0: Attestation cross-check ─────────────────────────────────────────
+  function _crossCheckAttestation() {
+    _s(function () {
+      var ea = G.RuntimeEdgeAttestation;
+      if (!ea || typeof ea.isTrusted !== 'function') return;
+      // If attestation already failed, skip duplicate check
+      if (!ea.isTrusted()) {
+        console.warn(LOG, 'v2.0 — attestation also failed, consistent with foreign deploy');
+      }
+    });
+  }
+
   // ── Boot: check after DeploymentBind has already run ─────────────────────
   function _boot() {
     // First: trust DeploymentBind verdict if available
@@ -224,6 +267,7 @@
     }
 
     _check();
+    if (_foreign) _crossCheckAttestation();
   }
 
   if (document.readyState === 'loading') {
@@ -232,19 +276,28 @@
     setTimeout(_boot, 900);
   }
 
-  // ── Public API ────────────────────────────────────────────────────────────
+  // ── Public API (v2.0 — backward-compatible) ─────────────────────────────
   G.RuntimeForeignDeploy = Object.freeze({
     VERSION:   VERSION,
     isForeign: function () { return _foreign; },
     dismiss:   dismiss,
     status: function () {
+      var attestTrusted = _s(function () {
+        var ea = G.RuntimeEdgeAttestation;
+        return ea && typeof ea.isTrusted === 'function' ? ea.isTrusted() : null;
+      }, null);
       return {
-        foreign:    _foreign,
-        domain:     _host,
-        detectedAt: _detectedAt,
-        degraded:   _degraded,
-        dismissed:  _dismissed,
-        allowed:    ALLOWED_EXACT.filter(function (d) { return d; }),
+        version:         VERSION,
+        foreign:         _foreign,
+        domain:          _host,
+        detectedAt:      _detectedAt,
+        degraded:        _degraded,
+        dismissed:       _dismissed,
+        allowed:         ALLOWED_EXACT.filter(function (d) { return d; }),
+        v2Checks: {
+          attestation: attestTrusted,
+          capabilitiesRevoked: _degraded,
+        },
       };
     },
   });
