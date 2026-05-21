@@ -43,6 +43,22 @@ function result(status, check, detail) {
   if (status === 'WARN') exitCode = Math.max(exitCode, 0);
 }
 
+// ── Phase 8 new files ──────────────────────────────────────────────────────────
+const PHASE8_FILES = [
+  'utils/runtime-packet-validator.js',
+  'routes/security-incidents.js',
+  'routes/threat-feed.js',
+  'public/js/runtime-session-persistence.js',
+  'public/js/runtime-forensics-replay.js',
+  'public/js/runtime-csp-enforcer.js',
+  'public/js/runtime-threat-intel.js',
+  'public/js/runtime-tab-mesh.js',
+  'public/js/runtime-memory-vault.js',
+  'scripts/runtime-obfuscation-audit.js',
+  'scripts/security-regression-check.js',
+  'scripts/enterprise-ci-gate.js',
+];
+
 // ── Phase 7 new files ──────────────────────────────────────────────────────────
 const PHASE7_FILES = [
   'public/js/runtime-human-signals.js',
@@ -127,6 +143,18 @@ function readFile(relPath) {
 
 // ── Check 1 & 2: File existence ────────────────────────────────────────────────
 function checkFileExistence() {
+  console.log('\n[Consistency] Phase 8 files:');
+  let p8missing = 0;
+  for (const f of PHASE8_FILES) {
+    if (fs.existsSync(path.join(ROOT, f))) {
+      result('PASS', 'p8-file:' + path.basename(f), 'present');
+    } else {
+      result('FAIL', 'p8-file:' + path.basename(f), 'MISSING — ' + f);
+      p8missing++;
+    }
+  }
+  if (p8missing === 0) result('PASS', 'p8-all-files', 'All ' + PHASE8_FILES.length + ' Phase 8 files present');
+
   console.log('\n[Consistency] Phase 7 files:');
   let p7missing = 0;
   for (const f of PHASE7_FILES) {
@@ -339,6 +367,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };

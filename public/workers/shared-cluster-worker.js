@@ -282,3 +282,7 @@ setInterval(function () {
     _drainQueue();
   }
 }, 15000);
+
+// Phase 8: heartbeat mixin (must be AFTER self.onmessage is assigned)
+importScripts('/workers/p4-heartbeat-mixin.js');
+if (typeof _p4ApplyMixin === 'function') _p4ApplyMixin();

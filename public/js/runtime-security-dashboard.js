@@ -102,6 +102,30 @@
         if (!ep) return null;
         return { latest: ep.getLatest(), riskSignal: ep.getRiskSignal() };
       }, null),
+
+      // ── Phase 8 panels ──────────────────────────────────────────────────
+      p8: {
+        threatIntel: _s(function () {
+          var ti = G.RuntimeThreatIntel;
+          return ti && typeof ti.status === 'function' ? ti.status() : null;
+        }, null),
+        tabMesh: _s(function () {
+          var tm = G.RuntimeTabMesh;
+          return tm && typeof tm.status === 'function' ? tm.status() : null;
+        }, null),
+        sessionPersist: _s(function () {
+          var sp = G.RuntimeSessionPersistence;
+          return sp && typeof sp.status === 'function' ? sp.status() : null;
+        }, null),
+        cspEnforcer: _s(function () {
+          var ce = G.RuntimeCSPEnforcer;
+          return ce && typeof ce.status === 'function' ? ce.status() : null;
+        }, null),
+        memoryVault: _s(function () {
+          var mv = G.RuntimeMemoryVault;
+          return mv && typeof mv.status === 'function' ? mv.status() : null;
+        }, null),
+      },
     };
   }
 
@@ -197,6 +221,42 @@
     var wasmStatus = _root.querySelector('#dash-wasm-status');
     if (wasmStatus && data.wasmMesh) {
       wasmStatus.textContent = data.wasmMesh.attested + '/' + data.wasmMesh.total + ' attested';
+    }
+
+    // ── Phase 8 panels ─────────────────────────────────────────────────────
+    if (data.p8) {
+      // Threat intel panel
+      var tiPanel = _root.querySelector('#dash-p8-threat-intel');
+      if (tiPanel && data.p8.threatIntel) {
+        tiPanel.textContent = data.p8.threatIntel.ruleVersion
+          ? ('v' + data.p8.threatIntel.ruleVersion + ' | fetches: ' + data.p8.threatIntel.fetchCount)
+          : 'loading…';
+      }
+      // Tab mesh panel
+      var tmPanel = _root.querySelector('#dash-p8-tab-mesh');
+      if (tmPanel && data.p8.tabMesh) {
+        var tm = data.p8.tabMesh;
+        tmPanel.textContent = tm.tabs + ' tab' + (tm.tabs !== 1 ? 's' : '') +
+          (tm.isLeader ? ' (leader)' : '') +
+          (tm.locked ? ' LOCKED' : '');
+      }
+      // Session persistence panel
+      var spPanel = _root.querySelector('#dash-p8-session-persist');
+      if (spPanel && data.p8.sessionPersist) {
+        spPanel.textContent = 'tier: ' + data.p8.sessionPersist.tier;
+      }
+      // CSP enforcer panel
+      var cePanel = _root.querySelector('#dash-p8-csp');
+      if (cePanel && data.p8.cspEnforcer) {
+        var ce = data.p8.cspEnforcer;
+        cePanel.textContent = 'violations: ' + ce.violations + ' | removed: ' + ce.removed;
+      }
+      // Memory vault panel
+      var mvPanel = _root.querySelector('#dash-p8-memory-vault');
+      if (mvPanel && data.p8.memoryVault) {
+        var mv = data.p8.memoryVault;
+        mvPanel.textContent = 'active: ' + mv.active + ' | tier: ' + mv.tier;
+      }
     }
   }
 

@@ -611,3 +611,7 @@ self.onmessage = async function (e) {
 self.onmessageerror = function () {
   self.postMessage({ __error: 'Message deserialization error' });
 };
+
+// Phase 8: heartbeat mixin (must be AFTER self.onmessage is assigned)
+importScripts('/workers/p4-heartbeat-mixin.js');
+if (typeof _p4ApplyMixin === 'function') _p4ApplyMixin();

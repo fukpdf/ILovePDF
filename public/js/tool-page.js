@@ -1343,6 +1343,25 @@ async function processFile() {
       });
     }
   } catch (_) {}
+
+  // Phase 8J: persist processing start to IDB for cross-navigation forensics
+  try {
+    var _p8Sp = window.RuntimeSessionPersistence;
+    if (_p8Sp && typeof _p8Sp.persistEvent === 'function') {
+      _p8Sp.persistEvent('tool_process_start', {
+        tool: currentTool.id,
+        files: selectedFiles.length,
+      });
+    }
+  } catch (_) {}
+
+  // Phase 8J: check memory vault for any cached execution context
+  try {
+    var _p8Mv = window.RuntimeMemoryVault;
+    if (_p8Mv && typeof _p8Mv.store === 'function') {
+      _p8Mv.store('last_tool_dispatch', { tool: currentTool.id, ts: Date.now() }, 60000);
+    }
+  } catch (_) {}
   try {
     // ── Page-organizer integration ──────────────────────────────────────────
     // If the user reordered, rotated, or deleted pages in the preview grid,

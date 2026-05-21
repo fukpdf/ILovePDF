@@ -22,6 +22,9 @@ import communityApiRouter from './routes/community-api.js';
 import securityTelemetryRouter   from './routes/security-telemetry.js';
 import executionTicketsRouter    from './routes/execution-tickets.js';
 import securityDashboardRouter   from './routes/security-dashboard.js';
+import securityIncidentsRouter   from './routes/security-incidents.js';   // Phase 8
+import threatFeedRouter          from './routes/threat-feed.js';          // Phase 8
+import packetValidatorSoft       from './utils/runtime-packet-validator.js'; // Phase 8
 import { originGuard } from './utils/origin-guard.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
@@ -326,6 +329,9 @@ app.use('/api', searchRouter); // web search + weather proxy (no auth, GET only)
 app.use('/api/security-telemetry',  securityTelemetryRouter); // Phase 4 telemetry pipeline
 app.use('/api',                     executionTicketsRouter);   // Phase 6 execution tickets
 app.use('/api/security-dashboard',  securityDashboardRouter); // Phase 7 dashboard API
+app.use('/api/security-incidents',  securityIncidentsRouter); // Phase 8 persistent incidents
+app.use('/api/threat-feed',         threatFeedRouter);         // Phase 8 threat intelligence
+app.use('/api', packetValidatorSoft);                          // Phase 8 packet validation (soft)
 app.use('/live-intel', liveIntelRouter); // Phase 3: real-time knowledge layer
 
 // Pre-flight quota check on every other POST (before multer parses the body)

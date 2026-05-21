@@ -372,6 +372,37 @@
     </div>
   </div>
 
+  <!-- Panel 9: Phase 8 — Zero-Trust Enforcement -->
+  <div class="dash-panel">
+    <h3>Phase 8 — Zero-Trust Enforcement</h3>
+    <div class="kv-list">
+      <div class="kv-row">
+        <span class="kv-key">Threat Intel</span>
+        <span class="kv-value" id="dash-p8-threat-intel">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Tab Mesh</span>
+        <span class="kv-value" id="dash-p8-tab-mesh">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Session Persist</span>
+        <span class="kv-value" id="dash-p8-session-persist">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">CSP Enforcer</span>
+        <span class="kv-value" id="dash-p8-csp">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Memory Vault</span>
+        <span class="kv-value" id="dash-p8-memory-vault">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Packet Validator</span>
+        <span class="kv-value" id="dash-p8-packet-validator">server-side</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Phase 7 runtime scripts (needed for dashboard controller) -->
@@ -401,6 +432,13 @@
 <script src="/js/runtime-session-recorder.js"></script>
 <script src="/js/runtime-security-stream.js"></script>
 <script src="/js/runtime-security-visualizer.js"></script>
+<!-- Phase 8 runtime scripts -->
+<script src="/js/runtime-session-persistence.js"></script>
+<script src="/js/runtime-forensics-replay.js"></script>
+<script src="/js/runtime-csp-enforcer.js"></script>
+<script src="/js/runtime-threat-intel.js"></script>
+<script src="/js/runtime-tab-mesh.js"></script>
+<script src="/js/runtime-memory-vault.js"></script>
 <script src="/js/runtime-security-dashboard.js"></script>
 
 <script>

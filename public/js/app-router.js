@@ -126,6 +126,44 @@
         }
       } catch (_) {}
 
+      // 4. Phase 8J: persist dispatch event to IDB for cross-navigation forensics
+      try {
+        var sp = G.RuntimeSessionPersistence;
+        if (sp && typeof sp.persistEvent === 'function') {
+          sp.persistEvent('tool_dispatch', { tool: toolId, files: fileCount });
+        }
+      } catch (_) {}
+
+      // 5. Phase 8J: propagate dispatch to tab mesh for cross-tab anomaly detection
+      try {
+        var tm = G.RuntimeTabMesh;
+        var ba2 = G.RuntimeBehaviorAnalysis;
+        if (tm && ba2 && typeof tm.broadcast === 'function' && typeof ba2.getRiskLevel === 'function') {
+          var risk2 = ba2.getRiskLevel();
+          if (risk2 === 'CRITICAL' || risk2 === 'HIGH') {
+            tm.broadcast('ANOMALY', { type: 'tool_dispatch', tool: toolId, risk: risk2 });
+          }
+        }
+      } catch (_) {}
+
+      // 6. Phase 8J: update threat intel threshold if available
+      try {
+        var ti = G.RuntimeThreatIntel;
+        if (ti && typeof ti.getThreshold === 'function') {
+          var blockThreshold = ti.getThreshold('automationBlock');
+          if (blockThreshold !== null) {
+            var ad2 = G.RuntimeAutomationDetection;
+            if (ad2 && typeof ad2.getScore === 'function') {
+              var autoScore2 = ad2.getScore();
+              if (autoScore2 > blockThreshold) {
+                console.warn('[AppRouter] P8 threat-intel block: automation score', autoScore2, '> threshold', blockThreshold);
+                return false;
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
     } catch (_) {}
     return true; // allow dispatch by default
   }

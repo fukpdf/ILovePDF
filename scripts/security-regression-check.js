@@ -1,0 +1,220 @@
+#!/usr/bin/env node
+// scripts/security-regression-check.js — Phase 8 / Objective 9b
+// =============================================================================
+// Security regression detection. Compares current codebase against known-good
+// baseline to detect regressions in:
+//   - SRI hash presence (script tags in tool.html)
+//   - CSP header presence in server.js
+//   - Singleton guard coverage
+//   - Object.freeze coverage
+//   - Worker heartbeat mixin coverage
+//   - Phase 8 file presence
+//   - Dangerous pattern regressions
+//
+// Usage: node scripts/security-regression-check.js [--ci] [--json]
+// =============================================================================
+
+import { readFileSync, existsSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT      = path.resolve(__dirname, '..');
+const CI_MODE   = process.argv.includes('--ci');
+const JSON_MODE = process.argv.includes('--json');
+
+const SEP = '─'.repeat(50);
+
+let passCount = 0;
+let failCount = 0;
+let warnCount = 0;
+const findings = [];
+
+function pass(id, msg)  { passCount++; findings.push({ id, status: 'PASS', msg }); }
+function fail(id, msg)  { failCount++; findings.push({ id, status: 'FAIL', msg }); console.error(`  [✗] ${id}: ${msg}`); }
+function warn(id, msg)  { warnCount++; findings.push({ id, status: 'WARN', msg }); console.warn( `  [!] ${id}: ${msg}`); }
+
+function _read(rel) {
+  try { return readFileSync(path.join(ROOT, rel), 'utf8'); } catch (_) { return ''; }
+}
+
+function _exists(rel) { return existsSync(path.join(ROOT, rel)); }
+
+// ── 1. Phase 8 file presence ─────────────────────────────────────────────────
+const P8_FILES = [
+  'utils/runtime-packet-validator.js',
+  'routes/security-incidents.js',
+  'routes/threat-feed.js',
+  'public/js/runtime-session-persistence.js',
+  'public/js/runtime-forensics-replay.js',
+  'public/js/runtime-csp-enforcer.js',
+  'public/js/runtime-threat-intel.js',
+  'public/js/runtime-tab-mesh.js',
+  'public/js/runtime-memory-vault.js',
+  'scripts/runtime-obfuscation-audit.js',
+  'scripts/security-regression-check.js',
+  'scripts/enterprise-ci-gate.js',
+];
+
+console.log('\n[SecurityRegression] Phase 8 file presence:');
+const missingP8 = [];
+P8_FILES.forEach(f => {
+  if (_exists(f)) { pass('p8-file:' + path.basename(f), 'present'); }
+  else { fail('p8-file:' + path.basename(f), 'MISSING'); missingP8.push(f); }
+});
+if (!missingP8.length) pass('p8-all-files', 'All ' + P8_FILES.length + ' Phase 8 files present');
+
+// ── 2. CSP headers in server.js ───────────────────────────────────────────────
+console.log('\n[SecurityRegression] Server CSP:');
+const serverJs = _read('server.js');
+if (serverJs.includes("Content-Security-Policy")) {
+  pass('csp-header', 'CSP header present in server.js');
+} else {
+  fail('csp-header', 'Content-Security-Policy header MISSING from server.js');
+}
+if (serverJs.includes("'unsafe-inline'") && serverJs.includes("script-src")) {
+  warn('csp-unsafe-inline', "unsafe-inline present in script-src CSP — verify nonce exemption");
+}
+if (serverJs.includes("X-Frame-Options")) pass('x-frame-options', 'X-Frame-Options header present');
+else fail('x-frame-options', 'X-Frame-Options MISSING');
+if (serverJs.includes("X-Content-Type-Options")) pass('x-content-type', 'X-Content-Type-Options present');
+else fail('x-content-type', 'X-Content-Type-Options MISSING');
+
+// ── 3. Worker heartbeat mixin coverage ────────────────────────────────────────
+console.log('\n[SecurityRegression] Worker heartbeat:');
+const WORKER_DIR = path.join(ROOT, 'public', 'workers');
+let workerTotal = 0;
+let workerWithMixin = 0;
+let workersMissing = [];
+try {
+  const { readdirSync } = await import('fs');
+  const workers = readdirSync(WORKER_DIR)
+    .filter(f => f.endsWith('.js') && f !== 'p4-heartbeat-mixin.js' && f !== 'workerPool.js');
+  workerTotal = workers.length;
+  workers.forEach(f => {
+    const content = _read(path.join('public/workers', f));
+    if (content.includes('_p4ApplyMixin') || content.includes('p4-heartbeat-mixin')) {
+      workerWithMixin++;
+    } else {
+      workersMissing.push(f);
+    }
+  });
+  const pct = Math.round((workerWithMixin / workerTotal) * 100);
+  if (pct === 100) pass('worker-heartbeat', workerWithMixin + '/' + workerTotal + ' workers have heartbeat (100%)');
+  else if (pct >= 80) warn('worker-heartbeat', workerWithMixin + '/' + workerTotal + ' workers have heartbeat (' + pct + '%) | missing: ' + workersMissing.join(', '));
+  else fail('worker-heartbeat', workerWithMixin + '/' + workerTotal + ' workers have heartbeat (' + pct + '%) | missing: ' + workersMissing.join(', '));
+} catch (_) {
+  warn('worker-heartbeat', 'Could not scan workers directory');
+}
+
+// ── 4. Singleton guard coverage ───────────────────────────────────────────────
+console.log('\n[SecurityRegression] Singleton guards:');
+try {
+  const { readdirSync } = await import('fs');
+  const runtimeFiles = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  let withGuard = 0;
+  let withoutGuard = [];
+  runtimeFiles.forEach(f => {
+    const content = _read(path.join('public/js', f));
+    if (/if\s*\(G\.\w+\)\s*return|if\s*\(window\.\w+\)\s*return/.test(content)) {
+      withGuard++;
+    } else {
+      withoutGuard.push(f);
+    }
+  });
+  const pct = Math.round((withGuard / runtimeFiles.length) * 100);
+  if (pct >= 90) pass('singleton-guards', withGuard + '/' + runtimeFiles.length + ' runtime files have singleton guard');
+  else warn('singleton-guards', withGuard + '/' + runtimeFiles.length + ' runtime files have singleton guard (' + pct + '%)');
+  if (withoutGuard.length && withoutGuard.length <= 5) {
+    warn('singleton-missing', 'Without guard: ' + withoutGuard.join(', '));
+  }
+} catch (_) {
+  warn('singleton-guards', 'Could not scan runtime files');
+}
+
+// ── 5. Object.freeze coverage ─────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Object.freeze coverage:');
+try {
+  const { readdirSync } = await import('fs');
+  const runtimeFiles = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  let withFreeze = 0;
+  runtimeFiles.forEach(f => {
+    const content = _read(path.join('public/js', f));
+    if (/Object\.freeze\(/.test(content)) withFreeze++;
+  });
+  const pct = Math.round((withFreeze / runtimeFiles.length) * 100);
+  if (pct >= 80) pass('object-freeze', withFreeze + '/' + runtimeFiles.length + ' runtime files use Object.freeze()');
+  else warn('object-freeze', withFreeze + '/' + runtimeFiles.length + ' runtime files use Object.freeze() (' + pct + '%)');
+} catch (_) {}
+
+// ── 6. Dangerous eval usage ───────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Dangerous pattern scan:');
+try {
+  const { readdirSync } = await import('fs');
+  const runtimeFiles = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  let evalCount = 0;
+  runtimeFiles.forEach(f => {
+    const content = _read(path.join('public/js', f));
+    const lines = content.split('\n');
+    lines.forEach((line, i) => {
+      if (/\beval\s*\(/.test(line) && !line.trim().startsWith('//')) {
+        evalCount++;
+        fail('eval-usage', f + ':' + (i + 1) + ' — eval() usage');
+      }
+    });
+  });
+  if (!evalCount) pass('no-eval', 'No eval() usage in runtime files');
+} catch (_) {}
+
+// ── 7. Route mounting in server.js ────────────────────────────────────────────
+console.log('\n[SecurityRegression] Route mounting:');
+const routes = [
+  ['security-telemetry',   '/api/security-telemetry'],
+  ['execution-tickets',    '/api/execution-ticket'],
+  ['security-dashboard',   '/api/security-dashboard'],
+  ['security-incidents',   '/api/security-incidents'],
+  ['threat-feed',          '/api/threat-feed'],
+];
+routes.forEach(([name, path_]) => {
+  if (serverJs.includes(path_) || serverJs.includes(name)) {
+    pass('route:' + name, name + ' route mounted');
+  } else {
+    fail('route:' + name, name + ' route NOT found in server.js');
+  }
+});
+
+// ── 8. tool.html Phase 8 scripts ─────────────────────────────────────────────
+console.log('\n[SecurityRegression] tool.html Phase 8 scripts:');
+const toolHtml = _read('public/tool.html');
+const P8_SCRIPTS = [
+  'runtime-session-persistence.js',
+  'runtime-forensics-replay.js',
+  'runtime-csp-enforcer.js',
+  'runtime-threat-intel.js',
+  'runtime-tab-mesh.js',
+  'runtime-memory-vault.js',
+];
+P8_SCRIPTS.forEach(s => {
+  if (toolHtml.includes(s)) pass('tool-html-p8:' + s, s + ' in tool.html');
+  else warn('tool-html-p8:' + s, s + ' NOT yet in tool.html');
+});
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+console.log('\n[SecurityRegression] ' + SEP);
+console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',
+  '| Pass:', passCount, '| Fail:', failCount, '| Warn:', warnCount);
+console.log('[SecurityRegression] ' + SEP);
+
+if (JSON_MODE) {
+  const fs = await import('fs');
+  const outPath = path.join(ROOT, '.data', 'security-regression.json');
+  try {
+    fs.writeFileSync(outPath, JSON.stringify({ ts: Date.now(), passCount, failCount, warnCount, findings }, null, 2));
+    console.log('[SecurityRegression] Report written to:', outPath);
+  } catch (_) {}
+}
+
+if (CI_MODE && failCount > 0) process.exit(1);
