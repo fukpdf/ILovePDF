@@ -604,6 +604,51 @@
   <script src="/js/runtime-threat-correlation.js" defer></script>
   <script src="/js/runtime-anomaly-engine.js" defer></script>
 
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 7: Zero-Trust Runtime Mesh + Edge Intelligence               -->
+  <!-- Load order (all defer — boot internally after DOMContentLoaded):   -->
+  <!--   Tier 1: AI/Automation Defense (human signals first)             -->
+  <!--   Tier 2: Worker Mesh (auth → encryption → routing)               -->
+  <!--   Tier 3: Edge Execution (runtime → policy → proof)               -->
+  <!--   Tier 4: Deployment (registry → build chain → release channel)   -->
+  <!--   Tier 5: Encrypted Pipeline (crypto → session keys → packets)    -->
+  <!--   Tier 6: WASM Advanced (mesh → scheduler → attestation)          -->
+  <!--   Tier 7: Incident/Forensics (engine → forensics → recorder)      -->
+  <!--   Tier 8: Security Dashboard (stream + visualizer + dashboard)     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Phase 7 Tier 1: AI/Automation Abuse Defense -->
+  <script src="/js/runtime-human-signals.js" defer></script>
+  <script src="/js/runtime-automation-detection.js" defer></script>
+  <script src="/js/runtime-behavior-analysis.js" defer></script>
+  <!-- Phase 7 Tier 2: Zero-Trust Worker Mesh -->
+  <script src="/js/runtime-worker-mesh.js" defer></script>
+  <script src="/js/runtime-worker-auth.js" defer></script>
+  <script src="/js/runtime-worker-encryption.js" defer></script>
+  <script src="/js/runtime-worker-routing.js" defer></script>
+  <!-- Phase 7 Tier 3: Edge Execution Engine -->
+  <script src="/js/runtime-edge-policy.js" defer></script>
+  <script src="/js/runtime-edge-proof.js" defer></script>
+  <script src="/js/runtime-edge-runtime.js" defer></script>
+  <!-- Phase 7 Tier 4: Deployment Control -->
+  <script src="/js/runtime-deployment-registry.js" defer></script>
+  <script src="/js/runtime-build-chain.js" defer></script>
+  <script src="/js/runtime-release-channel.js" defer></script>
+  <!-- Phase 7 Tier 5: Encrypted Pipeline -->
+  <script src="/js/runtime-session-keys.js" defer></script>
+  <script src="/js/runtime-execution-crypto.js" defer></script>
+  <script src="/js/runtime-packet-integrity.js" defer></script>
+  <!-- Phase 7 Tier 6: WASM Advanced -->
+  <script src="/js/runtime-wasm-mesh.js" defer></script>
+  <script src="/js/runtime-wasm-scheduler.js" defer></script>
+  <script src="/js/runtime-wasm-attestation.js" defer></script>
+  <!-- Phase 7 Tier 7: Incident Response + Forensics -->
+  <script src="/js/runtime-incident-engine.js" defer></script>
+  <script src="/js/runtime-forensics.js" defer></script>
+  <script src="/js/runtime-session-recorder.js" defer></script>
+  <!-- Phase 7 Tier 8: Security Dashboard (stream + visualizer; dashboard only on admin page) -->
+  <script src="/js/runtime-security-stream.js" defer></script>
+  <script src="/js/runtime-security-visualizer.js" defer></script>
+
   <script src="/js/live-preview.js"></script>
   <script src="/js/page-organizer.js"></script>
   <script src="/js/app-router.js"></script>

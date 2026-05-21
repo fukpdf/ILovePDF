@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Dashboard — ILovePDF Enterprise</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --dim:      #7d8590;
+      --green:    #3fb950;
+      --yellow:   #d29922;
+      --orange:   #f0883e;
+      --red:      #f85149;
+      --blue:     #58a6ff;
+      --purple:   #a371f7;
+      --cyan:     #39d353;
+      --accent:   #4f46e5;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    .dash-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .dash-header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dash-header h1 .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .dash-header .meta {
+      font-size: 11px;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .dash-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .dash-normal   { background: #3fb95033; color: var(--green); }
+    .dash-elevated { background: #d2992233; color: var(--yellow); }
+    .dash-high     { background: #f0883e33; color: var(--orange); }
+    .dash-critical { background: #f8514933; color: var(--red); }
+    .dash-info     { background: #58a6ff22; color: var(--blue); }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .dash-body {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .dash-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dash-panel.wide { grid-column: span 2; }
+    .dash-panel.tall { min-height: 280px; }
+
+    .dash-panel h3 {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .dash-stat {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .dash-stat.small { font-size: 22px; }
+
+    .dash-sub {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* ── Canvas panels ──────────────────────────────────────── */
+    canvas.dash-canvas {
+      width: 100%;
+      border-radius: 4px;
+      display: block;
+    }
+
+    /* ── Event feed ─────────────────────────────────────────── */
+    #dash-event-list {
+      list-style: none;
+      overflow-y: auto;
+      max-height: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .dash-event {
+      display: grid;
+      grid-template-columns: 80px 60px 1fr;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: var(--surface2);
+      align-items: center;
+    }
+    .dash-time { font-size: 10px; color: var(--dim); font-family: monospace; }
+    .dash-sev  { font-size: 9px; font-weight: 700; text-transform: uppercase; }
+    .dash-msg  { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-event.dash-critical .dash-sev { color: var(--red); }
+    .dash-event.dash-high     .dash-sev { color: var(--orange); }
+    .dash-event.dash-medium   .dash-sev { color: var(--yellow); }
+    .dash-event.dash-low      .dash-sev { color: var(--green); }
+    .dash-event.dash-info     .dash-sev { color: var(--dim); }
+
+    /* ── System status grid ─────────────────────────────────── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .status-item {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .status-item .label { font-size: 10px; color: var(--dim); }
+    .status-item .value { font-size: 14px; font-weight: 600; }
+
+    /* ── Server stats from API ──────────────────────────────── */
+    .kv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-row:last-child { border-bottom: none; }
+    .kv-key   { color: var(--dim); font-size: 11px; }
+    .kv-value { font-weight: 600; font-size: 12px; }
+
+    /* ── Tab nav ────────────────────────────────────────────── */
+    .dash-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .dash-tab {
+      padding: 4px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 4px 4px 0 0;
+      color: var(--dim);
+      border: none;
+      background: none;
+    }
+    .dash-tab.active { color: var(--text); background: var(--surface2); }
+  </style>
+</head>
+<body>
+
+<header class="dash-header">
+  <h1><span class="dot"></span> Security Dashboard — Phase 7</h1>
+  <div class="meta">
+    <span id="dash-channel" class="dash-badge dash-info">detecting...</span>
+    <span id="dash-risk-level" class="dash-badge dash-normal">NORMAL</span>
+    <span id="dash-uptime">uptime: --</span>
+    <span id="dash-ts" style="font-family:monospace">--:--:--</span>
+  </div>
+</header>
+
+<div class="dash-body" id="security-dashboard">
+
+  <!-- Panel 1: Risk Score Gauge -->
+  <div class="dash-panel">
+    <h3>Risk Score</h3>
+    <canvas id="dash-risk-gauge" class="dash-canvas" width="240" height="140"></canvas>
+    <div class="dash-sub">Live composite risk | 100 = critical</div>
+  </div>
+
+  <!-- Panel 2: Threat Count -->
+  <div class="dash-panel">
+    <h3>Active Threats</h3>
+    <div class="dash-stat" id="dash-threat-count">0</div>
+    <div class="dash-sub">Correlated threat patterns</div>
+    <div style="margin-top:8px">
+      <div class="kv-row">
+        <span class="kv-key">Open Incidents</span>
+        <span class="kv-value" id="dash-incident-count">0</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Automation Score</span>
+        <span class="kv-value" id="dash-auto-score">0</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Human Entropy</span>
+        <span class="kv-value" id="dash-human-score">50</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Deployment Integrity -->
+  <div class="dash-panel">
+    <h3>Deployment Integrity</h3>
+    <div class="dash-stat small" id="dash-deploy-score">--</div>
+    <div class="dash-sub">Deployment integrity score (0-100)</div>
+    <div style="margin-top:8px" class="kv-list">
+      <div class="kv-row">
+        <span class="kv-key">Channel</span>
+        <span class="kv-value" id="dash-channel-detail">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">WASM Modules</span>
+        <span class="kv-value" id="dash-wasm-status">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Active Caps</span>
+        <span class="kv-value" id="dash-cap-count">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Worker Health Grid -->
+  <div class="dash-panel tall">
+    <h3>Worker Mesh Health</h3>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:4px">
+      Workers: <strong id="dash-worker-status">--</strong>
+    </div>
+    <canvas id="dash-worker-grid" class="dash-canvas" width="240" height="160"></canvas>
+    <div class="dash-sub">Each cell = one worker | value = trust score</div>
+  </div>
+
+  <!-- Panel 5: Live Event Feed (wide) -->
+  <div class="dash-panel wide tall">
+    <h3>Live Security Event Feed</h3>
+    <ul id="dash-event-list">
+      <li class="dash-event dash-info">
+        <span class="dash-time">--:--:--</span>
+        <span class="dash-sev">INFO</span>
+        <span class="dash-msg">Waiting for events...</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Panel 6: Server Telemetry (API-driven) -->
+  <div class="dash-panel">
+    <h3>Server Telemetry (1h)</h3>
+    <div class="kv-list" id="server-event-list">
+      <div class="kv-row">
+        <span class="kv-key">Total events</span>
+        <span class="kv-value" id="srv-total">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Last 1h</span>
+        <span class="kv-value" id="srv-1h">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Open incidents</span>
+        <span class="kv-value" id="srv-incidents">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Server uptime</span>
+        <span class="kv-value" id="srv-uptime">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 7: Session + Forensics -->
+  <div class="dash-panel">
+    <h3>Session + Forensics</h3>
+    <div class="status-grid">
+      <div class="status-item">
+        <div class="label">Session State</div>
+        <div class="value" id="sess-state">--</div>
+      </div>
+      <div class="status-item">
+        <div class="label">Session Age</div>
+        <div class="value" id="sess-age">--</div>
+      </div>
+      <div class="status-item">
+        <div class="label">Forensic Snaps</div>
+        <div class="value" id="forensic-count">--</div>
+      </div>
+      <div class="status-item">
+        <div class="label">Recorded Events</div>
+        <div class="value" id="recorder-count">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 8: Phase 7 System Health -->
+  <div class="dash-panel">
+    <h3>Phase 7 System Health</h3>
+    <div class="kv-list" id="p7-health-list">
+      <div class="kv-row">
+        <span class="kv-key">Human Signals</span>
+        <span class="kv-value" id="p7-human">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Worker Mesh</span>
+        <span class="kv-value" id="p7-mesh">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Edge Policy</span>
+        <span class="kv-value" id="p7-policy">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Exec Crypto</span>
+        <span class="kv-value" id="p7-crypto">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Packet Integrity</span>
+        <span class="kv-value" id="p7-packet">--</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Incident Engine</span>
+        <span class="kv-value" id="p7-incident">--</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Phase 7 runtime scripts (needed for dashboard controller) -->
+<script src="/js/runtime-device-lite.js"></script>
+<script src="/js/runtime-event-bus.js"></script>
+<script src="/js/runtime-security-telemetry.js"></script>
+<script src="/js/runtime-human-signals.js"></script>
+<script src="/js/runtime-automation-detection.js"></script>
+<script src="/js/runtime-behavior-analysis.js"></script>
+<script src="/js/runtime-worker-mesh.js"></script>
+<script src="/js/runtime-worker-auth.js"></script>
+<script src="/js/runtime-worker-routing.js"></script>
+<script src="/js/runtime-edge-policy.js"></script>
+<script src="/js/runtime-edge-proof.js"></script>
+<script src="/js/runtime-edge-runtime.js"></script>
+<script src="/js/runtime-deployment-registry.js"></script>
+<script src="/js/runtime-build-chain.js"></script>
+<script src="/js/runtime-release-channel.js"></script>
+<script src="/js/runtime-session-keys.js"></script>
+<script src="/js/runtime-execution-crypto.js"></script>
+<script src="/js/runtime-packet-integrity.js"></script>
+<script src="/js/runtime-wasm-mesh.js"></script>
+<script src="/js/runtime-wasm-scheduler.js"></script>
+<script src="/js/runtime-wasm-attestation.js"></script>
+<script src="/js/runtime-incident-engine.js"></script>
+<script src="/js/runtime-forensics.js"></script>
+<script src="/js/runtime-session-recorder.js"></script>
+<script src="/js/runtime-security-stream.js"></script>
+<script src="/js/runtime-security-visualizer.js"></script>
+<script src="/js/runtime-security-dashboard.js"></script>
+
+<script>
+// ── Dashboard bootstrap ────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  function s(fn, def) { try { return fn(); } catch (_) { return def; } }
+
+  function boot() {
+    // Initialize the main dashboard controller
+    if (window.RuntimeSecurityDashboard && typeof RuntimeSecurityDashboard.init === 'function') {
+      RuntimeSecurityDashboard.init(document.getElementById('security-dashboard'));
+    }
+
+    // Clock
+    setInterval(function () {
+      var el = document.getElementById('dash-ts');
+      if (el) el.textContent = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // Fetch server summary
+    fetchServerSummary();
+    setInterval(fetchServerSummary, 30_000);
+
+    // Extended status panels
+    updateExtended();
+    setInterval(updateExtended, 5_000);
+  }
+
+  function fetchServerSummary() {
+    fetch('/api/security-dashboard/summary')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) return;
+        var total  = document.getElementById('srv-total');
+        var hour   = document.getElementById('srv-1h');
+        var inc    = document.getElementById('srv-incidents');
+        var uptime = document.getElementById('srv-uptime');
+        if (total)  total.textContent  = data.events?.total || 0;
+        if (hour)   hour.textContent   = data.events?.last1h || 0;
+        if (inc)    inc.textContent    = data.incidents?.open || 0;
+        if (uptime) uptime.textContent = Math.round((data.uptime || 0) / 60) + 'm';
+      })
+      .catch(function () {});
+  }
+
+  function updateExtended() {
+    // Session
+    s(function () {
+      var ss = window.RuntimeSecureSession;
+      if (!ss || typeof ss.status !== 'function') return;
+      var st = ss.status();
+      var stateEl = document.getElementById('sess-state');
+      var ageEl   = document.getElementById('sess-age');
+      if (stateEl) stateEl.textContent = st.state || '--';
+      if (ageEl && st.createdAt) {
+        ageEl.textContent = Math.round((Date.now() - st.createdAt) / 60000) + 'm';
+      }
+    });
+
+    // Forensics
+    s(function () {
+      var fc  = document.getElementById('forensic-count');
+      var rc  = document.getElementById('recorder-count');
+      var for_ = window.RuntimeForensics;
+      var rec  = window.RuntimeSessionRecorder;
+      if (fc && for_) fc.textContent = for_.status().snapshots;
+      if (rc && rec)  rc.textContent = rec.status().events;
+    });
+
+    // P7 health
+    s(function () {
+      var checks = {
+        'p7-human':    window.RuntimeHumanSignals,
+        'p7-mesh':     window.RuntimeWorkerMesh,
+        'p7-policy':   window.RuntimeEdgePolicy,
+        'p7-crypto':   window.RuntimeExecutionCrypto,
+        'p7-packet':   window.RuntimePacketIntegrity,
+        'p7-incident': window.RuntimeIncidentEngine,
+      };
+      for (var id in checks) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = checks[id] ? '✓ active' : '— offline';
+        if (el) el.style.color = checks[id] ? '#3fb950' : '#f85149';
+      }
+    });
+
+    // Channel
+    s(function () {
+      var dr = window.RuntimeDeploymentRegistry;
+      if (!dr) return;
+      var ch   = dr.getChannel();
+      var chEl = document.getElementById('dash-channel');
+      var cdEl = document.getElementById('dash-channel-detail');
+      if (chEl) chEl.textContent = ch.name;
+      if (cdEl) cdEl.textContent = ch.name + (ch.isProd ? ' (prod)' : '');
+    });
+
+    // Uptime
+    s(function () {
+      var el = document.getElementById('dash-uptime');
+      if (el) el.textContent = 'uptime: ' + Math.round(performance.now() / 1000) + 's';
+    });
+  }
+
+  // Boot after a short delay to let runtime systems initialize
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 2000); }, { once: true });
+  } else {
+    setTimeout(boot, 2000);
+  }
+}());
+</script>
+</body>
+</html>

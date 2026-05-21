@@ -346,6 +346,28 @@
         st.subscribe(function (event) { _ingest(event); });
       }
     });
+
+    // Phase 7: subscribe to behavioral feed from RuntimeBehaviorAnalysis
+    _s(function () {
+      var eb = G.RuntimeEventBus;
+      if (!eb) return;
+      // Behavioral anomaly — map behavioral health to anomaly score
+      eb.on('behavior:anomaly', function (data) {
+        if (!data) return;
+        _ingest({ type: 'behavior-anomaly', score: data.score || 50,
+          reason: data.reason || 'behavioral-deviation', sessionId: data.sessionId || '' });
+      });
+      // Automation detection
+      eb.on('automation-detected', function (data) {
+        _ingest({ type: 'automation-detected', score: data && data.score ? data.score : 70,
+          reason: 'automation-signals', sessionId: '' });
+      });
+      // Phase 7 worker mesh events
+      eb.on('mesh:worker-quarantined', function (data) {
+        _ingest({ type: 'worker-quarantine', score: 40,
+          reason: data && data.reason ? data.reason : 'low-trust', sessionId: '' });
+      });
+    });
   }
 
   // ── Periodic scoring ──────────────────────────────────────────────────────

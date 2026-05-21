@@ -43,6 +43,40 @@ function result(status, check, detail) {
   if (status === 'WARN') exitCode = Math.max(exitCode, 0);
 }
 
+// ── Phase 7 new files ──────────────────────────────────────────────────────────
+const PHASE7_FILES = [
+  'public/js/runtime-human-signals.js',
+  'public/js/runtime-automation-detection.js',
+  'public/js/runtime-behavior-analysis.js',
+  'public/js/runtime-worker-mesh.js',
+  'public/js/runtime-worker-auth.js',
+  'public/js/runtime-worker-encryption.js',
+  'public/js/runtime-worker-routing.js',
+  'public/js/runtime-edge-runtime.js',
+  'public/js/runtime-edge-policy.js',
+  'public/js/runtime-edge-proof.js',
+  'public/js/runtime-wasm-mesh.js',
+  'public/js/runtime-wasm-scheduler.js',
+  'public/js/runtime-wasm-attestation.js',
+  'public/js/runtime-execution-crypto.js',
+  'public/js/runtime-session-keys.js',
+  'public/js/runtime-packet-integrity.js',
+  'public/js/runtime-deployment-registry.js',
+  'public/js/runtime-build-chain.js',
+  'public/js/runtime-release-channel.js',
+  'public/js/runtime-incident-engine.js',
+  'public/js/runtime-forensics.js',
+  'public/js/runtime-session-recorder.js',
+  'public/js/runtime-security-stream.js',
+  'public/js/runtime-security-dashboard.js',
+  'public/js/runtime-security-visualizer.js',
+  'routes/security-dashboard.js',
+  'admin/security-dashboard.html',
+  'scripts/enterprise-release-audit.js',
+  'scripts/runtime-attack-simulation.js',
+  'scripts/worker-integrity-check.js',
+];
+
 // ── Phase 6 new files ──────────────────────────────────────────────────────────
 const PHASE6_FILES = [
   'public/js/runtime-hybrid-execution.js',
@@ -93,6 +127,18 @@ function readFile(relPath) {
 
 // ── Check 1 & 2: File existence ────────────────────────────────────────────────
 function checkFileExistence() {
+  console.log('\n[Consistency] Phase 7 files:');
+  let p7missing = 0;
+  for (const f of PHASE7_FILES) {
+    if (fs.existsSync(path.join(ROOT, f))) {
+      result('PASS', 'p7-file:' + path.basename(f), 'present');
+    } else {
+      result('FAIL', 'p7-file:' + path.basename(f), 'MISSING — ' + f);
+      p7missing++;
+    }
+  }
+  if (p7missing === 0) result('PASS', 'p7-all-files', 'All ' + PHASE7_FILES.length + ' Phase 7 files present');
+
   console.log('\n[Consistency] Phase 6 files:');
   let missing = 0;
   for (const f of PHASE6_FILES) {
@@ -184,19 +230,26 @@ function checkServerMount() {
   if (!src) { result('FAIL', 'server-mount', 'Cannot read server.js'); return; }
 
   if (src.includes('execution-tickets')) {
-    result('PASS', 'server-mount', 'execution-tickets route mounted in server.js');
+    result('PASS', 'server-mount:tickets', 'execution-tickets route mounted in server.js');
   } else {
-    result('WARN', 'server-mount', 'execution-tickets route not found in server.js — may need manual mount');
+    result('WARN', 'server-mount:tickets', 'execution-tickets route not found in server.js');
+  }
+
+  if (src.includes('security-dashboard')) {
+    result('PASS', 'server-mount:dashboard', 'security-dashboard route mounted in server.js');
+  } else {
+    result('WARN', 'server-mount:dashboard', 'security-dashboard route not found in server.js — Phase 7 dashboard may be inaccessible');
   }
 }
 
-// ── Check 7: tool.html Phase 6 scripts ────────────────────────────────────────
+// ── Check 7: tool.html Phase 6+7 scripts ──────────────────────────────────────
 function checkToolHtmlScripts() {
-  console.log('\n[Consistency] tool.html Phase 6 script tags:');
+  console.log('\n[Consistency] tool.html Phase 6+7 script tags:');
   const src = readFile('public/tool.html');
   if (!src) { result('FAIL', 'tool-html', 'Cannot read public/tool.html'); return; }
 
   const EXPECTED_SCRIPTS = [
+    // Phase 6
     'runtime-hybrid-execution.js',
     'runtime-edge-attestation.js',
     'runtime-secure-session.js',
@@ -210,6 +263,31 @@ function checkToolHtmlScripts() {
     'runtime-capability-manager.js',
     'runtime-threat-correlation.js',
     'runtime-anomaly-engine.js',
+    // Phase 7
+    'runtime-human-signals.js',
+    'runtime-automation-detection.js',
+    'runtime-behavior-analysis.js',
+    'runtime-worker-mesh.js',
+    'runtime-worker-auth.js',
+    'runtime-worker-encryption.js',
+    'runtime-worker-routing.js',
+    'runtime-edge-policy.js',
+    'runtime-edge-proof.js',
+    'runtime-edge-runtime.js',
+    'runtime-deployment-registry.js',
+    'runtime-build-chain.js',
+    'runtime-release-channel.js',
+    'runtime-session-keys.js',
+    'runtime-execution-crypto.js',
+    'runtime-packet-integrity.js',
+    'runtime-wasm-mesh.js',
+    'runtime-wasm-scheduler.js',
+    'runtime-wasm-attestation.js',
+    'runtime-incident-engine.js',
+    'runtime-forensics.js',
+    'runtime-session-recorder.js',
+    'runtime-security-stream.js',
+    'runtime-security-visualizer.js',
   ];
 
   let found = 0;
@@ -243,7 +321,7 @@ function checkWorkerMixins() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 (async () => {
   console.log('\n[Consistency] ══════════════════════════════════════════');
-  console.log('[Consistency] RUNTIME CONSISTENCY CHECK — Phase 6');
+  console.log('[Consistency] RUNTIME CONSISTENCY CHECK — Phase 6 + Phase 7');
   console.log('[Consistency] ──────────────────────────────────────────');
 
   checkFileExistence();

@@ -334,6 +334,9 @@
         'sri-mismatch', 'worker-blocked', 'deploy-mismatch', 'nonce-violation',
         'origin-violation', 'replay-attempt', 'devtools-degraded', 'runtime-drift',
         'security:foreign-deploy', 'security:anomaly', 'wasm:tamper', 'wasm:memory-violation',
+        // Phase 7 additions
+        'automation-detected', 'mesh:worker-quarantined', 'seal:failure',
+        'packet:replay-detected', 'incident:created',
       ];
       SEC_EVENTS.forEach(function (evt) {
         G.RuntimeEventBus.on(evt, function (data) {

@@ -66,10 +66,44 @@ function _initDb() {
         key   TEXT PRIMARY KEY,
         value TEXT
       );
+
+      -- Phase 7: security_incidents table (used by /api/security-dashboard/incidents)
+      CREATE TABLE IF NOT EXISTS security_incidents (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        incident_id TEXT    UNIQUE,
+        type        TEXT    NOT NULL,
+        severity    TEXT    NOT NULL,
+        score       INTEGER,
+        source      TEXT,
+        state       TEXT    NOT NULL DEFAULT 'OPEN',
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        resolved_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_incidents_state ON security_incidents(state);
+      CREATE INDEX IF NOT EXISTS idx_incidents_ts    ON security_incidents(created_at);
+
+      -- Phase 7: add type+ts columns to security_events if not present (idempotent)
+      -- (SQLite doesn't support ADD COLUMN IF NOT EXISTS so we use the meta table to
+      --  track migration state and run it once.)
     `);
 
+    // Phase 7: add missing columns to security_events (one-time migration)
+    try {
+      const hasType = db.prepare("SELECT COUNT(*) as cnt FROM pragma_table_info('security_events') WHERE name='type'").get();
+      if (!hasType || hasType.cnt === 0) {
+        db.exec("ALTER TABLE security_events ADD COLUMN type TEXT");
+        db.exec("UPDATE security_events SET type = event_type WHERE type IS NULL");
+      }
+      const hasTs = db.prepare("SELECT COUNT(*) as cnt FROM pragma_table_info('security_events') WHERE name='ts'").get();
+      if (!hasTs || hasTs.cnt === 0) {
+        db.exec("ALTER TABLE security_events ADD COLUMN ts INTEGER");
+        db.exec("UPDATE security_events SET ts = received_at WHERE ts IS NULL");
+      }
+    } catch (_) { /* columns may already exist */ }
+
     // Mark schema version
-    db.prepare("INSERT OR IGNORE INTO sec_telemetry_meta VALUES ('schema_version', '2.0')").run();
+    db.prepare("INSERT OR REPLACE INTO sec_telemetry_meta VALUES ('schema_version', '3.0')").run();
     return db;
   } catch (e) {
     console.warn('[SecTelemetry] SQLite init failed:', e.message, '— falling back to in-memory');
