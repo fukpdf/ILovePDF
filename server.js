@@ -19,6 +19,8 @@ import liveIntelRouter from './routes/live-intelligence.js';
 import adminRouter from './routes/admin.js';
 import adminApiRouter from './routes/admin-api.js';
 import communityApiRouter from './routes/community-api.js';
+import securityTelemetryRouter from './routes/security-telemetry.js';
+import { originGuard } from './utils/origin-guard.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
 import './utils/seo-categories.js'; // registers categoryForSlug callback
 import seoRouter from './routes/seo-routes.js';
@@ -313,9 +315,13 @@ app.get('/api/health', (_req, res) => {
     },
   });
 });
+// Phase 4: origin guard on all API routes (allows same-origin + known domains)
+app.use('/api', originGuard);
+
 app.use('/api', authRouter);  // auth routes are NOT subject to usage limits
 app.use('/api', r2Router);    // R2 upload/download/list (own auth checks inside)
 app.use('/api', searchRouter); // web search + weather proxy (no auth, GET only)
+app.use('/api/security-telemetry', securityTelemetryRouter); // Phase 4 telemetry pipeline
 app.use('/live-intel', liveIntelRouter); // Phase 3: real-time knowledge layer
 
 // Pre-flight quota check on every other POST (before multer parses the body)
