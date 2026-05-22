@@ -20,8 +20,18 @@
   <link rel="stylesheet" href="/css/economy.css">
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
+  <!-- Resource hints: preconnect for fonts, prefetch most-used workers -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Worker prefetch: browser downloads these during idle so the first tool
+       dispatch hits cache instead of the network cold-start. -->
+  <link rel="prefetch" href="/workers/pdf-worker.js" as="worker">
+  <link rel="prefetch" href="/workers/pdf-lib-worker.js" as="worker">
+  <link rel="prefetch" href="/workers/compress-worker.js" as="worker">
+  <link rel="prefetch" href="/workers/advanced-worker.js" as="worker">
+  <link rel="prefetch" href="/workers/workerPool.js" as="worker">
   <link rel="stylesheet" href="/css/home.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/blog.css">

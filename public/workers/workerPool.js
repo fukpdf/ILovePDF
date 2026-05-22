@@ -10,13 +10,22 @@
 (function () {
   'use strict';
 
-  var MAX_PER_URL        = Math.min(navigator.hardwareConcurrency || 4, 4);
+  // Adaptive worker cap — scale to device capability to avoid OOM on mobile.
+  // deviceMemory: 0.25/0.5/1/2/4/8 GB (or undefined on unsupported browsers).
+  var _devMem   = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 4;
+  var _devCores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+  var MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
+                    (_devMem <= 2 || _devCores <= 4) ? 2 : 4;
+  MAX_PER_URL = Math.max(1, Math.min(MAX_PER_URL, _devCores, 4));
+
   var TIMEOUT_MS         = 120000; // 2-minute hard cap per task
   var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
   var IDLE_TTL_MS        = 60000;  // terminate idle workers after 60 s
   var MAX_QUEUE          = 50;     // reject tasks beyond this queue depth
   var MAX_TASKS_PER_SLOT = 60;     // rotate slot after N tasks to avoid accumulation
-  var HEARTBEAT_MS       = 30000;  // check for stuck workers every 30 s
+  // Faster heartbeat (15 s) catches hung workers sooner, especially on mobile
+  // where OS may freeze workers without firing onerror.
+  var HEARTBEAT_MS       = 15000;
   // Phase 24: tasks waiting longer than this in any queue tier are promoted
   // and served immediately regardless of higher-tier backlog.
   var STARVATION_MS      = 8000;   // 8 seconds anti-starvation threshold
@@ -410,7 +419,10 @@
     prewarm:       prewarm,
     terminatePool: terminatePool,
     CancelToken:   CancelToken,   // v4.0
-    MAX_WORKERS:   MAX_PER_URL,
+    MAX_WORKERS:   MAX_PER_URL,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
+    // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
+    DEVICE_MEM:    _devMem,
+    DEVICE_CORES:  _devCores,
     // Phase 24: expose tier list for diagnostics
     TIERS:         TIER_ORDER,
     STARVATION_MS: STARVATION_MS,

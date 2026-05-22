@@ -53,10 +53,20 @@ function showProcessing(title, msg) {
   if (msg)   document.getElementById('processing-msg').textContent = msg;
   o.classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
+  // Lightweight perf mark — used by observability / analytics
+  try { performance.mark('iplv-process-start'); } catch (_) {}
 }
 function hideProcessing() {
   const o = document.getElementById('processing-overlay');
   if (o) o.classList.add('hidden');
+  // Measure total processing wall-time and emit to analytics
+  try {
+    performance.mark('iplv-process-end');
+    const m = performance.measure('iplv-process-duration', 'iplv-process-start', 'iplv-process-end');
+    if (window.RuntimeAnalytics && typeof window.RuntimeAnalytics.track === 'function') {
+      window.RuntimeAnalytics.track('processing:duration', { ms: Math.round(m.duration) });
+    }
+  } catch (_) {}
 }
 
 function acceptCookies() {

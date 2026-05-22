@@ -26,6 +26,30 @@
     high:   { workers: 4, chunkMB: 8, ocrScale: 2.0, imgDim: 4096 },
   }[PERF_MODE];
 
+  // ── BATTERY-AWARE THROTTLE ─────────────────────────────────────────────────
+  // When battery is low (<15%) and discharging, cap DEVICE.workers to 1 and
+  // halve the chunk size to reduce thermal/power pressure on the device.
+  var _battLevel    = 1.0;
+  var _battCharging = true;
+  (function _initBattery() {
+    try {
+      if (navigator.getBattery) {
+        navigator.getBattery().then(function (b) {
+          _battLevel    = b.level;
+          _battCharging = b.charging;
+          b.addEventListener('levelchange',   function () { _battLevel    = b.level;    });
+          b.addEventListener('chargingchange',function () { _battCharging = b.charging; });
+        }).catch(function () {});
+      }
+    } catch (_) {}
+  }());
+  function _batteryThrottle() {
+    if (!_battCharging && _battLevel < 0.15) {
+      DEVICE.workers = 1;
+      DEVICE.chunkMB = Math.max(1, Math.floor(DEVICE.chunkMB / 2));
+    }
+  }
+
   var PERF_LABEL = PERF_MODE === 'high'   ? 'Performance: Optimal'   :
                    PERF_MODE === 'medium' ? 'Performance: Moderate'  : 'Performance: High Load';
 
@@ -430,9 +454,15 @@
   }
 
   // ── MEMORY GUARD ──────────────────────────────────────────────────────────
-  var MEM_REDUCE = 550 * 1024 * 1024;
-  var MEM_LOW    = 720 * 1024 * 1024;
-  var MEM_ABORT  = 900 * 1024 * 1024;
+  // Compute thresholds as a fraction of the browser's actual JS heap limit so
+  // the guard fires appropriately on 2 GB phones (limit ~1.2–1.4 GB) instead
+  // of only at a hardcoded 900 MB that may exceed the real budget.
+  var _jsHeapLimit = 0;
+  try { _jsHeapLimit = (performance.memory && performance.memory.jsHeapSizeLimit) || 0; }
+  catch (_) {}
+  var MEM_REDUCE = _jsHeapLimit > 0 ? Math.round(_jsHeapLimit * 0.35) : 550 * 1024 * 1024;
+  var MEM_LOW    = _jsHeapLimit > 0 ? Math.round(_jsHeapLimit * 0.50) : 720 * 1024 * 1024;
+  var MEM_ABORT  = _jsHeapLimit > 0 ? Math.round(_jsHeapLimit * 0.70) : 900 * 1024 * 1024;
 
   function _memUsed() {
     try { return (performance && performance.memory && performance.memory.usedJSHeapSize) || 0; }
@@ -4596,6 +4626,15 @@
     } finally {
       ab = null;
     }
+    // Zip bomb guard: reject PPTX if uncompressed content exceeds 500 MB
+    (function _zipBombGuard(z) {
+      var MAX_UNCOMPRESSED = 500 * 1024 * 1024;
+      var total = 0;
+      Object.values(z.files).forEach(function (f) {
+        if (!f.dir) try { total += (f._data && f._data.uncompressedSize) || 0; } catch (_) {}
+      });
+      if (total > MAX_UNCOMPRESSED) throw new Error('Presentation file contents exceed 500 MB — unable to process safely.');
+    }(zip));
 
     var slideNames = Object.keys(zip.files)
       .filter(function (n) { return /^ppt\/slides\/slide\d+\.xml$/.test(n); })
@@ -6491,6 +6530,9 @@
       }
 
       var _procErr = null;
+
+      // Apply battery throttle once per attempt (safe to call repeatedly)
+      _batteryThrottle();
 
       try {
         result = await withTimeout(proc(files, _curOpts, _onStep), TOOL_TIMEOUT_MS);

@@ -4093,7 +4093,16 @@
     const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
 
     const ab  = await files[0].arrayBuffer();
+    // Zip bomb guard: reject if total uncompressed content would exceed 500 MB
     const zip = await JSZip.loadAsync(ab);
+    (function _zipBombGuard(z) {
+      const MAX_UNCOMPRESSED = 500 * 1024 * 1024;
+      let total = 0;
+      Object.values(z.files).forEach(function (f) {
+        if (!f.dir) try { total += (f._data && f._data.uncompressedSize) || 0; } catch (_) {}
+      });
+      if (total > MAX_UNCOMPRESSED) throw new Error('File contents exceed 500 MB uncompressed — unable to process safely.');
+    }(zip));
 
     // ── Options ───────────────────────────────────────────────────────────
     const pageSizeKey = String(opts && opts.pageSize   || 'presentation');

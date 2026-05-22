@@ -1332,6 +1332,18 @@ async function processFile() {
   _processingInFlight = true;
   const processBtn = document.getElementById('process-btn');
 
+  // Soft 90-second warning: if processing is still running after 90 s, update
+  // the subtitle to reassure the user and hint at cancellation — without
+  // interrupting the actual processing.
+  let _softWarnTimer = setTimeout(() => {
+    try {
+      const msgEl = document.getElementById('processing-msg');
+      if (msgEl && _processingInFlight) {
+        msgEl.textContent = 'Still working\u2026 Large files can take a few minutes. You can cancel and try again if needed.';
+      }
+    } catch (_) {}
+  }, 90000);
+
   // Phase 7J: record tool processing start in session recorder + forensics
   try {
     var _p7Sr = window.RuntimeSessionRecorder;
@@ -1535,6 +1547,7 @@ async function processFile() {
   } finally {
     // Always restore button state and clear the re-entrancy guard — regardless
     // of which exit path fired (success return, error return, or uncaught throw).
+    clearTimeout(_softWarnTimer);
     _processingInFlight = false;
     if (processBtn) processBtn.disabled = false;
   }

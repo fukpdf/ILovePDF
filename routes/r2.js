@@ -2,6 +2,9 @@
 import express from 'express';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
   isR2Configured, putTempObject, putUserObject,
   getSignedDownloadUrl, headObject, listUserObjects,
@@ -11,10 +14,32 @@ const router = express.Router();
 const SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-change-me';
 const COOKIE = 'ilovepdf_token';
 
+// Use diskStorage so large uploads are streamed to disk instead of buffered
+// entirely in Node.js heap — prevents OOM under concurrent load.
+const R2_TMP_DIR = path.join(os.tmpdir(), 'ilovepdf-r2-uploads');
+try { fs.mkdirSync(R2_TMP_DIR, { recursive: true }); } catch (_) {}
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, R2_TMP_DIR),
+    filename:    (_req, file,  cb) => {
+      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${safe}`);
+    },
+  }),
   limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
 });
+
+async function _readAndClean(filePath) {
+  try {
+    const buf = await fs.promises.readFile(filePath);
+    fs.promises.unlink(filePath).catch(() => {});
+    return buf;
+  } catch (e) {
+    fs.promises.unlink(filePath).catch(() => {});
+    throw e;
+  }
+}
 
 function readUser(req) {
   const tok = req.cookies?.[COOKIE];
@@ -33,15 +58,18 @@ router.post('/r2/upload', requireR2, upload.single('file'), async (req, res) => 
     if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
     const user = readUser(req);
     const wantsPermanent = req.body?.permanent === '1' || req.body?.permanent === 'true';
+    // Read file from disk (diskStorage) — never held in Node.js heap during transit
+    const buffer = await _readAndClean(req.file.path);
     let key;
     if (wantsPermanent && user) {
-      key = await putUserObject(String(user.id), req.file.buffer, req.file.originalname, req.file.mimetype);
+      key = await putUserObject(String(user.id), buffer, req.file.originalname, req.file.mimetype);
     } else {
-      key = await putTempObject(req.file.buffer, req.file.originalname, req.file.mimetype);
+      key = await putTempObject(buffer, req.file.originalname, req.file.mimetype);
     }
     const url = await getSignedDownloadUrl(key, 600);
     res.json({ key, url, size: req.file.size, name: req.file.originalname });
   } catch (e) {
+    if (req.file?.path) fs.promises.unlink(req.file.path).catch(() => {});
     console.error('[r2] upload error:', e.message);
     res.status(500).json({ error: 'Upload failed.' });
   }
