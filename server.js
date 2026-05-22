@@ -35,21 +35,27 @@ import { isR2Configured, startR2Sweeper } from './utils/r2.js';
 import { isFirebaseConfigured, firebaseWebApiKey } from './utils/firebase-admin.js';
 import { isHfConfigured } from './utils/ai.js';
 import { generateNonce, injectNonce } from './utils/csp-nonce.js';
+import { getHealthSnapshot, requestTimingMiddleware } from './utils/server-health-monitor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 5000;
+const PORT     = process.env.PORT || 5000;
+const BUILD_ID = Date.now().toString(36); // unique per-boot delivery token
+
 const app = express();
 app.set('trust proxy', 1); // we are behind Replit / Railway proxies
 app.use(compression());
+app.use(requestTimingMiddleware());
 
 // Homepage SEO injection — must run BEFORE static so we can rewrite index.html.
 // Cached at boot so per-request cost is just a string send.
+// BUILD_ID placeholder __BUILD_ID__ is replaced once at boot; CSP nonce __CSP_NONCE__
+// is replaced per-request by injectNonce().
 const __HOME_HTML = (() => {
   try {
     const base = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-    return buildHomeHtml(base);
+    return buildHomeHtml(base).replace(/__BUILD_ID__/g, BUILD_ID);
   } catch (e) {
     console.warn('[seo] could not pre-build home HTML:', e.message);
     return null;
@@ -90,9 +96,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
   lastModified: true,
   setHeaders(res, filePath) {
     const ext = filePath.split('.').pop().toLowerCase();
-    if (/^(js|css|woff2?|ttf|otf|ico|png|jpg|jpeg|gif|webp|svg)$/.test(ext)) {
-      // Versioned/fingerprinted assets — cache aggressively
+    if (/^(woff2?|ttf|otf)$/.test(ext)) {
+      // Font files — truly immutable (binary, versioned by Google Fonts URL params)
       res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/^(js|css|ico|png|jpg|jpeg|gif|webp|svg)$/.test(ext)) {
+      // JS/CSS/images — filenames are NOT content-hashed, so no immutable.
+      // 1-day cache with must-revalidate so browsers always validate after 24 h.
+      // The SW layer uses stale-while-revalidate for JS/CSS on top of this.
+      res.set('Cache-Control', 'public, max-age=86400, must-revalidate');
+      res.set('X-Build-Id', BUILD_ID);
     } else if (ext === 'json' && !filePath.includes('/locales/')) {
       // Non-locale JSON (manifest, config) — 1 hour
       res.set('Cache-Control', 'public, max-age=3600');
@@ -104,6 +116,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
   },
 }));
 
+console.log(`[ilovepdf] build_id:  ${BUILD_ID}`);
 console.log(`[ilovepdf] uploads dir: ${UPLOAD_DIR}`);
 console.log(`[ilovepdf] firebase: ${isFirebaseConfigured() ? 'enabled' : 'disabled'}`);
 console.log(`[ilovepdf] r2:       ${isR2Configured()       ? 'enabled' : 'disabled'}`);
@@ -320,6 +333,17 @@ app.get('/api/health', (_req, res) => {
     },
   });
 });
+
+// Phase 9: detailed server-health endpoint (memory, latency, traffic, build)
+// No auth required — no secrets are exposed. Rate-limited by the /api limiter.
+app.get('/api/server-health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(getHealthSnapshot(BUILD_ID, {
+    firebase: isFirebaseConfigured(),
+    r2:       isR2Configured(),
+    hf:       isHfConfigured(),
+  }));
+});
 // Phase 4: origin guard on all API routes (allows same-origin + known domains)
 app.use('/api', originGuard);
 
@@ -379,7 +403,9 @@ app.get('/contact', (_req, res) => {
 });
 
 // SEO routes
-const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), 'utf8');
+// BUILD_ID placeholder replaced once at boot; nonce replaced per-request.
+const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), 'utf8')
+  .replace(/__BUILD_ID__/g, BUILD_ID);
 app.get('/:slug', (req, res, next) => {
   const slug = req.params.slug;
   if (!Object.prototype.hasOwnProperty.call(SLUG_MAP, slug)) return next();

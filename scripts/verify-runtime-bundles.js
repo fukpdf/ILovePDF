@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+// scripts/verify-runtime-bundles.js — Phase 9 bundle integrity verifier
+// Checks that all bundle files exist, are non-empty, contain their
+// expected source modules, and that the manifest is up-to-date.
+//
+// Exit 0: all bundles healthy
+// Exit 1: one or more bundles missing or corrupt
+//
+// Usage:
+//   node scripts/verify-runtime-bundles.js
+
+import fs   from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT      = path.resolve(__dirname, '..');
+const BUNDLE_DIR = path.join(ROOT, 'public', 'js', 'bundles');
+const MANIFEST   = path.join(BUNDLE_DIR, 'bundle-manifest.json');
+
+let pass = 0, fail = 0, warn = 0;
+
+function ok(check, detail)   { pass++; console.log('  [✓] ' + check + ': ' + detail); }
+function bad(check, detail)  { fail++; console.log('  [✗] ' + check + ': ' + detail); }
+function warn_(check, detail){ warn++; console.log('  [⚠] ' + check + ': ' + detail); }
+
+// ── Expected bundles + key sentinel modules ────────────────────────────────────
+const EXPECTED = [
+  {
+    file:      'runtime-phase6-core.bundle.js',
+    minBytes:  1000,
+    sentinels: ['runtime-shadow-runtime'],
+  },
+  {
+    file:      'runtime-phase6-deferred.bundle.js',
+    minBytes:  5000,
+    sentinels: ['runtime-secure-session', 'runtime-wasm-fortress', 'runtime-anomaly-engine'],
+  },
+  {
+    file:      'runtime-phase7.bundle.js',
+    minBytes:  10000,
+    sentinels: ['runtime-human-signals', 'runtime-incident-engine', 'runtime-packet-integrity'],
+  },
+  {
+    file:      'runtime-phase8-deferred.bundle.js',
+    minBytes:  3000,
+    sentinels: ['runtime-csp-enforcer', 'runtime-tab-mesh', 'runtime-memory-vault'],
+  },
+];
+
+console.log('\n[VerifyBundles] ════════════════════════════════');
+console.log('[VerifyBundles] Phase 9 Bundle Integrity Check');
+console.log('[VerifyBundles] ────────────────────────────────\n');
+
+// ── Check bundle directory ────────────────────────────────────────────────────
+if (!fs.existsSync(BUNDLE_DIR)) {
+  bad('bundle-dir', 'Missing directory: ' + path.relative(ROOT, BUNDLE_DIR) +
+    ' — run: node scripts/build-runtime-bundles.js');
+  console.log('\n[VerifyBundles] Result: FAIL | Pass:', pass, '| Fail:', fail, '| Warn:', warn);
+  process.exit(1);
+}
+ok('bundle-dir', path.relative(ROOT, BUNDLE_DIR) + ' exists');
+
+// ── Check manifest ────────────────────────────────────────────────────────────
+let manifest = null;
+if (fs.existsSync(MANIFEST)) {
+  try {
+    manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const age = Math.floor((Date.now() - manifest.ts) / 60000);
+    ok('manifest', 'bundle-manifest.json present (age: ' + age + ' min, buildId: ' + manifest.buildId + ')');
+  } catch (e) {
+    warn_('manifest', 'bundle-manifest.json parse error: ' + e.message);
+  }
+} else {
+  warn_('manifest', 'bundle-manifest.json missing — run build first');
+}
+
+// ── Check each bundle ─────────────────────────────────────────────────────────
+let allOk = true;
+for (const spec of EXPECTED) {
+  const absPath = path.join(BUNDLE_DIR, spec.file);
+  const rel     = path.relative(ROOT, absPath);
+
+  if (!fs.existsSync(absPath)) {
+    bad('bundle:' + spec.file, 'FILE MISSING — run: node scripts/build-runtime-bundles.js');
+    allOk = false;
+    continue;
+  }
+
+  const stat = fs.statSync(absPath);
+  if (stat.size < spec.minBytes) {
+    bad('bundle:' + spec.file, 'Too small (' + stat.size + ' bytes < ' + spec.minBytes + ' min)');
+    allOk = false;
+    continue;
+  }
+  ok('bundle:' + spec.file, stat.size + ' bytes (' + (stat.size / 1024).toFixed(1) + ' KB)');
+
+  // Sentinel checks — verify source modules are concatenated inside
+  const src = fs.readFileSync(absPath, 'utf8');
+  for (const sentinel of spec.sentinels) {
+    if (src.includes(sentinel)) {
+      ok('sentinel:' + sentinel, 'found in ' + spec.file);
+    } else {
+      bad('sentinel:' + sentinel, 'NOT FOUND in ' + spec.file + ' — bundle may be stale or corrupt');
+      allOk = false;
+    }
+  }
+}
+
+// ── Cross-check manifest vs actual files ──────────────────────────────────────
+if (manifest && Array.isArray(manifest.bundles)) {
+  for (const b of manifest.bundles) {
+    const absPath = path.join(BUNDLE_DIR, b.name);
+    if (fs.existsSync(absPath)) {
+      const stat = fs.statSync(absPath);
+      if (Math.abs(stat.size - b.bytes) > 100) {
+        warn_('manifest-size:' + b.name,
+          'size mismatch (manifest=' + b.bytes + ' actual=' + stat.size + ') — rebuild?');
+      }
+    }
+    if (b.missing > 0) {
+      warn_('bundle-missing:' + b.name, b.missing + ' source file(s) were missing during last build');
+    }
+  }
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+console.log('\n[VerifyBundles] ────────────────────────────────');
+console.log('[VerifyBundles] Result:', fail > 0 ? 'FAIL' : warn > 0 ? 'WARN' : 'PASS',
+  '| Pass:', pass, '| Fail:', fail, '| Warn:', warn);
+console.log('[VerifyBundles] ════════════════════════════════\n');
+
+process.exit(fail > 0 ? 1 : 0);

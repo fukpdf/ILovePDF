@@ -1,0 +1,180 @@
+#!/usr/bin/env node
+// scripts/build-runtime-bundles.js — Phase 9 runtime bundle builder
+// Concatenates groups of Phase 6–8 runtime JS files into minified-style
+// bundles so tool.html can load fewer script tags (304 → ≤ 265 target).
+//
+// Bundles produced:
+//   public/js/bundles/runtime-phase6-core.bundle.js      — Phase 6 non-deferred
+//   public/js/bundles/runtime-phase6-deferred.bundle.js  — Phase 6 deferred
+//   public/js/bundles/runtime-phase7.bundle.js           — Phase 7 all deferred
+//   public/js/bundles/runtime-phase8-deferred.bundle.js  — Phase 8 deferred only
+//
+// Usage:
+//   node scripts/build-runtime-bundles.js [--dry-run]
+
+import fs   from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT      = path.resolve(__dirname, '..');
+const OUT_DIR   = path.join(ROOT, 'public', 'js', 'bundles');
+const DRY_RUN   = process.argv.includes('--dry-run');
+
+const BUILD_ID  = Date.now().toString(36);
+
+// ── Bundle definitions ────────────────────────────────────────────────────────
+// Each bundle is an array of public/js relative paths in load order.
+// They must all share the same defer status in tool.html to be safe to bundle.
+
+const BUNDLES = [
+  {
+    name:     'runtime-phase6-core.bundle.js',
+    label:    'Phase 6 Non-Deferred Core',
+    deferred: false,
+    files: [
+      'public/js/runtime-shadow-runtime.js',
+    ],
+  },
+  {
+    name:     'runtime-phase6-deferred.bundle.js',
+    label:    'Phase 6 Deferred',
+    deferred: true,
+    files: [
+      'public/js/runtime-secure-session.js',
+      'public/js/runtime-edge-attestation.js',
+      'public/js/runtime-hybrid-execution.js',
+      'public/js/runtime-capability-manager.js',
+      'public/js/runtime-execution-sandbox.js',
+      'public/js/runtime-wasm-fortress.js',
+      'public/js/runtime-wasm-isolation.js',
+      'public/js/runtime-wasm-encrypted-loader.js',
+      'public/js/runtime-encrypted-chunks.js',
+      'public/js/runtime-tokenized-loader.js',
+      'public/js/runtime-threat-correlation.js',
+      'public/js/runtime-anomaly-engine.js',
+    ],
+  },
+  {
+    name:     'runtime-phase7.bundle.js',
+    label:    'Phase 7 Zero-Trust Mesh',
+    deferred: true,
+    files: [
+      'public/js/runtime-human-signals.js',
+      'public/js/runtime-automation-detection.js',
+      'public/js/runtime-behavior-analysis.js',
+      'public/js/runtime-worker-mesh.js',
+      'public/js/runtime-worker-auth.js',
+      'public/js/runtime-worker-encryption.js',
+      'public/js/runtime-worker-routing.js',
+      'public/js/runtime-edge-policy.js',
+      'public/js/runtime-edge-proof.js',
+      'public/js/runtime-edge-runtime.js',
+      'public/js/runtime-deployment-registry.js',
+      'public/js/runtime-build-chain.js',
+      'public/js/runtime-release-channel.js',
+      'public/js/runtime-session-keys.js',
+      'public/js/runtime-execution-crypto.js',
+      'public/js/runtime-packet-integrity.js',
+      'public/js/runtime-wasm-mesh.js',
+      'public/js/runtime-wasm-scheduler.js',
+      'public/js/runtime-wasm-attestation.js',
+      'public/js/runtime-incident-engine.js',
+      'public/js/runtime-forensics.js',
+      'public/js/runtime-session-recorder.js',
+      'public/js/runtime-security-stream.js',
+      'public/js/runtime-security-visualizer.js',
+    ],
+  },
+  {
+    name:     'runtime-phase8-deferred.bundle.js',
+    label:    'Phase 8 Deferred Hardening',
+    deferred: true,
+    files: [
+      'public/js/runtime-session-persistence.js',
+      'public/js/runtime-forensics-replay.js',
+      'public/js/runtime-csp-enforcer.js',
+      'public/js/runtime-threat-intel.js',
+      'public/js/runtime-tab-mesh.js',
+      'public/js/runtime-memory-vault.js',
+    ],
+  },
+];
+
+// ── Build ─────────────────────────────────────────────────────────────────────
+let totalIn  = 0;
+let totalOut = 0;
+
+if (!DRY_RUN && !fs.existsSync(OUT_DIR)) {
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  console.log('[bundle] Created output dir:', OUT_DIR);
+}
+
+const manifest = [];
+
+for (const bundle of BUNDLES) {
+  const parts = [];
+  let missingCount = 0;
+
+  parts.push(
+    '// ── ' + bundle.label + ' — Phase 9 build bundle ──────────────────────────\n' +
+    '// Generated: ' + new Date().toISOString() + '  BUILD_ID: ' + BUILD_ID + '\n' +
+    '// Files: ' + bundle.files.length + '\n\n'
+  );
+
+  for (const relFile of bundle.files) {
+    const absFile = path.join(ROOT, relFile);
+    if (!fs.existsSync(absFile)) {
+      console.warn('[bundle]   MISSING:', relFile);
+      missingCount++;
+      continue;
+    }
+    const src = fs.readFileSync(absFile, 'utf8');
+    totalIn += src.length;
+    parts.push('// ── SOURCE: ' + relFile + ' ──\n');
+    parts.push(src);
+    parts.push('\n');
+  }
+
+  const content = parts.join('');
+  const hash    = crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+  const outPath = path.join(OUT_DIR, bundle.name);
+
+  if (!DRY_RUN) {
+    fs.writeFileSync(outPath, content, 'utf8');
+  }
+
+  totalOut += content.length;
+  const rel = path.relative(ROOT, outPath);
+
+  manifest.push({
+    name:     bundle.name,
+    label:    bundle.label,
+    deferred: bundle.deferred,
+    files:    bundle.files.length,
+    missing:  missingCount,
+    bytes:    content.length,
+    hash:     hash,
+    path:     rel,
+  });
+
+  const status = missingCount > 0 ? '⚠' : '✓';
+  console.log('[bundle] ' + status + ' ' + bundle.name +
+    '  ' + bundle.files.length + ' files  ' +
+    (content.length / 1024).toFixed(1) + ' KB' +
+    (missingCount ? '  (' + missingCount + ' missing)' : ''));
+}
+
+// Write manifest
+if (!DRY_RUN) {
+  const manifestPath = path.join(OUT_DIR, 'bundle-manifest.json');
+  fs.writeFileSync(manifestPath, JSON.stringify({ buildId: BUILD_ID, ts: Date.now(), bundles: manifest }, null, 2));
+  console.log('[bundle] Manifest written to:', path.relative(ROOT, manifestPath));
+}
+
+const ratio = totalIn > 0 ? (totalOut / totalIn * 100).toFixed(1) : '—';
+console.log('\n[bundle] Done. Input:', (totalIn / 1024).toFixed(1),
+  'KB → Output:', (totalOut / 1024).toFixed(1), 'KB  ratio:', ratio + '%');
+console.log('[bundle] Bundles saved to:', path.relative(ROOT, OUT_DIR));
+if (DRY_RUN) console.log('[bundle] DRY-RUN — no files written.');
