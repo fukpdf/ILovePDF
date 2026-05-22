@@ -143,7 +143,7 @@ const TOOLS = [
     apiEndpoint: '/api/organize', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
     options: [
-      { id: 'pageOrder', label: 'New Page Order (1-indexed, comma-separated)', type: 'text', placeholder: 'e.g. 3,1,2' }
+      { id: 'pageOrder', label: 'Page Order (optional — leave blank to use drag order)', type: 'text', placeholder: 'e.g. 3,1,2 — or drag pages above' }
     ]
   },
 

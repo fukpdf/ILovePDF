@@ -249,9 +249,19 @@
     const { PDFDocument } = await loadPdfLib();
     const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
     const total = src.getPageCount();
-    const order = String(opts.pageOrder || '').split(',').map(s => parseInt(s.trim(), 10))
-      .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
-    if (!order.length) throw new Error('Provide a comma-separated page order, e.g. 3,1,2');
+    const rawOrder = String(opts.pageOrder || '').trim();
+    // pageOrder is OPTIONAL. When absent (e.g. user used drag-and-drop via the
+    // PageOrganizer grid and left the number field blank), use the identity order
+    // so the already-reordered PDF passes through unchanged.
+    // Only throw when the user explicitly typed something that is entirely invalid.
+    let order;
+    if (rawOrder === '') {
+      order = Array.from({ length: total }, (_, i) => i + 1);
+    } else {
+      order = rawOrder.split(',').map(s => parseInt(s.trim(), 10))
+        .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
+      if (!order.length) throw new Error('Invalid page order. Use comma-separated 1-indexed numbers, e.g. 3,1,2');
+    }
     const out = await PDFDocument.create();
     const copied = await out.copyPages(src, order.map(n => n - 1));
     copied.forEach(p => out.addPage(p));
