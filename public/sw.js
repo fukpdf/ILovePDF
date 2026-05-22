@@ -2,7 +2,10 @@
 // Strategy: network-first for navigation, cache-first for static assets,
 // network-only for API. COEP/COOP headers are re-applied on cached navigations.
 
-const CACHE_VERSION = 'v1';
+// v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
+// cacheFirst retained only for truly-immutable font files.
+// Bumping this version clears all v1 caches on next SW activation.
+const CACHE_VERSION = 'v2';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
@@ -95,9 +98,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets (JS/CSS/fonts/images): cache-first
-  if (STATIC_EXTS.test(path)) {
+  // Font files: truly immutable (binary, versioned by URL params) — cache-first
+  if (IMMUTABLE_EXTS.test(path)) {
     event.respondWith(cacheFirst(request, CACHE_STATIC));
+    return;
+  }
+  // JS / CSS / images: stale-while-revalidate.
+  // Responds instantly from cache then refreshes in the background.
+  // This ensures a new BUILD_ID deploy is reflected on the NEXT navigation
+  // even if the browser hasn't yet evicted the old entry.
+  if (STATIC_EXTS.test(path)) {
+    event.respondWith(staleWhileRevalidate(request, CACHE_STATIC));
     return;
   }
 

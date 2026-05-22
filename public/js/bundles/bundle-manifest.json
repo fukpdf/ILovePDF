@@ -1,0 +1,56 @@
+{
+  "buildId": "mph2e56u",
+  "ts": 1779463112686,
+  "bundles": [
+    {
+      "name": "runtime-phase6-core.bundle.js",
+      "label": "Phase 6 Non-Deferred Core",
+      "deferred": false,
+      "files": 1,
+      "missing": 0,
+      "bytes": 9271,
+      "hash": "08a9104c0f4e",
+      "path": "public/js/bundles/runtime-phase6-core.bundle.js"
+    },
+    {
+      "name": "runtime-phase6-deferred.bundle.js",
+      "label": "Phase 6 Deferred",
+      "deferred": true,
+      "files": 12,
+      "missing": 0,
+      "bytes": 154829,
+      "hash": "2f618fadf117",
+      "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
+    },
+    {
+      "name": "runtime-phase7.bundle.js",
+      "label": "Phase 7 Zero-Trust Mesh",
+      "deferred": true,
+      "files": 24,
+      "missing": 0,
+      "bytes": 200092,
+      "hash": "8d73cea5f3a3",
+      "path": "public/js/bundles/runtime-phase7.bundle.js"
+    },
+    {
+      "name": "runtime-phase8-deferred.bundle.js",
+      "label": "Phase 8 Deferred Hardening",
+      "deferred": true,
+      "files": 6,
+      "missing": 0,
+      "bytes": 65773,
+      "hash": "99b8d0d694e4",
+      "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
+    },
+    {
+      "name": "runtime-phase9-infra.bundle.js",
+      "label": "Phase 9 Infrastructure Layer",
+      "deferred": false,
+      "files": 6,
+      "missing": 0,
+      "bytes": 27552,
+      "hash": "3e71abc97422",
+      "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
+    }
+  ]
+}

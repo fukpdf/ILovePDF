@@ -26,12 +26,13 @@
   <link rel="dns-prefetch" href="//fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Worker prefetch: browser downloads these during idle so the first tool
-       dispatch hits cache instead of the network cold-start. -->
-  <link rel="prefetch" href="/workers/pdf-worker.js" as="worker">
-  <link rel="prefetch" href="/workers/pdf-lib-worker.js" as="worker">
-  <link rel="prefetch" href="/workers/compress-worker.js" as="worker">
-  <link rel="prefetch" href="/workers/advanced-worker.js" as="worker">
-  <link rel="prefetch" href="/workers/workerPool.js" as="worker">
+       dispatch hits cache instead of the network cold-start.
+       ?v=__BUILD_ID__ ensures stale worker scripts are never served after a deploy. -->
+  <link rel="prefetch" href="/workers/pdf-worker.js?v=__BUILD_ID__" as="worker">
+  <link rel="prefetch" href="/workers/pdf-lib-worker.js?v=__BUILD_ID__" as="worker">
+  <link rel="prefetch" href="/workers/compress-worker.js?v=__BUILD_ID__" as="worker">
+  <link rel="prefetch" href="/workers/advanced-worker.js?v=__BUILD_ID__" as="worker">
+  <link rel="prefetch" href="/workers/workerPool.js?v=__BUILD_ID__" as="worker">
   <link rel="stylesheet" href="/css/home.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/blog.css">
@@ -353,6 +354,29 @@
   <script src="/js/runtime-local-ai.js"></script>
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
   <script src="/js/runtime-browser-os-certification.js" defer></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PHASE 9 CONTINUATION — Runtime Infrastructure Layer                 -->
+  <!-- Wired after BrowserOSCert so all kernel/GPU/WASM globals exist.    -->
+  <!--   9K  NetworkState     — connection quality, adaptive chunk sizing  -->
+  <!--   9L  MemoryRecovery   — heap pressure recovery, blob/IDB eviction  -->
+  <!--   9M  LazyEngineLoader — deduped deferred engine loading coord.     -->
+  <!--   9N  PerfMonitor      — Web Vitals, tool timing, memory samples    -->
+  <!--   9O  StreamPipeline   — composable backpressure-aware processing   -->
+  <!--   9P  WorkerPrewarm    — idle/drop-triggered worker pool prewarming -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 9K: Network quality monitor — no deps at load time; used by 9O -->
+  <script src="/js/runtime-network-state.js?v=__BUILD_ID__"></script>
+  <!-- 9L: Memory pressure recovery — evicts IDB/OPFS/blobs under heap pressure -->
+  <script src="/js/runtime-memory-recovery.js?v=__BUILD_ID__"></script>
+  <!-- 9M: Lazy engine loader — deduplicates and defers heavy engine loads -->
+  <script src="/js/runtime-lazy-engine-loader.js?v=__BUILD_ID__"></script>
+  <!-- 9N: Performance monitor — Web Vitals (LCP/FID/CLS), tool timing, memory -->
+  <script src="/js/runtime-performance-monitor.js?v=__BUILD_ID__"></script>
+  <!-- 9O: Stream pipeline — composable backpressure pipeline, uses RuntimeNetworkState -->
+  <script src="/js/runtime-stream-pipeline.js?v=__BUILD_ID__"></script>
+  <!-- 9P: Worker prewarm — idle/drop-triggered WorkerPool prewarming -->
+  <script src="/js/runtime-worker-prewarm.js?v=__BUILD_ID__"></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 27–30 RUNTIME LAYER                                           -->
@@ -687,14 +711,14 @@
   <script src="/js/tools-config.js" defer></script>
   <script src="/js/tool-content.js" defer></script>
   <script src="/js/tool-state.js" defer></script>
-  <script src="/js/i18n.js?v=23" defer></script>
-  <script src="/js/i18n-ext.js?v=23" defer></script>
-  <script src="/js/queue-client.js" defer></script>
-  <script src="/js/usage-limit.js" defer></script>
-  <script src="/js/tool-page.js?v=23" defer></script>
-  <script src="/js/shared.js?v=23" defer></script>
-  <script src="/js/auth-ui.js" defer></script>
-  <script src="/js/tool-i18n-bridge.js?v=23" defer></script>
+  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/i18n-ext.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/usage-limit.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/tool-page.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/shared.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/auth-ui.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/tool-i18n-bridge.js?v=__BUILD_ID__" defer></script>
   <!-- Laba AI Assistant — widget CSS + button UI load eagerly for instant chat bubble -->
   <link rel="stylesheet" href="/laba/laba-widget.css">
   <script src="/laba/laba-widget.js" defer></script>

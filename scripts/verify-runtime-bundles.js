@@ -46,6 +46,11 @@ const EXPECTED = [
     minBytes:  3000,
     sentinels: ['runtime-csp-enforcer', 'runtime-tab-mesh', 'runtime-memory-vault'],
   },
+  {
+    file:      'runtime-phase9-infra.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeNetworkState', 'RuntimeMemoryRecovery', 'RuntimeWorkerPrewarm'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

@@ -100,6 +100,19 @@ const BUNDLES = [
       'public/js/runtime-memory-vault.js',
     ],
   },
+  {
+    name:     'runtime-phase9-infra.bundle.js',
+    label:    'Phase 9 Infrastructure Layer',
+    deferred: false,
+    files: [
+      'public/js/runtime-network-state.js',
+      'public/js/runtime-memory-recovery.js',
+      'public/js/runtime-lazy-engine-loader.js',
+      'public/js/runtime-performance-monitor.js',
+      'public/js/runtime-stream-pipeline.js',
+      'public/js/runtime-worker-prewarm.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────
@@ -137,15 +150,16 @@ for (const bundle of BUNDLES) {
     parts.push('\n');
   }
 
-  const content = parts.join('');
-  const hash    = crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
-  const outPath = path.join(OUT_DIR, bundle.name);
+  const content  = parts.join('');
+  const byteSize = Buffer.byteLength(content, 'utf8'); // actual on-disk bytes
+  const hash     = crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+  const outPath  = path.join(OUT_DIR, bundle.name);
 
   if (!DRY_RUN) {
     fs.writeFileSync(outPath, content, 'utf8');
   }
 
-  totalOut += content.length;
+  totalOut += byteSize;
   const rel = path.relative(ROOT, outPath);
 
   manifest.push({
@@ -154,7 +168,7 @@ for (const bundle of BUNDLES) {
     deferred: bundle.deferred,
     files:    bundle.files.length,
     missing:  missingCount,
-    bytes:    content.length,
+    bytes:    byteSize,
     hash:     hash,
     path:     rel,
   });
@@ -162,7 +176,7 @@ for (const bundle of BUNDLES) {
   const status = missingCount > 0 ? '⚠' : '✓';
   console.log('[bundle] ' + status + ' ' + bundle.name +
     '  ' + bundle.files.length + ' files  ' +
-    (content.length / 1024).toFixed(1) + ' KB' +
+    (byteSize / 1024).toFixed(1) + ' KB' +
     (missingCount ? '  (' + missingCount + ' missing)' : ''));
 }
 
