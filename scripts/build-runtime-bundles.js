@@ -113,6 +113,22 @@ const BUNDLES = [
       'public/js/runtime-worker-prewarm.js',
     ],
   },
+  {
+    name:     'runtime-arc2.bundle.js',
+    label:    'Arc 2 Production Hardening',
+    deferred: true,
+    files: [
+      'public/js/runtime-deploy-sync.js',
+      'public/js/runtime-html-version-guard.js',
+      'public/js/runtime-hydration-scheduler.js',
+      'public/js/runtime-crash-telemetry.js',
+      'public/js/runtime-bundle-registry.js',
+      'public/js/runtime-offline-processor.js',
+      'public/js/runtime-worker-coordinator.js',
+      'public/js/runtime-edge-hints.js',
+      'public/js/runtime-health-analytics.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

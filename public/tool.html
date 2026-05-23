@@ -777,5 +777,25 @@
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
   <script src="/js/pwa-register.js" defer></script>
+
+  <!-- Arc 2: Production Hardening — Deploy Coherence + Hydration + Observability -->
+  <!-- T1: Cross-tab BUILD_ID sync + SW coordination -->
+  <script src="/js/runtime-deploy-sync.js" defer></script>
+  <!-- T2: Stale HTML shell detection + silent revalidation -->
+  <script src="/js/runtime-html-version-guard.js" defer></script>
+  <!-- T3: Tier-based hydration scheduler (P0/P1/P2) -->
+  <script src="/js/runtime-hydration-scheduler.js" defer></script>
+  <!-- T4: Crash fingerprinting + encrypted ring-buffer + deploy-crash correlation -->
+  <script src="/js/runtime-crash-telemetry.js" defer></script>
+  <!-- T5: Dynamic bundle activation + dependency-aware loading -->
+  <script src="/js/runtime-bundle-registry.js" defer></script>
+  <!-- T6: Transactional offline jobs + processing continuation -->
+  <script src="/js/runtime-offline-processor.js" defer></script>
+  <!-- T7: Worker affinity + thermal scheduling + congestion balancing -->
+  <script src="/js/runtime-worker-coordinator.js" defer></script>
+  <!-- T8: Geo-aware resource hints + BUILD_ID edge validation -->
+  <script src="/js/runtime-edge-hints.js" defer></script>
+  <!-- T9: Unified health score + AdvancedEngine.audit() dashboard panels -->
+  <script src="/js/runtime-health-analytics.js" defer></script>
 </body>
 </html>

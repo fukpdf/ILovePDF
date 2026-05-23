@@ -1,6 +1,6 @@
 {
-  "buildId": "mpi3p7bc",
-  "ts": 1779525774454,
+  "buildId": "mpi4j0hh",
+  "ts": 1779527165290,
   "bundles": [
     {
       "name": "runtime-phase6-core.bundle.js",
@@ -9,7 +9,7 @@
       "files": 1,
       "missing": 0,
       "bytes": 9273,
-      "hash": "a7c5d2a557ff",
+      "hash": "699efb6ecca8",
       "path": "public/js/bundles/runtime-phase6-core.bundle.js"
     },
     {
@@ -19,7 +19,7 @@
       "files": 12,
       "missing": 0,
       "bytes": 154862,
-      "hash": "abdbc9292f68",
+      "hash": "9c703eb6ed39",
       "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
     },
     {
@@ -29,7 +29,7 @@
       "files": 24,
       "missing": 0,
       "bytes": 200155,
-      "hash": "9162c1e36b5d",
+      "hash": "eb8a123a903e",
       "path": "public/js/bundles/runtime-phase7.bundle.js"
     },
     {
@@ -39,7 +39,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 65790,
-      "hash": "8045aa60db67",
+      "hash": "914d5144f68f",
       "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
     },
     {
@@ -49,8 +49,18 @@
       "files": 6,
       "missing": 0,
       "bytes": 29333,
-      "hash": "46f7af8be146",
+      "hash": "e9d40b9db4c4",
       "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
+    },
+    {
+      "name": "runtime-arc2.bundle.js",
+      "label": "Arc 2 Production Hardening",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 64829,
+      "hash": "ef74fb5d9494",
+      "path": "public/js/bundles/runtime-arc2.bundle.js"
     }
   ]
 }

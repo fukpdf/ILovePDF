@@ -51,6 +51,12 @@ const EXPECTED = [
     minBytes:  5000,
     sentinels: ['RuntimeNetworkState', 'RuntimeMemoryRecovery', 'RuntimeWorkerPrewarm'],
   },
+  {
+    file:      'runtime-arc2.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeDeploySync', 'RuntimeHydrationScheduler', 'RuntimeCrashTelemetry',
+                'RuntimeWorkerCoordinator', 'RuntimeHealthAnalytics'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
