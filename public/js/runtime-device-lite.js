@@ -25,6 +25,8 @@
 
   if (G.RuntimeDeviceLite) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG    = '[RDL]';
   var LS_KEY = 'iplv_device_lite_v1';
 
@@ -67,6 +69,49 @@
     else if (gpuTier === 'webgl')         score -= 5;
 
     return Math.max(0, score);
+  }
+
+  // ── Battery / thermal signal ───────────────────────────────────────────────
+  // Subscribes to Battery API (where available). On critical battery (<15%,
+  // discharging) or save-data hint, downgrades to 'low' profile via event.
+  // Non-blocking: failure is silently swallowed so old browsers are unaffected.
+  function _watchBattery() {
+    _safe(function () {
+      if (!navigator.getBattery) return;
+      navigator.getBattery().then(function (bat) {
+        function _checkBat() {
+          // Critical: battery below 15% AND discharging
+          if (!bat.charging && bat.level < 0.15) {
+            _safe(function () {
+              var cur = G.RuntimeDeviceLite && G.RuntimeDeviceLite.getProfile && G.RuntimeDeviceLite.getProfile();
+              if (cur === 'ok' || cur === 'reduce') {
+                if (G.AdaptiveDegradation && G.AdaptiveDegradation.setProfile) {
+                  G.AdaptiveDegradation.setProfile('low');
+                }
+                G.dispatchEvent(new CustomEvent('device:battery-critical', {
+                  detail: { level: bat.level, charging: bat.charging },
+                }));
+                console.debug(LOG, 'battery critical — level:', Math.round(bat.level * 100) + '%');
+              }
+            });
+          }
+        }
+        bat.addEventListener('levelchange',    _checkBat);
+        bat.addEventListener('chargingchange', _checkBat);
+        _checkBat(); // check immediately
+      }).catch(function () {}); // permission denied or API unavailable
+    });
+
+    // Save-Data header hint (navigator.connection.saveData)
+    _safe(function () {
+      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (c && c.saveData) {
+        if (G.AdaptiveDegradation && G.AdaptiveDegradation.setProfile) {
+          G.AdaptiveDegradation.setProfile('low');
+        }
+        console.debug(LOG, 'save-data hint detected — activating low profile');
+      }
+    });
   }
 
   function _safe(fn, def) { try { return fn(); } catch (_) { return def; } }
@@ -153,9 +198,10 @@
 
   // Run after DOMContentLoaded so body exists for classList.add
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _detect, { once: true });
+    document.addEventListener('DOMContentLoaded', function () { _detect(); _watchBattery(); }, { once: true });
   } else {
     _detect();
+    _watchBattery();
   }
 
 }(window));

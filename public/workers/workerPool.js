@@ -294,10 +294,66 @@
             }
           }
         });
+
+        // Dead-slot cleanup: remove retired slots that have no pending tasks
+        // and have exceeded the crash limit. Prevents accumulation over sessions.
+        pool.slots = pool.slots.filter(function (slot) {
+          if (slot.crashes >= MAX_CRASHES && !slot.busy) {
+            try { slot.worker.terminate(); } catch (_) {}
+            return false; // remove from pool
+          }
+          return true;
+        });
       });
     }, HEARTBEAT_MS);
   }
   _startHeartbeat();
+
+  // ── Memory pressure response ───────────────────────────────────────────────
+  // When the browser signals memory pressure, reduce active worker count and
+  // terminate idle workers immediately (don't wait for IDLE_TTL_MS).
+  // Uses the window 'memorywarning' event (Chrome 90+ on Android) and a
+  // periodic deviceMemory / performance.memory safety check.
+  (function () {
+    if (typeof window === 'undefined') return;
+
+    function _trimIdleWorkers(urgency) {
+      // urgency: 'moderate' | 'critical'
+      Object.keys(pools).forEach(function (url) {
+        var pool = pools[url];
+        var toKeep = urgency === 'critical' ? 0 : 1;
+        var idle = pool.slots.filter(function (s) { return !s.busy; });
+        // Terminate excess idle workers beyond the keep limit
+        idle.slice(toKeep).forEach(function (slot) {
+          var idx = pool.slots.indexOf(slot);
+          if (idx !== -1) pool.slots.splice(idx, 1);
+          if (slot.idleTimer) clearTimeout(slot.idleTimer);
+          try { slot.worker.terminate(); } catch (_) {}
+        });
+      });
+    }
+
+    // Chrome Android memorywarning event
+    if ('onmemorywarning' in window || typeof window.MemoryWarning !== 'undefined') {
+      try {
+        window.addEventListener('memorywarning', function (e) {
+          var urgency = (e && e.data && e.data.level === 'critical') ? 'critical' : 'moderate';
+          _trimIdleWorkers(urgency);
+        });
+      } catch (_) {}
+    }
+
+    // Periodic safety check using performance.memory (Chrome-only)
+    setInterval(function () {
+      try {
+        var m = performance && performance.memory;
+        if (!m) return;
+        var usedPct = m.usedJSHeapSize / m.jsHeapSizeLimit;
+        if (usedPct > 0.90) _trimIdleWorkers('critical');
+        else if (usedPct > 0.75) _trimIdleWorkers('moderate');
+      } catch (_) {}
+    }, 30000); // every 30 s — lightweight
+  }());
 
   // ── PUBLIC API ─────────────────────────────────────────────────────────────
 

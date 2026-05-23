@@ -18,6 +18,8 @@
 
   if (window.RuntimeProgress) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RP]';
 
   // ── Stage descriptor ──────────────────────────────────────────────────────

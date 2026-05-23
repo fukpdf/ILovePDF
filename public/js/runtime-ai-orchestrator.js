@@ -27,6 +27,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeAIOrchestrator) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeAIOrchestrator) return;
 
   var LOG          = '[AIORCH]';

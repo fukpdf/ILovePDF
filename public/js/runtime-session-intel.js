@@ -34,6 +34,8 @@
 
   if (G.RuntimeSessionIntel) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG         = '[RSI]';
   var CRAWLER_RE  = /googlebot|bingbot|slurp|duckduckbot|baidu|yandexbot|sogou|bot|crawler|spider/i;
   if (CRAWLER_RE.test((navigator.userAgent) || '')) return;

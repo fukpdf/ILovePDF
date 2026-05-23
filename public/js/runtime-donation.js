@@ -18,6 +18,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeDonation) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeDonation) return;
 
   var LOG = '[RuntimeDonation]';

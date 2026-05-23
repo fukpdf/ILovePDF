@@ -14,6 +14,8 @@
 (function (G) {
   'use strict';
 
+  if (G.RuntimeInspector) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   // ── Guard: only run in dev environment ─────────────────────────────────────
   var isDev = G.DEBUG_RUNTIME === true
     || location.hostname === 'localhost'

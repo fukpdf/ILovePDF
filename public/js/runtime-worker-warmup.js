@@ -27,6 +27,8 @@
 
   if (G.RuntimeWorkerWarmup) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG           = '[RWW]';
   var WARMUP_TTL_MS = 45000;  // keep warm workers alive 45 s
   var WARMUP_DELAY  = 3500;   // start after 3.5 s (page settled)

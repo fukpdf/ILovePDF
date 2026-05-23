@@ -45,6 +45,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeStreamBridge) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeStreamBridge) return;
 
   var LOG = '[RSB]';

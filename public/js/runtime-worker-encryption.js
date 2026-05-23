@@ -195,10 +195,10 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' | encryption disabled (tier:', _tier + ', needs HIGH)');
+      console.debug(LOG, 'v' + VERSION + ' | encryption disabled (tier:', _tier + ', needs HIGH)');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| salt:', _salt.slice(0, 8));
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| salt:', _salt.slice(0, 8));
   }
 
   if (document.readyState === 'loading') {
@@ -224,5 +224,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

@@ -26,6 +26,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeMemoryDefense) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeMemoryDefense) return;
 
   var LOG = '[MDF8D]';

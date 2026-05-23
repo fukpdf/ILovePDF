@@ -238,14 +238,14 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
     // Periodic token eviction
     setInterval(_evictTokens, 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| TOKEN_TTL:', TOKEN_TTL_MS + 'ms');
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| TOKEN_TTL:', TOKEN_TTL_MS + 'ms');
   }
 
   if (document.readyState === 'loading') {
@@ -275,6 +275,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

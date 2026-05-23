@@ -35,6 +35,7 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeSandbox) return;
   if (global.RuntimeSandbox) return;
 
   var LOG = '[SBX9I]';

@@ -341,7 +341,7 @@
   function _boot() {
     _subscribe();
     _updateAnomalyScore();
-    console.info(LOG, 'v' + VERSION + ' ready | event store cap:', MAX_EVENTS);
+    console.debug(LOG, 'v' + VERSION + ' ready | event store cap:', MAX_EVENTS);
   }
 
   if (document.readyState === 'loading') {
@@ -377,6 +377,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

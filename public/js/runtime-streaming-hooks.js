@@ -25,6 +25,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeStreamingHooks) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeStreaming) return;
 
   var LOG = '[RSE]';

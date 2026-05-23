@@ -163,7 +163,7 @@
         upgrade('deploy-mismatch-at-boot');
       }
     });
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| score:', _score);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| score:', _score);
   }
 
   if (document.readyState === 'loading') {
@@ -192,6 +192,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | base tier:', _tier, '| score:', _score);
+  console.debug(LOG, 'v' + VERSION + ' loaded | base tier:', _tier, '| score:', _score);
 
 }(window));

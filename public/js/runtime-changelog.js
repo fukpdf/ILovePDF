@@ -10,6 +10,8 @@
 
   if (G.RuntimeChangelog) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION  = '1.0';
   var LOG      = '[RCL23]';
   var LS_KEY   = 'iplv_cl_seen_';   // + version → '1'

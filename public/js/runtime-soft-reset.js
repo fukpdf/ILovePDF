@@ -15,6 +15,8 @@
 
   if (window.RuntimeSoftReset) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RSR]';
   var VERSION = '1.0.0';
 

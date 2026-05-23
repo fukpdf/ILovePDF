@@ -109,7 +109,7 @@
       }
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | chain length:', _chain.length);
+    console.debug(LOG, 'v' + VERSION + ' ready | chain length:', _chain.length);
   }
 
   if (document.readyState === 'loading') {
@@ -129,5 +129,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

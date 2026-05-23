@@ -26,6 +26,8 @@
 
   if (G.RuntimeToolEngagement) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG         = '[RTE]';
   var LS_KEY      = 'iplv_engagement_v2';
   var MAX_SLUGS   = 60;

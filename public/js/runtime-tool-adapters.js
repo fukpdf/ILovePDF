@@ -31,6 +31,8 @@
 
   if (window.RuntimeAdapters) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RTA]';
 
   // ── Active adapters ───────────────────────────────────────────────────────

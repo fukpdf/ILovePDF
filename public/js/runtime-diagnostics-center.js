@@ -20,6 +20,8 @@
 
   if (G.RuntimeDiagnosticsCenter) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[RDC27]';
 

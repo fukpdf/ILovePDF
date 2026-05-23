@@ -246,7 +246,7 @@
         }
       }
     });
-    console.info(LOG, 'v' + VERSION + ' ready | wasm:', _wasmAvailable, '| registry ready');
+    console.debug(LOG, 'v' + VERSION + ' ready | wasm:', _wasmAvailable, '| registry ready');
   }
 
   if (document.readyState === 'loading') {
@@ -285,6 +285,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | WebAssembly:', _wasmAvailable);
+  console.debug(LOG, 'v' + VERSION + ' loaded | WebAssembly:', _wasmAvailable);
 
 }(window));

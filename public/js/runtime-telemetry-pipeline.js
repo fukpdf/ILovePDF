@@ -397,7 +397,7 @@
   // ─────────────────────────────────────────────────────────────────────────
   function _boot() {
     if (_lite) {
-      console.info(LOG, 'v' + VERSION + ' loaded | lite mode — pipeline disabled');
+      console.debug(LOG, 'v' + VERSION + ' loaded | lite mode — pipeline disabled');
       return;
     }
 
@@ -414,7 +414,7 @@
     _startPeriodicUpload();
     _flushOnUnload();
 
-    console.info(LOG, 'v' + VERSION + ' ready | endpoint:', ENDPOINT,
+    console.debug(LOG, 'v' + VERSION + ' ready | endpoint:', ENDPOINT,
       '| batch:', MAX_BATCH, '| IDB:', !_lite, '| HIGH:', _high);
   }
 
@@ -450,6 +450,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

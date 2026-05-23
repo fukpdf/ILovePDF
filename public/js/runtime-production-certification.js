@@ -22,6 +22,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeProductionCertification) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   // ── Weight table: how much each system contributes to the overall score ────
   var WEIGHTS = {
     'RuntimeStreamBridge':      12,

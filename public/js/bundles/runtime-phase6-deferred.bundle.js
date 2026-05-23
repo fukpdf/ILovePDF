@@ -1,5 +1,5 @@
 // ── Phase 6 Deferred — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-22T15:18:32.654Z  BUILD_ID: mph2e56u
+// Generated: 2026-05-23T08:42:54.418Z  BUILD_ID: mpi3p7bc
 // Files: 12
 
 // ── SOURCE: public/js/runtime-secure-session.js ──
@@ -250,7 +250,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -277,7 +277,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| sessionId:', _sessionId.slice(0, 8));
   }
 
@@ -311,7 +311,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -539,7 +539,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
     // Run initial attestation after other systems settle
@@ -548,7 +548,7 @@
         console.warn(LOG, 'boot attestation failed:', err.message);
       });
     }, 5_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -576,7 +576,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -818,7 +818,7 @@
   // ── Pre-warm ticket on boot (HIGH tier only) ──────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -829,7 +829,7 @@
       }, 8_000);  // 8s — after critical scripts settle
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| endpoint:', ENDPOINT);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| endpoint:', ENDPOINT);
   }
 
   if (document.readyState === 'loading') {
@@ -864,7 +864,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | tier:', _tier);
+  console.debug(LOG, 'v' + VERSION + ' loaded | tier:', _tier);
 
 }(window));
 
@@ -1134,7 +1134,7 @@
     _installRevocationHooks();
     setInterval(_sweepExpired, 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| active caps:', listActive().length);
   }
 
@@ -1165,7 +1165,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -1440,7 +1440,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| scopes:', _scopes ? _scopes.size : 0);
   }
 
@@ -1483,7 +1483,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -1851,7 +1851,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -1864,7 +1864,7 @@
       evictInactive(5 * 60_000);
     }, 10 * 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -1900,7 +1900,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -2149,7 +2149,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -2167,7 +2167,7 @@
       }, 60_000);
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| pools:', _pools ? _pools.size : 0);
   }
 
@@ -2199,7 +2199,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -2418,7 +2418,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| encrypt:', _doEncrypt, '| integrity:', _doIntegrity);
   }
 
@@ -2446,7 +2446,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -2691,14 +2691,14 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
     // Periodic token eviction
     setInterval(_evictTokens, 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| TOKEN_TTL:', TOKEN_TTL_MS + 'ms');
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| TOKEN_TTL:', TOKEN_TTL_MS + 'ms');
   }
 
   if (document.readyState === 'loading') {
@@ -2728,7 +2728,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -2922,10 +2922,10 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -2954,7 +2954,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -3310,13 +3310,13 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
     setTimeout(_subscribe, 2_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| patterns:', ATTACK_PATTERNS.length);
   }
 
@@ -3350,7 +3350,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 
@@ -3745,7 +3745,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -3753,7 +3753,7 @@
     setInterval(_periodicReport, 5 * 60_000);
     setInterval(_groupIncidents, 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -3784,7 +3784,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));
 

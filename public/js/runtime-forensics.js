@@ -179,12 +179,12 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     setTimeout(_subscribe, 5000);
     snapshot('boot', null);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -204,5 +204,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

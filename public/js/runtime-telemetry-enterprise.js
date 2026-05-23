@@ -23,6 +23,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeTelemetryEnterprise) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeTelemetryEnterprise) return;
 
   var LOG = '[TEL8H]';

@@ -17,6 +17,8 @@
 
   if (window.RuntimeState) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   // ── Initial state ─────────────────────────────────────────────────────────
   var _state = {
     // Runtime

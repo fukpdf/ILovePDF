@@ -144,7 +144,7 @@
   // ── Emit channel info on boot ──────────────────────────────────────────────
   function _boot() {
     var ch = getChannel();
-    console.info(LOG, 'v' + VERSION + ' ready | channel:', ch.name,
+    console.debug(LOG, 'v' + VERSION + ' ready | channel:', ch.name,
       '| trusted:', ch.trusted, '| host:', _host);
 
     _s(function () {
@@ -186,5 +186,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | host:', _host);
+  console.debug(LOG, 'v' + VERSION + ' loaded | host:', _host);
 }(window));

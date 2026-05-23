@@ -26,6 +26,8 @@
 
   if (G.RuntimeProcessingConcurrency) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RPC]';
 
   var PRIORITY_WEIGHT = { high: 3, normal: 2, low: 1 };

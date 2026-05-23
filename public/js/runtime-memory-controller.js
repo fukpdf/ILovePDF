@@ -19,6 +19,8 @@
 
   if (window.RuntimeMemory) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RMC]';
 
   // ── Tier mapping ──────────────────────────────────────────────────────────

@@ -130,7 +130,7 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _buildMaster();
@@ -145,7 +145,7 @@
       var newEpoch = Math.floor(Date.now() / (5 * 60_000));
       if (newEpoch !== _epoch) rotate('epoch-change');
     }, 30_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| epoch:', _epoch);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| epoch:', _epoch);
   }
 
   if (document.readyState === 'loading') {
@@ -165,5 +165,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

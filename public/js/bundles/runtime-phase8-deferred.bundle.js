@@ -1,5 +1,5 @@
 // ── Phase 8 Deferred Hardening — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-22T15:18:32.678Z  BUILD_ID: mph2e56u
+// Generated: 2026-05-23T08:42:54.447Z  BUILD_ID: mpi3p7bc
 // Files: 6
 
 // ── SOURCE: public/js/runtime-session-persistence.js ──
@@ -269,7 +269,7 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
 
@@ -296,7 +296,7 @@
     // Flush on navigation away
     window.addEventListener('pagehide', _flushOnHide, { once: true });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| sid:', _sessionId.slice(0, 12));
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| sid:', _sessionId.slice(0, 12));
   }
 
   if (document.readyState === 'loading') {
@@ -323,7 +323,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-forensics-replay.js ──
@@ -547,10 +547,10 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -577,7 +577,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-csp-enforcer.js ──
@@ -821,7 +821,7 @@
     _scanExisting();
 
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' LOW-tier: observer disabled, boot-only scan');
+      console.debug(LOG, 'v' + VERSION + ' LOW-tier: observer disabled, boot-only scan');
       return;
     }
 
@@ -839,7 +839,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| nonce:', _nonce ? 'present' : 'none', '| trusted:', _trusted.size);
   }
 
@@ -874,7 +874,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-threat-intel.js ──
@@ -1053,7 +1053,7 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
 
@@ -1075,7 +1075,7 @@
       });
     }, 8000);  // delayed boot so other modules are ready
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -1108,7 +1108,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-tab-mesh.js ──
@@ -1373,7 +1373,7 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ', BroadcastChannel:', typeof BroadcastChannel + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ', BroadcastChannel:', typeof BroadcastChannel + ')');
       return;
     }
 
@@ -1388,7 +1388,7 @@
 
     setTimeout(_subscribeToLocalIncidents, 5000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tabId:', _tabId,
+    console.debug(LOG, 'v' + VERSION + ' ready | tabId:', _tabId,
       '| tier:', _tier, '| channel:', CHANNEL);
   }
 
@@ -1425,7 +1425,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-memory-vault.js ──
@@ -1622,7 +1622,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| encryption: XOR-' + (_xorKey.length * 8) + 'b');
   }
 
@@ -1658,6 +1658,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 

@@ -25,6 +25,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeAIUpgrade) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeAIUpgrade) return;
 
   var LOG = '[AIU8F]';

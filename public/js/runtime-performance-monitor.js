@@ -59,6 +59,43 @@
     if (paints && paints[0]) _metrics.fcp = Math.round(paints[0].startTime);
   } catch (_) {}
 
+  // ── Startup duration tracking ────────────────────────────────────────────
+  // Captures navigation→DOMContentLoaded and navigation→load durations.
+  // Uses PerformanceNavigationTiming when available, falls back to Date.now().
+  var _startupMs = null;   // DOMContentLoaded duration from nav start
+  var _loadMs    = null;   // window load event duration from nav start
+
+  (function () {
+    try {
+      var nav = G.performance && G.performance.getEntriesByType &&
+                G.performance.getEntriesByType('navigation')[0];
+      if (nav) {
+        _startupMs = Math.round(nav.domContentLoadedEventEnd - nav.startTime);
+        _loadMs    = Math.round(nav.loadEventEnd - nav.startTime);
+      }
+    } catch (_) {}
+
+    // Fallback: hook events if nav timing not yet populated
+    if (!_startupMs) {
+      var _navStart = (G.performance && G.performance.timing &&
+                       G.performance.timing.navigationStart) || Date.now();
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          _startupMs = Date.now() - _navStart;
+        }, { once: true });
+      } else {
+        _startupMs = Date.now() - _navStart;
+      }
+    }
+    if (!_loadMs) {
+      var _navStart2 = (G.performance && G.performance.timing &&
+                        G.performance.timing.navigationStart) || Date.now();
+      G.addEventListener('load', function () {
+        _loadMs = Date.now() - _navStart2;
+      }, { once: true });
+    }
+  }());
+
   // ── Memory sampler ────────────────────────────────────────────────────────
   var _memorySamples = [];
   var _MAX_MEM_SAMPLES = 20;
@@ -100,6 +137,7 @@
         fcp:   _metrics.fcp,
         ttfb:  _metrics.ttfb,
       },
+      startup:      { domContentLoadedMs: _startupMs, loadMs: _loadMs },
       longTasks:    { count: _metrics.longTasks, totalMs: _metrics.longTaskMs },
       memory:       mem,
       memorySamples:_memorySamples.slice(),
@@ -109,8 +147,9 @@
   }
 
   G.RuntimePerformanceMonitor = Object.freeze({
-    recordToolRun: recordToolRun,
-    getReport:     getReport,
+    recordToolRun:    recordToolRun,
+    getReport:        getReport,
+    getStartupMs:     function () { return { domContentLoadedMs: _startupMs, loadMs: _loadMs }; },
     getVitals: function () { return Object.assign({}, _metrics.lcp !== null ? {
       lcp: _metrics.lcp, fid: _metrics.fid, cls: _metrics.cls,
       fcp: _metrics.fcp, ttfb: _metrics.ttfb,

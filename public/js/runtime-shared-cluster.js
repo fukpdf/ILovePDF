@@ -32,6 +32,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeSharedCluster) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeSharedCluster) return;
 
   var LOG = '[SC9C]';

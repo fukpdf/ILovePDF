@@ -39,6 +39,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeBrowserOSCertification) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeBrowserOSCertification) return;
 
   var LOG  = '[BOSC9J]';

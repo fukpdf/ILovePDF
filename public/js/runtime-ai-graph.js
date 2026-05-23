@@ -20,6 +20,8 @@
 
   if (G.RuntimeAIGraph) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[AG29]';
   var MB      = 1024 * 1024;

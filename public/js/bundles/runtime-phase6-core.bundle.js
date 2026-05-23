@@ -1,5 +1,5 @@
 // ── Phase 6 Non-Deferred Core — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-22T15:18:32.646Z  BUILD_ID: mph2e56u
+// Generated: 2026-05-23T08:42:54.409Z  BUILD_ID: mpi3p7bc
 // Files: 1
 
 // ── SOURCE: public/js/runtime-shadow-runtime.js ──
@@ -201,7 +201,7 @@
       }
     }, 3_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | originals:', Object.keys(_originals).length,
+    console.debug(LOG, 'v' + VERSION + ' ready | originals:', Object.keys(_originals).length,
       '| tier:', _tier);
   }
 
@@ -231,7 +231,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | originals captured:', Object.keys(_originals).length);
+  console.debug(LOG, 'v' + VERSION + ' loaded | originals captured:', Object.keys(_originals).length);
 
 }(window));
 

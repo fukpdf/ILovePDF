@@ -23,6 +23,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimePhase9Stress) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeStressHarness) return;
 
   var LOG = '[STRESS]';

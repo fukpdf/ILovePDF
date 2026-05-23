@@ -32,6 +32,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeLocalAI) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeLocalAI) return;
 
   var LOG = '[LAI9E]';

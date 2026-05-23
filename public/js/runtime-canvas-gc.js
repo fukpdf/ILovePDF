@@ -9,6 +9,8 @@
 
   if (window.RuntimeCanvasGC) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RCG]';
   var VERSION = '1.0.0';
 

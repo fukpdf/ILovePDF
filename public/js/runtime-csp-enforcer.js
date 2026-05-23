@@ -238,7 +238,7 @@
     _scanExisting();
 
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' LOW-tier: observer disabled, boot-only scan');
+      console.debug(LOG, 'v' + VERSION + ' LOW-tier: observer disabled, boot-only scan');
       return;
     }
 
@@ -256,7 +256,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| nonce:', _nonce ? 'present' : 'none', '| trusted:', _trusted.size);
   }
 
@@ -291,5 +291,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

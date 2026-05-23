@@ -16,6 +16,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeDevtoolsDashboard) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeDashboard) return;
 
   var LOG = '[DB8B]';

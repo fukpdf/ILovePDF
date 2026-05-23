@@ -10,6 +10,8 @@
 
   if (window.RuntimeTimeoutReaper) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RTR]';
   var VERSION = '1.0.0';
 

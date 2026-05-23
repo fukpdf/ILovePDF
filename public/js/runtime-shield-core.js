@@ -21,6 +21,8 @@
 
   if (G.RuntimeShieldCore) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[ShieldCore]';
 
@@ -249,7 +251,7 @@
     ShieldRegistry.set('core:flagged',    false);
 
     var elapsed = Date.now() - t0;
-    console.info(LOG, 'v' + VERSION + ' boot complete',
+    console.debug(LOG, 'v' + VERSION + ' boot complete',
       '| globals hidden:', _state.hiddenGlobals,
       '| props hidden:', _state.hiddenProps,
       '| lite:', _lite,

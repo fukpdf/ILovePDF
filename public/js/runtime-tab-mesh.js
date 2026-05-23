@@ -259,7 +259,7 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ', BroadcastChannel:', typeof BroadcastChannel + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ', BroadcastChannel:', typeof BroadcastChannel + ')');
       return;
     }
 
@@ -274,7 +274,7 @@
 
     setTimeout(_subscribeToLocalIncidents, 5000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tabId:', _tabId,
+    console.debug(LOG, 'v' + VERSION + ' ready | tabId:', _tabId,
       '| tier:', _tier, '| channel:', CHANNEL);
   }
 
@@ -311,5 +311,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

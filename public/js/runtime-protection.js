@@ -18,6 +18,8 @@
 (function (G) {
   'use strict';
 
+  if (G.RuntimeProtection) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   var VERSION = '1.0.0';
   var _now    = Date.now;
 

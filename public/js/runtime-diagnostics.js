@@ -26,6 +26,8 @@
 
   if (window.RuntimeDiagnostics) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var SEP = '─'.repeat(60);
 
   // ── Safe getter ───────────────────────────────────────────────────────────

@@ -26,6 +26,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeEnterpriseCertification) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeEnterpriseCertification) return;
 
   var LOG = '[ENC8J]';

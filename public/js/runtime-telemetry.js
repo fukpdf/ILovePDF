@@ -21,6 +21,8 @@
 
   if (window.RuntimeTelemetry) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var MAX_EVENTS = 500;   // ring buffer cap
   var MAX_SPANS  = 200;   // active + completed span cap
 

@@ -25,6 +25,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimePhase9Verification) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.P9V) return;
 
   var LOG = '[P9V]';

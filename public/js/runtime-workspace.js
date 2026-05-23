@@ -31,6 +31,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeWorkspace) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeWorkspace) return;
 
   var LOG = '[WS9F]';

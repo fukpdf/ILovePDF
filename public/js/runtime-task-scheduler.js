@@ -21,6 +21,8 @@
 
   if (window.RuntimeScheduler) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RTS]';
 
   // ── Task types → TaskScheduler tiers ──────────────────────────────────────

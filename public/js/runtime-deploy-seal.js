@@ -368,7 +368,7 @@
     _checks = result.checks || [];
     _ok     = result.ok;
     reseal();
-    console.info(LOG, 'v' + VERSION + ' ready | ok:', _ok, '| checks:', _checks.length);
+    console.debug(LOG, 'v' + VERSION + ' ready | ok:', _ok, '| checks:', _checks.length);
   }
 
   if (document.readyState === 'loading') {
@@ -393,6 +393,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

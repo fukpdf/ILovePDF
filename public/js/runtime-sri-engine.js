@@ -378,7 +378,7 @@
     _seedFromManifest();
     _listenDynamicImports();
     _autoVerifyCritical();
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _currentTier(),
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _currentTier(),
       '| verify:', _canVerify(), '| enforce:', _canEnforce(),
       '| registered:', (_registry ? _registry.size : 0));
   }
@@ -418,6 +418,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

@@ -184,7 +184,7 @@
 
   function _boot() {
     setTimeout(_tapSources, 3000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| buffer:', BUF_SIZE);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| buffer:', BUF_SIZE);
   }
 
   if (document.readyState === 'loading') {
@@ -205,5 +205,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

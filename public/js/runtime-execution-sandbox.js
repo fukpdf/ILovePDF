@@ -268,7 +268,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| scopes:', _scopes ? _scopes.size : 0);
   }
 
@@ -311,6 +311,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

@@ -23,6 +23,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeOffline) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeOffline) return;
 
   var LOG = '[RuntimeOffline]';

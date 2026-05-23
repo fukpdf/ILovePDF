@@ -30,6 +30,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeIDB) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeIDB) return;
 
   var DB_NAME    = 'ilovepdf-runtime';

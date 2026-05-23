@@ -196,7 +196,7 @@
       }
     }, 3_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | originals:', Object.keys(_originals).length,
+    console.debug(LOG, 'v' + VERSION + ' ready | originals:', Object.keys(_originals).length,
       '| tier:', _tier);
   }
 
@@ -226,6 +226,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | originals captured:', Object.keys(_originals).length);
+  console.debug(LOG, 'v' + VERSION + ' loaded | originals captured:', Object.keys(_originals).length);
 
 }(window));

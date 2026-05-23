@@ -10,6 +10,8 @@
 (function () {
   'use strict';
 
+  if (window.RuntimeGlobalCertification) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   async function RuntimeGlobalCertification() {
     const started = Date.now();
     const checks  = [];

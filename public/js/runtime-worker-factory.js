@@ -290,6 +290,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | blocking:', !_lite, '| score:', _score);
+  console.debug(LOG, 'v' + VERSION + ' loaded | blocking:', !_lite, '| score:', _score);
 
 }(window));

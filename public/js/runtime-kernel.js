@@ -42,6 +42,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeKernel) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeKernel) return;
 
   var LOG = '[KRN9G]';

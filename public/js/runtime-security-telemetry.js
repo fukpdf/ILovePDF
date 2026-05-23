@@ -150,7 +150,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | buffer:', MAX_EVENTS, '| throttle:', THROTTLE_MS + 'ms');
+    console.debug(LOG, 'v' + VERSION + ' ready | buffer:', MAX_EVENTS, '| throttle:', THROTTLE_MS + 'ms');
   }
 
   if (document.readyState === 'loading') {
@@ -169,6 +169,6 @@
     getCount: function (type) { return _counts[type] || 0; },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

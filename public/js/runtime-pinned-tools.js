@@ -23,6 +23,8 @@
 
   if (G.RuntimePinnedTools) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG      = '[RPT]';
   var LS_KEY   = 'iplv_pinned_v1';
   var MAX_PINS = 5;

@@ -30,6 +30,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeCrossTab) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeCrossTab) return;
   if (typeof BroadcastChannel === 'undefined') {
     global.RuntimeCrossTab = { available: false, getStats: function () { return { available: false }; } };

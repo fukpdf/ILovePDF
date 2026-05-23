@@ -15,6 +15,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeIdentity) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeIdentity) return;
 
   var LOG = '[RuntimeIdentity]';

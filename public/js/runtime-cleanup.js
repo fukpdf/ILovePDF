@@ -20,6 +20,8 @@
 
   if (window.RuntimeCleanup) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RCE]';
 
   // ── Resource trackers ─────────────────────────────────────────────────────

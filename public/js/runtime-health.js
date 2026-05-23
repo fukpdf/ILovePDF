@@ -20,6 +20,8 @@
 
   if (window.RuntimeHealth) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RHM]';
 
   var HEALTH_CHECK_MS = 30000; // 30 s

@@ -19,6 +19,8 @@
 
   if (window.RuntimeCancellation) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RC]';
 
   // ── Cancel reasons (typed) ────────────────────────────────────────────────

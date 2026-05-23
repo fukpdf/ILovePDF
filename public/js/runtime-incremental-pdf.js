@@ -35,6 +35,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeIncrementalPDF) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeIncrementalPdf) return;
 
   var LOG = '[IPF9D]';

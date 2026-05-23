@@ -280,13 +280,13 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _subscribe();
     setTimeout(_enforce, 5_000);
     setInterval(_enforce, 120_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -315,5 +315,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

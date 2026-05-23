@@ -24,6 +24,8 @@
 
   if (G.RuntimeShieldIntegrity) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[ShieldInt]';
 
@@ -348,7 +350,7 @@
       setInterval(_devToolsCheck, 5000);
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready',
+    console.debug(LOG, 'v' + VERSION + ' ready',
       '| lite:', _lite,
       '| sweep interval:', SWEEP_INTERVAL_MS + 'ms',
       '| honeypots:', !_lite);

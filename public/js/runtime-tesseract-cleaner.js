@@ -10,6 +10,8 @@
 
   if (window.RuntimeTesseractCleaner) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[TRC]';
   var VERSION = '1.0.0';
 

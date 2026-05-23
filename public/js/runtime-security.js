@@ -32,6 +32,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeSecurity) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeSecurity) return;
 
   var LOG = '[SEC8I]';

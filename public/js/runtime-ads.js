@@ -13,6 +13,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeAds) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeAds) return;
 
   var LOG = '[RuntimeAds]';

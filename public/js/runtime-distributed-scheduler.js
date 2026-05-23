@@ -34,6 +34,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeDistributedScheduler) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeDistributedScheduler) return;
 
   var CHANNEL       = 'ilovepdf-scheduler-v1';

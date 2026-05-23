@@ -28,6 +28,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeWasmEngine) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeWasmEngine) return;
 
   var LOG = '[WE9A]';

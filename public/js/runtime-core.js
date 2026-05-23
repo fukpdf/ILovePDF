@@ -35,6 +35,8 @@
 
   if (window.CentralRuntime) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '2.0.0';
   var LOG = '[CRT]';
   var _startTs = Date.now();

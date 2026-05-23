@@ -264,7 +264,7 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
 
@@ -291,7 +291,7 @@
     // Flush on navigation away
     window.addEventListener('pagehide', _flushOnHide, { once: true });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| sid:', _sessionId.slice(0, 12));
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| sid:', _sessionId.slice(0, 12));
   }
 
   if (document.readyState === 'loading') {
@@ -318,5 +318,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

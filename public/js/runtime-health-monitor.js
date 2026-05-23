@@ -7,6 +7,7 @@
 (function () {
   'use strict';
 
+  var _FROZEN = Object.freeze({ v: 1 });
   var LOG     = '[RHM2D]';
   var VERSION = '1.0.0';
 

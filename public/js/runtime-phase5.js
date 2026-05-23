@@ -35,6 +35,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimePhase5) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   // ── Utility helpers ─────────────────────────────────────────────────────────
   var SEP60  = '─'.repeat(60);
   var SEP80  = '─'.repeat(80);

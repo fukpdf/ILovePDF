@@ -19,6 +19,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeCredits) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeCredits) return;
 
   var LOG = '[RuntimeCredits]';

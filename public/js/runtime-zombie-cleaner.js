@@ -8,6 +8,8 @@
 
   if (window.RuntimeZombieCleaner) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RZC]';
   var VERSION = '1.0.0';
 

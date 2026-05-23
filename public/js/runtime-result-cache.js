@@ -24,6 +24,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeResultCache) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeResultCache) return;
 
   var LOG = '[RRC8E]';

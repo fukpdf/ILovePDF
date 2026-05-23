@@ -10,6 +10,8 @@
 
   if (window.RuntimePanicManager) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RPM]';
   var VERSION = '1.0.0';
 

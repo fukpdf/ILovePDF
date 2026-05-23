@@ -25,6 +25,8 @@
 
   if (G.RuntimeCompressionPresets) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RCP]';
 
   // ── Preset table ─────────────────────────────────────────────────────────

@@ -35,6 +35,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeZeroCopy) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeZeroCopy) return;
 
   var LOG = '[ZC9H]';

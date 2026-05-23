@@ -191,7 +191,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| encryption: XOR-' + (_xorKey.length * 8) + 'b');
   }
 
@@ -227,5 +227,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

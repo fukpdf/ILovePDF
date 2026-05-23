@@ -10,6 +10,8 @@
 
   if (window.RuntimeHealer) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RH]';
   var VERSION = '1.0.0';
 

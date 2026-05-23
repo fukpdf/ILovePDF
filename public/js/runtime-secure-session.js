@@ -245,7 +245,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -272,7 +272,7 @@
       });
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| sessionId:', _sessionId.slice(0, 8));
   }
 
@@ -306,6 +306,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

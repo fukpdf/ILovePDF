@@ -22,6 +22,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeAnalytics) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeAnalytics) return;
 
   var LOG = '[RuntimeAnalytics]';

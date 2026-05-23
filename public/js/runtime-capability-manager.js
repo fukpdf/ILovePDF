@@ -263,7 +263,7 @@
     _installRevocationHooks();
     setInterval(_sweepExpired, 60_000);
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| active caps:', listActive().length);
   }
 
@@ -294,6 +294,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

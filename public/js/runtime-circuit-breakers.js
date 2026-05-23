@@ -11,6 +11,8 @@
 
   if (window.RuntimeCircuitBreakers) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG     = '[RCB]';
   var VERSION = '1.0.0';
 

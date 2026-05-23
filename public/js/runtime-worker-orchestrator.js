@@ -20,6 +20,8 @@
 
   if (window.RuntimeWorkers) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RWO]';
 
   // ── Worker cooldown registry ───────────────────────────────────────────────

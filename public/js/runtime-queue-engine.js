@@ -21,6 +21,8 @@
 
   if (window.RuntimeQueue) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[RQE]';
 
   // ── Job registry ──────────────────────────────────────────────────────────

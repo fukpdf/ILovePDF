@@ -25,6 +25,8 @@
 
   if (G.FailedProcessingLog) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG         = '[FPL]';
   var LS_KEY      = 'iplv_failed_log_v1';
   var MAX_ENTRIES = 200;

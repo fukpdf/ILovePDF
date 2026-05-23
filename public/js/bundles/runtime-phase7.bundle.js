@@ -1,5 +1,5 @@
 // ── Phase 7 Zero-Trust Mesh — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-22T15:18:32.664Z  BUILD_ID: mph2e56u
+// Generated: 2026-05-23T08:42:54.431Z  BUILD_ID: mpi3p7bc
 // Files: 24
 
 // ── SOURCE: public/js/runtime-human-signals.js ──
@@ -274,11 +274,11 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _attach();
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -305,7 +305,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-automation-detection.js ──
@@ -599,13 +599,13 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _compute();
     _subscribe();
     setInterval(_periodicCheck, 60_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| initial score:', _automationScore);
   }
 
@@ -636,7 +636,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-behavior-analysis.js ──
@@ -922,13 +922,13 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _subscribe();
     setTimeout(_enforce, 5_000);
     setInterval(_enforce, 120_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -957,7 +957,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-worker-mesh.js ──
@@ -1231,12 +1231,12 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _subscribe();
     setInterval(_healthCheck, 120_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -1267,7 +1267,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-worker-auth.js ──
@@ -1453,11 +1453,11 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _subscribe();
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -1485,7 +1485,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-worker-encryption.js ──
@@ -1686,10 +1686,10 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' | encryption disabled (tier:', _tier + ', needs HIGH)');
+      console.debug(LOG, 'v' + VERSION + ' | encryption disabled (tier:', _tier + ', needs HIGH)');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| salt:', _salt.slice(0, 8));
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| salt:', _salt.slice(0, 8));
   }
 
   if (document.readyState === 'loading') {
@@ -1715,7 +1715,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-worker-routing.js ──
@@ -1894,11 +1894,11 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _subscribe();
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -1927,7 +1927,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-edge-policy.js ──
@@ -2139,7 +2139,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| policies:', Object.keys(POLICIES).length);
   }
 
@@ -2166,7 +2166,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-edge-proof.js ──
@@ -2326,7 +2326,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     setInterval(_evict, 60_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -2354,7 +2354,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-edge-runtime.js ──
@@ -2552,7 +2552,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| enabled:', _enabled);
   }
 
@@ -2580,7 +2580,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-deployment-registry.js ──
@@ -2730,7 +2730,7 @@
   // ── Emit channel info on boot ──────────────────────────────────────────────
   function _boot() {
     var ch = getChannel();
-    console.info(LOG, 'v' + VERSION + ' ready | channel:', ch.name,
+    console.debug(LOG, 'v' + VERSION + ' ready | channel:', ch.name,
       '| trusted:', ch.trusted, '| host:', _host);
 
     _s(function () {
@@ -2772,7 +2772,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | host:', _host);
+  console.debug(LOG, 'v' + VERSION + ' loaded | host:', _host);
 }(window));
 
 // ── SOURCE: public/js/runtime-build-chain.js ──
@@ -2887,7 +2887,7 @@
       }
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready | chain length:', _chain.length);
+    console.debug(LOG, 'v' + VERSION + ' ready | chain length:', _chain.length);
   }
 
   if (document.readyState === 'loading') {
@@ -2907,7 +2907,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-release-channel.js ──
@@ -3018,7 +3018,7 @@
   function _boot() {
     var flags  = getFeatureFlags();
     var policy = getChannelPolicy();
-    console.info(LOG, 'v' + VERSION + ' ready | channel:', _channelName,
+    console.debug(LOG, 'v' + VERSION + ' ready | channel:', _channelName,
       '| rateLimit:', policy.rateLimit,
       '| debugPanel:', flags.debugPanel);
   }
@@ -3042,7 +3042,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | channel:', _channelName);
+  console.debug(LOG, 'v' + VERSION + ' loaded | channel:', _channelName);
 }(window));
 
 // ── SOURCE: public/js/runtime-session-keys.js ──
@@ -3178,7 +3178,7 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _buildMaster();
@@ -3193,7 +3193,7 @@
       var newEpoch = Math.floor(Date.now() / (5 * 60_000));
       if (newEpoch !== _epoch) rotate('epoch-change');
     }, 30_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| epoch:', _epoch);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| epoch:', _epoch);
   }
 
   if (document.readyState === 'loading') {
@@ -3213,7 +3213,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-execution-crypto.js ──
@@ -3403,7 +3403,7 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     _initKeys();
@@ -3414,7 +3414,7 @@
         G.RuntimeEventBus.on('shield:tamper-response', rotateKeys);
       }
     });
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -3437,7 +3437,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-packet-integrity.js ──
@@ -3577,10 +3577,10 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -3600,7 +3600,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-wasm-mesh.js ──
@@ -3736,11 +3736,11 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     setInterval(_rebalance, 30_000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -3761,7 +3761,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-wasm-scheduler.js ──
@@ -3956,10 +3956,10 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| maxConcurrent:', MAX_CONCURRENT);
   }
 
@@ -3980,7 +3980,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-wasm-attestation.js ──
@@ -4134,10 +4134,10 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -4160,7 +4160,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-incident-engine.js ──
@@ -4435,11 +4435,11 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     setTimeout(_subscribe, 4000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -4462,7 +4462,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-forensics.js ──
@@ -4647,12 +4647,12 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     setTimeout(_subscribe, 5000);
     snapshot('boot', null);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier);
   }
 
   if (document.readyState === 'loading') {
@@ -4672,7 +4672,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-session-recorder.js ──
@@ -4837,12 +4837,12 @@
 
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' disabled (tier:', _tier + ')');
       return;
     }
     setTimeout(_subscribe, 4000);
     record('session_start', { tier: _tier });
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| rec:', _recId);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| rec:', _recId);
   }
 
   if (document.readyState === 'loading') {
@@ -4862,7 +4862,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-security-stream.js ──
@@ -5052,7 +5052,7 @@
 
   function _boot() {
     setTimeout(_tapSources, 3000);
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| buffer:', BUF_SIZE);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| buffer:', BUF_SIZE);
   }
 
   if (document.readyState === 'loading') {
@@ -5073,7 +5073,7 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 
 // ── SOURCE: public/js/runtime-security-visualizer.js ──
@@ -5373,6 +5373,6 @@
     status: function () { return { version: VERSION }; },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));
 

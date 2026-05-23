@@ -294,5 +294,5 @@
     status: function () { return { version: VERSION }; },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 }(window));

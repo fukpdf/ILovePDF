@@ -34,6 +34,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeIDBCoalescer) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeIDBCoalescer) return;
 
   var LOG = '[RIDB-C]';

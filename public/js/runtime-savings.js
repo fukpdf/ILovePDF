@@ -16,6 +16,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeSavings) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeSavings) return;
 
   var LOG = '[RuntimeSavings]';

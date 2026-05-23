@@ -19,6 +19,8 @@
 
   if (window.RuntimeEventBus) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var LOG = '[REB]';
 
   // ── Internal synchronous bus ───────────────────────────────────────────────

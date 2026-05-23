@@ -236,7 +236,7 @@
         verifyAll().catch(function () {});
       }, 8000); // 8s — after all critical scripts have loaded
     }
-    console.info(LOG, 'v' + VERSION + ' ready | pins:', (_pins ? _pins.size : 0),
+    console.debug(LOG, 'v' + VERSION + ' ready | pins:', (_pins ? _pins.size : 0),
       '| canVerify:', _canVerifyAssets);
   }
 
@@ -278,6 +278,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

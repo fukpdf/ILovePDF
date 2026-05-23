@@ -262,7 +262,7 @@
     }, null);
 
     if (dbVerdict === 'ok') {
-      console.info(LOG, 'v' + VERSION + ' ready — domain cleared by DeploymentBind');
+      console.debug(LOG, 'v' + VERSION + ' ready — domain cleared by DeploymentBind');
       return;
     }
 
@@ -302,6 +302,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | host:', _host);
+  console.debug(LOG, 'v' + VERSION + ' loaded | host:', _host);
 
 }(window));

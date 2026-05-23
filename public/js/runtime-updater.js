@@ -15,6 +15,8 @@
 
   if (G.RuntimeUpdater) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[RU23]';
   var LS_KEY  = 'iplv_sw_version';

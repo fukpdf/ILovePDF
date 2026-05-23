@@ -28,6 +28,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeAdaptivePipeline) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeAdaptivePipeline) return;
 
   var LOG            = '[RAP]';

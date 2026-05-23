@@ -105,7 +105,7 @@
   function _boot() {
     var flags  = getFeatureFlags();
     var policy = getChannelPolicy();
-    console.info(LOG, 'v' + VERSION + ' ready | channel:', _channelName,
+    console.debug(LOG, 'v' + VERSION + ' ready | channel:', _channelName,
       '| rateLimit:', policy.rateLimit,
       '| debugPanel:', flags.debugPanel);
   }
@@ -129,5 +129,5 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | channel:', _channelName);
+  console.debug(LOG, 'v' + VERSION + ' loaded | channel:', _channelName);
 }(window));

@@ -22,6 +22,8 @@
 
   if (G.RuntimeShieldWorkers) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[ShieldWrk]';
 
@@ -236,7 +238,7 @@
       if (reg) reg.set('workers:ready', true);
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready',
+    console.debug(LOG, 'v' + VERSION + ' ready',
       '| nonce pool:', !!_noncePool,
       '| ts window:', TS_WINDOW_MS + 'ms',
       '| patched RuntimeSecurity:', patched);

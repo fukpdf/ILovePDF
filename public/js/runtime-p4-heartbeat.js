@@ -313,7 +313,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (_lite) {
-      console.info(LOG, 'v' + VERSION + ' loaded | lite mode — disabled');
+      console.debug(LOG, 'v' + VERSION + ' loaded | lite mode — disabled');
       return;
     }
     _startHeartbeat();
@@ -324,7 +324,7 @@
         console.debug(LOG, 'co-existing with RuntimeWorkerBootstrap (p3)');
       }
     });
-    console.info(LOG, 'v' + VERSION + ' ready | score:', _score,
+    console.debug(LOG, 'v' + VERSION + ' ready | score:', _score,
       '| ping:', PING_MS + 'ms | timeout:', TIMEOUT_MS + 'ms');
   }
 
@@ -369,6 +369,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

@@ -473,7 +473,7 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (!_wasmEnabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | WASM disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | WASM disabled (tier:', _tier + ')');
       return;
     }
 
@@ -506,7 +506,7 @@
       setTimeout(_drainPreloadQueue, 12000);
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier,
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier,
       '| wasmBasic:', f.wasmBasic,
       '| simd:', f.wasmSimd,
       '| threads:', f.wasmThreads,
@@ -560,6 +560,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded (Phase 6 fortress-ready)');
+  console.debug(LOG, 'v' + VERSION + ' loaded (Phase 6 fortress-ready)');
 
 }(window));

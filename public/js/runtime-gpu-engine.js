@@ -29,6 +29,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeGPUEngine) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeGpuEngine) return;
 
   var LOG = '[GPU9B]';

@@ -17,6 +17,8 @@
 
   if (G.RuntimePrefetch) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[RP28]';
   var LS_HIST = 'iplv_pf_history';

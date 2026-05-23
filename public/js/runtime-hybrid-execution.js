@@ -235,7 +235,7 @@
   // ── Pre-warm ticket on boot (HIGH tier only) ──────────────────────────────────
   function _boot() {
     if (!_enabled) {
-      console.info(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
+      console.debug(LOG, 'v' + VERSION + ' loaded | disabled (tier:', _tier + ')');
       return;
     }
 
@@ -246,7 +246,7 @@
       }, 8_000);  // 8s — after critical scripts settle
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| endpoint:', ENDPOINT);
+    console.debug(LOG, 'v' + VERSION + ' ready | tier:', _tier, '| endpoint:', ENDPOINT);
   }
 
   if (document.readyState === 'loading') {
@@ -281,6 +281,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | tier:', _tier);
+  console.debug(LOG, 'v' + VERSION + ' loaded | tier:', _tier);
 
 }(window));

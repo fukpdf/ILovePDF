@@ -27,6 +27,8 @@
 (function (global) {
   'use strict';
 
+  if (window.RuntimeBenchmarkEngine) return;
+  var _FROZEN = Object.freeze({ v: 1 });
   if (global.RuntimeBenchmark) return;
 
   var LOG = '[BM8A]';

@@ -526,7 +526,7 @@
       setInterval(_cleanOrphanedWorkers, 10 * 60 * 1000);
     }
 
-    console.info(LOG, 'v' + VERSION + ' ready | lite:', _lite, '| mid:', _mid, '| high:', _high,
+    console.debug(LOG, 'v' + VERSION + ' ready | lite:', _lite, '| mid:', _mid, '| high:', _high,
       '| battery:', typeof navigator.getBattery === 'function',
       '| thermal:', typeof PerformanceObserver !== 'undefined');
   }
@@ -566,6 +566,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded');
+  console.debug(LOG, 'v' + VERSION + ' loaded');
 
 }(window));

@@ -24,6 +24,8 @@
 
   if (G.RuntimeShieldDependency) return;
 
+  var _FROZEN = Object.freeze({ v: 1 });
+
   var VERSION = '1.0';
   var LOG     = '[ShieldDep]';
 
@@ -272,7 +274,7 @@
       if (reg) reg.set('dependency:ready', true);
     });
 
-    console.info(LOG, 'v' + VERSION + ' ready',
+    console.debug(LOG, 'v' + VERSION + ' ready',
       '| scripts audited:', _stats.scriptsAudited,
       '| unknown external:', _stats.unknownExternal,
       '| observer:', !!_observer);

@@ -249,12 +249,12 @@
   // ── Boot ──────────────────────────────────────────────────────────────────
   function _boot() {
     if (_lite) {
-      console.info(LOG, 'v' + VERSION + ' loaded | lite mode — heartbeat disabled');
+      console.debug(LOG, 'v' + VERSION + ' loaded | lite mode — heartbeat disabled');
       return;
     }
     _hookFactory();
     _startHeartbeat();
-    console.info(LOG, 'v' + VERSION + ' ready | ping:', PING_INTERVAL_MS + 'ms | timeout:', PING_TIMEOUT_MS + 'ms');
+    console.debug(LOG, 'v' + VERSION + ' ready | ping:', PING_INTERVAL_MS + 'ms | timeout:', PING_TIMEOUT_MS + 'ms');
   }
 
   if (document.readyState === 'loading') {
@@ -280,6 +280,6 @@
     },
   });
 
-  console.info(LOG, 'v' + VERSION + ' loaded | score:', _score);
+  console.debug(LOG, 'v' + VERSION + ' loaded | score:', _score);
 
 }(window));
