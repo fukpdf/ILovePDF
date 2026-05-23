@@ -129,6 +129,22 @@ const BUNDLES = [
       'public/js/runtime-health-analytics.js',
     ],
   },
+  {
+    name:     'runtime-arc3.bundle.js',
+    label:    'Arc 3 Tool Runtime Isolation',
+    deferred: true,
+    files: [
+      'public/js/runtime-tool-manifest-registry.js',
+      'public/js/runtime-tool-loader.js',
+      'public/js/runtime-hydration-domains.js',
+      'public/js/runtime-worker-domain-registry.js',
+      'public/js/runtime-memory-islands.js',
+      'public/js/runtime-analytics-domains.js',
+      'public/js/runtime-recovery-domains.js',
+      'public/js/runtime-tool-bundle-segments.js',
+      'public/js/runtime-tool-config-lock.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 {
-  "buildId": "mpi4j0hh",
-  "ts": 1779527165290,
+  "buildId": "mpigppq5",
+  "ts": 1779547633326,
   "bundles": [
     {
       "name": "runtime-phase6-core.bundle.js",
@@ -9,7 +9,7 @@
       "files": 1,
       "missing": 0,
       "bytes": 9273,
-      "hash": "699efb6ecca8",
+      "hash": "8ed5625d55d5",
       "path": "public/js/bundles/runtime-phase6-core.bundle.js"
     },
     {
@@ -19,7 +19,7 @@
       "files": 12,
       "missing": 0,
       "bytes": 154862,
-      "hash": "9c703eb6ed39",
+      "hash": "49c031431df2",
       "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
     },
     {
@@ -29,7 +29,7 @@
       "files": 24,
       "missing": 0,
       "bytes": 200155,
-      "hash": "eb8a123a903e",
+      "hash": "03c251bfe771",
       "path": "public/js/bundles/runtime-phase7.bundle.js"
     },
     {
@@ -39,7 +39,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 65790,
-      "hash": "914d5144f68f",
+      "hash": "5c51bf663968",
       "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
     },
     {
@@ -49,7 +49,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 29333,
-      "hash": "e9d40b9db4c4",
+      "hash": "d9d9492a0bfc",
       "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
     },
     {
@@ -59,8 +59,18 @@
       "files": 9,
       "missing": 0,
       "bytes": 64829,
-      "hash": "ef74fb5d9494",
+      "hash": "73ca9a4328d9",
       "path": "public/js/bundles/runtime-arc2.bundle.js"
+    },
+    {
+      "name": "runtime-arc3.bundle.js",
+      "label": "Arc 3 Tool Runtime Isolation",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 64588,
+      "hash": "899012e69d2a",
+      "path": "public/js/bundles/runtime-arc3.bundle.js"
     }
   ]
 }

@@ -172,13 +172,19 @@ OPS['page-numbers'] = async function (buffers, opts) {
 };
 
 OPS.organize = async function (buffers, opts) {
-  const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
-  const total = src.getPageCount();
-  const order = String(opts.pageOrder || '')
-    .split(',')
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
-  if (!order.length) throw new Error('Provide a comma-separated page order, e.g. 3,1,2');
+  const src      = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const total    = src.getPageCount();
+  const rawOrder = String(opts.pageOrder || '').trim();
+  // pageOrder is OPTIONAL. Empty string = drag-only workflow → identity order.
+  let order;
+  if (!rawOrder) {
+    order = Array.from({ length: total }, (_, i) => i + 1);
+  } else {
+    order = rawOrder.split(',')
+      .map(s => parseInt(s.trim(), 10))
+      .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
+    if (!order.length) throw new Error('Invalid page order. Use comma-separated 1-indexed numbers, e.g. 3,1,2');
+  }
   const out    = await PDFDocument.create();
   const copied = await out.copyPages(src, order.map(n => n - 1));
   copied.forEach(p => out.addPage(p));

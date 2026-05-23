@@ -57,6 +57,14 @@ const EXPECTED = [
     sentinels: ['RuntimeDeploySync', 'RuntimeHydrationScheduler', 'RuntimeCrashTelemetry',
                 'RuntimeWorkerCoordinator', 'RuntimeHealthAnalytics'],
   },
+  {
+    file:      'runtime-arc3.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeToolManifestRegistry', 'RuntimeToolLoader', 'RuntimeHydrationDomains',
+                'RuntimeWorkerDomainRegistry', 'RuntimeMemoryIslands',
+                'RuntimeAnalyticsDomains', 'RuntimeRecoveryDomains',
+                'RuntimeToolBundleSegments', 'RuntimeToolConfigLock'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

@@ -357,6 +357,36 @@ function checkArc2Files() {
   }
 }
 
+// ── Check Arc3: Arc 3 Tool Runtime Isolation files present + in tool.html ─────
+function checkArc3Files() {
+  console.log('\n[Consistency] Arc 3 Tool Runtime Isolation file coverage:');
+  const ARC3_FILES = [
+    'public/js/runtime-tool-manifest-registry.js',
+    'public/js/runtime-tool-loader.js',
+    'public/js/runtime-hydration-domains.js',
+    'public/js/runtime-worker-domain-registry.js',
+    'public/js/runtime-memory-islands.js',
+    'public/js/runtime-analytics-domains.js',
+    'public/js/runtime-recovery-domains.js',
+    'public/js/runtime-tool-bundle-segments.js',
+    'public/js/runtime-tool-config-lock.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC3_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc3:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc3-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC3_FILES.length && inHtml === ARC3_FILES.length) {
+    result('PASS', 'arc3-coverage', 'All ' + ARC3_FILES.length + ' Arc 3 files present and in tool.html');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -390,6 +420,7 @@ function checkWorkerMixins() {
   checkToolHtmlScripts();
   checkWorkerMixins();
   checkArc2Files();
+  checkArc3Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
@@ -398,7 +429,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
-  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓');
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };
