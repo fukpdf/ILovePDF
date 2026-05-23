@@ -252,18 +252,87 @@
   var _errorCount  = 0;
   var _errorWindow = 0;
   var _overlay     = null;
-  var ERROR_THRESHOLD = 3;    // 3 unhandled errors in 30 s
-  var ERROR_WINDOW_MS = 30000;
+
+  // Phase 9 revised thresholds.
+  // Raising from 3→12 errors / 30s→60s: normal page initialisation (150+ runtime
+  // files, 182+ throw/reject paths) routinely produces a handful of handled-but-
+  // bubbling rejections (circuit-breakers, AI fallback chain, worker not-yet-ready).
+  // The original threshold fired the overlay during NORMAL operation.
+  var ERROR_THRESHOLD    = 12;   // errors in window before silent auto-heal attempt
+  var ERROR_WINDOW_MS    = 60000; // 60-second counting window
+
+  // After a silent heal attempt, a SECOND burst at this level triggers the overlay.
+  // This ensures the overlay only surfaces when healing genuinely failed.
+  var OVERLAY_THRESHOLD  = 8;   // post-heal errors that warrant showing the overlay
+  var OVERLAY_WINDOW_MS  = 30000; // 30-second post-heal window
+
+  // State for the two-stage gate
+  var _healAttempted   = false;  // true once a silent auto-heal has been fired
+  var _postHealCount   = 0;
+  var _postHealWindow  = 0;
+
+  // Patterns that must NEVER count toward the overlay threshold.
+  // Covers: network transients, user-aborted operations, browser/extension noise,
+  // cross-origin sandboxing, routine runtime-internal recoverable states, and all
+  // known tool-processing errors that have their own retry/fallback path.
   var OVERLAY_IGNORED = [
+    // Pre-existing ignores
     'ResizeObserver loop',
     'Script error.',
     'Non-Error promise rejection',
+    // Network transients — always recoverable
+    'Failed to fetch',
+    'NetworkError',
+    'Load failed',
+    'net::ERR_',
+    'fetch',
+    'network request failed',
+    'offline',
+    // User / OS aborts
+    'AbortError',
+    'The operation was aborted',
+    'cancelled',
+    'The user aborted',
+    // Permission / sandboxing — not a crash
+    'NotAllowedError',
+    'SecurityError',
+    'cross-origin',
+    'blocked by CORS',
+    'QuotaExceededError',
+    // Browser extension noise
+    'chrome-extension://',
+    'moz-extension://',
+    'safari-extension://',
+    // Module / lazy-chunk loading — handled by recoverFederation
+    'Importing a module script failed',
+    'Loading chunk',
+    'Failed to import',
+    'dynamically imported module',
+    // Runtime-internal recoverable states (circuit-breakers, AI fallback, workers)
+    'no-provider',
+    'empty_input',
+    'circuit-open',
+    'runtime-emergency',
+    'not available',
+    'not loaded',
+    'worker spawn failed',
+    'worker error',
+    'timed out',
+    'timeout',
+    // PDF / tool-processing errors — have their own retry layer
+    'ignoreEncryption',
+    'Invalid PDF',
+    'PDF',
+    // Permissions-Policy warnings that some browsers surface as errors
+    'Unrecognized feature',
+    'Permissions-Policy',
   ];
 
   function _shouldIgnoreError(msg) {
     if (!msg) return false;
+    var s = String(msg);
     for (var i = 0; i < OVERLAY_IGNORED.length; i++) {
-      if (String(msg).indexOf(OVERLAY_IGNORED[i]) !== -1) return true;
+      if (s.indexOf(OVERLAY_IGNORED[i]) !== -1) return true;
     }
     return false;
   }
@@ -271,10 +340,46 @@
   function _onUnhandledError(msg) {
     if (_shouldIgnoreError(msg)) return;
     var now = Date.now();
-    if (now - _errorWindow > ERROR_WINDOW_MS) { _errorCount = 0; _errorWindow = now; }
-    _errorCount++;
-    _record('unhandled-error', { msg: String(msg).slice(0, 100), count: _errorCount });
-    if (_errorCount >= ERROR_THRESHOLD && !_overlay) _showErrorOverlay(msg);
+
+    // ── Stage 1: pre-heal burst ──────────────────────────────────────────────
+    // Count errors in the rolling window. When the first threshold is reached,
+    // attempt a silent background heal and reset the counter. The overlay is
+    // intentionally NOT shown at this stage — most transient runtime drift is
+    // self-correcting.
+    if (!_healAttempted) {
+      if (now - _errorWindow > ERROR_WINDOW_MS) { _errorCount = 0; _errorWindow = now; }
+      _errorCount++;
+      _record('unhandled-error', { msg: String(msg).slice(0, 100), count: _errorCount });
+
+      if (_errorCount >= ERROR_THRESHOLD) {
+        _healAttempted = true;
+        _log('error threshold (' + ERROR_THRESHOLD + ') reached — silent auto-heal, overlay suppressed');
+        _record('auto-heal-attempt', { count: _errorCount });
+        recoverAll().then(function () {
+          _errorCount = 0;
+          _errorWindow = Date.now();
+          _postHealCount  = 0;
+          _postHealWindow = Date.now();
+          _log('silent auto-heal complete — overlay suppressed');
+          _record('auto-heal-success', null);
+        }).catch(function (err) {
+          _record('auto-heal-failed', { err: String(err).slice(0, 80) });
+        });
+      }
+      return;
+    }
+
+    // ── Stage 2: post-heal burst ─────────────────────────────────────────────
+    // A silent heal was already attempted. If a new burst of errors arrives,
+    // that signals a genuinely unrecoverable state — show the overlay.
+    if (now - _postHealWindow > OVERLAY_WINDOW_MS) { _postHealCount = 0; _postHealWindow = now; }
+    _postHealCount++;
+    _record('post-heal-error', { msg: String(msg).slice(0, 100), count: _postHealCount });
+
+    if (_postHealCount >= OVERLAY_THRESHOLD && !_overlay) {
+      _log('post-heal error burst (' + _postHealCount + ') — showing overlay');
+      _showErrorOverlay(msg);
+    }
   }
 
   var OVERLAY_CSS = [
@@ -443,17 +548,26 @@
 
     getStats: function () {
       return {
-        version:      VERSION,
-        recovering:   _recovering,
-        errorCount:   _errorCount,
-        logLength:    _log_buf.length,
-        lastRecovery: _lastRecovery,
-        watchdog:     !!_watchdogTimer,
+        version:         VERSION,
+        recovering:      _recovering,
+        errorCount:      _errorCount,
+        logLength:       _log_buf.length,
+        lastRecovery:    _lastRecovery,
+        watchdog:        !!_watchdogTimer,
+        // Two-stage gate state
+        healAttempted:   _healAttempted,
+        postHealCount:   _postHealCount,
+        thresholds: {
+          errorThreshold:   ERROR_THRESHOLD,
+          errorWindowMs:    ERROR_WINDOW_MS,
+          overlayThreshold: OVERLAY_THRESHOLD,
+          overlayWindowMs:  OVERLAY_WINDOW_MS,
+        },
         subsystems: {
-          CrashRecoveryUI:    !!G.CrashRecoveryUI,
-          SelfHealingRecovery:!!G.SelfHealingRecovery,
-          DeadlockMonitor:    !!G.DeadlockMonitor,
-          DistributedRecovery:!!G.DistributedRecovery,
+          CrashRecoveryUI:     !!G.CrashRecoveryUI,
+          SelfHealingRecovery: !!G.SelfHealingRecovery,
+          DeadlockMonitor:     !!G.DeadlockMonitor,
+          DistributedRecovery: !!G.DistributedRecovery,
           EnterpriseRecoveryV2:!!G.EnterpriseRecoveryV2,
         },
       };
