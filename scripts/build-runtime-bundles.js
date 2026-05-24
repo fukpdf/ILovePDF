@@ -199,6 +199,21 @@ const BUNDLES = [
       'public/js/runtime-processor-health.js',
     ],
   },
+  {
+    name:     'runtime-arc7.bundle.js',
+    label:    'Arc 7 Ultra Performance + Streaming Runtime',
+    deferred: true,
+    files: [
+      'public/js/runtime-streaming-hydration.js',
+      'public/js/runtime-predictive-loader.js',
+      'public/js/runtime-stream-workers.js',
+      'public/js/runtime-task-orchestrator.js',
+      'public/js/runtime-smart-cache.js',
+      'public/js/runtime-stream-telemetry.js',
+      'public/js/runtime-self-optimizer.js',
+      'public/js/runtime-mobile-extreme.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

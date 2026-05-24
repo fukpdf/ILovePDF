@@ -534,6 +534,51 @@ function checkArc6Files() {
   }
 }
 
+// ── Check Arc7: Arc 7 Ultra Performance + Streaming Runtime files ─────────────
+function checkArc7Files() {
+  console.log('\n[Consistency] Arc 7 Ultra Performance + Streaming Runtime file coverage:');
+  const ARC7_FILES = [
+    'public/js/runtime-streaming-hydration.js',
+    'public/js/runtime-predictive-loader.js',
+    'public/js/runtime-stream-workers.js',
+    'public/js/runtime-task-orchestrator.js',
+    'public/js/runtime-smart-cache.js',
+    'public/js/runtime-stream-telemetry.js',
+    'public/js/runtime-self-optimizer.js',
+    'public/js/runtime-mobile-extreme.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC7_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc7:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc7-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC7_FILES.length && inHtml === ARC7_FILES.length) {
+    result('PASS', 'arc7-coverage', 'All ' + ARC7_FILES.length + ' Arc 7 files present and in tool.html');
+  }
+
+  // Singleton guard + frozen export check for all Arc 7 files
+  console.log('\n[Consistency] Arc 7 singleton guards:');
+  let guarded = 0;
+  for (const f of ARC7_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(Runtime\w+)\s*\)/.test(src);
+    const hasFreeze = /G\.(Runtime\w+)\s*=\s*Object\.freeze/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc7-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'Object.freeze export'));
+  }
+  if (guarded === ARC7_FILES.length) {
+    result('PASS', 'arc7-singleton-guards', 'All ' + ARC7_FILES.length + ' Arc 7 files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -571,6 +616,7 @@ function checkWorkerMixins() {
   checkArc4Files();
   checkArc5Files();
   checkArc6Files();
+  checkArc7Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;

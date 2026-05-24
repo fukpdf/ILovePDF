@@ -88,6 +88,13 @@ const EXPECTED = [
                 'RuntimeProcessorLoader', 'RuntimeProcessorMemory', 'RuntimeProcessorWorkers',
                 'RuntimeProcessorHydration', 'RuntimeProcessorBundles', 'RuntimeProcessorHealth'],
   },
+  {
+    file:      'runtime-arc7.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeStreamingHydration', 'RuntimePredictiveLoader', 'RuntimeStreamWorkers',
+                'RuntimeTaskOrchestrator', 'RuntimeSmartCache', 'RuntimeStreamTelemetry',
+                'RuntimeSelfOptimizer', 'RuntimeMobileExtremeMode'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
