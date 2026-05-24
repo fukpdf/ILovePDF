@@ -387,6 +387,53 @@ function checkArc3Files() {
   }
 }
 
+// ── Check Arc4: Arc 4 Enterprise Tool Runtime Completion files ────────────────
+function checkArc4Files() {
+  console.log('\n[Consistency] Arc 4 Enterprise Tool Runtime Completion file coverage:');
+  const ARC4_FILES = [
+    'public/js/runtime-worker-domain-throttle.js',
+    'public/js/runtime-offline-domains.js',
+    'public/js/runtime-processor-registry.js',
+    'public/js/runtime-bundle-graph.js',
+    'public/js/runtime-tool-sandbox.js',
+    'public/js/runtime-memory-orchestrator.js',
+    'public/js/runtime-health-orchestrator.js',
+    'public/js/runtime-immutability-guard.js',
+    'public/js/runtime-mobile-hardening.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC4_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc4:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc4-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC4_FILES.length && inHtml === ARC4_FILES.length) {
+    result('PASS', 'arc4-coverage', 'All ' + ARC4_FILES.length + ' Arc 4 files present and in tool.html');
+  }
+
+  // Singleton guard check for Arc 4 files
+  console.log('\n[Consistency] Arc 4 singleton guards:');
+  let guarded = 0;
+  for (const f of ARC4_FILES) {
+    if (!f.startsWith('public/js/')) continue;
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard = /if\s*\(\s*G\.(Runtime\w+)\s*\)/.test(src);
+    const hasFreeze = /G\.(Runtime\w+)\s*=\s*Object\.freeze/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc4-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'Object.freeze export'));
+  }
+  if (guarded === ARC4_FILES.length) {
+    result('PASS', 'arc4-singleton-guards', 'All ' + ARC4_FILES.length + ' Arc 4 files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -421,6 +468,7 @@ function checkWorkerMixins() {
   checkWorkerMixins();
   checkArc2Files();
   checkArc3Files();
+  checkArc4Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
@@ -429,7 +477,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
-  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓');
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };

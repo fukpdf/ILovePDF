@@ -816,5 +816,25 @@
   <script src="/js/runtime-tool-bundle-segments.js" defer></script>
   <!-- Phase H: Immutable per-tool config locking -->
   <script src="/js/runtime-tool-config-lock.js" defer></script>
+
+  <!-- Arc 4: Enterprise Tool Runtime Completion -->
+  <!-- Phase A: Per-family worker concurrency + thermal throttling -->
+  <script src="/js/runtime-worker-domain-throttle.js" defer></script>
+  <!-- Phase B: Per-family isolated offline job queues -->
+  <script src="/js/runtime-offline-domains.js" defer></script>
+  <!-- Phase C: Lazy processor activation registry -->
+  <script src="/js/runtime-processor-registry.js" defer></script>
+  <!-- Phase D: Active bundle graph + arc3 registration -->
+  <script src="/js/runtime-bundle-graph.js" defer></script>
+  <!-- Phase E: Per-tool isolated execution sandboxes -->
+  <script src="/js/runtime-tool-sandbox.js" defer></script>
+  <!-- Phase F: Dynamic memory arbitration + idle eviction -->
+  <script src="/js/runtime-memory-orchestrator.js" defer></script>
+  <!-- Phase G: Unified runtime health graph + fullDashboard() -->
+  <script src="/js/runtime-health-orchestrator.js" defer></script>
+  <!-- Phase H: Runtime seal verification + mutation detection -->
+  <script src="/js/runtime-immutability-guard.js" defer></script>
+  <!-- Phase I: Thermal-aware hydration + mobile panic mode -->
+  <script src="/js/runtime-mobile-hardening.js" defer></script>
 </body>
 </html>

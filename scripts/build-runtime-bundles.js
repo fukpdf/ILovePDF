@@ -145,6 +145,22 @@ const BUNDLES = [
       'public/js/runtime-tool-config-lock.js',
     ],
   },
+  {
+    name:     'runtime-arc4.bundle.js',
+    label:    'Arc 4 Enterprise Tool Runtime Completion',
+    deferred: true,
+    files: [
+      'public/js/runtime-worker-domain-throttle.js',
+      'public/js/runtime-offline-domains.js',
+      'public/js/runtime-processor-registry.js',
+      'public/js/runtime-bundle-graph.js',
+      'public/js/runtime-tool-sandbox.js',
+      'public/js/runtime-memory-orchestrator.js',
+      'public/js/runtime-health-orchestrator.js',
+      'public/js/runtime-immutability-guard.js',
+      'public/js/runtime-mobile-hardening.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

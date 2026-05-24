@@ -65,6 +65,13 @@ const EXPECTED = [
                 'RuntimeAnalyticsDomains', 'RuntimeRecoveryDomains',
                 'RuntimeToolBundleSegments', 'RuntimeToolConfigLock'],
   },
+  {
+    file:      'runtime-arc4.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeWorkerDomainThrottle', 'RuntimeOfflineDomains', 'RuntimeProcessorRegistry',
+                'RuntimeBundleGraph', 'RuntimeToolSandbox', 'RuntimeMemoryOrchestrator',
+                'RuntimeHealthOrchestrator', 'RuntimeImmutabilityGuard', 'RuntimeMobileHardening'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
