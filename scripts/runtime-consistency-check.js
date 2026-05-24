@@ -481,6 +481,59 @@ function checkArc5Files() {
   }
 }
 
+// ── Check Arc6: Arc 6 Advanced Engine Full Decomposition files ────────────────
+function checkArc6Files() {
+  console.log('\n[Consistency] Arc 6 Advanced Engine Full Decomposition file coverage:');
+  const ARC6_FILES = [
+    'public/js/processors/merge-processor.js',
+    'public/js/processors/split-processor.js',
+    'public/js/processors/compress-processor.js',
+    'public/js/processors/ocr-processor.js',
+    'public/js/processors/image-processor.js',
+    'public/js/processors/ai-processor.js',
+    'public/js/processors/convert-processor.js',
+    'public/js/processors/watermark-processor.js',
+    'public/js/processors/repair-processor.js',
+    'public/js/runtime-processor-loader.js',
+    'public/js/runtime-processor-memory.js',
+    'public/js/runtime-processor-workers.js',
+    'public/js/runtime-processor-hydration.js',
+    'public/js/runtime-processor-bundles.js',
+    'public/js/runtime-processor-health.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC6_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc6:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc6-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC6_FILES.length && inHtml === ARC6_FILES.length) {
+    result('PASS', 'arc6-coverage', 'All ' + ARC6_FILES.length + ' Arc 6 files present and in tool.html');
+  }
+
+  // Singleton guard check for Arc 6 runtime files (not processor sub-files)
+  console.log('\n[Consistency] Arc 6 singleton guards:');
+  const RUNTIME_FILES = ARC6_FILES.filter(f => f.includes('runtime-processor-') || f.includes('/processors/'));
+  let guarded = 0;
+  for (const f of RUNTIME_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(Runtime\w+)\s*\)/.test(src);
+    const hasFreeze = /G\.(Runtime\w+)\s*=\s*Object\.freeze/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc6-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'Object.freeze export'));
+  }
+  if (guarded === RUNTIME_FILES.length) {
+    result('PASS', 'arc6-singleton-guards', 'All ' + RUNTIME_FILES.length + ' Arc 6 files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -517,6 +570,7 @@ function checkWorkerMixins() {
   checkArc3Files();
   checkArc4Files();
   checkArc5Files();
+  checkArc6Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
@@ -525,7 +579,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
-  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓');
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓, Arc5 ✓, Arc6 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };

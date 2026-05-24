@@ -856,5 +856,29 @@
   <script src="/js/runtime-tool-bundle-isolation.js" defer></script>
   <!-- Phase I: Per-tool isolated IDB offline queues -->
   <script src="/js/runtime-tool-offline-firewalls.js" defer></script>
+
+  <!-- Arc 6: Advanced Engine Full Decomposition -->
+  <!-- Phase A: Isolated processor extraction modules (one family per file) -->
+  <script src="/js/processors/merge-processor.js" defer></script>
+  <script src="/js/processors/split-processor.js" defer></script>
+  <script src="/js/processors/compress-processor.js" defer></script>
+  <script src="/js/processors/ocr-processor.js" defer></script>
+  <script src="/js/processors/image-processor.js" defer></script>
+  <script src="/js/processors/ai-processor.js" defer></script>
+  <script src="/js/processors/convert-processor.js" defer></script>
+  <script src="/js/processors/watermark-processor.js" defer></script>
+  <script src="/js/processors/repair-processor.js" defer></script>
+  <!-- Phase B: Dynamic processor activation + dependency graph + dormant eviction -->
+  <script src="/js/runtime-processor-loader.js" defer></script>
+  <!-- Phase C: Per-processor heap budget + idle trim + panic isolation -->
+  <script src="/js/runtime-processor-memory.js" defer></script>
+  <!-- Phase D: Processor-specific worker pools + thermal throttling + crash recovery -->
+  <script src="/js/runtime-processor-workers.js" defer></script>
+  <!-- Phase E: Processor hydration domains + idle cancellation + predictive hints -->
+  <script src="/js/runtime-processor-hydration.js" defer></script>
+  <!-- Phase F: Per-processor bundle tracking + GC + dormant unloading -->
+  <script src="/js/runtime-processor-bundles.js" defer></script>
+  <!-- Phase G: Independent processor health scores + startup metrics + window.getProcessorHealth() -->
+  <script src="/js/runtime-processor-health.js" defer></script>
 </body>
 </html>

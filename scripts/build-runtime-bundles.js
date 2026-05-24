@@ -177,6 +177,28 @@ const BUNDLES = [
       'public/js/runtime-tool-offline-firewalls.js',
     ],
   },
+  {
+    name:     'runtime-arc6.bundle.js',
+    label:    'Arc 6 Advanced Engine Full Decomposition',
+    deferred: true,
+    files: [
+      'public/js/processors/merge-processor.js',
+      'public/js/processors/split-processor.js',
+      'public/js/processors/compress-processor.js',
+      'public/js/processors/ocr-processor.js',
+      'public/js/processors/image-processor.js',
+      'public/js/processors/ai-processor.js',
+      'public/js/processors/convert-processor.js',
+      'public/js/processors/watermark-processor.js',
+      'public/js/processors/repair-processor.js',
+      'public/js/runtime-processor-loader.js',
+      'public/js/runtime-processor-memory.js',
+      'public/js/runtime-processor-workers.js',
+      'public/js/runtime-processor-hydration.js',
+      'public/js/runtime-processor-bundles.js',
+      'public/js/runtime-processor-health.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

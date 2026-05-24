@@ -79,6 +79,15 @@ const EXPECTED = [
                 'RuntimeRecoveryFirewalls', 'RuntimeToolEventFirewall', 'RuntimeToolConfigSeal',
                 'RuntimeToolHealthDomains', 'RuntimeToolBundleIsolation', 'RuntimeToolOfflineFirewalls'],
   },
+  {
+    file:      'runtime-arc6.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeMergeProcessor', 'RuntimeSplitProcessor', 'RuntimeCompressProcessor',
+                'RuntimeOcrProcessor', 'RuntimeImageProcessor', 'RuntimeAiProcessor',
+                'RuntimeConvertProcessor', 'RuntimeWatermarkProcessor', 'RuntimeRepairProcessor',
+                'RuntimeProcessorLoader', 'RuntimeProcessorMemory', 'RuntimeProcessorWorkers',
+                'RuntimeProcessorHydration', 'RuntimeProcessorBundles', 'RuntimeProcessorHealth'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
