@@ -95,6 +95,13 @@ const EXPECTED = [
                 'RuntimeTaskOrchestrator', 'RuntimeSmartCache', 'RuntimeStreamTelemetry',
                 'RuntimeSelfOptimizer', 'RuntimeMobileExtremeMode'],
   },
+  {
+    file:      'runtime-arc8.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeControlPlane', 'RuntimeLiveDashboard', 'RuntimeTraceEngine',
+                'RuntimeEventTimeline', 'RuntimePerformanceProfiler', 'RuntimeIncidentCenter',
+                'RuntimeStateSnapshots', 'RuntimeReplayEngine'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

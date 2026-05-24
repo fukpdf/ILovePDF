@@ -214,6 +214,21 @@ const BUNDLES = [
       'public/js/runtime-mobile-extreme.js',
     ],
   },
+  {
+    name:     'runtime-arc8.bundle.js',
+    label:    'Arc 8 Enterprise Observability + Live Control Plane',
+    deferred: true,
+    files: [
+      'public/js/runtime-control-plane.js',
+      'public/js/runtime-live-dashboard.js',
+      'public/js/runtime-trace-engine.js',
+      'public/js/runtime-event-timeline.js',
+      'public/js/runtime-performance-profiler.js',
+      'public/js/runtime-incident-center.js',
+      'public/js/runtime-state-snapshots.js',
+      'public/js/runtime-replay-engine.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

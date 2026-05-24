@@ -898,5 +898,23 @@
   <script src="/js/runtime-self-optimizer.js" defer></script>
   <!-- Phase H: Mobile extreme mode — ultra-low-memory + emergency worker trim + battery -->
   <script src="/js/runtime-mobile-extreme.js" defer></script>
+
+  <!-- Arc 8: Enterprise Observability + Live Control Plane -->
+  <!-- Phase A: Centralized command bus — live toggles, feature flags, audit trail -->
+  <script src="/js/runtime-control-plane.js" defer></script>
+  <!-- Phase B: Live floating dashboard — Ctrl+Shift+R, FPS/heap/tasks/incidents -->
+  <script src="/js/runtime-live-dashboard.js" defer></script>
+  <!-- Phase C: Distributed trace engine — span trees, slow-path detection, p99 -->
+  <script src="/js/runtime-trace-engine.js" defer></script>
+  <!-- Phase D: Centralized event timeline — searchable ring buffer, grouped views -->
+  <script src="/js/runtime-event-timeline.js" defer></script>
+  <!-- Phase E: Performance profiler — longtask sampling, bottleneck analysis -->
+  <script src="/js/runtime-performance-profiler.js" defer></script>
+  <!-- Phase F: Incident center — unified registry, P0-P3, dedup, escalation -->
+  <script src="/js/runtime-incident-center.js" defer></script>
+  <!-- Phase G: State snapshots — full capture, diff, checksum, rollback -->
+  <script src="/js/runtime-state-snapshots.js" defer></script>
+  <!-- Phase H: Replay engine — event scrubber, play/pause/step, export -->
+  <script src="/js/runtime-replay-engine.js" defer></script>
 </body>
 </html>

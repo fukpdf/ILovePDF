@@ -1,6 +1,6 @@
 {
-  "buildId": "mpjuv6ru",
-  "ts": 1779631869538,
+  "buildId": "mpjvm4kv",
+  "ts": 1779633126406,
   "bundles": [
     {
       "name": "runtime-phase6-core.bundle.js",
@@ -9,7 +9,7 @@
       "files": 1,
       "missing": 0,
       "bytes": 9273,
-      "hash": "1a324ad8cf5b",
+      "hash": "d1e27901ad83",
       "path": "public/js/bundles/runtime-phase6-core.bundle.js"
     },
     {
@@ -19,7 +19,7 @@
       "files": 12,
       "missing": 0,
       "bytes": 154862,
-      "hash": "2766b18d8e4f",
+      "hash": "ded1ba4002a0",
       "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
     },
     {
@@ -29,7 +29,7 @@
       "files": 24,
       "missing": 0,
       "bytes": 200155,
-      "hash": "57f761c44745",
+      "hash": "5778856169f0",
       "path": "public/js/bundles/runtime-phase7.bundle.js"
     },
     {
@@ -39,7 +39,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 65790,
-      "hash": "64c3ed481ee2",
+      "hash": "609f89b7f89e",
       "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
     },
     {
@@ -49,7 +49,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 29333,
-      "hash": "dec1627e2d94",
+      "hash": "f56d6de6d7cd",
       "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
     },
     {
@@ -59,7 +59,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64829,
-      "hash": "4523988d8873",
+      "hash": "25d63995e750",
       "path": "public/js/bundles/runtime-arc2.bundle.js"
     },
     {
@@ -69,7 +69,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64588,
-      "hash": "023ddb61f135",
+      "hash": "69740a7c20d1",
       "path": "public/js/bundles/runtime-arc3.bundle.js"
     },
     {
@@ -79,7 +79,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 81957,
-      "hash": "d10b9493f2b3",
+      "hash": "1c4c59594d3b",
       "path": "public/js/bundles/runtime-arc4.bundle.js"
     },
     {
@@ -89,7 +89,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 85701,
-      "hash": "dbfed49fd3b1",
+      "hash": "281915f096b6",
       "path": "public/js/bundles/runtime-arc5.bundle.js"
     },
     {
@@ -99,7 +99,7 @@
       "files": 15,
       "missing": 0,
       "bytes": 98507,
-      "hash": "48a5139280b3",
+      "hash": "6f47acdbd35c",
       "path": "public/js/bundles/runtime-arc6.bundle.js"
     },
     {
@@ -109,8 +109,18 @@
       "files": 8,
       "missing": 0,
       "bytes": 81625,
-      "hash": "563c7bbfbed0",
+      "hash": "36c3b9342e8e",
       "path": "public/js/bundles/runtime-arc7.bundle.js"
+    },
+    {
+      "name": "runtime-arc8.bundle.js",
+      "label": "Arc 8 Enterprise Observability + Live Control Plane",
+      "deferred": true,
+      "files": 8,
+      "missing": 0,
+      "bytes": 76236,
+      "hash": "382a4aedc114",
+      "path": "public/js/bundles/runtime-arc8.bundle.js"
     }
   ]
 }
