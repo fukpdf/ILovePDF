@@ -72,6 +72,13 @@ const EXPECTED = [
                 'RuntimeBundleGraph', 'RuntimeToolSandbox', 'RuntimeMemoryOrchestrator',
                 'RuntimeHealthOrchestrator', 'RuntimeImmutabilityGuard', 'RuntimeMobileHardening'],
   },
+  {
+    file:      'runtime-arc5.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeToolWorkerMesh', 'RuntimeToolCodeLoader', 'RuntimeMemoryFirewalls',
+                'RuntimeRecoveryFirewalls', 'RuntimeToolEventFirewall', 'RuntimeToolConfigSeal',
+                'RuntimeToolHealthDomains', 'RuntimeToolBundleIsolation', 'RuntimeToolOfflineFirewalls'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

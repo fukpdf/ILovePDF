@@ -161,6 +161,22 @@ const BUNDLES = [
       'public/js/runtime-mobile-hardening.js',
     ],
   },
+  {
+    name:     'runtime-arc5.bundle.js',
+    label:    'Arc 5 True Enterprise Tool Isolation',
+    deferred: true,
+    files: [
+      'public/js/runtime-tool-worker-mesh.js',
+      'public/js/runtime-tool-code-loader.js',
+      'public/js/runtime-memory-firewalls.js',
+      'public/js/runtime-recovery-firewalls.js',
+      'public/js/runtime-tool-event-firewall.js',
+      'public/js/runtime-tool-config-seal.js',
+      'public/js/runtime-tool-health-domains.js',
+      'public/js/runtime-tool-bundle-isolation.js',
+      'public/js/runtime-tool-offline-firewalls.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

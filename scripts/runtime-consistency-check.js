@@ -434,6 +434,53 @@ function checkArc4Files() {
   }
 }
 
+// ── Check Arc5: Arc 5 True Enterprise Tool Isolation files ────────────────────
+function checkArc5Files() {
+  console.log('\n[Consistency] Arc 5 True Enterprise Tool Isolation file coverage:');
+  const ARC5_FILES = [
+    'public/js/runtime-tool-worker-mesh.js',
+    'public/js/runtime-tool-code-loader.js',
+    'public/js/runtime-memory-firewalls.js',
+    'public/js/runtime-recovery-firewalls.js',
+    'public/js/runtime-tool-event-firewall.js',
+    'public/js/runtime-tool-config-seal.js',
+    'public/js/runtime-tool-health-domains.js',
+    'public/js/runtime-tool-bundle-isolation.js',
+    'public/js/runtime-tool-offline-firewalls.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC5_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc5:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc5-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC5_FILES.length && inHtml === ARC5_FILES.length) {
+    result('PASS', 'arc5-coverage', 'All ' + ARC5_FILES.length + ' Arc 5 files present and in tool.html');
+  }
+
+  // Singleton guard check for Arc 5 files
+  console.log('\n[Consistency] Arc 5 singleton guards:');
+  let guarded = 0;
+  for (const f of ARC5_FILES) {
+    if (!f.startsWith('public/js/')) continue;
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(Runtime\w+)\s*\)/.test(src);
+    const hasFreeze = /G\.(Runtime\w+)\s*=\s*Object\.freeze/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc5-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'Object.freeze export'));
+  }
+  if (guarded === ARC5_FILES.length) {
+    result('PASS', 'arc5-singleton-guards', 'All ' + ARC5_FILES.length + ' Arc 5 files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -469,6 +516,7 @@ function checkWorkerMixins() {
   checkArc2Files();
   checkArc3Files();
   checkArc4Files();
+  checkArc5Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;

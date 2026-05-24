@@ -1,6 +1,6 @@
 {
-  "buildId": "mpjg6rfp",
-  "ts": 1779607215310,
+  "buildId": "mpjolrro",
+  "ts": 1779621352467,
   "bundles": [
     {
       "name": "runtime-phase6-core.bundle.js",
@@ -9,7 +9,7 @@
       "files": 1,
       "missing": 0,
       "bytes": 9273,
-      "hash": "bc55ddceb188",
+      "hash": "aced732acdac",
       "path": "public/js/bundles/runtime-phase6-core.bundle.js"
     },
     {
@@ -19,7 +19,7 @@
       "files": 12,
       "missing": 0,
       "bytes": 154862,
-      "hash": "3d21b2133f17",
+      "hash": "3d43e80b4def",
       "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
     },
     {
@@ -29,7 +29,7 @@
       "files": 24,
       "missing": 0,
       "bytes": 200155,
-      "hash": "3437c945fc43",
+      "hash": "06ca8760162c",
       "path": "public/js/bundles/runtime-phase7.bundle.js"
     },
     {
@@ -39,7 +39,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 65790,
-      "hash": "898059763242",
+      "hash": "1dbee2e8c711",
       "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
     },
     {
@@ -49,7 +49,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 29333,
-      "hash": "50086caab089",
+      "hash": "45a4f8479c1a",
       "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
     },
     {
@@ -59,7 +59,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64829,
-      "hash": "b9e6f4087275",
+      "hash": "5ca5af6a8acd",
       "path": "public/js/bundles/runtime-arc2.bundle.js"
     },
     {
@@ -69,7 +69,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64588,
-      "hash": "42e3ac6e5554",
+      "hash": "9d671560676a",
       "path": "public/js/bundles/runtime-arc3.bundle.js"
     },
     {
@@ -79,8 +79,18 @@
       "files": 9,
       "missing": 0,
       "bytes": 81957,
-      "hash": "2b1f683d7a29",
+      "hash": "3d7f9e16fea3",
       "path": "public/js/bundles/runtime-arc4.bundle.js"
+    },
+    {
+      "name": "runtime-arc5.bundle.js",
+      "label": "Arc 5 True Enterprise Tool Isolation",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 85701,
+      "hash": "86dcb07bd4f0",
+      "path": "public/js/bundles/runtime-arc5.bundle.js"
     }
   ]
 }

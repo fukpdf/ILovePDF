@@ -836,5 +836,25 @@
   <script src="/js/runtime-immutability-guard.js" defer></script>
   <!-- Phase I: Thermal-aware hydration + mobile panic mode -->
   <script src="/js/runtime-mobile-hardening.js" defer></script>
+
+  <!-- Arc 5: True Enterprise Tool Isolation (tool-level granularity) -->
+  <!-- Phase A: Per-tool worker namespace + heartbeat + crash recovery -->
+  <script src="/js/runtime-tool-worker-mesh.js" defer></script>
+  <!-- Phase B: Per-tool dependency graph + dynamic code loading -->
+  <script src="/js/runtime-tool-code-loader.js" defer></script>
+  <!-- Phase C: Per-tool hard memory budgets + isolated panic mode -->
+  <script src="/js/runtime-memory-firewalls.js" defer></script>
+  <!-- Phase D: Per-tool recovery escalation tree + retry budgets -->
+  <script src="/js/runtime-recovery-firewalls.js" defer></script>
+  <!-- Phase E: Cross-tool event audit + violation telemetry -->
+  <script src="/js/runtime-tool-event-firewall.js" defer></script>
+  <!-- Phase F: Independent per-tool config snapshots + drift tracking -->
+  <script src="/js/runtime-tool-config-seal.js" defer></script>
+  <!-- Phase G: Per-tool health scores + window.getToolHealth() -->
+  <script src="/js/runtime-tool-health-domains.js" defer></script>
+  <!-- Phase H: Family bundle dependency graph + GC registry -->
+  <script src="/js/runtime-tool-bundle-isolation.js" defer></script>
+  <!-- Phase I: Per-tool isolated IDB offline queues -->
+  <script src="/js/runtime-tool-offline-firewalls.js" defer></script>
 </body>
 </html>
