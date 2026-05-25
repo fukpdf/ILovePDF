@@ -24,6 +24,7 @@ import executionTicketsRouter    from './routes/execution-tickets.js';
 import securityDashboardRouter   from './routes/security-dashboard.js';
 import securityIncidentsRouter   from './routes/security-incidents.js';   // Phase 8
 import threatFeedRouter          from './routes/threat-feed.js';          // Phase 8
+import debugRouter               from './routes/debug.js';                // Arc 10D
 import packetValidatorSoft       from './utils/runtime-packet-validator.js'; // Phase 8
 import { originGuard } from './utils/origin-guard.js';
 import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
@@ -357,6 +358,7 @@ app.use('/api/security-incidents',  securityIncidentsRouter); // Phase 8 persist
 app.use('/api/threat-feed',         threatFeedRouter);         // Phase 8 threat intelligence
 app.use('/api', packetValidatorSoft);                          // Phase 8 packet validation (soft)
 app.use('/live-intel', liveIntelRouter); // Phase 3: real-time knowledge layer
+app.use('/debug', (req, res, next) => { res.locals.buildId = BUILD_ID; next(); }, debugRouter); // Arc 10D
 
 // Pre-flight quota check on every other POST (before multer parses the body)
 app.use('/api', (req, res, next) => {

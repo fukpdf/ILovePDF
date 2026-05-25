@@ -238,6 +238,58 @@ ARC9_SCRIPTS.forEach(s => {
   else warn('tool-html-arc9:' + s, s + ' NOT yet in tool.html');
 });
 
+// ── 11. Arc 10D file presence ─────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 10D file presence:');
+const ARC10_FILES = [
+  'routes/debug.js',
+  'public/debug.html',
+  'public/js/runtime-debug-security.js',
+  'public/js/runtime-debug-state.js',
+  'public/js/runtime-debug-storage.js',
+  'public/js/runtime-debug-renderer.js',
+  'public/js/runtime-debug-mobile.js',
+  'public/js/runtime-debug-export.js',
+  'public/js/runtime-debug-shell.js',
+  'public/js/debug-panels/panel-incidents.js',
+  'public/js/debug-panels/panel-timeline.js',
+  'public/js/debug-panels/panel-blackbox.js',
+  'public/js/debug-panels/panel-recovery.js',
+  'public/js/debug-panels/panel-performance.js',
+  'public/js/debug-panels/panel-control.js',
+  'public/js/debug-panels/panel-traces.js',
+];
+const missingArc10 = [];
+ARC10_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc10-file:' + path.basename(f), 'present'); }
+  else { fail('arc10-file:' + path.basename(f), 'MISSING'); missingArc10.push(f); }
+});
+if (!missingArc10.length) pass('arc10-all-files', 'All ' + ARC10_FILES.length + ' Arc 10D files present');
+
+// ── 12. debug.html gate + arc10 bundle references ────────────────────────────
+console.log('\n[SecurityRegression] debug.html Arc 10 checks:');
+const debugHtml = _read('public/debug.html');
+const ARC10_DEBUG_CHECKS = [
+  'runtime-arc10.bundle.js',
+  'RuntimeDebugSecurity',
+  'ilpdf_dash',
+  'ilpdf_admin',
+  'noindex',
+  'X-Robots-Tag',
+];
+ARC10_DEBUG_CHECKS.forEach(s => {
+  if (debugHtml && debugHtml.includes(s)) pass('debug-html:' + s, s + ' present in debug.html');
+  else warn('debug-html:' + s, s + ' NOT found in debug.html');
+});
+
+// ── 13. debug route: no-index + gate present ──────────────────────────────────
+console.log('\n[SecurityRegression] routes/debug.js checks:');
+const debugRoute = _read('routes/debug.js');
+const ROUTE_CHECKS = ['noindex', 'nofollow', 'no-store', 'ilpdf_dash', 'X-Frame-Options'];
+ROUTE_CHECKS.forEach(s => {
+  if (debugRoute && debugRoute.includes(s)) pass('debug-route:' + s, s + ' in routes/debug.js');
+  else warn('debug-route:' + s, s + ' NOT in routes/debug.js');
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

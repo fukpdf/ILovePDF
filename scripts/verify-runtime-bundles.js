@@ -109,6 +109,14 @@ const EXPECTED = [
                 'RuntimeRecoveryOrchestrator', 'RuntimeAdaptiveAI', 'RuntimeGovernance',
                 'RuntimeBlackbox', 'RuntimeAdaptiveBundles'],
   },
+  {
+    file:      'runtime-arc10.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeDebugSecurity', 'RuntimeDebugState', 'RuntimeDebugStorage',
+                'RuntimeDebugRenderer', 'RuntimeDebugMobile', 'RuntimeDebugExport',
+                'RuntimeDebugShell', 'PanelIncidents', 'PanelTimeline', 'PanelBlackbox',
+                'PanelRecovery', 'PanelPerformance', 'PanelControl', 'PanelTraces'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

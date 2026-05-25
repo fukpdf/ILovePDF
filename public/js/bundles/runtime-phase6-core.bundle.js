@@ -1,5 +1,5 @@
 // ── Phase 6 Non-Deferred Core — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-25T07:23:59.764Z  BUILD_ID: mpkvrfdg
+// Generated: 2026-05-25T11:40:36.730Z  BUILD_ID: mpl4xfqy
 // Files: 1
 
 // ── SOURCE: public/js/runtime-shadow-runtime.js ──

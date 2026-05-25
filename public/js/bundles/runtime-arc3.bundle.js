@@ -1,5 +1,5 @@
 // ── Arc 3 Tool Runtime Isolation — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-25T07:23:59.814Z  BUILD_ID: mpkvrfdg
+// Generated: 2026-05-25T11:40:36.778Z  BUILD_ID: mpl4xfqy
 // Files: 9
 
 // ── SOURCE: public/js/runtime-tool-manifest-registry.js ──

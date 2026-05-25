@@ -1,6 +1,6 @@
 {
-  "buildId": "mpkvrfdg",
-  "ts": 1779693839850,
+  "buildId": "mpl4xfqy",
+  "ts": 1779709236823,
   "bundles": [
     {
       "name": "runtime-phase6-core.bundle.js",
@@ -9,7 +9,7 @@
       "files": 1,
       "missing": 0,
       "bytes": 9273,
-      "hash": "f3cdeff93c01",
+      "hash": "2c63eb73219c",
       "path": "public/js/bundles/runtime-phase6-core.bundle.js"
     },
     {
@@ -19,7 +19,7 @@
       "files": 12,
       "missing": 0,
       "bytes": 154862,
-      "hash": "58bba7d00c25",
+      "hash": "b503a137a0ec",
       "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
     },
     {
@@ -29,7 +29,7 @@
       "files": 24,
       "missing": 0,
       "bytes": 200155,
-      "hash": "7d1c989b6348",
+      "hash": "6b90dcc0fced",
       "path": "public/js/bundles/runtime-phase7.bundle.js"
     },
     {
@@ -39,7 +39,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 65790,
-      "hash": "e6d5b2bc1805",
+      "hash": "535aed253be9",
       "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
     },
     {
@@ -49,7 +49,7 @@
       "files": 6,
       "missing": 0,
       "bytes": 29333,
-      "hash": "cc2a44b8da22",
+      "hash": "bde6d07252c1",
       "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
     },
     {
@@ -59,7 +59,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64829,
-      "hash": "b154415e2ab9",
+      "hash": "6557bdc86a9d",
       "path": "public/js/bundles/runtime-arc2.bundle.js"
     },
     {
@@ -69,7 +69,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 64588,
-      "hash": "71e2aced4103",
+      "hash": "93530f6d2252",
       "path": "public/js/bundles/runtime-arc3.bundle.js"
     },
     {
@@ -79,7 +79,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 81957,
-      "hash": "d5599e2557ca",
+      "hash": "1a27bbe02245",
       "path": "public/js/bundles/runtime-arc4.bundle.js"
     },
     {
@@ -89,7 +89,7 @@
       "files": 9,
       "missing": 0,
       "bytes": 85701,
-      "hash": "47bd05869ddf",
+      "hash": "605425eb01b7",
       "path": "public/js/bundles/runtime-arc5.bundle.js"
     },
     {
@@ -99,7 +99,7 @@
       "files": 15,
       "missing": 0,
       "bytes": 98507,
-      "hash": "cff6d4b4a195",
+      "hash": "73f28c8676c1",
       "path": "public/js/bundles/runtime-arc6.bundle.js"
     },
     {
@@ -109,7 +109,7 @@
       "files": 8,
       "missing": 0,
       "bytes": 81625,
-      "hash": "d9f30611dd32",
+      "hash": "ea82d1bd523f",
       "path": "public/js/bundles/runtime-arc7.bundle.js"
     },
     {
@@ -119,7 +119,7 @@
       "files": 8,
       "missing": 0,
       "bytes": 76236,
-      "hash": "f0ca0cbcadbd",
+      "hash": "bd466f1bb4e5",
       "path": "public/js/bundles/runtime-arc8.bundle.js"
     },
     {
@@ -129,8 +129,18 @@
       "files": 8,
       "missing": 0,
       "bytes": 83503,
-      "hash": "bbad1c02ff01",
+      "hash": "4210cd73f8a9",
       "path": "public/js/bundles/runtime-arc9.bundle.js"
+    },
+    {
+      "name": "runtime-arc10.bundle.js",
+      "label": "Arc 10D Admin Observability Dashboard",
+      "deferred": true,
+      "files": 14,
+      "missing": 0,
+      "bytes": 81602,
+      "hash": "19c616d03694",
+      "path": "public/js/bundles/runtime-arc10.bundle.js"
     }
   ]
 }

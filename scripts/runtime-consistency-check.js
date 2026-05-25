@@ -669,6 +669,64 @@ function checkArc9Files() {
   }
 }
 
+function checkArc10Files() {
+  console.log('\n[Consistency] Arc 10D Admin Observability Dashboard file coverage:');
+  const ARC10_FILES = [
+    'routes/debug.js',
+    'public/debug.html',
+    'public/js/runtime-debug-security.js',
+    'public/js/runtime-debug-state.js',
+    'public/js/runtime-debug-storage.js',
+    'public/js/runtime-debug-renderer.js',
+    'public/js/runtime-debug-mobile.js',
+    'public/js/runtime-debug-export.js',
+    'public/js/runtime-debug-shell.js',
+    'public/js/debug-panels/panel-incidents.js',
+    'public/js/debug-panels/panel-timeline.js',
+    'public/js/debug-panels/panel-blackbox.js',
+    'public/js/debug-panels/panel-recovery.js',
+    'public/js/debug-panels/panel-performance.js',
+    'public/js/debug-panels/panel-control.js',
+    'public/js/debug-panels/panel-traces.js',
+  ];
+  let present = 0;
+  for (const f of ARC10_FILES) {
+    const exists = fs.existsSync(path.join(ROOT, f));
+    if (exists) present++;
+    else result('WARN', 'arc10:' + path.basename(f), 'File missing: ' + f);
+  }
+  const debugHtml = readFile('public/debug.html') || '';
+  const hasBundleRef = debugHtml.includes('runtime-arc10.bundle.js');
+  const hasGate      = debugHtml.includes('ilpdf_dash') || debugHtml.includes('RuntimeDebugSecurity');
+  if (!hasBundleRef) result('WARN', 'arc10-debug-html-bundle', 'debug.html missing runtime-arc10.bundle.js reference');
+  if (!hasGate)      result('WARN', 'arc10-debug-html-gate',   'debug.html missing client-side gate reference');
+
+  const serverSrc = readFile('server.js') || '';
+  const hasRoute  = serverSrc.includes('debugRouter') || serverSrc.includes('/debug');
+  if (!hasRoute) result('WARN', 'arc10-server-mount', 'server.js missing /debug route mount');
+
+  if (present === ARC10_FILES.length && hasBundleRef && hasGate && hasRoute) {
+    result('PASS', 'arc10-coverage', 'All ' + ARC10_FILES.length + ' Arc 10D files present, debug.html gated, route mounted');
+  }
+
+  // Singleton guard check for JS files only (not HTML/routes)
+  const JS_FILES = ARC10_FILES.filter(f => f.endsWith('.js') && f.startsWith('public/js'));
+  console.log('\n[Consistency] Arc 10D singleton guards:');
+  let guarded = 0;
+  for (const f of JS_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(\w+)\s*\)\s*return/.test(src);
+    const hasFreeze = /G\.(\w+)\s*=\s*(Object\.freeze|new \w+)/.test(src) || /G\.(Panel\w+|Runtime\w+)\s*=/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc10-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'export registration'));
+  }
+  if (guarded === JS_FILES.length) {
+    result('PASS', 'arc10-singleton-guards', 'All ' + JS_FILES.length + ' Arc 10D JS files have singleton guards');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -709,6 +767,7 @@ function checkWorkerMixins() {
   checkArc7Files();
   checkArc8Files();
   checkArc9Files();
+  checkArc10Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;

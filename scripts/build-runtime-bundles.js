@@ -244,6 +244,27 @@ const BUNDLES = [
       'public/js/runtime-adaptive-bundles.js',
     ],
   },
+  {
+    name:     'runtime-arc10.bundle.js',
+    label:    'Arc 10D Admin Observability Dashboard',
+    deferred: true,
+    files: [
+      'public/js/runtime-debug-security.js',
+      'public/js/runtime-debug-state.js',
+      'public/js/runtime-debug-storage.js',
+      'public/js/runtime-debug-renderer.js',
+      'public/js/runtime-debug-mobile.js',
+      'public/js/runtime-debug-export.js',
+      'public/js/runtime-debug-shell.js',
+      'public/js/debug-panels/panel-incidents.js',
+      'public/js/debug-panels/panel-timeline.js',
+      'public/js/debug-panels/panel-blackbox.js',
+      'public/js/debug-panels/panel-recovery.js',
+      'public/js/debug-panels/panel-performance.js',
+      'public/js/debug-panels/panel-control.js',
+      'public/js/debug-panels/panel-traces.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────
