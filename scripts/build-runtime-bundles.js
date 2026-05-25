@@ -229,6 +229,21 @@ const BUNDLES = [
       'public/js/runtime-replay-engine.js',
     ],
   },
+  {
+    name:     'runtime-arc9.bundle.js',
+    label:    'Arc 9 Autonomous Self-Healing + Distributed Runtime Intelligence',
+    deferred: true,
+    files: [
+      'public/js/runtime-autonomous-healing.js',
+      'public/js/runtime-workload-intelligence.js',
+      'public/js/runtime-session-stability.js',
+      'public/js/runtime-recovery-orchestrator.js',
+      'public/js/runtime-adaptive-ai.js',
+      'public/js/runtime-governance.js',
+      'public/js/runtime-blackbox.js',
+      'public/js/runtime-adaptive-bundles.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

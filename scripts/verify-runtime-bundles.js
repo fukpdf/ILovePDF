@@ -102,6 +102,13 @@ const EXPECTED = [
                 'RuntimeEventTimeline', 'RuntimePerformanceProfiler', 'RuntimeIncidentCenter',
                 'RuntimeStateSnapshots', 'RuntimeReplayEngine'],
   },
+  {
+    file:      'runtime-arc9.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeAutonomousHealing', 'RuntimeWorkloadIntelligence', 'RuntimeSessionStability',
+                'RuntimeRecoveryOrchestrator', 'RuntimeAdaptiveAI', 'RuntimeGovernance',
+                'RuntimeBlackbox', 'RuntimeAdaptiveBundles'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');

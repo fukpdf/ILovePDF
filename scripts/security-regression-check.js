@@ -202,6 +202,42 @@ P8_SCRIPTS.forEach(s => {
   else warn('tool-html-p8:' + s, s + ' NOT yet in tool.html');
 });
 
+// ── 9. Arc 9 file presence ────────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 9 file presence:');
+const ARC9_FILES = [
+  'public/js/runtime-autonomous-healing.js',
+  'public/js/runtime-workload-intelligence.js',
+  'public/js/runtime-session-stability.js',
+  'public/js/runtime-recovery-orchestrator.js',
+  'public/js/runtime-adaptive-ai.js',
+  'public/js/runtime-governance.js',
+  'public/js/runtime-blackbox.js',
+  'public/js/runtime-adaptive-bundles.js',
+];
+const missingArc9 = [];
+ARC9_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc9-file:' + path.basename(f), 'present'); }
+  else { fail('arc9-file:' + path.basename(f), 'MISSING'); missingArc9.push(f); }
+});
+if (!missingArc9.length) pass('arc9-all-files', 'All ' + ARC9_FILES.length + ' Arc 9 files present');
+
+// ── 10. tool.html Arc 9 scripts ───────────────────────────────────────────────
+console.log('\n[SecurityRegression] tool.html Arc 9 scripts:');
+const ARC9_SCRIPTS = [
+  'runtime-autonomous-healing.js',
+  'runtime-workload-intelligence.js',
+  'runtime-session-stability.js',
+  'runtime-recovery-orchestrator.js',
+  'runtime-adaptive-ai.js',
+  'runtime-governance.js',
+  'runtime-blackbox.js',
+  'runtime-adaptive-bundles.js',
+];
+ARC9_SCRIPTS.forEach(s => {
+  if (toolHtml.includes(s)) pass('tool-html-arc9:' + s, s + ' in tool.html');
+  else warn('tool-html-arc9:' + s, s + ' NOT yet in tool.html');
+});
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

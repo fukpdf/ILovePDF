@@ -624,6 +624,51 @@ function checkArc8Files() {
   }
 }
 
+// ── Check Arc9: Autonomous Self-Healing + Distributed Runtime Intelligence ────
+function checkArc9Files() {
+  console.log('\n[Consistency] Arc 9 Autonomous Self-Healing + Distributed Runtime Intelligence file coverage:');
+  const ARC9_FILES = [
+    'public/js/runtime-autonomous-healing.js',
+    'public/js/runtime-workload-intelligence.js',
+    'public/js/runtime-session-stability.js',
+    'public/js/runtime-recovery-orchestrator.js',
+    'public/js/runtime-adaptive-ai.js',
+    'public/js/runtime-governance.js',
+    'public/js/runtime-blackbox.js',
+    'public/js/runtime-adaptive-bundles.js',
+  ];
+  const toolHtmlSrc = readFile('public/tool.html') || '';
+  let present = 0, inHtml = 0;
+  for (const f of ARC9_FILES) {
+    const fname = f.split('/').pop();
+    const exists = fs.existsSync(path.join(ROOT, f));
+    const inH    = toolHtmlSrc.includes(fname);
+    if (exists) present++;
+    if (inH)    inHtml++;
+    if (!exists) result('WARN', 'arc9:' + fname, 'File missing: ' + f);
+    if (!inH)    result('WARN', 'arc9-html:' + fname, 'Not in tool.html: ' + fname);
+  }
+  if (present === ARC9_FILES.length && inHtml === ARC9_FILES.length) {
+    result('PASS', 'arc9-coverage', 'All ' + ARC9_FILES.length + ' Arc 9 files present and in tool.html');
+  }
+
+  // Singleton guard + frozen export check for all Arc 9 files
+  console.log('\n[Consistency] Arc 9 singleton guards:');
+  let guarded = 0;
+  for (const f of ARC9_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(Runtime\w+)\s*\)/.test(src);
+    const hasFreeze = /G\.(Runtime\w+)\s*=\s*Object\.freeze/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc9-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'Object.freeze export'));
+  }
+  if (guarded === ARC9_FILES.length) {
+    result('PASS', 'arc9-singleton-guards', 'All ' + ARC9_FILES.length + ' Arc 9 files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -663,6 +708,7 @@ function checkWorkerMixins() {
   checkArc6Files();
   checkArc7Files();
   checkArc8Files();
+  checkArc9Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;

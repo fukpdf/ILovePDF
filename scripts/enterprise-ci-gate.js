@@ -81,6 +81,15 @@ const REQUIRED = [
   'public/js/runtime-threat-intel.js',
   'public/js/runtime-tab-mesh.js',
   'public/js/runtime-memory-vault.js',
+  // Arc 9
+  'public/js/runtime-autonomous-healing.js',
+  'public/js/runtime-workload-intelligence.js',
+  'public/js/runtime-session-stability.js',
+  'public/js/runtime-recovery-orchestrator.js',
+  'public/js/runtime-adaptive-ai.js',
+  'public/js/runtime-governance.js',
+  'public/js/runtime-blackbox.js',
+  'public/js/runtime-adaptive-bundles.js',
   // Server
   'server.js',
   'utils/db.js',
