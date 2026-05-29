@@ -294,6 +294,37 @@ const BUNDLES = [
       'public/js/debug-panels/panel-crash-survival.js',
     ],
   },
+  {
+    name:     'runtime-arc12.bundle.js',
+    label:    'Arc 12 Enterprise Tool Intelligence Layer (ETIL)',
+    deferred: true,
+    files: [
+      // Phase A — Unified tool registry
+      'public/js/runtime-tool-registry.js',
+      // Phase B — Live tool health scoring
+      'public/js/runtime-tool-health.js',
+      // Phase C — Tool dependency graph
+      'public/js/runtime-tool-dependencies.js',
+      // Phase D — Automatic tool quarantine / isolation
+      'public/js/runtime-tool-isolation.js',
+      // Phase E — Next-tool prediction engine
+      'public/js/runtime-tool-predictor.js',
+      // Phase F — Per-tool execution profiling (p50/p90/p99)
+      'public/js/runtime-tool-profiler.js',
+      // Phase G — Tool-level recovery memory
+      'public/js/runtime-tool-recovery.js',
+      // Phase H — Tool startup optimization
+      'public/js/runtime-tool-optimizer.js',
+      // Phase J — Runtime export layer (JSON + CSV)
+      'public/js/runtime-tool-export.js',
+      // Phase I — Arc 12 debug panels (lazy-loaded by debug shell)
+      'public/js/debug-panels/panel-tool-registry.js',
+      'public/js/debug-panels/panel-tool-health.js',
+      'public/js/debug-panels/panel-tool-predictor.js',
+      'public/js/debug-panels/panel-tool-recovery.js',
+      'public/js/debug-panels/panel-tool-optimizer.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

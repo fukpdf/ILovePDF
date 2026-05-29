@@ -47,6 +47,12 @@
     { id: 'recovery-memory',    label: 'Recovery Memory',       icon: '🧠', ctor: 'PanelRecoveryMemory'   },
     { id: 'deploy-resilience',  label: 'Deploy Resilience',     icon: '🚀', ctor: 'PanelDeployResilience' },
     { id: 'crash-survival',     label: 'Crash Survival',        icon: '💥', ctor: 'PanelCrashSurvival'    },
+    // Arc 12 panels (lazy-loaded)
+    { id: 'tool-registry',      label: 'Tool Registry',         icon: '📋', ctor: 'PanelToolRegistry'     },
+    { id: 'tool-health',        label: 'Tool Health',           icon: '❤️', ctor: 'PanelToolHealth'        },
+    { id: 'tool-predictor',     label: 'Tool Predictor',        icon: '🔮', ctor: 'PanelToolPredictor'    },
+    { id: 'tool-recovery',      label: 'Tool Recovery',         icon: '🔧', ctor: 'PanelToolRecovery'     },
+    { id: 'tool-optimizer',     label: 'Tool Optimizer',        icon: '⚡', ctor: 'PanelToolOptimizer'    },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────

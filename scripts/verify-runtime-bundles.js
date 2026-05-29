@@ -126,6 +126,15 @@ const EXPECTED = [
                 'PanelTabMesh', 'PanelPersistentStorage', 'PanelRecoveryMemory',
                 'PanelDeployResilience', 'PanelCrashSurvival'],
   },
+  {
+    file:      'runtime-arc12.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeToolRegistry', 'RuntimeToolHealth', 'RuntimeToolDependencies',
+                'RuntimeToolIsolation', 'RuntimeToolPredictor', 'RuntimeToolProfiler',
+                'RuntimeToolRecovery', 'RuntimeToolOptimizer', 'RuntimeToolExport',
+                'PanelToolRegistry', 'PanelToolHealth', 'PanelToolPredictor',
+                'PanelToolRecovery', 'PanelToolOptimizer'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
@@ -202,6 +211,20 @@ if (manifest && Array.isArray(manifest.bundles)) {
       warn_('bundle-missing:' + b.name, b.missing + ' source file(s) were missing during last build');
     }
   }
+}
+
+// ── Arc 12 integrity: debug.html reference ────────────────────────────────────
+const _arc12DebugHtmlPath = path.join(ROOT, 'public', 'debug.html');
+console.log('\n[VerifyBundles] Arc 12 integrity checks:');
+if (fs.existsSync(_arc12DebugHtmlPath)) {
+  const _dh12 = fs.readFileSync(_arc12DebugHtmlPath, 'utf8');
+  if (_dh12.includes('runtime-arc12.bundle.js')) {
+    ok('arc12-debug-ref', 'runtime-arc12.bundle.js referenced in debug.html');
+  } else {
+    warn_('arc12-debug-ref', 'runtime-arc12.bundle.js NOT referenced in debug.html');
+  }
+} else {
+  warn_('arc12-debug-ref', 'debug.html not found');
 }
 
 // ── Arc 11 integrity: debug.html reference + tab mesh v2.0 ────────────────────
