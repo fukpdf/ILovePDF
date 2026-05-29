@@ -1,0 +1,1 @@
+- [Arc 11 Build](arc11-build.md) — Arc 11 Distributed Runtime Mesh completed: 8 runtime files + 5 debug panels + arc11 bundle. All 4 validation gates at target.

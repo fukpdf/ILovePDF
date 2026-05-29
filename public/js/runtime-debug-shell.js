@@ -34,13 +34,19 @@
 
   // ── Panel definitions (lazy-loaded) ──────────────────────────────────────────
   var PANEL_DEFS = [
-    { id: 'incidents',   label: 'Incidents',         icon: '🚨', ctor: 'PanelIncidents'  },
-    { id: 'timeline',    label: 'Event Timeline',     icon: '📊', ctor: 'PanelTimeline'   },
-    { id: 'blackbox',    label: 'Blackbox',           icon: '⚫', ctor: 'PanelBlackbox'   },
-    { id: 'recovery',    label: 'Recovery & Healing', icon: '🔄', ctor: 'PanelRecovery'   },
-    { id: 'performance', label: 'Performance',        icon: '⚡', ctor: 'PanelPerformance'},
-    { id: 'control',     label: 'Control Plane',      icon: '🎛️', ctor: 'PanelControl'    },
-    { id: 'traces',      label: 'Traces & Snapshots', icon: '🔍', ctor: 'PanelTraces'     },
+    { id: 'incidents',          label: 'Incidents',            icon: '🚨', ctor: 'PanelIncidents'        },
+    { id: 'timeline',           label: 'Event Timeline',        icon: '📊', ctor: 'PanelTimeline'         },
+    { id: 'blackbox',           label: 'Blackbox',              icon: '⚫', ctor: 'PanelBlackbox'         },
+    { id: 'recovery',           label: 'Recovery & Healing',    icon: '🔄', ctor: 'PanelRecovery'         },
+    { id: 'performance',        label: 'Performance',           icon: '⚡', ctor: 'PanelPerformance'      },
+    { id: 'control',            label: 'Control Plane',         icon: '🎛️', ctor: 'PanelControl'          },
+    { id: 'traces',             label: 'Traces & Snapshots',    icon: '🔍', ctor: 'PanelTraces'           },
+    // Arc 11 panels (lazy-loaded)
+    { id: 'tab-mesh',           label: 'Tab Mesh',              icon: '🕸', ctor: 'PanelTabMesh'          },
+    { id: 'persistent-storage', label: 'Persistent Storage',    icon: '💾', ctor: 'PanelPersistentStorage'},
+    { id: 'recovery-memory',    label: 'Recovery Memory',       icon: '🧠', ctor: 'PanelRecoveryMemory'   },
+    { id: 'deploy-resilience',  label: 'Deploy Resilience',     icon: '🚀', ctor: 'PanelDeployResilience' },
+    { id: 'crash-survival',     label: 'Crash Survival',        icon: '💥', ctor: 'PanelCrashSurvival'    },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────
@@ -218,8 +224,9 @@
     pause:         pause,
     resume:        resume,
     getActive:     function () { return _active; },
+    getPanelDefs:  function () { return PANEL_DEFS.slice(); },
   });
 
-  console.debug(LOG, 'v' + VERSION + ' ready — gated dashboard shell');
+  console.debug(LOG, 'v' + VERSION + ' ready — gated dashboard shell (Arc 11 panels: 5)');
 
 }(window));

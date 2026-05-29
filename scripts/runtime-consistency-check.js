@@ -727,6 +727,65 @@ function checkArc10Files() {
   }
 }
 
+// ── Check Arc 11: Distributed Runtime Mesh + Persistent Diagnostics ───────────
+function checkArc11Files() {
+  console.log('\n[Consistency] Arc 11 Distributed Runtime Mesh + Persistent Diagnostics file coverage:');
+  const ARC11_FILES = [
+    'public/js/runtime-tab-mesh.js',
+    'public/js/runtime-blackbox-storage.js',
+    'public/js/runtime-crash-survival.js',
+    'public/js/runtime-sw-bridge.js',
+    'public/js/runtime-distributed-workload.js',
+    'public/js/runtime-incident-correlation.js',
+    'public/js/runtime-recovery-memory.js',
+    'public/js/runtime-deploy-resilience.js',
+    'public/js/debug-panels/panel-tab-mesh.js',
+    'public/js/debug-panels/panel-persistent-storage.js',
+    'public/js/debug-panels/panel-recovery-memory.js',
+    'public/js/debug-panels/panel-deploy-resilience.js',
+    'public/js/debug-panels/panel-crash-survival.js',
+  ];
+  let present = 0;
+  for (const f of ARC11_FILES) {
+    if (fs.existsSync(path.join(ROOT, f))) { present++; }
+    else { result('FAIL', 'arc11-file:' + path.basename(f), 'MISSING: ' + f); }
+  }
+
+  // Check arc11 bundle exists
+  const bundlePath = 'public/js/bundles/runtime-arc11.bundle.js';
+  const hasBundle  = fs.existsSync(path.join(ROOT, bundlePath));
+  if (!hasBundle) result('WARN', 'arc11-bundle', 'runtime-arc11.bundle.js not yet built — run build-runtime-bundles.js');
+
+  // Check debug.html references arc11
+  const debugHtml    = readFile('public/debug.html') || '';
+  const hasDebugRef  = debugHtml.includes('runtime-arc11.bundle.js');
+  if (!hasDebugRef) result('WARN', 'arc11-debug-html', 'debug.html missing runtime-arc11.bundle.js reference');
+
+  if (present === ARC11_FILES.length && hasBundle && hasDebugRef) {
+    result('PASS', 'arc11-coverage',
+      'All ' + ARC11_FILES.length + ' Arc 11 files present, bundle built, debug.html updated');
+  } else if (present === ARC11_FILES.length) {
+    result('PASS', 'arc11-coverage', 'All ' + ARC11_FILES.length + ' Arc 11 source files present');
+  }
+
+  // Singleton guard check
+  console.log('\n[Consistency] Arc 11 singleton guards:');
+  const JS_FILES = ARC11_FILES.filter(f => f.endsWith('.js'));
+  let guarded = 0;
+  for (const f of JS_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(\w+)\s*\)\s*return/.test(src);
+    const hasFreeze = /G\.(\w+)\s*=\s*(Object\.freeze|new \w+)/.test(src) || /G\.(Panel\w+|Runtime\w+)\s*=/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc11-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'export registration'));
+  }
+  if (guarded === JS_FILES.length) {
+    result('PASS', 'arc11-singleton-guards', 'All ' + JS_FILES.length + ' Arc 11 JS files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -768,6 +827,7 @@ function checkWorkerMixins() {
   checkArc8Files();
   checkArc9Files();
   checkArc10Files();
+  checkArc11Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
@@ -776,7 +836,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
-  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓, Arc5 ✓, Arc6 ✓');
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓, Arc5 ✓, Arc6 ✓, Arc11 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };

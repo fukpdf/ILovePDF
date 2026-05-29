@@ -1,5 +1,5 @@
 // ── Arc 6 Advanced Engine Full Decomposition — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-25T11:40:36.793Z  BUILD_ID: mpl4xfqy
+// Generated: 2026-05-29T10:30:45.730Z  BUILD_ID: mpqs70k8
 // Files: 15
 
 // ── SOURCE: public/js/processors/merge-processor.js ──

@@ -265,6 +265,35 @@ const BUNDLES = [
       'public/js/debug-panels/panel-traces.js',
     ],
   },
+  {
+    name:     'runtime-arc11.bundle.js',
+    label:    'Arc 11 Distributed Runtime Mesh + Persistent Diagnostics',
+    deferred: true,
+    files: [
+      // Phase A — Tab Mesh v2.0 (singleton guard prevents double-load with phase8-deferred)
+      'public/js/runtime-tab-mesh.js',
+      // Phase B — IndexedDB blackbox persistence
+      'public/js/runtime-blackbox-storage.js',
+      // Phase C — Crash detection + cross-reload recovery
+      'public/js/runtime-crash-survival.js',
+      // Phase D — Service Worker diagnostics bridge
+      'public/js/runtime-sw-bridge.js',
+      // Phase E — Cross-tab workload balancing
+      'public/js/runtime-distributed-workload.js',
+      // Phase F — Cross-tab/session incident correlation
+      'public/js/runtime-incident-correlation.js',
+      // Phase G — Adaptive recovery strategy memory
+      'public/js/runtime-recovery-memory.js',
+      // Phase H — Safe deploy transition management
+      'public/js/runtime-deploy-resilience.js',
+      // Phase I — Arc 11 debug panels (lazy-loaded by debug shell)
+      'public/js/debug-panels/panel-tab-mesh.js',
+      'public/js/debug-panels/panel-persistent-storage.js',
+      'public/js/debug-panels/panel-recovery-memory.js',
+      'public/js/debug-panels/panel-deploy-resilience.js',
+      'public/js/debug-panels/panel-crash-survival.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

@@ -290,6 +290,38 @@ ROUTE_CHECKS.forEach(s => {
   else warn('debug-route:' + s, s + ' NOT in routes/debug.js');
 });
 
+// ── 14. Arc 11 file presence ──────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 11 file presence:');
+const ARC11_FILES = [
+  'public/js/runtime-tab-mesh.js',
+  'public/js/runtime-blackbox-storage.js',
+  'public/js/runtime-crash-survival.js',
+  'public/js/runtime-sw-bridge.js',
+  'public/js/runtime-distributed-workload.js',
+  'public/js/runtime-incident-correlation.js',
+  'public/js/runtime-recovery-memory.js',
+  'public/js/runtime-deploy-resilience.js',
+  'public/js/debug-panels/panel-tab-mesh.js',
+  'public/js/debug-panels/panel-persistent-storage.js',
+  'public/js/debug-panels/panel-recovery-memory.js',
+  'public/js/debug-panels/panel-deploy-resilience.js',
+  'public/js/debug-panels/panel-crash-survival.js',
+];
+const missingArc11 = [];
+ARC11_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc11-file:' + path.basename(f), 'present'); }
+  else { fail('arc11-file:' + path.basename(f), 'MISSING'); missingArc11.push(f); }
+});
+if (!missingArc11.length) pass('arc11-all-files', 'All ' + ARC11_FILES.length + ' Arc 11 files present');
+
+// ── 15. debug.html Arc 11 bundle reference ────────────────────────────────────
+console.log('\n[SecurityRegression] debug.html Arc 11 checks:');
+if (debugHtml && debugHtml.includes('runtime-arc11.bundle.js')) {
+  pass('debug-html:arc11-bundle', 'runtime-arc11.bundle.js present in debug.html');
+} else {
+  warn('debug-html:arc11-bundle', 'runtime-arc11.bundle.js NOT found in debug.html');
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

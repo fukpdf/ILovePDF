@@ -117,6 +117,15 @@ const EXPECTED = [
                 'RuntimeDebugShell', 'PanelIncidents', 'PanelTimeline', 'PanelBlackbox',
                 'PanelRecovery', 'PanelPerformance', 'PanelControl', 'PanelTraces'],
   },
+  {
+    file:      'runtime-arc11.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeTabMesh', 'RuntimeBlackboxStorage', 'RuntimeCrashSurvival',
+                'RuntimeSWBridge', 'RuntimeDistributedWorkload', 'RuntimeIncidentCorrelation',
+                'RuntimeRecoveryMemory', 'RuntimeDeployResilience',
+                'PanelTabMesh', 'PanelPersistentStorage', 'PanelRecoveryMemory',
+                'PanelDeployResilience', 'PanelCrashSurvival'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
@@ -192,6 +201,30 @@ if (manifest && Array.isArray(manifest.bundles)) {
     if (b.missing > 0) {
       warn_('bundle-missing:' + b.name, b.missing + ' source file(s) were missing during last build');
     }
+  }
+}
+
+// ── Arc 11 integrity: debug.html reference + tab mesh v2.0 ────────────────────
+console.log('\n[VerifyBundles] Arc 11 integrity checks:');
+const debugHtmlPath = path.join(ROOT, 'public', 'debug.html');
+if (fs.existsSync(debugHtmlPath)) {
+  const debugHtml = fs.readFileSync(debugHtmlPath, 'utf8');
+  if (debugHtml.includes('runtime-arc11.bundle.js')) {
+    ok('arc11-debug-ref', 'runtime-arc11.bundle.js referenced in debug.html');
+  } else {
+    warn_('arc11-debug-ref', 'runtime-arc11.bundle.js NOT referenced in debug.html');
+  }
+} else {
+  warn_('arc11-debug-ref', 'debug.html not found');
+}
+
+const arc11BundlePath = path.join(BUNDLE_DIR, 'runtime-arc11.bundle.js');
+if (fs.existsSync(arc11BundlePath)) {
+  const arc11Src = fs.readFileSync(arc11BundlePath, 'utf8');
+  if (arc11Src.includes('RuntimeTabMesh') && /VERSION\s*=\s*'2\.0'/.test(arc11Src)) {
+    ok('arc11-tabmesh-v2', 'RuntimeTabMesh v2.0 confirmed in arc11 bundle');
+  } else {
+    warn_('arc11-tabmesh-v2', 'RuntimeTabMesh v2.0 marker not found in arc11 bundle');
   }
 }
 
