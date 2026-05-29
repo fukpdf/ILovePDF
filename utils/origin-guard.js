@@ -48,6 +48,14 @@ ENV_EXTRA.forEach(o => ALLOWED_ORIGINS.add(o));
 const IS_PROD  = process.env.NODE_ENV === 'production';
 const SOFT     = process.env.ORIGIN_GUARD_SOFT === '1';
 
+// Add Replit dev domain to PRODUCTION_HOSTS so the origin guard doesn't
+// block API calls when running on Replit (both dev preview and deployed).
+const REPLIT_DEV = process.env.REPLIT_DEV_DOMAIN || '';
+if (REPLIT_DEV) {
+  PRODUCTION_HOSTS.add(REPLIT_DEV);
+  ALLOWED_ORIGINS.add(`https://${REPLIT_DEV}`);
+}
+
 // Routes that require strict origin checking
 // (applied only when mounted via app.use('/api', originGuard))
 const STRICT_PREFIXES = [
