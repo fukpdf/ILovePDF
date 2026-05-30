@@ -59,6 +59,13 @@
     { id: 'tool-sla',           label: 'Tool SLA',              icon: '📊', ctor: 'PanelToolSLA'          },
     { id: 'tool-discovery',     label: 'Tool Discovery',        icon: '🔭', ctor: 'PanelToolDiscovery'    },
     { id: 'tool-insights',      label: 'Tool Insights',         icon: '💡', ctor: 'PanelToolInsights'     },
+    // Arc 14 panels (Command Center)
+    { id: 'command-center',     label: 'Command Center',        icon: '🖥️', ctor: 'PanelCommandCenter'    },
+    { id: 'topology',           label: 'Topology',              icon: '🗺️', ctor: 'PanelTopology'         },
+    { id: 'heatmaps',           label: 'Heatmaps',              icon: '🔥', ctor: 'PanelHeatmaps'         },
+    { id: 'alerts',             label: 'Alerts',                icon: '🚨', ctor: 'PanelAlerts'           },
+    { id: 'analytics',          label: 'Analytics',             icon: '📈', ctor: 'PanelAnalytics'        },
+    { id: 'fleet',              label: 'Fleet Manager',         icon: '🚀', ctor: 'PanelFleet'            },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────

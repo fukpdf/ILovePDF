@@ -388,6 +388,40 @@ if (debugHtml && debugHtml.includes('runtime-arc13.bundle.js')) {
   warn('debug-html:arc13-bundle', 'runtime-arc13.bundle.js NOT found in debug.html');
 }
 
+// ── 20. Arc 14 file presence ──────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 14 file presence:');
+const ARC14_FILES = [
+  'public/js/runtime-command-center.js',
+  'public/js/runtime-topology.js',
+  'public/js/runtime-heatmaps.js',
+  'public/js/runtime-command-analytics.js',
+  'public/js/runtime-alerts.js',
+  'public/js/runtime-fleet-manager.js',
+  'public/js/runtime-forecast.js',
+  'public/js/runtime-reports.js',
+  'public/js/runtime-command-export.js',
+  'public/js/panel-command-center.js',
+  'public/js/panel-topology.js',
+  'public/js/panel-heatmaps.js',
+  'public/js/panel-alerts.js',
+  'public/js/panel-analytics.js',
+  'public/js/panel-fleet.js',
+];
+const missingArc14 = [];
+ARC14_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc14-file:' + path.basename(f), 'present'); }
+  else { fail('arc14-file:' + path.basename(f), 'MISSING'); missingArc14.push(f); }
+});
+if (!missingArc14.length) pass('arc14-all-files', 'All ' + ARC14_FILES.length + ' Arc 14 files present');
+
+// ── 21. debug.html Arc 14 bundle reference ────────────────────────────────────
+console.log('\n[SecurityRegression] debug.html Arc 14 checks:');
+if (debugHtml && debugHtml.includes('runtime-arc14.bundle.js')) {
+  pass('debug-html:arc14-bundle', 'runtime-arc14.bundle.js present in debug.html');
+} else {
+  warn('debug-html:arc14-bundle', 'runtime-arc14.bundle.js NOT found in debug.html');
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

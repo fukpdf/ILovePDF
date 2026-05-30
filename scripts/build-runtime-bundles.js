@@ -356,6 +356,38 @@ const BUNDLES = [
       'public/js/debug-panels/panel-tool-insights.js',
     ],
   },
+  {
+    name:     'runtime-arc14.bundle.js',
+    label:    'Arc 14 Enterprise Runtime Command Center (ERTCC)',
+    deferred: true,
+    files: [
+      // Phase A — Unified subsystem registry + health aggregation
+      'public/js/runtime-command-center.js',
+      // Phase B — Live topology graph (nodes/edges/clusters)
+      'public/js/runtime-topology.js',
+      // Phase C — Memory/worker/thermal/failure heatmaps
+      'public/js/runtime-heatmaps.js',
+      // Phase D — Time-series analytics + trend/growth analysis
+      'public/js/runtime-command-analytics.js',
+      // Phase E — Alert engine (INFO/WARN/P2/P1/P0)
+      'public/js/runtime-alerts.js',
+      // Phase F — Fleet manager (pause/resume/restart/isolate/quarantine)
+      'public/js/runtime-fleet-manager.js',
+      // Phase G — Forecast engine (incidents/memory/thermal/SLA/circuit)
+      'public/js/runtime-forecast.js',
+      // Phase H — Report engine (daily/weekly/health/incident/SLA/tool)
+      'public/js/runtime-reports.js',
+      // Phase J — Enterprise export (topology/heatmaps/alerts/reports/fleet)
+      'public/js/runtime-command-export.js',
+      // Phase I — Arc 14 debug panels
+      'public/js/panel-command-center.js',
+      'public/js/panel-topology.js',
+      'public/js/panel-heatmaps.js',
+      'public/js/panel-alerts.js',
+      'public/js/panel-analytics.js',
+      'public/js/panel-fleet.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────
