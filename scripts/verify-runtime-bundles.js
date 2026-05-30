@@ -135,6 +135,15 @@ const EXPECTED = [
                 'PanelToolRegistry', 'PanelToolHealth', 'PanelToolPredictor',
                 'PanelToolRecovery', 'PanelToolOptimizer'],
   },
+  {
+    file:      'runtime-arc13.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimeToolPersistence', 'RuntimeToolCircuitBreaker', 'RuntimeToolSLA',
+                'RuntimeToolDiscovery', 'RuntimeToolRanking', 'RuntimeToolAnomaly',
+                'RuntimeToolLifecycle', 'RuntimeToolInsights', 'RuntimeToolExportExtended',
+                'PanelToolPersistence', 'PanelToolCircuitBreaker', 'PanelToolSLA',
+                'PanelToolDiscovery', 'PanelToolInsights'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
@@ -211,6 +220,20 @@ if (manifest && Array.isArray(manifest.bundles)) {
       warn_('bundle-missing:' + b.name, b.missing + ' source file(s) were missing during last build');
     }
   }
+}
+
+// ── Arc 13 integrity: debug.html reference ────────────────────────────────────
+const _arc13DebugHtmlPath = path.join(ROOT, 'public', 'debug.html');
+console.log('\n[VerifyBundles] Arc 13 integrity checks:');
+if (fs.existsSync(_arc13DebugHtmlPath)) {
+  const _dh13 = fs.readFileSync(_arc13DebugHtmlPath, 'utf8');
+  if (_dh13.includes('runtime-arc13.bundle.js')) {
+    ok('arc13-debug-ref', 'runtime-arc13.bundle.js referenced in debug.html');
+  } else {
+    warn_('arc13-debug-ref', 'runtime-arc13.bundle.js NOT referenced in debug.html');
+  }
+} else {
+  warn_('arc13-debug-ref', 'debug.html not found');
 }
 
 // ── Arc 12 integrity: debug.html reference ────────────────────────────────────

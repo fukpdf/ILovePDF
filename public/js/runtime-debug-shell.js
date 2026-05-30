@@ -53,6 +53,12 @@
     { id: 'tool-predictor',     label: 'Tool Predictor',        icon: '🔮', ctor: 'PanelToolPredictor'    },
     { id: 'tool-recovery',      label: 'Tool Recovery',         icon: '🔧', ctor: 'PanelToolRecovery'     },
     { id: 'tool-optimizer',     label: 'Tool Optimizer',        icon: '⚡', ctor: 'PanelToolOptimizer'    },
+    // Arc 13 panels (lazy-loaded)
+    { id: 'tool-persistence',   label: 'Tool Persistence',      icon: '💿', ctor: 'PanelToolPersistence'  },
+    { id: 'tool-circuit-breaker', label: 'Circuit Breaker',     icon: '⚡', ctor: 'PanelToolCircuitBreaker'},
+    { id: 'tool-sla',           label: 'Tool SLA',              icon: '📊', ctor: 'PanelToolSLA'          },
+    { id: 'tool-discovery',     label: 'Tool Discovery',        icon: '🔭', ctor: 'PanelToolDiscovery'    },
+    { id: 'tool-insights',      label: 'Tool Insights',         icon: '💡', ctor: 'PanelToolInsights'     },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────

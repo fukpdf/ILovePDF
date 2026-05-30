@@ -355,6 +355,39 @@ if (debugHtml && debugHtml.includes('runtime-arc12.bundle.js')) {
   warn('debug-html:arc12-bundle', 'runtime-arc12.bundle.js NOT found in debug.html');
 }
 
+// ── 18. Arc 13 file presence ──────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 13 file presence:');
+const ARC13_FILES = [
+  'public/js/runtime-tool-persistence.js',
+  'public/js/runtime-tool-circuit-breaker.js',
+  'public/js/runtime-tool-sla.js',
+  'public/js/runtime-tool-discovery.js',
+  'public/js/runtime-tool-ranking.js',
+  'public/js/runtime-tool-anomaly.js',
+  'public/js/runtime-tool-lifecycle.js',
+  'public/js/runtime-tool-insights.js',
+  'public/js/runtime-tool-export-extended.js',
+  'public/js/debug-panels/panel-tool-persistence.js',
+  'public/js/debug-panels/panel-tool-circuit-breaker.js',
+  'public/js/debug-panels/panel-tool-sla.js',
+  'public/js/debug-panels/panel-tool-discovery.js',
+  'public/js/debug-panels/panel-tool-insights.js',
+];
+const missingArc13 = [];
+ARC13_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc13-file:' + path.basename(f), 'present'); }
+  else { fail('arc13-file:' + path.basename(f), 'MISSING'); missingArc13.push(f); }
+});
+if (!missingArc13.length) pass('arc13-all-files', 'All ' + ARC13_FILES.length + ' Arc 13 files present');
+
+// ── 19. debug.html Arc 13 bundle reference ────────────────────────────────────
+console.log('\n[SecurityRegression] debug.html Arc 13 checks:');
+if (debugHtml && debugHtml.includes('runtime-arc13.bundle.js')) {
+  pass('debug-html:arc13-bundle', 'runtime-arc13.bundle.js present in debug.html');
+} else {
+  warn('debug-html:arc13-bundle', 'runtime-arc13.bundle.js NOT found in debug.html');
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

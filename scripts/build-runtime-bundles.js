@@ -325,6 +325,37 @@ const BUNDLES = [
       'public/js/debug-panels/panel-tool-optimizer.js',
     ],
   },
+  {
+    name:     'runtime-arc13.bundle.js',
+    label:    'Arc 13 Persistent Tool Intelligence + Circuit Breaker System',
+    deferred: true,
+    files: [
+      // Phase A — Cross-session IndexedDB persistence
+      'public/js/runtime-tool-persistence.js',
+      // Phase B — Enterprise circuit breaker (CLOSED/OPEN/HALF_OPEN)
+      'public/js/runtime-tool-circuit-breaker.js',
+      // Phase C — Per-tool SLA enforcement (p50/p90/p99)
+      'public/js/runtime-tool-sla.js',
+      // Phase D — Dynamic dependency discovery from user sequences
+      'public/js/runtime-tool-discovery.js',
+      // Phase E — Enterprise tool ranking (usage/success/latency/recovery)
+      'public/js/runtime-tool-ranking.js',
+      // Phase F — Anomaly detection (startup/memory/thermal/failure-spike)
+      'public/js/runtime-tool-anomaly.js',
+      // Phase G — Tool lifecycle states (NEW→ACTIVE→HOT→DORMANT→RETIRED)
+      'public/js/runtime-tool-lifecycle.js',
+      // Phase H — Human-readable insight generation
+      'public/js/runtime-tool-insights.js',
+      // Phase J — Extended export (JSON/CSV/historical report)
+      'public/js/runtime-tool-export-extended.js',
+      // Phase I — Arc 13 debug panels (lazy-loaded by debug shell)
+      'public/js/debug-panels/panel-tool-persistence.js',
+      'public/js/debug-panels/panel-tool-circuit-breaker.js',
+      'public/js/debug-panels/panel-tool-sla.js',
+      'public/js/debug-panels/panel-tool-discovery.js',
+      'public/js/debug-panels/panel-tool-insights.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

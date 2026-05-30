@@ -846,6 +846,66 @@ function checkArc12Files() {
   }
 }
 
+// ── Check: Arc 13 Persistent Tool Intelligence file coverage ──────────────────
+function checkArc13Files() {
+  console.log('\n[Consistency] Arc 13 Persistent Tool Intelligence file coverage:');
+  const ARC13_FILES = [
+    'public/js/runtime-tool-persistence.js',
+    'public/js/runtime-tool-circuit-breaker.js',
+    'public/js/runtime-tool-sla.js',
+    'public/js/runtime-tool-discovery.js',
+    'public/js/runtime-tool-ranking.js',
+    'public/js/runtime-tool-anomaly.js',
+    'public/js/runtime-tool-lifecycle.js',
+    'public/js/runtime-tool-insights.js',
+    'public/js/runtime-tool-export-extended.js',
+    'public/js/debug-panels/panel-tool-persistence.js',
+    'public/js/debug-panels/panel-tool-circuit-breaker.js',
+    'public/js/debug-panels/panel-tool-sla.js',
+    'public/js/debug-panels/panel-tool-discovery.js',
+    'public/js/debug-panels/panel-tool-insights.js',
+  ];
+  let present = 0;
+  for (const f of ARC13_FILES) {
+    if (fs.existsSync(path.join(ROOT, f))) { present++; }
+    else { result('FAIL', 'arc13-file:' + path.basename(f), 'MISSING: ' + f); }
+  }
+
+  // Check arc13 bundle exists
+  const bundlePath = 'public/js/bundles/runtime-arc13.bundle.js';
+  const hasBundle  = fs.existsSync(path.join(ROOT, bundlePath));
+  if (!hasBundle) result('WARN', 'arc13-bundle', 'runtime-arc13.bundle.js not yet built — run build-runtime-bundles.js');
+
+  // Check debug.html references arc13
+  const debugHtml   = readFile('public/debug.html') || '';
+  const hasDebugRef = debugHtml.includes('runtime-arc13.bundle.js');
+  if (!hasDebugRef) result('WARN', 'arc13-debug-html', 'debug.html missing runtime-arc13.bundle.js reference');
+
+  if (present === ARC13_FILES.length && hasBundle && hasDebugRef) {
+    result('PASS', 'arc13-coverage',
+      'All ' + ARC13_FILES.length + ' Arc 13 files present, bundle built, debug.html updated');
+  } else if (present === ARC13_FILES.length) {
+    result('PASS', 'arc13-coverage', 'All ' + ARC13_FILES.length + ' Arc 13 source files present');
+  }
+
+  // Singleton guard check
+  console.log('\n[Consistency] Arc 13 singleton guards:');
+  const JS_FILES = ARC13_FILES.filter(f => f.endsWith('.js'));
+  let guarded = 0;
+  for (const f of JS_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(\w+)\s*\)\s*return/.test(src);
+    const hasFreeze = /G\.(\w+)\s*=\s*(Object\.freeze|new \w+)/.test(src) || /G\.(Panel\w+|Runtime\w+)\s*=/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc13-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'export registration'));
+  }
+  if (guarded === JS_FILES.length) {
+    result('PASS', 'arc13-singleton-guards', 'All ' + JS_FILES.length + ' Arc 13 JS files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -889,6 +949,7 @@ function checkWorkerMixins() {
   checkArc10Files();
   checkArc11Files();
   checkArc12Files();
+  checkArc13Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
