@@ -56,6 +56,13 @@ if (REPLIT_DEV) {
   ALLOWED_ORIGINS.add(`https://${REPLIT_DEV}`);
 }
 
+// Add all Replit domains from REPLIT_DOMAINS (comma-separated list)
+const REPLIT_DOMAINS_ENV = process.env.REPLIT_DOMAINS || '';
+REPLIT_DOMAINS_ENV.split(',').map(s => s.trim()).filter(Boolean).forEach(d => {
+  PRODUCTION_HOSTS.add(d);
+  ALLOWED_ORIGINS.add(`https://${d}`);
+});
+
 // Routes that require strict origin checking
 // (applied only when mounted via app.use('/api', originGuard))
 const STRICT_PREFIXES = [
@@ -89,15 +96,15 @@ function _isLocalhost(origin) {
 
 function _isReplitDev(origin) {
   if (!origin) return false;
-  // Replit dev domain: *.replit.dev / *.repl.co
-  return /^https:\/\/[a-zA-Z0-9-]+\.(replit\.dev|repl\.co)(:\d+)?$/.test(origin);
+  // Replit dev domain: *.replit.dev / *.repl.co / *.replit.app
+  return /^https:\/\/[a-zA-Z0-9-]+\.(replit\.dev|repl\.co|replit\.app)(:\d+)?$/.test(origin);
 }
 
 function _isAllowedOrigin(origin) {
   if (!origin) return true; // same-origin requests have no Origin header
   if (ALLOWED_ORIGINS.has(origin)) return true;
   if (_isLocalhost(origin)) return true;
-  if (!IS_PROD && _isReplitDev(origin)) return true;
+  if (_isReplitDev(origin)) return true; // always allow Replit domains
   if (!IS_PROD) return true; // dev environment: always allow
   if (FIREBASE_ORIGIN_RE.test(origin)) return true;
   return false;
