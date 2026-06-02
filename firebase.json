@@ -1,10 +1,24 @@
 {
   "hosting": {
     "public": "public",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/ads.txt",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=86400" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" }
+        ]
+      }
+    ],
+    "redirects": [
+      { "source": "/contact",      "destination": "/about#contact", "type": 301 },
+      { "source": "/contact.html", "destination": "/about#contact", "type": 301 }
     ],
     "rewrites": [
       { "source": "/*/preview",  "destination": "/tool.html" },
