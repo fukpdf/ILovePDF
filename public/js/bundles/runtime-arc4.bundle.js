@@ -1,5 +1,5 @@
 // ── Arc 4 Enterprise Tool Runtime Completion — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-29T10:30:45.719Z  BUILD_ID: mpqs70k8
+// Generated: 2026-06-03T02:46:36.800Z  BUILD_ID: mpxgtdiz
 // Files: 9
 
 // ── SOURCE: public/js/runtime-worker-domain-throttle.js ──

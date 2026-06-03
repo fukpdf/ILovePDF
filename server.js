@@ -393,10 +393,26 @@ app.get('/verify-signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify-signup.html'));
 });
 
-// Static About page (clean URL — no .html extension)
+// Static pages — clean URLs (no .html extension; matches sitemap + Firebase cleanUrls)
 app.get('/about', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.sendFile(path.join(__dirname, 'public', 'about.html'));
+});
+app.get('/privacy', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+app.get('/terms', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+app.get('/disclaimer', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'disclaimer.html'));
+});
+app.get('/blog', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'blog.html'));
 });
 
 // Contact redirects to the contact section on the about page

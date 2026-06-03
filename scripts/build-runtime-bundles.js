@@ -388,6 +388,38 @@ const BUNDLES = [
       'public/js/panel-fleet.js',
     ],
   },
+  {
+    name:     'runtime-arc15.bundle.js',
+    label:    'Arc 15 Enterprise Runtime Automation & Policy Orchestration (ERAPO)',
+    deferred: true,
+    files: [
+      // Phase A — Policy engine (register/evaluate/enforce runtime policies)
+      'public/js/runtime-policy-engine.js',
+      // Phase B — Automation engine (action execution + scheduling)
+      'public/js/runtime-automation-engine.js',
+      // Phase C — Workflow engine (multi-step orchestration + rollback)
+      'public/js/runtime-workflow-engine.js',
+      // Phase D — Decision engine (multi-signal merge → recommended action)
+      'public/js/runtime-decision-engine.js',
+      // Phase E — Resource orchestrator (CPU/memory/worker/storage budgets)
+      'public/js/runtime-resource-orchestrator.js',
+      // Phase F — Autonomous ops (self-healing loop)
+      'public/js/runtime-autonomous-ops.js',
+      // Phase G — Policy analytics (execution tracking + rankings)
+      'public/js/runtime-policy-analytics.js',
+      // Phase H — Policy reports (daily/weekly/incident/recovery reports)
+      'public/js/runtime-policy-reports.js',
+      // Phase J — Enterprise export (JSON/CSV for all Arc 15 data)
+      'public/js/runtime-policy-export.js',
+      // Phase I — Arc 15 debug panels
+      'public/js/panel-policy-engine.js',
+      'public/js/panel-automation-engine.js',
+      'public/js/panel-workflow-engine.js',
+      'public/js/panel-autonomous-ops.js',
+      'public/js/panel-policy-analytics.js',
+      'public/js/panel-decision-engine.js',
+    ],
+  },
 ];
 
 // ── Build ─────────────────────────────────────────────────────────────────────

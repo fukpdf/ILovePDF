@@ -1,3 +1,8 @@
+// ── Arc 14 Enterprise Runtime Command Center (ERTCC) — Phase 9 build bundle ──────────────────────────
+// Generated: 2026-06-03T02:46:36.872Z  BUILD_ID: mpxgtdiz
+// Files: 15
+
+// ── SOURCE: public/js/runtime-command-center.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeCommandCenter) return;
@@ -175,6 +180,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-topology.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeTopology) return;
@@ -337,6 +344,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-heatmaps.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeHeatmaps) return;
@@ -523,6 +532,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-command-analytics.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeCommandAnalytics) return;
@@ -647,6 +658,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-alerts.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeAlerts) return;
@@ -785,6 +798,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-fleet-manager.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeFleetManager) return;
@@ -927,6 +942,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-forecast.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeForecast) return;
@@ -1073,6 +1090,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-reports.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeReports) return;
@@ -1277,6 +1296,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-command-export.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeCommandExport) return;
@@ -1456,6 +1477,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-command-center.js ──
 (function (G) {
   'use strict';
   if (G.PanelCommandCenter) return;
@@ -1531,6 +1554,8 @@
   G.PanelCommandCenter = Object.freeze({ render: render, refresh: refresh });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-topology.js ──
 (function (G) {
   'use strict';
   if (G.PanelTopology) return;
@@ -1600,6 +1625,8 @@
   G.PanelTopology = Object.freeze({ render: render, refresh: refresh });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-heatmaps.js ──
 (function (G) {
   'use strict';
   if (G.PanelHeatmaps) return;
@@ -1663,6 +1690,8 @@
   G.PanelHeatmaps = Object.freeze({ render: render, refresh: refresh });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-alerts.js ──
 (function (G) {
   'use strict';
   if (G.PanelAlerts) return;
@@ -1747,6 +1776,8 @@
   G.PanelAlerts = _pub;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-analytics.js ──
 (function (G) {
   'use strict';
   if (G.PanelAnalytics) return;
@@ -1846,6 +1877,8 @@
   G.PanelAnalytics = _pub;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/panel-fleet.js ──
 (function (G) {
   'use strict';
   if (G.PanelFleet) return;
@@ -1921,3 +1954,4 @@
   G.PanelFleet = Object.freeze({ render: render, refresh: refresh });
 
 }(typeof window !== 'undefined' ? window : this));
+

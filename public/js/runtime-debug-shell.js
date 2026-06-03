@@ -66,6 +66,13 @@
     { id: 'alerts',             label: 'Alerts',                icon: '🚨', ctor: 'PanelAlerts'           },
     { id: 'analytics',          label: 'Analytics',             icon: '📈', ctor: 'PanelAnalytics'        },
     { id: 'fleet',              label: 'Fleet Manager',         icon: '🚀', ctor: 'PanelFleet'            },
+    // Arc 15 panels (ERAPO — Automation & Policy Orchestration)
+    { id: 'policy-engine',      label: 'Policy Engine',         icon: '📋', ctor: 'PanelPolicyEngine'     },
+    { id: 'automation-engine',  label: 'Automation Engine',     icon: '⚙️', ctor: 'PanelAutomationEngine' },
+    { id: 'workflow-engine',    label: 'Workflow Engine',       icon: '🔀', ctor: 'PanelWorkflowEngine'   },
+    { id: 'autonomous-ops',     label: 'Autonomous Ops',        icon: '🤖', ctor: 'PanelAutonomousOps'    },
+    { id: 'policy-analytics',   label: 'Policy Analytics',      icon: '📊', ctor: 'PanelPolicyAnalytics'  },
+    { id: 'decision-engine',    label: 'Decision Engine',       icon: '🧠', ctor: 'PanelDecisionEngine'   },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────

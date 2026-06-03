@@ -1,3 +1,8 @@
+// ── Arc 13 Persistent Tool Intelligence + Circuit Breaker System — Phase 9 build bundle ──────────────────────────
+// Generated: 2026-06-03T02:46:36.866Z  BUILD_ID: mpxgtdiz
+// Files: 14
+
+// ── SOURCE: public/js/runtime-tool-persistence.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolPersistence) return;
@@ -222,6 +227,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-circuit-breaker.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolCircuitBreaker) return;
@@ -421,6 +428,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-sla.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolSLA) return;
@@ -543,6 +552,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-discovery.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolDiscovery) return;
@@ -663,6 +674,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-ranking.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolRanking) return;
@@ -796,6 +809,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-anomaly.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolAnomaly) return;
@@ -943,6 +958,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-lifecycle.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolLifecycle) return;
@@ -1067,6 +1084,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-insights.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolInsights) return;
@@ -1253,6 +1272,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-export-extended.js ──
 (function (G) {
   'use strict';
   if (G.RuntimeToolExportExtended) return;
@@ -1445,6 +1466,8 @@
   });
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-persistence.js ──
 (function (G) {
   'use strict';
   if (G.PanelToolPersistence) return;
@@ -1510,6 +1533,8 @@
   G.PanelToolPersistence = PanelToolPersistence;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-circuit-breaker.js ──
 (function (G) {
   'use strict';
   if (G.PanelToolCircuitBreaker) return;
@@ -1583,6 +1608,8 @@
   G.PanelToolCircuitBreaker = PanelToolCircuitBreaker;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-sla.js ──
 (function (G) {
   'use strict';
   if (G.PanelToolSLA) return;
@@ -1672,6 +1699,8 @@
   G.PanelToolSLA = PanelToolSLA;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-discovery.js ──
 (function (G) {
   'use strict';
   if (G.PanelToolDiscovery) return;
@@ -1768,6 +1797,8 @@
   G.PanelToolDiscovery = PanelToolDiscovery;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-insights.js ──
 (function (G) {
   'use strict';
   if (G.PanelToolInsights) return;
@@ -1849,3 +1880,4 @@
   G.PanelToolInsights = PanelToolInsights;
 
 }(typeof window !== 'undefined' ? window : this));
+

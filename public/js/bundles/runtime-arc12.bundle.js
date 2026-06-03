@@ -1,3 +1,8 @@
+// ── Arc 12 Enterprise Tool Intelligence Layer (ETIL) — Phase 9 build bundle ──────────────────────────
+// Generated: 2026-06-03T02:46:36.858Z  BUILD_ID: mpxgtdiz
+// Files: 14
+
+// ── SOURCE: public/js/runtime-tool-registry.js ──
 // RuntimeToolRegistry v1.0 — Arc 12 / Phase A / Enterprise Tool Intelligence Layer
 // Unified registry: every tool is a self-aware runtime entity with full metrics tracking.
 // Integrates: RuntimeEventTimeline, RuntimeBlackbox (optional telemetry)
@@ -173,6 +178,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-health.js ──
 // RuntimeToolHealth v1.0 — Arc 12 / Phase B / Enterprise Tool Intelligence Layer
 // Live health scoring for every registered tool.
 // Score factors: startup speed, execution speed, memory usage, crash frequency, recovery frequency.
@@ -360,6 +367,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-dependencies.js ──
 // RuntimeToolDependencies v1.0 — Arc 12 / Phase C / Enterprise Tool Intelligence Layer
 // Dependency graph: tracks upstream/downstream relationships between tools.
 // Allows understanding which tools depend on which processors/bundles/tools.
@@ -514,6 +523,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-isolation.js ──
 // RuntimeToolIsolation v1.0 — Arc 12 / Phase D / Enterprise Tool Intelligence Layer
 // Automatic tool quarantine on repeated crashes, memory violations, or recoveries.
 // Integrates: RuntimeToolRegistry, RuntimeGovernance, RuntimeRecoveryOrchestrator,
@@ -686,6 +697,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-predictor.js ──
 // RuntimeToolPredictor v1.0 — Arc 12 / Phase E / Enterprise Tool Intelligence Layer
 // Next-tool prediction engine. Learns tool-to-tool transition sequences.
 // Integrates: RuntimeAdaptiveAI (base predictions), RuntimeToolRegistry,
@@ -846,6 +859,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-profiler.js ──
 // RuntimeToolProfiler v1.0 — Arc 12 / Phase F / Enterprise Tool Intelligence Layer
 // Per-tool execution profiling: startupMs, executionMs, memoryMb, workerUsage, thermalImpact.
 // Computes p50/p90/p99 statistics per tool.
@@ -1017,6 +1032,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-recovery.js ──
 // RuntimeToolRecovery v1.0 — Arc 12 / Phase G / Enterprise Tool Intelligence Layer
 // Tool-level recovery memory: tracks per-tool failure types and best recovery strategies.
 // Integrates: RuntimeRecoveryMemory, RuntimeToolRegistry, RuntimeIncidentCenter,
@@ -1175,6 +1192,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-optimizer.js ──
 // RuntimeToolOptimizer v1.0 — Arc 12 / Phase H / Enterprise Tool Intelligence Layer
 // Tool startup optimization: preload hot tools, unload dormant tools, warm predicted next.
 // Integrates: RuntimeAdaptiveBundles, RuntimeAdaptiveAI, RuntimeWorkloadIntelligence,
@@ -1397,6 +1416,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/runtime-tool-export.js ──
 // RuntimeToolExport v1.0 — Arc 12 / Phase J / Enterprise Tool Intelligence Layer
 // Export layer: health reports, dependency graphs, tool statistics, prediction models.
 // Formats: JSON and CSV.
@@ -1635,6 +1656,8 @@
   console.debug(LOG, 'ready');
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-registry.js ──
 // PanelToolRegistry — Arc 12 debug panel
 // Shows all registered tools with category, launch count, health level, and isolation state.
 // Lazy-loaded by RuntimeDebugShell when the tab is first activated.
@@ -1735,6 +1758,8 @@
   G.PanelToolRegistry = PanelToolRegistry;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-health.js ──
 // PanelToolHealth — Arc 12 debug panel
 // Shows live health scores, failure rates, crash counts, and recovery frequency per tool.
 // Lazy-loaded by RuntimeDebugShell when the tab is first activated.
@@ -1848,6 +1873,8 @@
   G.PanelToolHealth = PanelToolHealth;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-predictor.js ──
 // PanelToolPredictor — Arc 12 debug panel
 // Shows learned tool-to-tool transition sequences and next-tool prediction results.
 // Lazy-loaded by RuntimeDebugShell when the tab is first activated.
@@ -1972,6 +1999,8 @@
   G.PanelToolPredictor = PanelToolPredictor;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-recovery.js ──
 // PanelToolRecovery — Arc 12 debug panel
 // Shows per-tool recovery history, success rates, and best recovery strategy per tool.
 // Lazy-loaded by RuntimeDebugShell when the tab is first activated.
@@ -2092,6 +2121,8 @@
   G.PanelToolRecovery = PanelToolRecovery;
 
 }(typeof window !== 'undefined' ? window : this));
+
+// ── SOURCE: public/js/debug-panels/panel-tool-optimizer.js ──
 // PanelToolOptimizer — Arc 12 debug panel
 // Shows tool startup optimization: preloaded tools, dormant tools, and estimated savings.
 // Lazy-loaded by RuntimeDebugShell when the tab is first activated.
@@ -2219,3 +2250,4 @@
   G.PanelToolOptimizer = PanelToolOptimizer;
 
 }(typeof window !== 'undefined' ? window : this));
+

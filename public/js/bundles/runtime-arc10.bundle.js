@@ -1,5 +1,5 @@
 // ── Arc 10D Admin Observability Dashboard — Phase 9 build bundle ──────────────────────────
-// Generated: 2026-05-29T10:30:45.756Z  BUILD_ID: mpqs70k8
+// Generated: 2026-06-03T02:46:36.839Z  BUILD_ID: mpxgtdiz
 // Files: 14
 
 // ── SOURCE: public/js/runtime-debug-security.js ──
@@ -660,6 +660,32 @@
     { id: 'recovery-memory',    label: 'Recovery Memory',       icon: '🧠', ctor: 'PanelRecoveryMemory'   },
     { id: 'deploy-resilience',  label: 'Deploy Resilience',     icon: '🚀', ctor: 'PanelDeployResilience' },
     { id: 'crash-survival',     label: 'Crash Survival',        icon: '💥', ctor: 'PanelCrashSurvival'    },
+    // Arc 12 panels (lazy-loaded)
+    { id: 'tool-registry',      label: 'Tool Registry',         icon: '📋', ctor: 'PanelToolRegistry'     },
+    { id: 'tool-health',        label: 'Tool Health',           icon: '❤️', ctor: 'PanelToolHealth'        },
+    { id: 'tool-predictor',     label: 'Tool Predictor',        icon: '🔮', ctor: 'PanelToolPredictor'    },
+    { id: 'tool-recovery',      label: 'Tool Recovery',         icon: '🔧', ctor: 'PanelToolRecovery'     },
+    { id: 'tool-optimizer',     label: 'Tool Optimizer',        icon: '⚡', ctor: 'PanelToolOptimizer'    },
+    // Arc 13 panels (lazy-loaded)
+    { id: 'tool-persistence',   label: 'Tool Persistence',      icon: '💿', ctor: 'PanelToolPersistence'  },
+    { id: 'tool-circuit-breaker', label: 'Circuit Breaker',     icon: '⚡', ctor: 'PanelToolCircuitBreaker'},
+    { id: 'tool-sla',           label: 'Tool SLA',              icon: '📊', ctor: 'PanelToolSLA'          },
+    { id: 'tool-discovery',     label: 'Tool Discovery',        icon: '🔭', ctor: 'PanelToolDiscovery'    },
+    { id: 'tool-insights',      label: 'Tool Insights',         icon: '💡', ctor: 'PanelToolInsights'     },
+    // Arc 14 panels (Command Center)
+    { id: 'command-center',     label: 'Command Center',        icon: '🖥️', ctor: 'PanelCommandCenter'    },
+    { id: 'topology',           label: 'Topology',              icon: '🗺️', ctor: 'PanelTopology'         },
+    { id: 'heatmaps',           label: 'Heatmaps',              icon: '🔥', ctor: 'PanelHeatmaps'         },
+    { id: 'alerts',             label: 'Alerts',                icon: '🚨', ctor: 'PanelAlerts'           },
+    { id: 'analytics',          label: 'Analytics',             icon: '📈', ctor: 'PanelAnalytics'        },
+    { id: 'fleet',              label: 'Fleet Manager',         icon: '🚀', ctor: 'PanelFleet'            },
+    // Arc 15 panels (ERAPO — Automation & Policy Orchestration)
+    { id: 'policy-engine',      label: 'Policy Engine',         icon: '📋', ctor: 'PanelPolicyEngine'     },
+    { id: 'automation-engine',  label: 'Automation Engine',     icon: '⚙️', ctor: 'PanelAutomationEngine' },
+    { id: 'workflow-engine',    label: 'Workflow Engine',       icon: '🔀', ctor: 'PanelWorkflowEngine'   },
+    { id: 'autonomous-ops',     label: 'Autonomous Ops',        icon: '🤖', ctor: 'PanelAutonomousOps'    },
+    { id: 'policy-analytics',   label: 'Policy Analytics',      icon: '📊', ctor: 'PanelPolicyAnalytics'  },
+    { id: 'decision-engine',    label: 'Decision Engine',       icon: '🧠', ctor: 'PanelDecisionEngine'   },
   ];
 
   // ── DOM root ──────────────────────────────────────────────────────────────────

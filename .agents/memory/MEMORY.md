@@ -2,3 +2,4 @@
 - [Arc 12 Build](arc12-build.md) — Arc 12 ETIL completed: 9 runtime files + 5 debug panels + arc12 bundle. All 4 gates at or above target.
 - [Arc 13 Build](arc13-build.md) — Arc 13 Persistent Tool Intelligence: 9 runtime + 5 panels + arc13 bundle. All 4 gates passed with 0 failures.
 - [Arc 14 Build](arc14-build.md) — Arc 14 ERTCC: 15 source files (9 runtime + 6 panels) + arc14 bundle. All 4 gates at exact targets, 0 failures. Key: existing runtime-analytics.js (Phase 27 client analytics bus) conflicts with RuntimeAnalytics name — use RuntimeCommandAnalytics in Arc 14.
+- [Arc 15 Build](arc15-build.md) — Arc 15 ERAPO: 15 source files (9 runtime + 6 panels) + arc15 bundle (98.6 KB). All 4 gates at exact targets, 0 failures. Also: sitemap clean URLs + /privacy /terms /disclaimer /blog server routes added.

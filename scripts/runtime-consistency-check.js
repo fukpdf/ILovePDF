@@ -963,6 +963,63 @@ function checkArc14Files() {
   }
 }
 
+function checkArc15Files() {
+  console.log('\n[Consistency] Arc 15 Enterprise Runtime Automation & Policy Orchestration file coverage:');
+  const ARC15_FILES = [
+    'public/js/runtime-policy-engine.js',
+    'public/js/runtime-automation-engine.js',
+    'public/js/runtime-workflow-engine.js',
+    'public/js/runtime-decision-engine.js',
+    'public/js/runtime-resource-orchestrator.js',
+    'public/js/runtime-autonomous-ops.js',
+    'public/js/runtime-policy-analytics.js',
+    'public/js/runtime-policy-reports.js',
+    'public/js/runtime-policy-export.js',
+    'public/js/panel-policy-engine.js',
+    'public/js/panel-automation-engine.js',
+    'public/js/panel-workflow-engine.js',
+    'public/js/panel-autonomous-ops.js',
+    'public/js/panel-policy-analytics.js',
+    'public/js/panel-decision-engine.js',
+  ];
+  let present = 0;
+  for (const f of ARC15_FILES) {
+    if (fs.existsSync(path.join(ROOT, f))) { present++; }
+    else { result('FAIL', 'arc15-file:' + path.basename(f), 'MISSING: ' + f); }
+  }
+
+  const bundlePath = 'public/js/bundles/runtime-arc15.bundle.js';
+  const hasBundle  = fs.existsSync(path.join(ROOT, bundlePath));
+  if (!hasBundle) result('WARN', 'arc15-bundle', 'runtime-arc15.bundle.js not yet built — run build-runtime-bundles.js');
+
+  const debugHtml   = readFile('public/debug.html') || '';
+  const hasDebugRef = debugHtml.includes('runtime-arc15.bundle.js');
+  if (!hasDebugRef) result('WARN', 'arc15-debug-html', 'debug.html missing runtime-arc15.bundle.js reference');
+
+  if (present === ARC15_FILES.length && hasBundle && hasDebugRef) {
+    result('PASS', 'arc15-coverage',
+      'All ' + ARC15_FILES.length + ' Arc 15 files present, bundle built, debug.html updated');
+  } else if (present === ARC15_FILES.length) {
+    result('PASS', 'arc15-coverage', 'All ' + ARC15_FILES.length + ' Arc 15 source files present');
+  }
+
+  console.log('\n[Consistency] Arc 15 singleton guards:');
+  const JS_FILES = ARC15_FILES.filter(f => f.endsWith('.js'));
+  let guarded = 0;
+  for (const f of JS_FILES) {
+    const src = readFile(f);
+    if (!src) continue;
+    const hasGuard  = /if\s*\(\s*G\.(\w+)\s*\)\s*return/.test(src);
+    const hasFreeze = /G\.(\w+)\s*=\s*(Object\.freeze|new \w+)/.test(src) || /G\.(Panel\w+|Runtime\w+)\s*=/.test(src);
+    if (hasGuard && hasFreeze) guarded++;
+    else result('WARN', 'arc15-guard:' + path.basename(f),
+      'Missing ' + (!hasGuard ? 'singleton guard' : 'export registration'));
+  }
+  if (guarded === JS_FILES.length) {
+    result('PASS', 'arc15-singleton-guards', 'All ' + JS_FILES.length + ' Arc 15 JS files have singleton guards + frozen exports');
+  }
+}
+
 // ── Check 8: Worker mixin coverage ────────────────────────────────────────────
 function checkWorkerMixins() {
   console.log('\n[Consistency] Worker p4-heartbeat-mixin coverage:');
@@ -1008,6 +1065,7 @@ function checkWorkerMixins() {
   checkArc12Files();
   checkArc13Files();
   checkArc14Files();
+  checkArc15Files();
 
   const passed  = results.filter(r => r.status === 'PASS').length;
   const failed  = results.filter(r => r.status === 'FAIL').length;
@@ -1016,7 +1074,7 @@ function checkWorkerMixins() {
 
   console.log('\n[Consistency] ──────────────────────────────────────────');
   console.log('[Consistency] Result:', overall, '| Pass:', passed, '| Fail:', failed, '| Warn:', warned);
-  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓, Arc5 ✓, Arc6 ✓, Arc11 ✓, Arc12 ✓, Arc13 ✓, Arc14 ✓');
+  console.log('[Consistency] Phase coverage: P1-5 ✓, P6 ✓, P7 ✓, P8 ✓, Arc2 ✓, Arc3 ✓, Arc4 ✓, Arc5 ✓, Arc6 ✓, Arc11 ✓, Arc12 ✓, Arc13 ✓, Arc14 ✓, Arc15 ✓');
   console.log('[Consistency] ══════════════════════════════════════════\n');
 
   const report = { ok: failed === 0, overall, passed, failed, warned, results, ts: Date.now() };

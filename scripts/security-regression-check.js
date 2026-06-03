@@ -422,6 +422,40 @@ if (debugHtml && debugHtml.includes('runtime-arc14.bundle.js')) {
   warn('debug-html:arc14-bundle', 'runtime-arc14.bundle.js NOT found in debug.html');
 }
 
+// ── 22. Arc 15 file presence ──────────────────────────────────────────────────
+console.log('\n[SecurityRegression] Arc 15 file presence:');
+const ARC15_FILES = [
+  'public/js/runtime-policy-engine.js',
+  'public/js/runtime-automation-engine.js',
+  'public/js/runtime-workflow-engine.js',
+  'public/js/runtime-decision-engine.js',
+  'public/js/runtime-resource-orchestrator.js',
+  'public/js/runtime-autonomous-ops.js',
+  'public/js/runtime-policy-analytics.js',
+  'public/js/runtime-policy-reports.js',
+  'public/js/runtime-policy-export.js',
+  'public/js/panel-policy-engine.js',
+  'public/js/panel-automation-engine.js',
+  'public/js/panel-workflow-engine.js',
+  'public/js/panel-autonomous-ops.js',
+  'public/js/panel-policy-analytics.js',
+  'public/js/panel-decision-engine.js',
+];
+const missingArc15 = [];
+ARC15_FILES.forEach(f => {
+  if (_exists(f)) { pass('arc15-file:' + path.basename(f), 'present'); }
+  else { fail('arc15-file:' + path.basename(f), 'MISSING'); missingArc15.push(f); }
+});
+if (!missingArc15.length) pass('arc15-all-files', 'All ' + ARC15_FILES.length + ' Arc 15 files present');
+
+// ── 23. debug.html Arc 15 bundle reference ────────────────────────────────────
+console.log('\n[SecurityRegression] debug.html Arc 15 checks:');
+if (debugHtml && debugHtml.includes('runtime-arc15.bundle.js')) {
+  pass('debug-html:arc15-bundle', 'runtime-arc15.bundle.js present in debug.html');
+} else {
+  warn('debug-html:arc15-bundle', 'runtime-arc15.bundle.js NOT found in debug.html');
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log('\n[SecurityRegression] ' + SEP);
 console.log('[SecurityRegression] Result:', failCount === 0 ? 'PASS' : 'FAIL',

@@ -35,12 +35,12 @@ const TOP_TOOLS = new Set([
 ]);
 
 const UTILITY_PAGES = [
-  { path: '/privacy.html',    priority: 0.5, changefreq: 'yearly'  },
-  { path: '/terms.html',      priority: 0.5, changefreq: 'yearly'  },
-  { path: '/disclaimer.html', priority: 0.5, changefreq: 'yearly'  },
-  { path: '/blog.html',       priority: 0.7, changefreq: 'weekly'  },
-  { path: '/about',           priority: 0.5, changefreq: 'monthly' },
-  { path: '/tools',           priority: 0.8, changefreq: 'weekly'  },
+  { path: '/privacy',     priority: 0.5, changefreq: 'yearly'  },
+  { path: '/terms',       priority: 0.5, changefreq: 'yearly'  },
+  { path: '/disclaimer',  priority: 0.5, changefreq: 'yearly'  },
+  { path: '/blog',        priority: 0.7, changefreq: 'weekly'  },
+  { path: '/about',       priority: 0.5, changefreq: 'monthly' },
+  { path: '/tools',       priority: 0.8, changefreq: 'weekly'  },
 ];
 
 // Static guide blog posts that exist as public/blog/*.html

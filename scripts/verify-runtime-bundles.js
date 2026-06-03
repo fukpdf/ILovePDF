@@ -153,6 +153,15 @@ const EXPECTED = [
                 'PanelCommandCenter', 'PanelTopology', 'PanelHeatmaps',
                 'PanelAlerts', 'PanelAnalytics', 'PanelFleet'],
   },
+  {
+    file:      'runtime-arc15.bundle.js',
+    minBytes:  5000,
+    sentinels: ['RuntimePolicyEngine', 'RuntimeAutomationEngine', 'RuntimeWorkflowEngine',
+                'RuntimeDecisionEngine', 'RuntimeResourceOrchestrator', 'RuntimeAutonomousOps',
+                'RuntimePolicyAnalytics', 'RuntimePolicyReports', 'RuntimePolicyExport',
+                'PanelPolicyEngine', 'PanelAutomationEngine', 'PanelWorkflowEngine',
+                'PanelAutonomousOps', 'PanelPolicyAnalytics', 'PanelDecisionEngine'],
+  },
 ];
 
 console.log('\n[VerifyBundles] ════════════════════════════════');
@@ -229,6 +238,20 @@ if (manifest && Array.isArray(manifest.bundles)) {
       warn_('bundle-missing:' + b.name, b.missing + ' source file(s) were missing during last build');
     }
   }
+}
+
+// ── Arc 15 integrity: debug.html reference ────────────────────────────────────
+const _arc15DebugHtmlPath = path.join(ROOT, 'public', 'debug.html');
+console.log('\n[VerifyBundles] Arc 15 integrity checks:');
+if (fs.existsSync(_arc15DebugHtmlPath)) {
+  const _dh15 = fs.readFileSync(_arc15DebugHtmlPath, 'utf8');
+  if (_dh15.includes('runtime-arc15.bundle.js')) {
+    ok('arc15-debug-ref', 'runtime-arc15.bundle.js referenced in debug.html');
+  } else {
+    warn_('arc15-debug-ref', 'runtime-arc15.bundle.js NOT referenced in debug.html');
+  }
+} else {
+  warn_('arc15-debug-ref', 'debug.html not found');
 }
 
 // ── Arc 14 integrity: debug.html reference ────────────────────────────────────
