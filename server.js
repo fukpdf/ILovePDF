@@ -88,6 +88,48 @@ app.get('/api/geo', (req, res) => {
 // /ping-index. Mounted before static so it can override sitemap/robots files.
 app.use(seoRouter);
 
+// ── Legacy .html → clean URL 301 redirects ───────────────────────────────────
+// Must be BEFORE express.static so these intercept before the physical files are served.
+const HTML_REDIRECTS = {
+  '/privacy.html':    '/privacy',
+  '/terms.html':      '/terms',
+  '/about.html':      '/about',
+  '/contact.html':    '/contact',
+  '/disclaimer.html': '/disclaimer',
+  '/blog.html':       '/blog',
+};
+app.use((req, res, next) => {
+  const target = HTML_REDIRECTS[req.path];
+  if (target) return res.redirect(301, target);
+  next();
+});
+
+// /blog index — must be explicit BEFORE express.static or the public/blog/ directory
+// causes Express to 301 → /blog/ (trailing-slash directory redirect).
+app.get('/blog', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'blog.html'));
+});
+
+// Blog articles at clean URLs: /blog/merge-pdf-guide → serves public/blog/merge-pdf-guide.html
+// This is mounted BEFORE express.static so it resolves before the 404 path.
+app.get('/blog/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  // Reject slugs that already have .html (those are caught by the redirect above if needed)
+  if (slug.endsWith('.html')) return next();
+  // Redirect legacy /blog/slug.html → /blog/slug (in case anyone bookmarked with .html)
+  const filePath = path.join(__dirname, 'public', 'blog', `${slug}.html`);
+  if (!fs.existsSync(filePath)) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(filePath);
+});
+
+// Redirect /blog/:slug.html → /blog/:slug (covers inbound .html links from other sites)
+app.get('/blog/:slug.html', (req, res) => {
+  const slug = req.params.slug;
+  res.redirect(301, `/blog/${slug}`);
+});
+
 // Phase 24: Tiered static file serving with long-lived cache headers.
 // JS/CSS/fonts/images get 1-year immutable headers so browsers never
 // re-fetch them on subsequent visits (service worker handles freshness).

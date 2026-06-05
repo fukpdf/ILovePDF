@@ -579,7 +579,7 @@ function learnMoreHtml(tool) {
         <h3>New to ${tool.name}? Read the full step-by-step guide</h3>
         <p>Pro tips, common pitfalls, FAQs and more — everything you need to get the best results from ${tool.name}.</p>
       </div>
-      <a href="/blog/${slug}-guide.html" class="tool-learn-more-cta">
+      <a href="/blog/${slug}-guide" class="tool-learn-more-cta">
         Read guide <i data-lucide="arrow-right"></i>
       </a>
     </aside>`;
@@ -869,7 +869,7 @@ function renderDownloadStep(tool) {
           <a href="/" class="btn btn-outline">
             <i data-lucide="grid-3x3"></i> Try another tool
           </a>
-          <a href="/blog.html" class="btn btn-outline">
+          <a href="/blog" class="btn btn-outline">
             <i data-lucide="book-open"></i> Read guides
           </a>
         </div>

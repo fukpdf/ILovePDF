@@ -110,7 +110,7 @@
   // /blog/compress-pdf-guide.html → compress-pdf
   // Fallback: first existing in-article link to a tool path.
   function deriveToolSlug() {
-    const m = location.pathname.match(/\/blog\/([a-z0-9-]+?)(?:-guide)?\.html$/i);
+    const m = location.pathname.match(/\/blog\/([a-z0-9-]+?)(?:-guide)?(?:\.html)?$/i);
     if (m && m[1] && m[1] !== 'index') return m[1];
     // Fallback: first link in the article body that points to a tool root path.
     const a = document.querySelector('.blog-article-body a[href^="/"]:not([href*="/blog"])');
