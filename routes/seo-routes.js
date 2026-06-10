@@ -274,6 +274,9 @@ Disallow: /*/download
 Disallow: /live-intel
 Disallow: /ping-index
 Disallow: /verify-signup
+Disallow: /debug
+Disallow: /p9-test
+Disallow: /dashboard
 
 # Crawl politeness
 Crawl-delay: 1

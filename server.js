@@ -277,12 +277,23 @@ app.use((req, res, next) => {
       "https://firebaseinstallations.googleapis.com",
       "https://pagead2.googlesyndication.com",
       "https://adservice.google.com",
+      "https://ep1.adtrafficquality.google",
       "https://formspree.io",
       "wss:",
     ].join(' '),
 
     // Workers: same-origin JS + blob: (dynamically created workers)
     "worker-src 'self' blob:",
+
+    // Frames: AdSense + doubleclick ad iframes + self
+    [
+      "frame-src",
+      "'self'",
+      "https://googleads.g.doubleclick.net",
+      "https://tpc.googlesyndication.com",
+      "https://www.google.com",
+      "https://pagead2.googlesyndication.com",
+    ].join(' '),
 
     // Child contexts (SharedWorker, nested workers)
     "child-src 'self' blob:",
@@ -311,18 +322,15 @@ app.use((req, res, next) => {
   // Permissions-Policy: restrict powerful browser features not used by tools
   res.setHeader('Permissions-Policy', [
     'accelerometer=()',
-    'ambient-light-sensor=()',
-    'battery=()',
-    'bluetooth=()',
     'geolocation=()',
     'gyroscope=()',
     'magnetometer=()',
     'microphone=()',
-    'midi=()',
     'payment=()',
     'serial=()',
     'usb=()',
     // camera= omitted: some scan tools may need it in future
+    // ambient-light-sensor, battery, bluetooth removed: not standardised in Permissions-Policy v2
   ].join(', '));
 
   next();
@@ -459,7 +467,7 @@ app.get('/blog', (_req, res) => {
 
 // Contact redirects to the contact section on the about page
 app.get('/contact', (_req, res) => {
-  res.redirect(301, '/about.html#contact');
+  res.redirect(301, '/about#contact');
 });
 
 // SEO routes
