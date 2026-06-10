@@ -30,7 +30,7 @@
   // Combines file identity + options so two different rotations of the
   // same file (e.g. 90° vs 180°) are treated as distinct operations.
   function _dedupeKey(file, opts) {
-    var deg   = String((opts && opts.degrees) || '90');
+    var deg   = String((opts && opts.degrees) || '0');
     var pages = String((opts && opts.pages)   || 'all');
     return 'rotate:' + file.name + ':' + file.size + ':' + deg + ':' + pages;
   }
@@ -71,7 +71,7 @@
   // Stops when the worker promise settles.
   function _startProgressTicker(opts, onProgress) {
     var pct = 50;
-    var degrees = String((opts && opts.degrees) || '90');
+    var degrees = String((opts && opts.degrees) || '0');
     var messages = [
       'Rotating pages ' + degrees + '°…',
       'Applying rotation…',
@@ -127,7 +127,7 @@
       spanId = window.RuntimeTelemetry.startSpan('rotate:worker-dispatch', {
         name:    file.name,
         size:    file.size,
-        degrees: opts.degrees || '90',
+        degrees: opts.degrees || '0',
         pages:   opts.pages   || 'all',
       });
     }

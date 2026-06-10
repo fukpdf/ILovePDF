@@ -829,6 +829,22 @@ function renderPreviewStep(tool) {
   maybeOpenPageOrganizer();
   wireStepNav();
 
+  // Rotate PDF: sync degrees dropdown ↔ thumbnail visual rotation.
+  // When user changes the dropdown, update the file thumbnail CSS rotation.
+  // When rotateFile() is called (thumbnail button), it updates the dropdown.
+  if (tool.id === 'rotate') {
+    const _degEl = document.getElementById('opt-degrees');
+    if (_degEl) {
+      _degEl.addEventListener('change', function () {
+        const _deg = parseInt(_degEl.value || '0', 10);
+        if (selectedFiles[0]) {
+          selectedFiles[0].rotation = _deg;
+          renderFileList();
+        }
+      });
+    }
+  }
+
   // Live Preview Engine (v5.5) — non-blocking document/image preview panel
   if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
@@ -1192,6 +1208,8 @@ function attachDragHandlers() {
 function rotateFile(index) {
   if (!selectedFiles[index]) return;
   selectedFiles[index].rotation = (selectedFiles[index].rotation + 90) % 360;
+  const degreesEl = document.getElementById('opt-degrees');
+  if (degreesEl) degreesEl.value = String(selectedFiles[index].rotation);
   renderFileList();
 }
 

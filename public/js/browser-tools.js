@@ -230,9 +230,10 @@
 
   // ── ROTATE ───────────────────────────────────────────────────────────────
   async function rotate(files, opts) {
+    const angle = parseInt(opts.degrees || '0', 10);
+    if (angle === 0) return new Blob([await readFileBytes(files[0])], { type: 'application/pdf' });
     const { PDFDocument, degrees } = await loadPdfLib();
     const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const angle = parseInt(opts.degrees || '90', 10);
     const total = doc.getPageCount();
     const targets = (!opts.pages || /^all$/i.test(opts.pages))
       ? Array.from({ length: total }, (_, i) => i + 1)

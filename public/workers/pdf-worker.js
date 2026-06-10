@@ -130,9 +130,10 @@ OPS.merge = async function (buffers) {
 };
 
 OPS.rotate = async function (buffers, opts) {
+  const deg = parseInt(opts.degrees || '0', 10);
+  if (deg === 0) return buffers[0];
   const doc   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
   const pages = doc.getPages();
-  const deg   = parseInt(opts.degrees || '90', 10);
   const range = (opts.pages && !/^all$/i.test(String(opts.pages).trim()))
     ? parsePageRange(opts.pages, pages.length)
     : pages.map((_, i) => i + 1);

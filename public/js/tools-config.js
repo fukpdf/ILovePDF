@@ -116,7 +116,8 @@ const TOOLS = [
     multipleFiles: false, working: true, clientSide: true,
     options: [
       { id: 'degrees', label: 'Rotation Angle', type: 'select', options: [
-        { value: '90', label: '90° Clockwise' },
+        { value: '0',   label: '— No rotation (keep original) —' },
+        { value: '90',  label: '90° Clockwise' },
         { value: '180', label: '180°' },
         { value: '270', label: '270° (Counter-clockwise)' }
       ]},

@@ -62,7 +62,7 @@
   // Updates RuntimeProgress (when _progressTask exists) AND window.showProcessing
   // (already visible — we update the spinner text mid-run for better UX).
   function _buildProgressReporter(opts) {
-    var degrees = String((opts && opts.degrees) || '90');
+    var degrees = String((opts && opts.degrees) || '0');
     var pages   = String((opts && opts.pages)   || 'all');
     var subtitle = pages === 'all'
       ? 'Rotating all pages ' + degrees + '°…'
@@ -180,13 +180,13 @@
       _currentSpan = window.RuntimeTelemetry.startSpan('rotate:full-run', {
         name:     file.name,
         size:     file.size,
-        degrees:  (opts && opts.degrees) || '90',
+        degrees:  (opts && opts.degrees) || '0',
         pages:    (opts && opts.pages)   || 'all',
         safeMode: _shouldUseSafeMode(file),
       });
       window.RuntimeTelemetry.record('rotate:start', {
         sizeMB:  Math.round(file.size / 1024 / 1024),
-        degrees: (opts && opts.degrees) || '90',
+        degrees: (opts && opts.degrees) || '0',
         pages:   (opts && opts.pages)   || 'all',
       });
     }
@@ -249,7 +249,7 @@
       window.RuntimeTelemetry.record('rotate:success', {
         durationMs:  durationMs,
         outputBytes: blob.size,
-        degrees:     (opts && opts.degrees) || '90',
+        degrees:     (opts && opts.degrees) || '0',
         pages:       (opts && opts.pages)   || 'all',
         safeMode:    _shouldUseSafeMode(file),
       });
