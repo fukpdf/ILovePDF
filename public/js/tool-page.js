@@ -829,17 +829,28 @@ function renderPreviewStep(tool) {
   maybeOpenPageOrganizer();
   wireStepNav();
 
-  // Rotate PDF: sync degrees dropdown ↔ thumbnail visual rotation.
-  // When user changes the dropdown, update the file thumbnail CSS rotation.
-  // When rotateFile() is called (thumbnail button), it updates the dropdown.
+  // Rotate PDF: sync degrees dropdown ↔ preview state.
+  // The PageOrganizer grid IS the preview (single source of truth).
+  // When the dropdown changes:
+  //   – If PageOrganizer is active: apply the rotation delta to all grid pages
+  //     and reset the dropdown back to '0'. The grid now reflects the intended
+  //     final state; no additional rotation will be applied at process time.
+  //   – If PageOrganizer is not active (fallback): update the file-level
+  //     rotation and re-render the thumbnail list as before.
   if (tool.id === 'rotate') {
     const _degEl = document.getElementById('opt-degrees');
     if (_degEl) {
       _degEl.addEventListener('change', function () {
         const _deg = parseInt(_degEl.value || '0', 10);
-        if (selectedFiles[0]) {
-          selectedFiles[0].rotation = _deg;
-          renderFileList();
+        if (pageOrganizer && _deg !== 0 && typeof pageOrganizer.applyRotationAll === 'function') {
+          pageOrganizer.applyRotationAll(_deg);
+          _degEl.value = '0';
+          if (selectedFiles[0]) selectedFiles[0].rotation = 0;
+        } else {
+          if (selectedFiles[0]) {
+            selectedFiles[0].rotation = _deg;
+            renderFileList();
+          }
         }
       });
     }
@@ -1407,6 +1418,14 @@ async function processFile() {
         const { file: editedFile } = await pageOrganizer.getEditedPdf();
         if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
         selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
+        // Rotate tool safety net: PageOrganizer has already baked every rotation
+        // into editedFile. Ensure the degrees dropdown reads '0' so the rotate()
+        // function in BrowserTools exits early (angle === 0 path) and does NOT
+        // apply any additional rotation on top of the already-processed PDF.
+        if (currentTool.id === 'rotate') {
+          const _safetyDegEl = document.getElementById('opt-degrees');
+          if (_safetyDegEl) _safetyDegEl.value = '0';
+        }
         hideProcessing();
       } catch (err) {
         hideProcessing();

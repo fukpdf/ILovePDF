@@ -643,10 +643,23 @@
       window.PdfPreview.unloadDocument(pdfDoc);
     }
 
+    // Apply a rotation delta to ALL pages and re-render the grid.
+    // Called by tool-page.js when the global degrees dropdown changes while
+    // the PageOrganizer is active, so the grid (the preview) always matches
+    // the final download state. delta must be a multiple of 90.
+    function applyRotationAll(delta) {
+      if (!delta) return;
+      const d = ((delta % 360) + 360) % 360;
+      if (d === 0) return;
+      pages.forEach(p => { p.rotation = (p.rotation + d) % 360; });
+      renderGrid();
+    }
+
     return {
       getEditedPdf,
       getOrderSummary,
       getPageCount: () => pages.length,
+      applyRotationAll,
       destroy,
     };
   }
