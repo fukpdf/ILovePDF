@@ -22,17 +22,17 @@ jobs:
 
       # ── Google Cloud / Firebase authentication ──────────────────────────────
       # google-github-actions/auth sets up Application Default Credentials (ADC)
-      # from the service account JSON stored in GCP_SA_KEY.  The Firebase CLI
+      # from the service account JSON stored in FIREBASE_SERVICE_ACCOUNT.  The Firebase CLI
       # (and every google-cloud client library) automatically picks up ADC, so
       # no FIREBASE_TOKEN or legacy credential flags are needed.
       #
       # Secret required in GitHub → Settings → Secrets → Actions:
-      #   GCP_SA_KEY  — full contents of the service account JSON key file
-      #                 (IAM role: "Firebase Hosting Admin" on project ilovepdf-web)
+      #   FIREBASE_SERVICE_ACCOUNT  — full contents of the service account JSON key file
+      #                               (IAM role: "Firebase Hosting Admin" on project ilovepdf-web)
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       # ── Firebase Hosting — deploy /public as static site ───────────────────
       # firebase-tools is invoked via npx so we always get the latest stable
