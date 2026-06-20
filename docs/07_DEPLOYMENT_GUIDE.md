@@ -23,10 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       1. Checkout code
-      2. Deploy Firebase Hosting (w9jds/firebase-action@master)
-         → Uses FIREBASE_SERVICE_ACCOUNT secret (GCP_SA_KEY)
-         → Args: "deploy --only hosting --project ilovepdf-web"
-      3. Deploy Cloudflare Worker (cloudflare/wrangler-action@v3)
+      2. Authenticate with Google (google-github-actions/auth@v2)
+         → credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      3. Deploy Firebase Hosting (npx firebase-tools deploy --only hosting --non-interactive)
+         → Uses FIREBASE_SERVICE_ACCOUNT secret
+         → Project: ilovepdf-web
+      4. Deploy Cloudflare Worker (cloudflare/wrangler-action@v3)
          → Uses CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID secrets
          → Working directory: cloudflare/worker
          → Pushes HF_API_TOKEN as Worker secret
