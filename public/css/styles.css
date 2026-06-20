@@ -3793,3 +3793,168 @@ input[type="range"] {
   .btn-donate:hover           { transform: none !important; }
   .popular-card:hover         { transform: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 1 — INSTANT UI FOUNDATION
+   Skeleton / shimmer stubs — purely additive, zero logic changes.
+   Reuses the existing lp-shimmer @keyframes (defined near line 2728).
+   All elements replaced naturally by chrome.js / home.js / tool-page.js.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Part E — Icon stubs: reserve 1em × 1em for every lucide placeholder <i>
+   so the layout doesn't shift when lucide.min.js replaces them with <svg>. */
+i[data-lucide] {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+/* Part A — Nav skeleton pills (inside <nav id="nav">, replaced by chrome.js) */
+.sk-nav-pill {
+  display: inline-block;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+  margin: 0 5px;
+  vertical-align: middle;
+}
+
+/* Part B — Upload zone skeleton (inside <main id="tool-content">, replaced by renderUploadStep) */
+.sk-upload-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 72px 24px 60px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.sk-upload-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #e0e7ff 25%, #c7d2fe 50%, #e0e7ff 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+.sk-upload-btn {
+  width: 200px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #818cf8 25%, #6366f1 50%, #818cf8 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+  opacity: 0.6;
+}
+.sk-upload-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+.sk-upload-line--wide   { width: min(260px, 78%); }
+.sk-upload-line--narrow { width: min(160px, 48%); }
+
+/* Parts D & F & G — Tool card skeleton (homepage grid + preview + download) */
+.sk-tool-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 110px;
+  overflow: hidden;
+  position: relative;
+}
+.sk-tool-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(241,245,249,0.8) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+.sk-tool-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #e2e8f0;
+}
+.sk-tool-card__line {
+  height: 12px;
+  border-radius: 4px;
+  background: #e2e8f0;
+}
+.sk-tool-card__line--wide   { width: 70%; }
+.sk-tool-card__line--narrow { width: 44%; }
+
+/* Part D — Skeleton grid: mirrors 4-col .tools-grid layout from home.css */
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 40px;
+}
+@media (max-width: 900px) { .sk-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .sk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Part C — Homepage category section skeleton heading */
+.sk-cat-section { padding: 32px 0 0; }
+.sk-cat-head {
+  height: 26px;
+  width: 200px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+
+/* Parts F & G — Preview / Download skeleton card */
+.sk-preview-card {
+  max-width: 600px;
+  margin: 48px auto;
+  padding: 36px 28px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.sk-preview-thumb {
+  width: 140px;
+  height: 180px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+.sk-preview-bar {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+}
+.sk-preview-bar--wide { width: min(320px, 80%); }
+.sk-preview-bar--mid  { width: min(220px, 60%); }
+.sk-preview-bar--btn  {
+  width: min(160px, 45%);
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #818cf8 25%, #6366f1 50%, #818cf8 75%);
+  background-size: 200% 100%;
+  animation: lp-shimmer 1.4s infinite;
+  opacity: 0.55;
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   END PHASE 1 — INSTANT UI FOUNDATION
+   ═══════════════════════════════════════════════════════════════════════════ */

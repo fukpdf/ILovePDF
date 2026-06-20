@@ -60,12 +60,26 @@
         <span class="brand-name">ILove<span>PDF</span></span>
       </a>
 
-      <nav class="nav" id="nav" aria-label="Main"></nav>
+      <nav class="nav" id="nav" aria-label="Main">
+        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+        <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:72px" aria-hidden="true"></span>
+      </nav>
     </div>
   </header>
 
   <!-- ───────────── Tool content (centered, full-width, NO sidebar) ───────────── -->
-  <main id="tool-content" class="tool-page"></main>
+  <main id="tool-content" class="tool-page">
+    <!-- sk: upload / preview / download skeleton — replaced by tool-page.js renderStep() -->
+    <div class="sk-upload-wrap" aria-hidden="true">
+      <div class="sk-upload-icon"></div>
+      <div class="sk-upload-btn"></div>
+      <div class="sk-upload-line sk-upload-line--wide"></div>
+      <div class="sk-upload-line sk-upload-line--narrow"></div>
+    </div>
+  </main>
 
   <!-- ───────────── Shared Footer ───────────── -->
   <footer class="footer">

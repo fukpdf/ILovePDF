@@ -57,7 +57,13 @@
         <span class="brand-name">ILove<span>PDF</span></span>
       </a>
 
-      <nav class="nav" id="nav" aria-label="Main"></nav>
+      <nav class="nav" id="nav" aria-label="Main">
+        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+        <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:72px" aria-hidden="true"></span>
+      </nav>
     </div>
   </header>
 
@@ -217,9 +223,46 @@
       </div>
 
       <!-- Category Sections — populated by home.js from TOOL_GROUPS -->
-      <section class="home-cat-section" id="cat-pdf-tools" aria-labelledby="cat-pdf-tools-title"></section>
-      <section class="home-cat-section" id="cat-image-tools" aria-labelledby="cat-image-tools-title"></section>
-      <section class="home-cat-section" id="cat-utilities" aria-labelledby="cat-utilities-title"></section>
+      <section class="home-cat-section" id="cat-pdf-tools" aria-labelledby="cat-pdf-tools-title">
+        <!-- sk: replaced by home.js _renderOneCatSection() -->
+        <div class="sk-cat-section" aria-hidden="true">
+          <div class="sk-cat-head"></div>
+          <div class="sk-grid">
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="home-cat-section" id="cat-image-tools" aria-labelledby="cat-image-tools-title">
+        <!-- sk: replaced by home.js _renderOneCatSection() -->
+        <div class="sk-cat-section" aria-hidden="true">
+          <div class="sk-cat-head"></div>
+          <div class="sk-grid">
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="home-cat-section" id="cat-utilities" aria-labelledby="cat-utilities-title">
+        <!-- sk: replaced by home.js _renderOneCatSection() -->
+        <div class="sk-cat-section" aria-hidden="true">
+          <div class="sk-cat-head"></div>
+          <div class="sk-grid">
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+            <div class="sk-tool-card"><div class="sk-tool-card__icon"></div><div class="sk-tool-card__line sk-tool-card__line--wide"></div><div class="sk-tool-card__line sk-tool-card__line--narrow"></div></div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
