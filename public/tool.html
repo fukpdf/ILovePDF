@@ -446,36 +446,39 @@
   <script src="/js/pdf-pipeline/fidelity-debug.js"></script>
   <script src="/js/browser-tools.js"></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
-  <script src="/js/merge-worker-adapter.js"></script>
-  <script src="/js/merge-runtime.js"></script>
+  <!-- Phase 2A: deferred — depends only on Phase 1-9 globals (SYNC); all globals       -->
+  <!-- available before any defer fires. Document order preserved by defer. User cannot  -->
+  <!-- interact before DOMContentLoaded (which fires after all defer scripts). Safe.     -->
+  <script src="/js/merge-worker-adapter.js" defer></script>
+  <script src="/js/merge-runtime.js" defer></script>
   <!-- Phase 3 — Rotate PDF Runtime Migration (additive, feature-flagged) -->
-  <script src="/js/rotate-worker-adapter.js"></script>
-  <script src="/js/rotate-runtime.js"></script>
+  <script src="/js/rotate-worker-adapter.js" defer></script>
+  <script src="/js/rotate-runtime.js" defer></script>
   <!-- Phase 3 — Bulk PDF Runtime Migration (registry + factory + per-tool runtimes) -->
   <!-- Load order: registry (patches BrowserTools.process once, after merge+rotate chain) -->
   <!--             factory (shared createPdfToolRuntime function, no side effects)       -->
   <!--             per-tool runtimes (each registers with registry, sets feature flag)   -->
-  <script src="/js/pdf-runtime-registry.js"></script>
-  <script src="/js/pdf-worker-runtime-factory.js"></script>
+  <script src="/js/pdf-runtime-registry.js" defer></script>
+  <script src="/js/pdf-worker-runtime-factory.js" defer></script>
   <!-- scheduler-only tools (main-thread pdf-lib, wrapped in RuntimeScheduler slot) -->
-  <script src="/js/split-runtime.js"></script>
-  <script src="/js/organize-runtime.js"></script>
-  <script src="/js/protect-runtime.js"></script>
-  <script src="/js/unlock-runtime.js"></script>
+  <script src="/js/split-runtime.js" defer></script>
+  <script src="/js/organize-runtime.js" defer></script>
+  <script src="/js/protect-runtime.js" defer></script>
+  <script src="/js/unlock-runtime.js" defer></script>
   <!-- worker-dispatch tools (pdf-worker.js OPS table, full RuntimeWorkers orchestration) -->
-  <script src="/js/page-numbers-runtime.js"></script>
-  <script src="/js/watermark-runtime.js"></script>
+  <script src="/js/page-numbers-runtime.js" defer></script>
+  <script src="/js/watermark-runtime.js" defer></script>
   <!-- Phase 3 continued — worker-dispatch tools with existing OPS entries -->
-  <script src="/js/compress-runtime.js"></script>
-  <script src="/js/repair-runtime.js"></script>
-  <script src="/js/edit-runtime.js"></script>
-  <script src="/js/sign-runtime.js"></script>
-  <script src="/js/redact-runtime.js"></script>
-  <script src="/js/workflow-runtime.js"></script>
+  <script src="/js/compress-runtime.js" defer></script>
+  <script src="/js/repair-runtime.js" defer></script>
+  <script src="/js/edit-runtime.js" defer></script>
+  <script src="/js/sign-runtime.js" defer></script>
+  <script src="/js/redact-runtime.js" defer></script>
+  <script src="/js/workflow-runtime.js" defer></script>
   <!-- Phase 3 continued — scheduler-only tools (no OPS entry; main-thread or server-side) -->
-  <script src="/js/compare-runtime.js"></script>
-  <script src="/js/ocr-runtime.js"></script>
-  <script src="/js/translate-runtime.js"></script>
+  <script src="/js/compare-runtime.js" defer></script>
+  <script src="/js/ocr-runtime.js" defer></script>
+  <script src="/js/translate-runtime.js" defer></script>
   <script src="/js/advanced-engine.js" defer></script>
   <!-- Phase 2: Microfrontend ToolApp Architecture — ADDITIVE, zero changes to existing files.
        Load order (all defer, executes after AE in document order):
