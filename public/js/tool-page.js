@@ -79,6 +79,21 @@ const Flow = {
     // blob in IndexedDB so we can hand the user a fresh URL after reload.
     persistFlowState();
     captureResultBlob(area);
+
+    // Phase 3: record this download in the recent-downloads metadata store.
+    try {
+      if (window.SessionPersist && currentTool) {
+        const _dlA = area.querySelector('a[download]');
+        if (_dlA) {
+          window.SessionPersist.saveDownload({
+            slug: Flow.baseSlug(),
+            name: _dlA.getAttribute('download') || 'download',
+            size: 0,
+          });
+        }
+      }
+    } catch (_) {}
+
     this.navTo('download');
   },
 
@@ -114,6 +129,14 @@ function persistFlowState() {
   selectedFiles.forEach(w => {
     if (w.file && w.id) ToolState.putBlob(slug, 'file:' + w.id, w.file);
   });
+  // Phase 3: update session resume pointer + snapshot current tool options.
+  try {
+    if (window.SessionPersist) {
+      window.SessionPersist.saveResume(slug, Flow.step);
+      const _opts = window.SessionPersist.readDomOptions(currentTool);
+      if (Object.keys(_opts).length) window.SessionPersist.saveOptions(slug, _opts);
+    }
+  } catch (_) {}
 }
 
 // Find a download anchor with a blob: href in the result area, fetch the
@@ -335,6 +358,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
       }).catch(function () {});
     }
+    // Phase 3: offer to resume a recent session on a different tool.
+    // Delayed so it appears after the page settles and never blocks rendering.
+    setTimeout(function () {
+      try {
+        if (window.SessionPersist) {
+          window.SessionPersist.maybeShowResumeBanner(Flow.baseSlug());
+        }
+      } catch (_) {}
+    }, 1800);
   });
 });
 
@@ -829,6 +861,16 @@ function renderPreviewStep(tool) {
   maybeOpenPageOrganizer();
   wireStepNav();
 
+  // Phase 3: restore previously saved tool options so users don't need to
+  // reconfigure on every visit. applyDomOptions() sets values only — no events
+  // fired — so it cannot trigger side-effects like PageOrganizer rotations.
+  try {
+    if (window.SessionPersist && tool) {
+      const _savedOpts = window.SessionPersist.loadOptions(Flow.baseSlug());
+      if (_savedOpts) window.SessionPersist.applyDomOptions(tool, _savedOpts);
+    }
+  } catch (_) {}
+
   // Rotate PDF: sync degrees dropdown ↔ preview state.
   // The PageOrganizer grid IS the preview (single source of truth).
   // When the dropdown changes:
@@ -1249,6 +1291,8 @@ function clearAll() {
   Flow.result = null;
   // Wipe persisted state for this slug — sessionStorage + IndexedDB blobs.
   if (window.ToolState && currentTool) ToolState.clear(Flow.baseSlug());
+  // Phase 3: also clear the cross-session resume pointer for this tool.
+  try { if (window.SessionPersist) window.SessionPersist.clearResume(); } catch (_) {}
 }
 
 // ── OUTPUT VALIDATOR ─────────────────────────────────────────────────────────

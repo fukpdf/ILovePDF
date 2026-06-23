@@ -107,6 +107,9 @@
     try {
       const body = { ts: Date.now(), slug, ...payload };
       sessionStorage.setItem(SS_PREFIX + slug, JSON.stringify(body));
+      // Phase 3: also mirror to cross-session localStorage (2-hour TTL) so
+      // the state survives a full browser close and reopen.
+      try { if (window.SessionPersist) window.SessionPersist.save(slug, body); } catch (_) {}
     } catch (_) { /* quota / disabled — non-fatal */ }
   }
 
@@ -114,7 +117,12 @@
     if (!slug) return null;
     try {
       const raw = sessionStorage.getItem(SS_PREFIX + slug);
-      if (!raw) return null;
+      if (!raw) {
+        // Phase 3: sessionStorage was cleared (browser close) — fall back to
+        // the cross-session localStorage mirror so the user can resume.
+        try { if (window.SessionPersist) return window.SessionPersist.load(slug); } catch (_) {}
+        return null;
+      }
       return JSON.parse(raw);
     } catch (_) { return null; }
   }
@@ -122,6 +130,8 @@
   function clear(slug) {
     if (!slug) return;
     try { sessionStorage.removeItem(SS_PREFIX + slug); } catch (_) {}
+    // Phase 3: also wipe the cross-session mirror so cleared tools don't reappear.
+    try { if (window.SessionPersist) window.SessionPersist.clear(slug); } catch (_) {}
     clearBlobs(slug);
   }
 
