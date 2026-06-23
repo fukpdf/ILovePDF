@@ -42,6 +42,8 @@
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
   <link rel="stylesheet" href="/css/seo-extended.css">
+  <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
+  <link rel="stylesheet" href="/css/ads.css">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
   <!-- Homepage structured data -->
@@ -211,6 +213,21 @@
         </a>
       </section>
 
+      <!-- Phase 4: Session-Length — "Continue Where You Left Off" populated by home.js -->
+      <div id="session-continue-section" style="display:none"></div>
+
+      <!-- Phase 4: Ad slot — below quick-access, above tool grid
+           728×90 reserved (CLS-safe). Ezoic placeholder 101.
+           Activates when AdSense slot ID is issued post-approval. -->
+      <div class="ad-wrap ad-wrap--tight" role="complementary" aria-label="Advertisement">
+        <div class="ad-slot ad-slot--hero-below"
+             id="ad-home-hero"
+             data-ad-slot="home-hero"
+             data-ad-ezoic="101"
+             data-ad-pending="1"
+             aria-hidden="true"></div>
+      </div>
+
       <!-- Recent Use — hidden on first visit; revealed by home.js once tools have been used -->
       <div id="recent-use-section" style="display:none">
         <div class="section-head">
@@ -239,6 +256,17 @@
           </div>
         </div>
       </section>
+      <!-- Phase 4: Ad slot — in-content between PDF and Image sections
+           728×90 desktop / 300×250 mobile (CLS-safe). Ezoic placeholder 102. -->
+      <div class="ad-wrap ad-wrap--section-break" role="complementary" aria-label="Advertisement">
+        <div class="ad-slot ad-slot--in-content"
+             id="ad-home-mid"
+             data-ad-slot="home-mid"
+             data-ad-ezoic="102"
+             data-ad-pending="1"
+             aria-hidden="true"></div>
+      </div>
+
       <section class="home-cat-section" id="cat-image-tools" aria-labelledby="cat-image-tools-title">
         <!-- sk: replaced by home.js _renderOneCatSection() -->
         <div class="sk-cat-section" aria-hidden="true">
@@ -721,6 +749,8 @@
   <script src="/js/runtime-identity.js" defer></script>
   <script src="/js/runtime-savings.js" defer></script>
   <script src="/js/runtime-ads.js" defer></script>
+  <!-- Phase 4: Display ad slot manager (AdSense/Ezoic/Media.net) -->
+  <script src="/js/ad-manager.js" defer></script>
   <script src="/js/runtime-credits.js" defer></script>
   <script src="/js/runtime-donation.js" defer></script>
   <script src="/js/runtime-failed-log.js" defer></script>

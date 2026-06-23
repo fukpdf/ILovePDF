@@ -942,6 +942,23 @@ function renderDownloadStep(tool) {
             <i data-lucide="book-open"></i> Read guides
           </a>
         </div>
+
+        <!-- Phase 4: Related tools (session-length + ad adjacency) -->
+        <div class="related-tools-section" id="related-tools-area" style="display:none">
+          <div class="related-tools-title">Try these next</div>
+          <div class="related-tools-grid" id="related-tools-grid"></div>
+        </div>
+
+        <!-- Phase 4: Ad slot — download page banner
+             728×90 desktop / 300×250 mobile (CLS-safe). Ezoic placeholder 104. -->
+        <div class="ad-wrap ad-wrap--tight" role="complementary" aria-label="Advertisement">
+          <div class="ad-slot ad-slot--download"
+               id="ad-download-banner"
+               data-ad-slot="download-banner"
+               data-ad-ezoic="104"
+               data-ad-pending="1"
+               aria-hidden="true"></div>
+        </div>
       </section>
     </div>`;
 
@@ -955,6 +972,77 @@ function renderDownloadStep(tool) {
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
   wireStepNav();
+
+  // Phase 4: Populate related tools grid
+  setTimeout(function () {
+    try {
+      const relGrid = document.getElementById('related-tools-grid');
+      const relArea = document.getElementById('related-tools-area');
+      if (!relGrid || !relArea || !window.TOOL_GROUPS) return;
+      const toolId = tool && (tool.id || tool.tid);
+      const relHtml = _buildRelatedToolsHtml(toolId, 4);
+      if (!relHtml) return;
+      relGrid.innerHTML = relHtml;
+      relArea.style.display = '';
+      if (window.lucide) window.lucide.createIcons({ nodes: [relGrid] });
+    } catch (_) {}
+
+    // Register the download banner slot with AdManager if available
+    try {
+      if (window.AdManager) {
+        const slot = document.getElementById('ad-download-banner');
+        if (slot) {
+          window.AdManager.register('download-banner', slot);
+          window.AdManager.activateAll();
+        }
+      }
+    } catch (_) {}
+  }, 0);
+}
+
+// Phase 4: Build HTML for related tools grid (same category first, then others)
+function _buildRelatedToolsHtml(toolId, maxCount) {
+  if (!window.TOOL_GROUPS) return '';
+  var related = [];
+  var currentGroupKey = null;
+
+  (window.TOOL_GROUPS || []).forEach(function (g) {
+    (g.items || []).forEach(function (t) {
+      if ((t.tid || t.id) === toolId) currentGroupKey = g.key;
+    });
+  });
+
+  // Same group first
+  (window.TOOL_GROUPS || []).forEach(function (g) {
+    if (g.key !== currentGroupKey) return;
+    (g.items || []).forEach(function (t) {
+      if ((t.tid || t.id) === toolId) return;
+      if (!t.tid && !t.url) return;
+      if (related.length < maxCount) related.push(t);
+    });
+  });
+
+  // Fill from other groups
+  if (related.length < maxCount) {
+    (window.TOOL_GROUPS || []).forEach(function (g) {
+      if (g.key === currentGroupKey) return;
+      (g.items || []).forEach(function (t) {
+        if (!t.tid && !t.url) return;
+        var alreadyIn = related.some(function (r) { return (r.tid || r.id) === (t.tid || t.id); });
+        if (!alreadyIn && related.length < maxCount) related.push(t);
+      });
+    });
+  }
+
+  return related.slice(0, maxCount).map(function (t) {
+    var href = t.url || (t.tid ? '/' + t.tid : '/');
+    var icon = t.icon || 'file';
+    var name = t.name || t.tid || 'Tool';
+    return '<a class="related-tool-card" href="' + href + '">' +
+      '<span class="rt-icon"><i data-lucide="' + icon + '"></i></span>' +
+      '<span>' + name + '</span>' +
+    '</a>';
+  }).join('');
 }
 
 // ── FILE INPUT ─────────────────────────────────────────────────────────────

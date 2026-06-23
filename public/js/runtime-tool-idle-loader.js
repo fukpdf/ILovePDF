@@ -84,6 +84,7 @@
     '/js/runtime-ai-graph.js',
     '/js/runtime-cross-tab.js',
     '/js/runtime-ai-orchestrator.js',
+    '/js/ad-manager.js',
   ];
 
   /* ── Sequential loader ──────────────────────────────────────────────────── */

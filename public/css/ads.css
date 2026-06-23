@@ -1,0 +1,337 @@
+/* ads.css — Phase 4: Revenue Architecture Foundation
+ *
+ * CLS-safe reserved dimensions for all ad slots.
+ * Supports AdSense, Ezoic, Media.net, and future providers
+ * through a provider-agnostic slot container architecture.
+ *
+ * IAB standard sizes reserved:
+ *   Leaderboard   728×90  — desktop horizontal banner
+ *   Rectangle     300×250 — universal (desktop sidebar + mobile)
+ *   Mobile banner 320×50  — mobile anchor/sticky
+ *   In-content    728×90 (desktop) / 300×250 (mobile) — responsive
+ *
+ * CLS strategy:
+ *   Every slot reserves its minimum height before content loads.
+ *   contain:layout prevents ad content from causing reflows outside
+ *   the slot boundary. Slots are invisible until activated — they
+ *   never show blank space to users unless data-ad-debug is set.
+ *
+ * Ezoic readiness:
+ *   Slots include data-ad-ezoic="NNN" attributes.
+ *   AdManager renames containers to ezoic-pub-ad-placeholder-NNN
+ *   when Ezoic's ezstandalone is detected.
+ *   No Ezoic scripts are loaded — only named containers are set up.
+ *
+ * Print: all ad slots are hidden via @media print.
+ */
+
+/* ── Base slot ───────────────────────────────────────────────────────────── */
+.ad-slot {
+  display: block;
+  overflow: hidden;
+  contain: layout;
+  text-align: center;
+  margin: 0 auto;
+  min-height: 0;
+  transition: opacity .2s;
+}
+
+/* Reserved-but-empty slots are invisible by default (no grey flash) */
+.ad-slot[data-ad-pending]:not(.ad-slot--active) {
+  background: transparent;
+  min-height: 0;
+}
+
+/* Debug mode: add data-ad-debug="1" to <body> to see slot outlines */
+body[data-ad-debug] .ad-slot[data-ad-pending]:not(.ad-slot--active) {
+  min-height: 90px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'Inter', system-ui, monospace;
+  border-radius: 6px;
+}
+body[data-ad-debug] .ad-slot[data-ad-pending]:not(.ad-slot--active)::before {
+  content: '[ ad slot: ' attr(data-ad-slot) ' ]';
+}
+
+/* ── Leaderboard — 728×90 ─────────────────────────────────────────────────  */
+.ad-slot--leaderboard {
+  width: 100%;
+  max-width: 728px;
+}
+.ad-slot--leaderboard.ad-slot--active { min-height: 90px; }
+
+/* ── Rectangle — 300×250 ─────────────────────────────────────────────────── */
+.ad-slot--rectangle {
+  width: 300px;
+  max-width: 100%;
+}
+.ad-slot--rectangle.ad-slot--active { min-height: 250px; }
+
+/* ── In-content — responsive leaderboard → rectangle ────────────────────── */
+.ad-slot--in-content {
+  width: 100%;
+  max-width: 728px;
+}
+.ad-slot--in-content.ad-slot--active { min-height: 90px; }
+@media (max-width: 767px) {
+  .ad-slot--in-content {
+    max-width: 300px;
+  }
+  .ad-slot--in-content.ad-slot--active { min-height: 250px; }
+}
+
+/* ── Hero-below — leaderboard or rectangle on mobile ────────────────────── */
+.ad-slot--hero-below {
+  width: 100%;
+  max-width: 728px;
+}
+.ad-slot--hero-below.ad-slot--active { min-height: 90px; }
+@media (max-width: 767px) {
+  .ad-slot--hero-below {
+    max-width: 300px;
+  }
+  .ad-slot--hero-below.ad-slot--active { min-height: 250px; }
+}
+
+/* ── Download page banner ────────────────────────────────────────────────── */
+.ad-slot--download {
+  width: 100%;
+  max-width: 728px;
+  margin-top: 4px;
+}
+.ad-slot--download.ad-slot--active { min-height: 90px; }
+@media (max-width: 767px) {
+  .ad-slot--download {
+    max-width: 300px;
+  }
+  .ad-slot--download.ad-slot--active { min-height: 250px; }
+}
+
+/* ── Mobile sticky footer (anchor ad) ───────────────────────────────────── */
+.ad-slot--sticky-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: 50px;
+  z-index: 9990;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+}
+/* Sticky footer only on mobile */
+@media (min-width: 728px) {
+  .ad-slot--sticky-footer { display: none !important; }
+}
+
+/* ── Slot wrapper (centering + spacing) ──────────────────────────────────── */
+.ad-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ad-wrap--tight   { padding: 8px 0; }
+.ad-wrap--normal  { padding: 16px 0; }
+.ad-wrap--section-break { padding: 20px 0; }
+
+/* Ad label (shown only when slot is active — required by some networks) */
+.ad-label {
+  display: none;
+  font-size: 10px;
+  color: #b0b8cc;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 500;
+  margin-bottom: 3px;
+  font-family: 'Inter', system-ui, sans-serif;
+  user-select: none;
+}
+.ad-slot--active + .ad-label,
+.ad-wrap:has(.ad-slot--active) .ad-label { display: block; }
+
+/* ── Print: hide all ad slots ────────────────────────────────────────────── */
+@media print {
+  .ad-slot,
+  .ad-wrap,
+  .ad-slot--sticky-footer { display: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SESSION-LENGTH COMPONENTS (Part E/F)
+   These are content components that increase pages/session and appear
+   adjacent to ad slots — purely informational, no popups, no spam.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Continue Where You Left Off (homepage) ──────────────────────────────── */
+#session-continue-section {
+  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 14px;
+  padding: 16px 20px 18px;
+  margin-bottom: 18px;
+}
+.session-continue-title {
+  font-size: .88rem;
+  font-weight: 700;
+  color: #4338ca;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 11px;
+}
+.session-continue-title [data-lucide] { width: 16px; height: 16px; }
+.session-continue-items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.session-continue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  font-size: .84rem;
+  border: 1px solid #e0e7ff;
+  transition: border-color .15s, box-shadow .15s;
+  overflow: hidden;
+}
+.session-continue-item:hover {
+  border-color: #818cf8;
+  box-shadow: 0 2px 8px rgba(99,102,241,.1);
+}
+.session-continue-item [data-lucide] { width: 16px; height: 16px; color: #6366f1; flex-shrink: 0; }
+.session-continue-label {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1e1b4b;
+}
+.session-continue-badge {
+  font-size: .72rem;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: #eef2ff;
+  color: #6366f1;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ── Related tools on download step ─────────────────────────────────────── */
+.related-tools-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e8f0;
+}
+.related-tools-title {
+  font-size: .76rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.related-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 9px;
+}
+.related-tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 8px 12px;
+  border-radius: 11px;
+  border: 1px solid #e5e8f0;
+  background: #fff;
+  text-decoration: none;
+  color: #334155;
+  font-size: .8rem;
+  font-weight: 500;
+  text-align: center;
+  transition: border-color .15s, box-shadow .15s, transform .15s, color .15s;
+  cursor: pointer;
+}
+.related-tool-card:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 4px 12px rgba(79,70,229,.1);
+  transform: translateY(-2px);
+  color: #4f46e5;
+}
+.related-tool-card .rt-icon {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  background: #eef2ff;
+  color: #4f46e5;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.related-tool-card .rt-icon [data-lucide] { width: 17px; height: 17px; }
+
+/* ── Recent downloads list ───────────────────────────────────────────────── */
+.recent-dl-section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #f1f5f9;
+}
+.recent-dl-title {
+  font-size: .76rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 10px;
+}
+.recent-dl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.recent-dl-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e8f0;
+  font-size: .81rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .12s;
+}
+.recent-dl-item:hover { border-color: #a5b4fc; }
+.recent-dl-item [data-lucide] { width: 14px; height: 14px; color: #6366f1; flex-shrink: 0; }
+.recent-dl-item .dl-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #334155;
+  font-weight: 500;
+}
+.recent-dl-item .dl-meta {
+  font-size: .72rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+}

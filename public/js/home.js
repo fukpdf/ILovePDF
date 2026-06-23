@@ -377,9 +377,78 @@ async function wireFx(){
   update();
 }
 
+/* ─── PHASE 4: SESSION-LENGTH — Continue Where You Left Off ─────────────── */
+
+function _timeAgo(ts) {
+  if (!ts) return '';
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return hrs + 'h ago';
+  return Math.floor(hrs / 24) + 'd ago';
+}
+
+function renderSessionContinue() {
+  const section = document.getElementById('session-continue-section');
+  if (!section) return;
+
+  const items = [];
+
+  try {
+    if (window.SessionPersist) {
+      // 1. Resume a paused session (not yet at download / not upload step)
+      const resume = window.SessionPersist.loadResume();
+      if (resume && resume.slug && resume.step && resume.step !== 'upload') {
+        const toolName = resume.slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const stepLabel = resume.step === 'download' ? 'ready to download' : resume.step;
+        items.push({
+          icon:  'arrow-right-circle',
+          label: 'Continue: ' + toolName,
+          badge: stepLabel,
+          href:  '/' + resume.slug,
+        });
+      }
+
+      // 2. Recent downloads (up to 2 most recent)
+      const downloads = window.SessionPersist.getDownloads();
+      downloads.slice(0, 2).forEach(dl => {
+        if (!dl || !dl.name) return;
+        items.push({
+          icon:  'download',
+          label: dl.name,
+          badge: _timeAgo(dl.ts),
+          href:  dl.slug ? '/' + dl.slug : '/',
+        });
+      });
+    }
+  } catch (_) {}
+
+  if (!items.length) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+  section.innerHTML = `
+    <div class="session-continue-title">
+      <i data-lucide="history"></i> Continue Where You Left Off
+    </div>
+    <div class="session-continue-items">
+      ${items.map(item => `
+        <a class="session-continue-item" href="${item.href}">
+          <i data-lucide="${item.icon}"></i>
+          <span class="session-continue-label">${item.label}</span>
+          <span class="session-continue-badge">${item.badge}</span>
+        </a>`).join('')}
+    </div>`;
+
+  const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons({ nodes: [section] });
+  tryIcons();
+  setTimeout(tryIcons, 120);
+}
+
 /* ─── INIT ──────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   renderRecentUse();
+  renderSessionContinue();
   renderCategorySections();
   wireCalc();
   wireCalcToggle();
