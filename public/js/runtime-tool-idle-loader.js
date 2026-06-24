@@ -86,6 +86,7 @@
     '/js/runtime-ai-orchestrator.js',
     '/js/ad-manager.js',
     '/js/ad-responsive-engine.js',
+    '/js/analytics-engine.js',
   ];
 
   /* ── Sequential loader ──────────────────────────────────────────────────── */
