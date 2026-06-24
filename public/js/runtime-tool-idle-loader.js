@@ -85,6 +85,7 @@
     '/js/runtime-cross-tab.js',
     '/js/runtime-ai-orchestrator.js',
     '/js/ad-manager.js',
+    '/js/ad-responsive-engine.js',
   ];
 
   /* ── Sequential loader ──────────────────────────────────────────────────── */

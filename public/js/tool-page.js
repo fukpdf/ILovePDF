@@ -692,6 +692,8 @@ function renderUploadStep(tool) {
     document.getElementById('file-input')?.click();
   });
   wireStepNav();
+  // Phase 5: notify responsive ad engine that upload step is fully rendered
+  try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } })); } catch (_) {}
 }
 
 // ── STEP 2b — PRO MAX EDITOR STEP ─────────────────────────────────────────
@@ -860,6 +862,8 @@ function renderPreviewStep(tool) {
   renderFileList();
   maybeOpenPageOrganizer();
   wireStepNav();
+  // Phase 5: notify responsive ad engine that preview step is fully rendered
+  try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
 
   // Phase 3: restore previously saved tool options so users don't need to
   // reconfigure on every visit. applyDomOptions() sets values only — no events
@@ -972,6 +976,8 @@ function renderDownloadStep(tool) {
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
   wireStepNav();
+  // Phase 5: notify responsive ad engine that download step is fully rendered
+  try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
 
   // Phase 4: Populate related tools grid
   setTimeout(function () {
