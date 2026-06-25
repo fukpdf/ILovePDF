@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analytics Dashboard — ILovePDF Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/admin/css/admin.css">
+<link rel="stylesheet" href="/css/admin-analytics.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="sidebar-logo-text">ILove<span>PDF</span><span class="sidebar-badge">ADMIN</span></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a class="nav-item" href="/admin">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Overview
+        </a>
+        <a class="nav-item active" href="/admin/analytics">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </a>
+        <a class="nav-item" href="/admin/runtime">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Runtime
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Reports</div>
+        <div class="nav-item" data-scroll="aa-tools-section">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/></svg>
+          Tool Performance
+        </div>
+        <div class="nav-item" data-scroll="aa-funnel-section">
+          <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          User Funnel
+        </div>
+        <div class="nav-item" data-scroll="aa-visitors-section">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Visitors
+        </div>
+        <div class="nav-item" data-scroll="aa-ads-section">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15l3-6 3 6"/><path d="M8.5 12.5h3M17 9v6"/></svg>
+          Ad Opportunities
+        </div>
+        <div class="nav-item" data-scroll="aa-abandon-section">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          Abandonment
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Export</div>
+        <div class="nav-item" id="sidebar-export-json">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export JSON
+        </div>
+        <div class="nav-item" id="sidebar-export-csv">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a class="nav-item" href="/admin/login" style="color:#ef4444">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ════════════════════════════════════════════════════════════ -->
+  <main id="main" style="flex:1;min-width:0;padding:28px 28px 48px;overflow-y:auto">
+
+    <!-- Header -->
+    <div class="aa-header">
+      <h1>
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytics Dashboard
+      </h1>
+      <div class="aa-header-actions">
+        <button class="aa-btn aa-btn-secondary" id="aa-refresh-btn">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+          <span id="aa-refresh-ts"></span>
+        </button>
+        <button class="aa-btn aa-btn-outline" id="aa-export-json">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export JSON
+        </button>
+        <button class="aa-btn aa-btn-primary" id="aa-export-csv">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Overview metrics ─────────────────────────────────────────────── -->
+    <div class="aa-section-title">Overview</div>
+    <div id="aa-metrics" class="aa-metric-grid">
+      <!-- rendered by AdminAnalytics -->
+      <div class="aa-metric-card" style="opacity:.4">
+        <div class="aa-metric-value">…</div>
+        <div class="aa-metric-label">Loading</div>
+      </div>
+    </div>
+
+    <!-- ── Tool performance + device + funnel ───────────────────────────── -->
+    <div id="aa-tools-section">
+      <div class="aa-section-title">Tool Performance</div>
+      <div class="aa-card" style="margin-bottom:24px">
+        <div class="aa-card-title">
+          All Tools — Sorted by Downloads
+          <small style="font-weight:400;font-size:11px;color:var(--muted)">Click column headers to sort</small>
+        </div>
+        <div class="aa-table-wrap">
+          <table class="aa-table">
+            <thead id="aa-tool-table-head">
+              <tr>
+                <th data-col="name">Tool</th>
+                <th data-col="opens">Opens</th>
+                <th data-col="processed">Processed</th>
+                <th data-col="downloaded" class="sorted">Downloads</th>
+                <th data-col="complRate">Completion</th>
+                <th data-col="failed">Failures</th>
+                <th data-col="retries">Retries</th>
+              </tr>
+            </thead>
+            <tbody id="aa-tool-table-body">
+              <tr><td colspan="7"><div class="aa-empty">Loading tool data…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Funnel + Device ───────────────────────────────────────────────── -->
+    <div class="aa-two-col" id="aa-funnel-section">
+      <div class="aa-card">
+        <div class="aa-card-title">
+          <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          User Journey Funnel
+        </div>
+        <div id="aa-funnel">
+          <div class="aa-empty">Loading funnel…</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="aa-card" style="margin-bottom:18px">
+          <div class="aa-card-title">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Device Breakdown
+          </div>
+          <div id="aa-device">
+            <div class="aa-empty">Detecting…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Visitors + Ads ────────────────────────────────────────────────── -->
+    <div class="aa-two-col" id="aa-visitors-section">
+      <div class="aa-card">
+        <div class="aa-card-title">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Return Visitor Analytics
+        </div>
+        <div id="aa-visitors">
+          <div class="aa-empty">Loading visitor data…</div>
+        </div>
+      </div>
+
+      <div class="aa-card" id="aa-ads-section">
+        <div class="aa-card-title">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15l3-6 3 6"/><path d="M8.5 12.5h3M17 9v6"/></svg>
+          Ad Slot Opportunities
+        </div>
+        <div id="aa-ads">
+          <div class="aa-empty">Loading ad data…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Top 10 tools ──────────────────────────────────────────────────── -->
+    <div class="aa-section-title">Top Tools</div>
+    <div class="aa-three-col">
+      <div class="aa-card">
+        <div class="aa-card-title">By Downloads</div>
+        <div id="aa-top-dl"><div class="aa-empty">No data yet.</div></div>
+      </div>
+      <div class="aa-card">
+        <div class="aa-card-title">By Completion Rate</div>
+        <div id="aa-top-compl"><div class="aa-empty">No data yet.</div></div>
+      </div>
+      <div class="aa-card">
+        <div class="aa-card-title">By Opens</div>
+        <div id="aa-top-opens"><div class="aa-empty">No data yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ── Abandonment analysis ──────────────────────────────────────────── -->
+    <div class="aa-section-title" id="aa-abandon-section">Abandonment Analysis</div>
+    <div class="aa-card" style="margin-bottom:28px">
+      <div class="aa-card-title">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Drop-off Points
+        <small style="font-weight:400;font-size:11px;color:var(--muted)">Hover rows for details</small>
+      </div>
+      <div id="aa-abandonment">
+        <div class="aa-empty">Loading abandonment data…</div>
+      </div>
+    </div>
+
+    <!-- ── Footer ────────────────────────────────────────────────────────── -->
+    <div style="font-size:11px;color:var(--muted);padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>ILovePDF Analytics Dashboard · Phase 6.2 · Browser-only · No external tracking</span>
+      <span>Data source: localStorage (ilpdf_ae_v1, iplv_tool_pop_v2, iplv_engagement_v2)</span>
+    </div>
+
+  </main>
+</div>
+
+<!-- AdminAnalytics engine — loaded last so DOM is ready -->
+<script src="/js/admin-analytics.js" defer></script>
+</body>
+</html>

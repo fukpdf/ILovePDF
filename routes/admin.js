@@ -147,6 +147,11 @@ router.get('/admin/runtime', adminGuard, (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'runtime.html'));
 });
 
+// ── Phase 6.2: Analytics dashboard ────────────────────────────────────────────
+router.get('/admin/analytics', adminGuard, (req, res) => {
+  res.sendFile(path.join(ADMIN_DIR, 'analytics.html'));
+});
+
 router.get('/admin/{*path}', adminGuard, (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'index.html'));
 });
