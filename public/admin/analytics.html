@@ -63,6 +63,14 @@
       </div>
 
       <div class="nav-section">
+        <div class="nav-section-title">Sync Layer</div>
+        <div class="nav-item" data-scroll="aa-sync-section">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Sync Status
+        </div>
+      </div>
+
+      <div class="nav-section">
         <div class="nav-section-title">Export</div>
         <div class="nav-item" id="sidebar-export-json">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -226,10 +234,23 @@
       </div>
     </div>
 
+    <!-- ── Analytics Sync Layer (Phase 6.3) ──────────────────────────────── -->
+    <div class="aa-section-title" id="aa-sync-section">Analytics Sync Layer</div>
+    <div class="aa-card" style="margin-bottom:28px">
+      <div class="aa-card-title">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Sync Status — Phase 6.3
+        <small style="font-weight:400;font-size:11px;color:var(--muted)">No network calls · Providers disabled · Simulation mode</small>
+      </div>
+      <div id="aa-sync-panel">
+        <div class="aa-empty">No sync data yet. Visit a tool page first — sync data populates in localStorage.</div>
+      </div>
+    </div>
+
     <!-- ── Footer ────────────────────────────────────────────────────────── -->
     <div style="font-size:11px;color:var(--muted);padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <span>ILovePDF Analytics Dashboard · Phase 6.2 · Browser-only · No external tracking</span>
-      <span>Data source: localStorage (ilpdf_ae_v1, iplv_tool_pop_v2, iplv_engagement_v2)</span>
+      <span>ILovePDF Analytics Dashboard · Phase 6.3 · Browser-only · No external tracking</span>
+      <span>Data source: localStorage (ilpdf_ae_v1, iplv_tool_pop_v2, iplv_engagement_v2, ilpdf_sync_v1)</span>
     </div>
 
   </main>

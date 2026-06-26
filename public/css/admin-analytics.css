@@ -1,4 +1,4 @@
-/* admin-analytics.css — Phase 6.2: Analytics Dashboard Styles
+/* admin-analytics.css — Phase 6.3: Analytics Dashboard Styles (updated)
    Uses the same design tokens as /admin/css/admin.css (loaded alongside it).
    DO NOT define :root variables here — they live in admin.css.
    ================================================================ */
@@ -397,3 +397,102 @@
 /* ── Canvas chart container ──────────────────────────────────────────────── */
 .aa-canvas-wrap { text-align: center; }
 .aa-canvas-wrap canvas { max-width: 100%; }
+
+/* ── Phase 6.3: Analytics Sync Layer panel ───────────────────────────────── */
+.aa-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.aa-sync-metric {
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 12px 10px;
+  min-height: 72px;
+}
+
+.aa-sync-metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.aa-sync-metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 3px;
+}
+
+.aa-sync-providers {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-bottom: 14px;
+}
+
+.aa-sync-provider-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 10px;
+}
+
+.aa-sync-provider-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aa-sync-provider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.aa-sync-provider-name {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.aa-sync-provider-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--border);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.aa-updated {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.aa-updated code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+}
+
+/* warn sub-label tint */
+.aa-metric-sub.warn { color: #f59e0b; }
+.aa-metric-sub.muted { color: var(--muted); }

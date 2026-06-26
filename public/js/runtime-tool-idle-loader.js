@@ -87,6 +87,7 @@
     '/js/ad-manager.js',
     '/js/ad-responsive-engine.js',
     '/js/analytics-engine.js',
+    '/js/analytics-sync.js',
   ];
 
   /* ── Sequential loader ──────────────────────────────────────────────────── */

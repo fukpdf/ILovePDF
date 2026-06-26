@@ -534,6 +534,83 @@
     setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
   }
 
+  // ── Render: Analytics Sync Layer panel (Phase 6.3) ───────────────────────
+  // Reads ilpdf_sync_v1, ilpdf_batches_v1, ilpdf_retry_v1 from localStorage.
+  // Does NOT require window.AnalyticsSync to be loaded (same pattern as all
+  // other widgets — data source is localStorage, never a runtime dependency).
+  function syncMetricCard(label, value, sub, subClass) {
+    return '<div class="aa-sync-metric">' +
+      '<div class="aa-sync-metric-value">' + esc(value) + '</div>' +
+      '<div class="aa-sync-metric-label">' + esc(label) + '</div>' +
+      (sub ? '<div class="aa-metric-sub ' + (subClass || 'muted') + '">' + esc(sub) + '</div>' : '') +
+    '</div>';
+  }
+
+  function renderSync() {
+    var el = document.getElementById('aa-sync-panel');
+    if (!el) return;
+
+    var queueRaw   = _lsGet('ilpdf_sync_v1')   || {};
+    var batchesRaw = _lsGet('ilpdf_batches_v1') || {};
+    var retryRaw   = _lsGet('ilpdf_retry_v1')   || {};
+
+    var events     = Array.isArray(queueRaw.events)     ? queueRaw.events     : [];
+    var batches    = Array.isArray(batchesRaw.batches)  ? batchesRaw.batches  : [];
+    var dlq        = Array.isArray(retryRaw.dlq)        ? retryRaw.dlq        : [];
+
+    var queueSize    = events.length;
+    var dropped      = queueRaw.droppedCount  || 0;
+    var totalEnq     = queueRaw.totalEnqueued || 0;
+    var retried      = (retryRaw.stats && retryRaw.stats.totalRetried) || 0;
+    var dlqSize      = dlq.length;
+    var batchCount   = batches.length;
+    var pendingEvents= events.filter(function(e){ return !e.batchId; }).length;
+
+    var lastFlushStr = '—';
+    if (batchesRaw.savedAt) {
+      lastFlushStr = new Date(batchesRaw.savedAt).toLocaleTimeString();
+    }
+
+    var lastBatchStr = '—';
+    var avgBatchMs   = '—';
+    if (batches.length) {
+      var last = batches[batches.length - 1];
+      if (last && last.createdAt) lastBatchStr = new Date(last.createdAt).toLocaleTimeString();
+      var times = batches.map(function(b){ return b.avgProcessTimeMs || 0; });
+      avgBatchMs = Math.round(times.reduce(function(a,b){ return a + b; }, 0) / times.length) + 'ms';
+    }
+
+    var syncStatus = totalEnq > 0 ? 'active' : 'idle';
+    var syncStatusClass = syncStatus === 'active' ? '' : 'muted';
+
+    var providerNames = ['Firebase Analytics','Cloudflare Worker','Google Analytics 4','Microsoft Clarity','Self-hosted Endpoint'];
+
+    el.innerHTML =
+      '<div class="aa-sync-grid">' +
+        syncMetricCard('Queue Size',      fmtNum(queueSize),   'Max 200 events',           queueSize > 150 ? 'warn' : 'muted') +
+        syncMetricCard('Pending Events',  fmtNum(pendingEvents),'Awaiting batching',        pendingEvents > 50 ? 'warn' : 'muted') +
+        syncMetricCard('Dropped Events',  fmtNum(dropped),     'FIFO drops (over limit)',   dropped > 0 ? 'warn' : 'muted') +
+        syncMetricCard('Retry Count',     fmtNum(retried),     'DLQ size: ' + dlqSize,      retried > 0 ? 'warn' : 'muted') +
+        syncMetricCard('Batches Formed',  fmtNum(batchCount),  'Last: ' + lastBatchStr,     'muted') +
+        syncMetricCard('Avg Batch Time',  avgBatchMs,          'Simulation only',            'muted') +
+        syncMetricCard('Last Flush',      lastFlushStr,        'pagehide / interval',        'muted') +
+        syncMetricCard('Sync Status',     syncStatus,          fmtNum(totalEnq) + ' lifetime events', syncStatusClass) +
+      '</div>' +
+      '<div class="aa-sync-providers">' +
+        '<div class="aa-sync-provider-title">Provider Status (all disabled — Phase 6.3 simulation)</div>' +
+        '<div class="aa-sync-provider-grid">' +
+          providerNames.map(function(name) {
+            return '<div class="aa-sync-provider-row">' +
+              '<div class="aa-sync-provider-name">' + esc(name) + '</div>' +
+              '<div class="aa-sync-provider-badge">Disabled</div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="aa-updated">Data from <code>ilpdf_sync_v1</code>, <code>ilpdf_batches_v1</code>, <code>ilpdf_retry_v1</code>. ' +
+      'Populated by <code>window.AnalyticsSync</code> on tool pages. Activate a provider in Phase 6.4 to enable real sync.</div>';
+  }
+
   // ── Full render ───────────────────────────────────────────────────────────
   function render() {
     var d = loadData();
@@ -547,6 +624,7 @@
     renderTopTools(d.tools, 'complRate');
     renderTopTools(d.tools, 'opens');
     renderAbandonment(d);
+    renderSync();
     wireSortHeaders(d.tools);
 
     var ts = document.getElementById('aa-refresh-ts');
