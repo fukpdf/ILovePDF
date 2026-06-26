@@ -41,7 +41,7 @@ jobs:
       # automatically — no GOOGLE_APPLICATION_CREDENTIALS flag needed.
       - name: Deploy Firebase Hosting
         run: |
-          npx --yes firebase-tools deploy \
+          npx --yes firebase-tools@13 deploy \
             --only hosting \
             --project ilovepdf-web \
             --non-interactive
