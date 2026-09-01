@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -9,11 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libreoffice \
     ghostscript \
+    qpdf \
+    imagemagick \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm install --production
+RUN npm ci --omit=dev
 
 COPY . .
 
