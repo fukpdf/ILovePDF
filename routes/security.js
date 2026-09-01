@@ -6,7 +6,7 @@ import { createUpload } from '../utils/upload.js';
 import { qpdfProtect, qpdfUnlock } from '../utils/pdfTools.js';
 
 const router = express.Router();
-const upload = createUpload('pdf', 100 * 1024 * 1024);
+const upload = createUpload('pdf');
 
 router.post('/protect', upload.single('pdf'), async (req, res) => {
   try {
@@ -20,30 +20,12 @@ router.post('/protect', upload.single('pdf'), async (req, res) => {
       cleanupFiles(req.file);
       return sendPdf(res, buf, 'ilovepdf-protected.pdf');
     } catch (qErr) {
-      console.warn('[protect] qpdf failed, falling back to metadata mark:', qErr.message);
-      const inputPath = req.file.path;
-      const pdfDoc = await PDFDocument.load(fs.readFileSync(inputPath), { ignoreEncryption: true });
-      const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-      pdfDoc.getPages().forEach(page => {
-        const { width, height } = page.getSize();
-        const label = '🔒 PASSWORD PROTECTED';
-        const fontSize = 8;
-        page.drawText(label, {
-          x: 4, y: 4, size: fontSize, font,
-          color: rgb(0.55, 0.55, 0.55), opacity: 0.7
-        });
-      });
-
-      pdfDoc.setTitle('Password Protected Document');
-      pdfDoc.setAuthor('PDF Tools Pro');
-      pdfDoc.setSubject(`Protected with password: ${password.replace(/./g, '*')}`);
-
-      const outBytes = await pdfDoc.save();
       cleanupFiles(req.file);
-      res.setHeader('X-Protection-Note',
-        'Metadata-based protection applied. For strong encryption install qpdf on the server.');
-      return sendPdf(res, outBytes, 'ilovepdf-protected.pdf');
+      console.error('[protect] qpdf encryption failed:', qErr.message);
+      return res.status(503).json({
+        error: 'PDF encryption is temporarily unavailable. Please try again later.',
+        code: 'PDF_ENCRYPTION_UNAVAILABLE',
+      });
     }
   } catch (err) {
     cleanupFiles(req.file);
