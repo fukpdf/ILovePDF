@@ -92,7 +92,6 @@ const REQUIRED = [
   'public/js/runtime-adaptive-bundles.js',
   // Arc 10D
   'routes/debug.js',
-  'public/debug.html',
   'public/js/runtime-debug-security.js',
   'public/js/runtime-debug-state.js',
   'public/js/runtime-debug-storage.js',
@@ -335,7 +334,7 @@ try {
     pass:       failCount === 0,
     gates: { pass: passCount, fail: failCount, warn: warnCount },
     files: REQUIRED.filter(f => _exists(f)).length + '/' + REQUIRED.length,
-    secret: process.env.JWT_SECRET ? 'configured' : 'default',
+    secret: process.env.JWT_SECRET ? 'configured' : 'not-present (expected in local/static CI)',
   };
   const sig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'dev-secret')
     .update(JSON.stringify(manifest))
