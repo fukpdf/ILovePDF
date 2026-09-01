@@ -171,7 +171,7 @@ startR2Sweeper(); // 10-min TTL for tmp/* objects
 
 // CORS — comma-separated ALLOWED_ORIGINS env (e.g. https://app.example.com,https://www.example.com)
 // Plus a built-in allowlist of the production frontend domains so the deployed
-// site works out of the box. Use ALLOWED_ORIGINS=* to allow any origin.
+// site works out of the box. Wildcard origins are forbidden in production.
 const DEFAULT_ALLOWED = [
   'https://ilovepdf.cyou',
   'https://www.ilovepdf.cyou',
@@ -181,7 +181,10 @@ const DEFAULT_ALLOWED = [
 const ENV_ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const ALLOWED = Array.from(new Set([...DEFAULT_ALLOWED, ...ENV_ALLOWED]));
 const ALLOW_ANY = ALLOWED.includes('*');
-console.log(`[ilovepdf] cors:     allowing ${ALLOW_ANY ? 'ANY origin' : ALLOWED.length + ' origin(s)'}`);
+if (process.env.NODE_ENV === 'production' && ALLOW_ANY) {
+  throw new Error('FATAL: ALLOWED_ORIGINS=* is forbidden in production. Configure explicit trusted origins.');
+}
+console.log(`[ilovepdf] cors:     allowing ${ALLOW_ANY ? 'ANY origin (development only)' : ALLOWED.length + ' origin(s)'}`);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
