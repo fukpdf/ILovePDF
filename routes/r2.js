@@ -1,3 +1,4 @@
+import { JWT_SECRET as SECRET } from '../utils/secret.js';
 // R2 storage routes — temporary upload + signed download + (auth'd) user files
 import express from 'express';
 import multer from 'multer';
@@ -5,14 +6,18 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 import {
   isR2Configured, putTempObject, putUserObject,
   getSignedDownloadUrl, headObject, listUserObjects,
 } from '../utils/r2.js';
 
 const router = express.Router();
-const SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-change-me';
+
 const COOKIE = 'ilovepdf_token';
+const R2_MAX_USER_STORAGE_MB = Math.max(100, Number.parseInt(process.env.R2_MAX_USER_STORAGE_MB || '1024', 10) || 1024);
+const r2UploadLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many storage upload requests. Please wait.' } });
+const r2DownloadLimiter = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many storage download requests. Please wait.' } });
 
 // Use diskStorage so large uploads are streamed to disk instead of buffered
 // entirely in Node.js heap — prevents OOM under concurrent load.
@@ -52,16 +57,19 @@ function requireR2(_req, res, next) {
   next();
 }
 
-// POST /api/r2/upload  (field: 'file', optional 'permanent=1' for logged-in users)
-router.post('/r2/upload', requireR2, upload.single('file'), async (req, res) => {
+router.post('/r2/upload', requireR2, r2UploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
     const user = readUser(req);
     const wantsPermanent = req.body?.permanent === '1' || req.body?.permanent === 'true';
-    // Read file from disk (diskStorage) — never held in Node.js heap during transit
     const buffer = await _readAndClean(req.file.path);
     let key;
     if (wantsPermanent && user) {
+      const existing = await listUserObjects(String(user.id));
+      const existingBytes = existing.reduce((sum, item) => sum + Number(item.size || 0), 0);
+      if (existingBytes + req.file.size > R2_MAX_USER_STORAGE_MB * 1024 * 1024) {
+        return res.status(413).json({ error: `Storage quota exceeded. Maximum ${R2_MAX_USER_STORAGE_MB} MB per account.` });
+      }
       key = await putUserObject(String(user.id), buffer, req.file.originalname, req.file.mimetype);
     } else {
       key = await putTempObject(buffer, req.file.originalname, req.file.mimetype);
@@ -75,33 +83,26 @@ router.post('/r2/upload', requireR2, upload.single('file'), async (req, res) => 
   }
 });
 
-// GET /api/r2/download?key=tmp/...  -> returns a fresh signed URL
-router.get('/r2/download', requireR2, async (req, res) => {
+router.get('/r2/download', requireR2, r2DownloadLimiter, async (req, res) => {
   try {
     const key = String(req.query.key || '');
     if (!key) return res.status(400).json({ error: 'key required' });
-    // Permission check for user-prefixed keys
     if (key.startsWith('users/')) {
       const user = readUser(req);
-      if (!user || !key.startsWith(`users/${user.id}/`)) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
+      if (!user || !key.startsWith(`users/${user.id}/`)) return res.status(403).json({ error: 'Forbidden' });
     } else if (!key.startsWith('tmp/')) {
       return res.status(400).json({ error: 'Invalid key prefix' });
     }
-    await headObject(key); // 404s if missing
+    await headObject(key);
     const url = await getSignedDownloadUrl(key, 600);
     res.json({ url });
   } catch (e) {
-    if (e?.$metadata?.httpStatusCode === 404) {
-      return res.status(404).json({ error: 'Object not found or expired.' });
-    }
+    if (e?.$metadata?.httpStatusCode === 404) return res.status(404).json({ error: 'Object not found or expired.' });
     console.error('[r2] download error:', e.message);
     res.status(500).json({ error: 'Could not sign URL.' });
   }
 });
 
-// GET /api/user/files — paid/logged-in users list their saved files
 router.get('/user/files', requireR2, async (req, res) => {
   const user = readUser(req);
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
