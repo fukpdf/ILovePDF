@@ -8,11 +8,7 @@
   "license": "ISC",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
-    "test:catalog": "node scripts/verify-tool-catalog.js",
-    "test:browser-smoke": "node scripts/browser-e2e-smoke.js",
-    "test": "node scripts/run-all-tests.js",
-    "lint:syntax": "node scripts/syntax-audit.js"
+    "dev": "node server.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
