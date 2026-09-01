@@ -7,22 +7,16 @@ const sanitize = (n) =>
 export async function putTempObject(env, body, originalName, contentType) {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const key = `tmp/${Date.now()}_${id}_${sanitize(originalName)}`;
-  await env.R2.put(key, body, {
-    httpMetadata: { contentType: contentType || 'application/octet-stream' },
-  });
+  await env.R2.put(key, body, { httpMetadata: { contentType: contentType || 'application/octet-stream' } });
   return key;
 }
 
-export async function putResultObject(env, body, originalName, ext, contentType) {
+export async function putResultObject(env, body, originalName, ext, contentType, jobId = '') {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const base = sanitize(originalName).replace(/\.[^.]+$/, '');
-  const key = `results/${Date.now()}_${id}_${base}${ext}`;
-  await env.R2.put(key, body, {
-    httpMetadata: {
-      contentType: contentType || 'application/octet-stream',
-      contentDisposition: `attachment; filename="ILovePDF-${base}${ext}"`,
-    },
-  });
+  const safeJobId = /^[a-f0-9]{32}$/.test(String(jobId)) ? String(jobId) : 'unscoped';
+  const key = `results/${safeJobId}/${Date.now()}_${id}_${base}${ext}`;
+  await env.R2.put(key, body, { httpMetadata: { contentType: contentType || 'application/octet-stream', contentDisposition: `attachment; filename="ILovePDF-${base}${ext}"` } });
   return key;
 }
 
@@ -32,9 +26,6 @@ export async function getObjectBytes(env, key) {
   return new Uint8Array(await obj.arrayBuffer());
 }
 
-// Build a download URL for the result. Prefers a public R2 base if the user
-// has fronted their bucket with a custom domain; otherwise falls back to a
-// streaming endpoint exposed by this Worker (/api/job-file/:key).
 export function buildResultUrl(env, request, key) {
   const base = (env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
   if (base) return `${base}/${key}`;
