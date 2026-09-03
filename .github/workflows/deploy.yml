@@ -1,6 +1,9 @@
 name: Deploy Project
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -9,6 +12,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     permissions:
       contents: read
@@ -17,6 +21,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Deployment is blocked unless the production source gates pass on this commit.
+      - name: Install locked dependencies
+        run: npm ci --omit=dev
+
+      - name: JavaScript syntax audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+            count=$((count + 1))
+          done < <(find . -type f -name '*.js' \
+            -not -path './node_modules/*' \
+            -not -path './.git/*' \
+            -print0)
+          echo "Syntax checked: $count JavaScript files"
+
+      - name: Enterprise source gate
+        run: npm test
+
+      - name: Security regression audit
+        run: npm run audit:security
+
+      - name: Runtime consistency audit
+        run: npm run audit:runtime
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
