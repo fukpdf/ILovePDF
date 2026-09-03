@@ -79,7 +79,7 @@ router.get('/admin/login', (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'login.html'));
 });
 
-// ── Login API ─────────────────────────────────────────────────────────────────
+// ── Login API ──────────────────────────────────────────────────────────────────
 router.post('/api/admin/auth/login', loginLimiter, express.json(), (req, res) => {
   const { username, password } = req.body || {};
   const ip = req.ip;
@@ -123,16 +123,20 @@ router.post('/api/admin/auth/login', loginLimiter, express.json(), (req, res) =>
 // ── Logout ────────────────────────────────────────────────────────────────────
 router.post('/api/admin/auth/logout', (req, res) => {
   const token = req.cookies?.[ADMIN_COOKIE];
+  let uid = null;
   if (token) {
+    // Read the user before invalidating the session so the audit entry keeps
+    // the correct identity. The previous ordering deleted the row first,
+    // making the subsequent lookup always return null.
+    uid = db.prepare('SELECT user_id FROM adm_sessions WHERE token=?').get(token)?.user_id || null;
     db.prepare('DELETE FROM adm_sessions WHERE token=?').run(token);
-    const uid = db.prepare('SELECT user_id FROM adm_sessions WHERE token=?').get(token)?.user_id;
     auditLog(uid, 'LOGOUT', '', req.ip);
   }
   res.clearCookie(ADMIN_COOKIE, { path: '/' });
   res.json({ ok: true });
 });
 
-// ── Session check (for frontend polling) ─────────────────────────────────────
+// ── Session check (for frontend polling) ──────────────────────────────────────
 router.get('/api/admin/auth/me', adminGuard, (req, res) => {
   res.json({ username: req.adminUser.username, id: req.adminUser.id });
 });
