@@ -181,6 +181,7 @@ const DEFAULT_ALLOWED = [
 const ENV_ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const ALLOWED = Array.from(new Set([...DEFAULT_ALLOWED, ...ENV_ALLOWED]));
 const ALLOW_ANY = ALLOWED.includes('*');
+const isProduction = process.env.NODE_ENV === 'production';
 if (process.env.NODE_ENV === 'production' && ALLOW_ANY) {
   throw new Error('FATAL: ALLOWED_ORIGINS=* is forbidden in production. Configure explicit trusted origins.');
 }
@@ -189,7 +190,8 @@ console.log(`[ilovepdf] cors:     allowing ${ALLOW_ANY ? 'ANY origin (developmen
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   // Same-origin requests have no Origin header; nothing to do for CORS.
-  if (origin && (ALLOW_ANY || ALLOWED.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))) {
+  const isLocalOrigin = !isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '');
+  if (origin && (ALLOW_ANY || ALLOWED.includes(origin) || isLocalOrigin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
