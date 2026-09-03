@@ -1,6 +1,9 @@
-name: Deploy Project (manual only)
+name: Deploy Project
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -11,32 +14,18 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read      # checkout
-      id-token: write     # required by google-github-actions/auth for Workload Identity (unused here but harmless)
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Google Cloud / Firebase authentication ──────────────────────────────
-      # google-github-actions/auth sets up Application Default Credentials (ADC)
-      # from the service account JSON stored in FIREBASE_SERVICE_ACCOUNT.  The Firebase CLI
-      # (and every google-cloud client library) automatically picks up ADC, so
-      # no FIREBASE_TOKEN or legacy credential flags are needed.
-      #
-      # Secret required in GitHub → Settings → Secrets → Actions:
-      #   FIREBASE_SERVICE_ACCOUNT  — full contents of the service account JSON key file
-      #                               (IAM role: "Firebase Hosting Admin" on project ilovepdf-web)
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      # ── Firebase Hosting — deploy /public as static site ───────────────────
-      # firebase-tools is invoked via npx so we always get the latest stable
-      # release without pinning a separate install step.  --non-interactive
-      # suppresses any prompts that would hang CI.  ADC (set above) is used
-      # automatically — no GOOGLE_APPLICATION_CREDENTIALS flag needed.
       - name: Deploy Firebase Hosting
         run: |
           npx --yes firebase-tools@13 deploy \
@@ -44,11 +33,6 @@ jobs:
             --project ilovepdf-web \
             --non-interactive
 
-      # ── Cloudflare Worker (queue producer + consumer) ───────────────────────
-      # Secrets are pushed to the worker at deploy time via the action's
-      # `secrets:` input.  Anything listed there is read from `env:` below
-      # and stored as a Worker secret automatically — no manual `wrangler
-      # secret put` step needed.
       - name: Deploy Cloudflare Worker
         uses: cloudflare/wrangler-action@v3
         with:
@@ -60,11 +44,3 @@ jobs:
             HF_API_TOKEN
         env:
           HF_API_TOKEN: ${{ secrets.HF_TOKEN }}
-
-      # ── Hugging Face Space ──────────────────────────────────────────────────
-      # The HF Space is the runtime that actually performs the heavy
-      # processing (called by the Worker via HF_SPACE_URL).  It is
-      # deployed/maintained out-of-band from this repo and authenticated
-      # via the HF_TOKEN secret used above.  No build step needed here —
-      # this comment exists so the HF leg of the stack is documented in
-      # the workflow file alongside the others.
