@@ -9,7 +9,7 @@
   var TAG             = '[RedactPdfApp]';
   var TOOL_ID         = 'redact';
   // Phase 2B security fix: moved from the shared pdf-lib-worker.js (which only
-  // drew a black rectangle ON TOP of the original page — the underlying text
+  // drew a black rectangle ON TOP OF the original page — the underlying text
   // remained fully extractable, confirmed via an executed proof-of-concept)
   // to a dedicated worker that flattens redacted pages to a raster image,
   // guaranteeing the original content cannot be recovered. See
@@ -98,17 +98,17 @@
     });
 
     var jobPromise = (async function () {
-      onStep(0, 'active', 5, 'Reading file…');
+      onStep(0, 'active', 5, 'Reading file\u2026');
       var buf = await file.arrayBuffer();
       onStep(0, 'done', 20);
-      onStep(1, 'active', 25, 'Applying redactions…');
+      onStep(1, 'active', 25, 'Applying redactions\u2026');
       await new Promise(function (r) { setTimeout(r, 4); });
 
       var resultBuf = await _runWorker(buf, opts || {}, jobId);
       buf = null;
 
       onStep(1, 'done', 85);
-      onStep(2, 'active', 90, 'Burning redactions…');
+      onStep(2, 'active', 90, 'Burning redactions\u2026');
       var blob = new Blob([resultBuf], { type: 'application/pdf' });
       resultBuf = null;
       onStep(2, 'done', 100);
