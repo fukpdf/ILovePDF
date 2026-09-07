@@ -8,9 +8,15 @@
 
   var TAG             = '[RedactPdfApp]';
   var TOOL_ID         = 'redact';
-  var PDF_LIB_WORKER  = '/workers/pdf-lib-worker.js';
-  var HARD_LIMIT_MS   = 90000;
-  var WORKER_LIMIT_MS = 75000;
+  // Phase 2B security fix: moved from the shared pdf-lib-worker.js (which only
+  // drew a black rectangle ON TOP of the original page — the underlying text
+  // remained fully extractable, confirmed via an executed proof-of-concept)
+  // to a dedicated worker that flattens redacted pages to a raster image,
+  // guaranteeing the original content cannot be recovered. See
+  // public/workers/redact-worker.js for the full implementation and rationale.
+  var PDF_LIB_WORKER  = '/workers/redact-worker.js';
+  var HARD_LIMIT_MS   = 120000; // raised from 90000: rendering pages to images is slower than drawing a rectangle
+  var WORKER_LIMIT_MS = 105000; // raised from 75000, matching the ratio used elsewhere (e.g. merge-pdf-app.js)
 
   var _inFlight   = false;
   var _jobId      = 0;
@@ -92,17 +98,17 @@
     });
 
     var jobPromise = (async function () {
-      onStep(0, 'active', 5, 'Reading file\u2026');
+      onStep(0, 'active', 5, 'Reading file…');
       var buf = await file.arrayBuffer();
       onStep(0, 'done', 20);
-      onStep(1, 'active', 25, 'Applying redactions\u2026');
+      onStep(1, 'active', 25, 'Applying redactions…');
       await new Promise(function (r) { setTimeout(r, 4); });
 
       var resultBuf = await _runWorker(buf, opts || {}, jobId);
       buf = null;
 
       onStep(1, 'done', 85);
-      onStep(2, 'active', 90, 'Burning redactions\u2026');
+      onStep(2, 'active', 90, 'Burning redactions…');
       var blob = new Blob([resultBuf], { type: 'application/pdf' });
       resultBuf = null;
       onStep(2, 'done', 100);
