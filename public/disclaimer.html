@@ -29,6 +29,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.min.css">
+  <link rel="stylesheet" href="/css/home.css">
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
 </head>
@@ -96,19 +97,72 @@
     <h2>Contact</h2>
     <p>If you have questions about this Disclaimer, please visit <a href="https://ilovepdf.cyou">ILovePDF</a>.</p>
   </div>
-  <footer class="site-footer">
+  <footer class="footer">
     <div class="footer-inner">
-      <div class="footer-brand">
-        <span class="footer-logo">ILovePDF</span>
-        <span class="footer-tagline">Free PDF &amp; Image Tools Online</span>
+      <div class="footer-col footer-brand">
+        <a href="/" class="brand" aria-label="ILovePDF home">
+          <span class="brand-mark"><i data-lucide="file-text"></i></span>
+          <span class="brand-name">ILove<span>PDF</span></span>
+        </a>
+        <p data-i18n="footer.desc">Free PDF &amp; Image Tools Online</p>
       </div>
-      <nav class="footer-links">
-        <a href="/blog">Blog</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms &amp; Conditions</a>
-        <a href="/disclaimer">Disclaimer</a>
-      </nav>
-      <div class="footer-legal">&copy; 2024 ILovePDF — All rights reserved.</div>
+      <div class="footer-col">
+        <h4 data-i18n="footer.product">Product</h4>
+        <a href="/#tools-root" data-i18n="footer.all_tools">All Tools</a>
+        <a href="/merge-pdf">Merge PDF</a>
+        <a href="/compress-pdf">Compress</a>
+        <a href="/pdf-to-word">PDF to Word</a>
+        <a href="/numbers-to-words">Numbers to Words</a>
+        <a href="/currency-converter">Currency Converter</a>
+      </div>
+      <div class="footer-col">
+        <h4 data-i18n="footer.company">Company</h4>
+        <a href="/about" data-i18n="footer.about">About</a>
+        <a href="/about#contact" data-i18n="footer.contact">Contact</a>
+        <a href="/blog" data-i18n="footer.blog">Blog</a>
+      </div>
+      <div class="footer-col">
+        <h4 data-i18n="footer.legal">Legal</h4>
+        <a href="/privacy" data-i18n="footer.privacy">Privacy</a>
+        <a href="/terms" data-i18n="footer.terms">Terms</a>
+        <a href="/disclaimer" data-i18n="footer.disclaimer">Disclaimer</a>
+      </div>
+      <div class="footer-col footer-languages">
+        <h4 data-i18n="footer.languages">Languages</h4>
+        <div class="footer-lang-sel" id="footer-lang-sel">
+          <button class="footer-lang-btn" id="footer-lang-btn" type="button"
+                  aria-haspopup="listbox" aria-expanded="false"
+                  aria-label="Select language">
+            <span id="footer-lang-label">🇬🇧 English</span>
+            <svg class="footer-lang-chev" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="footer-lang-panel" id="footer-lang-panel" hidden>
+            <a href="#" class="footer-lang-link" data-lang="en">🇬🇧 English</a>
+            <a href="#" class="footer-lang-link" data-lang="ar">🇸🇦 العربية</a>
+            <a href="#" class="footer-lang-link" data-lang="ur">🇵🇰 اردو</a>
+            <a href="#" class="footer-lang-link" data-lang="fa">🇮🇷 فارسی</a>
+            <a href="#" class="footer-lang-link" data-lang="hi">🇮🇳 हिन्दी</a>
+            <a href="#" class="footer-lang-link" data-lang="bn">🇧🇩 বাংলা</a>
+            <a href="#" class="footer-lang-link" data-lang="zh">🇨🇳 中文</a>
+            <a href="#" class="footer-lang-link" data-lang="ja">🇯🇵 日本語</a>
+            <a href="#" class="footer-lang-link" data-lang="ko">🇰🇷 한국어</a>
+            <a href="#" class="footer-lang-link" data-lang="tr">🇹🇷 Türkçe</a>
+            <a href="#" class="footer-lang-link" data-lang="id">🇮🇩 Indonesia</a>
+            <a href="#" class="footer-lang-link" data-lang="ru">🇷🇺 Русский</a>
+            <a href="#" class="footer-lang-link" data-lang="fr">🇫🇷 Français</a>
+            <a href="#" class="footer-lang-link" data-lang="de">🇩🇪 Deutsch</a>
+            <a href="#" class="footer-lang-link" data-lang="es">🇪🇸 Español</a>
+            <a href="#" class="footer-lang-link" data-lang="pt">🇧🇷 Português</a>
+            <a href="#" class="footer-lang-link" data-lang="it">🇮🇹 Italiano</a>
+            <a href="#" class="footer-lang-link" data-lang="nl">🇳🇱 Nederlands</a>
+            <a href="#" class="footer-lang-link" data-lang="pl">🇵🇱 Polski</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span data-i18n="footer.rights">© 2026 ILovePDF — All rights reserved.</span>
+      <span data-i18n="footer.deleted">Files are deleted automatically within seconds.</span>
     </div>
   </footer>
 </div>
@@ -124,5 +178,8 @@
   function acceptCookies(){localStorage.setItem('ilovepdf_cookies','1');document.getElementById('cookie-banner').classList.add('hidden');}
   if(localStorage.getItem('ilovepdf_cookies'))document.getElementById('cookie-banner').classList.add('hidden');
 </script>
+<script src="/js/i18n.js" defer></script>
+<script src="/js/i18n-ext.js" defer></script>
+<script src="/js/chrome.js" defer></script>
 </body>
 </html>
