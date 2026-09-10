@@ -123,13 +123,13 @@ db.exec(`
   -- Tool overrides (visibility, featured, sort order, etc.)
   CREATE TABLE IF NOT EXISTS adm_tool_overrides (
     tool_id            TEXT PRIMARY KEY,
-    visible            INTEGER NOT NULL DEFAULT 1,
-    featured           INTEGER NOT NULL DEFAULT 0,
-    beta               INTEGER NOT NULL DEFAULT 0,
-    sort_order         INTEGER NOT NULL DEFAULT 0,
+    visible             INTEGER NOT NULL DEFAULT 1,
+    featured            INTEGER NOT NULL DEFAULT 0,
+    beta                INTEGER NOT NULL DEFAULT 0,
+    sort_order          INTEGER NOT NULL DEFAULT 0,
     custom_description TEXT,
     custom_badge       TEXT,
-    updated_at         INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    updated_at          INTEGER NOT NULL DEFAULT (strftime('%s','now'))
   );
 
   -- Analytics events (lightweight, privacy-first)
@@ -257,11 +257,35 @@ const DEFAULT_FLAGS = [
   { key: 'analytics_tracking', desc: 'Enable lightweight privacy-first analytics',  val: 1 },
   { key: 'ocr_tool',           desc: 'Enable OCR PDF tool',                         val: 1 },
   { key: 'ai_summarizer',      desc: 'Enable AI Summarizer tool',                   val: 1 },
+  { key: 'download_rewards',   desc: 'Show the coin/reward animation after a successful download (real implementation: public/js/runtime-savings.js, wired via public/js/tool-page.js)', val: 1 },
+  { key: 'preview_zoom',       desc: 'Enable the click-to-enlarge preview zoom control (real implementation: public/js/preview-zoom.js, wired via public/js/live-preview.js)', val: 1 },
 ];
 
 for (const f of DEFAULT_FLAGS) {
   const exists = db.prepare('SELECT 1 FROM adm_feature_flags WHERE key=?').get(f.key);
   if (!exists) setFlag(f.key, f.val, f.desc);
 }
+
+// ─── Feature flag allowlists (Admin Feature Flags task) ────────────────────────
+// The admin write API (routes/admin-api.js) and the public read-only config
+// endpoint (server.js's GET /api/config/public) both import these rather than
+// trusting arbitrary keys. Adding a new flag means adding it to DEFAULT_FLAGS
+// above (so it has a real row + description) and, only if it's meant to
+// affect public-facing frontend behavior, to PUBLIC_FEATURE_FLAGS below.
+export const FEATURE_FLAG_ALLOWLIST = DEFAULT_FLAGS.map(f => f.key);
+
+// Conservative subset: only flags that genuinely gate public frontend
+// behavior are exposed to unauthenticated clients. Business/internal toggles
+// (ads, donations, registration, sign-in provider, analytics, individual
+// tool availability) are deliberately NOT included here, even though none of
+// them are secrets — Step 6 of this task asks for an explicit allowlist, not
+// "everything that isn't a secret."
+export const PUBLIC_FEATURE_FLAGS = [
+  'maintenance_mode',
+  'blog_enabled',
+  'announcements',
+  'download_rewards',
+  'preview_zoom',
+];
 
 export default db;
