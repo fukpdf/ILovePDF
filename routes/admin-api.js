@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import db from '../utils/db.js';
 import {
-  getConfig, setConfig, getFlag, setFlag, auditLog,
+  getConfig, setConfig, getFlag, setFlag, auditLog, FEATURE_FLAG_ALLOWLIST,
 } from '../utils/admin-db.js';
 import { adminGuard } from '../middleware/admin-guard.js';
 import { validatePassword } from './admin.js';
@@ -297,11 +297,20 @@ router.put('/config', express.json({ limit: '2mb' }), (req, res) => {
 
 router.get('/feature-flags', (_req, res) => {
   const flags = db.prepare('SELECT * FROM adm_feature_flags ORDER BY key').all();
-  res.json({ flags });
+  res.json({ flags, allowlist: FEATURE_FLAG_ALLOWLIST });
 });
 
 router.put('/feature-flags', express.json(), (req, res) => {
   const updates = req.body || {};
+  const keys = Object.keys(updates);
+  const invalidKeys = keys.filter(k => !FEATURE_FLAG_ALLOWLIST.includes(k));
+  if (invalidKeys.length) {
+    return res.status(400).json({ error: 'Unknown feature flag key(s): ' + invalidKeys.join(', ') });
+  }
+  const invalidValues = keys.filter(k => typeof updates[k] !== 'boolean');
+  if (invalidValues.length) {
+    return res.status(400).json({ error: 'Feature flag value(s) must be boolean: ' + invalidValues.join(', ') });
+  }
   for (const [key, enabled] of Object.entries(updates)) {
     setFlag(key, enabled);
   }
@@ -312,7 +321,13 @@ router.put('/feature-flags', express.json(), (req, res) => {
 router.post('/feature-flags', express.json(), (req, res) => {
   const { key, enabled, description } = req.body || {};
   if (!key) return res.status(400).json({ error: 'Key required' });
-  setFlag(key, enabled, description);
+  if (!FEATURE_FLAG_ALLOWLIST.includes(key)) {
+    return res.status(400).json({ error: 'Unknown feature flag key: ' + key });
+  }
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'Feature flag value must be boolean' });
+  }
+  setFlag(key, !!enabled, description);
   res.json({ ok: true });
 });
 
