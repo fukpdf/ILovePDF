@@ -1,1 +1,533 @@
-<FILE_CONTENT_FROM_ATTACHED_ZIP>
+import compression from 'compression';
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+
+import organizeRouter from './routes/organize.js';
+import editRouter from './routes/edit.js';
+import convertRouter from './routes/convert.js';
+import securityRouter from './routes/security.js';
+import advancedRouter from './routes/advanced.js';
+import imageRouter from './routes/image.js';
+import authRouter from './routes/auth.js';
+import r2Router from './routes/r2.js';
+import searchRouter from './routes/search.js';
+import liveIntelRouter from './routes/live-intelligence.js';
+import adminRouter from './routes/admin.js';
+import adminApiRouter from './routes/admin-api.js';
+import communityApiRouter from './routes/community-api.js';
+import securityTelemetryRouter   from './routes/security-telemetry.js';
+import executionTicketsRouter    from './routes/execution-tickets.js';
+import securityDashboardRouter   from './routes/security-dashboard.js';
+import securityIncidentsRouter   from './routes/security-incidents.js';   // Phase 8
+import threatFeedRouter          from './routes/threat-feed.js';          // Phase 8
+import debugRouter               from './routes/debug.js';                // Arc 10D
+import packetValidatorSoft       from './utils/runtime-packet-validator.js'; // Phase 8
+import { originGuard } from './utils/origin-guard.js';
+import { SLUG_MAP, buildHtml, getRedirect, getDirectFile, buildHomeHtml } from './utils/seo.js';
+import './utils/seo-categories.js'; // registers categoryForSlug callback
+import seoRouter from './routes/seo-routes.js';
+import { UPLOAD_DIR, sweepUploads } from './utils/upload.js';
+import { checkUsage, enforcePerFile } from './utils/usage.js';
+import { isR2Configured, startR2Sweeper } from './utils/r2.js';
+import { isFirebaseConfigured, firebaseWebApiKey } from './utils/firebase-admin.js';
+import { isHfConfigured } from './utils/ai.js';
+import { generateNonce, injectNonce } from './utils/csp-nonce.js';
+import { getHealthSnapshot, requestTimingMiddleware } from './utils/server-health-monitor.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PORT     = process.env.PORT || 5000;
+const BUILD_ID = Date.now().toString(36); // unique per-boot delivery token
+
+const app = express();
+app.set('trust proxy', 1); // we are behind Replit / Railway proxies
+app.use(compression());
+app.use(requestTimingMiddleware());
+
+// Homepage SEO injection — must run BEFORE static so we can rewrite index.html.
+// Cached at boot so per-request cost is just a string send.
+// BUILD_ID placeholder __BUILD_ID__ is replaced once at boot; CSP nonce __CSP_NONCE__
+// is replaced per-request by injectNonce().
+const __HOME_HTML = (() => {
+  try {
+    const base = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    return buildHomeHtml(base).replace(/__BUILD_ID__/g, BUILD_ID);
+  } catch (e) {
+    console.warn('[seo] could not pre-build home HTML:', e.message);
+    return null;
+  }
+})();
+app.get('/', (_req, res, next) => {
+  if (!__HOME_HTML) return next();
+  // no-store: nonce changes every request — cannot be publicly cached
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(__HOME_HTML, res.locals.nonce));
+});
+
+// Lightweight geo-language hint. Reads country from CDN headers (Cloudflare,
+// Vercel, AWS CloudFront). Returns { country: "SA" } or { country: null }.
+// i18n.js calls this on first visit when no language preference is stored.
+app.get('/api/geo', (req, res) => {
+  const country = (
+    req.headers['cf-ipcountry']         ||
+    req.headers['x-country-code']       ||
+    req.headers['x-vercel-ip-country']  ||
+    req.headers['x-amz-cf-ipcountry']  ||
+    ''
+  ).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || null;
+  res.set('Cache-Control', 'no-store');
+  res.json({ country });
+});
+
+// Phase-3 SEO: /sitemap.xml, /robots.txt, /pdf-tools etc., /submit-urls,
+// /ping-index. Mounted before static so it can override sitemap/robots files.
+app.use(seoRouter);
+
+// ── Legacy .html → clean URL 301 redirects ───────────────────────────────────
+// Must be BEFORE express.static so these intercept before the physical files are served.
+const HTML_REDIRECTS = {
+  '/privacy.html':    '/privacy',
+  '/terms.html':      '/terms',
+  '/about.html':      '/about',
+  '/contact.html':    '/contact',
+  '/disclaimer.html': '/disclaimer',
+  '/blog.html':       '/blog',
+};
+app.use((req, res, next) => {
+  const target = HTML_REDIRECTS[req.path];
+  if (target) return res.redirect(301, target);
+  next();
+});
+
+// /blog index — must be explicit BEFORE express.static or the public/blog/ directory
+// causes Express to 301 → /blog/ (trailing-slash directory redirect).
+app.get('/blog', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'blog.html'));
+});
+
+// Blog articles at clean URLs: /blog/merge-pdf-guide → serves public/blog/merge-pdf-guide.html
+// This is mounted BEFORE express.static so it resolves before the 404 path.
+app.get('/blog/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  // Reject slugs that already have .html (those are caught by the redirect above if needed)
+  if (slug.endsWith('.html')) return next();
+  // Redirect legacy /blog/slug.html → /blog/slug (in case anyone bookmarked with .html)
+  const filePath = path.join(__dirname, 'public', 'blog', `${slug}.html`);
+  if (!fs.existsSync(filePath)) return next();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(filePath);
+});
+
+// Redirect /blog/:slug.html → /blog/:slug (covers inbound .html links from other sites)
+app.get('/blog/:slug.html', (req, res) => {
+  const slug = req.params.slug;
+  res.redirect(301, `/blog/${slug}`);
+});
+
+// Phase 24: Tiered static file serving with long-lived cache headers.
+// JS/CSS/fonts/images get 1-year immutable headers so browsers never
+// re-fetch them on subsequent visits (service worker handles freshness).
+// HTML and JSON files stay short-lived so they always reflect updates.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag:         true,
+  lastModified: true,
+  setHeaders(res, filePath) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    if (/^(woff2?|ttf|otf)$/.test(ext)) {
+      // Font files — truly immutable (binary, versioned by Google Fonts URL params)
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/^(js|css|ico|png|jpg|jpeg|gif|webp|svg)$/.test(ext)) {
+      // JS/CSS/images — filenames are NOT content-hashed, so no immutable.
+      // 1-day cache with must-revalidate so browsers always validate after 24 h.
+      // The SW layer uses stale-while-revalidate for JS/CSS on top of this.
+      res.set('Cache-Control', 'public, max-age=86400, must-revalidate');
+      res.set('X-Build-Id', BUILD_ID);
+    } else if (ext === 'json' && !filePath.includes('/locales/')) {
+      // Non-locale JSON (manifest, config) — 1 hour
+      res.set('Cache-Control', 'public, max-age=3600');
+    } else if (ext === 'json') {
+      // Locale files — stale-while-revalidate 24 h, bg revalidate 7 d
+      res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+    // HTML falls through to Express default (no-cache / etag only)
+  },
+}));
+
+console.log(`[ilovepdf] build_id:  ${BUILD_ID}`);
+console.log(`[ilovepdf] uploads dir: ${UPLOAD_DIR}`);
+console.log(`[ilovepdf] firebase: ${isFirebaseConfigured() ? 'enabled' : 'disabled'}`);
+console.log(`[ilovepdf] r2:       ${isR2Configured()       ? 'enabled' : 'disabled'}`);
+console.log(`[ilovepdf] hf:       ${isHfConfigured()       ? 'enabled' : 'disabled'}`);
+
+setInterval(sweepUploads, 15 * 60 * 1000);
+sweepUploads();
+startR2Sweeper(); // 10-min TTL for tmp/* objects
+
+// CORS — comma-separated ALLOWED_ORIGINS env (e.g. https://app.example.com,https://www.example.com)
+// Plus a built-in allowlist of the production frontend domains so the deployed
+// site works out of the box. Wildcard origins are forbidden in production.
+const DEFAULT_ALLOWED = [
+  'https://ilovepdf.cyou',
+  'https://www.ilovepdf.cyou',
+  'https://ilovepdf-web.web.app',
+  'https://ilovepdf-web.firebaseapp.com',
+];
+const ENV_ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const ALLOWED = Array.from(new Set([...DEFAULT_ALLOWED, ...ENV_ALLOWED]));
+const ALLOW_ANY = ALLOWED.includes('*');
+const isProduction = process.env.NODE_ENV === 'production';
+if (process.env.NODE_ENV === 'production' && ALLOW_ANY) {
+  throw new Error('FATAL: ALLOWED_ORIGINS=* is forbidden in production. Configure explicit trusted origins.');
+}
+console.log(`[ilovepdf] cors:     allowing ${ALLOW_ANY ? 'ANY origin (development only)' : ALLOWED.length + ' origin(s)'}`);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // Same-origin requests have no Origin header; nothing to do for CORS.
+  const isLocalOrigin = !isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '');
+  if (origin && (ALLOW_ANY || ALLOWED.includes(origin) || isLocalOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+  } else if (origin && req.method === 'OPTIONS') {
+    // Reject unknown-origin pre-flights cleanly so the browser shows a useful error.
+    return res.status(403).json({ error: 'origin not allowed', origin });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  // ── Phase 2: Per-request CSP nonce ───────────────────────────────────────
+  // A fresh cryptographically-secure 128-bit nonce is generated for every
+  // request. It is stored on res.locals.nonce so downstream route handlers
+  // can call injectNonce(html, res.locals.nonce) before sending HTML.
+  // HTML templates pre-built at boot contain  __CSP_NONCE__  placeholders
+  // that are replaced by injectNonce() in O(n) string time — no re-parsing.
+  const nonce = generateNonce();
+  res.locals.nonce = nonce;
+
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Powered-By', 'ILovePDF');
+  // SharedArrayBuffer requires both COOP and COEP.
+  // credentialless mode allows CDN resources (jsdelivr, etc.) without CORP headers
+  // while still enabling cross-origin isolation for large-file worker transfers.
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+
+  // ── Enterprise Content-Security-Policy — Phase 2 ───────────────────────
+  // Phase 2 removes 'unsafe-inline' from script-src entirely.
+  // Inline scripts are secured by one of two methods:
+  //   (a) Extracted to external .js files (Task 2) — covered by 'self'
+  //   (b) Server-injected config scripts (window.__TOOL_ID etc.) use
+  //       nonce="__CSP_NONCE__" in the template, replaced per-request.
+  //
+  // Phase 1 wins retained:
+  //   object-src 'none'   — blocks Flash / plugin injection
+  //   base-uri   'self'   — prevents <base href> hijacking
+  //   form-action         — blocks form exfiltration
+  //   frame-ancestors     — prevents clickjacking
+  //   worker-src          — restricts worker origins to same-origin + blob:
+  //   upgrade-insecure-requests
+  const CSP = [
+    // Fallback for unspecified resource types
+    "default-src 'self'",
+
+    // Scripts: self + per-request nonce (inline scripts) + CDN partners + WASM
+    // 'unsafe-inline' REMOVED in Phase 2 — replaced by per-request nonce.
+    // 'wasm-unsafe-eval' required for Tesseract / ONNX WASM (not full eval).
+    // CDN allowlist covers pdfjs (jsdelivr), Lucide (unpkg), AdSense, GTM/GA.
+    [
+      "script-src",
+      "'self'",
+      `'nonce-${nonce}'`,
+      "'wasm-unsafe-eval'",
+      "https://pagead2.googlesyndication.com",
+      "https://partner.googleadservices.com",
+      "https://tpc.googlesyndication.com",
+      "https://unpkg.com",
+      "https://cdn.jsdelivr.net",
+      "https://www.googletagmanager.com",
+      "https://www.google-analytics.com",
+    ].join(' '),
+
+    // Styles: self + Google Fonts + inline styles (UI components use inline style=)
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+
+    // Fonts: self + Google Fonts + data: (icon fonts)
+    "font-src 'self' https://fonts.gstatic.com data:",
+
+    // Images: self + data URIs (canvas exports) + blob: (processed images) + https
+    "img-src 'self' data: blob: https:",
+
+    // Network: self + HuggingFace AI + Firebase + AdSense + Formspree (contact form)
+    [
+      "connect-src",
+      "'self'",
+      "blob:",
+      "https://api-inference.huggingface.co",
+      "https://*.googleapis.com",
+      "https://identitytoolkit.googleapis.com",
+      "https://securetoken.googleapis.com",
+      "https://firebaseinstallations.googleapis.com",
+      "https://pagead2.googlesyndication.com",
+      "https://adservice.google.com",
+      "https://ep1.adtrafficquality.google",
+      "https://formspree.io",
+      "wss:",
+    ].join(' '),
+
+    // Workers: same-origin JS + blob: (dynamically created workers)
+    "worker-src 'self' blob:",
+
+    // Frames: AdSense + doubleclick ad iframes + self
+    [
+      "frame-src",
+      "'self'",
+      "https://googleads.g.doubleclick.net",
+      "https://tpc.googlesyndication.com",
+      "https://www.google.com",
+      "https://pagead2.googlesyndication.com",
+    ].join(' '),
+
+    // Child contexts (SharedWorker, nested workers)
+    "child-src 'self' blob:",
+
+    // Media: self + blob: (audio/video processing outputs)
+    "media-src 'self' blob:",
+
+    // CRITICAL: blocks Flash, Java, Silverlight injection
+    "object-src 'none'",
+
+    // Blocks <base href="https://attacker.com"> hijacking
+    "base-uri 'self'",
+
+    // Blocks forms submitting to external URLs (Formspree allowed for contact form)
+    "form-action 'self' https://formspree.io",
+
+    // Prevents this page from being embedded in foreign frames (clickjacking)
+    "frame-ancestors 'self'",
+
+    // Force HTTPS for all sub-resource loads
+    "upgrade-insecure-requests",
+  ].join('; ');
+
+  res.setHeader('Content-Security-Policy', CSP);
+
+  // Permissions-Policy: restrict powerful browser features not used by tools
+  res.setHeader('Permissions-Policy', [
+    'accelerometer=()',
+    'geolocation=()',
+    'gyroscope=()',
+    'magnetometer=()',
+    'microphone=()',
+    'payment=()',
+    'serial=()',
+    'usb=()',
+    // camera= omitted: some scan tools may need it in future
+    // ambient-light-sensor, battery, bluetooth removed: not standardised in Permissions-Policy v2
+  ].join(', '));
+
+  next();
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 80,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP. Please wait 15 minutes and try again.' },
+});
+
+app.use(express.json({ limit: '2mb' }));
+app.use(cookieParser());
+
+// ── Admin dashboard — mounted before main API so /admin/* is not rate-limited
+// adminRouter  : serves /admin/login, /admin/setup, /admin/*, /api/admin/auth/*
+// adminApiRouter: all /api/admin/* CRUD (protected by adminGuard inside)
+app.use(adminRouter);
+app.use('/api/admin', adminApiRouter);
+
+// Community economy API — polled every 10s with 30s server-side cache.
+// Mounted BEFORE the general rate limiter so the cached aggregate stats
+// endpoint doesn't exhaust the 80-req/15min budget on poll cycles.
+app.use('/api/community', communityApiRouter);
+
+// Rate limiter applied FIRST — before any /api/* handler
+app.use('/api', apiLimiter);
+
+// Public Firebase config (safe to expose — these are not secrets)
+app.get('/api/config/firebase', (_req, res) => {
+  if (!isFirebaseConfigured()) return res.status(503).json({ error: 'firebase not configured' });
+  res.json({
+    apiKey:        firebaseWebApiKey(),
+    authDomain:    process.env.FIREBASE_AUTH_DOMAIN,
+    projectId:     process.env.FIREBASE_PROJECT_ID,
+    appId:         process.env.FIREBASE_APP_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
+  });
+});
+
+// Health probe (used by Railway / uptime monitors — no sensitive data)
+app.get('/api/health', (_req, res) => {
+  res.json({
+    ok: true,
+    services: {
+      firebase: isFirebaseConfigured(),
+      r2:       isR2Configured(),
+      hf:       isHfConfigured(),
+    },
+  });
+});
+
+// Phase 9: detailed server-health endpoint (memory, latency, traffic, build)
+// No auth required — no secrets are exposed. Rate-limited by the /api limiter.
+app.get('/api/server-health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(getHealthSnapshot(BUILD_ID, {
+    firebase: isFirebaseConfigured(),
+    r2:       isR2Configured(),
+    hf:       isHfConfigured(),
+  }));
+});
+// Phase 4: origin guard on all API routes (allows same-origin + known domains)
+app.use('/api', originGuard);
+
+app.use('/api', authRouter);  // auth routes are NOT subject to usage limits
+app.use('/api', r2Router);    // R2 upload/download/list (own auth checks inside)
+app.use('/api', searchRouter); // web search + weather proxy (no auth, GET only)
+app.use('/api/security-telemetry',  securityTelemetryRouter); // Phase 4 telemetry pipeline
+app.use('/api',                     executionTicketsRouter);   // Phase 6 execution tickets
+app.use('/api/security-dashboard',  securityDashboardRouter); // Phase 7 dashboard API
+app.use('/api/security-incidents',  securityIncidentsRouter); // Phase 8 persistent incidents
+app.use('/api/threat-feed',         threatFeedRouter);         // Phase 8 threat intelligence
+app.use('/api', packetValidatorSoft);                          // Phase 8 packet validation (soft)
+app.use('/live-intel', liveIntelRouter); // Phase 3: real-time knowledge layer
+app.use('/debug', (req, res, next) => { res.locals.buildId = BUILD_ID; next(); }, debugRouter); // Arc 10D
+
+// Pre-flight quota check on every other POST (before multer parses the body)
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'POST') return next();
+  if (req.path.startsWith('/auth/')) return next();
+  if (req.path.startsWith('/r2/'))   return next();
+  return checkUsage(req, res, next);
+});
+
+app.use('/api', organizeRouter);
+app.use('/api', editRouter);
+app.use('/api', convertRouter);
+app.use('/api', securityRouter);
+app.use('/api', advancedRouter);
+app.use('/api', imageRouter);
+
+app.use('/api', enforcePerFile);
+
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'File too large. Maximum allowed size is 100 MB. Sign up required for larger files.' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request too large.' });
+  }
+  console.error('Server error:', err.message);
+  res.status(500).json({ error: 'Internal server error.' });
+});
+
+// Email-confirmation landing page
+app.get('/verify-signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'verify-signup.html'));
+});
+
+// Static pages — clean URLs (no .html extension; matches sitemap + Firebase cleanUrls)
+app.get('/about', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'about.html'));
+});
+app.get('/privacy', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+app.get('/terms', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+app.get('/disclaimer', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'disclaimer.html'));
+});
+app.get('/blog', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'blog.html'));
+});
+
+// Contact redirects to the contact section on the about page
+app.get('/contact', (_req, res) => {
+  res.redirect(301, '/about#contact');
+});
+
+// SEO routes
+// BUILD_ID placeholder replaced once at boot; nonce replaced per-request.
+const TOOL_HTML = fs.readFileSync(path.join(__dirname, 'public', 'tool.html'), 'utf8')
+  .replace(/__BUILD_ID__/g, BUILD_ID);
+app.get('/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  if (!Object.prototype.hasOwnProperty.call(SLUG_MAP, slug)) return next();
+  // Tools that have a hand-built standalone HTML page (e.g. utilities with a
+  // custom UI) — stream the file at the clean URL so we keep one canonical URL.
+  const direct = getDirectFile(slug);
+  if (direct) {
+    res.set('Cache-Control', 'public, max-age=300');
+    return res.sendFile(path.join(__dirname, 'public', direct.replace(/^\/+/, '')));
+  }
+  const redir = getRedirect(slug);
+  if (redir) return res.redirect(302, redir);
+  const html = buildHtml(slug, TOOL_HTML, 'upload');
+  if (!html) return next();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
+});
+
+// 3-step flow sub-routes: /:slug/preview and /:slug/download.
+// Both serve the same tool.html shell — tool-page.js reads window.__STEP and
+// renders the appropriate step (Preview / Download). Direct deep-links with
+// no in-memory state are gracefully redirected back to the upload step.
+// Tools that have their own standalone HTML page (n2w, currency-converter)
+// or are pure redirects don't have a multi-step flow.
+app.get('/:slug/:step', (req, res, next) => {
+  const { slug, step } = req.params;
+  if (!Object.prototype.hasOwnProperty.call(SLUG_MAP, slug)) return next();
+  if (step !== 'preview' && step !== 'download') return next();
+  if (getDirectFile(slug) || getRedirect(slug)) return next();
+  const html = buildHtml(slug, TOOL_HTML, step);
+  if (!html) return next();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(injectNonce(html, res.locals.nonce));
+});
+
+// /tools — dedicated tools directory page
+app.get('/tools', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(__dirname, 'public', 'tools.html'));
+});
+
+// Catch-all: admin sub-paths fall back to login (not homepage).
+// Everything else gets the main SPA index.html.
+app.get('/{*path}', (req, res) => {
+  const p = req.path || '';
+  if (p.startsWith('/admin')) return res.redirect('/admin/login');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`ILovePDF running on port ${PORT}`);
+});
