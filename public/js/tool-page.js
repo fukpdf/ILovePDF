@@ -658,8 +658,44 @@ function renderUploadStep(tool) {
   const fileType  = tool.group === 'image' ? 'image' : 'PDF';
   const isRotateTool = tool.id === 'rotate';
 
+  if (isRotateTool) {
+    // Rotate upload intentionally mirrors the iLovePDF Rotate PDF upload
+    // composition. Existing file-input/setup logic is retained unchanged.
+    container.innerHTML = `
+      <div class="tool-page ilpdf-rotate-page ilpdf-rotate-upload">
+        <section class="ilpdf-rotate-upload-hero" aria-label="Upload PDF files">
+          <h1 class="ilpdf-rotate-title">Rotate PDF</h1>
+          <p class="ilpdf-rotate-subtitle">Rotate your PDFs the way you need them. You can even rotate multiple PDFs at once!</p>
+
+          <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="${fileLabel}">
+            <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
+            <button type="button" class="btn btn-primary ilpdf-rotate-select" id="upload-cta-btn">
+              <i data-lucide="upload"></i> ${fileLabel}
+            </button>
+            <div class="ilpdf-rotate-droptext">or drop ${tool.multipleFiles ? 'PDFs' : 'PDF'} here</div>
+          </div>
+        </section>
+
+        ${trustStripHtml()}
+        ${renderSeoContent(tool)}
+        ${learnMoreHtml(tool)}
+        ${popularToolsHtml(tool.id)}
+      </div>`;
+
+    if (window.lucide) lucide.createIcons();
+    setupFileInput();
+    const cta = document.getElementById('upload-cta-btn');
+    if (cta) cta.addEventListener('click', e => {
+      e.stopPropagation();
+      document.getElementById('file-input')?.click();
+    });
+    wireStepNav();
+    try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } })); } catch (_) {}
+    return;
+  }
+
   container.innerHTML = `
-    <div class="tool-page ${isRotateTool ? 'ilpdf-rotate-page ilpdf-rotate-upload' : ''}">
+    <div class="tool-page">
       ${toolHeaderBlock(tool)}
       ${stepIndicatorHtml('upload')}
 
@@ -678,22 +714,18 @@ function renderUploadStep(tool) {
       </section>
 
       ${renderSeoContent(tool)}
-
       ${learnMoreHtml(tool)}
-
       ${popularToolsHtml(tool.id)}
     </div>`;
 
   if (window.lucide) lucide.createIcons();
   setupFileInput();
-  // The big CTA button just opens the same hidden file picker.
   const cta = document.getElementById('upload-cta-btn');
   if (cta) cta.addEventListener('click', e => {
     e.stopPropagation();
     document.getElementById('file-input')?.click();
   });
   wireStepNav();
-  // Phase 5: notify responsive ad engine that upload step is fully rendered
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } })); } catch (_) {}
 }
 
