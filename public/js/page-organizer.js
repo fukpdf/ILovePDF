@@ -655,6 +655,38 @@
       renderGrid();
     }
 
+    // UI-only bulk selection helper for Rotate PDF. It changes the same
+    // in-memory page rotation state used by getEditedPdf(); it does not alter
+    // the PDF export algorithm.
+    async function applyRotationByOrientation(delta, orientation) {
+      if (!delta) return;
+      const d = ((delta % 360) + 360) % 360;
+      if (d === 0) return;
+      const wanted = String(orientation || 'all').toLowerCase();
+      if (wanted === 'all') {
+        pages.forEach(p => { p.rotation = (p.rotation + d) % 360; });
+        renderGrid();
+        return;
+      }
+
+      for (const p of pages) {
+        try {
+          const page = await getPageWithTimeout(pdfDoc.pdf, p.originalIndex + 1);
+          const base = Number(page.rotate || 0);
+          const effective = ((base + p.rotation) % 360 + 360) % 360;
+          const viewport = page.getViewport({ scale: 1, rotation: effective });
+          const isPortrait = viewport.height >= viewport.width;
+          const matches = wanted === 'portrait' ? isPortrait
+            : wanted === 'landscape' ? !isPortrait
+            : true;
+          if (matches) p.rotation = (p.rotation + d) % 360;
+        } catch (_) {
+          // If orientation inspection fails, leave that page unchanged.
+        }
+      }
+      renderGrid();
+    }
+
     return {
       getEditedPdf,
       getOrderSummary,
