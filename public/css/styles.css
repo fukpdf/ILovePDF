@@ -3961,8 +3961,10 @@ i[data-lucide] {
 
 
 /* ============================================================
-   ROTATE PDF — iLovePDF upload/preview/download UI
-   Theme color stays project-owned via --primary.
+   ROTATE PDF — iLovePDF reference upload / preview / download UI
+   Upload step intentionally matches the supplied reference:
+   spacious page, centered title/subtitle, large themed CTA,
+   cloud shortcut circles, and drag/drop text.
    Processing logic is untouched.
    ============================================================ */
 
@@ -3970,88 +3972,153 @@ i[data-lucide] {
   width: 100% !important;
   max-width: none !important;
   min-height: calc(100vh - var(--header-height, 64px));
-  padding: 0 24px 48px !important;
+  padding: 0 !important;
+  background: #f7f7fb;
+}
+
+.ilpdf-rotate-upload {
+  min-height: calc(100vh - var(--header-height, 64px));
+  display: flex;
+  flex-direction: column;
 }
 
 .ilpdf-rotate-upload-hero {
-  width: min(100%, 1180px);
+  width: 100%;
+  flex: 1 0 auto;
   margin: 0 auto;
-  padding: 52px 20px 34px;
+  padding: 54px 24px 70px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .ilpdf-rotate-title {
   margin: 0;
-  font-size: clamp(30px, 3vw, 42px);
-  line-height: 1.15;
+  font-size: clamp(42px, 4.2vw, 64px);
+  line-height: 1.08;
   font-weight: 700;
-  letter-spacing: -.025em;
-  color: var(--text, #1f2937);
+  letter-spacing: -.035em;
+  color: var(--text, #30313a);
 }
 
 .ilpdf-rotate-subtitle {
-  margin: 12px auto 34px;
-  max-width: 720px;
-  font-size: 16px;
-  line-height: 1.55;
-  color: var(--text-muted, #6b7280);
+  margin: 20px auto 48px;
+  max-width: 1180px;
+  font-size: clamp(18px, 1.55vw, 26px);
+  line-height: 1.5;
+  color: #3f5a79;
 }
 
 .ilpdf-rotate-upload-zone {
-  width: min(100%, 920px);
-  min-height: 300px;
+  width: min(100%, 900px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px dashed #d9dde5;
-  border-radius: 8px;
-  background: #fff;
-  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: none;
 }
 
 .ilpdf-rotate-upload-zone:hover,
 .ilpdf-rotate-upload-zone.dragover,
 .ilpdf-rotate-upload-zone:focus-within {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 2%, #fff);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--primary) 9%, transparent);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .ilpdf-rotate-upload-zone input[type="file"] {
   display: none;
 }
 
+.ilpdf-rotate-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
 .ilpdf-rotate-select {
-  min-width: 220px;
-  min-height: 52px;
-  padding: 0 28px !important;
-  border-radius: 4px !important;
-  font-size: 16px;
+  width: 496px;
+  height: 120px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 34px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  border: 0 !important;
+  border-radius: 17px !important;
+  background: var(--primary, #5b3df5) !important;
+  color: #fff !important;
+  font-size: 26px;
   font-weight: 700;
-  box-shadow: none !important;
+  letter-spacing: -.02em;
+  box-shadow: 0 8px 18px rgba(35, 31, 85, .16) !important;
+}
+
+.ilpdf-rotate-select:hover {
+  transform: none !important;
+  filter: brightness(.97);
+}
+
+.ilpdf-rotate-select svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.3;
+}
+
+.ilpdf-rotate-clouds {
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+}
+
+.ilpdf-rotate-cloud {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary, #5b3df5);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(35, 31, 85, .14);
+}
+
+.ilpdf-rotate-cloud svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.2;
 }
 
 .ilpdf-rotate-droptext {
-  margin-top: 18px;
-  font-size: 15px;
-  color: var(--text-muted, #6b7280);
+  margin-top: 24px;
+  font-size: 19px;
+  line-height: 1.4;
+  color: #405a78;
 }
 
-.ilpdf-rotate-page > .trust-strip {
-  justify-content: center;
-  margin: 0 auto 28px;
-  max-width: 1000px;
+.ilpdf-rotate-upload > .trust-strip,
+.ilpdf-rotate-upload > .seo-block,
+.ilpdf-rotate-upload > .tool-learn-more,
+.ilpdf-rotate-upload > .popular-tools {
+  display: none;
 }
 
-.ilpdf-rotate-preview {
-  padding-bottom: 32px !important;
-}
-
-.ilpdf-rotate-preview .ew-context-banner {
-  max-width: 1180px;
-  margin: 0 auto 14px;
+/* Keep preview/download on the same full-window theme without changing behavior. */
+.ilpdf-rotate-preview,
+.ilpdf-download-page {
+  min-height: calc(100vh - var(--header-height, 64px));
+  padding: 22px 24px 36px !important;
+  background: #f7f7fb;
 }
 
 .ilpdf-rotate-preview .ew-preview-workspace {
@@ -4110,10 +4177,17 @@ i[data-lucide] {
   justify-content: center;
 }
 
-/* Full-window responsive behavior */
 @media (max-width: 900px) {
-  .ilpdf-rotate-page {
-    padding: 20px 16px 36px !important;
+  .ilpdf-rotate-upload-hero {
+    padding: 42px 18px 56px;
+  }
+
+  .ilpdf-rotate-subtitle {
+    margin-bottom: 36px;
+  }
+
+  .ilpdf-rotate-select {
+    width: min(496px, calc(100vw - 150px));
   }
 
   .ilpdf-rotate-preview .ew-preview-workspace {
@@ -4126,27 +4200,61 @@ i[data-lucide] {
     max-height: none;
     overflow: visible;
   }
-
-  .ilpdf-rotate-preview .po-grid {
-    min-height: 400px;
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    padding: 20px;
-  }
 }
 
 @media (max-width: 640px) {
-  .ilpdf-rotate-page {
-    padding: 14px 10px 28px !important;
+  .ilpdf-rotate-upload-hero {
+    padding: 34px 14px 44px;
   }
 
-  .ilpdf-rotate-upload .upload-area--hero {
-    min-height: 300px;
-    padding: 32px 16px !important;
+  .ilpdf-rotate-title {
+    font-size: 40px;
   }
 
-  .ilpdf-rotate-upload .upload-cta {
-    min-width: 210px;
-    width: min(100%, 280px);
+  .ilpdf-rotate-subtitle {
+    font-size: 17px;
+    margin: 14px auto 32px;
+  }
+
+  .ilpdf-rotate-action-row {
+    gap: 10px;
+  }
+
+  .ilpdf-rotate-select {
+    width: calc(100vw - 108px);
+    max-width: 390px;
+    height: 76px;
+    border-radius: 12px !important;
+    font-size: 20px;
+  }
+
+  .ilpdf-rotate-select svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .ilpdf-rotate-clouds {
+    width: 44px;
+    gap: 8px;
+  }
+
+  .ilpdf-rotate-cloud {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ilpdf-rotate-cloud svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ilpdf-rotate-droptext {
+    margin-top: 18px;
+    font-size: 16px;
+  }
+
+  .ilpdf-rotate-preview {
+    padding: 12px 10px 28px !important;
   }
 
   .ilpdf-rotate-preview .po-grid {
@@ -4154,14 +4262,5 @@ i[data-lucide] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     padding: 14px;
-  }
-
-  .ilpdf-rotate-preview .po-toolbar {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .ilpdf-download-page .status-card {
-    padding: 20px 16px;
   }
 }
