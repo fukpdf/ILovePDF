@@ -659,7 +659,7 @@ function renderUploadStep(tool) {
   const isRotateTool = tool.id === 'rotate';
 
   container.innerHTML = `
-    <div class="tool-page">
+    <div class="tool-page ${isRotateTool ? 'ilpdf-rotate-page' : ''}">
       ${toolHeaderBlock(tool)}
       ${stepIndicatorHtml('upload')}
 
@@ -815,8 +815,8 @@ function renderPreviewStep(tool) {
   container.innerHTML = `
     <div class="tool-page ew-preview-page">
       ${toolHeaderBlock(tool, {
-        heading: `Preview & Process — ${tool.name}`,
-        desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
+        heading: tool.id === 'rotate' ? 'Rotate PDF' : `Preview & Process — ${tool.name}`,
+        desc: tool.id === 'rotate' ? 'Rotate your PDF pages to the correct orientation.' : `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
         icon: 'eye',
         hideStatus: true,
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
@@ -926,7 +926,7 @@ function renderDownloadStep(tool) {
     <div class="tool-page">
       ${toolHeaderBlock(tool, {
         heading: _tp('status.file_ready', 'Your file is ready'),
-        desc: `Files are deleted automatically — download below or try another tool.`,
+        desc: tool.id === 'rotate' ? 'Your rotated PDF is ready to download.' : `Files are deleted automatically — download below or try another tool.`,
         icon: 'check-circle-2',
         hideStatus: true,
         back: { href: '/', label: _tp('tool.all_tools', 'All Tools') },
