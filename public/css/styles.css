@@ -4827,3 +4827,92 @@ i[data-lucide] {
     border-radius: 14px;
   }
 }
+
+
+/* Final Rotate layout corrections: no boxed/page-like shell on upload,
+   and a non-scrolling control rail while only the PDF canvas scrolls. */
+#tool-content:has(.ilpdf-rotate-page),
+#tool-content:has(.ilpdf-rotate-page) .ilpdf-rotate-page {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+#tool-content:has(.ilpdf-rotate-upload) {
+  align-self: stretch !important;
+  min-width: 0 !important;
+}
+
+.ilpdf-rotate-upload {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.ilpdf-rotate-upload-hero {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+.ilpdf-rotate-upload-zone {
+  max-width: 100% !important;
+}
+
+.ilpdf-rotate-editor {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+.ilpdf-rotate-editor-body {
+  min-height: calc(100vh - var(--header-height, 64px) - 68px);
+}
+
+.ilpdf-rotate-pages {
+  min-height: 0 !important;
+  height: calc(100vh - var(--header-height, 64px) - 68px);
+}
+
+.ilpdf-rotate-organizer {
+  min-height: 0 !important;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ilpdf-rotate-organizer .po-grid {
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+.ilpdf-rotate-controls {
+  position: sticky !important;
+  top: 0 !important;
+  align-self: stretch !important;
+  height: calc(100vh - var(--header-height, 64px) - 68px);
+  min-height: 0 !important;
+  max-height: calc(100vh - var(--header-height, 64px) - 68px);
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  z-index: 5;
+}
+
+@media (max-width: 900px) {
+  .ilpdf-rotate-controls {
+    position: relative !important;
+    top: auto !important;
+    height: auto;
+    max-height: none;
+    overflow: visible !important;
+  }
+
+  .ilpdf-rotate-pages {
+    height: 58vh;
+  }
+}
