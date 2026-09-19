@@ -659,7 +659,7 @@ function renderUploadStep(tool) {
   const isRotateTool = tool.id === 'rotate';
 
   container.innerHTML = `
-    <div class="tool-page ${isRotateTool ? 'ilpdf-rotate-page' : ''}">
+    <div class="tool-page ${isRotateTool ? 'ilpdf-rotate-page ilpdf-rotate-upload' : ''}">
       ${toolHeaderBlock(tool)}
       ${stepIndicatorHtml('upload')}
 
