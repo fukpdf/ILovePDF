@@ -827,6 +827,166 @@ function renderProPreviewStep(tool) {
   }
 }
 
+// ── ROTATE PDF — iLovePDF-style full-screen preview ───────────────────────
+function renderRotatePreviewStep(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+  container.classList.add('ew-wide');
+
+  const fileName = selectedFiles.length === 1
+    ? selectedFiles[0].file.name
+    : 'PDF';
+
+  container.innerHTML = `
+    <div class="tool-page ilpdf-rotate-page ilpdf-rotate-preview">
+      <div class="ilpdf-rotate-editor">
+        <header class="ilpdf-rotate-editor-top">
+          <div class="ilpdf-rotate-file">
+            <button type="button" class="ilpdf-rotate-back" data-go-step="upload" aria-label="Back to upload">
+              <i data-lucide="arrow-left"></i>
+            </button>
+            <div class="ilpdf-rotate-file-icon"><i data-lucide="file-text"></i></div>
+            <div class="ilpdf-rotate-file-copy">
+              <strong>${escapeHtml(fileName)}</strong>
+              <span>Rotate PDF</span>
+            </div>
+          </div>
+          <button type="button" class="ilpdf-rotate-reset" id="rotate-reset-all">
+            <i data-lucide="rotate-ccw"></i> Reset all
+          </button>
+        </header>
+
+        <div class="ilpdf-rotate-editor-body">
+          <main class="ilpdf-rotate-pages" aria-label="PDF page previews">
+            <div class="ilpdf-rotate-pages-head">
+              <span>PDF preview</span>
+              <span class="ilpdf-rotate-page-note">Rotate pages before processing</span>
+            </div>
+            <div id="page-organizer" class="page-organizer ilpdf-rotate-organizer"></div>
+          </main>
+
+          <aside class="ilpdf-rotate-controls" aria-label="Rotate PDF controls">
+            <div class="ilpdf-rotate-control-block">
+              <div class="ilpdf-rotate-control-title">Select files to rotate:</div>
+              <div class="ilpdf-rotate-segment" role="radiogroup" aria-label="Select files to rotate">
+                <button type="button" class="is-active" data-rotate-orientation="all" aria-pressed="true">All</button>
+                <button type="button" data-rotate-orientation="portrait" aria-pressed="false">Portrait</button>
+                <button type="button" data-rotate-orientation="landscape" aria-pressed="false">Landscape</button>
+              </div>
+            </div>
+
+            <div class="ilpdf-rotate-control-block">
+              <div class="ilpdf-rotate-control-title">Rotation</div>
+              <div class="ilpdf-rotate-direction">
+                <button type="button" class="ilpdf-rotate-direction-btn" data-rotate-direction="right">
+                  <i data-lucide="rotate-cw"></i>
+                  <span>Right</span>
+                </button>
+                <button type="button" class="ilpdf-rotate-direction-btn" data-rotate-direction="left">
+                  <i data-lucide="rotate-ccw"></i>
+                  <span>Left</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="ilpdf-rotate-controls-spacer"></div>
+
+            <button type="button" class="btn btn-primary ilpdf-rotate-process" id="process-btn" onclick="processFile()">
+              <i data-lucide="rotate-cw"></i> Rotate PDF
+            </button>
+
+            <!-- Keep the existing processFile() contract intact. These values
+                 remain neutral because PageOrganizer has already applied the
+                 visual rotation state that will be exported. -->
+            <select id="opt-degrees" hidden aria-hidden="true">
+              <option value="0" selected>0</option>
+              <option value="90">90</option>
+              <option value="180">180</option>
+              <option value="270">270</option>
+            </select>
+            <input id="opt-pages" type="hidden" value="all">
+
+            <div class="ilpdf-rotate-control-foot">
+              <i data-lucide="shield-check"></i>
+              <span>Your PDF is processed with the existing Rotate PDF engine.</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>`;
+
+  if (window.lucide) lucide.createIcons();
+  wireStepNav();
+
+  // Mount the existing page renderer/editor. Its getEditedPdf() remains the
+  // single source of truth for the output PDF.
+  maybeOpenPageOrganizer();
+
+  const readyWaitStart = Date.now();
+  function getOrganizer() {
+    if (pageOrganizer) return pageOrganizer;
+    if (Date.now() - readyWaitStart > 12000) return null;
+    setTimeout(getOrganizer, 50);
+    return null;
+  }
+
+  function withOrganizer(fn) {
+    if (pageOrganizer) {
+      fn(pageOrganizer);
+      return;
+    }
+    const timer = setInterval(function () {
+      if (pageOrganizer) {
+        clearInterval(timer);
+        fn(pageOrganizer);
+      } else if (Date.now() - readyWaitStart > 12000) {
+        clearInterval(timer);
+      }
+    }, 50);
+  }
+
+  document.querySelectorAll('[data-rotate-orientation]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-rotate-orientation]').forEach(function (b) {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    });
+  });
+
+  document.querySelectorAll('[data-rotate-direction]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const direction = btn.getAttribute('data-rotate-direction');
+      const active = document.querySelector('[data-rotate-orientation].is-active');
+      const orientation = active ? active.getAttribute('data-rotate-orientation') : 'all';
+      const delta = direction === 'left' ? 270 : 90;
+
+      withOrganizer(function (organizer) {
+        if (typeof organizer.applyRotationByOrientation === 'function') {
+          Promise.resolve(organizer.applyRotationByOrientation(delta, orientation));
+        } else if (orientation === 'all' && typeof organizer.applyRotationAll === 'function') {
+          organizer.applyRotationAll(delta);
+        }
+      });
+    });
+  });
+
+  const resetBtn = document.getElementById('rotate-reset-all');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      const reset = document.querySelector('#page-organizer [data-act="reset"]');
+      if (reset) reset.click();
+    });
+  }
+
+  // Do not let the old generic rotate dropdown apply a second rotation.
+  const legacyDegrees = document.getElementById('opt-degrees');
+  if (legacyDegrees) legacyDegrees.value = '0';
+
+  try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
+}
+
 // ── STEP 2 — PREVIEW + PROCESS ────────────────────────────────────────────
 // Shows the selected file(s), the tool's options, and a single Process CTA.
 // Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
@@ -836,11 +996,14 @@ function renderPreviewStep(tool) {
   if (!container) return;
   container.classList.add('ew-wide');
 
-  // PRO MAX intercept — tools with dedicated interactive editors skip the
-  // standard preview/process flow entirely and mount their own editor UI.
   if ((tool.id === 'background-remover' && window.BgRemoverPro) ||
       (tool.id === 'edit' && window.EditPdfPro)) {
     renderProPreviewStep(tool);
+    return;
+  }
+
+  if (tool.id === 'rotate') {
+    renderRotatePreviewStep(tool);
     return;
   }
 
@@ -851,10 +1014,10 @@ function renderPreviewStep(tool) {
     : `${selectedFiles.length} files selected`;
 
   container.innerHTML = `
-    <div class="tool-page ew-preview-page ${tool.id === 'rotate' ? 'ilpdf-rotate-page ilpdf-rotate-preview' : ''}">
+    <div class="tool-page ew-preview-page">
       ${toolHeaderBlock(tool, {
-        heading: tool.id === 'rotate' ? 'Rotate PDF' : `Preview & Process — ${tool.name}`,
-        desc: tool.id === 'rotate' ? 'Rotate your PDF pages to the correct orientation.' : `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
+        heading: `Preview & Process — ${tool.name}`,
+        desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
         icon: 'eye',
         hideStatus: true,
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
@@ -865,7 +1028,7 @@ function renderPreviewStep(tool) {
         <div class="ew-context-icon"><i data-lucide="${tool.icon || 'file'}"></i></div>
         <span class="ew-context-label">${tool.name}</span>
         <span class="ew-context-file">— ${_ctxFile}</span>
-        <span class="ew-context-chip">${tool.id === 'rotate' ? 'Ready to rotate' : 'Preview Ready'}</span>
+        <span class="ew-context-chip">Preview Ready</span>
       </div>
 
       <div class="ew-preview-workspace">
@@ -884,7 +1047,7 @@ function renderPreviewStep(tool) {
           ${optionsHtml}
           <div class="ew-process-panel">
             <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
-              <i data-lucide="${tool.id === 'rotate' ? 'rotate-cw' : 'zap'}"></i> ${tool.id === 'rotate' ? 'Rotate PDF' : `Process ${tool.multipleFiles ? 'Files' : 'File'}`}
+              <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
             </button>
             <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
               <i data-lucide="x"></i> Clear &amp; restart
@@ -901,12 +1064,8 @@ function renderPreviewStep(tool) {
   renderFileList();
   maybeOpenPageOrganizer();
   wireStepNav();
-  // Phase 5: notify responsive ad engine that preview step is fully rendered
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
 
-  // Phase 3: restore previously saved tool options so users don't need to
-  // reconfigure on every visit. applyDomOptions() sets values only — no events
-  // fired — so it cannot trigger side-effects like PageOrganizer rotations.
   try {
     if (window.SessionPersist && tool) {
       const _savedOpts = window.SessionPersist.loadOptions(Flow.baseSlug());
@@ -914,39 +1073,11 @@ function renderPreviewStep(tool) {
     }
   } catch (_) {}
 
-  // Rotate PDF: sync degrees dropdown ↔ preview state.
-  // The PageOrganizer grid IS the preview (single source of truth).
-  // When the dropdown changes:
-  //   – If PageOrganizer is active: apply the rotation delta to all grid pages
-  //     and reset the dropdown back to '0'. The grid now reflects the intended
-  //     final state; no additional rotation will be applied at process time.
-  //   – If PageOrganizer is not active (fallback): update the file-level
-  //     rotation and re-render the thumbnail list as before.
-  if (tool.id === 'rotate') {
-    const _degEl = document.getElementById('opt-degrees');
-    if (_degEl) {
-      _degEl.addEventListener('change', function () {
-        const _deg = parseInt(_degEl.value || '0', 10);
-        if (pageOrganizer && _deg !== 0 && typeof pageOrganizer.applyRotationAll === 'function') {
-          pageOrganizer.applyRotationAll(_deg);
-          _degEl.value = '0';
-          if (selectedFiles[0]) selectedFiles[0].rotation = 0;
-        } else {
-          if (selectedFiles[0]) {
-            selectedFiles[0].rotation = _deg;
-            renderFileList();
-          }
-        }
-      });
-    }
-  }
-
-  // Live Preview Engine (v5.5) — non-blocking document/image preview panel
   if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
     if (lpHost) {
       window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
-        .catch(function () { /* non-fatal — tool still works without preview */ });
+        .catch(function () {});
     }
   }
 }
@@ -957,14 +1088,47 @@ function renderPreviewStep(tool) {
 function renderDownloadStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
-  container.classList.remove('ew-wide');
   const slug = Flow.baseSlug();
 
+  if (tool.id === 'rotate') {
+    container.classList.remove('ew-wide');
+    container.innerHTML = `
+      <div class="tool-page ilpdf-rotate-page ilpdf-download-page">
+        <div class="ilpdf-rotate-download">
+          <div class="ilpdf-download-card">
+            <div class="ilpdf-download-icon"><i data-lucide="check"></i></div>
+            <h1>Rotate PDF</h1>
+            <p>Your rotated PDF is ready.</p>
+            <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
+            <div class="ilpdf-download-actions">
+              <a href="/${slug}" class="btn btn-primary ilpdf-download-main" data-go-step="upload">
+                <i data-lucide="download"></i> Download PDF
+              </a>
+              <a href="/${slug}" class="ilpdf-download-secondary" data-go-step="upload">
+                Rotate another PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    const area = document.getElementById('result-area');
+    if (area) {
+      area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
+      if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
+    }
+    wireStepNav();
+    try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
+    return;
+  }
+
+  container.classList.remove('ew-wide');
   container.innerHTML = `
-    <div class="tool-page ${tool.id === 'rotate' ? 'ilpdf-rotate-page ilpdf-download-page' : ''}">
+    <div class="tool-page">
       ${toolHeaderBlock(tool, {
         heading: _tp('status.file_ready', 'Your file is ready'),
-        desc: tool.id === 'rotate' ? 'Your rotated PDF is ready to download.' : `Files are deleted automatically — download below or try another tool.`,
+        desc: `Files are deleted automatically — download below or try another tool.`,
         icon: 'check-circle-2',
         hideStatus: true,
         back: { href: '/', label: _tp('tool.all_tools', 'All Tools') },
@@ -986,14 +1150,11 @@ function renderDownloadStep(tool) {
           </a>
         </div>
 
-        <!-- Phase 4: Related tools (session-length + ad adjacency) -->
         <div class="related-tools-section" id="related-tools-area" style="display:none">
           <div class="related-tools-title">Try these next</div>
           <div class="related-tools-grid" id="related-tools-grid"></div>
         </div>
 
-        <!-- Phase 4: Ad slot — download page banner
-             728×90 desktop / 300×250 mobile (CLS-safe). Ezoic placeholder 104. -->
         <div class="ad-wrap ad-wrap--tight" role="complementary" aria-label="Advertisement">
           <div class="ad-slot ad-slot--download"
                id="ad-download-banner"
@@ -1006,19 +1167,14 @@ function renderDownloadStep(tool) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
-  // Re-attach the burst animation to the cloned download button. The captured
-  // markup still carries data-burst-bound="1", so clear it first to allow a
-  // fresh binding on this dedicated download page.
   const area = document.getElementById('result-area');
   if (area) {
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
   wireStepNav();
-  // Phase 5: notify responsive ad engine that download step is fully rendered
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
 
-  // Phase 4: Populate related tools grid
   setTimeout(function () {
     try {
       const relGrid = document.getElementById('related-tools-grid');
@@ -1032,7 +1188,6 @@ function renderDownloadStep(tool) {
       if (window.lucide) window.lucide.createIcons({ nodes: [relGrid] });
     } catch (_) {}
 
-    // Register the download banner slot with AdManager if available
     try {
       if (window.AdManager) {
         const slot = document.getElementById('ad-download-banner');
@@ -1190,7 +1345,10 @@ function maybeOpenPageOrganizer() {
 
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   window.PageOrganizer.open(host, files[0], { onChange: () => {} })
-    .then(ctrl => { pageOrganizer = ctrl; })
+    .then(ctrl => {
+      pageOrganizer = ctrl;
+      try { window.dispatchEvent(new CustomEvent('ilpdf:rotate-organizer-ready')); } catch (_) {}
+    })
     .catch(() => {
       // Fall back to the plain file row so the user is never stuck.
       list.style.display = '';
