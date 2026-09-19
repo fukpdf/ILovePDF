@@ -667,12 +667,18 @@ function renderUploadStep(tool) {
           <h1 class="ilpdf-rotate-title">Rotate PDF</h1>
           <p class="ilpdf-rotate-subtitle">Rotate your PDFs the way you need them. You can even rotate multiple PDFs at once!</p>
 
-          <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="${fileLabel}">
+          <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="Select PDF files">
             <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
-            <button type="button" class="btn btn-primary ilpdf-rotate-select" id="upload-cta-btn">
-              <i data-lucide="upload"></i> ${fileLabel}
-            </button>
-            <div class="ilpdf-rotate-droptext">or drop ${tool.multipleFiles ? 'PDFs' : 'PDF'} here</div>
+            <div class="ilpdf-rotate-action-row">
+              <button type="button" class="btn btn-primary ilpdf-rotate-select" id="upload-cta-btn">
+                <i data-lucide="upload"></i> Select PDF files
+              </button>
+              <div class="ilpdf-rotate-clouds" aria-hidden="true">
+                <span class="ilpdf-rotate-cloud"><i data-lucide="hard-drive-upload"></i></span>
+                <span class="ilpdf-rotate-cloud"><i data-lucide="box"></i></span>
+              </div>
+            </div>
+            <div class="ilpdf-rotate-droptext">or drop PDFs here</div>
           </div>
         </section>
 
