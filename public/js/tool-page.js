@@ -917,6 +917,22 @@ function renderRotatePreviewStep(tool) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+
+  // Bind the CTA directly as well as retaining the existing processFile()
+  // entry point. This avoids relying on inline-handler scope in deployments
+  // that load tool-page.js differently.
+  const rotateProcessBtn = document.getElementById('process-btn');
+  if (rotateProcessBtn) {
+    rotateProcessBtn.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (typeof window.processFile === 'function') {
+        window.processFile();
+      } else if (typeof processFile === 'function') {
+        processFile();
+      }
+    });
+  }
+
   wireStepNav();
 
   // Mount the existing page renderer/editor. Its getEditedPdf() remains the
