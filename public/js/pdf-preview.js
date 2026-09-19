@@ -426,13 +426,28 @@
         try {
           page = await getPageWithTimeout(pdfDoc.pdf, pageNumber);
 
-          var baseViewport = page.getViewport({ scale: 1, rotation: rotation });
+          // PDF.js treats the explicit viewport rotation as an override. The old
+          // renderer passed only the organizer delta, so a PDF page that already
+          // carried /Rotate=90 or /Rotate=180 was displayed upright in Preview.
+          // That made the on-screen direction disagree with the final PDF.
+          //
+          // Render with the page's intrinsic rotation PLUS the requested preview
+          // delta. This is preview-only; PDF processing/rotation logic is unchanged.
+          var basePageRotation = Number(page.rotate || 0);
+          var effectiveRotation = ((basePageRotation + rotation) % 360 + 360) % 360;
+
+          var baseViewport = page.getViewport({ scale: 1, rotation: effectiveRotation });
           if (!baseViewport || baseViewport.width <= 0) {
             throw new Error('[PDF_RENDER_FAIL] Invalid base viewport width: ' + (baseViewport && baseViewport.width));
           }
 
+          console.debug('[PDF_DEBUG] page=' + pageNumber +
+            ' intrinsicRot=' + basePageRotation +
+            ' requestedDelta=' + rotation +
+            ' effectiveRot=' + effectiveRotation);
+
           var scale = (targetWidthCss / baseViewport.width) * a.scaleFactor;
-          var canvas = await _tryRender(page, scale, a.dpr, rotation, pageNumber);
+          var canvas = await _tryRender(page, scale, a.dpr, effectiveRotation, pageNumber);
 
           var elapsed = Date.now() - t0;
           console.debug('[PDF_RENDER_SUCCESS] page=' + pageNumber + ' attempt=' + (attempt + 1) + ' elapsed=' + elapsed + 'ms size=' + canvas.width + 'x' + canvas.height);
