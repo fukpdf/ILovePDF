@@ -4311,3 +4311,513 @@ i[data-lucide] {
     padding: 14px;
   }
 }
+
+
+/* ============================================================
+   ROTATE PDF — full-bleed application workspace
+   Reference: ilovepdf.com/rotate_pdf
+   Visual/theme changes only; PDF processing remains in existing JS.
+   ============================================================ */
+
+.main-content:has(.ilpdf-rotate-page) #tool-content {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.main-content:has(.ilpdf-rotate-page) {
+  overflow-x: hidden;
+}
+
+.ilpdf-rotate-upload {
+  width: 100% !important;
+  min-height: calc(100vh - var(--header-height, 64px));
+  background: #f7f7fb;
+}
+
+.ilpdf-rotate-upload-hero {
+  min-height: calc(100vh - var(--header-height, 64px));
+  justify-content: center;
+  padding: 44px 24px 70px;
+}
+
+.ilpdf-rotate-editor {
+  width: 100%;
+  min-height: calc(100vh - var(--header-height, 64px));
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f6;
+}
+
+.ilpdf-rotate-editor-top {
+  min-height: 68px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex: 0 0 auto;
+}
+
+.ilpdf-rotate-file {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.ilpdf-rotate-back {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 9px;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.ilpdf-rotate-back:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.ilpdf-rotate-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ilpdf-rotate-file-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.ilpdf-rotate-file-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.ilpdf-rotate-file-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ilpdf-rotate-file-copy strong {
+  max-width: min(55vw, 620px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .92rem;
+  color: #1f2937;
+}
+
+.ilpdf-rotate-file-copy span {
+  font-size: .74rem;
+  color: #94a3b8;
+}
+
+.ilpdf-rotate-reset {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  padding: 9px 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .82rem;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.ilpdf-rotate-reset:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.ilpdf-rotate-reset svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ilpdf-rotate-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  align-items: stretch;
+}
+
+.ilpdf-rotate-pages {
+  min-width: 0;
+  min-height: calc(100vh - var(--header-height, 64px) - 68px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #eef0f3;
+}
+
+.ilpdf-rotate-pages-head {
+  min-height: 52px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e1e4e8;
+  background: #f8f9fa;
+  color: #334155;
+  font-size: .84rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.ilpdf-rotate-page-note {
+  color: #94a3b8;
+  font-size: .74rem;
+  font-weight: 500;
+}
+
+.ilpdf-rotate-organizer {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.ilpdf-rotate-organizer .po-toolbar,
+.ilpdf-rotate-organizer .po-hint {
+  display: none !important;
+}
+
+.ilpdf-rotate-organizer .po-grid {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100vh - var(--header-height, 64px) - 120px);
+  height: auto !important;
+  padding: 34px 34px 60px !important;
+  margin: 0 !important;
+  background: #eef0f3 !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)) !important;
+  align-content: start;
+  align-items: start;
+  gap: 28px 26px !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ilpdf-rotate-organizer .po-tile {
+  width: 100%;
+  min-width: 0;
+  max-width: 270px;
+  justify-self: center;
+  border-radius: 3px !important;
+  background: #fff !important;
+  border: 1px solid #d9dde3 !important;
+  box-shadow: 0 2px 7px rgba(15,23,42,.10) !important;
+  overflow: hidden;
+}
+
+.ilpdf-rotate-organizer .po-tile-canvas {
+  background: #fff !important;
+}
+
+.ilpdf-rotate-organizer .po-tile-canvas img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.ilpdf-rotate-organizer .po-tile-actions {
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+
+.ilpdf-rotate-organizer .po-tile:hover .po-tile-actions,
+.ilpdf-rotate-organizer .po-tile:focus-within .po-tile-actions {
+  opacity: 1;
+}
+
+.ilpdf-rotate-controls {
+  min-width: 0;
+  min-height: calc(100vh - var(--header-height, 64px) - 68px);
+  padding: 30px 26px 26px;
+  background: #fff;
+  border-left: 1px solid #e1e4e8;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.ilpdf-rotate-control-block {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.ilpdf-rotate-control-title {
+  font-size: .84rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.ilpdf-rotate-segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  padding: 3px;
+  background: #f8fafc;
+}
+
+.ilpdf-rotate-segment button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.ilpdf-rotate-segment button:hover {
+  color: var(--primary);
+}
+
+.ilpdf-rotate-segment button.is-active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(15,23,42,.12);
+}
+
+.ilpdf-rotate-direction {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ilpdf-rotate-direction-btn {
+  min-height: 72px;
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+  background: #fff;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.ilpdf-rotate-direction-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.ilpdf-rotate-direction-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
+.ilpdf-rotate-controls-spacer {
+  flex: 1 1 auto;
+  min-height: 30px;
+}
+
+.ilpdf-rotate-process {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 9px !important;
+  font-size: .96rem;
+  box-shadow: 0 6px 16px rgba(15,23,42,.12);
+}
+
+.ilpdf-rotate-control-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: .7rem;
+  line-height: 1.45;
+}
+
+.ilpdf-rotate-control-foot svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--primary);
+}
+
+.ilpdf-rotate-download {
+  width: 100%;
+  min-height: calc(100vh - var(--header-height, 64px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: #f7f7fb;
+}
+
+.ilpdf-download-card {
+  width: min(680px, 100%);
+  padding: 54px 48px 44px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  box-shadow: 0 10px 35px rgba(15,23,42,.08);
+}
+
+.ilpdf-download-icon {
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ilpdf-download-icon svg {
+  width: 42px;
+  height: 42px;
+  stroke-width: 2.6;
+}
+
+.ilpdf-download-card h1 {
+  margin: 0;
+  color: #252936;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -.03em;
+}
+
+.ilpdf-download-card > p {
+  margin: 12px 0 26px;
+  color: #64748b;
+  font-size: 17px;
+}
+
+.ilpdf-download-card .download-result {
+  min-height: 0;
+  margin: 0 auto;
+}
+
+.ilpdf-download-card .status-card,
+.ilpdf-download-card .download-result > * {
+  max-width: 100%;
+}
+
+.ilpdf-download-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ilpdf-download-main {
+  width: min(360px, 100%);
+  min-height: 54px;
+  border-radius: 9px !important;
+  font-size: .96rem;
+}
+
+.ilpdf-download-secondary {
+  color: #64748b;
+  font-size: .82rem;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.ilpdf-download-secondary:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 900px) {
+  .ilpdf-rotate-editor-body {
+    grid-template-columns: 1fr;
+  }
+
+  .ilpdf-rotate-pages {
+    min-height: 58vh;
+  }
+
+  .ilpdf-rotate-controls {
+    min-height: auto;
+    border-left: 0;
+    border-top: 1px solid #e1e4e8;
+  }
+
+  .ilpdf-rotate-organizer .po-grid {
+    min-height: 52vh;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)) !important;
+    padding: 24px 20px 40px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-rotate-editor-top {
+    min-height: 60px;
+    padding: 0 12px;
+  }
+
+  .ilpdf-rotate-file-copy strong {
+    max-width: 48vw;
+    font-size: .8rem;
+  }
+
+  .ilpdf-rotate-pages-head {
+    padding: 0 14px;
+  }
+
+  .ilpdf-rotate-page-note {
+    display: none;
+  }
+
+  .ilpdf-rotate-organizer .po-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    padding: 18px 12px 30px !important;
+  }
+
+  .ilpdf-rotate-organizer .po-tile {
+    max-width: none;
+  }
+
+  .ilpdf-rotate-controls {
+    padding: 22px 16px 24px;
+    gap: 24px;
+  }
+
+  .ilpdf-download-card {
+    padding: 40px 20px 32px;
+    border-radius: 14px;
+  }
+}
