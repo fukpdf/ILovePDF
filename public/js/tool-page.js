@@ -1955,7 +1955,7 @@ function showStatus(type, title, message, downloadUrl, filename) {
          <span class="dl-pulse">
            <a href="${downloadUrl}" download="${filename}"
               class="btn btn-primary dl-burst-trigger">
-             <i data-lucide="download"></i> Download File
+             <i data-lucide="download"></i> ${currentTool && currentTool.id === 'rotate' ? 'Download PDF' : 'Download File'}
            </a>
          </span>
        </div>`
