@@ -4116,18 +4116,57 @@ i[data-lucide] {
 /* Keep preview/download on the same full-window theme without changing behavior. */
 .ilpdf-rotate-preview,
 .ilpdf-download-page {
+  /* Break out of the old .tool-page fixed-width shell. The Rotate workspace
+     must occupy the entire available application viewport. */
+  width: 100% !important;
+  max-width: none !important;
   min-height: calc(100vh - var(--header-height, 64px));
-  padding: 22px 24px 36px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   background: #f7f7fb;
+  flex: 1 1 auto !important;
+}
+
+.ilpdf-rotate-preview .tool-header,
+.ilpdf-rotate-preview .ew-context-banner,
+.ilpdf-rotate-preview .ew-preview-workspace,
+.ilpdf-rotate-preview #result-area {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.ilpdf-rotate-preview .tool-header {
+  padding: 22px 32px 0;
+}
+
+.ilpdf-rotate-preview .ew-context-banner {
+  margin-top: 16px;
+  border-radius: 0 !important;
+  border-left: 0;
+  border-right: 0;
 }
 
 .ilpdf-rotate-preview .ew-preview-workspace {
-  width: min(100%, 1180px);
-  margin: 0 auto;
-  grid-template-columns: minmax(0, 1fr) 310px !important;
+  min-height: calc(100vh - var(--header-height, 64px) - 190px);
+  margin: 0 !important;
+  padding: 20px 28px 34px;
+  grid-template-columns: minmax(0, 1fr) 340px !important;
   grid-template-areas: "main aside";
-  align-items: start;
-  gap: 18px;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.ilpdf-rotate-preview .ew-preview-main {
+  min-width: 0;
+  min-height: calc(100vh - var(--header-height, 64px) - 220px);
+  display: flex;
+  flex-direction: column;
+}
+
+.ilpdf-rotate-preview .ew-preview-aside {
+  min-width: 0;
 }
 
 .ilpdf-rotate-preview .ew-preview-main { min-width: 0; }
@@ -4142,11 +4181,14 @@ i[data-lucide] {
 .ilpdf-rotate-preview #page-organizer { margin: 0 !important; }
 
 .ilpdf-rotate-preview .po-grid {
-  min-height: 540px;
-  padding: 28px;
+  flex: 1 1 auto;
+  min-height: calc(100vh - var(--header-height, 64px) - 260px);
+  height: auto;
+  padding: 32px;
   background: #f4f5f7;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 24px 20px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 28px 24px;
+  align-content: start;
 }
 
 .ilpdf-rotate-preview .po-tile {
@@ -4193,6 +4235,11 @@ i[data-lucide] {
   .ilpdf-rotate-preview .ew-preview-workspace {
     grid-template-columns: 1fr !important;
     grid-template-areas: "main" "aside";
+    padding: 16px 18px 28px;
+  }
+
+  .ilpdf-rotate-preview .ew-preview-main {
+    min-height: auto;
   }
 
   .ilpdf-rotate-preview .ew-preview-aside {
