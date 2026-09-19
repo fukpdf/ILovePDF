@@ -1102,9 +1102,9 @@ function renderDownloadStep(tool) {
             <p>Your rotated PDF is ready.</p>
             <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
             <div class="ilpdf-download-actions">
-              <a href="/${slug}" class="btn btn-primary ilpdf-download-main" data-go-step="upload">
+              <button type="button" class="btn btn-primary ilpdf-download-main" id="rotate-download-btn">
                 <i data-lucide="download"></i> Download PDF
-              </a>
+              </button>
               <a href="/${slug}" class="ilpdf-download-secondary" data-go-step="upload">
                 Rotate another PDF
               </a>
@@ -1118,6 +1118,18 @@ function renderDownloadStep(tool) {
     if (area) {
       area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
       if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
+    }
+    const rotateDownloadBtn = document.getElementById('rotate-download-btn');
+    if (rotateDownloadBtn) {
+      rotateDownloadBtn.addEventListener('click', function () {
+        const realDownload = document.querySelector('#result-area a[download]');
+        if (realDownload) {
+          realDownload.click();
+        } else {
+          const fallback = document.querySelector('#result-area a[href^="blob:"]');
+          if (fallback) fallback.click();
+        }
+      });
     }
     wireStepNav();
     try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
