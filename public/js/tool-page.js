@@ -863,6 +863,7 @@ function renderRotatePreviewStep(tool) {
               <span class="ilpdf-rotate-page-note">Rotate pages before processing</span>
             </div>
             <div id="page-organizer" class="page-organizer ilpdf-rotate-organizer"></div>
+            <div id="files-list" style="display:none" aria-hidden="true"></div>
           </main>
 
           <aside class="ilpdf-rotate-controls" aria-label="Rotate PDF controls">
