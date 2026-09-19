@@ -3958,3 +3958,318 @@ i[data-lucide] {
 /* ═══════════════════════════════════════════════════════════════════════════
    END PHASE 1 — INSTANT UI FOUNDATION
    ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ============================================================
+   ROTATE PDF — iLovePDF-inspired full-window UI
+   UI-only layer. Processing/rotation logic remains untouched.
+   ============================================================ */
+
+.ilpdf-rotate-page {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: calc(100vh - var(--header-height, 64px));
+  padding: 28px clamp(24px, 4vw, 64px) 48px !important;
+}
+
+.ilpdf-rotate-page .tool-header {
+  max-width: 1180px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ilpdf-rotate-page .step-indicator-wrap {
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ilpdf-rotate-page .upload-step {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+}
+
+.ilpdf-rotate-upload .upload-area--hero {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed color-mix(in srgb, var(--primary) 42%, #d8dee8) !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,.03) !important;
+  padding: 48px 28px !important;
+}
+
+.ilpdf-rotate-upload .upload-area--hero:hover,
+.ilpdf-rotate-upload .upload-area--hero.dragover {
+  border-color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 3%, #fff) !important;
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--primary) 10%, transparent) !important;
+}
+
+.ilpdf-rotate-upload .upload-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--primary) 10%, #fff);
+  color: var(--primary);
+  margin-bottom: 22px;
+}
+
+.ilpdf-rotate-upload .upload-icon [data-lucide] {
+  width: 34px;
+  height: 34px;
+}
+
+.ilpdf-rotate-upload .upload-cta {
+  min-width: 240px;
+  min-height: 52px;
+  border-radius: 4px !important;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.ilpdf-rotate-upload .upload-step-or {
+  margin-top: 18px;
+  font-size: .88rem;
+  color: var(--text-muted);
+}
+
+.ilpdf-rotate-upload .upload-step-meta {
+  margin-top: 8px;
+  font-size: .72rem;
+  color: #94a3b8;
+}
+
+.ilpdf-rotate-page .trust-strip {
+  justify-content: center;
+  max-width: 900px;
+  margin: 22px auto 0;
+}
+
+.ilpdf-rotate-preview {
+  padding-bottom: 32px !important;
+}
+
+.ilpdf-rotate-preview .ew-context-banner {
+  max-width: 1180px;
+  margin: 0 auto 14px;
+}
+
+.ilpdf-rotate-preview .ew-preview-workspace {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1fr) 310px !important;
+  grid-template-areas: "main aside";
+  align-items: start;
+  gap: 18px;
+}
+
+.ilpdf-rotate-preview .ew-preview-main {
+  min-width: 0;
+}
+
+.ilpdf-rotate-preview .ew-preview-aside {
+  position: sticky;
+  top: calc(var(--header-height, 64px) + 18px);
+  max-height: calc(100vh - var(--header-height, 64px) - 36px);
+  overflow-y: auto;
+  gap: 12px;
+}
+
+.ilpdf-rotate-preview .ew-file-section {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 5px !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.ilpdf-rotate-preview .upload-label {
+  display: none !important;
+}
+
+/* The existing PageOrganizer becomes the large iLovePDF-like page canvas. */
+.ilpdf-rotate-preview #page-organizer {
+  margin: 0 !important;
+}
+
+.ilpdf-rotate-preview .po-toolbar {
+  min-height: 54px;
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+
+.ilpdf-rotate-preview .po-toolbar-actions {
+  gap: 7px;
+}
+
+.ilpdf-rotate-preview .po-btn {
+  border-radius: 4px;
+}
+
+.ilpdf-rotate-preview .po-grid {
+  min-height: 540px;
+  padding: 28px;
+  background: #f4f5f7;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 24px 20px;
+}
+
+.ilpdf-rotate-preview .po-tile {
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  box-shadow: 0 2px 6px rgba(15,23,42,.08);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.ilpdf-rotate-preview .po-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: 0 7px 20px rgba(15,23,42,.12);
+}
+
+.ilpdf-rotate-preview .po-hint {
+  background: #fff;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 11px 14px;
+  font-size: .73rem;
+}
+
+/* iLovePDF-like sidebar controls, using this project's theme color. */
+.ilpdf-rotate-preview .options-section {
+  margin: 0 !important;
+  border-radius: 5px !important;
+  padding: 18px !important;
+  background: #fff !important;
+}
+
+.ilpdf-rotate-preview .options-title {
+  font-size: .86rem;
+}
+
+.ilpdf-rotate-preview .form-select,
+.ilpdf-rotate-preview .form-input {
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ilpdf-rotate-preview .ew-process-panel {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 16px;
+}
+
+.ilpdf-rotate-preview #process-btn {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 4px !important;
+  font-size: .98rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.ilpdf-rotate-preview #clear-btn {
+  width: 100%;
+  margin-top: 9px;
+  border-radius: 4px;
+  min-height: 42px;
+}
+
+.ilpdf-rotate-download {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.ilpdf-download-page .download-result {
+  min-height: 180px;
+}
+
+.ilpdf-download-page .status-card {
+  border-radius: 5px;
+  padding: 28px;
+  box-shadow: 0 5px 22px rgba(15,23,42,.08);
+}
+
+.ilpdf-download-page .download-btn-wrap {
+  margin-top: 20px;
+}
+
+.ilpdf-download-page .dl-burst-trigger {
+  min-width: 220px;
+  min-height: 52px;
+  border-radius: 4px !important;
+  font-size: .98rem;
+  font-weight: 700;
+}
+
+.ilpdf-download-page .download-actions {
+  justify-content: center;
+}
+
+/* Full-window responsive behavior */
+@media (max-width: 900px) {
+  .ilpdf-rotate-page {
+    padding: 20px 16px 36px !important;
+  }
+
+  .ilpdf-rotate-preview .ew-preview-workspace {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "main" "aside";
+  }
+
+  .ilpdf-rotate-preview .ew-preview-aside {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ilpdf-rotate-preview .po-grid {
+    min-height: 400px;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-rotate-page {
+    padding: 14px 10px 28px !important;
+  }
+
+  .ilpdf-rotate-upload .upload-area--hero {
+    min-height: 300px;
+    padding: 32px 16px !important;
+  }
+
+  .ilpdf-rotate-upload .upload-cta {
+    min-width: 210px;
+    width: min(100%, 280px);
+  }
+
+  .ilpdf-rotate-preview .po-grid {
+    min-height: 300px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .ilpdf-rotate-preview .po-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ilpdf-download-page .status-card {
+    padding: 20px 16px;
+  }
+}
