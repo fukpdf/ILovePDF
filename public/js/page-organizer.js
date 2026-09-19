@@ -692,6 +692,7 @@
       getOrderSummary,
       getPageCount: () => pages.length,
       applyRotationAll,
+      applyRotationByOrientation,
       destroy,
     };
   }
