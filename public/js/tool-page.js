@@ -652,10 +652,11 @@ function renderUploadStep(tool) {
   container.classList.remove('ew-wide');
 
   const fileLabel = tool.multipleFiles
-    ? _tp('tool.upload_files', 'Upload Files')
-    : _tp('tool.upload_file', 'Upload File');
+    ? _tp('tool.upload_files', 'Select PDF files')
+    : _tp('tool.upload_file', 'Select PDF file');
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   const fileType  = tool.group === 'image' ? 'image' : 'PDF';
+  const isRotateTool = tool.id === 'rotate';
 
   container.innerHTML = `
     <div class="tool-page">
@@ -669,7 +670,7 @@ function renderUploadStep(tool) {
           <button type="button" class="btn btn-primary btn-xl upload-cta" id="upload-cta-btn">
             <i data-lucide="upload"></i> ${fileLabel}
           </button>
-          <div class="upload-step-or">or drag &amp; drop ${tool.multipleFiles ? `${fileType} files` : `your ${fileType}`} here</div>
+          <div class="upload-step-or">or drop ${tool.multipleFiles ? `${fileType} files` : `your ${fileType}`} here</div>
           <div class="upload-step-meta">Accepted: ${tool.acceptedFiles} · Max 100&nbsp;MB${tool.multipleFiles ? ' · Multiple files allowed' : ''}</div>
         </div>
 
@@ -826,7 +827,7 @@ function renderPreviewStep(tool) {
         <div class="ew-context-icon"><i data-lucide="${tool.icon || 'file'}"></i></div>
         <span class="ew-context-label">${tool.name}</span>
         <span class="ew-context-file">— ${_ctxFile}</span>
-        <span class="ew-context-chip">Preview Ready</span>
+        <span class="ew-context-chip">${tool.id === 'rotate' ? 'Ready to rotate' : 'Preview Ready'}</span>
       </div>
 
       <div class="ew-preview-workspace">
@@ -845,7 +846,7 @@ function renderPreviewStep(tool) {
           ${optionsHtml}
           <div class="ew-process-panel">
             <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
-              <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
+              <i data-lucide="${tool.id === 'rotate' ? 'rotate-cw' : 'zap'}"></i> ${tool.id === 'rotate' ? 'Rotate PDF' : `Process ${tool.multipleFiles ? 'Files' : 'File'}`}
             </button>
             <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
               <i data-lucide="x"></i> Clear &amp; restart
@@ -937,7 +938,7 @@ function renderDownloadStep(tool) {
 
         <div class="download-actions">
           <a href="/${slug}" class="btn btn-outline" data-go-step="upload">
-            <i data-lucide="rotate-ccw"></i> Process another file
+            <i data-lucide="rotate-ccw"></i> Process another PDF
           </a>
           <a href="/" class="btn btn-outline">
             <i data-lucide="grid-3x3"></i> Try another tool
