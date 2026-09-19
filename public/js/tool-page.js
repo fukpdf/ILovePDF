@@ -923,7 +923,7 @@ function renderDownloadStep(tool) {
   const slug = Flow.baseSlug();
 
   container.innerHTML = `
-    <div class="tool-page">
+    <div class="tool-page ${tool.id === 'rotate' ? 'ilpdf-rotate-page ilpdf-download-page' : ''}">
       ${toolHeaderBlock(tool, {
         heading: _tp('status.file_ready', 'Your file is ready'),
         desc: tool.id === 'rotate' ? 'Your rotated PDF is ready to download.' : `Files are deleted automatically — download below or try another tool.`,
