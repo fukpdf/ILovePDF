@@ -4729,6 +4729,12 @@ i[data-lucide] {
   margin: 0 auto;
 }
 
+/* The real blob download anchor remains in the DOM for the custom CTA,
+   while its legacy status card is visually replaced by the full-screen UI. */
+.ilpdf-download-card #result-area .status-card {
+  display: none !important;
+}
+
 .ilpdf-download-card .status-card,
 .ilpdf-download-card .download-result > * {
   max-width: 100%;
