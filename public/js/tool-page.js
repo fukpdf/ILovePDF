@@ -813,7 +813,7 @@ function renderPreviewStep(tool) {
     : `${selectedFiles.length} files selected`;
 
   container.innerHTML = `
-    <div class="tool-page ew-preview-page">
+    <div class="tool-page ew-preview-page ${tool.id === 'rotate' ? 'ilpdf-rotate-page ilpdf-rotate-preview' : ''}">
       ${toolHeaderBlock(tool, {
         heading: tool.id === 'rotate' ? 'Rotate PDF' : `Preview & Process — ${tool.name}`,
         desc: tool.id === 'rotate' ? 'Rotate your PDF pages to the correct orientation.' : `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
