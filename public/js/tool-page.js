@@ -665,7 +665,7 @@ function renderUploadStep(tool) {
       <div class="tool-page ilpdf-rotate-page ilpdf-rotate-upload">
         <section class="ilpdf-rotate-upload-hero" aria-label="Upload PDF files">
           <h1 class="ilpdf-rotate-title">Rotate PDF</h1>
-          <p class="ilpdf-rotate-subtitle">Rotate your PDFs the way you need them. You can even rotate multiple PDFs at once!</p>
+          <p class="ilpdf-rotate-subtitle">Rotate PDF pages to the correct orientation — quickly, clearly, and without installing software.</p>
 
           <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="Select PDF files">
             <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
@@ -2395,23 +2395,97 @@ function renderSeoContent(tool) {
   const isImage = tool.group === 'image';
   const fileType = isImage ? 'image' : 'PDF';
 
-  // Per-tool deep content (benefits / use cases / FAQ) generated from
-  // scripts/blog-data.js. Optional — only renders when present.
-  // tool.id is the internal id (e.g. 'merge'); the content map is keyed by
-  // URL slug (e.g. 'merge-pdf') — TOOL_ID_TO_BLOG_SLUG bridges them.
+  // Rotate gets purpose-built copy because this page is both a tool and a
+  // useful landing page for people searching for PDF rotation help.
+  if (tool.id === 'rotate') {
+    const rotateFaq = [
+      { q: 'How do I rotate a PDF page?', a: 'Upload your PDF, review the page previews, choose All, Portrait, or Landscape, then select Right or Left and click Rotate PDF.' },
+      { q: 'Can I rotate only selected pages?', a: 'Yes. Use the page preview editor to work with the pages that need a different orientation before creating the final PDF.' },
+      { q: 'Does rotating a PDF reduce quality?', a: 'Rotation changes the page orientation rather than re-encoding the page content, so the original text, images, and vector content are not intentionally compressed just because you rotate a page.' },
+      { q: 'Can I undo a PDF rotation?', a: 'Yes. Before processing, use Reset all. After creating a file, rotate it in the opposite direction to reverse the same 90-degree change.' },
+    ];
+
+    return `
+      <section class="seo-content seo-content--rotate" aria-labelledby="rotate-seo-heading">
+        <div class="seo-intro">
+          <span class="seo-kicker">PDF ROTATION TOOL</span>
+          <h2 id="rotate-seo-heading">Rotate PDF Online — Free, Fast &amp; Easy</h2>
+          <p><strong>Need to turn a sideways PDF page upright?</strong> This free online PDF rotator lets you rotate PDF pages to the correct orientation and create a clean file ready to read, share, or print.</p>
+          <p>It is useful for scanned documents, contracts, invoices, forms, notes, and other PDFs where one or more pages appear sideways or upside down.</p>
+        </div>
+
+        <div class="seo-feature-grid">
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="scan-search"></i></span>
+            <h3>See the page before you rotate</h3>
+            <p>Review the actual PDF page previews so you can identify the pages that need correction.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="rotate-cw"></i></span>
+            <h3>Rotate right or left</h3>
+            <p>Choose the direction that matches the way your page needs to turn, with separate portrait and landscape controls.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="printer"></i></span>
+            <h3>Ready for sharing and printing</h3>
+            <p>Correct the orientation before sending the document to a client, colleague, archive, or printer.</p>
+          </article>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>How to rotate a PDF online</h3>
+          <ol class="seo-steps">
+            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
+            <li><strong>Check the page previews</strong> — identify pages that are sideways or upside down.</li>
+            <li><strong>Choose the pages to rotate</strong> — use All, Portrait, or Landscape when you need a specific orientation.</li>
+            <li><strong>Choose Right or Left</strong> — apply the direction that fixes the page orientation.</li>
+            <li><strong>Rotate PDF</strong> — create the corrected PDF and download the finished file.</li>
+          </ol>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Why rotate a PDF?</h3>
+          <ul class="seo-benefits">
+            <li><strong>Fix sideways scans.</strong> Correct pages captured in the wrong orientation by scanners or mobile devices.</li>
+            <li><strong>Clean up mixed documents.</strong> Make portrait and landscape pages easier to read in the same PDF.</li>
+            <li><strong>Improve print readiness.</strong> Correct page orientation before printing or sending a document for review.</li>
+            <li><strong>Keep the workflow simple.</strong> Preview the document first instead of guessing which direction to rotate it.</li>
+          </ul>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Common PDF rotation use cases</h3>
+          <div class="seo-usecase-grid">
+            <div><strong>Scanned contracts</strong><span>Fix individual pages that were scanned sideways.</span></div>
+            <div><strong>Invoices &amp; receipts</strong><span>Make business documents easier to review and archive.</span></div>
+            <div><strong>Study notes</strong><span>Correct photographed or scanned pages before sharing.</span></div>
+            <div><strong>Office forms</strong><span>Standardize mixed portrait and landscape pages.</span></div>
+          </div>
+        </div>
+
+        <div class="seo-section-block seo-trust-block">
+          <h3>Free PDF rotation without unnecessary steps</h3>
+          <p>There is no desktop software to install and no complicated PDF editor to learn. The page is designed around the task people actually came to complete: <strong>upload, inspect, rotate, and download.</strong></p>
+        </div>
+      </section>
+      ${renderToolFaq(tool, rotateFaq)}
+    `;
+  }
+
+  // Generic SEO content for the other tools.
   const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
   const extra = (window.TOOL_CONTENT && window.TOOL_CONTENT[slug]) || null;
 
   const benefitsBlock = extra ? `
       <h3>Benefits of ${escapeHtml(tool.name)}</h3>
       <ul class="seo-benefits">
-        ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\n        ')}
+        ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n        ')}
       </ul>` : '';
 
   const useCasesBlock = extra ? `
       <h3>Common use cases</h3>
       <ul class="seo-usecases">
-        ${extra.useCases.map(uc => `<li><strong>${escapeHtml(uc.audience)}:</strong> ${uc.body}</li>`).join('\n        ')}
+        ${extra.useCases.map(uc => `<li><strong>${escapeHtml(uc.audience)}:</strong> ${uc.body}</li>`).join('\\n        ')}
       </ul>` : '';
 
   return `
@@ -2432,36 +2506,20 @@ function renderSeoContent(tool) {
       <ul class="seo-why">
         <li><strong>Fast.</strong> Most files are processed in seconds.</li>
         <li><strong>Free.</strong> No watermark, no daily cap, no signup needed for files under 100&nbsp;MB.</li>
-        <li><strong>Secure.</strong> All processing happens in your browser — files are never uploaded to our servers.</li>
+        <li><strong>Secure.</strong> Processing follows the tool's configured processing path; see the site's privacy information for data handling details.</li>
         <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
       </ul>
     </div>
     ${extra && extra.faq && extra.faq.length ? renderToolFaq(tool, extra.faq) : ''}`;
 }
-
 function renderToolFaq(tool, faq) {
   const items = faq.map(f => `
       <details class="blog-faq-item">
         <summary>${escapeHtml(f.q)}</summary>
         <div class="blog-faq-answer"><p>${f.a}</p></div>
       </details>`).join('');
-  // Inject FAQ JSON-LD too — small SEO boost.
-  const ld = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faq.map(f => ({
-      '@type': 'Question',
-      name: f.q,
-      acceptedAnswer: { '@type': 'Answer', text: String(f.a).replace(/<[^>]+>/g, '') },
-    })),
-  });
-  // Append the schema once per tool render; remove any previous one.
-  document.querySelectorAll('script[data-tool-faq-ld]').forEach(s => s.remove());
-  const script = document.createElement('script');
-  script.type = 'application/ld+json';
-  script.setAttribute('data-tool-faq-ld', '1');
-  script.textContent = ld;
-  document.head.appendChild(script);
+  // FAQ content remains visible and useful to visitors. Do not emit FAQPage
+  // structured data: Google retired FAQ rich results in May 2026.
   return `
     <section class="tool-faq" aria-label="Frequently asked questions">
       <h2>Frequently asked questions about ${escapeHtml(tool.name)}</h2>
