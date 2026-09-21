@@ -109,8 +109,8 @@ const TOOLS = [
     ]
   },
   {
-    id: 'rotate', name: 'Rotate', icon: 'rotate-cw',
-    description: 'Rotate pages to the correct orientation',
+    id: 'rotate', name: 'Rotate PDF', icon: 'rotate-cw',
+    description: 'Rotate PDF pages to the correct orientation, including 90°, 180°, and 270° rotations',
     category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/rotate', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
