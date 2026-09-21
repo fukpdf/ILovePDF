@@ -623,6 +623,11 @@
   <footer class="footer">
     <div class="footer-inner">
       <div class="footer-col footer-brand">
+        <div class="footer-stickers" aria-hidden="true">
+          <span class="footer-sticker footer-sticker-pdf">PDF</span>
+          <span class="footer-sticker footer-sticker-spark">✦</span>
+          <span class="footer-sticker footer-sticker-shield">✓</span>
+        </div>
         <a href="/" class="brand" aria-label="ILovePDF home">
           <span class="brand-mark"><i data-lucide="file-text"></i></span>
           <span class="brand-name">ILove<span>PDF</span></span>
@@ -632,9 +637,9 @@
       <div class="footer-col">
         <h4 data-i18n="footer.product">Product</h4>
         <a href="/tools" data-i18n="footer.all_tools">All Tools</a>
-        <a href="/merge-pdf">Merge PDF</a>
+        <a href="/merge-pdf" data-i18n="tools.merge.title">Merge PDF</a>
         <a href="/compress-pdf" data-i18n="tools.compress.title">Compress</a>
-        <a href="/pdf-to-word">PDF to Word</a>
+        <a href="/pdf-to-word" data-i18n="tools.pdf-to-word.title">PDF to Word</a>
         <a href="/numbers-to-words" data-i18n="tools.numbers-to-words.title">Numbers to Words</a>
         <a href="/currency-converter" data-i18n="tools.currency-converter.title">Currency Converter</a>
       </div>
@@ -652,6 +657,7 @@
       </div>
       <div class="footer-col footer-languages">
         <h4 data-i18n="footer.languages">Languages</h4>
+        <a class="footer-donate-btn" href="/donate" data-i18n="nav.donate"><span aria-hidden="true">♥</span> Donate</a>
         <div class="footer-lang-sel" id="footer-lang-sel">
           <button class="footer-lang-btn" id="footer-lang-btn" type="button"
                   aria-haspopup="listbox" aria-expanded="false"
