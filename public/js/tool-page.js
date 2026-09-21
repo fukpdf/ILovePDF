@@ -852,7 +852,6 @@ function renderUploadStep(tool) {
           <p>The workflow is built around a simple task: <strong>upload, adjust, review, and download.</strong> You can prepare a cleaner PDF without installing desktop software.</p>
         </div>
       </section>
-
       ${renderToolFaq(tool, cropFaq)}
     `;
   }
