@@ -753,37 +753,13 @@ function renderUploadStep(tool) {
         </div>
 
         <div class="seo-feature-grid">
-          <article class="seo-feature-card seo-sticker-card">
-            <span class="seo-feature-icon seo-sticker-icon"><i data-lucide="crop"></i></span>
-            <div>
-              <h3>Trim unwanted page space</h3>
-              <p>Remove extra margins and empty areas around the useful content on your PDF pages.</p>
-            </div>
-          </article>
-          <article class="seo-feature-card seo-sticker-card">
-            <span class="seo-feature-icon seo-sticker-icon"><i data-lucide="scan-search"></i></span>
-            <div>
-              <h3>Review before processing</h3>
-              <p>Use the page workflow to check the document before creating the final cropped PDF.</p>
-            </div>
-          </article>
-          <article class="seo-feature-card seo-sticker-card">
-            <span class="seo-feature-icon seo-sticker-icon"><i data-lucide="printer"></i></span>
-            <div>
-              <h3>Prepare cleaner documents</h3>
-              <p>Crop pages before printing, presenting, sharing, or storing the finished document.</p>
-            </div>
-          </article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="crop"></i></span><div><h3>Trim unwanted page space</h3><p>Remove extra margins and empty areas around the useful content on your PDF pages.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="scan-search"></i></span><div><h3>Review before processing</h3><p>Use the page workflow to check the document before creating the final cropped PDF.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="printer"></i></span><div><h3>Prepare cleaner documents</h3><p>Crop pages before printing, presenting, sharing, or storing the finished document.</p></div></article>
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading">
-            <span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="crop"></i></span>
-            <div>
-              <span class="seo-section-kicker">STEP-BY-STEP</span>
-              <h3>How to crop a PDF online</h3>
-            </div>
-          </div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="crop"></i></span><div><span class="seo-section-kicker">STEP-BY-STEP</span><h3>How to crop a PDF online</h3></div></div>
           <ol class="seo-steps">
             <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
             <li><strong>Open the crop controls</strong> — review the page and identify the margins or areas you want to remove.</li>
@@ -794,13 +770,7 @@ function renderUploadStep(tool) {
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading">
-            <span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="scan-search"></i></span>
-            <div>
-              <span class="seo-section-kicker">CLEANER PAGES</span>
-              <h3>Why crop a PDF?</h3>
-            </div>
-          </div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="scan-search"></i></span><div><span class="seo-section-kicker">CLEANER PAGES</span><h3>Why crop a PDF?</h3></div></div>
           <ul class="seo-benefits">
             <li><strong>Remove excess margins.</strong> Trim empty space around scanned or photographed pages.</li>
             <li><strong>Focus the document.</strong> Keep attention on the content that matters.</li>
@@ -810,45 +780,17 @@ function renderUploadStep(tool) {
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading">
-            <span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span>
-            <div>
-              <span class="seo-section-kicker">REAL-WORLD USE</span>
-              <h3>Common PDF cropping use cases</h3>
-            </div>
-          </div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span><div><span class="seo-section-kicker">REAL-WORLD USE</span><h3>Common PDF cropping use cases</h3></div></div>
           <div class="seo-usecase-grid">
-            <article class="seo-usecase-card">
-              <span class="seo-usecase-sticker"><i data-lucide="file-scan"></i></span>
-              <strong>Scanned documents</strong>
-              <span>Remove scanner borders and excess white space.</span>
-            </article>
-            <article class="seo-usecase-card">
-              <span class="seo-usecase-sticker"><i data-lucide="receipt-text"></i></span>
-              <strong>Receipts &amp; invoices</strong>
-              <span>Focus pages on the useful transaction details.</span>
-            </article>
-            <article class="seo-usecase-card">
-              <span class="seo-usecase-sticker"><i data-lucide="clipboard-pen-line"></i></span>
-              <strong>Forms &amp; applications</strong>
-              <span>Trim unnecessary page areas before sharing.</span>
-            </article>
-            <article class="seo-usecase-card">
-              <span class="seo-usecase-sticker"><i data-lucide="book-open"></i></span>
-              <strong>Study material</strong>
-              <span>Clean up photographed or scanned notes.</span>
-            </article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="file-scan"></i></span><strong>Scanned documents</strong><span>Remove scanner borders and excess white space.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="receipt-text"></i></span><strong>Receipts &amp; invoices</strong><span>Focus pages on the useful transaction details.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="clipboard-pen-line"></i></span><strong>Forms &amp; applications</strong><span>Trim unnecessary page areas before sharing.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="book-open"></i></span><strong>Study material</strong><span>Clean up photographed or scanned notes.</span></article>
           </div>
         </div>
 
         <div class="seo-section-block seo-trust-block seo-section-with-sticker">
-          <div class="seo-section-heading">
-            <span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span>
-            <div>
-              <span class="seo-section-kicker">SIMPLE WORKFLOW</span>
-              <h3>Crop PDF pages without unnecessary steps</h3>
-            </div>
-          </div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span><div><span class="seo-section-kicker">SIMPLE WORKFLOW</span><h3>Crop PDF pages without unnecessary steps</h3></div></div>
           <p>The workflow is built around a simple task: <strong>upload, adjust, review, and download.</strong> You can prepare a cleaner PDF without installing desktop software.</p>
         </div>
       </section>
