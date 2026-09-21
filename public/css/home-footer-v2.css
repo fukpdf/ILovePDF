@@ -256,3 +256,17 @@
 .footer-brand {
   position: relative;
 }
+
+
+/* Small identification stickers for every footer section */
+.footer-section-title { display:flex; align-items:center; gap:9px; }
+.footer-section-sticker { flex:0 0 auto; display:inline-grid; place-items:center; width:28px; height:28px; border-radius:9px; color:#fff; border:1px solid rgba(255,255,255,.16); box-shadow:0 6px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.14); }
+.footer-section-sticker svg { width:15px; height:15px; stroke-width:2.4; }
+.footer-sticker-product { background:linear-gradient(145deg,#6366f1,#4338ca); }
+.footer-sticker-company { background:linear-gradient(145deg,#06b6d4,#0e7490); }
+.footer-sticker-legal { background:linear-gradient(145deg,#64748b,#334155); }
+.footer-sticker-language { background:linear-gradient(145deg,#8b5cf6,#6d28d9); }
+@media (max-width:680px) {
+  .footer-section-sticker { width:26px; height:26px; border-radius:8px; }
+  .footer-section-sticker svg { width:14px; height:14px; }
+}
