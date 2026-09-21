@@ -5450,3 +5450,550 @@ i[data-lucide] {
     font-size: 21px;
   }
 }
+
+
+/* ============================================================
+   BRANDED UPLOAD SYSTEM — shared visual settings for tool-by-tool rollout
+   Crop PDF is the first non-Rotate tool using this system.
+   Processing logic and file-input behavior remain unchanged.
+   ============================================================ */
+#tool-content:has(.ilpdf-branded-upload),
+#tool-content:has(.ilpdf-branded-upload) .ilpdf-branded-upload {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.ilpdf-branded-upload {
+  min-height: calc(100vh - var(--header-height, 64px));
+  display: flex;
+  flex-direction: column;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ilpdf-branded-upload-hero {
+  width: 100%;
+  flex: 1 0 auto;
+  margin: 0 auto;
+  padding: 54px 24px 70px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.ilpdf-branded-title {
+  margin: 0;
+  font-size: clamp(42px, 4.2vw, 64px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -.035em;
+  color: var(--text, #30313a);
+}
+
+.ilpdf-branded-subtitle {
+  margin: 20px auto 48px;
+  max-width: 1180px;
+  font-size: clamp(18px, 1.55vw, 26px);
+  line-height: 1.5;
+  color: #3f5a79;
+}
+
+.ilpdf-branded-upload-zone {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ilpdf-branded-upload-zone input[type="file"] {
+  display: none;
+}
+
+.ilpdf-branded-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.ilpdf-branded-select {
+  width: 496px;
+  height: 120px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 34px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  border: 0 !important;
+  border-radius: 17px !important;
+  background: var(--primary, #5b3df5) !important;
+  color: #fff !important;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  box-shadow: 0 8px 18px rgba(35, 31, 85, .16) !important;
+}
+
+.ilpdf-branded-select:hover {
+  transform: none !important;
+  filter: brightness(.97);
+}
+
+.ilpdf-branded-select svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.3;
+}
+
+.ilpdf-branded-clouds {
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+}
+
+.ilpdf-branded-cloud {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary, #5b3df5);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(35, 31, 85, .14);
+}
+
+.ilpdf-branded-cloud svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.2;
+}
+
+.ilpdf-branded-droptext {
+  margin-top: 24px;
+  font-size: 19px;
+  line-height: 1.4;
+  color: #405a78;
+}
+
+.ilpdf-branded-benefits {
+  width: min(1120px, 100%);
+  margin: 46px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  text-align: left;
+}
+
+.ilpdf-branded-benefit {
+  min-height: 118px;
+  padding: 18px 18px 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(99,102,241,.12);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(37,45,70,.07);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.ilpdf-branded-benefit:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99,102,241,.24);
+  box-shadow: 0 12px 28px rgba(37,45,70,.10);
+}
+
+.ilpdf-branded-sticker {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  color: var(--primary, #5b3df5);
+  background: linear-gradient(145deg, #fff, #eef0ff);
+  border: 3px solid #fff;
+  box-shadow: 0 7px 0 rgba(37,45,70,.08), 0 11px 20px rgba(37,45,70,.10);
+  transform: rotate(-2deg);
+}
+
+.ilpdf-branded-sticker::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--primary, #5b3df5);
+  border: 2px solid #fff;
+  opacity: .9;
+}
+
+.ilpdf-branded-sticker svg {
+  position: relative;
+  z-index: 3;
+  width: 29px;
+  height: 29px;
+  stroke-width: 2.6;
+}
+
+.ilpdf-branded-sticker-upload {
+  background: linear-gradient(145deg, #fff, #eef5ff);
+  color: #3568c7;
+}
+
+.ilpdf-branded-sticker-crop {
+  transform: rotate(2deg);
+  background: linear-gradient(145deg, #fff, #f2f0ff);
+  color: #6a50d9;
+}
+
+.ilpdf-branded-sticker-crop::before {
+  content: "";
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 3px dashed currentColor;
+  border-radius: 5px;
+  opacity: .55;
+}
+
+.ilpdf-branded-sticker-download {
+  transform: rotate(-3deg);
+  background: linear-gradient(145deg, #fff, #f0efff);
+  color: var(--primary, #5b3df5);
+}
+
+.ilpdf-branded-sticker-download::before {
+  content: "";
+  position: absolute;
+  width: 35px;
+  height: 25px;
+  bottom: 14px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  opacity: .42;
+}
+
+.ilpdf-branded-benefit-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ilpdf-branded-benefit-copy strong {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.012em;
+  color: #26364b;
+}
+
+.ilpdf-branded-benefit-copy span {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #60738b;
+}
+
+/* Match the finished Rotate upload composition: the upload hero is the
+   product UI; supporting trust/SEO sections continue below it. */
+.ilpdf-branded-upload > .trust-strip {
+  display: none;
+}
+
+/* Crop-specific SEO landing content uses the same readable system as Rotate,
+   but all copy and headings remain specific to the Crop PDF intent. */
+.ilpdf-crop-upload .seo-content--tool,
+.ilpdf-crop-upload .seo-content--tool + .tool-faq {
+  width: min(1180px, calc(100% - 48px));
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.ilpdf-crop-upload .seo-content--tool {
+  margin-top: 70px;
+  padding: 48px 0 0;
+  border-top: 1px solid rgba(99,102,241,.16);
+  color: var(--text);
+}
+
+.seo-content--tool .seo-intro {
+  max-width: 900px;
+  margin: 0 auto 34px;
+  text-align: center;
+}
+
+.seo-content--tool .seo-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(99,102,241,.09);
+  color: var(--primary-dark, #4338ca);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.seo-content--tool .seo-intro h2 {
+  margin: 12px 0 14px;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.12;
+  font-weight: 850;
+  letter-spacing: -.025em;
+}
+
+.seo-content--tool .seo-intro p {
+  max-width: 820px;
+  margin: 0 auto 11px;
+  font-size: 17px;
+  line-height: 1.72;
+  color: #52657c;
+}
+
+.seo-content--tool .seo-intro p strong {
+  color: #26364b;
+  font-weight: 800;
+}
+
+.seo-content--tool .seo-section-block {
+  padding: 30px 0;
+  border-top: 1px solid rgba(99,102,241,.12);
+}
+
+.seo-content--tool .seo-section-block > h3 {
+  margin: 0 0 18px;
+  font-size: 23px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #26364b;
+}
+
+.seo-content--tool .seo-steps {
+  margin: 0;
+  padding-left: 27px;
+  gap: 11px;
+}
+
+.seo-content--tool .seo-steps li {
+  padding-left: 5px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #53677f;
+}
+
+.seo-content--tool .seo-steps li::marker {
+  color: var(--primary, #6366f1);
+  font-weight: 800;
+}
+
+.seo-content--tool .seo-steps li strong {
+  color: #26364b;
+  font-weight: 800;
+}
+
+.seo-content--tool .seo-benefits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 10px;
+}
+
+.seo-content--tool .seo-benefits li {
+  position: relative;
+  padding: 12px 16px 12px 43px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(99,102,241,.09);
+  font-size: 15px;
+  line-height: 1.55;
+  color: #53677f;
+}
+
+.seo-content--tool .seo-benefits li::before {
+  content: "✓";
+  position: absolute;
+  left: 15px;
+  top: 11px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--primary, #6366f1);
+}
+
+.seo-content--tool .seo-benefits li strong {
+  color: #26364b;
+  font-weight: 800;
+}
+
+.seo-content--tool .seo-trust-block p {
+  max-width: 880px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #53677f;
+}
+
+.seo-content--tool .seo-trust-block strong {
+  color: #26364b;
+  font-weight: 800;
+}
+
+.ilpdf-crop-upload .tool-faq {
+  padding-top: 34px;
+  margin-top: 0;
+  margin-bottom: 60px;
+  border-top: 1px solid rgba(99,102,241,.12);
+}
+
+.ilpdf-crop-upload .tool-faq h2 {
+  margin-bottom: 18px;
+  font-size: clamp(24px, 2.3vw, 32px);
+  font-weight: 850;
+}
+
+@media (max-width: 980px) {
+  .ilpdf-branded-benefits {
+    grid-template-columns: 1fr;
+    max-width: 680px;
+  }
+
+  .ilpdf-branded-benefit {
+    min-height: 104px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ilpdf-branded-upload-hero {
+    padding: 42px 18px 56px;
+  }
+
+  .ilpdf-branded-subtitle {
+    margin-bottom: 36px;
+  }
+
+  .ilpdf-branded-select {
+    width: min(496px, calc(100vw - 150px));
+  }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-branded-upload-hero {
+    padding: 34px 14px 44px;
+  }
+
+  .ilpdf-branded-title {
+    font-size: 40px;
+  }
+
+  .ilpdf-branded-subtitle {
+    font-size: 17px;
+    margin: 14px auto 32px;
+  }
+
+  .ilpdf-branded-action-row {
+    gap: 10px;
+  }
+
+  .ilpdf-branded-select {
+    width: calc(100vw - 108px);
+    max-width: 390px;
+    height: 76px;
+    border-radius: 12px !important;
+    font-size: 20px;
+  }
+
+  .ilpdf-branded-select svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .ilpdf-branded-clouds {
+    width: 44px;
+    gap: 8px;
+  }
+
+  .ilpdf-branded-cloud {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ilpdf-branded-cloud svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ilpdf-branded-droptext {
+    margin-top: 18px;
+    font-size: 16px;
+  }
+
+  .ilpdf-branded-benefits {
+    margin-top: 32px;
+    gap: 12px;
+  }
+
+  .ilpdf-branded-benefit {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .ilpdf-branded-sticker {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+    border-radius: 17px;
+  }
+
+  .ilpdf-branded-benefit-copy strong {
+    font-size: 16px;
+  }
+
+  .ilpdf-branded-benefit-copy span {
+    font-size: 13px;
+  }
+
+  .ilpdf-crop-upload .seo-content--tool,
+  .ilpdf-crop-upload .seo-content--tool + .tool-faq {
+    width: min(100% - 28px, 560px);
+  }
+
+  .ilpdf-crop-upload .seo-content--tool {
+    margin-top: 50px;
+    padding-top: 34px;
+  }
+
+  .seo-content--tool .seo-intro {
+    margin-bottom: 26px;
+  }
+
+  .seo-content--tool .seo-intro p {
+    font-size: 15px;
+  }
+
+  .seo-content--tool .seo-section-block > h3 {
+    font-size: 21px;
+  }
+}
