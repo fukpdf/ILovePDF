@@ -655,6 +655,12 @@ function renderBrandedUploadStep(tool, config) {
   const fileLabel = tool.multipleFiles
     ? _tp('tool.upload_files', config.fileLabel || 'Select files')
     : _tp('tool.upload_file', config.fileLabel || 'Select file');
+  const cloudButtonsHtml = config.cloudButtons
+    ? '<div class="ilpdf-branded-clouds" aria-label="Cloud upload options">' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive"><i data-lucide="hard-drive-upload"></i></button>' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox"><i data-lucide="box"></i></button>' +
+      '</div>'
+    : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span><span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span></div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
 
   container.innerHTML = `
@@ -670,10 +676,7 @@ function renderBrandedUploadStep(tool, config) {
             <button type="button" class="btn btn-primary ilpdf-branded-select" id="upload-cta-btn">
               <i data-lucide="upload"></i> ${escapeHtml(fileLabel)}
             </button>
-            <div class="ilpdf-branded-clouds" aria-hidden="true">
-              <span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span>
-              <span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span>
-            </div>
+            ${cloudButtonsHtml}
           </div>
 
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
@@ -703,6 +706,27 @@ function renderBrandedUploadStep(tool, config) {
 
   if (window.lucide) lucide.createIcons();
   setupFileInput();
+
+  if (config.cloudButtons) {
+    const googleBtn = document.getElementById('upload-google-drive');
+    const dropboxBtn = document.getElementById('upload-dropbox');
+    if (googleBtn) googleBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (window.CloudUpload && typeof window.CloudUpload.open === 'function') {
+        window.CloudUpload.open('google-drive', document.getElementById('file-input'));
+      } else {
+        document.getElementById('file-input')?.click();
+      }
+    });
+    if (dropboxBtn) dropboxBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (window.CloudUpload && typeof window.CloudUpload.open === 'function') {
+        window.CloudUpload.open('dropbox', document.getElementById('file-input'));
+      } else {
+        document.getElementById('file-input')?.click();
+      }
+    });
+  }
 
   const cta = document.getElementById('upload-cta-btn');
   if (cta) {
@@ -742,6 +766,7 @@ function renderUploadStep(tool) {
       title: 'Crop PDF',
       subtitle: 'Crop PDF pages to remove unwanted margins and keep only the content you need.',
       fileLabel: 'Select PDF file',
+      cloudButtons: true,
       benefitsLabel: 'How Crop PDF works',
       benefits: [
         {
