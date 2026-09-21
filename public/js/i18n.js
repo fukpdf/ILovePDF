@@ -346,17 +346,10 @@
             return lang;
           });
         }
-        /* 2. Browser language detection. */
+        /* 2. Browser language detection.
+           Use the browser's preferred-language list directly.
+           Explicit footer selection remains persisted and wins on later visits. */
         var browserLang = self.detectBrowserLanguage();
-        /* 3. Geo lookup for English browsers. */
-        if (browserLang === DEFAULT_LANG) {
-          return self._detectGeoLanguage().then(function (geoLang) {
-            return self.setLanguage(geoLang || DEFAULT_LANG);
-          }).then(function(lang) {
-            self.observe();
-            return lang;
-          });
-        }
         return self.setLanguage(browserLang).then(function(lang) {
           self.observe();
           return lang;
