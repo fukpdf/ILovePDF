@@ -270,3 +270,42 @@
   .footer-section-sticker { width:26px; height:26px; border-radius:8px; }
   .footer-section-sticker svg { width:14px; height:14px; }
 }
+
+
+/* Footer item stickers — aligned with their labels */
+.footer-item-link {
+  display:flex !important;
+  align-items:center;
+  gap:9px;
+  min-height:34px;
+  text-decoration:none;
+}
+.footer-item-sticker {
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 24px;
+  width:24px;
+  height:24px;
+  border-radius:7px;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.9);
+  box-shadow:0 4px 10px rgba(0,0,0,.16);
+}
+.footer-item-sticker svg { width:13px; height:13px; stroke-width:2.2; }
+.footer-item-link:hover .footer-item-sticker {
+  background:rgba(255,255,255,.16);
+  transform:translateY(-1px);
+}
+.footer-donate-btn {
+  gap:9px !important;
+}
+.footer-donate-sticker {
+  display:inline-grid;
+  place-items:center;
+  width:23px;
+  height:23px;
+  border-radius:7px;
+  background:rgba(255,255,255,.16);
+}
+.footer-donate-sticker svg { width:13px; height:13px; }
