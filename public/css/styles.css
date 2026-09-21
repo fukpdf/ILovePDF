@@ -6624,3 +6624,31 @@ i[data-lucide] {
     flex-basis: 46px;
   }
 }
+
+/* Crop PDF branded upload — cloud buttons + theme-colored primary */
+.ilpdf-crop-upload .ilpdf-branded-select {
+  background: var(--primary, #ef233c) !important;
+  border-color: var(--primary, #ef233c) !important;
+  color: #fff !important;
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--primary, #ef233c) 30%, transparent);
+}
+.ilpdf-crop-upload .ilpdf-branded-select:hover {
+  filter: brightness(.94);
+  transform: translateY(-2px);
+}
+.ilpdf-crop-upload .ilpdf-branded-clouds {
+  display: flex;
+  gap: 12px;
+}
+.ilpdf-crop-upload .ilpdf-branded-cloud {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--primary, #ef233c) 22%, #fff);
+  background: #fff;
+  color: var(--primary, #ef233c);
+  cursor: pointer;
+}
+.ilpdf-crop-upload .ilpdf-branded-cloud:hover {
+  border-color: var(--primary, #ef233c);
+  background: color-mix(in srgb, var(--primary, #ef233c) 7%, #fff);
+  transform: translateY(-2px);
+}
