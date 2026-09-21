@@ -187,3 +187,72 @@
     padding: 15px 0 19px;
   }
 }
+
+/* Footer sticker pack + donation CTA */
+.footer-stickers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  margin-bottom: 10px;
+}
+.footer-sticker {
+  display: inline-grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 13px;
+  border: 1px solid rgba(255,255,255,.15);
+  box-shadow: 0 10px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.12);
+  font-weight: 950;
+  transform: rotate(-5deg);
+}
+.footer-sticker-pdf {
+  background: linear-gradient(145deg, #ef4444, #b91c1c);
+  color: #fff;
+  font-size: 11px;
+}
+.footer-sticker-spark {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: #422006;
+  font-size: 20px;
+  transform: rotate(8deg) translateY(-7px);
+}
+.footer-sticker-shield {
+  background: linear-gradient(145deg, #818cf8, #4f46e5);
+  color: #fff;
+  font-size: 19px;
+  transform: rotate(6deg);
+}
+.footer-donate-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 185px;
+  min-height: 43px;
+  margin: 0 0 18px !important;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  color: #fff !important;
+  font-size: .82rem !important;
+  font-weight: 850 !important;
+  box-shadow: 0 10px 24px rgba(225,29,72,.25);
+  transform: none !important;
+}
+.footer-donate-btn:hover {
+  color: #fff !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 14px 30px rgba(225,29,72,.35);
+}
+.footer-donate-btn span {
+  font-size: 15px;
+}
+.footer-brand {
+  position: relative;
+}
