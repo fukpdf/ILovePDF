@@ -679,6 +679,42 @@ function renderUploadStep(tool) {
               </div>
             </div>
             <div class="ilpdf-rotate-droptext">or drop PDFs here</div>
+
+            <div class="ilpdf-rotate-benefits" aria-label="How Rotate PDF works">
+              <div class="ilpdf-rotate-benefit">
+                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-upload" aria-hidden="true">
+                  <span class="ilpdf-sticker-paper"></span>
+                  <i data-lucide="upload-cloud"></i>
+                </div>
+                <div class="ilpdf-rotate-benefit-copy">
+                  <strong>Upload your PDF</strong>
+                  <span>Drop a PDF here or choose one from your device.</span>
+                </div>
+              </div>
+
+              <div class="ilpdf-rotate-benefit">
+                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-pages" aria-hidden="true">
+                  <span class="ilpdf-sticker-page p1"></span>
+                  <span class="ilpdf-sticker-page p2"></span>
+                  <i data-lucide="scan-line"></i>
+                </div>
+                <div class="ilpdf-rotate-benefit-copy">
+                  <strong>Check every page</strong>
+                  <span>See the real page orientation before you rotate it.</span>
+                </div>
+              </div>
+
+              <div class="ilpdf-rotate-benefit">
+                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-rotate" aria-hidden="true">
+                  <span class="ilpdf-sticker-circle"></span>
+                  <i data-lucide="rotate-cw"></i>
+                </div>
+                <div class="ilpdf-rotate-benefit-copy">
+                  <strong>Rotate with control</strong>
+                  <span>Turn pages right or left, then download the result.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
