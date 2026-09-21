@@ -4916,3 +4916,256 @@ i[data-lucide] {
     height: 58vh;
   }
 }
+
+
+/* Rotate upload — human-first visual guidance
+   Large, confident copy + handcrafted sticker-style illustrations.
+   No external images, tracking, or generated assets are required. */
+.ilpdf-rotate-upload .ilpdf-rotate-subtitle {
+  max-width: 1080px;
+  margin-top: 22px;
+  margin-bottom: 42px;
+  font-size: clamp(21px, 1.7vw, 29px);
+  line-height: 1.42;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  color: #334b68;
+}
+
+.ilpdf-rotate-upload .ilpdf-rotate-droptext {
+  margin-top: 22px;
+  font-size: clamp(19px, 1.35vw, 23px);
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: #334b68;
+}
+
+.ilpdf-rotate-benefits {
+  width: min(1120px, 100%);
+  margin: 46px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  text-align: left;
+}
+
+.ilpdf-rotate-benefit {
+  min-height: 118px;
+  padding: 18px 18px 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(99,102,241,.12);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(37, 45, 70, .07);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.ilpdf-rotate-benefit:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99,102,241,.24);
+  box-shadow: 0 12px 28px rgba(37, 45, 70, .10);
+}
+
+.ilpdf-rotate-sticker {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  color: var(--primary, #5b3df5);
+  background: linear-gradient(145deg, #ffffff, #eef0ff);
+  border: 3px solid #fff;
+  box-shadow:
+    0 7px 0 rgba(37, 45, 70, .08),
+    0 11px 20px rgba(37, 45, 70, .10);
+  transform: rotate(-2deg);
+}
+
+.ilpdf-rotate-sticker::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--primary, #5b3df5);
+  border: 2px solid #fff;
+  opacity: .9;
+}
+
+.ilpdf-rotate-sticker svg {
+  position: relative;
+  z-index: 3;
+  width: 29px;
+  height: 29px;
+  stroke-width: 2.6;
+}
+
+.ilpdf-rotate-sticker-upload {
+  background: linear-gradient(145deg, #fff, #eef5ff);
+  color: #3568c7;
+}
+
+.ilpdf-rotate-sticker-pages {
+  transform: rotate(2deg);
+  background: linear-gradient(145deg, #fff, #f2f0ff);
+  color: #6a50d9;
+}
+
+.ilpdf-rotate-sticker-rotate {
+  transform: rotate(-3deg);
+  background: linear-gradient(145deg, #fff, #f0efff);
+  color: var(--primary, #5b3df5);
+}
+
+.ilpdf-sticker-paper {
+  position: absolute;
+  width: 28px;
+  height: 35px;
+  left: 16px;
+  top: 17px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background: #fff;
+  transform: rotate(-6deg);
+}
+
+.ilpdf-sticker-paper::before,
+.ilpdf-sticker-paper::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 5px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: .28;
+}
+
+.ilpdf-sticker-paper::before { top: 11px; }
+.ilpdf-sticker-paper::after { top: 18px; }
+
+.ilpdf-rotate-sticker-upload svg {
+  transform: translate(7px, 7px);
+}
+
+.ilpdf-sticker-page {
+  position: absolute;
+  width: 25px;
+  height: 32px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ilpdf-sticker-page.p1 {
+  left: 15px;
+  top: 19px;
+  transform: rotate(-7deg);
+  opacity: .55;
+}
+
+.ilpdf-sticker-page.p2 {
+  left: 27px;
+  top: 15px;
+  transform: rotate(6deg);
+}
+
+.ilpdf-rotate-sticker-pages svg {
+  transform: translate(6px, 7px);
+}
+
+.ilpdf-sticker-circle {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border: 4px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-35deg);
+  opacity: .82;
+}
+
+.ilpdf-rotate-sticker-rotate svg {
+  background: #fff;
+  border-radius: 50%;
+  padding: 4px;
+  box-sizing: content-box;
+}
+
+.ilpdf-rotate-benefit-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ilpdf-rotate-benefit-copy strong {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.012em;
+  color: #26364b;
+}
+
+.ilpdf-rotate-benefit-copy span {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #60738b;
+}
+
+@media (max-width: 980px) {
+  .ilpdf-rotate-benefits {
+    grid-template-columns: 1fr;
+    max-width: 680px;
+  }
+
+  .ilpdf-rotate-benefit {
+    min-height: 104px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-rotate-upload .ilpdf-rotate-subtitle {
+    font-size: 19px;
+    line-height: 1.45;
+    margin-bottom: 30px;
+  }
+
+  .ilpdf-rotate-upload .ilpdf-rotate-droptext {
+    font-size: 17px;
+  }
+
+  .ilpdf-rotate-benefits {
+    margin-top: 32px;
+    gap: 12px;
+  }
+
+  .ilpdf-rotate-benefit {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .ilpdf-rotate-sticker {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+    border-radius: 17px;
+  }
+
+  .ilpdf-rotate-benefit-copy strong {
+    font-size: 16px;
+  }
+
+  .ilpdf-rotate-benefit-copy span {
+    font-size: 13px;
+  }
+}
