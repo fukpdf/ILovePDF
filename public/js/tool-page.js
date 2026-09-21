@@ -642,7 +642,80 @@ function popularToolsHtml(currentToolId) {
     </section>`;
 }
 
+// ── SHARED BRANDED UPLOAD — tool-specific content, common visual system ────
+function renderBrandedUploadStep(tool, config) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+  container.classList.remove('ew-wide');
+
+  const fileLabel = tool.multipleFiles
+    ? _tp('tool.upload_files', config.fileLabel || 'Select files')
+    : _tp('tool.upload_file', config.fileLabel || 'Select file');
+  const multiAttr = tool.multipleFiles ? 'multiple' : '';
+
+  container.innerHTML = `
+    <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
+      <section class="ilpdf-branded-upload-hero" aria-labelledby="${config.headingId || 'tool-upload-heading'}">
+        <h1 class="ilpdf-branded-title" id="${config.headingId || 'tool-upload-heading'}">${escapeHtml(config.title || tool.name)}</h1>
+        <p class="ilpdf-branded-subtitle">${config.subtitle || escapeHtml(tool.description)}</p>
+
+        <div class="ilpdf-branded-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="${escapeHtml(fileLabel)}">
+          <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
+
+          <div class="ilpdf-branded-action-row">
+            <button type="button" class="btn btn-primary ilpdf-branded-select" id="upload-cta-btn">
+              <i data-lucide="upload"></i> ${escapeHtml(fileLabel)}
+            </button>
+            <div class="ilpdf-branded-clouds" aria-hidden="true">
+              <span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span>
+              <span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span>
+            </div>
+          </div>
+
+          <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
+
+          <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
+            ${(config.benefits || []).map(function (b) {
+              return `
+                <div class="ilpdf-branded-benefit">
+                  <div class="ilpdf-branded-sticker ${escapeHtml(b.sticker || '')}" aria-hidden="true">
+                    ${b.art || ''}<i data-lucide="${escapeHtml(b.icon || 'check-circle-2')}"></i>
+                  </div>
+                  <div class="ilpdf-branded-benefit-copy">
+                    <strong>${escapeHtml(b.title)}</strong>
+                    <span>${escapeHtml(b.text)}</span>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </section>
+
+      ${trustStripHtml()}
+      ${renderSeoContent(tool)}
+      ${learnMoreHtml(tool)}
+      ${popularToolsHtml(tool.id)}
+    </div>`;
+
+  if (window.lucide) lucide.createIcons();
+  setupFileInput();
+
+  const cta = document.getElementById('upload-cta-btn');
+  if (cta) {
+    cta.addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('file-input')?.click();
+    });
+  }
+
+  wireStepNav();
+  try {
+    window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } }));
+  } catch (_) {}
+}
+
 // ── STEP 1 — UPLOAD ───────────────────────────────────────────────────────
+
 // Minimal hero: tool icon, name (H1), description, ONE big "Upload File"
 // primary button. Drag-and-drop is still supported on the same area for
 // power users. SEO content stays here on the canonical page.
@@ -657,6 +730,37 @@ function renderUploadStep(tool) {
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   const fileType  = tool.group === 'image' ? 'image' : 'PDF';
   const isRotateTool = tool.id === 'rotate';
+
+  if (tool.id === 'crop') {
+    return renderBrandedUploadStep(tool, {
+      pageClass: 'ilpdf-crop-upload',
+      headingId: 'crop-upload-heading',
+      title: 'Crop PDF',
+      subtitle: 'Crop PDF pages to remove unwanted margins and keep only the content you need.',
+      fileLabel: 'Select PDF file',
+      benefitsLabel: 'How Crop PDF works',
+      benefits: [
+        {
+          sticker: 'ilpdf-branded-sticker-upload',
+          icon: 'upload-cloud',
+          title: 'Upload your PDF',
+          text: 'Choose a PDF or drag it into the upload area.'
+        },
+        {
+          sticker: 'ilpdf-branded-sticker-crop',
+          icon: 'crop',
+          title: 'Set the crop area',
+          text: 'Trim unwanted edges and keep the important page content.'
+        },
+        {
+          sticker: 'ilpdf-branded-sticker-download',
+          icon: 'download',
+          title: 'Download the result',
+          text: 'Create your cropped PDF and continue with your document.'
+        }
+      ]
+    });
+  }
 
   if (isRotateTool) {
     // Rotate upload intentionally mirrors the iLovePDF Rotate PDF upload
@@ -2469,6 +2573,81 @@ function renderSeoContent(tool) {
         </div>
       </section>
       ${renderToolFaq(tool, rotateFaq)}
+    `;
+  }
+
+  if (tool.id === 'crop') {
+    const cropFaq = [
+      { q: 'How do I crop a PDF?', a: 'Upload your PDF, adjust the crop area for the page, review the result, and create the cropped PDF.' },
+      { q: 'Can I remove PDF margins?', a: 'Yes. Cropping can remove unwanted white space or margins around the page content.' },
+      { q: 'Will cropping change the original PDF file?', a: 'No. The uploaded file is used to create a separate processed result; your original file is not edited in place.' },
+      { q: 'Can I crop a scanned PDF?', a: 'Yes. Cropping is useful for scanned documents, receipts, forms, screenshots, and other PDFs with extra page margins.' },
+    ];
+
+    return `
+      <section class="seo-content seo-content--tool seo-content--crop" aria-labelledby="crop-seo-heading">
+        <div class="seo-intro">
+          <span class="seo-kicker">PDF CROP TOOL</span>
+          <h2 id="crop-seo-heading">Crop PDF Online — Free, Fast &amp; Simple</h2>
+          <p><strong>Need to remove unwanted PDF margins?</strong> This online PDF crop tool helps you trim page edges and keep the content you actually need.</p>
+          <p>Crop scanned documents, forms, receipts, notes, screenshots, and other PDF pages before sharing, printing, or archiving them.</p>
+        </div>
+
+        <div class="seo-feature-grid">
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="crop"></i></span>
+            <h3>Trim unwanted page space</h3>
+            <p>Remove extra margins and empty areas around the useful content on your PDF pages.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="scan-search"></i></span>
+            <h3>Review before processing</h3>
+            <p>Use the page workflow to check the document before creating the final cropped PDF.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="printer"></i></span>
+            <h3>Prepare cleaner documents</h3>
+            <p>Crop pages before printing, presenting, sharing, or storing the finished document.</p>
+          </article>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>How to crop a PDF online</h3>
+          <ol class="seo-steps">
+            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
+            <li><strong>Open the crop controls</strong> — review the page and identify the margins or areas you want to remove.</li>
+            <li><strong>Set the crop values</strong> — adjust the page edges according to the content you want to keep.</li>
+            <li><strong>Review the result</strong> — check that important text, images, and page content remain inside the crop area.</li>
+            <li><strong>Crop PDF</strong> — process the document and download the finished file.</li>
+          </ol>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Why crop a PDF?</h3>
+          <ul class="seo-benefits">
+            <li><strong>Remove excess margins.</strong> Trim empty space around scanned or photographed pages.</li>
+            <li><strong>Focus the document.</strong> Keep attention on the content that matters.</li>
+            <li><strong>Improve print layout.</strong> Reduce unnecessary page space before printing.</li>
+            <li><strong>Clean up scans.</strong> Remove borders and surrounding areas from scanned paperwork.</li>
+          </ul>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Common PDF cropping use cases</h3>
+          <div class="seo-usecase-grid">
+            <div><strong>Scanned documents</strong><span>Remove scanner borders and excess white space.</span></div>
+            <div><strong>Receipts &amp; invoices</strong><span>Focus pages on the useful transaction details.</span></div>
+            <div><strong>Forms &amp; applications</strong><span>Trim unnecessary page areas before sharing.</span></div>
+            <div><strong>Study material</strong><span>Clean up photographed or scanned notes.</span></div>
+          </div>
+        </div>
+
+        <div class="seo-section-block seo-trust-block">
+          <h3>Crop PDF pages without unnecessary steps</h3>
+          <p>The workflow is built around a simple task: <strong>upload, adjust, review, and download.</strong> You can prepare a cleaner PDF without installing desktop software.</p>
+        </div>
+      </section>
+      ${renderToolFaq(tool, cropFaq)}
     `;
   }
 
