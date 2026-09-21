@@ -42,6 +42,7 @@
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
   <link rel="stylesheet" href="/css/seo-extended.css">
+  <link rel="stylesheet" href="/css/home-footer-v2.css">
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
   <link rel="stylesheet" href="/css/ads.css">
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
@@ -314,7 +315,7 @@
             <div class="hls-cat-icon"><i data-lucide="list-ordered"></i></div>
             <h3 data-i18n="hls.organize">Organize PDF</h3>
             <ul class="hls-cat-links">
-              <li><a href="/merge-pdf">Merge PDF</a></li>
+              <li><a href="/merge-pdf" data-i18n="tools.merge.title">Merge PDF</a></li>
               <li><a href="/split-pdf">Split PDF</a></li>
               <li><a href="/rotate-pdf">Rotate PDF</a></li>
               <li><a href="/organize-pdf">Organize Pages</a></li>
@@ -327,7 +328,7 @@
             <div class="hls-cat-icon" style="background:#fff7ed;color:#ea580c"><i data-lucide="file-output"></i></div>
             <h3 data-i18n="hls.convert">Convert PDF</h3>
             <ul class="hls-cat-links">
-              <li><a href="/pdf-to-word">PDF to Word</a></li>
+              <li><a href="/pdf-to-word" data-i18n="tools.pdf-to-word.title">PDF to Word</a></li>
               <li><a href="/pdf-to-excel">PDF to Excel</a></li>
               <li><a href="/pdf-to-powerpoint">PDF to PowerPoint</a></li>
               <li><a href="/pdf-to-jpg">PDF to JPG</a></li>
@@ -632,10 +633,10 @@
         <h4 data-i18n="footer.product">Product</h4>
         <a href="/tools" data-i18n="footer.all_tools">All Tools</a>
         <a href="/merge-pdf">Merge PDF</a>
-        <a href="/compress-pdf">Compress</a>
+        <a href="/compress-pdf" data-i18n="tools.compress.title">Compress</a>
         <a href="/pdf-to-word">PDF to Word</a>
-        <a href="/numbers-to-words">Numbers to Words</a>
-        <a href="/currency-converter">Currency Converter</a>
+        <a href="/numbers-to-words" data-i18n="tools.numbers-to-words.title">Numbers to Words</a>
+        <a href="/currency-converter" data-i18n="tools.currency-converter.title">Currency Converter</a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="footer.company">Company</h4>
@@ -729,6 +730,7 @@
   <script src="/js/i18n.js?v=23" defer></script>
   <script src="/js/tool-i18n-bridge.js?v=23" defer></script>
   <script src="/js/i18n-ext.js?v=23" defer></script>
+  <script src="/js/home-footer-i18n.js" defer></script>
   <script src="/js/chrome.js" defer></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <script src="/js/home.js" defer></script>
