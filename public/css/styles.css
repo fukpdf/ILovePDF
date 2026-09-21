@@ -5997,3 +5997,154 @@ i[data-lucide] {
     font-size: 21px;
   }
 }
+
+
+/* ── Popular tools: larger cards with useful tool descriptions ── */
+.popular-tools {
+  width: min(1180px, calc(100% - 48px));
+  max-width: 1180px;
+  margin: 70px auto 80px;
+}
+
+.popular-tools .popular-title {
+  margin: 0 0 24px;
+  text-align: center;
+  font-size: clamp(28px, 2.8vw, 38px);
+  line-height: 1.15;
+  font-weight: 850;
+  letter-spacing: -.025em;
+}
+
+.popular-tools .popular-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.popular-tools .popular-card {
+  min-height: 142px;
+  padding: 22px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  box-sizing: border-box;
+  border: 1px solid rgba(99,102,241,.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(37,45,70,.07);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.popular-tools .popular-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99,102,241,.28);
+  box-shadow: 0 14px 32px rgba(37,45,70,.11);
+}
+
+.popular-tools .popular-card-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(99,102,241,.09);
+  color: var(--primary, #6366f1);
+}
+
+.popular-tools .popular-card-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.3;
+}
+
+.popular-tools .popular-card-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-right: 16px;
+}
+
+.popular-tools .popular-card-name {
+  display: block;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  color: #26364b;
+}
+
+.popular-tools .popular-card-description {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #60738b;
+}
+
+.popular-tools .popular-card-arrow {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  font-size: 19px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--primary, #6366f1);
+  opacity: .8;
+  transition: transform .18s ease;
+}
+
+.popular-tools .popular-card:hover .popular-card-arrow {
+  transform: translateX(3px);
+}
+
+@media (max-width: 980px) {
+  .popular-tools .popular-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .popular-tools {
+    width: min(100% - 28px, 560px);
+    margin-top: 50px;
+    margin-bottom: 50px;
+  }
+
+  .popular-tools .popular-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .popular-tools .popular-card {
+    min-height: 118px;
+    padding: 17px;
+    border-radius: 15px;
+  }
+
+  .popular-tools .popular-card-icon {
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+    border-radius: 14px;
+  }
+
+  .popular-tools .popular-card-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .popular-tools .popular-card-name {
+    font-size: 17px;
+  }
+
+  .popular-tools .popular-card-description {
+    font-size: 13px;
+  }
+}
