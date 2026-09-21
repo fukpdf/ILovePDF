@@ -619,14 +619,14 @@ function learnMoreHtml(tool) {
 
 function popularToolsHtml(currentToolId) {
   const POPULAR = [
-    { slug: 'merge-pdf',    name: 'Merge PDF',     icon: 'layers' },
-    { slug: 'compress-pdf', name: 'Compress PDF',  icon: 'archive' },
-    { slug: 'split-pdf',    name: 'Split PDF',     icon: 'scissors' },
-    { slug: 'pdf-to-word',  name: 'PDF to Word',   icon: 'file-text' },
-    { slug: 'pdf-to-jpg',   name: 'PDF to JPG',    icon: 'image' },
-    { slug: 'word-to-pdf',  name: 'Word to PDF',   icon: 'file-text' },
-    { slug: 'rotate-pdf',   name: 'Rotate PDF',    icon: 'rotate-cw' },
-    { slug: 'organize-pdf', name: 'Organize PDF',  icon: 'list-ordered' },
+    { slug: 'merge-pdf',    name: 'Merge PDF',     icon: 'layers',       description: 'Combine multiple PDF files into one document.' },
+    { slug: 'compress-pdf', name: 'Compress PDF',  icon: 'archive',      description: 'Reduce PDF file size while keeping the document usable.' },
+    { slug: 'split-pdf',    name: 'Split PDF',     icon: 'scissors',     description: 'Split a PDF into separate files or selected pages.' },
+    { slug: 'pdf-to-word',  name: 'PDF to Word',   icon: 'file-text',    description: 'Convert PDF documents into editable Word files.' },
+    { slug: 'pdf-to-jpg',   name: 'PDF to JPG',    icon: 'image',        description: 'Convert PDF pages into JPG images for easy sharing.' },
+    { slug: 'word-to-pdf',  name: 'Word to PDF',   icon: 'file-text',    description: 'Turn Word documents into PDF files for sharing and printing.' },
+    { slug: 'rotate-pdf',   name: 'Rotate PDF',    icon: 'rotate-cw',    description: 'Rotate PDF pages to the correct orientation.' },
+    { slug: 'organize-pdf', name: 'Organize PDF',  icon: 'list-ordered', description: 'Reorder, arrange, and manage PDF pages with ease.' },
   ];
   const list = POPULAR.filter(p => p.slug !== `${currentToolId}-pdf` && p.slug !== currentToolId).slice(0, 6);
   return `
@@ -636,7 +636,11 @@ function popularToolsHtml(currentToolId) {
         ${list.map(t => `
           <a class="popular-card" href="/${t.slug}">
             <span class="popular-card-icon"><i data-lucide="${t.icon}"></i></span>
-            <span class="popular-card-name">${t.name}</span>
+            <span class="popular-card-body">
+              <span class="popular-card-name">${t.name}</span>
+              <span class="popular-card-description">${t.description}</span>
+            </span>
+            <span class="popular-card-arrow" aria-hidden="true">→</span>
           </a>`).join('')}
       </div>
     </section>`;
