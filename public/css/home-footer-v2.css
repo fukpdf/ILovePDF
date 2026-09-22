@@ -309,3 +309,112 @@
   background:rgba(255,255,255,.16);
 }
 .footer-donate-sticker svg { width:13px; height:13px; }
+
+
+/* Large-type accessibility pass — comfortable reading for older users */
+.footer-inner {
+  padding-top: 62px;
+  padding-bottom: 50px;
+  gap: 38px;
+}
+.footer-brand .brand-name {
+  font-size: 1.65rem;
+}
+.footer-brand > p {
+  max-width: 370px;
+  font-size: 1.08rem;
+  line-height: 1.8;
+}
+.footer-col h4 {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  font-size: 1.02rem;
+  letter-spacing: .055em;
+}
+.footer-col > a:not(.brand) {
+  margin-bottom: 13px;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.footer-section-title {
+  gap: 11px;
+}
+.footer-section-sticker {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+.footer-section-sticker svg {
+  width: 17px;
+  height: 17px;
+}
+.footer-item-link {
+  gap: 11px;
+  min-height: 40px;
+}
+.footer-item-sticker {
+  flex-basis: 29px;
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+}
+.footer-item-sticker svg {
+  width: 15px;
+  height: 15px;
+}
+.footer-donate-btn {
+  max-width: 210px;
+  min-height: 50px;
+  margin-bottom: 20px !important;
+  font-size: 1rem !important;
+}
+.footer-donate-sticker {
+  width: 27px;
+  height: 27px;
+}
+.footer-donate-sticker svg {
+  width: 15px;
+  height: 15px;
+}
+.footer-lang-btn {
+  min-height: 50px;
+  font-size: 1rem;
+}
+.footer-lang-panel .footer-lang-link {
+  font-size: 1rem;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.footer-bottom {
+  padding-top: 21px;
+  padding-bottom: 25px;
+  font-size: .92rem;
+}
+.footer-sticker-pdf {
+  font-size: 12px;
+}
+@media (max-width: 680px) {
+  .footer-inner {
+    padding-top: 48px;
+    padding-bottom: 38px;
+    gap: 30px 22px;
+  }
+  .footer-brand .brand-name {
+    font-size: 1.5rem;
+  }
+  .footer-brand > p {
+    font-size: 1rem;
+  }
+  .footer-col h4 {
+    font-size: .98rem;
+  }
+  .footer-col > a:not(.brand) {
+    font-size: .98rem;
+  }
+  .footer-item-link {
+    min-height: 40px;
+  }
+  .footer-bottom {
+    font-size: .88rem;
+  }
+}
