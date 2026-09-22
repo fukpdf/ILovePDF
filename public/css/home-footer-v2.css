@@ -461,3 +461,138 @@
   color: #431407;
   box-shadow: 0 4px 12px rgba(249,115,22,.3), inset 0 1px 0 rgba(255,255,255,.35);
 }
+
+
+/* Branded full-width footer composition */
+.footer {
+  isolation: isolate;
+  overflow: hidden;
+}
+.footer::after {
+  content: "ILOVEPDF";
+  position: absolute;
+  right: -28px;
+  bottom: 58px;
+  z-index: -1;
+  font-size: clamp(90px, 13vw, 190px);
+  line-height: .8;
+  font-weight: 950;
+  letter-spacing: -.08em;
+  color: rgba(255,255,255,.025);
+  transform: rotate(-8deg);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.footer-inner {
+  width: min(1480px, calc(100% - 72px));
+  padding: 68px 0 58px;
+  grid-template-columns: minmax(280px, 1.7fr) repeat(4, minmax(145px, 1fr));
+  gap: clamp(28px, 3.2vw, 64px);
+}
+.footer-col {
+  position: relative;
+}
+.footer-col:not(.footer-brand)::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(129,140,248,.3), transparent 82%);
+}
+.footer-brand {
+  padding-right: clamp(18px, 3vw, 56px);
+}
+.footer-brand::after {
+  content: "PDF • TOOLS • AI";
+  display: block;
+  margin-top: 28px;
+  width: fit-content;
+  padding: 7px 12px;
+  border: 1px solid rgba(165,180,252,.22);
+  border-radius: 999px;
+  background: rgba(99,102,241,.08);
+  color: #9fa9c5;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+.footer-brand > p {
+  max-width: 440px;
+}
+.footer-section-title {
+  white-space: nowrap;
+}
+.footer-bottom {
+  width: min(1480px, calc(100% - 72px));
+  padding: 22px 0 27px;
+}
+.footer-bottom::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 170px;
+  height: 2px;
+  background: linear-gradient(90deg, #818cf8, transparent);
+}
+.footer-lang-btn {
+  width: 100%;
+  justify-content: space-between;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+@media (max-width: 1200px) {
+  .footer-inner {
+    width: min(1180px, calc(100% - 44px));
+    grid-template-columns: 1.45fr repeat(4, 1fr);
+    gap: 26px;
+  }
+  .footer-col:not(.footer-brand)::before {
+    left: -13px;
+  }
+  .footer-bottom {
+    width: min(1180px, calc(100% - 44px));
+  }
+}
+@media (max-width: 1000px) {
+  .footer-inner {
+    width: min(900px, calc(100% - 40px));
+    grid-template-columns: 1.4fr repeat(2, 1fr);
+    gap: 34px 28px;
+  }
+  .footer-col:not(.footer-brand)::before {
+    display: none;
+  }
+  .footer-brand {
+    grid-column: 1 / -1;
+    padding-right: 0;
+  }
+  .footer-brand::after {
+    margin-top: 20px;
+  }
+  .footer-languages {
+    grid-column: span 2;
+  }
+  .footer-bottom {
+    width: min(900px, calc(100% - 40px));
+  }
+}
+@media (max-width: 680px) {
+  .footer-inner {
+    width: min(100% - 28px, 560px);
+    grid-template-columns: 1fr 1fr;
+    gap: 30px 22px;
+    padding: 48px 0 38px;
+  }
+  .footer-brand {
+    grid-column: 1 / -1;
+  }
+  .footer-brand::after {
+    margin-top: 18px;
+  }
+  .footer-bottom {
+    width: min(100% - 28px, 560px);
+  }
+}
