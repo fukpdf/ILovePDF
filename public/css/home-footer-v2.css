@@ -596,3 +596,63 @@
     width: min(100% - 28px, 560px);
   }
 }
+
+
+/* Product links use the same colorful identification-sticker language */
+.footer-product-link {
+  display: flex !important;
+  align-items: center;
+  gap: 11px;
+  min-height: 40px;
+  width: fit-content !important;
+}
+.footer-product-sticker {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 29px;
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #818cf8, #4f46e5);
+  border: 1px solid rgba(199,210,254,.55);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(79,70,229,.32), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.footer-product-sticker svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+}
+.footer-product-link:nth-of-type(2) .footer-product-sticker {
+  background: linear-gradient(145deg, #38bdf8, #2563eb);
+}
+.footer-product-link:nth-of-type(3) .footer-product-sticker {
+  background: linear-gradient(145deg, #34d399, #059669);
+}
+.footer-product-link:nth-of-type(4) .footer-product-sticker {
+  background: linear-gradient(145deg, #fbbf24, #f97316);
+}
+.footer-product-link:nth-of-type(5) .footer-product-sticker {
+  background: linear-gradient(145deg, #a78bfa, #7c3aed);
+}
+.footer-product-link:nth-of-type(6) .footer-product-sticker {
+  background: linear-gradient(145deg, #fb7185, #e11d48);
+}
+.footer-product-link:hover .footer-product-sticker {
+  filter: saturate(1.15) brightness(1.08);
+  transform: translateY(-1px);
+}
+@media (max-width: 680px) {
+  .footer-product-link {
+    min-height: 40px;
+  }
+  .footer-product-sticker {
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+  }
+  .footer-product-sticker svg {
+    width: 14px;
+    height: 14px;
+  }
+}
