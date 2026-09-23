@@ -3160,3 +3160,213 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   .home-tool-heading{font-size:1rem}
   .home-tool-heading-sticker{width:30px;height:30px;flex-basis:30px}
 }
+
+
+/* ============================================================
+   ACCESSIBILITY + HEADER / ALL TOOLS POLISH — 65+ FRIENDLY
+   ============================================================ */
+
+/* Larger brand, logo and navigation targets with clearer spacing. */
+.site-header .header-inner{
+  gap:clamp(28px,3vw,44px);
+  padding:12px clamp(18px,3vw,42px);
+}
+.site-header .brand{
+  gap:14px;
+  font-size:1.5rem;
+  font-weight:850;
+  letter-spacing:-.02em;
+}
+.site-header .brand-mark{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  border-radius:12px;
+}
+.site-header .brand-mark svg{
+  width:22px;
+  height:22px;
+  stroke-width:2.4;
+}
+.site-header .nav{
+  gap:10px;
+}
+.site-header .nav a,
+.site-header .nav button{
+  min-height:46px;
+  padding:11px 17px;
+  border-radius:11px;
+  font-size:1rem;
+  font-weight:700;
+  gap:8px;
+}
+.site-header .nav .all-tools{
+  background:var(--primary,#4f46e5);
+  color:#fff;
+  padding:11px 19px;
+  border:1px solid rgba(79,70,229,.2);
+  box-shadow:0 7px 18px rgba(79,70,229,.18);
+}
+.site-header .nav .all-tools:hover,
+.site-header .nav .all-tools:focus-visible{
+  background:var(--primary,#4f46e5);
+  color:#fff;
+  filter:brightness(.94);
+  box-shadow:0 9px 22px rgba(79,70,229,.25);
+}
+.site-header .nav .all-tools svg{
+  width:18px;
+  height:18px;
+  stroke-width:2.5;
+}
+
+/* Keep the All Tools panel fully inside the viewport and usable at
+   different desktop widths/heights. */
+.nav-item.has-mega .mega{
+  top:calc(100% + 10px);
+  right:0;
+  left:auto;
+  width:min(1120px,calc(100vw - 32px));
+  max-width:calc(100vw - 32px);
+  max-height:calc(100vh - var(--header-h,72px) - 28px);
+  overflow-x:hidden;
+  overflow-y:auto;
+  box-sizing:border-box;
+  padding:24px;
+  border-radius:18px;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.nav-item.has-mega .mega-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:20px;
+}
+.nav-item.has-mega .mega-col h5{
+  margin:0 0 12px;
+  padding-bottom:10px;
+  font-size:.86rem;
+  letter-spacing:.075em;
+  font-weight:800;
+}
+.nav-item.has-mega .mega-link{
+  min-height:48px;
+  padding:9px 10px;
+  gap:10px;
+  border-radius:10px;
+  font-size:.98rem;
+  font-weight:650;
+  line-height:1.25;
+}
+.nav-item.has-mega .mega-link-name{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+}
+.nav-item.has-mega .mega-link .tool-badge{
+  flex:0 0 auto;
+  font-size:.68rem;
+  padding:3px 7px;
+}
+.nav-item.has-mega .mega-tool-sticker{
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  min-width:34px;
+  border-radius:9px;
+  color:#fff;
+  border:1px solid rgba(129,140,248,.45);
+  background:linear-gradient(145deg,#818cf8,#4f46e5);
+  box-shadow:0 6px 14px rgba(79,70,229,.22),inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;
+}
+.nav-item.has-mega .mega-tool-sticker svg{
+  width:17px;
+  height:17px;
+  stroke-width:2.3;
+}
+.nav-item.has-mega .mega-link:nth-of-type(3n) .mega-tool-sticker{
+  background:linear-gradient(145deg,#34d399,#059669);
+}
+.nav-item.has-mega .mega-link:nth-of-type(3n+2) .mega-tool-sticker{
+  background:linear-gradient(145deg,#38bdf8,#2563eb);
+}
+.nav-item.has-mega .mega-link:nth-of-type(4n) .mega-tool-sticker{
+  background:linear-gradient(145deg,#fbbf24,#f97316);
+}
+.nav-item.has-mega .mega-link:nth-of-type(5n) .mega-tool-sticker{
+  background:linear-gradient(145deg,#fb7185,#e11d48);
+}
+.nav-item.has-mega .mega-link:nth-of-type(6n) .mega-tool-sticker{
+  background:linear-gradient(145deg,#a78bfa,#7c3aed);
+}
+
+/* Professional hover motion: the function sticker lifts slightly instead
+   of using a distracting bounce/rotation. */
+.nav-item.has-mega .mega-link:hover .mega-tool-sticker,
+.nav-item.has-mega .mega-link:focus-visible .mega-tool-sticker{
+  transform:translateY(-2px) scale(1.04);
+  filter:saturate(1.08) brightness(1.04);
+  box-shadow:0 9px 18px rgba(79,70,229,.24),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.nav-item.has-mega .mega-link:hover{
+  background:var(--grad-soft);
+  color:var(--primary);
+}
+
+/* Medium desktop: reduce columns before the panel ever becomes too wide. */
+@media (max-width:1199px) and (min-width:1024px){
+  .site-header .header-inner{
+    gap:20px;
+    padding-left:18px;
+    padding-right:18px;
+  }
+  .site-header .brand{
+    font-size:1.38rem;
+  }
+  .site-header .brand-mark{
+    width:40px;
+    height:40px;
+    min-width:40px;
+  }
+  .site-header .nav a,
+  .site-header .nav button{
+    font-size:.94rem;
+    padding-left:13px;
+    padding-right:13px;
+  }
+  .site-header .nav-item.has-mega .mega{
+    width:min(980px,calc(100vw - 24px));
+    max-width:calc(100vw - 24px);
+    padding:20px;
+  }
+  .site-header .nav-item.has-mega .mega-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
+  }
+}
+
+/* Prevent viewport clipping on shorter desktop/laptop screens. */
+@media (min-width:1024px) and (max-height:760px){
+  .nav-item.has-mega .mega{
+    max-height:calc(100vh - var(--header-h,72px) - 18px);
+    padding:18px;
+  }
+  .nav-item.has-mega .mega-link{
+    min-height:43px;
+    padding:7px 9px;
+  }
+}
+
+/* Mobile keeps the existing compact/mobile header behavior. */
+@media (max-width:1023.98px){
+  .site-header .brand{
+    gap:12px;
+    font-size:1.32rem;
+  }
+  .site-header .brand-mark{
+    width:39px;
+    height:39px;
+    min-width:39px;
+  }
+}
