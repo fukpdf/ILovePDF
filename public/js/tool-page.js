@@ -639,6 +639,15 @@ function popularToolsHtml(currentToolId) {
     { slug: 'organize-pdf', name: 'Organize PDF',  icon: 'list-ordered', description: 'Reorder, arrange, and manage PDF pages with ease.' },
   ];
   const list = POPULAR.filter(p => p.slug !== `${currentToolId}-pdf` && p.slug !== currentToolId).slice(0, 6);
+  const homepageIcon = (slug, fallback) => {
+    try {
+      for (const group of (window.TOOL_GROUPS || [])) {
+        const match = (group.items || []).find(item => item.slug === slug || item.tid === slug);
+        if (match && match.icon) return match.icon;
+      }
+    } catch (_) {}
+    return fallback;
+  };
   return `
     <section class="popular-tools${currentToolId === 'crop' ? ' popular-tools--crop' : ''}" aria-label="Popular tools">
       <h2 class="popular-title">Popular tools</h2>
@@ -646,7 +655,7 @@ function popularToolsHtml(currentToolId) {
         ${list.map(t => `
           <a class="popular-card" href="/${t.slug}">
             <span class="popular-card-body">
-              <span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
+              <span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${homepageIcon(t.slug, t.icon)}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
               <span class="popular-card-description">${t.description}</span>
             </span>
             <span class="popular-card-arrow" aria-hidden="true">→</span>
@@ -671,8 +680,6 @@ function renderBrandedUploadStep(tool, config) {
       '</div>'
     : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span><span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span></div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
-  const cropJourneyHtml = tool.id === 'crop' ? cropUploadJourneyHtml() : '';
-
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
       <section class="ilpdf-branded-upload-hero" aria-labelledby="${config.headingId || 'tool-upload-heading'}">
@@ -690,7 +697,6 @@ function renderBrandedUploadStep(tool, config) {
           </div>
 
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
-          ${cropJourneyHtml}
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
             ${(config.benefits || []).map(function (b) {
@@ -1189,6 +1195,86 @@ function renderRotatePreviewStep(tool) {
 // Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
 // processFile) — only the surrounding chrome changes.
 function renderPreviewStep(tool) {
+  if (tool && tool.id === 'crop') {
+    renderCropPreviewJourney(tool);
+    return;
+  }
+  renderStandardPreviewStep(tool);
+}
+
+function renderCropPreviewJourney(tool) {
+  const container = document.getElementById('tool-content');
+  if (!container) return;
+  container.classList.add('ew-wide');
+  container.innerHTML = `
+    <div class="tool-page ew-preview-page crop-preview-prep-page">
+      ${toolHeaderBlock(tool, {
+        heading: `Preparing — ${tool.name}`,
+        desc: 'Preparing your PDF for the Crop PDF preview.',
+        icon: 'crop',
+        hideStatus: true,
+        back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
+      })}
+      ${stepIndicatorHtml('preview')}
+      ${cropUploadJourneyHtml()}
+    </div>`;
+  const journey = document.getElementById('crop-upload-journey');
+  if (journey) journey.hidden = false;
+  if (window.lucide) lucide.createIcons();
+
+  const runId = ++_cropUploadRun;
+  const startedAt = Date.now();
+  runCropPreviewJourney(tool, runId, startedAt, 3500);
+}
+
+async function runCropPreviewJourney(tool, runId, startedAt, minimumMs) {
+  const journey = document.getElementById('crop-upload-journey');
+  if (!journey) return;
+  const file = selectedFiles[0] && selectedFiles[0].file;
+  if (!file) { renderStandardPreviewStep(tool); return; }
+
+  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
+    ? window.BrowserTools.prewarm('crop')
+    : Promise.resolve({ warmed: false });
+  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
+    ? window.PdfPreview.loadPdfJs()
+    : Promise.resolve();
+
+  // This percentage is explicitly a staged preparation animation, not upload speed.
+  const stages = [
+    { at: 0, stage: 'read', title: 'Reading your PDF', detail: 'Checking the selected document before the crop preview opens.' },
+    { at: 28, stage: 'engine', title: 'Preparing crop tools', detail: 'Getting the Crop PDF engine ready in your browser.' },
+    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the PDF preview renderer ready.' },
+    { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing the crop workspace.' }
+  ];
+  const updateVisual = value => {
+    if (runId !== _cropUploadRun) return;
+    let current = stages[0];
+    stages.forEach(item => { if (value >= item.at) current = item; });
+    cropJourneySetStage(current.stage, current.title, current.detail, value, true);
+  };
+  updateVisual(0);
+  const start = performance.now();
+  await new Promise(resolve => {
+    const tick = now => {
+      if (runId !== _cropUploadRun) return resolve();
+      const elapsed = now - start;
+      updateVisual(Math.min(92, (elapsed / minimumMs) * 92));
+      if (elapsed < minimumMs) requestAnimationFrame(tick); else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+  if (runId !== _cropUploadRun) return;
+  await Promise.all([engineWarm, previewWarm]);
+  const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
+  if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
+  if (runId !== _cropUploadRun) return;
+  cropJourneySetStage('ready', 'Crop PDF is ready', 'Opening your PDF preview.', 100, true);
+  await new Promise(resolve => setTimeout(resolve, 220));
+  if (runId !== _cropUploadRun) return;
+  renderStandardPreviewStep(tool);
+}
+function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
   container.classList.add('ew-wide');
@@ -1506,7 +1592,7 @@ function cropUploadJourneyHtml() {
       <div class="crop-journey-copy">
         <div class="crop-journey-kicker">Crop PDF is getting ready</div>
         <strong id="crop-journey-title">Reading your PDF on this device</strong>
-        <span id="crop-journey-detail">The file stays in your browser while the Crop PDF engine prepares.</span>
+        <span id="crop-journey-detail">Your file stays in your browser while the Crop PDF workspace prepares.</span>
       </div>
       <div class="crop-journey-progress-wrap">
         <div class="crop-journey-progress" role="progressbar" aria-label="Reading selected PDF" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-describedby="crop-journey-progress-text">
@@ -1523,7 +1609,7 @@ function cropUploadJourneyHtml() {
         <li data-crop-stage="preview"><span><i data-lucide="scan-line"></i></span><b>Prepare preview</b></li>
         <li data-crop-stage="ready"><span><i data-lucide="check"></i></span><b>Ready</b></li>
       </ol>
-      <div class="crop-journey-status" id="crop-journey-status" role="status" aria-live="polite" aria-atomic="true">Reading selected PDF…</div>
+      <div class="crop-journey-status" id="crop-journey-status" role="status" aria-live="polite" aria-atomic="true">Preparing Crop PDF…</div>
     </section>
   `;
 }
