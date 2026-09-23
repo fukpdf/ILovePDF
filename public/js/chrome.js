@@ -853,7 +853,7 @@ function ensureSharedShell() {
   if (!document.querySelector('link[data-shared-footer-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/css/home-footer-v2.css';
+    link.href = '/css/home-footer-v2.css?v=20260924';
     link.dataset.sharedFooterCss = '1';
     document.head.appendChild(link);
   }
