@@ -784,6 +784,113 @@ function loadMobileNav() {
   document.head.appendChild(s);
 }
 
+
+/* ── Global shared shell: homepage header/footer on every public page ─────── */
+const SHARED_FOOTER_HTML = `
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-col footer-brand">
+      <div class="footer-stickers" aria-hidden="true">
+        <span class="footer-sticker footer-sticker-pdf">PDF</span>
+        <span class="footer-sticker footer-sticker-spark">✦</span>
+        <span class="footer-sticker footer-sticker-shield">✓</span>
+      </div>
+      <a href="/" class="brand" aria-label="ILovePDF home">
+        <span class="brand-mark"><i data-lucide="file-text"></i></span>
+        <span class="brand-name">ILove<span>PDF</span></span>
+      </a>
+      <p data-i18n="hls.footer_desc">Free PDF &amp; Image tools online. Files are deleted automatically after processing — your privacy comes first.</p>
+    </div>
+    <div class="footer-col">
+      <h4 class="footer-section-title"><span class="footer-section-sticker footer-sticker-product"><i data-lucide="box"></i></span><span data-i18n="footer.product">Product</span></h4>
+      <a class="footer-product-link" href="/tools"><span class="footer-product-sticker"><i data-lucide="grid-2x2"></i></span><span data-i18n="footer.all_tools">All Tools</span></a>
+      <a class="footer-product-link" href="/merge-pdf"><span class="footer-product-sticker"><i data-lucide="layers"></i></span><span data-i18n="tools.merge.title">Merge PDF</span></a>
+      <a class="footer-product-link" href="/compress-pdf"><span class="footer-product-sticker"><i data-lucide="archive"></i></span><span data-i18n="tools.compress.title">Compress</span></a>
+      <a class="footer-product-link" href="/pdf-to-word"><span class="footer-product-sticker"><i data-lucide="file-text"></i></span><span data-i18n="tools.pdf-to-word.title">PDF to Word</span></a>
+      <a class="footer-product-link" href="/numbers-to-words"><span class="footer-product-sticker"><i data-lucide="hash"></i></span><span data-i18n="tools.numbers-to-words.title">Numbers to Words</span></a>
+      <a class="footer-product-link" href="/currency-converter"><span class="footer-product-sticker"><i data-lucide="dollar-sign"></i></span><span data-i18n="tools.currency-converter.title">Currency Converter</span></a>
+    </div>
+    <div class="footer-col">
+      <h4 class="footer-section-title"><span class="footer-section-sticker footer-sticker-company"><i data-lucide="building-2"></i></span><span data-i18n="footer.company">Company</span></h4>
+      <a class="footer-item-link" href="/about"><span class="footer-item-sticker"><i data-lucide="info"></i></span><span data-i18n="footer.about">About</span></a>
+      <a class="footer-item-link" href="/about"><span class="footer-item-sticker"><i data-lucide="mail"></i></span><span data-i18n="footer.contact">Contact</span></a>
+      <a class="footer-item-link" href="/blog"><span class="footer-item-sticker"><i data-lucide="book-open"></i></span><span data-i18n="footer.blog">Blog</span></a>
+    </div>
+    <div class="footer-col">
+      <h4 class="footer-section-title"><span class="footer-section-sticker footer-sticker-legal"><i data-lucide="shield-check"></i></span><span data-i18n="footer.legal">Legal</span></h4>
+      <a class="footer-item-link" href="/privacy"><span class="footer-item-sticker"><i data-lucide="lock"></i></span><span data-i18n="footer.privacy">Privacy</span></a>
+      <a class="footer-item-link" href="/terms"><span class="footer-item-sticker"><i data-lucide="file-check-2"></i></span><span data-i18n="footer.terms">Terms</span></a>
+      <a class="footer-item-link" href="/disclaimer"><span class="footer-item-sticker"><i data-lucide="alert-circle"></i></span><span data-i18n="footer.disclaimer">Disclaimer</span></a>
+    </div>
+    <div class="footer-col footer-languages">
+      <h4 class="footer-section-title"><span class="footer-section-sticker footer-sticker-language"><i data-lucide="languages"></i></span><span data-i18n="footer.languages">Languages</span></h4>
+      <a class="footer-donate-btn" href="/blog/support-the-project.html"><span class="footer-donate-sticker" aria-hidden="true"><i data-lucide="heart"></i></span><span data-i18n="nav.donate">Donate</span></a>
+      <div class="footer-lang-sel" id="footer-lang-sel">
+        <button class="footer-lang-btn" id="footer-lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Select language">
+          <span id="footer-lang-label">🇬🇧 English</span>
+          <svg class="footer-lang-chev" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="footer-lang-panel" id="footer-lang-panel" hidden>
+          <a href="#" class="footer-lang-link" data-lang="en">🇬🇧 English</a><a href="#" class="footer-lang-link" data-lang="ar">🇸🇦 العربية</a><a href="#" class="footer-lang-link" data-lang="ur">🇵🇰 اردو</a><a href="#" class="footer-lang-link" data-lang="fa">🇮🇷 فارسی</a><a href="#" class="footer-lang-link" data-lang="hi">🇮🇳 हिन्दी</a><a href="#" class="footer-lang-link" data-lang="bn">🇧🇩 বাংলা</a><a href="#" class="footer-lang-link" data-lang="zh">🇨🇳 中文</a><a href="#" class="footer-lang-link" data-lang="ja">🇯🇵 日本語</a><a href="#" class="footer-lang-link" data-lang="ko">🇰🇷 한국어</a><a href="#" class="footer-lang-link" data-lang="tr">🇹🇷 Türkçe</a><a href="#" class="footer-lang-link" data-lang="id">🇮🇩 Indonesia</a><a href="#" class="footer-lang-link" data-lang="ru">🇷🇺 Русский</a><a href="#" class="footer-lang-link" data-lang="fr">🇫🇷 Français</a><a href="#" class="footer-lang-link" data-lang="de">🇩🇪 Deutsch</a><a href="#" class="footer-lang-link" data-lang="es">🇪🇸 Español</a><a href="#" class="footer-lang-link" data-lang="pt">🇧🇷 Português</a><a href="#" class="footer-lang-link" data-lang="it">🇮🇹 Italiano</a><a href="#" class="footer-lang-link" data-lang="nl">🇳🇱 Nederlands</a><a href="#" class="footer-lang-link" data-lang="pl">🇵🇱 Polski</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom"><span data-i18n="hls.footer_rights">© 2026 ILovePDF — All rights reserved.</span><span data-i18n="hls.footer_deleted">Files are deleted automatically within seconds.</span></div>
+</footer>`;
+
+function ensureSharedShell() {
+  /* Load the exact homepage footer stylesheet on pages that did not include it. */
+  if (!document.querySelector('link[data-shared-footer-css]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/home-footer-v2.css';
+    link.dataset.sharedFooterCss = '1';
+    document.head.appendChild(link);
+  }
+
+  /* The homepage header is the canonical header. Create it when a page lacks one. */
+  let header = document.querySelector('.site-header');
+  if (!header) {
+    header = document.createElement('header');
+    header.className = 'site-header';
+    header.innerHTML = '<div class="header-inner"><a href="/" class="brand" aria-label="ILovePDF home"><span class="brand-mark"><i data-lucide="file-text"></i></span><span class="brand-name">ILove<span>PDF</span></span></a><nav class="nav" id="nav" aria-label="Main"></nav></div>';
+    const main = document.querySelector('main');
+    if (main) main.parentNode.insertBefore(header, main);
+    else document.body.insertBefore(header, document.body.firstChild);
+  }
+
+  /* Replace every page footer with the canonical homepage footer. */
+  const currentFooter = document.querySelector('footer.footer');
+  const holder = document.createElement('div');
+  holder.innerHTML = SHARED_FOOTER_HTML.trim();
+  const canonicalFooter = holder.firstElementChild;
+  if (currentFooter) currentFooter.replaceWith(canonicalFooter);
+  else document.body.appendChild(canonicalFooter);
+
+  window.__ILOVE_SHARED_SHELL_READY = true;
+  return canonicalFooter;
+}
+
+function ensureI18nAssets() {
+  const hasI18n = !!document.querySelector('script[src^="/js/i18n.js"]');
+  if (hasI18n || window.RuntimeI18n) return Promise.resolve();
+
+  return new Promise(function(resolve) {
+    const ext = document.createElement('script');
+    const base = document.createElement('script');
+    base.src = '/js/i18n.js?v=shared-shell';
+    base.onload = function() {
+      ext.src = '/js/i18n-ext.js?v=shared-shell';
+      ext.onload = resolve;
+      ext.onerror = resolve;
+      document.head.appendChild(ext);
+    };
+    base.onerror = resolve;
+    document.head.appendChild(base);
+  });
+}
+
 /* ── Footer language dropdown (collapsible, click-to-open) ─────────────────── */
 function wireFooterLangSelector() {
   const sel   = document.getElementById('footer-lang-sel');
@@ -836,7 +943,9 @@ function wireFooterLangSelector() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  ensureSharedShell();
+  await ensureI18nAssets();
   renderHeader();
   wireAuth();
   startAuthStateObserver();
