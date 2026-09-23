@@ -5,7 +5,9 @@
   'use strict';
 
   function boot() {
-    var root = document.getElementById('footer-lang-sel');
+    if (window.__ILOVE_SHARED_FOOTER_LANG_WIRED) return;
+window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
+var root = document.getElementById('footer-lang-sel');
     var btn = document.getElementById('footer-lang-btn');
     var label = document.getElementById('footer-lang-label');
     var panel = document.getElementById('footer-lang-panel');
