@@ -32,7 +32,7 @@
       if (!link) return;
       link.addEventListener('click', function (event) {
         event.preventDefault();
-        window.RuntimeI18n.setLanguage(item.code).then(function (lang) {
+        window.RuntimeI18n.setLanguage(item.code, { persist: true }).then(function (lang) {
           setLabel(lang);
           close();
         });
