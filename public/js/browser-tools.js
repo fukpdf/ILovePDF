@@ -4535,6 +4535,21 @@
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
 
+  // Phase 1 execution profile: one authoritative capability query for the
+  // shared platform. This reports actual current capabilities only; it does
+  // not pretend that every handler is streamable or worker-safe.
+  function getExecutionProfile(toolId) {
+    return {
+      clientSide: supports(toolId),
+      workerSafe: WORKER_TOOLS.has(toolId),
+      lazyEngineLoad: true,
+      workerPool: WORKER_TOOLS.has(toolId),
+      streamingInfrastructure: !!window.StreamHelpers,
+      outputValidation: true,
+      silentWorkerFallback: false,
+    };
+  }
+
   async function process(toolId, files, options) {
     const fn = HANDLERS[toolId];
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
@@ -4612,5 +4627,12 @@
     return { blob, filename };
   }
 
-  window.BrowserTools = { supports, process, prewarm, brandedFilename, _loadPdfLib: loadPdfLib };
+  window.BrowserTools = {
+    supports,
+    getExecutionProfile,
+    process,
+    prewarm,
+    brandedFilename,
+    _loadPdfLib: loadPdfLib,
+  };
 })();
