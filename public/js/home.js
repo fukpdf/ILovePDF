@@ -58,7 +58,7 @@ function renderRecentUse() {
         <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
           <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
           <div class="tool-text">
-            <h4 data-i18n="${titleKey}">${t18(titleKey, t.name)}</h4>
+            <h4 class="tool-name" data-i18n="${titleKey}"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="tool-name-label">${t18(titleKey, t.name)}</span></h4>
             <p  data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
           </div>
           ${badge(t.prio)}
@@ -115,7 +115,7 @@ function _renderOneCatSection(containerId, groupKeys, type) {
       <a class="tool" data-cat="${t._cat||''}" data-prio="${t.prio||'instant'}"${tid ? ` data-tid="${tid}"` : ''} href="${homeToolUrl(t)}">
         <span class="tool-ico"><i data-lucide="${t.icon}"></i></span>
         <div class="tool-text">
-          <h4${titleKey ? ` data-i18n="${titleKey}"` : ''}>${name}</h4>
+          <h4 class="tool-name"${titleKey ? ` data-i18n="${titleKey}"` : ''}><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="tool-name-label">${name}</span></h4>
           <p${descKey  ? ` data-i18n="${descKey}"` : ''}>${desc}</p>
         </div>
         ${badge(t.prio)}
