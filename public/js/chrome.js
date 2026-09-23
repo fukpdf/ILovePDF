@@ -839,6 +839,15 @@ const SHARED_FOOTER_HTML = `
   <div class="footer-bottom"><span data-i18n="hls.footer_rights">© 2026 ILovePDF — All rights reserved.</span><span data-i18n="hls.footer_deleted">Files are deleted automatically within seconds.</span></div>
 </footer>`;
 
+function ensureSharedAccessibility() {
+  if (document.getElementById('ilove-shared-a11y-css')) return;
+  var link = document.createElement('link');
+  link.id = 'ilove-shared-a11y-css';
+  link.rel = 'stylesheet';
+  link.href = '/css/shared-a11y.css?v=20260923';
+  document.head.appendChild(link);
+}
+
 function ensureSharedShell() {
   /* Load the exact homepage footer stylesheet on pages that did not include it. */
   if (!document.querySelector('link[data-shared-footer-css]')) {
