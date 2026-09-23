@@ -27,6 +27,7 @@
 
   var LOCALES_BASE  = '/locales/';
   var STORAGE_KEY   = 'ilovepdf_lang';
+  var EXPLICIT_STORAGE_KEY = 'ilovepdf_lang_user';
   var DEFAULT_LANG  = 'en';
   var RTL_LANGS     = new Set(['ar', 'ur', 'fa', 'he', 'yi', 'dv', 'ps', 'sd']);
 
@@ -122,8 +123,9 @@
       }
     },
 
-    setLanguage: function (lang) {
+    setLanguage: function (lang, options) {
       var self = this;
+      options = options || {};
       var code = ((lang || DEFAULT_LANG) + '').toLowerCase().split('-')[0];
       var supported = AVAILABLE.filter(function (l) { return l.code === code; })[0];
       var target = supported ? code : DEFAULT_LANG;
@@ -134,7 +136,12 @@
       return Promise.all(loads).then(function () {
         _currentLang = target;
         _fallback    = _cache[DEFAULT_LANG] || {};
-        try { localStorage.setItem(STORAGE_KEY, target); } catch (_) {}
+        try {
+          if (options.persist !== false) {
+            localStorage.setItem(STORAGE_KEY, target);
+            localStorage.setItem(EXPLICIT_STORAGE_KEY, '1');
+          }
+        } catch (_) {}
         self._applyRTL(target);
         self._applyToDOM();
         try {
@@ -337,20 +344,29 @@
       var self = this;
       return self.loadLocale(DEFAULT_LANG).then(function () {
         _fallback = _cache[DEFAULT_LANG] || {};
-        /* 1. Saved preference always wins. */
+        /* 1. An explicit user choice always wins. */
         var stored = null;
-        try { stored = localStorage.getItem(STORAGE_KEY); } catch (_) {}
-        if (stored) {
-          return self.setLanguage(stored).then(function(lang) {
+        var explicit = false;
+        try {
+          stored = localStorage.getItem(STORAGE_KEY);
+          explicit = localStorage.getItem(EXPLICIT_STORAGE_KEY) === '1';
+          /* Older builds used STORAGE_KEY for automatic detection too.
+             Do not let that legacy value override the browser preference. */
+          if (!explicit && stored) {
+            localStorage.removeItem(STORAGE_KEY);
+            stored = null;
+          }
+        } catch (_) {}
+        if (explicit && stored) {
+          return self.setLanguage(stored, { persist: false }).then(function(lang) {
             self.observe();
             return lang;
           });
         }
-        /* 2. Browser language detection.
-           Use the browser's preferred-language list directly.
-           Explicit footer selection remains persisted and wins on later visits. */
+        /* 2. Browser preference is the default when the user has not chosen
+           a language. This checks navigator.languages in priority order. */
         var browserLang = self.detectBrowserLanguage();
-        return self.setLanguage(browserLang).then(function(lang) {
+        return self.setLanguage(browserLang, { persist: false }).then(function(lang) {
           self.observe();
           return lang;
         });
