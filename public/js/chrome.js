@@ -786,6 +786,23 @@ function loadMobileNav() {
 
 
 /* ── Global shared shell: homepage header/footer on every public page ─────── */
+const SHARED_HEADER_HTML = `
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="brand" aria-label="ILovePDF home">
+      <span class="brand-mark"><i data-lucide="file-text"></i></span>
+      <span class="brand-name">ILove<span>PDF</span></span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Main">
+      <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+      <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
+      <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
+      <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
+      <span class="sk-nav-pill" style="width:72px" aria-hidden="true"></span>
+    </nav>
+  </div>
+</header>`;
+
 const SHARED_FOOTER_HTML = `
 <footer class="footer">
   <div class="footer-inner">
@@ -849,7 +866,14 @@ function ensureSharedAccessibility() {
 }
 
 function ensureSharedShell() {
-  /* Load the exact homepage footer stylesheet on pages that did not include it. */
+  /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
+  if (!document.querySelector('link[data-shared-header-css]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/home-header-v2.css?v=20260924';
+    link.dataset.sharedHeaderCss = '1';
+    document.head.appendChild(link);
+  }
   if (!document.querySelector('link[data-shared-footer-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -858,15 +882,20 @@ function ensureSharedShell() {
     document.head.appendChild(link);
   }
 
-  /* The homepage header is the canonical header. Create it when a page lacks one. */
-  let header = document.querySelector('.site-header');
-  if (!header) {
-    header = document.createElement('header');
-    header.className = 'site-header';
-    header.innerHTML = '<div class="header-inner"><a href="/" class="brand" aria-label="ILovePDF home"><span class="brand-mark"><i data-lucide="file-text"></i></span><span class="brand-name">ILove<span>PDF</span></span></a><nav class="nav" id="nav" aria-label="Main"></nav></div>';
+  /* Replace every page header with the exact canonical homepage header. */
+  const headerHolder = document.createElement('div');
+  headerHolder.innerHTML = SHARED_HEADER_HTML.trim();
+  const canonicalHeader = headerHolder.firstElementChild;
+  const currentHeaders = document.querySelectorAll('header.site-header');
+  if (currentHeaders.length) {
+    currentHeaders.forEach((current, index) => {
+      if (index === 0) current.replaceWith(canonicalHeader);
+      else current.remove();
+    });
+  } else {
     const main = document.querySelector('main');
-    if (main) main.parentNode.insertBefore(header, main);
-    else document.body.insertBefore(header, document.body.firstChild);
+    if (main) main.parentNode.insertBefore(canonicalHeader, main);
+    else document.body.insertBefore(canonicalHeader, document.body.firstChild);
   }
 
   /* Replace every page footer with the canonical homepage footer. */
