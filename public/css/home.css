@@ -2965,46 +2965,53 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 
 /* Homepage tool cards: auto-fit at any viewport/zoom level. */
 .tools-grid{
-  grid-template-columns:repeat(auto-fit,minmax(225px,1fr)) !important;
-  gap:18px !important;
+  grid-template-columns:repeat(auto-fit,minmax(245px,1fr)) !important;
+  gap:20px !important;
   align-items:stretch;
 }
 .tool{
   min-width:0;
-  min-height:176px;
-  padding:20px 18px;
+  min-height:220px;
+  padding:24px 22px;
+  box-sizing:border-box;
 }
 .tool > .tool-ico{display:none !important;}
 .tool-text{min-width:0;width:100%;}
 .tool-name{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:11px;
   min-width:0;
-  margin:0 0 7px;
+  margin:0 0 10px;
   color:var(--text);
-  font-size:1.08rem !important;
-  line-height:1.28;
-  font-weight:800 !important;
-  letter-spacing:-.012em;
+  font-size:1.06rem !important;
+  line-height:1.3;
+  font-weight:700 !important;
+  letter-spacing:-.008em;
 }
 .tool-name-label{
   min-width:0;
   overflow-wrap:anywhere;
 }
 .tool-name-sticker{
-  display:inline-grid;
+  display:inline-grid !important;
   place-items:center;
-  flex:0 0 36px;
-  width:36px;
-  height:36px;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  min-width:40px;
+  min-height:40px;
+  position:relative;
+  z-index:2;
+  visibility:visible !important;
+  opacity:1 !important;
   border-radius:10px;
   color:#fff;
   background:linear-gradient(145deg,#6366f1,#4338ca);
   border:1px solid rgba(99,102,241,.42);
   box-shadow:0 6px 14px rgba(79,70,229,.20),inset 0 1px 0 rgba(255,255,255,.35);
 }
-.tool-name-sticker svg{width:18px;height:18px;stroke-width:2.35}
+.tool-name-sticker svg{display:block !important;width:19px;height:19px;stroke-width:2.2;visibility:visible !important;opacity:1 !important;}
 .tool:nth-child(3n) .tool-name-sticker{background:linear-gradient(145deg,#10b981,#047857)}
 .tool:nth-child(3n+2) .tool-name-sticker{background:linear-gradient(145deg,#38bdf8,#2563eb)}
 .tool:nth-child(4n) .tool-name-sticker{background:linear-gradient(145deg,#f59e0b,#ea580c)}
@@ -3013,7 +3020,7 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 .tool .tool-text p{
   margin:0;
   color:var(--text-soft);
-  font-size:.84rem !important;
+  font-size:.82rem !important;
   line-height:1.48;
   display:-webkit-box;
   -webkit-box-orient:vertical;
@@ -3096,12 +3103,12 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   .tools-grid{grid-template-columns:repeat(auto-fit,minmax(205px,1fr)) !important}
   .tool{min-height:168px;padding:17px 15px}
   .tool-name{font-size:1.03rem !important}
-  .tool-name-sticker{width:34px;height:34px;flex-basis:34px}
+  .tool-name-sticker{width:36px;height:36px;min-width:36px;min-height:36px;flex-basis:36px}
 }
 @media (max-width:520px){
   .tools-grid{grid-template-columns:1fr !important}
   .tool-name{font-size:1.02rem !important}
-  .tool-name-sticker{width:33px;height:33px;flex-basis:33px}
+  .tool-name-sticker{width:35px;height:35px;min-width:35px;min-height:35px;flex-basis:35px}
   .tool-heading-sticker{width:40px;height:40px;flex-basis:40px;border-radius:11px}
   .tool-heading-sticker svg{width:20px;height:20px}
   .ilpdf-branded-title .tool-heading-sticker,
