@@ -444,6 +444,26 @@ function renderSessionContinue() {
 }
 
 /* ─── INIT ──────────────────────────────────────────────────────────────── */
+
+/*
+ * Home-card icon stability:
+ * Do not rebuild the category/recent card DOM on every i18n event. Rebuilding
+ * replaces already-created Lucide SVGs with fresh <i data-lucide> nodes; if
+ * Lucide is between loads/renders, the sticker briefly appears and then
+ * disappears. We render once, patch text in place, and centralize icon refresh.
+ */
+function refreshHomeIcons() {
+  const create = () => {
+    if (!window.lucide || typeof window.lucide.createIcons !== 'function') return false;
+    window.lucide.createIcons();
+    return true;
+  };
+  create();
+  setTimeout(create, 80);
+  setTimeout(create, 220);
+  setTimeout(create, 600);
+}
+
 function waitForToolGroupsAndRender(){
   let attempts = 0;
   const run = () => {
@@ -451,16 +471,14 @@ function waitForToolGroupsAndRender(){
     if (ready) {
       renderRecentUse();
       renderCategorySections();
-      const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
-      tryIcons();
-      setTimeout(tryIcons, 150);
-      setTimeout(tryIcons, 700);
+      refreshHomeIcons();
       return;
     }
     if (++attempts < 100) setTimeout(run, 50);
   };
   run();
 }
+
 document.addEventListener('DOMContentLoaded', () => {
   renderSessionContinue();
   waitForToolGroupsAndRender();
@@ -469,8 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireFx();
 
   window.addEventListener('i18n:change', () => {
-    renderRecentUse();
-    renderCategorySections();
+    /* Patch existing card text only; preserve Lucide SVG sticker DOM. */
     if (window.RuntimeI18n) {
       const root = document.getElementById('tools-root');
       if (root) window.RuntimeI18n.patch(root);
@@ -479,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) window.RuntimeI18n.patch(el);
       });
     }
-    tryIcons();
-    setTimeout(tryIcons, 100);
+    refreshHomeIcons();
   });
 });
