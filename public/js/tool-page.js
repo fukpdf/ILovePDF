@@ -437,6 +437,14 @@ function renderStep() {
 }
 
 // Reusable: tool icon + title + description + live/coming-soon badge.
+function standaloneToolHeadingHtml(tool, className = 'tool-header-name') {
+  const cls = className || 'tool-header-name';
+  return `<h1 class="${cls}" data-tool-name-heading="1">
+    <span class="tool-heading-sticker" aria-hidden="true"><i data-lucide="${tool.icon || 'file-text'}"></i></span>
+    <span class="tool-heading-label">${escapeHtml(tool.name)}</span>
+  </h1>`;
+}
+
 function toolHeaderBlock(tool, opts = {}) {
   const catMeta = CATEGORIES.find(c => c.name === tool.category);
   const color = catMeta ? catMeta.color : '#E5322E';
@@ -462,7 +470,7 @@ function toolHeaderBlock(tool, opts = {}) {
           <i data-lucide="${icon}"></i>
         </div>
         <div class="tool-header-info">
-          <h1 class="tool-header-name">${heading}</h1>
+          ${heading === tool.name ? standaloneToolHeadingHtml(tool) : `<h1 class="tool-header-name">${heading}</h1>`}
           <div class="tool-header-desc">${desc}</div>
           ${statusHtml}
         </div>
@@ -637,7 +645,7 @@ function popularToolsHtml(currentToolId) {
           <a class="popular-card" href="/${t.slug}">
             <span class="popular-card-icon"><i data-lucide="${t.icon}"></i></span>
             <span class="popular-card-body">
-              <span class="popular-card-name">${t.name}</span>
+              <span class="popular-card-name"><span class="popular-card-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
               <span class="popular-card-description">${t.description}</span>
             </span>
             <span class="popular-card-arrow" aria-hidden="true">→</span>
@@ -666,7 +674,7 @@ function renderBrandedUploadStep(tool, config) {
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
       <section class="ilpdf-branded-upload-hero" aria-labelledby="${config.headingId || 'tool-upload-heading'}">
-        <h1 class="ilpdf-branded-title" id="${config.headingId || 'tool-upload-heading'}">${escapeHtml(config.title || tool.name)}</h1>
+        ${(config.title || tool.name) === tool.name ? standaloneToolHeadingHtml(tool, 'ilpdf-branded-title') : `<h1 class="ilpdf-branded-title" id="${config.headingId || 'tool-upload-heading'}">${escapeHtml(config.title || tool.name)}</h1>`}
         <p class="ilpdf-branded-subtitle">${config.subtitle || escapeHtml(tool.description)}</p>
 
         <div class="ilpdf-branded-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="${escapeHtml(fileLabel)}">
