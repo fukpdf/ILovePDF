@@ -63,118 +63,9 @@ a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:0;background:none}
 
 /* ============================================================
-   HEADER (fixed — always visible on scroll)
+   HEADER
+   Canonical styles live in /css/home-header-v2.css.
    ============================================================ */
-.site-header{
-  position:fixed;top:0;left:0;right:0;width:100%;
-  z-index:var(--z-header);
-  background:rgba(255,255,255,.97);
-  backdrop-filter:saturate(180%) blur(12px);
-  -webkit-backdrop-filter:saturate(180%) blur(12px);
-  border-bottom:1px solid var(--border);
-  will-change:transform;
-}
-.header-inner{
-  width:100%;
-  height:var(--header-h);
-  padding:0 clamp(16px, 3vw, 40px);
-  display:flex;align-items:center;gap:24px;
-}
-.brand{
-  display:flex;align-items:center;gap:10px;
-  font-weight:800;font-size:1.25rem;letter-spacing:-.01em;
-  white-space:nowrap;
-}
-.brand-mark{
-  width:34px;height:34px;border-radius:10px;
-  background:var(--grad);
-  display:grid;place-items:center;color:#fff;
-  box-shadow:var(--shadow-md);
-}
-.brand-mark svg{width:18px;height:18px}
-.brand-name span{
-  background:var(--grad);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-
-/* Center nav */
-.nav{
-  display:flex;align-items:center;gap:6px;
-  margin:0 auto;
-}
-.nav a, .nav button{
-  position:relative;
-  color:var(--text-soft);font-weight:600;font-size:.92rem;
-  padding:10px 14px;border-radius:10px;
-  display:inline-flex;align-items:center;gap:6px;
-  transition:.2s color,.2s background;
-}
-.nav a:hover, .nav button:hover{color:var(--primary);background:var(--surface-2)}
-.nav .all-tools{
-  background:var(--grad);color:#fff;
-  padding:10px 16px;
-}
-.nav .all-tools:hover{color:#fff;filter:brightness(1.06)}
-
-/* Right cluster */
-.header-cta{
-  display:flex;align-items:center;gap:10px;margin-left:auto;
-}
-.btn{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:9px 16px;border-radius:10px;
-  font-weight:600;font-size:.88rem;
-  transition:.2s transform,.2s box-shadow,.2s background;
-  border:1px solid transparent;
-}
-.btn-ghost{color:var(--text);border-color:var(--border);background:#fff}
-.btn-ghost:hover{background:var(--surface-2)}
-.btn-primary{background:var(--grad);color:#fff;box-shadow:var(--shadow-md)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
-
-.hamburger{
-  display:none;width:42px;height:42px;border-radius:10px;
-  align-items:center;justify-content:center;
-  border:1px solid var(--border);background:#fff;
-}
-.hamburger svg{width:20px;height:20px;color:var(--text)}
-
-/* Mega dropdown (All Tools) */
-.mega{
-  position:absolute;left:50%;transform:translateX(-50%) translateY(8px);
-  top:calc(100% + 6px);
-  width:min(1100px, 92vw);
-  background:#fff;border:1px solid var(--border);border-radius:18px;
-  box-shadow:var(--shadow-lg);
-  padding:22px;
-  display:none;opacity:0;
-  transition:opacity .18s ease, transform .18s ease;
-}
-.mega.open{display:grid;opacity:1;transform:translateX(-50%) translateY(0)}
-.mega-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:18px;
-}
-.mega-col h5{
-  margin:0 0 10px;font-size:.72rem;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--text-mute);font-weight:700;
-}
-.mega-link{
-  display:flex;align-items:center;gap:10px;
-  padding:8px 10px;border-radius:10px;
-  color:var(--text);font-size:.86rem;font-weight:500;
-  transition:.15s background;
-}
-.mega-link:hover{background:var(--grad-soft);color:var(--primary)}
-.mega-link .mi{
-  width:30px;height:30px;border-radius:8px;flex:none;
-  background:var(--grad-soft);color:var(--primary);
-  display:grid;place-items:center;
-}
-.mega-link .mi svg{width:15px;height:15px}
-
-.nav-item{position:relative}
 
 /* ============================================================
    PAGE LAYOUT — 2 columns
@@ -542,11 +433,6 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 
   .tools-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 
-  .nav{display:none}
-  .hamburger{display:inline-flex}
-  /* Mobile header: Logo + Brand + Login + Signup + Hamburger only.
-     Login (.btn-ghost) MUST stay visible — only the dropdown nav is hidden. */
-  .header-cta .btn-ghost{display:inline-flex}
 
   .hero{padding:36px 28px}
 
@@ -556,8 +442,6 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 
 @media (max-width: 768px){
   .page{padding:16px;gap:18px}
-  .header-inner{padding:0 16px;gap:12px}
-  .header-cta .btn-primary{padding:9px 12px}
   .tools-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .tool{padding:14px 12px}
   .tool-ico{width:38px;height:38px}
@@ -597,81 +481,9 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 .drawer .btn-ghost{justify-content:center}
 
 /* ============================================================
-   FINAL REPAIR OVERRIDES (re-applied after rollback)
+   FINAL REPAIR OVERRIDES
+   Header/dropdown styles live in /css/home-header-v2.css.
    ============================================================ */
-
-/* Header nav — direct links + dropdowns + mega panel */
-.nav{display:flex;align-items:center;gap:2px;flex:1;min-width:0;flex-wrap:wrap}
-.nav-direct, .nav .nav-btn{
-  position:relative;color:var(--text-soft);font-weight:600;font-size:.9rem;
-  padding:9px 12px;border-radius:9px;
-  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
-  transition:.18s color,.18s background;background:transparent;border:0;cursor:pointer;
-  text-decoration:none;
-}
-.nav-direct:hover, .nav .nav-btn:hover{color:var(--primary);background:var(--surface-2)}
-.nav-direct{font-weight:700;color:var(--text)}
-.nav .nav-btn svg{width:14px;height:14px;opacity:.7;transition:.2s transform}
-.nav-item.has-dd:hover > .nav-btn svg{transform:rotate(180deg)}
-.nav .all-tools{background:var(--grad);color:#fff;padding:9px 14px}
-.nav .all-tools:hover{color:#fff;filter:brightness(1.06)}
-
-.nav-item{position:relative}
-.nav-item .dd, .nav-item .mega{
-  position:absolute;top:calc(100% + 8px);
-  background:#fff;border:1px solid var(--border);border-radius:14px;
-  box-shadow:var(--shadow-lg);
-  opacity:0;visibility:hidden;transform:translateY(-6px);
-  transition:opacity .15s, transform .15s, visibility .15s;
-  z-index:var(--z-dropdown);
-  max-width:100vw;overflow-x:auto;
-}
-.nav-item .dd{left:0;min-width:240px;padding:10px;display:flex;flex-direction:column;gap:2px}
-.nav-item.has-mega .mega{
-  left:50%;transform:translateX(-50%) translateY(-6px);
-  width:min(1080px,92vw);padding:22px;
-}
-.nav-item:hover .dd, .nav-item:hover .mega,
-.nav-item:focus-within .dd, .nav-item:focus-within .mega,
-.nav-item.is-open .dd, .nav-item.is-open .mega{
-  opacity:1;visibility:visible;transform:translateY(0);
-}
-.nav-item.has-mega:hover .mega,
-.nav-item.has-mega:focus-within .mega,
-.nav-item.has-mega.is-open .mega{
-  transform:translateX(-50%) translateY(0);
-}
-.nav-item.has-mega.is-open > .nav-btn svg{transform:rotate(180deg)}
-.dd-link{
-  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;
-  color:var(--text);font-size:.88rem;font-weight:500;text-decoration:none;
-  transition:.15s background;
-}
-.dd-link:hover{background:var(--grad-soft);color:var(--primary)}
-.dd-link .mi, .mega-link .mi{
-  width:28px;height:28px;border-radius:8px;flex:none;
-  background:var(--grad-soft);color:var(--primary);display:grid;place-items:center;
-}
-.dd-link .mi svg, .mega-link .mi svg{width:14px;height:14px}
-.nav-item.has-dd::after{content:"";position:absolute;left:0;right:0;top:100%;height:10px}
-
-.mega-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:16px}
-@media (max-width:1280px){.mega-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:900px){.mega-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.mega-col h5{
-  margin:0 0 10px;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--text-mute);font-weight:700;
-  padding-bottom:8px;border-bottom:1px solid var(--border);
-}
-.mega-link{
-  display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;
-  color:var(--text);font-size:.82rem;font-weight:500;text-decoration:none;
-  transition:.15s background;
-}
-.mega-link:hover{background:var(--grad-soft);color:var(--primary)}
-@media (max-width:1100px){
-  .nav-item.has-dd:not(.has-mega){display:none}
-}
 
 /* Hero — 50% reduced */
 .hero{padding:14px 24px !important;display:flex;align-items:center;min-height:0}
