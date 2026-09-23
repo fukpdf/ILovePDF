@@ -6652,3 +6652,16 @@ i[data-lucide] {
   background: color-mix(in srgb, var(--primary, #ef233c) 7%, #fff);
   transform: translateY(-2px);
 }
+
+
+/* Crop PDF upload CTA — always use the site's primary theme color */
+.ilpdf-crop-upload .ilpdf-branded-select,
+.ilpdf-crop-upload .ilpdf-branded-select.btn-primary {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+}
+.ilpdf-crop-upload .ilpdf-branded-select:hover {
+  background: var(--primary-dark, #4338ca) !important;
+  border-color: var(--primary-dark, #4338ca) !important;
+}
