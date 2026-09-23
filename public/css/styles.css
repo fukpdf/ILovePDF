@@ -651,28 +651,7 @@ input, select, textarea { font-family: inherit; }
 .report-key { font-weight: 600; min-width: 170px; color: var(--text-muted); flex-shrink: 0; }
 .report-val { color: var(--text); flex: 1; word-break: break-word; }
 
-/* ===== FOOTER ===== */
-.site-footer {
-  background: var(--sidebar-bg);
-  color: #94a3b8;
-  padding: 28px;
-  margin-top: auto;
-  flex-shrink: 0;
-}
-.footer-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.footer-brand { display: flex; align-items: baseline; gap: 10px; }
-.footer-logo { color: #f8fafc; font-weight: 800; font-size: 1.1rem; }
-.footer-tagline { font-size: .78rem; color: #475569; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
-.footer-links a { font-size: .8rem; color: #64748b; transition: color .15s; }
-.footer-links a:hover { color: #a5b4fc; }
-.footer-legal { font-size: .74rem; color: #334155; line-height: 1.5; }
+/* Legacy footer styles removed: canonical footer is /css/home-footer-v2.css. */
 
 /* ===== COOKIE BANNER ===== */
 .cookie-banner {
