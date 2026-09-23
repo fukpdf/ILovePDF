@@ -695,3 +695,30 @@
     max-height: 48vh;
   }
 }
+
+
+/* Canonical mobile footer lock — identical geometry on homepage and tool pages. */
+@media (max-width: 680px) {
+  footer.footer .footer-inner {
+    width: min(100% - 28px, 560px) !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 30px 22px !important;
+    padding: 48px 0 38px !important;
+  }
+  footer.footer .footer-brand {
+    grid-column: 1 / -1 !important;
+    padding-right: 0 !important;
+  }
+  footer.footer .footer-languages {
+    grid-column: 1 / -1 !important;
+  }
+  footer.footer .footer-bottom {
+    width: min(100% - 28px, 560px) !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 15px 0 19px !important;
+  }
+  footer.footer .footer-section-title { gap: 9px !important; }
+  footer.footer .footer-item-link { min-height: 40px !important; }
+  footer.footer .footer-lang-btn { width: 100% !important; }
+}
