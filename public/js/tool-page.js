@@ -1064,7 +1064,7 @@ function renderRotatePreviewStep(tool) {
 // Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
 // processFile) — only the surrounding chrome changes.
 function renderPreviewStep(tool) {
-  if (tool && tool.id !== 'rotate') {
+  if (tool) {
     renderToolPreviewPreparation(tool);
     return;
   }
