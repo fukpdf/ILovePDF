@@ -467,38 +467,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 .tool h4{margin:0;font-size:.95rem;font-weight:700;color:var(--text)}
 .tool p{margin:0;font-size:.78rem;color:var(--text-soft);line-height:1.45}
 
-/* ============================================================
-   FOOTER
-   ============================================================ */
-.footer{
-  margin-top:40px;
-  background:var(--primary-deep);
-  color:#cbd1e2;
-}
-.footer-inner{
-  width:100%;
-  padding:48px clamp(16px, 3vw, 40px) 24px;
-  display:grid;
-  grid-template-columns:1.4fr repeat(4,1fr);
-  gap:32px;
-}
-.footer-col h4{
-  color:#fff;margin:0 0 14px;
-  font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;
-}
-.footer-col a, .footer-col p{
-  display:block;color:#9aa3bd;font-size:.86rem;
-  margin:7px 0;line-height:1.5;transition:.15s color;
-}
-.footer-col a:hover{color:#fff}
-.footer-brand .brand{color:#fff;margin-bottom:10px}
-.footer-bottom{
-  width:100%;
-  padding:18px clamp(16px, 3vw, 40px);
-  border-top:1px solid rgba(255,255,255,.08);
-  display:flex;justify-content:space-between;align-items:center;
-  font-size:.8rem;color:#7d859d;flex-wrap:wrap;gap:8px;
-}
+/* Footer layout is canonicalized in /css/home-footer-v2.css. */
 
 /* ============================================================
    RESPONSIVE — viewport-based breakpoints
