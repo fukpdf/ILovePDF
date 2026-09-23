@@ -2971,8 +2971,8 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 .tool{
   min-width:0;
-  min-height:180px;
-  padding:19px 20px;
+  min-height:360px;
+  padding:24px 22px;
   box-sizing:border-box;
 }
 .tool > .tool-ico{display:none !important;}
@@ -3020,13 +3020,13 @@ body.mo-lock{ overflow:hidden;touch-action:none }
  .tool .tool-text p{
   margin:0;
   color:var(--text-soft);
-  font-size:.78rem !important;
-  line-height:1.42;
+  font-size:1rem !important;
+  line-height:1.55;
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
   overflow:hidden;
-  min-height:2.84em;
+  min-height:3.1em;
 }
 
 /* Standalone tool-name headings on tool pages. */
@@ -3101,13 +3101,13 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 @media (max-width:900px){
   .tools-grid{grid-template-columns:repeat(auto-fit,minmax(215px,1fr)) !important}
-  .tool{min-height:175px;padding:18px 18px}
+  .tool{min-height:320px;padding:22px 20px}
   .tool-name{font-size:1.02rem !important}
   .tool-name-sticker{width:34px;height:34px;min-width:34px;min-height:34px;flex-basis:34px}
 }
 @media (max-width:520px){
   .tools-grid{grid-template-columns:1fr !important}
-  .tool{min-height:170px;padding:17px 17px}
+  .tool{min-height:300px;padding:20px 18px}
   .tool-name{font-size:1.01rem !important}
   .tool-name-sticker{width:33px;height:33px;min-width:33px;min-height:33px;flex-basis:33px}
   .tool-heading-sticker{width:40px;height:40px;flex-basis:40px;border-radius:11px}
