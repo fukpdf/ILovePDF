@@ -805,7 +805,7 @@ function renderUploadStep(tool) {
     container.innerHTML = `
       <div class="tool-page ilpdf-rotate-page ilpdf-rotate-upload">
         <section class="ilpdf-rotate-upload-hero" aria-label="Upload PDF files">
-          <h1 class="ilpdf-rotate-title">Rotate PDF</h1>
+          ${standaloneToolHeadingHtml(tool, "ilpdf-rotate-title")}
           <p class="ilpdf-rotate-subtitle">Rotate PDF pages to the correct orientation — quickly, clearly, and without installing software.</p>
 
           <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="Select PDF files">
