@@ -893,6 +893,8 @@ function ensureI18nAssets() {
 
 /* ── Footer language dropdown (collapsible, click-to-open) ─────────────────── */
 function wireFooterLangSelector() {
+if (window.__ILOVE_SHARED_FOOTER_LANG_WIRED) return;
+window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
   const sel   = document.getElementById('footer-lang-sel');
   const btn   = document.getElementById('footer-lang-btn');
   const panel = document.getElementById('footer-lang-panel');
