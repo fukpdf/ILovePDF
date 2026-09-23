@@ -2038,12 +2038,15 @@ async function processFile() {
     showProcessing(_tp('steps.processing_file', 'Processing your file…'), _tp('steps.usual_time', 'This usually takes only a few seconds.'));
     if (processBtn) processBtn.disabled = true;
 
-    // ── Browser-side path FIRST: zero upload, instant result for any tool
-    // marked `clientSide: true` and supported by BrowserTools. If the
-    // browser handler succeeds we're done. If it throws (or signals
-    // NO_BROWSER_GAIN — e.g. compress couldn't shrink it), we fall through
-    // to the queue / direct paths below.
-    if (currentTool.clientSide && window.BrowserTools && window.BrowserTools.supports(currentTool.id)) {
+    // ── Browser-side path FIRST: dispatch only through the authoritative
+    // execution manifest. There is no server/upload fallback for a tool that
+    // declares a browser processor but cannot execute it locally.
+    const executionManifest = (window.BrowserTools &&
+      typeof window.BrowserTools.getToolExecutionManifest === 'function')
+      ? window.BrowserTools.getToolExecutionManifest(currentTool.id)
+      : null;
+
+    if (currentTool.clientSide && executionManifest && executionManifest.processor === 'browser-tools') {
       try {
         const opts = {};
         (currentTool.options || []).forEach(o => {
@@ -2151,7 +2154,8 @@ async function processFile() {
       }
     }
 
-    // No browser handler found for this tool
+    // No verified browser processor exists for this tool. Do not upload the
+    // user's file through an unverified fallback path.
     hideProcessing();
     showStatus('error', _tp('status.tool_unavailable', 'Tool unavailable'),
       _tp('status.tool_unavailable_msg', 'This tool is not yet available in your browser. Please try again in a moment.'));
