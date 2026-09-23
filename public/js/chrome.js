@@ -202,7 +202,7 @@ function renderHeader(){
         <h5>${bandTitle}</h5>
         ${g.items.map(t => `
           <a class="mega-link" href="${toolUrl(t)}" title="${tTool(t.tid,'desc',t.desc||'')}" data-prio="${t.prio||'instant'}">
-            <span class="mi"><i data-lucide="${t.icon}"></i></span>
+            <span class="mi tool-name-sticker mega-tool-sticker mega-tool-sticker--${k}" aria-hidden="true"><i data-lucide="${t.icon}"></i></span>
             <span class="mega-link-name">${tTool(t.tid, 'title', t.name)}</span>
             ${(window.toolBadgeHtml ? window.toolBadgeHtml(t.prio) : '')}
           </a>`).join('')}
