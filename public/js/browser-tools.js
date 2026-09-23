@@ -4523,6 +4523,16 @@
     'page-numbers', 'watermark', 'sign', 'redact', 'edit',
   ]);
 
+  // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
+  // exact pdf-lib dependency that the existing crop() handler uses, but does
+  // not execute processing or mutate the selected file. It is intentionally
+  // narrow so other tools keep their existing lazy-loading behavior.
+  async function prewarm(toolId) {
+    if (toolId !== 'crop') return { warmed: false };
+    await loadPdfLib();
+    return { warmed: true, dependency: 'pdf-lib' };
+  }
+
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
 
   async function process(toolId, files, options) {
