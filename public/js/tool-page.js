@@ -1647,47 +1647,6 @@ function cropJourneySetStage(stage, title, detail, percent, determinate) {
   }
 }
 
-function readFileWithRealProgress(file, onProgress) {
-  return new Promise(function (resolve, reject) {
-    const reader = new FileReader();
-    reader.onprogress = function (e) {
-      if (e.lengthComputable && typeof onProgress === 'function') onProgress(e.loaded, e.total);
-    };
-    reader.onload = function () { resolve(reader.result); };
-    reader.onerror = function () { reject(reader.error || new Error('Unable to read selected PDF')); };
-    reader.onabort = function () { reject(new Error('PDF read was cancelled')); };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function runCropUploadJourney(file, runId) {
-  const root = document.getElementById('crop-upload-journey');
-  if (!root || !file) return;
-  root.hidden = false;
-  if (window.lucide) lucide.createIcons({ nodes: [root] });
-
-  // Start both real dependency warm-ups immediately while the local file read
-  // is happening. No fake percentage is used for these indeterminate tasks.
-  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm('crop')
-    : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
-    ? window.PdfPreview.loadPdfJs()
-    : Promise.resolve();
-
-  cropJourneySetStage('read', 'Reading your PDF on this device', 'Your file is being read locally; there is no server upload for Crop PDF.', 0, true);
-  await readFileWithRealProgress(file, function (loaded, total) {
-    if (runId !== _cropUploadRun) return;
-    cropJourneySetStage('read', 'Reading your PDF on this device', 'Loading the selected file locally.', (loaded / total) * 100, true);
-  });
-  if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('engine', 'Preparing the crop engine', 'Loading the same PDF library used by the existing Crop PDF processor.', null, false);
-  await Promise.all([engineWarm, previewWarm]);
-  if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('preview', 'Preparing the PDF preview', 'PDF preview resources are ready for the next screen.', null, false);
-  cropJourneySetStage('ready', 'Crop PDF is ready', 'Opening your PDF preview now.', 100, true);
-}
-
 async function handleFiles(fileList) {
   if (!fileList || fileList.length === 0) return;
 
