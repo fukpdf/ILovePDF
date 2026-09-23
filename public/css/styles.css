@@ -6654,14 +6654,16 @@ i[data-lucide] {
 }
 
 
-/* Crop PDF upload CTA — always use the site's primary theme color */
+/* Crop PDF upload CTA — match the site's global gradient theme */
 .ilpdf-crop-upload .ilpdf-branded-select,
 .ilpdf-crop-upload .ilpdf-branded-select.btn-primary {
-  background: var(--primary) !important;
+  background: var(--grad) !important;
   color: #fff !important;
-  border-color: var(--primary) !important;
+  border-color: transparent !important;
+  box-shadow: var(--shadow-md, 0 10px 30px rgba(79,70,229,.12)) !important;
 }
 .ilpdf-crop-upload .ilpdf-branded-select:hover {
-  background: var(--primary-dark, #4338ca) !important;
-  border-color: var(--primary-dark, #4338ca) !important;
+  background: var(--grad) !important;
+  border-color: transparent !important;
+  filter: brightness(1.06);
 }
