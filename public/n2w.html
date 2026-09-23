@@ -12,6 +12,9 @@
   <meta name="theme-color" content="#4f46e5">
   <link rel="canonical" href="https://ilovepdf.cyou/numbers-to-words">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/home-header-v2.css?v=20260924" data-shared-header-css="1">
+  <link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924" data-shared-footer-css="1">
+  <script src="https://unpkg.com/lucide@latest" defer></script>
   <!-- Open Graph -->
   <meta property="og:type"        content="website">
   <meta property="og:title"       content="Numbers to Words Converter — ILovePDF">
@@ -40,6 +43,10 @@
   </script>
   <style>
     body { font-family: 'Inter', system-ui, sans-serif; }
+    #n2w-account-trigger{position:fixed;top:74px;right:16px;z-index:30;border:1px solid #e2e5ee;background:#fff;color:#4f46e5;border-radius:999px;padding:9px 13px;font:600 13px/1.2 Inter,system-ui,sans-serif;box-shadow:0 8px 22px rgba(79,70,229,.12);cursor:pointer}
+    #n2w-account-trigger:hover{filter:brightness(1.03);box-shadow:0 10px 26px rgba(79,70,229,.18)}
+    @media(max-width:640px){#n2w-account-trigger{top:70px;right:10px;padding:8px 11px;font-size:12px}}
+    @media(prefers-reduced-motion:reduce){#n2w-account-trigger{transition:none}}
     .ad-placeholder {
       background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #eef2f7 10px, #eef2f7 20px);
       border: 1px dashed #cbd5e1;
@@ -48,38 +55,8 @@
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
 
-  <!-- TOP HEADER -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-      <button id="open-sidebar" class="p-2 rounded-md hover:bg-slate-100" aria-label="Open menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-
-      <a href="/" class="font-extrabold text-xl tracking-tight no-underline">
-        <span class="text-slate-800">ILove</span><span class="text-brand">PDF</span>
-      </a>
-
-      <!-- All Tools dropdown -->
-      <div class="relative ml-4 hidden md:block" id="tools-dropdown-wrap">
-        <button id="tools-dropdown-btn"
-          class="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-slate-700 hover:bg-brand-light hover:text-brand-dark">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          All Tools
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div id="tools-dropdown" class="hidden absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 max-h-96 overflow-y-auto">
-          <!-- filled by JS -->
-        </div>
-      </div>
-
-      <div class="ml-auto flex items-center gap-2">
-        <a href="/" class="hidden sm:inline-flex text-sm font-medium text-slate-600 hover:text-brand">Home</a>
-        <button id="open-sidebar-2" class="rounded-full overflow-hidden w-9 h-9 border border-slate-200 hover:ring-2 hover:ring-brand">
-          <img id="header-avatar" src="https://api.dicebear.com/7.x/initials/svg?seed=Guest" alt="Profile" class="w-full h-full">
-        </button>
-      </div>
-    </div>
-  </header>
+  <div id="chrome-mount" aria-hidden="true"></div>
+  <button id="n2w-account-trigger" type="button" aria-label="Open account menu" title="Account menu">☰ Account</button>
 
   <!-- MAIN -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
@@ -196,11 +173,7 @@
   </main>
 
   <!-- FOOTER -->
-  <footer class="bg-slate-900 text-slate-400 py-6 mt-10">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center text-xs">
-      &copy; 2026 ILovePDF — Numbers to Words Converter. Free, fast and secure.
-    </div>
-  </footer>
+  <footer class="footer"></footer>
 
   <!-- ============ SIDEBAR (overlay) ============ -->
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-50 hidden" aria-hidden="true"></div>
@@ -287,6 +260,7 @@
     </div>
   </div>
 
+  <script type="module" src="/js/chrome.js"></script>
   <script src="/js/config.js"></script>
   <script src="/js/browser-tools.js"></script>
   <script src="/js/app-router.js"></script>
