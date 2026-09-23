@@ -1291,7 +1291,7 @@ function renderDownloadStep(tool) {
         <div class="ilpdf-rotate-download">
           <div class="ilpdf-download-card">
             <div class="ilpdf-download-icon"><i data-lucide="check"></i></div>
-            <h1>Rotate PDF</h1>
+            ${standaloneToolHeadingHtml(tool, "ilpdf-download-title")}
             <p>Your rotated PDF is ready.</p>
             <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
             <div class="ilpdf-download-actions">
