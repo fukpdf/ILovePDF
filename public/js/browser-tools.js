@@ -4609,5 +4609,5 @@
     return { blob, filename };
   }
 
-  window.BrowserTools = { supports, process, brandedFilename, _loadPdfLib: loadPdfLib };
+  window.BrowserTools = { supports, process, prewarm, brandedFilename, _loadPdfLib: loadPdfLib };
 })();
