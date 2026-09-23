@@ -139,3 +139,14 @@ The architecture changes underneath these visuals. A new design system should ex
 - no claim of 100M concurrent capacity
 - no claim that current single-deploy infrastructure is already horizontally isolated
 - no removal of working tool-specific engines merely to make the code look uniform
+
+
+## Client-first execution boundary
+
+All tools follow the client-first rule: when a reliable browser implementation exists, user files remain in the browser for validation, processing, output validation, and delivery. Worker-safe CPU-heavy processors use the shared WorkerPool without a silent worker-to-main-thread fallback. Streaming, chunking, page-at-a-time processing, transferable buffers, and cooperative yielding are used where the underlying engine supports them; the architecture does not falsely label whole-file processing as streaming.
+
+Large dependencies are lazy-loaded per selected tool. Static dependency assets may be cached, while temporary user files/results have explicit cleanup and are never treated as permanent application assets. The application must not clear the user's entire browser cache after a task.
+
+GitHub remains source control only. Runtime user files, screenshots, extracted text, generated results, prompts, credentials, and secrets are prohibited from being written to repository content, commits, issues, pull requests, or logs.
+
+Laba AI remains a separate chatbot surface and is not part of the document-tool registry or processing engines. It may use an AI provider only when an explicit valid provider configuration is present; there is no hidden provider substitution or fabricated AI fallback. If no provider is configured, the chatbot reports that AI service is unavailable.
