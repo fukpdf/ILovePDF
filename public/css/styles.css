@@ -5699,10 +5699,10 @@ i[data-lucide] {
   display: none;
 }
 
-/* Crop-specific SEO landing content uses the same readable system as Rotate,
+/* Shared branded SEO landing content uses the same readable system across tools,
    but all copy and headings remain specific to the Crop PDF intent. */
-.ilpdf-crop-upload .seo-content--tool,
-.ilpdf-crop-upload .seo-content--tool + .tool-faq {
+.ilpdf-branded-upload .seo-content--tool,
+.ilpdf-branded-upload .seo-content--tool + .tool-faq {
   width: min(1180px, calc(100% - 48px));
   max-width: 1180px;
   margin-left: auto;
@@ -5710,7 +5710,7 @@ i[data-lucide] {
   box-sizing: border-box;
 }
 
-.ilpdf-crop-upload .seo-content--tool {
+.ilpdf-branded-upload .seo-content--tool {
   margin-top: 70px;
   padding: 48px 0 0;
   border-top: 1px solid rgba(99,102,241,.16);
@@ -5840,14 +5840,14 @@ i[data-lucide] {
   font-weight: 800;
 }
 
-.ilpdf-crop-upload .tool-faq {
+.ilpdf-branded-upload .tool-faq {
   padding-top: 34px;
   margin-top: 0;
   margin-bottom: 60px;
   border-top: 1px solid rgba(99,102,241,.12);
 }
 
-.ilpdf-crop-upload .tool-faq h2 {
+.ilpdf-branded-upload .tool-faq h2 {
   margin-bottom: 18px;
   font-size: clamp(24px, 2.3vw, 32px);
   font-weight: 850;
@@ -5954,12 +5954,12 @@ i[data-lucide] {
     font-size: 13px;
   }
 
-  .ilpdf-crop-upload .seo-content--tool,
-  .ilpdf-crop-upload .seo-content--tool + .tool-faq {
+  .ilpdf-branded-upload .seo-content--tool,
+  .ilpdf-branded-upload .seo-content--tool + .tool-faq {
     width: min(100% - 28px, 560px);
   }
 
-  .ilpdf-crop-upload .seo-content--tool {
+  .ilpdf-branded-upload .seo-content--tool {
     margin-top: 50px;
     padding-top: 34px;
   }
@@ -6130,13 +6130,13 @@ i[data-lucide] {
 
 
 /* ============================================================
-   CROP PDF — content sticker + guide poster settings
-   Crop-only rollout for now. These dimensions form the reusable
+   SHARED TOOL UPLOAD — content stickers + guide poster settings
+   Shared branded upload rollout for all standard tools. These dimensions form the reusable
    content pattern to apply to the next tool when requested.
    ============================================================ */
 
 /* Shared size tokens for the branded upload/content pattern. */
-.ilpdf-crop-upload {
+.ilpdf-branded-upload {
   --crop-upload-btn-width: 496px;
   --crop-upload-btn-height: 120px;
   --crop-upload-cloud-size: 54px;
@@ -6149,7 +6149,7 @@ i[data-lucide] {
 
 /* Feature cards: keep the existing 3-column system, but make the icon
    feel like a physical sticker instead of a plain UI icon tile. */
-.ilpdf-crop-upload .seo-sticker-card {
+.ilpdf-branded-upload .seo-sticker-card {
   min-height: 190px;
   padding: 22px;
   display: flex;
@@ -6157,7 +6157,7 @@ i[data-lucide] {
   gap: 18px;
 }
 
-.ilpdf-crop-upload .seo-sticker-icon {
+.ilpdf-branded-upload .seo-sticker-icon {
   width: 62px;
   height: 62px;
   min-width: 62px;
@@ -6171,21 +6171,21 @@ i[data-lucide] {
   position: relative;
 }
 
-.ilpdf-crop-upload .seo-sticker-card:nth-child(2) .seo-sticker-icon {
+.ilpdf-branded-upload .seo-sticker-card:nth-child(2) .seo-sticker-icon {
   transform: rotate(2deg);
   background: linear-gradient(145deg, #fff, #f4f1ff);
   color: #6956d8;
 }
 
-.ilpdf-crop-upload .seo-sticker-card:nth-child(3) .seo-sticker-icon {
+.ilpdf-branded-upload .seo-sticker-card:nth-child(3) .seo-sticker-icon {
   transform: rotate(-3deg);
   background: linear-gradient(145deg, #fff, #fff7e9);
   color: #c97916;
 }
 
-.ilpdf-crop-upload .seo-sticker-icon::after,
-.ilpdf-crop-upload .seo-usecase-sticker::after,
-.ilpdf-crop-upload .seo-section-sticker::after {
+.ilpdf-branded-upload .seo-sticker-icon::after,
+.ilpdf-branded-upload .seo-usecase-sticker::after,
+.ilpdf-branded-upload .seo-section-sticker::after {
   content: "";
   position: absolute;
   right: -5px;
@@ -6198,27 +6198,27 @@ i[data-lucide] {
   opacity: .9;
 }
 
-.ilpdf-crop-upload .seo-sticker-card h3 {
+.ilpdf-branded-upload .seo-sticker-card h3 {
   margin-top: 2px;
 }
 
 /* Every major Crop content section gets one small thematic sticker. */
-.ilpdf-crop-upload .seo-section-with-sticker {
+.ilpdf-branded-upload .seo-section-with-sticker {
   position: relative;
 }
 
-.ilpdf-crop-upload .seo-section-heading {
+.ilpdf-branded-upload .seo-section-heading {
   display: flex;
   align-items: center;
   gap: 15px;
   margin-bottom: 20px;
 }
 
-.ilpdf-crop-upload .seo-section-heading > div {
+.ilpdf-branded-upload .seo-section-heading > div {
   min-width: 0;
 }
 
-.ilpdf-crop-upload .seo-section-sticker {
+.ilpdf-branded-upload .seo-section-sticker {
   position: relative;
   width: var(--crop-section-sticker);
   height: var(--crop-section-sticker);
@@ -6234,18 +6234,18 @@ i[data-lucide] {
   transform: rotate(-2deg);
 }
 
-.ilpdf-crop-upload .seo-section-sticker svg {
+.ilpdf-branded-upload .seo-section-sticker svg {
   width: 26px;
   height: 26px;
   stroke-width: 2.4;
 }
 
-.ilpdf-crop-upload .seo-section-sticker-crop { color: #d94841; }
-.ilpdf-crop-upload .seo-section-sticker-focus { color: #6956d8; transform: rotate(2deg); background: linear-gradient(145deg,#fff,#f4f1ff); }
-.ilpdf-crop-upload .seo-section-sticker-usecase { color: #3177b8; transform: rotate(-3deg); background: linear-gradient(145deg,#fff,#eef7ff); }
-.ilpdf-crop-upload .seo-section-sticker-trust { color: #16825b; transform: rotate(2deg); background: linear-gradient(145deg,#fff,#edfff6); }
+.ilpdf-branded-upload .seo-section-sticker-crop { color: #d94841; }
+.ilpdf-branded-upload .seo-section-sticker-focus { color: #6956d8; transform: rotate(2deg); background: linear-gradient(145deg,#fff,#f4f1ff); }
+.ilpdf-branded-upload .seo-section-sticker-usecase { color: #3177b8; transform: rotate(-3deg); background: linear-gradient(145deg,#fff,#eef7ff); }
+.ilpdf-branded-upload .seo-section-sticker-trust { color: #16825b; transform: rotate(2deg); background: linear-gradient(145deg,#fff,#edfff6); }
 
-.ilpdf-crop-upload .seo-section-kicker {
+.ilpdf-branded-upload .seo-section-kicker {
   display: block;
   margin-bottom: 4px;
   font-size: 10px;
@@ -6255,18 +6255,18 @@ i[data-lucide] {
   color: #8a99ab;
 }
 
-.ilpdf-crop-upload .seo-section-heading h3 {
+.ilpdf-branded-upload .seo-section-heading h3 {
   margin: 0 !important;
 }
 
 /* Four use-case cards get their own matching sticker so the section reads
    more like a visual content panel than a plain text grid. */
-.ilpdf-crop-upload .seo-usecase-grid {
+.ilpdf-branded-upload .seo-usecase-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
-.ilpdf-crop-upload .seo-usecase-card {
+.ilpdf-branded-upload .seo-usecase-card {
   min-height: 160px;
   padding: 18px 16px;
   display: flex;
@@ -6278,7 +6278,7 @@ i[data-lucide] {
   box-shadow: 0 8px 22px rgba(37,45,70,.055);
 }
 
-.ilpdf-crop-upload .seo-usecase-sticker {
+.ilpdf-branded-upload .seo-usecase-sticker {
   position: relative;
   width: var(--crop-usecase-sticker);
   height: var(--crop-usecase-sticker);
@@ -6294,37 +6294,37 @@ i[data-lucide] {
   transform: rotate(-2deg);
 }
 
-.ilpdf-crop-upload .seo-usecase-card:nth-child(2) .seo-usecase-sticker {
+.ilpdf-branded-upload .seo-usecase-card:nth-child(2) .seo-usecase-sticker {
   color: #c97916;
   background: linear-gradient(145deg,#fff,#fff7e9);
   transform: rotate(2deg);
 }
 
-.ilpdf-crop-upload .seo-usecase-card:nth-child(3) .seo-usecase-sticker {
+.ilpdf-branded-upload .seo-usecase-card:nth-child(3) .seo-usecase-sticker {
   color: #3177b8;
   background: linear-gradient(145deg,#fff,#eef7ff);
   transform: rotate(-3deg);
 }
 
-.ilpdf-crop-upload .seo-usecase-card:nth-child(4) .seo-usecase-sticker {
+.ilpdf-branded-upload .seo-usecase-card:nth-child(4) .seo-usecase-sticker {
   color: #6956d8;
   background: linear-gradient(145deg,#fff,#f4f1ff);
   transform: rotate(2deg);
 }
 
-.ilpdf-crop-upload .seo-usecase-sticker svg {
+.ilpdf-branded-upload .seo-usecase-sticker svg {
   width: 25px;
   height: 25px;
   stroke-width: 2.4;
 }
 
-.ilpdf-crop-upload .seo-usecase-card strong {
+.ilpdf-branded-upload .seo-usecase-card strong {
   margin-bottom: 7px;
 }
 
 /* Guide card: intentionally between a banner and a blog/movie-poster card.
    Large enough to read, compact enough not to dominate the page. */
-.ilpdf-crop-upload .tool-learn-more {
+.ilpdf-branded-upload .tool-learn-more {
   width: min(var(--crop-content-max), calc(100% - 48px));
   min-height: var(--crop-guide-height);
   margin: 34px auto 20px;
@@ -6342,7 +6342,7 @@ i[data-lucide] {
   position: relative;
 }
 
-.ilpdf-crop-upload .tool-learn-more::before {
+.ilpdf-branded-upload .tool-learn-more::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
@@ -6350,7 +6350,7 @@ i[data-lucide] {
   background: var(--primary, #E5322E);
 }
 
-.ilpdf-crop-upload .tool-learn-more-icon {
+.ilpdf-branded-upload .tool-learn-more-icon {
   width: var(--crop-guide-poster-width);
   height: 190px;
   border-radius: 14px;
@@ -6368,7 +6368,7 @@ i[data-lucide] {
   overflow: hidden;
 }
 
-.ilpdf-crop-upload .tool-learn-more-icon::before {
+.ilpdf-branded-upload .tool-learn-more-icon::before {
   content: "CROP PDF";
   position: absolute;
   top: 18px;
@@ -6383,7 +6383,7 @@ i[data-lucide] {
   text-align: center;
 }
 
-.ilpdf-crop-upload .tool-learn-more-icon::after {
+.ilpdf-branded-upload .tool-learn-more-icon::after {
   content: "STEP-BY-STEP GUIDE";
   position: absolute;
   bottom: 17px;
@@ -6397,7 +6397,7 @@ i[data-lucide] {
   opacity: .88;
 }
 
-.ilpdf-crop-upload .tool-learn-more-icon svg {
+.ilpdf-branded-upload .tool-learn-more-icon svg {
   width: 62px;
   height: 62px;
   margin-top: 4px;
@@ -6405,12 +6405,12 @@ i[data-lucide] {
   filter: drop-shadow(0 4px 5px rgba(0,0,0,.16));
 }
 
-.ilpdf-crop-upload .tool-learn-more-body {
+.ilpdf-branded-upload .tool-learn-more-body {
   min-width: 0;
   padding: 2px 0;
 }
 
-.ilpdf-crop-upload .tool-learn-more-eyebrow {
+.ilpdf-branded-upload .tool-learn-more-eyebrow {
   display: inline-flex;
   padding: 5px 9px;
   border-radius: 999px;
@@ -6423,7 +6423,7 @@ i[data-lucide] {
   text-transform: uppercase;
 }
 
-.ilpdf-crop-upload .tool-learn-more-body h3 {
+.ilpdf-branded-upload .tool-learn-more-body h3 {
   margin: 11px 0 8px;
   font-size: clamp(22px, 2.1vw, 30px);
   line-height: 1.18;
@@ -6431,7 +6431,7 @@ i[data-lucide] {
   color: #26364b;
 }
 
-.ilpdf-crop-upload .tool-learn-more-body p {
+.ilpdf-branded-upload .tool-learn-more-body p {
   max-width: 650px;
   margin: 0;
   font-size: 15px;
@@ -6439,7 +6439,7 @@ i[data-lucide] {
   color: #60738b;
 }
 
-.ilpdf-crop-upload .tool-learn-more-cta {
+.ilpdf-branded-upload .tool-learn-more-cta {
   min-width: 132px;
   padding: 13px 17px;
   display: inline-flex;
@@ -6456,33 +6456,33 @@ i[data-lucide] {
   transition: transform .18s ease, filter .18s ease;
 }
 
-.ilpdf-crop-upload .tool-learn-more-cta:hover {
+.ilpdf-branded-upload .tool-learn-more-cta:hover {
   transform: translateY(-2px);
   filter: brightness(.97);
 }
 
-.ilpdf-crop-upload .tool-learn-more-cta svg {
+.ilpdf-branded-upload .tool-learn-more-cta svg {
   width: 17px;
   height: 17px;
 }
 
 /* FAQ receives a small poster-like sticker too, completing the same visual
    rhythm without making the FAQ itself oversized. */
-.ilpdf-crop-upload .tool-faq {
+.ilpdf-branded-upload .tool-faq {
   width: min(var(--crop-content-max), calc(100% - 48px));
   max-width: var(--crop-content-max);
   margin: 34px auto 60px;
   padding: 28px 0 0;
 }
 
-.ilpdf-crop-upload .tool-faq h2 {
+.ilpdf-branded-upload .tool-faq h2 {
   display: flex;
   align-items: center;
   gap: 13px;
   font-size: clamp(24px, 2.3vw, 32px);
 }
 
-.ilpdf-crop-upload .tool-faq h2::before {
+.ilpdf-branded-upload .tool-faq h2::before {
   content: "FAQ";
   width: 52px;
   height: 52px;
@@ -6503,63 +6503,63 @@ i[data-lucide] {
 /* Mobile: keep the poster compact and stack content without losing the
    visual hierarchy. */
 @media (max-width: 980px) {
-  .ilpdf-crop-upload .seo-usecase-grid {
+  .ilpdf-branded-upload .seo-usecase-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .ilpdf-crop-upload .tool-learn-more {
+  .ilpdf-branded-upload .tool-learn-more {
     grid-template-columns: 126px minmax(0,1fr);
     min-height: 210px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-icon {
+  .ilpdf-branded-upload .tool-learn-more-icon {
     width: 126px;
     height: 168px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-cta {
+  .ilpdf-branded-upload .tool-learn-more-cta {
     grid-column: 2;
     justify-self: start;
   }
 }
 
 @media (max-width: 640px) {
-  .ilpdf-crop-upload {
+  .ilpdf-branded-upload {
     --crop-guide-height: auto;
     --crop-guide-poster-width: 112px;
   }
 
-  .ilpdf-crop-upload .seo-sticker-card {
+  .ilpdf-branded-upload .seo-sticker-card {
     min-height: 0;
     padding: 18px;
   }
 
-  .ilpdf-crop-upload .seo-sticker-icon {
+  .ilpdf-branded-upload .seo-sticker-icon {
     width: 56px;
     height: 56px;
     min-width: 56px;
   }
 
-  .ilpdf-crop-upload .seo-section-heading {
+  .ilpdf-branded-upload .seo-section-heading {
     gap: 11px;
   }
 
-  .ilpdf-crop-upload .seo-section-sticker {
+  .ilpdf-branded-upload .seo-section-sticker {
     width: 50px;
     height: 50px;
     flex-basis: 50px;
     border-radius: 15px;
   }
 
-  .ilpdf-crop-upload .seo-usecase-grid {
+  .ilpdf-branded-upload .seo-usecase-grid {
     grid-template-columns: 1fr;
   }
 
-  .ilpdf-crop-upload .seo-usecase-card {
+  .ilpdf-branded-upload .seo-usecase-card {
     min-height: 0;
   }
 
-  .ilpdf-crop-upload .tool-learn-more {
+  .ilpdf-branded-upload .tool-learn-more {
     width: calc(100% - 28px);
     grid-template-columns: 92px minmax(0,1fr);
     gap: 14px;
@@ -6567,37 +6567,37 @@ i[data-lucide] {
     border-radius: 16px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-icon {
+  .ilpdf-branded-upload .tool-learn-more-icon {
     width: 92px;
     height: 138px;
     border-width: 4px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-icon svg {
+  .ilpdf-branded-upload .tool-learn-more-icon svg {
     width: 45px;
     height: 45px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-body h3 {
+  .ilpdf-branded-upload .tool-learn-more-body h3 {
     font-size: 21px;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-body p {
+  .ilpdf-branded-upload .tool-learn-more-body p {
     font-size: 13.5px;
     line-height: 1.55;
   }
 
-  .ilpdf-crop-upload .tool-learn-more-cta {
+  .ilpdf-branded-upload .tool-learn-more-cta {
     grid-column: 2;
     min-width: 118px;
     padding: 11px 13px;
   }
 
-  .ilpdf-crop-upload .tool-faq {
+  .ilpdf-branded-upload .tool-faq {
     width: calc(100% - 28px);
   }
 
-  .ilpdf-crop-upload .tool-faq h2::before {
+  .ilpdf-branded-upload .tool-faq h2::before {
     width: 46px;
     height: 46px;
     flex-basis: 46px;
@@ -6605,28 +6605,28 @@ i[data-lucide] {
 }
 
 /* Crop PDF branded upload — cloud buttons + theme-colored primary */
-.ilpdf-crop-upload .ilpdf-branded-select {
+.ilpdf-branded-upload .ilpdf-branded-select {
   background: var(--primary, #ef233c) !important;
   border-color: var(--primary, #ef233c) !important;
   color: #fff !important;
   box-shadow: 0 16px 34px color-mix(in srgb, var(--primary, #ef233c) 30%, transparent);
 }
-.ilpdf-crop-upload .ilpdf-branded-select:hover {
+.ilpdf-branded-upload .ilpdf-branded-select:hover {
   filter: brightness(.94);
   transform: translateY(-2px);
 }
-.ilpdf-crop-upload .ilpdf-branded-clouds {
+.ilpdf-branded-upload .ilpdf-branded-clouds {
   display: flex;
   gap: 12px;
 }
-.ilpdf-crop-upload .ilpdf-branded-cloud {
+.ilpdf-branded-upload .ilpdf-branded-cloud {
   appearance: none;
   border: 1px solid color-mix(in srgb, var(--primary, #ef233c) 22%, #fff);
   background: #fff;
   color: var(--primary, #ef233c);
   cursor: pointer;
 }
-.ilpdf-crop-upload .ilpdf-branded-cloud:hover {
+.ilpdf-branded-upload .ilpdf-branded-cloud:hover {
   border-color: var(--primary, #ef233c);
   background: color-mix(in srgb, var(--primary, #ef233c) 7%, #fff);
   transform: translateY(-2px);
@@ -6634,14 +6634,14 @@ i[data-lucide] {
 
 
 /* Crop PDF upload CTA — match the site's global gradient theme */
-.ilpdf-crop-upload .ilpdf-branded-select,
-.ilpdf-crop-upload .ilpdf-branded-select.btn-primary {
+.ilpdf-branded-upload .ilpdf-branded-select,
+.ilpdf-branded-upload .ilpdf-branded-select.btn-primary {
   background: var(--grad) !important;
   color: #fff !important;
   border-color: transparent !important;
   box-shadow: var(--shadow-md, 0 10px 30px rgba(79,70,229,.12)) !important;
 }
-.ilpdf-crop-upload .ilpdf-branded-select:hover {
+.ilpdf-branded-upload .ilpdf-branded-select:hover {
   background: var(--grad) !important;
   border-color: transparent !important;
   filter: brightness(1.06);
@@ -6652,12 +6652,12 @@ i[data-lucide] {
    CROP PDF — upload preparation journey + popular tool buttons
    Crop-only rollout. Existing processing/preview controls are untouched.
    ============================================================ */
-.ilpdf-crop-upload .popular-tools--crop .popular-grid {
+.ilpdf-branded-upload .popular-tools--crop .popular-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card {
+.ilpdf-branded-upload .popular-tools--crop .popular-card {
   min-height: 92px;
   padding: 10px;
   gap: 0;
@@ -6670,13 +6670,13 @@ i[data-lucide] {
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(2) { background: linear-gradient(135deg, #10b981, #047857); }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(3) { background: linear-gradient(135deg, #38bdf8, #2563eb); }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #ea580c); }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(5) { background: linear-gradient(135deg, #fb7185, #e11d48); }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(6) { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(2) { background: linear-gradient(135deg, #10b981, #047857); }
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(3) { background: linear-gradient(135deg, #38bdf8, #2563eb); }
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(5) { background: linear-gradient(135deg, #fb7185, #e11d48); }
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(6) { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card:hover {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:hover {
   transform: translateY(-3px);
   border-color: transparent;
   box-shadow: 0 16px 32px rgba(37,45,70,.18);
@@ -6684,7 +6684,7 @@ i[data-lucide] {
   color: #26364b;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card-body {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-body {
   min-width: 0;
   width: 100%;
   height: 100%;
@@ -6693,7 +6693,7 @@ i[data-lucide] {
   align-items: center;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card-name {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-name {
   width: 100%;
   min-height: 70px;
   padding: 9px 14px;
@@ -6709,7 +6709,7 @@ i[data-lucide] {
   letter-spacing: -.012em;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
   width: 42px;
   height: 42px;
   min-width: 42px;
@@ -6722,13 +6722,13 @@ i[data-lucide] {
   box-shadow: 0 5px 12px rgba(37,45,70,.10);
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker svg {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-name .tool-name-sticker svg {
   width: 21px;
   height: 21px;
 }
 
-.ilpdf-crop-upload .popular-tools--crop .popular-card-description,
-.ilpdf-crop-upload .popular-tools--crop .popular-card-arrow {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-description,
+.ilpdf-branded-upload .popular-tools--crop .popular-card-arrow {
   display: none !important;
 }
 
@@ -6927,14 +6927,14 @@ i[data-lucide] {
 @keyframes cropJourneyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
 @media (max-width: 980px) {
-  .ilpdf-crop-upload .popular-tools--crop .popular-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ilpdf-branded-upload .popular-tools--crop .popular-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
-  .ilpdf-crop-upload .popular-tools--crop .popular-grid { grid-template-columns: 1fr; }
-  .ilpdf-crop-upload .popular-tools--crop .popular-card { min-height: 82px; padding: 8px; }
-  .ilpdf-crop-upload .popular-tools--crop .popular-card-name { min-height: 64px; font-size: 16px; gap: 11px; padding: 8px 12px; }
-  .ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker { width: 38px; height: 38px; min-width: 38px; flex-basis: 38px; }
+  .ilpdf-branded-upload .popular-tools--crop .popular-grid { grid-template-columns: 1fr; }
+  .ilpdf-branded-upload .popular-tools--crop .popular-card { min-height: 82px; padding: 8px; }
+  .ilpdf-branded-upload .popular-tools--crop .popular-card-name { min-height: 64px; font-size: 16px; gap: 11px; padding: 8px 12px; }
+  .ilpdf-branded-upload .popular-tools--crop .popular-card-name .tool-name-sticker { width: 38px; height: 38px; min-width: 38px; flex-basis: 38px; }
   .crop-upload-journey { grid-template-columns: 78px minmax(0,1fr); gap: 14px; padding: 18px; border-radius: 18px; }
   .crop-journey-visual { width: 72px; height: 82px; }
   .crop-journey-paper { width: 54px; height: 70px; }
@@ -6981,37 +6981,37 @@ i[data-lucide] {
 
 
 /* Crop Popular Tools — full-color homepage-style logo stickers */
-.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
   border: 0 !important;
   color: #fff !important;
   box-shadow: 0 7px 16px rgba(37,45,70,.16), inset 0 1px 0 rgba(255,255,255,.28) !important;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(1) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(1) .tool-name-sticker {
   background: linear-gradient(145deg, #6366f1, #4338ca) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(2) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(2) .tool-name-sticker {
   background: linear-gradient(145deg, #10b981, #047857) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(3) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(3) .tool-name-sticker {
   background: linear-gradient(145deg, #38bdf8, #2563eb) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(4) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(4) .tool-name-sticker {
   background: linear-gradient(145deg, #f59e0b, #ea580c) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(5) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(5) .tool-name-sticker {
   background: linear-gradient(145deg, #fb7185, #e11d48) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(6) .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:nth-child(6) .tool-name-sticker {
   background: linear-gradient(145deg, #a78bfa, #7c3aed) !important;
 }
-.ilpdf-crop-upload .popular-tools--crop .popular-card:hover .tool-name-sticker {
+.ilpdf-branded-upload .popular-tools--crop .popular-card:hover .tool-name-sticker {
   transform: translateY(-2px) rotate(-2deg) scale(1.04);
   filter: saturate(1.08);
   box-shadow: 0 10px 20px rgba(37,45,70,.20), inset 0 1px 0 rgba(255,255,255,.32) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+  .ilpdf-branded-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
     transition: none;
   }
 }
