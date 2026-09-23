@@ -441,7 +441,7 @@ function standaloneToolHeadingHtml(tool, className = 'tool-header-name', id = ''
   const cls = className || 'tool-header-name';
   const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
   return `<h1 class="${cls}"${idAttr} data-tool-name-heading="1">
-    <span class="tool-heading-sticker" aria-hidden="true"><i data-lucide="${tool.icon || 'file-text'}"></i></span>
+    <span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${tool.icon || 'file-text'}"></i></span>
     <span class="tool-heading-label">${escapeHtml(tool.name)}</span>
   </h1>`;
 }
@@ -644,9 +644,8 @@ function popularToolsHtml(currentToolId) {
       <div class="popular-grid">
         ${list.map(t => `
           <a class="popular-card" href="/${t.slug}">
-            <span class="popular-card-icon"><i data-lucide="${t.icon}"></i></span>
             <span class="popular-card-body">
-              <span class="popular-card-name"><span class="popular-card-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
+              <span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
               <span class="popular-card-description">${t.description}</span>
             </span>
             <span class="popular-card-arrow" aria-hidden="true">→</span>
