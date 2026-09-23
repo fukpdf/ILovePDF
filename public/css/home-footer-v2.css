@@ -656,3 +656,42 @@
     height: 14px;
   }
 }
+
+
+/* Footer language dropdown: explicit positioned panel so it remains
+   visible above the footer instead of relying on browser hidden flow. */
+.footer-lang-sel {
+  position: relative;
+  width: 100%;
+  z-index: 50;
+}
+.footer-lang-panel[hidden] {
+  display: none !important;
+}
+.footer-lang-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 100;
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 7px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: #171b31;
+}
+.footer-lang-panel .footer-lang-link {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  text-decoration: none;
+}
+@media (max-width: 680px) {
+  .footer-lang-panel {
+    bottom: calc(100% + 8px);
+    max-height: 48vh;
+  }
+}
