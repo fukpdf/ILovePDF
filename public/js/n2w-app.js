@@ -62,10 +62,11 @@ function closeSidebar() {
   $('sidebar-backdrop').classList.add('hidden');
   $('sidebar').classList.add('-translate-x-full');
 }
-$('open-sidebar').addEventListener('click', openSidebar);
-$('open-sidebar-2').addEventListener('click', openSidebar);
-$('close-sidebar').addEventListener('click', closeSidebar);
-$('sidebar-backdrop').addEventListener('click', closeSidebar);
+$('open-sidebar')?.addEventListener('click', openSidebar);
+$('open-sidebar-2')?.addEventListener('click', openSidebar);
+$('n2w-account-trigger')?.addEventListener('click', openSidebar);
+$('close-sidebar')?.addEventListener('click', closeSidebar);
+$('sidebar-backdrop')?.addEventListener('click', closeSidebar);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
 
 // ── ALL TOOLS DROPDOWN (header) ────────────────────────────────────────────
@@ -107,11 +108,11 @@ function openAuth(mode) {
   $('name-row').classList.toggle('hidden', mode !== 'signup');
   $('auth-err').classList.add('hidden');
 }
-$('show-signup').addEventListener('click', () => openAuth('signup'));
-$('show-login').addEventListener('click',  () => openAuth('login'));
-$('close-auth').addEventListener('click', () => $('auth-modal').classList.add('hidden'));
-$('auth-modal').addEventListener('click', e => { if (e.target === e.currentTarget) $('auth-modal').classList.add('hidden'); });
-$('auth-toggle').addEventListener('click', () => openAuth(authMode === 'signup' ? 'login' : 'signup'));
+$('show-signup')?.addEventListener('click', () => openAuth('signup'));
+$('show-login')?.addEventListener('click',  () => openAuth('login'));
+$('close-auth')?.addEventListener('click', () => $('auth-modal')?.classList.add('hidden'));
+$('auth-modal')?.addEventListener('click', e => { if (e.target === e.currentTarget) $('auth-modal').classList.add('hidden'); });
+$('auth-toggle')?.addEventListener('click', () => openAuth(authMode === 'signup' ? 'login' : 'signup'));
 
 $('auth-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -138,7 +139,7 @@ $('auth-form').addEventListener('submit', async e => {
   applyUser(json.user);
 });
 
-$('logout-btn').addEventListener('click', async () => {
+$('logout-btn')?.addEventListener('click', async () => {
   await (window.apiFetch || fetch)('/api/auth/logout', { method: 'POST', credentials: 'include' });
   applyUser(null);
 });
@@ -149,7 +150,7 @@ function applyUser(user) {
     $('sb-name').textContent = 'Guest';
     $('sb-email').textContent = 'Not signed in';
     $('sb-avatar').src = 'https://api.dicebear.com/7.x/initials/svg?seed=Guest';
-    $('header-avatar').src = 'https://api.dicebear.com/7.x/initials/svg?seed=Guest';
+    if ($('header-avatar')) $('header-avatar').src = 'https://api.dicebear.com/7.x/initials/svg?seed=Guest';
     $('storage-text').textContent = '0 GB / 2 GB';
     $('storage-bar').style.width = '0%';
     $('auth-buttons').classList.remove('hidden');
@@ -160,7 +161,7 @@ function applyUser(user) {
   $('sb-email').textContent = user.email;
   const seed = encodeURIComponent(user.name || user.email);
   $('sb-avatar').src      = `https://api.dicebear.com/7.x/initials/svg?seed=${seed}`;
-  $('header-avatar').src  = `https://api.dicebear.com/7.x/initials/svg?seed=${seed}`;
+  if ($('header-avatar')) $('header-avatar').src  = `https://api.dicebear.com/7.x/initials/svg?seed=${seed}`;
 
   const usedGB  = (user.storage_used  / (1024 ** 3)).toFixed(2);
   const totalGB = (user.storage_quota / (1024 ** 3)).toFixed(0);
