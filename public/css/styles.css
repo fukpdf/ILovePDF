@@ -6975,3 +6975,27 @@ i[data-lucide] {
   .crop-journey-stages li.is-active > span { animation: none !important; }
   .crop-journey-progress > span { transition: none; }
 }
+
+
+/* Crop preview preparation stepper — one active color moves stage-by-stage. */
+.crop-upload-journey .crop-journey-stages { position: relative; }
+.crop-upload-journey .crop-journey-stages::before {
+  content: '';
+  position: absolute;
+  left: 12.5%; right: 12.5%; top: 19px;
+  height: 3px;
+  border-radius: 999px;
+  background: #e8eaf7;
+  z-index: 0;
+}
+.crop-upload-journey .crop-journey-stages li { position: relative; z-index: 1; }
+.crop-upload-journey .crop-journey-stages li > span { border: 2px solid #eef0f8; }
+.crop-upload-journey .crop-journey-stages li.is-active > span {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+.crop-upload-journey .crop-journey-stages li.is-done > span {
+  background: #dff8ee;
+  border-color: #34d399;
+  color: #047857;
+}
