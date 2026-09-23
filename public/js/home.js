@@ -444,17 +444,29 @@ function renderSessionContinue() {
 }
 
 /* ─── INIT ──────────────────────────────────────────────────────────────── */
+function waitForToolGroupsAndRender(){
+  let attempts = 0;
+  const run = () => {
+    const ready = Array.isArray(window.TOOL_GROUPS) && window.TOOL_GROUPS.length > 0;
+    if (ready) {
+      renderRecentUse();
+      renderCategorySections();
+      const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
+      tryIcons();
+      setTimeout(tryIcons, 150);
+      setTimeout(tryIcons, 700);
+      return;
+    }
+    if (++attempts < 100) setTimeout(run, 50);
+  };
+  run();
+}
 document.addEventListener('DOMContentLoaded', () => {
-  renderRecentUse();
   renderSessionContinue();
-  renderCategorySections();
+  waitForToolGroupsAndRender();
   wireCalc();
   wireCalcToggle();
   wireFx();
-  const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
-  tryIcons();
-  setTimeout(tryIcons, 150);
-  setTimeout(tryIcons, 700);
 
   window.addEventListener('i18n:change', () => {
     renderRecentUse();
