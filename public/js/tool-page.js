@@ -764,163 +764,32 @@ function renderBrandedUploadStep(tool, config) {
 // Minimal hero: tool icon, name (H1), description, ONE big "Upload File"
 // primary button. Drag-and-drop is still supported on the same area for
 // power users. SEO content stays here on the canonical page.
-function renderUploadStep(tool) {
-  const container = document.getElementById('tool-content');
-  if (!container) return;
-  container.classList.remove('ew-wide');
-
-  const fileLabel = tool.multipleFiles
-    ? _tp('tool.upload_files', 'Select PDF files')
-    : _tp('tool.upload_file', 'Select PDF file');
-  const multiAttr = tool.multipleFiles ? 'multiple' : '';
-  const fileType  = tool.group === 'image' ? 'image' : 'PDF';
-  const isRotateTool = tool.id === 'rotate';
-
-  if (tool.id === 'crop') {
-    return renderBrandedUploadStep(tool, {
-      pageClass: 'ilpdf-crop-upload',
-      headingId: 'crop-upload-heading',
-      title: 'Crop PDF',
-      subtitle: 'Crop PDF pages to remove unwanted margins and keep only the content you need.',
-      fileLabel: 'Select PDF file',
-      cloudButtons: true,
-      benefitsLabel: 'How Crop PDF works',
-      benefits: [
-        {
-          sticker: 'ilpdf-branded-sticker-upload',
-          icon: 'upload-cloud',
-          title: 'Upload your PDF',
-          text: 'Choose a PDF or drag it into the upload area.'
-        },
-        {
-          sticker: 'ilpdf-branded-sticker-crop',
-          icon: 'crop',
-          title: 'Set the crop area',
-          text: 'Trim unwanted edges and keep the important page content.'
-        },
-        {
-          sticker: 'ilpdf-branded-sticker-download',
-          icon: 'download',
-          title: 'Download the result',
-          text: 'Create your cropped PDF and continue with your document.'
-        }
-      ]
-    });
-  }
-
-  if (isRotateTool) {
-    // Rotate upload intentionally mirrors the iLovePDF Rotate PDF upload
-    // composition. Existing file-input/setup logic is retained unchanged.
-    container.innerHTML = `
-      <div class="tool-page ilpdf-rotate-page ilpdf-rotate-upload">
-        <section class="ilpdf-rotate-upload-hero" aria-label="Upload PDF files">
-          ${standaloneToolHeadingHtml(tool, "ilpdf-rotate-title")}
-          <p class="ilpdf-rotate-subtitle">Rotate PDF pages to the correct orientation — quickly, clearly, and without installing software.</p>
-
-          <div class="ilpdf-rotate-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="Select PDF files">
-            <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
-            <div class="ilpdf-rotate-action-row">
-              <button type="button" class="btn btn-primary ilpdf-rotate-select" id="upload-cta-btn">
-                <i data-lucide="upload"></i> Select PDF files
-              </button>
-              <div class="ilpdf-rotate-clouds" aria-hidden="true">
-                <span class="ilpdf-rotate-cloud"><i data-lucide="hard-drive-upload"></i></span>
-                <span class="ilpdf-rotate-cloud"><i data-lucide="box"></i></span>
-              </div>
-            </div>
-            <div class="ilpdf-rotate-droptext">or drop PDFs here</div>
-
-            <div class="ilpdf-rotate-benefits" aria-label="How Rotate PDF works">
-              <div class="ilpdf-rotate-benefit">
-                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-upload" aria-hidden="true">
-                  <span class="ilpdf-sticker-paper"></span>
-                  <i data-lucide="upload-cloud"></i>
-                </div>
-                <div class="ilpdf-rotate-benefit-copy">
-                  <strong>Upload your PDF</strong>
-                  <span>Drop a PDF here or choose one from your device.</span>
-                </div>
-              </div>
-
-              <div class="ilpdf-rotate-benefit">
-                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-pages" aria-hidden="true">
-                  <span class="ilpdf-sticker-page p1"></span>
-                  <span class="ilpdf-sticker-page p2"></span>
-                  <i data-lucide="scan-line"></i>
-                </div>
-                <div class="ilpdf-rotate-benefit-copy">
-                  <strong>Check every page</strong>
-                  <span>See the real page orientation before you rotate it.</span>
-                </div>
-              </div>
-
-              <div class="ilpdf-rotate-benefit">
-                <div class="ilpdf-rotate-sticker ilpdf-rotate-sticker-rotate" aria-hidden="true">
-                  <span class="ilpdf-sticker-circle"></span>
-                  <i data-lucide="rotate-cw"></i>
-                </div>
-                <div class="ilpdf-rotate-benefit-copy">
-                  <strong>Rotate with control</strong>
-                  <span>Turn pages right or left, then download the result.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        ${trustStripHtml()}
-        ${renderSeoContent(tool)}
-        ${learnMoreHtml(tool)}
-        ${popularToolsHtml(tool.id)}
-      </div>`;
-
-    if (window.lucide) lucide.createIcons();
-    setupFileInput();
-    const cta = document.getElementById('upload-cta-btn');
-    if (cta) cta.addEventListener('click', e => {
-      e.stopPropagation();
-      document.getElementById('file-input')?.click();
-    });
-    wireStepNav();
-    try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } })); } catch (_) {}
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="tool-page">
-      ${toolHeaderBlock(tool)}
-      ${stepIndicatorHtml('upload')}
-
-      <section class="upload-step" aria-label="Upload your file">
-        <div class="upload-area upload-area--hero" id="upload-area" tabindex="0" role="button" aria-label="${fileLabel}">
-          <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
-          <div class="upload-icon"><i data-lucide="upload-cloud"></i></div>
-          <button type="button" class="btn btn-primary btn-xl upload-cta" id="upload-cta-btn">
-            <i data-lucide="upload"></i> ${fileLabel}
-          </button>
-          <div class="upload-step-or">or drop ${tool.multipleFiles ? `${fileType} files` : `your ${fileType}`} here</div>
-          <div class="upload-step-meta">Accepted: ${tool.acceptedFiles} · Max 100&nbsp;MB${tool.multipleFiles ? ' · Multiple files allowed' : ''}</div>
-        </div>
-
-        ${trustStripHtml()}
-      </section>
-
-      ${renderSeoContent(tool)}
-      ${learnMoreHtml(tool)}
-      ${popularToolsHtml(tool.id)}
-    </div>`;
-
-  if (window.lucide) lucide.createIcons();
-  setupFileInput();
-  const cta = document.getElementById('upload-cta-btn');
-  if (cta) cta.addEventListener('click', e => {
-    e.stopPropagation();
-    document.getElementById('file-input')?.click();
-  });
-  wireStepNav();
-  try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'upload' } })); } catch (_) {}
+function getBrandedUploadConfig(tool) {
+  const isImage = tool.group === 'image';
+  const fileType = isImage ? 'image' : 'PDF';
+  const noun = tool.multipleFiles ? `${fileType} files` : fileType;
+  const operation = tool.name.replace(/\s+/g, ' ').trim();
+  return {
+    pageClass: 'ilpdf-branded-tool-upload',
+    headingId: `${tool.id}-upload-heading`,
+    title: tool.name,
+    subtitle: tool.description,
+    fileLabel: `Select ${noun}`,
+    cloudButtons: false,
+    benefitsLabel: `How ${operation} works`,
+    benefits: [
+      { sticker: 'ilpdf-branded-sticker-upload', icon: 'upload-cloud', title: `Upload your ${fileType}`, text: tool.multipleFiles ? `Choose your ${fileType.toLowerCase()} files or drag them into the upload area.` : `Choose a ${fileType.toLowerCase()} file or drag it into the upload area.` },
+      { sticker: 'ilpdf-branded-sticker-crop', icon: tool.icon || 'settings-2', title: `Use ${operation}`, text: `Review the preview and use the available ${operation.toLowerCase()} controls before processing.` },
+      { sticker: 'ilpdf-branded-sticker-download', icon: 'download', title: 'Download your result', text: 'Review the finished file, then download it or start another task.' }
+    ]
+  };
 }
 
+function renderUploadStep(tool) {
+  // Shared upload experience for all standard tools. Tool-specific processing,
+  // editors, previews, options, SEO content, and result handling stay intact.
+  return renderBrandedUploadStep(tool, getBrandedUploadConfig(tool));
+}
 // ── STEP 2b — PRO MAX EDITOR STEP ─────────────────────────────────────────
 // Mounts a full interactive editor (BgRemoverPro / EditPdfPro) in place of
 // the standard preview+process flow. The editor's callback fires
@@ -1195,57 +1064,56 @@ function renderRotatePreviewStep(tool) {
 // Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
 // processFile) — only the surrounding chrome changes.
 function renderPreviewStep(tool) {
-  if (tool && tool.id === 'crop') {
-    renderCropPreviewJourney(tool);
+  if (tool && tool.id !== 'rotate') {
+    renderToolPreviewPreparation(tool);
     return;
   }
   renderStandardPreviewStep(tool);
 }
 
-function renderCropPreviewJourney(tool) {
+function renderToolPreviewPreparation(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
   container.classList.add('ew-wide');
+  const isImage = tool.group === 'image';
   container.innerHTML = `
     <div class="tool-page ew-preview-page crop-preview-prep-page">
       ${toolHeaderBlock(tool, {
         heading: `Preparing — ${tool.name}`,
-        desc: 'Preparing your PDF for the Crop PDF preview.',
-        icon: 'crop',
+        desc: `Preparing your ${isImage ? 'image' : 'file'} for the ${tool.name} preview.`,
+        icon: tool.icon || (isImage ? 'image' : 'file-text'),
         hideStatus: true,
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
-      ${cropUploadJourneyHtml()}
+      ${cropUploadJourneyHtml(tool)}
     </div>`;
   const journey = document.getElementById('crop-upload-journey');
   if (journey) journey.hidden = false;
   if (window.lucide) lucide.createIcons();
-
   const runId = ++_cropUploadRun;
   const startedAt = Date.now();
-  runCropPreviewJourney(tool, runId, startedAt, 3500);
+  runToolPreviewPreparation(tool, runId, startedAt, 2200);
 }
 
-async function runCropPreviewJourney(tool, runId, startedAt, minimumMs) {
+async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const journey = document.getElementById('crop-upload-journey');
   if (!journey) return;
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
   const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm('crop')
+    ? window.BrowserTools.prewarm(tool.id)
     : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
+  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && !isImageTool(tool))
     ? window.PdfPreview.loadPdfJs()
     : Promise.resolve();
-
-  // This percentage is explicitly a staged preparation animation, not upload speed.
+  const isImage = tool.group === 'image';
   const stages = [
-    { at: 0, stage: 'read', title: 'Reading your PDF', detail: 'Checking the selected document before the crop preview opens.' },
-    { at: 28, stage: 'engine', title: 'Preparing crop tools', detail: 'Getting the Crop PDF engine ready in your browser.' },
-    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the PDF preview renderer ready.' },
-    { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing the crop workspace.' }
+    { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
+    { at: 28, stage: 'engine', title: 'Preparing ' + tool.name, detail: 'Getting the ' + tool.name + ' workspace ready.' },
+    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
+    { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing your workspace.' }
   ];
   const updateVisual = value => {
     if (runId !== _cropUploadRun) return;
@@ -1269,7 +1137,7 @@ async function runCropPreviewJourney(tool, runId, startedAt, minimumMs) {
   const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
   if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
   if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('ready', 'Crop PDF is ready', 'Opening your PDF preview.', 100, true);
+  cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
   await new Promise(resolve => setTimeout(resolve, 220));
   if (runId !== _cropUploadRun) return;
   renderStandardPreviewStep(tool);
@@ -1573,9 +1441,9 @@ function setupFileInput() {
   });
 }
 
-function cropUploadJourneyHtml() {
+function cropUploadJourneyHtml(tool) {
   return `
-    <section class="crop-upload-journey" id="crop-upload-journey" aria-label="Preparing Crop PDF" hidden>
+    <section class="crop-upload-journey" id="crop-upload-journey" aria-label="Preparing tool" hidden>
       <div class="crop-journey-visual" aria-hidden="true">
         <div class="crop-journey-paper">
           <span class="crop-journey-line l1"></span>
@@ -1590,12 +1458,12 @@ function cropUploadJourneyHtml() {
         <div class="crop-journey-orbit"><i data-lucide="crop"></i></div>
       </div>
       <div class="crop-journey-copy">
-        <div class="crop-journey-kicker">Crop PDF is getting ready</div>
-        <strong id="crop-journey-title">Reading your PDF on this device</strong>
-        <span id="crop-journey-detail">Your file stays in your browser while the Crop PDF workspace prepares.</span>
+        <div class="crop-journey-kicker">Your tool is getting ready</div>
+        <strong id="crop-journey-title">Reading your selected file</strong>
+        <span id="crop-journey-detail">Your selected file is prepared for the next step.</span>
       </div>
       <div class="crop-journey-progress-wrap">
-        <div class="crop-journey-progress" role="progressbar" aria-label="Reading selected PDF" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-describedby="crop-journey-progress-text">
+        <div class="crop-journey-progress" role="progressbar" aria-label="Preparing selected file" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-describedby="crop-journey-progress-text">
           <span id="crop-journey-progress-fill"></span>
         </div>
         <div class="crop-journey-progress-meta">
@@ -1603,13 +1471,13 @@ function cropUploadJourneyHtml() {
           <strong id="crop-journey-percent">0%</strong>
         </div>
       </div>
-      <ol class="crop-journey-stages" aria-label="Crop PDF preparation stages">
+      <ol class="crop-journey-stages" aria-label="Tool preparation stages">
         <li data-crop-stage="read" class="is-active"><span><i data-lucide="file-search-2"></i></span><b>Read PDF</b></li>
-        <li data-crop-stage="engine"><span><i data-lucide="cpu"></i></span><b>Prepare crop engine</b></li>
+        <li data-crop-stage="engine"><span><i data-lucide="cpu"></i></span><b>Prepare tool</b></li>
         <li data-crop-stage="preview"><span><i data-lucide="scan-line"></i></span><b>Prepare preview</b></li>
         <li data-crop-stage="ready"><span><i data-lucide="check"></i></span><b>Ready</b></li>
       </ol>
-      <div class="crop-journey-status" id="crop-journey-status" role="status" aria-live="polite" aria-atomic="true">Preparing Crop PDF…</div>
+      <div class="crop-journey-status" id="crop-journey-status" role="status" aria-live="polite" aria-atomic="true">Preparing…</div>
     </section>
   `;
 }
@@ -1676,8 +1544,8 @@ async function handleFiles(fileList) {
   // Crop PDF gets a real local-read + dependency-prewarm journey before
   // the existing preview navigation. All other tools keep the exact old path.
   if (Flow.step === 'upload') {
-    // Crop preparation is intentionally rendered on the preview transition,
-    // not under the upload button. All file persistence remains immediate.
+    // All standard tools now share the same upload → preparation → preview
+    // transition. The preparation panel is not an upload-speed indicator.
     Flow.navTo('preview');
   } else {
     renderFileList();
