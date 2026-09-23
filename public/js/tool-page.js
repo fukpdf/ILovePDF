@@ -1717,18 +1717,8 @@ async function handleFiles(fileList) {
   // Crop PDF gets a real local-read + dependency-prewarm journey before
   // the existing preview navigation. All other tools keep the exact old path.
   if (Flow.step === 'upload') {
-    if (currentTool && currentTool.id === 'crop') {
-      const runId = ++_cropUploadRun;
-      try {
-        await runCropUploadJourney(incoming[0], runId);
-      } catch (err) {
-        // Warm-up is additive. Never block the existing Crop PDF flow if a
-        // dependency fails; the existing preview/processor will handle it.
-        const status = document.getElementById('crop-journey-status');
-        if (status) status.textContent = 'Opening the preview — the existing Crop PDF flow will continue normally.';
-      }
-      if (runId !== _cropUploadRun) return;
-    }
+    // Crop preparation is intentionally rendered on the preview transition,
+    // not under the upload button. All file persistence remains immediate.
     Flow.navTo('preview');
   } else {
     renderFileList();
