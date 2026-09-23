@@ -4558,30 +4558,33 @@
       }
     } catch (e) { if (e.message === 'memory_pressure') throw e; }
 
-    // ── Worker Pool path (off-main-thread for eligible pure pdf-lib tools) ──
-    if (WORKER_TOOLS.has(toolId) && typeof Worker !== 'undefined') {
-      try {
-        const pool = await loadWorkerPool().catch(() => null);
-        if (pool) {
-          const fileName = files[0].name;
-          const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
-          const workerResult = await pool.run(
-            '/workers/pdf-worker.js',
-            { tool: toolId, buffers, options: options || {} },
-            buffers,
-          );
-          if (workerResult && workerResult.buffer) {
-            const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-            if (blob.size === 0) throw new Error('Worker produced empty output — falling back');
-            return { blob, filename: brandedFilename(fileName, '.pdf') };
-          }
-        }
-      } catch (workerErr) {
-        // Fall through to main-thread path silently
+    // ── Worker Pool path (strict for eligible pure pdf-lib tools) ────────
+    // Eligible tools must stay off the main thread. There is intentionally
+    // NO silent worker → main-thread fallback: a worker failure is surfaced
+    // so a heavy operation cannot unexpectedly block the UI.
+    if (WORKER_TOOLS.has(toolId)) {
+      if (typeof Worker === 'undefined') {
+        throw new Error('worker_processing_unavailable');
       }
+      const pool = await loadWorkerPool();
+      const fileName = files[0].name;
+      const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
+      const workerResult = await pool.run(
+        '/workers/pdf-worker.js',
+        { tool: toolId, buffers, options: options || {} },
+        buffers,
+      );
+      if (!workerResult || !workerResult.buffer) {
+        throw new Error('worker_processing_failed');
+      }
+      const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+      if (!blob || blob.size < 200) {
+        throw new Error('worker_output_invalid');
+      }
+      return { blob, filename: brandedFilename(fileName, '.pdf') };
     }
 
-    // ── Main-thread path ─────────────────────────────────────────────────
+    // ── Main-thread path for tools that are not yet worker-safe ────────────
     const result = await fn(files, options || {});
     let blob, ext;
     if (result && result.blob) {
