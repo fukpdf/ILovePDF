@@ -6667,3 +6667,311 @@ i[data-lucide] {
   border-color: transparent !important;
   filter: brightness(1.06);
 }
+
+
+/* ============================================================
+   CROP PDF — upload preparation journey + popular tool buttons
+   Crop-only rollout. Existing processing/preview controls are untouched.
+   ============================================================ */
+.ilpdf-crop-upload .popular-tools--crop .popular-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card {
+  min-height: 92px;
+  padding: 10px;
+  gap: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  box-shadow: 0 10px 24px rgba(37,45,70,.12);
+  color: #fff;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(2) { background: linear-gradient(135deg, #10b981, #047857); }
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(3) { background: linear-gradient(135deg, #38bdf8, #2563eb); }
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(5) { background: linear-gradient(135deg, #fb7185, #e11d48); }
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(6) { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card:hover {
+  transform: translateY(-3px);
+  border-color: transparent;
+  box-shadow: 0 16px 32px rgba(37,45,70,.18);
+  filter: saturate(1.04);
+  color: #26364b;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card-body {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card-name {
+  width: 100%;
+  min-height: 70px;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-radius: 11px;
+  background: rgba(255,255,255,.97);
+  color: #26364b;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.012em;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  flex: 0 0 42px;
+  border-radius: 11px;
+  margin: 0;
+  background: #fff !important;
+  color: var(--primary-dark, #4338ca);
+  border: 1px solid rgba(67,56,202,.12);
+  box-shadow: 0 5px 12px rgba(37,45,70,.10);
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker svg {
+  width: 21px;
+  height: 21px;
+}
+
+.ilpdf-crop-upload .popular-tools--crop .popular-card-description,
+.ilpdf-crop-upload .popular-tools--crop .popular-card-arrow {
+  display: none !important;
+}
+
+/* Upload preparation journey. Determinate fill is used only for FileReader's
+   real local-read progress; dependency stages remain indeterminate. */
+.crop-upload-journey {
+  width: min(820px, 100%);
+  margin: 30px auto 0;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 112px minmax(0,1fr);
+  gap: 18px 20px;
+  align-items: center;
+  text-align: left;
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(246,247,255,.96));
+  border: 1px solid rgba(99,102,241,.16);
+  border-radius: 22px;
+  box-shadow: 0 16px 38px rgba(37,45,70,.10);
+  animation: cropJourneyIn .28s ease-out;
+}
+
+.crop-journey-visual {
+  width: 104px;
+  height: 104px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.crop-journey-paper {
+  width: 68px;
+  height: 86px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  border: 2px solid rgba(99,102,241,.22);
+  box-shadow: 0 9px 18px rgba(37,45,70,.12);
+  transform: rotate(-3deg);
+}
+
+.crop-journey-line {
+  position: absolute;
+  left: 12px;
+  height: 4px;
+  border-radius: 3px;
+  background: #c7d2fe;
+}
+.crop-journey-line.l1 { top: 22px; width: 44px; }
+.crop-journey-line.l2 { top: 35px; width: 34px; }
+.crop-journey-line.l3 { top: 48px; width: 40px; }
+
+.crop-journey-corner {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-color: #6366f1;
+  border-style: solid;
+}
+.crop-journey-corner.c1 { left: 7px; top: 7px; border-width: 2px 0 0 2px; }
+.crop-journey-corner.c2 { right: 7px; top: 7px; border-width: 2px 2px 0 0; }
+.crop-journey-corner.c3 { left: 7px; bottom: 7px; border-width: 0 0 2px 2px; }
+.crop-journey-corner.c4 { right: 7px; bottom: 7px; border-width: 0 2px 2px 0; }
+
+.crop-journey-scan {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 10px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ec4899, transparent);
+  box-shadow: 0 0 10px rgba(236,72,153,.45);
+  animation: cropJourneyScan 1.8s ease-in-out infinite;
+}
+
+.crop-journey-orbit {
+  position: absolute;
+  right: 1px;
+  bottom: 3px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #6366f1, #7c3aed);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(79,70,229,.25);
+  animation: cropJourneyOrbit 2.2s ease-in-out infinite;
+}
+.crop-journey-orbit svg { width: 19px; height: 19px; }
+
+.crop-journey-copy { min-width: 0; }
+.crop-journey-kicker {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: #6366f1;
+}
+.crop-journey-copy strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.3;
+  color: #26364b;
+}
+.crop-journey-copy > span {
+  display: block;
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #60738b;
+}
+
+.crop-journey-progress-wrap { grid-column: 1 / -1; }
+.crop-journey-progress {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eaf7;
+}
+.crop-journey-progress > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6366f1, #ec4899, #f59e0b);
+  transition: width .18s ease;
+}
+.crop-upload-journey:not(.is-determinate) .crop-journey-progress > span {
+  animation: cropJourneyIndeterminate 1.25s ease-in-out infinite;
+}
+.crop-journey-progress-meta {
+  margin-top: 7px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #718198;
+}
+.crop-journey-progress-meta strong { color: #4338ca; }
+
+.crop-journey-stages {
+  grid-column: 1 / -1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.crop-journey-stages li {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-align: center;
+  color: #8a97aa;
+  font-size: 11px;
+  line-height: 1.25;
+}
+.crop-journey-stages li > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef0f8;
+  color: #8a97aa;
+  transition: .2s ease;
+}
+.crop-journey-stages svg { width: 18px; height: 18px; }
+.crop-journey-stages li.is-active { color: #4338ca; }
+.crop-journey-stages li.is-active > span {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: 0 7px 15px rgba(79,70,229,.22);
+  animation: cropJourneyPulse 1.6s ease-in-out infinite;
+}
+.crop-journey-stages li.is-done { color: #047857; }
+.crop-journey-stages li.is-done > span { background: #dff8ee; color: #047857; }
+
+.crop-journey-status {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #52657c;
+}
+
+@keyframes cropJourneyIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cropJourneyScan { 0%,100% { transform: translateY(0); opacity: .15; } 50% { transform: translateY(66px); opacity: 1; } }
+@keyframes cropJourneyOrbit { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+@keyframes cropJourneyIndeterminate { 0% { transform: translateX(-120%); } 100% { transform: translateX(300%); } }
+@keyframes cropJourneyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+@media (max-width: 980px) {
+  .ilpdf-crop-upload .popular-tools--crop .popular-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-crop-upload .popular-tools--crop .popular-grid { grid-template-columns: 1fr; }
+  .ilpdf-crop-upload .popular-tools--crop .popular-card { min-height: 82px; padding: 8px; }
+  .ilpdf-crop-upload .popular-tools--crop .popular-card-name { min-height: 64px; font-size: 16px; gap: 11px; padding: 8px 12px; }
+  .ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker { width: 38px; height: 38px; min-width: 38px; flex-basis: 38px; }
+  .crop-upload-journey { grid-template-columns: 78px minmax(0,1fr); gap: 14px; padding: 18px; border-radius: 18px; }
+  .crop-journey-visual { width: 72px; height: 82px; }
+  .crop-journey-paper { width: 54px; height: 70px; }
+  .crop-journey-orbit { width: 32px; height: 32px; right: 0; bottom: 0; }
+  .crop-journey-copy strong { font-size: 17px; }
+  .crop-journey-copy > span { font-size: 13px; }
+  .crop-journey-stages { gap: 5px; }
+  .crop-journey-stages li { font-size: 10px; }
+  .crop-journey-stages li > span { width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crop-upload-journey,
+  .crop-journey-scan,
+  .crop-journey-orbit,
+  .crop-journey-progress > span,
+  .crop-journey-stages li.is-active > span { animation: none !important; }
+  .crop-journey-progress > span { transition: none; }
+}
