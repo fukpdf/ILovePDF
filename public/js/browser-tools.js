@@ -4538,6 +4538,24 @@
   // Phase 1 execution profile: one authoritative capability query for the
   // shared platform. This reports actual current capabilities only; it does
   // not pretend that every handler is streamable or worker-safe.
+  // Shared execution manifest consumed by the tool runtime. Metadata is
+  // intentionally derived from the existing handler/capability maps so this
+  // layer cannot advertise a processor that BrowserTools does not actually own.
+  function getToolExecutionManifest(toolId) {
+    const profile = getExecutionProfile(toolId);
+    return {
+      toolId,
+      version: 1,
+      processor: profile.clientSide ? 'browser-tools' : null,
+      execution: profile.workerSafe ? 'worker-pool' : (profile.clientSide ? 'main-thread' : 'unavailable'),
+      lazyLoad: profile.lazyEngineLoad,
+      workerSafe: profile.workerSafe,
+      streaming: false,
+      outputValidation: profile.outputValidation,
+      silentFallback: profile.silentWorkerFallback,
+    };
+  }
+
   function getExecutionProfile(toolId) {
     return {
       clientSide: supports(toolId),
@@ -4630,6 +4648,7 @@
   window.BrowserTools = {
     supports,
     getExecutionProfile,
+    getToolExecutionManifest,
     process,
     prewarm,
     brandedFilename,
