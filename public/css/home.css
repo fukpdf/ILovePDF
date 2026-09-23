@@ -2980,7 +2980,7 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 .tool{
   min-width:0;
-  min-height:360px;
+  min-height:720px;
   padding:24px 22px;
   box-sizing:border-box;
 }
@@ -3110,13 +3110,13 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 @media (max-width:900px){
   .tools-grid{grid-template-columns:repeat(auto-fit,minmax(215px,1fr)) !important}
-  .tool{min-height:320px;padding:22px 20px}
+  .tool{min-height:640px;padding:22px 20px}
   .tool-name{font-size:1.02rem !important}
   .tool-name-sticker{width:34px;height:34px;min-width:34px;min-height:34px;flex-basis:34px}
 }
 @media (max-width:520px){
   .tools-grid{grid-template-columns:1fr !important}
-  .tool{min-height:300px;padding:20px 18px}
+  .tool{min-height:600px;padding:20px 18px}
   .tool-name{font-size:1.01rem !important}
   .tool-name-sticker{width:33px;height:33px;min-width:33px;min-height:33px;flex-basis:33px}
   .tool-heading-sticker{width:40px;height:40px;flex-basis:40px;border-radius:11px}
