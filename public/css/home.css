@@ -2858,3 +2858,100 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   .popular-card:hover         { transform: none !important; }
   .tool:hover                 { transform: none !important; }
 }
+
+
+/* Responsive homepage tool cards: no fixed 4-column lock.
+   Cards reflow automatically as viewport/zoom changes. */
+.tools-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: stretch;
+  gap: 18px;
+}
+.tool {
+  min-width: 0;
+  min-height: 190px;
+}
+.tool-text {
+  min-width: 0;
+}
+.tool-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.35;
+  font-weight: 800;
+}
+.tool-name-label {
+  min-width: 0;
+}
+.tool-name-sticker {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(145deg, #818cf8, #4f46e5);
+  border: 1px solid rgba(129,140,248,.45);
+  box-shadow: 0 6px 14px rgba(79,70,229,.22), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.tool-name-sticker svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.3;
+}
+.tool:nth-child(3n) .tool-name-sticker {
+  background: linear-gradient(145deg, #34d399, #059669);
+}
+.tool:nth-child(3n+2) .tool-name-sticker {
+  background: linear-gradient(145deg, #38bdf8, #2563eb);
+}
+.tool:nth-child(4n) .tool-name-sticker {
+  background: linear-gradient(145deg, #fbbf24, #f97316);
+}
+.tool:nth-child(5n) .tool-name-sticker {
+  background: linear-gradient(145deg, #fb7185, #e11d48);
+}
+.tool:nth-child(6n) .tool-name-sticker {
+  background: linear-gradient(145deg, #a78bfa, #7c3aed);
+}
+.tool .tool-text p {
+  margin: 0;
+  color: var(--text-mute, #697386);
+  font-size: 1rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  min-height: 4.65em;
+}
+@media (max-width: 700px) {
+  .tools-grid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+  .tool {
+    min-height: 176px;
+  }
+  .tool-name {
+    font-size: 1rem;
+  }
+  .tool-name-sticker {
+    flex-basis: 30px;
+    width: 30px;
+    height: 30px;
+  }
+  .tool .tool-text p {
+    font-size: .98rem;
+    -webkit-line-clamp: 3;
+  }
+}
+@media (max-width: 430px) {
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+}
