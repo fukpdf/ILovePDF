@@ -6999,3 +6999,40 @@ i[data-lucide] {
   border-color: #34d399;
   color: #047857;
 }
+
+
+/* Crop Popular Tools — full-color homepage-style logo stickers */
+.ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+  border: 0 !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(37,45,70,.16), inset 0 1px 0 rgba(255,255,255,.28) !important;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(1) .tool-name-sticker {
+  background: linear-gradient(145deg, #6366f1, #4338ca) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(2) .tool-name-sticker {
+  background: linear-gradient(145deg, #10b981, #047857) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(3) .tool-name-sticker {
+  background: linear-gradient(145deg, #38bdf8, #2563eb) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(4) .tool-name-sticker {
+  background: linear-gradient(145deg, #f59e0b, #ea580c) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(5) .tool-name-sticker {
+  background: linear-gradient(145deg, #fb7185, #e11d48) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:nth-child(6) .tool-name-sticker {
+  background: linear-gradient(145deg, #a78bfa, #7c3aed) !important;
+}
+.ilpdf-crop-upload .popular-tools--crop .popular-card:hover .tool-name-sticker {
+  transform: translateY(-2px) rotate(-2deg) scale(1.04);
+  filter: saturate(1.08);
+  box-shadow: 0 10px 20px rgba(37,45,70,.20), inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ilpdf-crop-upload .popular-tools--crop .popular-card-name .tool-name-sticker {
+    transition: none;
+  }
+}
