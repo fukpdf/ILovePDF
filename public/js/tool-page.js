@@ -1105,7 +1105,7 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
     ? window.BrowserTools.prewarm(tool.id)
     : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && !isImageTool(tool))
+  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
     ? window.PdfPreview.loadPdfJs()
     : Promise.resolve();
   const isImage = tool.group === 'image';
@@ -1455,7 +1455,7 @@ function cropUploadJourneyHtml(tool) {
           <span class="crop-journey-corner c4"></span>
           <span class="crop-journey-scan"></span>
         </div>
-        <div class="crop-journey-orbit"><i data-lucide="crop"></i></div>
+        <div class="crop-journey-orbit"><i data-lucide="${tool && tool.icon ? escapeHtml(tool.icon) : 'file-text'}"></i></div>
       </div>
       <div class="crop-journey-copy">
         <div class="crop-journey-kicker">Your tool is getting ready</div>
