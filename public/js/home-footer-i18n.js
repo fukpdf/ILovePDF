@@ -27,17 +27,32 @@
       btn.setAttribute('aria-expanded', 'false');
     }
 
-    languages.forEach(function (item) {
-      var link = panel.querySelector('[data-lang="' + item.code + '"]');
-      if (!link) return;
-      link.addEventListener('click', function (event) {
-        event.preventDefault();
-        window.RuntimeI18n.setLanguage(item.code, { persist: true }).then(function (lang) {
+    /* Use delegated capture handling so global SPA/router click handlers
+       cannot swallow footer language choices before this controller sees them. */
+    document.addEventListener('click', function (event) {
+      var target = event.target && event.target.closest
+        ? event.target.closest('.footer-lang-link[data-lang]')
+        : null;
+      if (!target || !root.contains(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      var selected = target.getAttribute('data-lang');
+      if (!selected) return;
+
+      target.setAttribute('aria-busy', 'true');
+      Promise.resolve(window.RuntimeI18n.setLanguage(selected, { persist: true }))
+        .then(function (lang) {
           setLabel(lang);
           close();
+        })
+        .catch(function (error) {
+          console.error('[FooterLanguage] Failed to switch language:', error);
+        })
+        .finally(function () {
+          target.removeAttribute('aria-busy');
         });
-      });
-    });
+    }, true);
 
     btn.addEventListener('click', function () {
       var opening = panel.hidden;
