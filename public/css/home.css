@@ -2114,6 +2114,15 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   background: currentColor; opacity: .35; flex-shrink: 0;
 }
 .hls-cat-links a:hover { color: var(--primary); }
+.hls-cat-links a::before{display:none}
+.hls-cat-links a{gap:8px}
+.hls-link-sticker{
+  display:inline-grid;place-items:center;flex:0 0 24px;width:24px;height:24px;
+  border-radius:7px;background:var(--grad-soft,#eef2ff);color:var(--primary,#4f46e5);
+  border:1px solid var(--border,#e5e7eb);
+}
+.hls-link-sticker svg{width:13px;height:13px;stroke-width:2.5}
+.hls-link-label{min-width:0}
 .hls-cat-viewall {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: .78rem; font-weight: 700;
