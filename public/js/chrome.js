@@ -786,22 +786,22 @@ function loadMobileNav() {
 
 
 /* ── Global shared shell: homepage header/footer on every public page ─────── */
-const SHARED_HEADER_HTML = `
-<header class="site-header">
-  <div class="header-inner">
-    <a href="/" class="brand" aria-label="ILovePDF home">
-      <span class="brand-mark"><i data-lucide="file-text"></i></span>
-      <span class="brand-name">ILove<span>PDF</span></span>
-    </a>
-    <nav class="nav" id="nav" aria-label="Main">
-      <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
-      <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
-      <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
-      <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
-      <span class="sk-nav-pill" style="width:72px" aria-hidden="true"></span>
-    </nav>
-  </div>
-</header>`;
+const SHARED_HEADER_HTML = `<header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="ILovePDF home">
+        <span class="brand-mark"><i data-lucide="file-text"></i></span>
+        <span class="brand-name">ILove<span>PDF</span></span>
+      </a>
+
+      <nav class="nav" id="nav" aria-label="Main">
+        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+        <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
+        <span class="sk-nav-pill" style="width:72px" aria-hidden="true"></span>
+      </nav>
+    </div>
+  </header>`;
 
 const SHARED_FOOTER_HTML = `
 <footer class="footer">
