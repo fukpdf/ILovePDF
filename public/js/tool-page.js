@@ -29,6 +29,7 @@ let _activeMountedModule = null;
 // launching two concurrent processing runs.  Set to true the moment we commit
 // to processing; cleared in the try/finally regardless of exit path.
 let _processingInFlight = false;
+let _cropUploadRun = 0;
 
 // ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
 // Routes:
@@ -639,7 +640,7 @@ function popularToolsHtml(currentToolId) {
   ];
   const list = POPULAR.filter(p => p.slug !== `${currentToolId}-pdf` && p.slug !== currentToolId).slice(0, 6);
   return `
-    <section class="popular-tools" aria-label="Popular tools">
+    <section class="popular-tools${currentToolId === 'crop' ? ' popular-tools--crop' : ''}" aria-label="Popular tools">
       <h2 class="popular-title">Popular tools</h2>
       <div class="popular-grid">
         ${list.map(t => `
@@ -670,6 +671,7 @@ function renderBrandedUploadStep(tool, config) {
       '</div>'
     : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span><span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span></div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
+  const cropJourneyHtml = tool.id === 'crop' ? cropUploadJourneyHtml() : '';
 
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
@@ -688,6 +690,7 @@ function renderBrandedUploadStep(tool, config) {
           </div>
 
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
+          ${cropJourneyHtml}
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
             ${(config.benefits || []).map(function (b) {
@@ -1484,7 +1487,122 @@ function setupFileInput() {
   });
 }
 
-function handleFiles(fileList) {
+function cropUploadJourneyHtml() {
+  return `
+    <section class="crop-upload-journey" id="crop-upload-journey" aria-label="Preparing Crop PDF" hidden>
+      <div class="crop-journey-visual" aria-hidden="true">
+        <div class="crop-journey-paper">
+          <span class="crop-journey-line l1"></span>
+          <span class="crop-journey-line l2"></span>
+          <span class="crop-journey-line l3"></span>
+          <span class="crop-journey-corner c1"></span>
+          <span class="crop-journey-corner c2"></span>
+          <span class="crop-journey-corner c3"></span>
+          <span class="crop-journey-corner c4"></span>
+          <span class="crop-journey-scan"></span>
+        </div>
+        <div class="crop-journey-orbit"><i data-lucide="crop"></i></div>
+      </div>
+      <div class="crop-journey-copy">
+        <div class="crop-journey-kicker">Crop PDF is getting ready</div>
+        <strong id="crop-journey-title">Reading your PDF on this device</strong>
+        <span id="crop-journey-detail">The file stays in your browser while the Crop PDF engine prepares.</span>
+      </div>
+      <div class="crop-journey-progress-wrap">
+        <div class="crop-journey-progress" role="progressbar" aria-label="Reading selected PDF" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-describedby="crop-journey-progress-text">
+          <span id="crop-journey-progress-fill"></span>
+        </div>
+        <div class="crop-journey-progress-meta">
+          <span id="crop-journey-progress-text">Preparing…</span>
+          <strong id="crop-journey-percent">0%</strong>
+        </div>
+      </div>
+      <ol class="crop-journey-stages" aria-label="Crop PDF preparation stages">
+        <li data-crop-stage="read" class="is-active"><span><i data-lucide="file-search-2"></i></span><b>Read PDF</b></li>
+        <li data-crop-stage="engine"><span><i data-lucide="cpu"></i></span><b>Prepare crop engine</b></li>
+        <li data-crop-stage="preview"><span><i data-lucide="scan-line"></i></span><b>Prepare preview</b></li>
+        <li data-crop-stage="ready"><span><i data-lucide="check"></i></span><b>Ready</b></li>
+      </ol>
+      <div class="crop-journey-status" id="crop-journey-status" role="status" aria-live="polite" aria-atomic="true">Reading selected PDF…</div>
+    </section>
+  `;
+}
+
+function cropJourneySetStage(stage, title, detail, percent, determinate) {
+  const root = document.getElementById('crop-upload-journey');
+  if (!root) return;
+  const titleEl = document.getElementById('crop-journey-title');
+  const detailEl = document.getElementById('crop-journey-detail');
+  const statusEl = document.getElementById('crop-journey-status');
+  const fill = document.getElementById('crop-journey-progress-fill');
+  const pct = document.getElementById('crop-journey-percent');
+  const bar = root.querySelector('.crop-journey-progress');
+  if (titleEl) titleEl.textContent = title;
+  if (detailEl) detailEl.textContent = detail;
+  if (statusEl) statusEl.textContent = title + (detail ? ' — ' + detail : '');
+  const order = ['read','engine','preview','ready'];
+  const activeIndex = order.indexOf(stage);
+  root.querySelectorAll('[data-crop-stage]').forEach(function (el) {
+    const idx = order.indexOf(el.dataset.cropStage);
+    el.classList.toggle('is-active', idx === activeIndex);
+    el.classList.toggle('is-done', idx >= 0 && idx < activeIndex);
+  });
+  if (determinate && Number.isFinite(percent)) {
+    const value = Math.max(0, Math.min(100, Math.round(percent)));
+    if (fill) fill.style.width = value + '%';
+    if (pct) pct.textContent = value + '%';
+    if (bar) bar.setAttribute('aria-valuenow', String(value));
+    root.classList.add('is-determinate');
+  } else {
+    if (fill) fill.style.width = '38%';
+    if (pct) pct.textContent = 'Working…';
+    if (bar) bar.removeAttribute('aria-valuenow');
+    root.classList.remove('is-determinate');
+  }
+}
+
+function readFileWithRealProgress(file, onProgress) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onprogress = function (e) {
+      if (e.lengthComputable && typeof onProgress === 'function') onProgress(e.loaded, e.total);
+    };
+    reader.onload = function () { resolve(reader.result); };
+    reader.onerror = function () { reject(reader.error || new Error('Unable to read selected PDF')); };
+    reader.onabort = function () { reject(new Error('PDF read was cancelled')); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function runCropUploadJourney(file, runId) {
+  const root = document.getElementById('crop-upload-journey');
+  if (!root || !file) return;
+  root.hidden = false;
+  if (window.lucide) lucide.createIcons({ nodes: [root] });
+
+  // Start both real dependency warm-ups immediately while the local file read
+  // is happening. No fake percentage is used for these indeterminate tasks.
+  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
+    ? window.BrowserTools.prewarm('crop')
+    : Promise.resolve({ warmed: false });
+  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
+    ? window.PdfPreview.loadPdfJs()
+    : Promise.resolve();
+
+  cropJourneySetStage('read', 'Reading your PDF on this device', 'Your file is being read locally; there is no server upload for Crop PDF.', 0, true);
+  await readFileWithRealProgress(file, function (loaded, total) {
+    if (runId !== _cropUploadRun) return;
+    cropJourneySetStage('read', 'Reading your PDF on this device', 'Loading the selected file locally.', (loaded / total) * 100, true);
+  });
+  if (runId !== _cropUploadRun) return;
+  cropJourneySetStage('engine', 'Preparing the crop engine', 'Loading the same PDF library used by the existing Crop PDF processor.', null, false);
+  await Promise.all([engineWarm, previewWarm]);
+  if (runId !== _cropUploadRun) return;
+  cropJourneySetStage('preview', 'Preparing the PDF preview', 'PDF preview resources are ready for the next screen.', null, false);
+  cropJourneySetStage('ready', 'Crop PDF is ready', 'Opening your PDF preview now.', 100, true);
+}
+
+async function handleFiles(fileList) {
   if (!fileList || fileList.length === 0) return;
 
   const incoming = Array.from(fileList);
@@ -1510,9 +1628,21 @@ function handleFiles(fileList) {
   // Persist immediately so a refresh on /preview keeps the file blobs.
   persistFlowState();
 
-  // Files chosen on the upload step → navigate to preview step. Otherwise
-  // (already on preview / adding more files) just refresh the file list.
+  // Crop PDF gets a real local-read + dependency-prewarm journey before
+  // the existing preview navigation. All other tools keep the exact old path.
   if (Flow.step === 'upload') {
+    if (currentTool && currentTool.id === 'crop') {
+      const runId = ++_cropUploadRun;
+      try {
+        await runCropUploadJourney(incoming[0], runId);
+      } catch (err) {
+        // Warm-up is additive. Never block the existing Crop PDF flow if a
+        // dependency fails; the existing preview/processor will handle it.
+        const status = document.getElementById('crop-journey-status');
+        if (status) status.textContent = 'Opening the preview — the existing Crop PDF flow will continue normally.';
+      }
+      if (runId !== _cropUploadRun) return;
+    }
     Flow.navTo('preview');
   } else {
     renderFileList();
