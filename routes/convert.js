@@ -88,12 +88,8 @@ async function readAndExtract(filePath) {
   if (!isPdfBuffer(buffer)) {
     return { buffer, pdfData: null, notPdf: true };
   }
-  const pdfData = await Promise.race([
-    extractPdfText(buffer),
-    new Promise((_, rej) =>
-      setTimeout(() => rej(new Error('PDF text extraction timed out. The file may be too complex.')), EXTRACT_TIMEOUT_MS)
-    ),
-  ]);
+  // Extraction has no artificial execution timeout; cancellation/lifecycle controls remain external.
+  const pdfData = await extractPdfText(buffer);
   return { buffer, pdfData, notPdf: false };
 }
 
