@@ -6,7 +6,7 @@ import { createUpload } from '../utils/upload.js';
 import { qpdfMerge, qpdfSplit, qpdfRotate, qpdfReorder } from '../utils/pdfTools.js';
 
 const router = express.Router();
-const upload = createUpload('pdf', 100 * 1024 * 1024);
+const upload = createUpload('pdf');
 
 /* ── MERGE — qpdf with pdf-lib fallback ─────────────────────────────────── */
 router.post('/merge', upload.array('pdfs'), async (req, res) => {
