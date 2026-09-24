@@ -23,6 +23,8 @@ self.onmessage = async function (event) {
       const height = Math.max(1, Math.ceil(viewport.height));
       const canvas = new OffscreenCanvas(width, height);
       const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
       await page.render({ canvasContext: context, viewport }).promise;
       const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
       pages.push({ page: pageNumber, width, height, buffer: await blob.arrayBuffer() });
