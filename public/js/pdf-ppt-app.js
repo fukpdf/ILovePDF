@@ -350,6 +350,35 @@
     return function () {};
   }
 
+  // ── NATIVE PDF CONTENT EXTRACTION WORKER ─────────────────────────────────
+  async function _extractPdfItems(file, onStep) {
+    var worker = new Worker('/workers/pdf-content-extract-worker.js');
+    var timer = null;
+    var pages = [];
+    try {
+      var buf = await file.arrayBuffer();
+      return await new Promise(function (resolve, reject) {
+        timer = setTimeout(function () { reject(new Error('PDF content extraction timed out.')); }, HARD_LIMIT_MS);
+        worker.onmessage = function (event) {
+          var d = event.data || {};
+          if (d.type === 'pdf-content-page') {
+            pages.push({ pageNum: d.pageNum, totalPages: d.totalPages, items: d.items || [] });
+            if (onStep) onStep(1, 'active', 15 + Math.round((d.pageNum / d.totalPages) * 38), 'Page ' + d.pageNum + ' of ' + d.totalPages);
+          } else if (d.type === 'pdf-content-done') {
+            resolve(pages);
+          } else if (d.type === 'pdf-content-error') {
+            reject(new Error(d.message || 'PDF content extraction failed'));
+          }
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'PDF content extraction worker failed')); };
+        worker.postMessage({ type: 'extract-pdf-content', buffer: buf }, [buf]);
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+      try { worker.terminate(); } catch (_) {}
+    }
+  }
+
   // ── MAIN PROCESS FUNCTION ──────────────────────────────────────────────────
   async function process(files, opts) {
     if (_inFlight) throw new Error('Conversion already in progress');
@@ -377,39 +406,18 @@
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
-      // ── Phase 1: Load PDF.js + extract slide content per page ────────────
-      var pdfjsLib = await _loadPdfJs();
-      var buf      = await file.arrayBuffer();
-      var pdf      = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-      _pdfInst     = pdf;
-      buf          = null;
-
-      var total  = pdf.numPages;
-      var slides = [];
-
+      // ── Phase 1: native PDF content extraction in dedicated Worker ───────
+      var extractedPages = await _extractPdfItems(file, onStep);
+      var total = extractedPages.length ? extractedPages[0].totalPages : 0;
+      var slides = extractedPages.map(function (entry) {
+        var isEmpty = !entry.items.some(function (it) { return it.str && it.str.trim(); });
+        if (isEmpty) return { pageNum: entry.pageNum, title: 'Slide ' + entry.pageNum, text: '' };
+        var extracted = _extractSlideContent(entry.items, entry.pageNum);
+        return { pageNum: entry.pageNum, title: extracted.title, text: extracted.text };
+      });
+      extractedPages = null;
       onStep(0, 'done', 12);
-      onStep(1, 'active', 15, 'Processing content\u2026');
-
-      try {
-        for (var i = 1; i <= total; i++) {
-          var page    = await pdf.getPage(i);
-          var content = await page.getTextContent();
-          var isEmpty = !content.items.some(function (it) { return it.str && it.str.trim(); });
-
-          if (isEmpty) {
-            slides.push({ pageNum: i, title: 'Slide ' + i, text: '' });
-          } else {
-            var extracted = _extractSlideContent(content.items, i);
-            slides.push({ pageNum: i, title: extracted.title, text: extracted.text });
-          }
-
-          page.cleanup();
-          onStep(1, 'active', 15 + Math.round((i / total) * 38), 'Slide ' + i + ' of ' + total);
-        }
-      } finally {
-        try { await pdf.destroy(); } catch (_) {}
-        _pdfInst = null;
-      }
+      onStep(1, 'active', 55, 'Native extraction complete');
 
       // ── Phase 2: Quality check + OCR fallback ───────────────────────────
       var allEmpty = slides.every(function (s) {
