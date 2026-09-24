@@ -35,7 +35,43 @@
       byId.set(entry.id, entry);
       bySlug.set(entry.slug, entry);
     }
-    return Object.freeze({ schemaVersion: data.schemaVersion, generatedFrom: data.generatedFrom, tools: Object.freeze(frozenTools), byId, bySlug });
+    return Object.freeze({
+      schemaVersion: data.schemaVersion,
+      generatedFrom: data.generatedFrom,
+      tools: Object.freeze(frozenTools),
+      byId,
+      bySlug
+    });
+  }
+
+  async function load() {
+    if (registry) return registry;
+    if (loading) return loading;
+    loading = fetch(ENDPOINT, { credentials: 'omit', cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Tool registry HTTP ' + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        registry = normalize(data);
+        G.ToolRegistry = api;
+        G.dispatchEvent(new CustomEvent('ilovepdf:tool-registry-ready'));
+        try {
+          if (!document.querySelector('script[data-tool-execution-policy]')) {
+            const s = document.createElement('script');
+            s.src = '/js/tool-execution-policy.js';
+            s.async = true;
+            s.dataset.toolExecutionPolicy = '1';
+            document.head.appendChild(s);
+          }
+        } catch (_) {}
+        return registry;
+      })
+      .catch(function (error) {
+        loadError = error;
+        throw error;
+      });
+    return loading;
   }
 
   function health() {
