@@ -39,3 +39,30 @@
 ## Validation boundary
 
 This is an architecture closure matrix, not fixture/E2E certification. Browser fixture tests, malformed/edge-case tests, output-openability checks, and visual/semantic comparisons remain required before production fidelity is claimed.
+
+
+## Phase 3 current execution status — 2026-09-24
+
+The repository currently has 36 configured tool IDs in `public/js/tools-config.js`. They are not all expected to use a Web Worker: some intentionally remain main-thread because DOM/layout APIs are part of their rendering contract, while AI/utility tools have separate pipelines.
+
+### Active processing paths
+
+- PDF structural worker: merge, split, rotate, organize, crop, compress, page-numbers, watermark, repair, workflow, edit, compare.
+- Image/document workers: JPG/PNG→PDF, PDF→JPG, Excel→PDF, Word→Excel, PowerPoint→PDF, PDF native extraction→Word/Excel/PowerPoint, OCR, Scan→PDF image encoding, crop/resize/filter image processing, CV background-removal.
+- Intentional main-thread paths: DOCX→PDF, HTML→PDF, post-extraction office document assembly, OCR-derived DOCX/searchable-PDF assembly, AI background-removal integration.
+- Separate application pipelines: AI summarize and translate. Laba AI is not part of this document-processing registry.
+
+### Security-sensitive tools deliberately not active
+
+Protect, Sign, Redact, and Unlock are not promoted as production security processors. The current PDF worker contains legacy implementations, but they are not authoritative:
+- Protect is not PDF encryption.
+- Sign is not cryptographic digital signing.
+- Redact is visual covering, not irreversible content removal.
+- Unlock does not provide a standards-compliant password/encryption engine.
+
+Their tool definitions are now marked unavailable rather than advertising non-compliant behavior.
+
+### Important distinction
+
+Therefore: **all currently active processing tools have an identified execution path; not every configured tool has a dedicated Worker engine, and four security-sensitive tools are intentionally quarantined pending proper engines.** This is deliberate, not an unfinished hidden migration.
+
