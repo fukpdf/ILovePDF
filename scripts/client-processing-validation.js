@@ -39,8 +39,10 @@ assert('output-validator-api', /ClientOutputValidation/.test(outputValidator),
   'shared output validator API is exported');
 assert('output-empty-guard', /processing_output_empty/.test(outputValidator),
   'empty outputs are rejected');
-assert('output-size-guard', /processing_output_too_large/.test(outputValidator),
-  'oversized outputs are rejected');
+assert('output-size-policy-hook', /processing_output_too_large/.test(outputValidator) &&
+  /Number\.isFinite\(maxBytes\)/.test(outputValidator) &&
+  !/DEFAULT_MAX_OUTPUT/.test(outputValidator),
+  'output validator has no default product size ceiling; bounded maxBytes remains an explicit caller policy hook');
 assert('output-pdf-signature-guard', /processing_output_invalid_pdf_signature/.test(outputValidator),
   'invalid PDF signatures are rejected');
 
