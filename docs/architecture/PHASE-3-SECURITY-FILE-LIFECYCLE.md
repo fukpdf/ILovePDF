@@ -46,3 +46,21 @@ This unit does not:
 3. Browser temporary object URL / worker / buffer release hooks.
 4. Server and R2 lifecycle coverage audit across every upload-producing route.
 5. Security regression + runtime consistency verification.
+
+## Unit 2 — Unified input validation
+
+Implemented in `utils/upload.js` at the shared multer boundary. Every `createUpload()` route now receives a post-write content-signature check before its route handler runs.
+
+Recognized signatures currently checked:
+- PDF: `%PDF-`
+- JPEG: JPEG SOI marker
+- PNG: PNG signature
+- GIF: GIF87a/GIF89a
+- WebP: RIFF/WEBP container markers
+- BMP: BM signature
+- TIFF: little/big-endian TIFF headers
+- ZIP: ZIP local/empty/spanned archive signatures
+
+The check uses the declared MIME type only as a routing hint and verifies the actual leading bytes. Unknown MIME types remain compatible with existing generic tools rather than being incorrectly rejected. Files that fail validation are deleted immediately and the route receives a 400 response before processing begins.
+
+This preserves the existing browser-first architecture and does not impose a new file-size or page-count limit.
