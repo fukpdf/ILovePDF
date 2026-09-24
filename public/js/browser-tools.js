@@ -972,6 +972,66 @@
     }
   }
 
+  // ── WORD TO EXCEL — browser-first table extraction ─────────────────────
+  // DOCX is parsed locally with Mammoth and exported with SheetJS/XLSX.
+  // Legacy binary .doc is intentionally not accepted because there is no
+  // trustworthy browser parser in the current dependency set.
+  async function wordToExcel(files) {
+    const mammoth = await loadMammoth();
+    const XLSX = await loadXlsx();
+    const file = files && files[0];
+    if (!file) throw new Error('No Word document was provided.');
+    if (!/\\.docx$/i.test(file.name || '')) {
+      throw new Error('Only .docx Word documents are supported for browser conversion.');
+    }
+    const ab = await file.arrayBuffer();
+    const converted = await mammoth.convertToHtml({ arrayBuffer: ab });
+    const html = String(converted && converted.value || '').trim();
+    if (!html) throw new Error('Could not extract readable content from this Word document.');
+
+    const doc = new DOMParser().parseFromString('<!doctype html><body>' + html + '</body>', 'text/html');
+    const tables = Array.from(doc.querySelectorAll('table'));
+    const workbook = XLSX.utils.book_new();
+    let sheetCount = 0;
+
+    function safeSheetName(name, fallback) {
+      const cleaned = String(name || fallback).replace(/[\\\\/?*\\[\\]:]/g, ' ').trim().slice(0, 31);
+      return cleaned || fallback;
+    }
+
+    tables.forEach(function (table, index) {
+      const rows = Array.from(table.rows).map(function (row) {
+        return Array.from(row.cells).map(function (cell) {
+          return String(cell.textContent || '').replace(/\\s+/g, ' ').trim();
+        });
+      }).filter(function (row) {
+        return row.some(function (cell) { return cell.length > 0; });
+      });
+      if (!rows.length) return;
+      const sheet = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(workbook, sheet, safeSheetName('Table ' + (index + 1), 'Sheet' + (index + 1)));
+      sheetCount++;
+    });
+
+    if (!sheetCount) {
+      const rows = Array.from(doc.body.querySelectorAll('p, li')).map(function (node) {
+        return [String(node.textContent || '').replace(/\\s+/g, ' ').trim()];
+      }).filter(function (row) { return row[0]; });
+      if (!rows.length) throw new Error('No tables or readable text were found in this Word document.');
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Content');
+      sheetCount = 1;
+    }
+
+    const bytes = XLSX.write(workbook, { bookType: 'xlsx', type: 'array', compression: true });
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if (blob.size < 1000) throw new Error('Generated Excel output appears incomplete.');
+    return {
+      blob: blob,
+      ext: '.xlsx',
+      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+  }
+
   // ── PHASE 1: HTML TO PDF PRO MAX ─────────────────────────────────────────
   // Full CSS preservation, print layout engine, page-break intelligence,
   // configurable margins/page-size/orientation/mode. Blob validation.
@@ -4492,6 +4552,7 @@
     'image-filters': imageFilters,
     // ── Phase 1 ───────────────────────────────────────────────────────────
     'word-to-pdf':        wordToPdf,
+    'word-to-excel':      wordToExcel,
     'html-to-pdf':        htmlToPdf,
     // ── Phase 2 ───────────────────────────────────────────────────────────
     'edit':               editPdf,
@@ -4528,9 +4589,15 @@
   // not execute processing or mutate the selected file. It is intentionally
   // narrow so other tools keep their existing lazy-loading behavior.
   async function prewarm(toolId) {
-    if (toolId !== 'crop') return { warmed: false };
-    await loadPdfLib();
-    return { warmed: true, dependency: 'pdf-lib' };
+    if (toolId === 'crop') {
+      await loadPdfLib();
+      return { warmed: true, dependency: 'pdf-lib' };
+    }
+    if (toolId === 'word-to-excel') {
+      await Promise.all([loadMammoth(), loadXlsx()]);
+      return { warmed: true, dependency: 'mammoth+xlsx' };
+    }
+    return { warmed: false };
   }
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
