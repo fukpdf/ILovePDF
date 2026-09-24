@@ -109,8 +109,7 @@ async function callBackend(env, job, fileBytes) {
   const backendBase = env.BACKEND_URL.replace(/\/+$/, '');
   const url         = `${backendBase}/api${route.path}`;
 
-  try {
-    const r = await fetch(url, { method: 'POST', body: fd });
+  const r = await fetch(url, { method: 'POST', body: fd });
     if (!r.ok) {
       const body = await r.text().catch(() => '');
       throw new Error(`Backend ${r.status} for ${job.tool}: ${body.slice(0, 300)}`);
@@ -119,7 +118,6 @@ async function callBackend(env, job, fileBytes) {
     const meta = EXT_BY_TOOL[job.tool] || { ext: '.bin', mime: ct || 'application/octet-stream' };
     const bytes = new Uint8Array(await r.arrayBuffer());
     return { bytes, ext: meta.ext, mime: meta.mime };
-  }
 }
 
 // ── Public entry ──────────────────────────────────────────────────────────────
