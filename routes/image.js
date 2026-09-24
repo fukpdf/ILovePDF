@@ -4,7 +4,7 @@ import { backgroundRemove, cropImage, resizeImage, applyFilters } from '../contr
 
 const router = express.Router();
 import { UPLOAD_DIR } from '../utils/upload.js';
-const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = multer({ dest: UPLOAD_DIR });
 
 router.post('/background-remove', upload.single('image'), backgroundRemove);
 router.post('/crop-image',        upload.single('image'), cropImage);
