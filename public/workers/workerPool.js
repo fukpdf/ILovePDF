@@ -395,11 +395,6 @@
     var pool = getPool(workerUrl);
 
     return new Promise(function (resolve, reject) {
-      var declaredBytes = Number(opts.inputBytes || opts.byteLength || 0);
-      if (declaredBytes > MAX_TASK_BYTES) {
-        reject(new Error('Worker task input exceeds the client device processing limit'));
-        return;
-      }
       if (queueLength(pool) >= MAX_QUEUE) {
         reject(new Error('Worker queue full — too many concurrent tasks'));
         return;
