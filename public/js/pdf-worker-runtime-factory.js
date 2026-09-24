@@ -49,27 +49,31 @@
   // Three-tier check: RuntimeMemory tier → MemPressure heap estimate → inline.
   // files is null for post-worker checks (no size to estimate).
   function _sharedMemoryGuard(phase, files, toolId) {
+    // Advisory memory sensing only: do not reject a valid PDF because of
+    // device capability or an estimated size ceiling. WorkerPool already
+    // adapts concurrency to the device; low-memory devices may process more
+    // slowly, but file/page count is not an application-level limit.
+    var pressure = false;
     if (window.RuntimeMemory) {
-      if (window.RuntimeMemory.isEmergency()) throw new Error('memory_pressure');
+      try { pressure = !!window.RuntimeMemory.isEmergency(); } catch (_) {}
       if (window.RuntimeMemory.isCritical() && window.RuntimeCleanup) {
         try { window.RuntimeCleanup.lightCleanup(toolId + '-critical-guard'); } catch (_) {}
       }
     }
-    if (files && window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      var totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
-      // 3× estimate: raw input buffer + pdf-lib internal copy + output buffer
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3)) {
-        throw new Error('memory_pressure');
-      }
-    }
     try {
       var mem = performance && performance.memory;
-      if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) throw new Error('memory_pressure');
-    } catch (e) {
-      if (e.message === 'memory_pressure') throw e;
-    }
+      if (mem && mem.jsHeapSizeLimit) {
+        pressure = pressure || (mem.usedJSHeapSize / mem.jsHeapSizeLimit > 0.90);
+      }
+    } catch (_) {}
     if (window.RuntimeTelemetry) {
-      try { window.RuntimeTelemetry.record(toolId + ':memory-guard-ok', { phase: phase }); } catch (_) {}
+      try {
+        window.RuntimeTelemetry.record(toolId + ':memory-guard-ok', {
+          phase: phase,
+          pressure: pressure,
+          inputBytes: files ? files.reduce(function (s, f) { return s + (f.size || 0); }, 0) : 0,
+        });
+      } catch (_) {}
     }
   }
 
@@ -237,15 +241,8 @@
 
     // Pre-check: cancellation + memory
     if (token && token.cancelled) throw new Error('cancelled-before-read');
-    if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
-      throw new Error('memory_pressure');
-    }
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      // 2× estimate: input buffer + pdf-lib internal copy
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
-    }
+    // Memory pressure is advisory here. Do not reject by file size or page
+    // count; adaptive worker concurrency/pacing handles weaker devices.
 
     // Telemetry: outer dispatch span
     var spanId = null;
