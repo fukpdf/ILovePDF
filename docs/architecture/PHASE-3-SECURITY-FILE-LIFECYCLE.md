@@ -95,9 +95,24 @@ Audit boundary:
 - No new file-size/page-count processing cap was introduced by this unit.
 - Existing image pixel-dimension safety validation remains an image-processing guard, not a generic upload-size limit.
 
-## Next Phase 3 units
+## Unit 6 — Security regression + runtime consistency verification
 
-1. Security regression + runtime consistency verification.
+Added `scripts/phase3-file-lifecycle-check.js` and exposed it as `npm run audit:phase3`.
+
+Static regression coverage verifies:
+- Shared content-signature upload boundary.
+- Shared upload middleware on advanced, image, R2, convert, edit, and organize route families.
+- Output validation wiring on cleanup, conversion, advanced, and image delivery paths.
+- No direct Multer configuration remains in the audited advanced/R2 route boundaries.
+- Existing security/runtime regression scripts remain available through `npm run audit:security` and `npm run audit:runtime`.
+
+CI/deployment status:
+- GitHub reports no workflow run attached to commit `bde87782371a60bb454ae8f77f88f98984b28335` at the time of verification.
+- Therefore this phase branch is source-verified but **not deployment-verified**. A CI PASS must not be inferred from static checks.
+
+## Phase 3 status
+
+Units 1–6 are implemented. Final deployment verification remains external to the branch until a GitHub Actions workflow executes these checks.
 
 ## Unit 2 — Unified input validation
 
