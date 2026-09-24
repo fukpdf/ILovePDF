@@ -3,8 +3,7 @@
   'use strict';
   if (G.ClientOutputValidation) return;
 
-  const VERSION = '1.0.0';
-  const DEFAULT_MAX_OUTPUT = 512 * 1024 * 1024;
+  const VERSION = '1.1.0';
 
   function toBytes(output) {
     if (output instanceof ArrayBuffer) return new Uint8Array(output);
@@ -21,13 +20,18 @@
 
   function validate(output, options) {
     const o = options || {};
-    const maxBytes = Number(o.maxBytes) > 0 ? Number(o.maxBytes) : DEFAULT_MAX_OUTPUT;
     const size = output instanceof Blob ? output.size :
       output instanceof ArrayBuffer ? output.byteLength :
       ArrayBuffer.isView(output) ? output.byteLength : -1;
     if (size < 0) throw new TypeError('Unsupported processing output');
     if (size === 0) throw new Error('processing_output_empty');
-    if (size > maxBytes) throw new Error('processing_output_too_large');
+
+    // Output validation must not impose a product file-size ceiling. Memory
+    // safety is handled by streaming/backpressure and runtime emergency guards.
+    const maxBytes = Number(o.maxBytes);
+    if (Number.isFinite(maxBytes) && maxBytes > 0 && size > maxBytes) {
+      throw new Error('processing_output_too_large');
+    }
 
     const bytes = toBytes(output);
     if (bytes && o.mime) {
@@ -58,5 +62,7 @@
     return Object.freeze({ size, mime: o.mime || '', validated: true });
   }
 
-  G.ClientOutputValidation = Object.freeze({ VERSION, DEFAULT_MAX_OUTPUT, validate });
+  // No default output-size ceiling. maxBytes remains an explicit caller-level
+  // policy hook for contexts that intentionally require a bounded artifact.
+  G.ClientOutputValidation = Object.freeze({ VERSION, validate });
 }(window));
