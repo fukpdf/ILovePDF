@@ -108,3 +108,15 @@ Implemented on `phase-4-unit-8-registry-integrity`.
 - The runtime registry exposes a lightweight `health()` snapshot with readiness, endpoint, schema version, loaded tool count, and load error state for diagnostics.
 - The Phase 4 audit verifies the immutable entry/capability boundary and health API.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
+
+
+## Unit 9 — Runtime manifest contract
+
+Implemented on `phase-4-unit-9-runtime-manifest-contract`.
+
+- The canonical Phase 4 Tool Registry now has a build-time and runtime contract with `RuntimeToolManifestRegistry`.
+- Every canonical tool ID must have exactly one runtime manifest entry, and every runtime manifest entry must exist in the canonical registry.
+- Runtime validation waits for the published Tool Registry readiness barrier and exposes immutable diagnostic snapshots through `registryContractStatus()`.
+- The richer runtime manifest remains responsible for family-level hydration, worker, memory, recovery, offline, thermal, and analytics policy; it no longer operates with an unverified tool-identity universe.
+- Phase 4 CI audits the one-to-one identity contract and registry-count parity.
+- No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.

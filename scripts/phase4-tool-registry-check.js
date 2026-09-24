@@ -106,6 +106,26 @@ for (const t of (registry.tools || [])) {
   }
 }
 
+// Unit 9 canonical Tool Registry ↔ RuntimeToolManifestRegistry contract.
+const runtimeManifest = read('public/js/runtime-tool-manifest-registry.js');
+if (!/validateAgainstToolRegistry/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose the canonical Tool Registry contract.');
+if (!/registryContractStatus/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose contract diagnostics.');
+if (!/G\.ToolRegistryReady/.test(runtimeManifest) || !/ilovepdf:tool-registry-ready/.test(runtimeManifest)) fail('Runtime tool manifest registry does not bind validation to Tool Registry readiness.');
+const manifestBlock = runtimeManifest.match(/var TOOL_FAMILY = \{([\\s\\S]*?)\n  \};/);
+if (!manifestBlock) {
+  fail('Runtime tool manifest TOOL_FAMILY map not found.');
+} else {
+  const manifestIds = [];
+  const manifestIdRe = /^\s*'([^']+)'\s*:\s*'[^']+'/gm;
+  let mm;
+  while ((mm = manifestIdRe.exec(manifestBlock[1]))) manifestIds.push(mm[1]);
+  unique(manifestIds, 'runtime manifest tool id');
+  const manifestSet = new Set(manifestIds);
+  for (const t of (registry.tools || [])) if (!manifestSet.has(t.id)) fail('Registry tool missing from RuntimeToolManifestRegistry: ' + t.id);
+  for (const id of manifestSet) if (!registryIds.has(id)) fail('Runtime manifest tool missing from canonical registry: ' + id);
+  if (manifestIds.length !== registry.tools.length) fail('Runtime manifest tool count does not equal canonical registry count.');
+}
+
 // Unit 8 runtime registry integrity checks.
 if (!/function freezeEntry\(tool\)/.test(runtimeLoader)) fail('Runtime registry entries are not explicitly frozen.');
 if (!/entry\.capabilities\s*=\s*Object\.freeze\(\{\s*\.\.\.entry\.capabilities\s*\}\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
