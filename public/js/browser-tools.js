@@ -902,60 +902,24 @@
   // DOCX is parsed locally with Mammoth and exported with SheetJS/XLSX.
   // Legacy binary .doc is intentionally not accepted because there is no
   // trustworthy browser parser in the current dependency set.
-  async function wordToExcel(files) {
-    const mammoth = await loadMammoth();
-    const XLSX = await loadXlsx();
+  async function wordToExcelWorker(files) {
     const file = files && files[0];
     if (!file) throw new Error('No Word document was provided.');
-    if (!/\\.docx$/i.test(file.name || '')) {
-      throw new Error('Only .docx Word documents are supported for browser conversion.');
-    }
-    const ab = await file.arrayBuffer();
-    const converted = await mammoth.convertToHtml({ arrayBuffer: ab });
-    const html = String(converted && converted.value || '').trim();
-    if (!html) throw new Error('Could not extract readable content from this Word document.');
-
-    const doc = new DOMParser().parseFromString('<!doctype html><body>' + html + '</body>', 'text/html');
-    const tables = Array.from(doc.querySelectorAll('table'));
-    const workbook = XLSX.utils.book_new();
-    let sheetCount = 0;
-
-    function safeSheetName(name, fallback) {
-      const cleaned = String(name || fallback).replace(/[\\\\/?*\\[\\]:]/g, ' ').trim().slice(0, 31);
-      return cleaned || fallback;
-    }
-
-    tables.forEach(function (table, index) {
-      const rows = Array.from(table.rows).map(function (row) {
-        return Array.from(row.cells).map(function (cell) {
-          return String(cell.textContent || '').replace(/\\s+/g, ' ').trim();
-        });
-      }).filter(function (row) {
-        return row.some(function (cell) { return cell.length > 0; });
+    if (!/\\.docx$/i.test(file.name || '')) throw new Error('Only .docx Word documents are supported for browser conversion.');
+    const worker = RuntimeWorkerFactory.spawn('/workers/word-excel-worker.js');
+    try {
+      const buffer = await file.arrayBuffer();
+      const result = await new Promise((resolve, reject) => {
+        worker.onmessage = function (event) {
+          const data = event.data || {};
+          if (data.type === 'word-to-excel-done') resolve(data.buffer);
+          else if (data.type === 'word-to-excel-error') reject(new Error(data.message || 'Word to Excel worker failed'));
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'Word to Excel worker failed')); };
+        worker.postMessage({ type: 'word-to-excel', fileName: file.name, buffer }, [buffer]);
       });
-      if (!rows.length) return;
-      const sheet = XLSX.utils.aoa_to_sheet(rows);
-      XLSX.utils.book_append_sheet(workbook, sheet, safeSheetName('Table ' + (index + 1), 'Sheet' + (index + 1)));
-      sheetCount++;
-    });
-
-    if (!sheetCount) {
-      const rows = Array.from(doc.body.querySelectorAll('p, li')).map(function (node) {
-        return [String(node.textContent || '').replace(/\\s+/g, ' ').trim()];
-      }).filter(function (row) { return row[0]; });
-      if (!rows.length) throw new Error('No tables or readable text were found in this Word document.');
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Content');
-      sheetCount = 1;
-    }
-
-    const bytes = XLSX.write(workbook, { bookType: 'xlsx', type: 'array', compression: true });
-    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    if (blob.size < 1000) throw new Error('Generated Excel output appears incomplete.');
-    return {
-      blob: blob,
-      ext: '.xlsx',
-      mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    };
+      return { blob: new Blob([result], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+    } finally { try { worker.terminate(); } catch (_) {} }
   }
 
   // ── PHASE 1: HTML TO PDF PRO MAX ─────────────────────────────────────────
@@ -4381,7 +4345,7 @@
     'image-filters': imageFilters,
     // ── Phase 1 ───────────────────────────────────────────────────────────
     'word-to-pdf':        wordToPdf,
-    'word-to-excel':      wordToExcel,
+    'word-to-excel':      wordToExcelWorker,
     'html-to-pdf':        htmlToPdf,
     // ── Phase 2 ───────────────────────────────────────────────────────────
     // ── Phase 3 ───────────────────────────────────────────────────────────
