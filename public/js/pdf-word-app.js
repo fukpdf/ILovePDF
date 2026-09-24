@@ -38,8 +38,6 @@
   var _docxWorker   = null;     // current DOCX packaging Worker
   var _tessWorker   = null;     // current Tesseract worker (from createWorker)
   var _pdfInst      = null;     // current pdfjsLib pdf instance
-  var _hardTimer    = null;     // job-level cancellation handle
-  var _hardReject   = null;     // resolve fn for hard-timeout promise rejection
 
   // ── LOG ───────────────────────────────────────────────────────────────────
   function _log(msg, d)  { console.debug('[PdfToWordApp]', msg, d !== undefined ? d : ''); }
@@ -283,7 +281,7 @@
         oPage.cleanup();
         cvs.width = 0; cvs.height = 0; // release canvas memory
 
-        var recog = await _race(tw.recognize(dataUrl), OCR_PAGE_MS, 'OCR page ' + oi);
+        var recog = await _race(tw.recognize(dataUrl));
         ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
 
         onStep(1, 'active',
