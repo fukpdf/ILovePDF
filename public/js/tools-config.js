@@ -404,7 +404,7 @@ const TOOLS = [
   },
   {
     id: 'sign', name: 'Sign PDF', icon: 'pen-tool',
-    description: 'Add a digital text signature to your PDF',
+    description: 'Temporarily unavailable — cryptographic PDF digital signing requires a standards-compliant signing engine',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/sign', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
@@ -433,10 +433,10 @@ const TOOLS = [
   },
   {
     id: 'redact', name: 'Redact PDF', icon: 'eye-off',
-    description: 'Black out sensitive areas of your PDF',
+    description: 'Temporarily unavailable — true irreversible PDF redaction requires a standards-compliant content-removal engine',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/redact', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true,
+    multipleFiles: false, working: false, clientSide: false,
     options: [
       { id: 'x',      label: 'X Position (%)',  type: 'number', placeholder: '10' },
       { id: 'y',      label: 'Y Position (%)',  type: 'number', placeholder: '40' },
@@ -449,7 +449,7 @@ const TOOLS = [
   // ── SECURITY ──────────────────────────────────────────────────────────────
   {
     id: 'protect', name: 'Protect PDF', icon: 'lock',
-    description: 'Add password protection to your PDF',
+    description: 'Temporarily unavailable — standards-compliant PDF encryption is required',
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/protect', acceptedFiles: '.pdf',
     multipleFiles: false, working: true, clientSide: true,
@@ -458,8 +458,8 @@ const TOOLS = [
     ]
   },
   {
-    id: 'unlock', name: 'Unlock PDF', icon: 'unlock', clientSide: true,
-    description: 'Remove password protection from a PDF',
+    id: 'unlock', name: 'Unlock PDF', icon: 'unlock',
+    description: 'Temporarily unavailable — encrypted PDF handling requires a standards-compliant password engine',
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/unlock', acceptedFiles: '.pdf',
     multipleFiles: false, working: true,
