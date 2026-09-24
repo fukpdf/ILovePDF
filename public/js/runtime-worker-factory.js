@@ -66,6 +66,7 @@
     '/workers/image-worker.js',
     '/workers/image-pdf-worker.js',
     '/workers/pdf-image-worker.js',
+    '/workers/spreadsheet-pdf-worker.js',
     '/workers/image-pipeline-worker.js',
     '/workers/image-tools-worker.js',
     '/workers/remove-bg-worker.js',
