@@ -92,6 +92,24 @@
     return cfg;
   }
 
+  // ── Manifest contract ─────────────────────────────────────────────────────
+  var _contractStatus = {};
+  function validateAgainstManifest(toolId, config) {
+    var mr = G.RuntimeToolManifestRegistry;
+    if (!mr || typeof mr.get !== 'function') return { checked: false, ok: true, reason: 'MANIFEST_REGISTRY_UNAVAILABLE' };
+    var manifest = mr.get(toolId);
+    if (!manifest) return { checked: true, ok: false, reason: 'MANIFEST_NOT_FOUND', toolId: toolId };
+    var fields = ['family', 'hydrationTier', 'memoryBudgetMb', 'recoveryPolicy', 'thermalPolicy', 'offlineCapable'];
+    var mismatches = [];
+    fields.forEach(function (field) {
+      if (config[field] !== undefined && config[field] !== manifest[field]) mismatches.push({ field: field, config: config[field], manifest: manifest[field] });
+    });
+    var result = { checked: true, ok: mismatches.length === 0, toolId: toolId, mismatches: mismatches };
+    _contractStatus[toolId] = Object.freeze({ checked: result.checked, ok: result.ok, mismatches: mismatches.slice() });
+    if (!result.ok) console.error(LOG, 'manifest contract mismatch:', toolId, result);
+    return result;
+  }
+
   // ── Seal (snapshot) a tool config ────────────────────────────────────────
   function seal(toolId, overrides) {
     var st  = _ensureStore(toolId);
@@ -99,6 +117,8 @@
     if (overrides && typeof overrides === 'object') {
       Object.keys(overrides).forEach(function (k) { cfg[k] = overrides[k]; });
     }
+    var contract = validateAgainstManifest(toolId, cfg);
+    if (!contract.ok) return null;
     cfg.sealedAt = Date.now();
     cfg.version  = st.version + 1;
 
@@ -175,6 +195,8 @@
     VERSION:     VERSION,
     seal:        seal,
     verify:      verify,
+    validateAgainstManifest: validateAgainstManifest,
+    getContractStatus: function (toolId) { return toolId ? (_contractStatus[toolId] || null) : Object.assign({}, _contractStatus); },
     getSnapshot: function (toolId) {
       var st = _store[toolId];
       if (!st || !st.snapshots.length) return null;
