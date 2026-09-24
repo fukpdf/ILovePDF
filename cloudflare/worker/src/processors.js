@@ -16,8 +16,6 @@
 import { PDFDocument } from 'pdf-lib';
 import { getObjectBytes } from './r2.js';
 
-const BACKEND_TIMEOUT_MS = 120_000;
-
 // Maps queued tool ids → Express route paths (same as the backend's
 // /api/<path> convention).  Adding a new tool only requires the Express
 // backend to expose the matching route.
@@ -111,10 +109,8 @@ async function callBackend(env, job, fileBytes) {
   const backendBase = env.BACKEND_URL.replace(/\/+$/, '');
   const url         = `${backendBase}/api${route.path}`;
 
-  const ctrl  = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), BACKEND_TIMEOUT_MS);
   try {
-    const r = await fetch(url, { method: 'POST', body: fd, signal: ctrl.signal });
+    const r = await fetch(url, { method: 'POST', body: fd });
     if (!r.ok) {
       const body = await r.text().catch(() => '');
       throw new Error(`Backend ${r.status} for ${job.tool}: ${body.slice(0, 300)}`);
@@ -123,8 +119,6 @@ async function callBackend(env, job, fileBytes) {
     const meta = EXT_BY_TOOL[job.tool] || { ext: '.bin', mime: ct || 'application/octet-stream' };
     const bytes = new Uint8Array(await r.arrayBuffer());
     return { bytes, ext: meta.ext, mime: meta.mime };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
