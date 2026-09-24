@@ -75,8 +75,8 @@ OPS['resize-image'] = async function (buffer, mime, opts) {
   else if (preset === 'hd')   { tw = 1920; th = 1080; }
   else if (preset === 'thumb'){ tw = 200;  th = 200;  }
   else {
-    tw = Math.max(1, Math.min(8000, parseInt(opts.width  || srcW, 10)));
-    th = Math.max(1, Math.min(8000, parseInt(opts.height || srcH, 10)));
+    tw = Math.max(1, parseInt(opts.width  || srcW, 10));
+    th = Math.max(1, parseInt(opts.height || srcH, 10));
   }
 
   const canvas = new OffscreenCanvas(tw, th);
