@@ -2630,110 +2630,20 @@
   // layout reconstruction (headings/tables/paragraphs), three output formats.
   async function ocrPdf(files, opts) {
     opts = opts || {};
-    const ocrMode   = opts.ocrMode      || 'balanced';
-    const lang      = opts.language     || 'eng';
     const outputFmt = opts.outputFormat || 'docx';
-    const preproc   = opts.preprocessing || 'auto';
-
-    const pdfjsLib = await loadPdfJs();
-    const data     = await readFileBytes(files[0]);
-    const pdf      = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    const numPages = pdf.numPages;
-
-    // ── Fast digital-text probe ───────────────────────────────────────────
-    let digitalText = '';
-    for (let i = 1; i <= numPages; i++) {
-      const page    = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      digitalText  += content.items.map(it => it.str).join(' ') + '\n';
-      page.cleanup();
-    }
-    const hasDigitalText = digitalText.replace(/\s/g, '').length >= 60;
-
-    // ── Render scale by OCR mode ─────────────────────────────────────────
-    const scaleMap = { fast: 1.5, balanced: 2.0, accurate: 2.5, 'layout-preserve': 2.0, 'table-priority': 2.5 };
-    const renderScale = scaleMap[ocrMode] || 2.0;
-
-    // Tesseract page-segmentation mode
-    const psmMap = { 'table-priority': '6', 'layout-preserve': '4' };
-    const psm    = psmMap[ocrMode] || '3';
-
-    const Tesseract = await loadTesseract();
-
-    const allPageData = [];
-    let totalConfidence = 0;
-
-    for (let i = 1; i <= numPages; i++) {
-      const page     = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      const canvas   = document.createElement('canvas');
-      canvas.width   = Math.min(Math.floor(viewport.width),  4096);
-      canvas.height  = Math.min(Math.floor(viewport.height), 4096);
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
-
-      // ── Enhanced preprocessing pipeline ────────────────────────────────
-      if (preproc !== 'none') {
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const d = imgData.data;
-        const N = d.length;
-
-        // Pass 1: Grayscale + histogram scan for auto-level
-        let minV = 255, maxV = 0;
-        for (let px = 0; px < N; px += 4) {
-          const g = Math.round(0.299 * d[px] + 0.587 * d[px + 1] + 0.114 * d[px + 2]);
-          d[px] = d[px + 1] = d[px + 2] = g;
-          if (g < minV) minV = g;
-          if (g > maxV) maxV = g;
-        }
-
-        // Pass 2: Auto-level stretch + contrast boost
-        const range  = Math.max(1, maxV - minV);
-        const isBW   = preproc === 'bw';
-        const factor = preproc === 'contrast' ? 1.8 : preproc === 'auto' ? 1.5 : 1.0;
-        for (let px = 0; px < N; px += 4) {
-          let v = Math.round((d[px] - minV) * 255 / range); // auto-level
-          v = Math.min(255, Math.max(0, Math.round((v - 128) * factor + 128))); // contrast curve
-          if (isBW) v = v > 127 ? 255 : 0;
-          d[px] = d[px + 1] = d[px + 2] = v;
-        }
-        ctx.putImageData(imgData, 0, 0);
-      }
-
-      const canvasW = canvas.width;
-      const dataUrl = canvas.toDataURL('image/png');
-      canvas.width = 0; canvas.height = 0;
-
-      // ── AI OCR Engine ──────────────────────────────────────────────────
-      const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
-        logger: () => {},
-        tessedit_pageseg_mode: psm,
-      });
-
-      const pageConf = typeof ocrData.confidence === 'number' ? ocrData.confidence : 0;
-      totalConfidence += pageConf;
-      allPageData.push({
-        text:       (ocrData.text || '').trim(),
-        words:      ocrData.words || [],
-        confidence: pageConf,
-        pageIdx:    i - 1,
-        pageW:      canvasW,
-      });
-      page.cleanup();
-      await new Promise(r => setTimeout(r, 0)); // Phase 21: yield to main thread between pages
-    }
-    await pdf.destroy();
-
-    const avgConf = numPages > 0 ? totalConfidence / numPages : 0;
-    if (avgConf < 5 && !hasDigitalText) {
-      throw new Error(
-        'Low scan quality detected. The document may be too blurry or the selected language may not match. ' +
-        'Try switching to a different language or image enhancement mode.'
-      );
-    }
-
+    const lang = opts.language || 'eng';
+    const worker = RuntimeWorkerFactory.spawn('/workers/ocr-pdf-worker.js');
+    const buffer = await readFileBytes(files[0]);
+    const allPageData = await new Promise(function(resolve, reject) {
+      var settled=false, timer=setTimeout(function(){finish(reject,new Error('OCR worker timed out.'));},180000);
+      function finish(fn,v){if(settled)return;settled=true;clearTimeout(timer);try{worker.terminate();}catch(_){}fn(v);}
+      worker.onmessage=function(ev){var d=ev.data||{};if(d.type==='ocr-progress'){/* UI progress is handled by the page app when present. */}else if(d.type==='ocr-done'){finish(resolve,d.pages||[]);}else if(d.type==='ocr-error'){finish(reject,new Error(d.message||'OCR worker failed'));}};
+      worker.onerror=function(ev){finish(reject,new Error(ev&&ev.message||'OCR worker failed'));};
+      worker.postMessage({type:'ocr-pdf',buffer:buffer,language:lang,scale:opts.ocrMode==='accurate'?2.5:opts.ocrMode==='fast'?1.5:2},[buffer]);
+    });
+    if (!allPageData.length) throw new Error('No pages could be processed for OCR.');
+    const numPages = allPageData.length;
+    const avgConf = allPageData.reduce(function(sum,p){return sum+(typeof p.confidence==='number'?p.confidence:0);},0)/numPages;
     // ── Plain text output ─────────────────────────────────────────────────
     if (outputFmt === 'txt') {
       const fullText = allPageData.map(p => p.text).join('\n\n--- Page Break ---\n\n');
