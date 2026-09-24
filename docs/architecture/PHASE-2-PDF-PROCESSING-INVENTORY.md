@@ -79,3 +79,10 @@ A legacy handler is removable only after:
 8. AI-related operations — separate architecture review; do not couple Laba AI to the PDF processing registry.
 
 This inventory is a migration map, not a claim that all listed tools are already production-verified.
+
+
+## Security-sensitive quarantine update (2026-09-24)
+
+Protect and Sign are not promoted into the authoritative worker registry because the current implementations are not standards-compliant security processors. `protect` creates a visual overlay rather than PDF encryption, and `sign` draws visible signature text rather than producing a cryptographic PDF digital signature. The legacy browser handlers and worker-tool registrations have been removed from the active dispatch path. They require dedicated Phase 3 security implementations before reactivation.
+
+`unlock` remains worker-only but must continue to report its actual password/permission behavior; it must not imply that every encrypted PDF can be unlocked without the appropriate credentials.
