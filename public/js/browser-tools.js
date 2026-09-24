@@ -608,12 +608,6 @@
   // ── UNLOCK PDF (browser-side) ────────────────────────────────────────────
   // Loads with ignoreEncryption and re-saves an unencrypted copy. Works for
   // PDFs that don't require an owner password to open (the typical case).
-  async function unlock(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const out = await doc.save({ useObjectStreams: true });
-    return new Blob([out], { type: 'application/pdf' });
-  }
 
   // ── PDF -> JPG (basic, browser-side via pdfjs+canvas) ────────────────────
   // Renders every page to a JPG. Single-page → JPG blob. Multi-page → ZIP.
@@ -1060,24 +1054,6 @@
   }
 
   // ── PHASE 2: REDACT PDF ──────────────────────────────────────────────────
-  async function redactPdf(files, opts) {
-    const { PDFDocument, rgb } = await loadPdfLib();
-    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const pages = doc.getPages();
-    const total = pages.length;
-    const xPct  = Math.max(0, parseFloat(opts.x      || '10')) / 100;
-    const yPct  = Math.max(0, parseFloat(opts.y      || '40')) / 100;
-    const wPct  = Math.max(0.01, parseFloat(opts.width  || '30')) / 100;
-    const hPct  = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
-    const targets = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
-      ? pages
-      : parsePageRange(String(opts.pages), total).map(n => pages[n - 1]).filter(Boolean);
-    for (const page of targets) {
-      const { width, height } = page.getSize();
-      page.drawRectangle({ x: width * xPct, y: height * (1 - yPct - hPct), width: width * wPct, height: height * hPct, color: rgb(0, 0, 0) });
-    }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── Shared OCR line reconstructor ────────────────────────────────────────
   // Groups Tesseract word objects by Y-midpoint proximity into visual lines,
@@ -4328,7 +4304,6 @@
     // ── Phase 2 ───────────────────────────────────────────────────────────
     'edit':               editPdf,
     'sign':               signPdf,
-    'redact':             redactPdf,
     // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
