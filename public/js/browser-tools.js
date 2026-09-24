@@ -210,45 +210,8 @@
   // ── ORGANIZE (reorder) ───────────────────────────────────────────────────
 
   // ── PAGE NUMBERS ─────────────────────────────────────────────────────────
-  async function pageNumbers(files, opts) {
-    const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const total = doc.getPageCount();
-    const start = parseInt(opts.startFrom || '1', 10) || 1;
-    const position = (opts.position || 'bottom-center').toLowerCase();
-    doc.getPages().forEach((page, idx) => {
-      const { width } = page.getSize();
-      const label = `${start + idx} / ${start + total - 1}`;
-      const tw = font.widthOfTextAtSize(label, 11);
-      let x = (width - tw) / 2;
-      if (position.includes('left'))  x = 24;
-      if (position.includes('right')) x = width - tw - 24;
-      const y = position.startsWith('top') ? page.getSize().height - 22 : 14;
-      page.drawText(label, { x, y, size: 11, font, color: rgb(0.4, 0.4, 0.4) });
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── WATERMARK ────────────────────────────────────────────────────────────
-  async function watermark(files, opts) {
-    const { PDFDocument, StandardFonts, rgb, degrees } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.HelveticaBold);
-    const text = (opts.text || 'WATERMARK').slice(0, 80);
-    const opacity = Math.min(0.9, Math.max(0.05, parseFloat(opts.opacity || '0.3')));
-    const position = (opts.position || 'center').toLowerCase();
-    doc.getPages().forEach(page => {
-      const { width, height } = page.getSize();
-      const size = Math.min(width, height) * 0.07;
-      const tw = font.widthOfTextAtSize(text, size);
-      let x = (width - tw) / 2, y = (height - size) / 2, rot = 45;
-      if (position === 'top')    { y = height - size - 30; rot = 0; }
-      if (position === 'bottom') { y = 30; rot = 0; }
-      page.drawText(text, { x, y, size, font, color: rgb(0.6, 0.6, 0.6), opacity, rotate: degrees(rot) });
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── CROP ─────────────────────────────────────────────────────────────────
 
@@ -4458,8 +4421,6 @@
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
-    'page-numbers':  pageNumbers,
-    'watermark':     watermark,
     'jpg-to-pdf':    imagesToPdf,
     'compress':      compress,
     'protect':       protect,
