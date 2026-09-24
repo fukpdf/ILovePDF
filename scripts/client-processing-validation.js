@@ -104,8 +104,7 @@ async function kernelHarness() {
   // Ensure kernel source keeps transferable semantics explicit.
   assert('kernel-transfer-contract', /postMessage\\(\\{ type: 'process-buffer', buffer: bytes \\}, \\[bytes\\]\\)/.test(source),
     'processBuffer transfers the input ArrayBuffer');
-
-  try { await fast; } catch (_) {}
+ 
 }
 
 async function pdfEngineHarness() {
