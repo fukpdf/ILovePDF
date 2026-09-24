@@ -47,6 +47,10 @@ After inclusion on the canonical public shells, source/CI checks must confirm:
 4. No processing engine is added to the shared layer.
 5. The visual values are unchanged unless a later migration intentionally opts into a token.
 
+## Unit 2 update
+
+The canonical shells now also load the browser-only Client Processing Kernel contract. This is an orchestration boundary only; legacy tool engines remain temporarily in place until each tool has a verified replacement.
+
 ## Next Unit
 
-Unit 2 will wire the token layer into the canonical header/footer/tool shell with no intended visual change, then verify the resulting public pages before extracting additional shared components.
+Unit 3 will inventory and classify legacy processing functions/tool engines, define the per-tool replacement engine type (WASM, worker, page pipeline, stream/chunk pipeline), and start replacing the highest-risk legacy PDF path. Legacy functions will be deleted only after the replacement passes fixture and browser verification.
