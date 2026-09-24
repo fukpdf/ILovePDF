@@ -101,15 +101,6 @@
       }
     }
 
-    // Heap check via MemPressure (Phase 1A)
-    if (files && window.MemPressure) {
-      var totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
-      // Estimate: 3× total file size needed in heap (buffers + pdf-lib + output)
-      if (window.MemPressure.wouldExceedLimit && window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3)) {
-        throw new Error('memory_pressure');
-      }
-    }
-
     // Legacy check (inline performance.memory)
     try {
       var mem = performance && performance.memory;
