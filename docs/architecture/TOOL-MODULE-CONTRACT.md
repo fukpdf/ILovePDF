@@ -105,7 +105,7 @@ The module registry is a contract boundary, not a processor implementation. The 
 activation was tightened.
 
 Known execution gaps remain explicit:
-- `word-to-excel` is configured as client-side but has no BrowserTools handler yet.
+- `word-to-excel` now has a BrowserTools handler: DOCX is parsed locally with Mammoth and exported locally with SheetJS/XLSX. It is main-thread browser processing (not WorkerPool/streaming) and supports `.docx` only.
 - `numbers-to-words` and `currency-converter` use special HTML routes and are not
   BrowserTools processors.
 - These tools must not be forced through the standard BrowserTools path until their
