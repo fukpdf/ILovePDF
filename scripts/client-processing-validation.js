@@ -207,6 +207,12 @@ assert('streaming-worker-protocols', /images-to-pdf-start/.test(read('public/wor
   assert('browser-tool-worker-lifecycle', /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
     /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
     'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
+  const mergeAdapter = read('public/js/merge-worker-adapter.js');
+  assert('merge-runtime-incremental-adapter', /pdf-lib-worker\.js/.test(mergeAdapter) && /merge-stream-start/.test(mergeAdapter) && /merge-stream-item/.test(mergeAdapter) && /merge-stream-ack/.test(mergeAdapter) && /merge-stream-finish/.test(mergeAdapter) && !/buffers\s*=\s*\[\]/.test(mergeAdapter),
+    'runtime merge adapter uses the session-affine incremental worker protocol without accumulating buffers[]');
+  assert('merge-runtime-total-bytes-regression', !/totalBytes:\s*totalBytes[\s\S]*var\s+totalBytes/.test(mergeAdapter),
+    'merge adapter computes totalBytes before telemetry and does not reference an undeclared variable');
+
   assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
     /ClientFileLifecycle[\s\S]*releaseBuffer/.test(source),
     'transferred input buffer is tracked and released on cleanup paths');
