@@ -6,16 +6,16 @@
 
 :root{
   --ilpdf-header-h: 68px;
-  --ilpdf-header-border: #e5e8f0;
-  --ilpdf-header-text: #1a1f36;
-  --ilpdf-header-soft: #5b6478;
-  --ilpdf-header-mute: #8a92a6;
-  --ilpdf-header-primary: #4f46e5;
-  --ilpdf-header-surface: #f1f3f9;
-  --ilpdf-header-grad: linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#9333ea 100%);
-  --ilpdf-header-grad-soft: linear-gradient(135deg,#eef2ff 0%,#f5f3ff 100%);
-  --ilpdf-header-shadow: 0 10px 30px rgba(79,70,229,.12);
-  --ilpdf-header-shadow-lg: 0 20px 40px rgba(79,70,229,.18);
+  --ilpdf-header-border: var(--ilpdf-color-border, #e5e8f0);
+  --ilpdf-header-text: var(--ilpdf-color-text, #1a1f36);
+  --ilpdf-header-soft: var(--ilpdf-color-text-soft, #5b6478);
+  --ilpdf-header-mute: var(--ilpdf-color-text-muted, #8a92a6);
+  --ilpdf-header-primary: var(--ilpdf-color-primary, #4f46e5);
+  --ilpdf-header-surface: var(--ilpdf-color-surface-2, #f1f3f9);
+  --ilpdf-header-grad: var(--ilpdf-gradient-brand, linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#9333ea 100%));
+  --ilpdf-header-grad-soft: var(--ilpdf-gradient-soft, linear-gradient(135deg,#eef2ff 0%,#f5f3ff 100%));
+  --ilpdf-header-shadow: var(--ilpdf-shadow-md, 0 10px 30px rgba(79,70,229,.12));
+  --ilpdf-header-shadow-lg: var(--ilpdf-shadow-lg, 0 20px 40px rgba(79,70,229,.18));
   --ilpdf-header-z: 1000;
   --ilpdf-header-dropdown-z: 1300;
 }
