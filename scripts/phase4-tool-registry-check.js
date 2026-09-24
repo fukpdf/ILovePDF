@@ -136,6 +136,14 @@ if (!/var contract = validateAgainstManifest\(toolId, config\)/.test(configLock)
 if (!/cl\.lock\(toolId,/.test(read('public/js/runtime-tool-loader.js'))) fail('Runtime tool loader is not connected to RuntimeToolConfigLock.');
 
 
+// Unit 11 RuntimeToolConfigSeal ↔ RuntimeToolManifestRegistry contract.
+const configSeal = read('public/js/runtime-tool-config-seal.js');
+if (!/validateAgainstManifest/.test(configSeal)) fail('Runtime tool config seal does not expose the manifest contract validator.');
+if (!/manifest\\[field\\]/.test(configSeal)) fail('Runtime tool config seal does not compare sealed fields against the manifest.');
+if (!/var contract = validateAgainstManifest\\(toolId, cfg\\)/.test(configSeal)) fail('Runtime tool config seal does not enforce the manifest contract before sealing.');
+if (!/getContractStatus/.test(configSeal)) fail('Runtime tool config seal does not expose contract diagnostics.');
+if (!/getHydrationTier: function/.test(runtimeManifest)) fail('Runtime tool manifest does not expose hydration tier lookup used by config sealing.');
+
 // Unit 8 runtime registry integrity checks.
 if (!/function freezeEntry\(tool\)/.test(runtimeLoader)) fail('Runtime registry entries are not explicitly frozen.');
 if (!/entry\.capabilities\s*=\s*Object\.freeze\(\{\s*\.\.\.entry\.capabilities\s*\}\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
