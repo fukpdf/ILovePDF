@@ -31,7 +31,7 @@
   var LOG = '[RPC]';
 
   var PRIORITY_WEIGHT = { high: 3, normal: 2, low: 1 };
-  var DEFAULT_TIMEOUT = 30000; // 30 s
+  var DEFAULT_TIMEOUT = 0; // 0 = no artificial queue-wait ceiling
   var RECHECK_INTERVAL = 80;   // ms between queue drain checks
 
   // ── Slot configuration ────────────────────────────────────────────────────
