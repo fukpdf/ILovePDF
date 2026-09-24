@@ -36,8 +36,8 @@
 
     // ── Adapter ─────────────────────────────────────────────────────────────
     adapterMode:   'worker',
-    timeoutMs:     90000,
-    workerTimeout: 90000,
+    timeoutMs: 0,
+    workerTimeout: 0,
     timerOwner:    'sgrt-tick',
 
     // PRIVACY: signature text intentionally excluded from dedupeKey.
