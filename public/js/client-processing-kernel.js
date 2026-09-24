@@ -2,7 +2,7 @@
 (function (G) {
   'use strict';
   if (G.ClientProcessingKernel) return;
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   const DEFAULT_TIMEOUT = 120000;
   const DEFAULT_CHUNK = 2 * 1024 * 1024;
   const MAX_CHUNK = 8 * 1024 * 1024;
@@ -79,7 +79,15 @@
       const timer = setTimeout(() => finish(reject, new Error('processing_worker_timeout')), timeoutMs);
       const oldFinish = finish;
       const finishWithTimer = (fn, value) => { clearTimeout(timer); oldFinish(fn, value); };
-      worker.onmessage = e => finishWithTimer(resolve, e.data);
+      worker.onmessage = e => {
+        try {
+          const data = e.data;
+          if (options && options.validateOutput && G.ClientOutputValidation && data && data.buffer) {
+            G.ClientOutputValidation.validate(data.buffer, options.validateOutput === true ? {} : options.validateOutput);
+          }
+          finishWithTimer(resolve, data);
+        } catch (err) { finishWithTimer(reject, err); }
+      };
       worker.onerror = e => finishWithTimer(reject, new Error((e && e.message) || 'processing_worker_error'));
       worker.postMessage({ type: 'process-buffer', buffer: bytes }, [bytes]);
     });
