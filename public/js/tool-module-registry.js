@@ -29,6 +29,7 @@
       category: tool.category || null,
       group: tool.group || null,
       entry: special ? 'special-route' : 'tool-page',
+      capability: special ? 'special-route' : (execution && execution.processor ? 'browser-processor' : 'unavailable'),
       processor: execution ? execution.processor : null,
       execution: execution ? execution.execution : 'unavailable',
       lazyLoad: true,
@@ -70,12 +71,27 @@
     return Object.keys(_modules).map(function (id) { return _modules[id]; });
   }
 
+  function audit() {
+    var cfg = Array.isArray(G.TOOLS) ? G.TOOLS : [];
+    var report = { configured: cfg.length, registered: Object.keys(_modules).length, browser: 0, special: 0, unavailable: 0, missing: [] };
+    cfg.forEach(function (tool) {
+      if (!tool || !tool.id) return;
+      var m = _modules[tool.id];
+      if (!m) { report.missing.push(tool.id); return; }
+      if (m.capability === 'browser-processor') report.browser++;
+      else if (m.capability === 'special-route') report.special++;
+      else report.unavailable++;
+    });
+    return report;
+  }
+
   G.ToolModuleRegistry = Object.freeze({
     VERSION: '1.0',
     register: register,
     registerAll: registerAll,
     get: get,
     getAll: getAll,
+    audit: audit,
     activate: activate,
   });
 
