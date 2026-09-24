@@ -55,12 +55,12 @@
         try { window.RuntimeCleanup.lightCleanup(toolId + '-critical-guard'); } catch (_) {}
       }
     }
-    if (files && window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      var totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
-      // 3× estimate: raw input buffer + pdf-lib internal copy + output buffer
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3)) {
-        throw new Error('memory_pressure');
-      }
+    // Do not reject by input byte size. Device capability affects pacing/concurrency;
+    // the product does not impose a file-size/page-count admission limit.
+    // MemPressure remains observational here so long jobs can adapt rather than fail
+    // solely because the input is large.
+    if (files && window.MemPressure && typeof window.MemPressure.getTier === 'function') {
+      try { window.MemPressure.getTier(); } catch (_) {}
     }
     try {
       var mem = performance && performance.memory;
@@ -240,12 +240,8 @@
     if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
       throw new Error('memory_pressure');
     }
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      // 2× estimate: input buffer + pdf-lib internal copy
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
-    }
+    // No input-size admission gate: large files are processed with adaptive
+    // pacing/concurrency instead of being rejected because of byte count.
 
     // Telemetry: outer dispatch span
     var spanId = null;
