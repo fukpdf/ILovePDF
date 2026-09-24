@@ -167,6 +167,18 @@ async function kernelHarness() {
   assert('pdf-runtime-no-input-size-gate',
     !/wouldExceedLimit\(totalBytes \* 3|wouldExceedLimit\(totalBytes \* 2/.test(read('public/js/pdf-worker-runtime-factory.js')),
     'PDF runtime does not reject jobs solely from input byte-size estimates');
+  assert('incremental-pdf-no-object-count-cap',
+    !/offsets\.length < 50000/.test(read('public/js/runtime-incremental-pdf.js')),
+    'incremental PDF xref parser has no fixed object-count admission cutoff');
+  assert('scan-image-adaptive-resource-safety',
+    /maxPx=6000000/.test(read('public/workers/scan-pdf-worker.js')) &&
+    /Math\.sqrt\(maxPx\/(W\*H\)\)/.test(read('public/workers/scan-pdf-worker.js')) &&
+    !/maxPx[^;]*throw/.test(read('public/workers/scan-pdf-worker.js')),
+    'scan image processing adapts resolution instead of rejecting oversized pixel dimensions');
+  assert('pptx-zip-security-guard',
+    /uncompressedSize/.test(read('public/workers/powerpoint-pdf-worker.js')) &&
+    /500\s*\*\s*1024\s*\*\s*1024/.test(read('public/workers/powerpoint-pdf-worker.js')),
+    'PPTX expansion guard remains as a ZIP-bomb security safeguard, not a PDF input-size policy');
 
   assert('merge-stream-protocol', /merge-stream-start/.test(read('public/workers/pdf-lib-worker.js')) &&
     /merge-stream-item/.test(read('public/workers/pdf-lib-worker.js')) && /merge-stream-ack/.test(read('public/workers/pdf-lib-worker.js')) &&
