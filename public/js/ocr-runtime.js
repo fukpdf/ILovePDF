@@ -41,8 +41,10 @@
     LOG:         '[OCRT]',
 
     // ── Adapter ─────────────────────────────────────────────────────────────
+    // OCR remains browser-local through BrowserTools/Tesseract; the scheduler
+    // wrapper adds lifecycle/progress telemetry without a time ceiling.
     adapterMode: 'scheduler-only',
-    timeoutMs:   180000,   // 3 min — server OCR on large scanned PDFs
+    timeoutMs:   0,
     timerOwner:  'ocrt-tick',
 
     workerProgressMessages: [
