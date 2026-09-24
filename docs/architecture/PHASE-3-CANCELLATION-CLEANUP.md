@@ -25,3 +25,11 @@ A transferred `ArrayBuffer` becomes detached in the sending realm; lifecycle tra
 `scripts/client-processing-validation.js` now checks cancellation, callback cleanup, worker termination, and buffer lifecycle contracts in addition to the existing malformed-input/output/invariant checks.
 
 This is a deterministic source/contract and PDF-engine harness. Browser E2E, real-device memory profiling, and visual-fidelity certification remain separate validation work and are not claimed by this document.
+
+## Processing policy
+
+- No hard file-size or page-count limit is imposed by the shared client processing kernel or WorkerPool.
+- Device capability is used for pacing/concurrency rather than rejecting large files.
+- `public/js/processing-experience.js` provides rotating friendly processing copy with slower cadence on low-capability devices.
+- The processing experience must remain informational and non-blocking; actual progress/state remains authoritative.
+- Cartoon/illustration presentation is a UI layer and should be added per tool without coupling it to processing engines.
