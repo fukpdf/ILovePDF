@@ -310,7 +310,7 @@ const TOOLS = [
     id: 'word-to-excel', name: 'Word to Excel', icon: 'table',
     description: 'Extract tables and structured data from Word documents into Excel',
     category: 'Convert To PDF', group: 'pdf', badge: 'NEW',
-    apiEndpoint: '/api/word-to-excel', acceptedFiles: '.doc,.docx',
+    apiEndpoint: '/api/word-to-excel', acceptedFiles: '.docx',
     multipleFiles: false, working: true, clientSide: true, options: []
   },
   {
