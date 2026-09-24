@@ -143,6 +143,11 @@ async function kernelHarness() {
     /state\.buffer\.set\(bytes, state\.offset\)/.test(read('public/workers/pdf-worker.js')) &&
     !/state\.chunks\.push\(data\.chunk\)/.test(read('public/workers/pdf-worker.js')),
     'generic PDF chunk streaming assembles into one pre-sized worker buffer instead of retaining every chunk');
+  assert('pdf-stream-error-cleanup',
+    /_streamState\.delete\(streamId\)[\s\S]*invalid-stream-chunk/.test(read('public/workers/pdf-worker.js')) &&
+    /state\.buffer = null;[\s\S]*stream-size-overflow/.test(read('public/workers/pdf-worker.js')) &&
+    /if \(data\.type === 'stream-cancel'\)[\s\S]*_streamState\.delete\(data\.streamId\)/.test(read('public/workers/pdf-worker.js')),
+    'PDF stream cancellation and malformed/overflow paths release worker-side stream state');
   assert('pdf-runtime-no-input-size-gate',
     !/wouldExceedLimit\(totalBytes \* 3|wouldExceedLimit\(totalBytes \* 2/.test(read('public/js/pdf-worker-runtime-factory.js')),
     'PDF runtime does not reject jobs solely from input byte-size estimates');
