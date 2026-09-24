@@ -1,10 +1,9 @@
 import express from 'express';
-import multer from 'multer';
 import { backgroundRemove, cropImage, resizeImage, applyFilters } from '../controllers/imageController.js';
 
 const router = express.Router();
-import { UPLOAD_DIR } from '../utils/upload.js';
-const upload = multer({ dest: UPLOAD_DIR });
+import { createUpload } from '../utils/upload.js';
+const upload = createUpload('image');
 
 router.post('/background-remove', upload.single('image'), backgroundRemove);
 router.post('/crop-image',        upload.single('image'), cropImage);
