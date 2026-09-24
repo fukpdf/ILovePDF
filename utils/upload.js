@@ -50,7 +50,6 @@ function validateUploadedFiles(req, kind) {
     ...(req.file ? [req.file] : []),
     ...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()),
   ];
-  if (kind === 'any') return { ok: true };
   for (const file of files) {
     const result = validateFileSignature(file);
     if (!result.ok) return result;
