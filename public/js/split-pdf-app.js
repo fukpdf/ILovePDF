@@ -86,7 +86,7 @@
       _hardReject = reject;
       _hardTimer  = setTimeout(function () {
         _cleanup('hard-timeout');
-        reject(new Error('Split timed out. Please try with a smaller file.'));
+        reject(new Error('Split timed out. Please retry the operation.'));
       }, HARD_LIMIT_MS);
     });
 
