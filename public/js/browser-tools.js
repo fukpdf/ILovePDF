@@ -4039,7 +4039,26 @@
   // Each handler returns either a Blob (PDF, default ext) OR an object
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
-    // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
+    async function scanPdfWorker(files, opts) {
+    opts = opts || {};
+    if (opts.outputFormat && opts.outputFormat !== 'pdf') return scanPdf(files, opts);
+    const worker = RuntimeWorkerFactory.spawn('/workers/scan-pdf-worker.js');
+    const images = [];
+    try {
+      for (const file of files || []) images.push({ buffer: await file.arrayBuffer(), type: file.type || 'image/jpeg' });
+      const result = await new Promise((resolve, reject) => {
+        let settled=false;
+        const timer=setTimeout(()=>finish(reject,new Error('Scan to PDF worker timed out.')),180000);
+        function finish(fn,v){if(settled)return;settled=true;clearTimeout(timer);fn(v);}
+        worker.onmessage=e=>{const d=e.data||{};if(d.type==='scan-to-pdf-done')finish(resolve,d.buffer);else if(d.type==='scan-to-pdf-error')finish(reject,new Error(d.message||'Scan to PDF worker failed'));};
+        worker.onerror=e=>finish(reject,new Error(e&&e.message||'Scan to PDF worker failed'));
+        worker.postMessage({type:'scan-to-pdf',images,enhancement:opts.enhancement||'auto',quality:opts.quality||.92},images.map(x=>x.buffer));
+      });
+      return {blob:new Blob([result],{type:'application/pdf'}),ext:'.pdf',mime:'application/pdf'};
+    } finally { try{worker.terminate();}catch(_){} }
+  }
+
+  // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdfWorker,
     'pdf-to-jpg':    pdfToJpgWorker,
     'crop-image':    cropImage,
@@ -4064,7 +4083,7 @@
     'pdf-to-powerpoint':  pdfToPowerpoint,
     'powerpoint-to-pdf':  powerpointToPdfWorker,
     'excel-to-pdf':       excelToPdfWorker,
-    'scan-to-pdf':        scanPdf,
+    'scan-to-pdf':        scanPdfWorker,
   };
 
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
