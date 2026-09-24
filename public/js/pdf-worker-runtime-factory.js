@@ -263,14 +263,14 @@
     //   • Single-file tool (multiFile tools still use full read — merge needs all files)
     //   • File size > WORKER_STREAM_THRESHOLD (10 MB — below this, arrayBuffer is fine)
     //   • RuntimeStreamBridge is loaded
-    //   • Not in EMERGENCY memory tier (avoid spawning extra workers under pressure)
+    //   • Emergency memory tier is still stream-safe: adaptive chunk sizing
+    //     reduces per-read memory instead of forcing a full-file read.
     var WORKER_STREAM_THRESHOLD = 10 * 1024 * 1024; // 10 MB
     var _canStream = (
       !cfg.multiFile &&
       fileList.length === 1 &&
       file.size > WORKER_STREAM_THRESHOLD &&
-      window.RuntimeStreamBridge &&
-      !(window.RuntimeMemory && window.RuntimeMemory.isEmergency())
+      window.RuntimeStreamBridge
     );
 
     if (_canStream) {
