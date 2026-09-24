@@ -37,7 +37,7 @@ if (!registry || registry.schemaVersion !== 1 || !Array.isArray(registry.tools))
 const configIds = [];
 const configIdRe = /\bid:\s*'([^']+)'/g;
 let m;
-while ((m = configIdRe.exec(config)) configIds.push(m[1]));
+while ((m = configIdRe.exec(config))) configIds.push(m[1]);
 unique(configIds, 'tools-config id');
 
 const registryIds = new Set((registry.tools || []).map(t => t.id));
@@ -55,18 +55,14 @@ else {
   for (const id of mapIds) if (!registryIds.has(id)) fail('SLUG_MAP id missing from registry: ' + id);
 }
 
-const result = [
-  '[PASS] registry schema + required fields',
-  '[PASS] unique IDs and slugs',
-  '[PASS] tools-config ↔ registry identity reconciliation',
-  '[PASS] SLUG_MAP ↔ registry reconciliation',
-];
 if (failures.length) {
-  console.error(result.join('\n'));
-  console.error('\n[FAIL] Phase 4 Unit 1 registry gate (' + failures.length + ' issue(s))');
+  console.error('[FAIL] Phase 4 Unit 1 registry gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
-  console.log(result.join('\n'));
+  console.log('[PASS] registry schema + required fields');
+  console.log('[PASS] unique IDs and slugs');
+  console.log('[PASS] tools-config ↔ registry identity reconciliation');
+  console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
   console.log('\nPhase 4 Unit 1 registry gate: PASS (' + registry.tools.length + ' tools)');
 }
