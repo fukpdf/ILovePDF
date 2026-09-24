@@ -83,8 +83,28 @@ if (!/window\.ToolRegistry\.mergeLegacy\(legacyTool\)/.test(toolPage)) fail('too
 const toolShell = read('public/tool.html');
 if (!/src="\/js\/tool-registry-runtime\.js" defer/.test(toolShell)) fail('tool.html does not load the runtime registry before tool-page.js.');
 
+
+// Unit 4 adaptive streaming checks: large worker-safe jobs must have an
+// adaptive streaming capability and the browser processor must route those
+// jobs through RuntimeStreamBridge without imposing a size/page rejection.
+const browserTools = read('public/js/browser-tools.js');
+const streamBridge = read('public/js/runtime-stream-bridge.js');
+if (!/function getStreamBridge\(\)/.test(browserTools)) fail('BrowserTools does not expose the Unit 4 stream-bridge capability lookup.');
+if (!/streamFilesToWorkerReadable/.test(browserTools)) fail('BrowserTools does not route multi-file worker jobs through the streaming bridge.');
+if (!/pipelineStreamToWorker/.test(browserTools)) fail('BrowserTools does not route large single-file worker jobs through the streaming bridge.');
+if (!/10 \* 1024 \* 1024/.test(browserTools)) fail('Adaptive streaming routing threshold is missing.');
+if (!/streaming:\s*['"]adaptive-worker['"]/.test(JSON.stringify(registry))) fail('Registry has no adaptive-worker capability declaration.');
+if (!/fileSizePolicy:\s*['"]unlimited['"]/.test(JSON.stringify(registry))) fail('Registry does not declare unlimited file-size policy.');
+if (!/streamToWorkerReadable|streamFilesToWorkerReadable/.test(streamBridge)) fail('RuntimeStreamBridge streaming API is missing.');
+for (const t of (registry.tools || [])) {
+  if (t.execution === 'browser-worker') {
+    if (!t.capabilities || t.capabilities.streaming !== 'adaptive-worker') fail(t.id + ' worker capability must declare adaptive-worker streaming.');
+    if (t.capabilities.fileSizePolicy !== 'unlimited') fail(t.id + ' must retain unlimited file-size policy.');
+  }
+}
+
 if (failures.length) {
-  console.error('[FAIL] Phase 4 Unit 1 + Unit 2 registry gate (' + failures.length + ' issue(s))');
+  console.error('[FAIL] Phase 4 Unit 1 + Unit 2 + Unit 3 + Unit 4 registry gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
@@ -95,5 +115,5 @@ if (failures.length) {
   console.log('[PASS] published browser registry mirror parity');
   console.log('[PASS] runtime registry loader + tool-page authority wiring');
   console.log('[PASS] registry-driven execution policy + BrowserTools capability reconciliation');
-  console.log('\nPhase 4 Unit 1 + Unit 2 + Unit 3 registry gate: PASS (' + registry.tools.length + ' tools)');
+  console.log('\nPhase 4 Unit 1 + Unit 2 + Unit 3 + Unit 4 registry gate: PASS (' + registry.tools.length + ' tools)');
 }

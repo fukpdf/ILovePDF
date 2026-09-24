@@ -4753,30 +4753,58 @@
       }
     } catch (_) {}
 
-    // ── Worker Pool path (strict for eligible pure pdf-lib tools) ────────
-    // Eligible tools must stay off the main thread. There is intentionally
-    // NO silent worker → main-thread fallback: a worker failure is surfaced
-    // so a heavy operation cannot unexpectedly block the UI.
+    // ── Worker execution path (strict for eligible pure pdf-lib tools) ────
+    // Unit 4: large jobs use RuntimeStreamBridge so the main thread does not
+    // first allocate the entire input into ArrayBuffers. This is routing, not
+    // a file-size limit: small jobs keep the faster WorkerPool one-shot path.
+    // There is intentionally NO silent worker → main-thread fallback.
     if (WORKER_TOOLS.has(toolId)) {
       if (typeof Worker === 'undefined') {
         throw new Error('worker_processing_unavailable');
       }
-      const pool = await loadWorkerPool();
       const fileName = files[0].name;
-      const buffers  = [];
-      // Read sequentially rather than Promise.all so multi-file jobs do not
-      // create a simultaneous main-thread allocation spike before transfer.
-      for (const file of Array.from(files)) buffers.push(await file.arrayBuffer());
-      const workerResult = await pool.run(
-        '/workers/pdf-worker.js',
-        { tool: toolId, buffers, options: options || {} },
-        buffers,
-      );
+      const workerUrl = '/workers/pdf-worker.js';
+      const bridge = getStreamBridge();
+      let workerResult = null;
+
+      if (bridge) {
+        if (files.length > 1) {
+          // Multi-file operations (e.g. merge) stay sequential and bounded.
+          const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+          if (totalBytes >= 10 * 1024 * 1024) {
+            workerResult = await bridge.streamFilesToWorkerReadable(
+              workerUrl, Array.from(files), { tool: toolId, options: options || {} },
+              { onProgress: options && options.onProgress }
+            );
+          }
+        } else if (files[0].size >= 10 * 1024 * 1024) {
+          workerResult = await bridge.pipelineStreamToWorker(
+            workerUrl, files[0], { tool: toolId, options: options || {} },
+            { onProgress: options && options.onProgress }
+          );
+        }
+      }
+
+      // Small jobs (or an unavailable stream bridge) use the existing bounded
+      // WorkerPool transfer path. The processor remains strictly worker-only.
+      if (!workerResult) {
+        const pool = await loadWorkerPool();
+        const buffers  = [];
+        for (const file of Array.from(files)) buffers.push(await file.arrayBuffer());
+        workerResult = await pool.run(
+          workerUrl,
+          { tool: toolId, buffers, options: options || {} },
+          buffers,
+        );
+      }
+
       if (!workerResult || !workerResult.buffer) {
         throw new Error('worker_processing_failed');
       }
-      const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-      const workerResultObj = { blob: new Blob([workerResult.buffer], { type: 'application/pdf' }), filename: brandedFilename(fileName, '.pdf') };
+      const workerResultObj = {
+        blob: new Blob([workerResult.buffer], { type: 'application/pdf' }),
+        filename: brandedFilename(fileName, '.pdf')
+      };
       const workerValidation = await validateOutput(toolId, workerResultObj);
       if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
       return workerResultObj;

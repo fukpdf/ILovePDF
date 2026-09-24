@@ -20,7 +20,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "currency-converter",
@@ -40,7 +46,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "merge",
@@ -60,7 +72,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "split",
@@ -80,7 +98,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "rotate",
@@ -100,7 +124,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "crop",
@@ -120,7 +150,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "organize",
@@ -140,7 +176,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "compress",
@@ -160,7 +202,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "pdf-to-word",
@@ -180,7 +228,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "pdf-to-powerpoint",
@@ -200,7 +254,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "pdf-to-excel",
@@ -220,7 +280,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "pdf-to-jpg",
@@ -240,7 +306,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "word-to-pdf",
@@ -260,7 +332,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "powerpoint-to-pdf",
@@ -280,7 +358,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "excel-to-pdf",
@@ -300,7 +384,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "word-to-excel",
@@ -320,7 +410,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "jpg-to-pdf",
@@ -340,7 +436,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "html-to-pdf",
@@ -360,7 +462,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "edit",
@@ -380,7 +488,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "watermark",
@@ -400,7 +514,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "sign",
@@ -420,7 +540,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "page-numbers",
@@ -440,7 +566,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "redact",
@@ -460,7 +592,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "protect",
@@ -480,7 +618,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "unlock",
@@ -500,7 +644,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "repair",
@@ -520,7 +670,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "scan-to-pdf",
@@ -540,7 +696,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "ocr",
@@ -560,7 +722,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "compare",
@@ -580,7 +748,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "ai-summarize",
@@ -600,7 +774,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "translate",
@@ -620,7 +800,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "workflow",
@@ -640,7 +826,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "background-remover",
@@ -660,7 +852,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "crop-image",
@@ -680,7 +878,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "resize-image",
@@ -700,7 +904,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "image-filters",
@@ -720,7 +930,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "image-compressor",
@@ -740,7 +956,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "image-converter",
@@ -760,7 +982,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "qr-code-generator",
@@ -780,7 +1008,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "barcode-generator",
@@ -800,7 +1034,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     },
     {
       "id": "zip-builder",
@@ -820,7 +1060,13 @@
       "featureFlag": null,
       "output": "tool-defined",
       "cleanup": "tool-lifecycle",
-      "validation": "shared-output-validator"
+      "validation": "shared-output-validator",
+      "capabilities": {
+        "lazyLoad": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
+        "fileSizePolicy": "unlimited"
+      }
     }
   ]
 }

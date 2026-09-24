@@ -59,3 +59,17 @@ If the published registry cannot be loaded or validated, the page fails open to 
 - browser registry loader exists and exposes its readiness promise
 - `tool-page.js` waits for the registry and uses registry-backed resolution
 - `tool.html` loads the registry runtime before `tool-page.js`
+
+
+## Unit 4 — Adaptive Worker Streaming
+
+Implemented on `phase-4-unit-4-adaptive-stream-execution`.
+
+- Registry capability metadata now records `lazyLoad`, `workerPool`, `streaming`, and `fileSizePolicy`.
+- Worker-safe tools use `adaptive-worker` streaming capability.
+- Large single-file worker jobs route through `RuntimeStreamBridge.pipelineStreamToWorker`.
+- Large multi-file worker jobs route through `RuntimeStreamBridge.streamFilesToWorkerReadable`, preserving sequential bounded input transfer.
+- Small jobs retain the faster WorkerPool one-shot path.
+- Streaming is an execution optimization, not a rejection threshold; the registry explicitly retains an `unlimited` file-size policy.
+- No artificial page-count or file-size rejection was introduced.
+- Unit 4 is enforced by `npm run audit:phase4`.
