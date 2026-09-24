@@ -1,7 +1,7 @@
-/* Phase 4 Unit 3 — registry-driven execution policy.
- * The registry decides the allowed execution mode. BrowserTools remains the
- * implementation layer; this policy prevents a processor from silently
- * selecting a different execution path than the authoritative registry.
+/* Phase 4 Unit 3/7 — registry-driven execution and capability policy.
+ * The registry decides the allowed execution mode and advertised runtime
+ * capabilities. BrowserTools remains the implementation layer; this policy
+ * prevents silent capability drift between metadata and the processor.
  */
 (function (G) {
   'use strict';
@@ -13,20 +13,42 @@
     return G.BrowserTools.getToolExecutionManifest(toolId);
   }
   function get(toolId) {
-    var entry = entryFor(toolId), manifest = manifestFor(toolId);
-    if (!entry) return { ok:false, code:'TOOL_REGISTRY_MISSING', toolId:toolId };
-    if (!manifest) return { ok:false, code:'PROCESSOR_CAPABILITY_MISSING', toolId:toolId };
+    var entry=entryFor(toolId), manifest=manifestFor(toolId);
+    if (!entry) return {ok:false,code:'TOOL_REGISTRY_MISSING',toolId:toolId};
+    if (!manifest) return {ok:false,code:'PROCESSOR_CAPABILITY_MISSING',toolId:toolId};
     var expected=entry.execution, actual=manifest.execution, processor=manifest.processor;
-    if (expected === 'browser-worker') {
-      if (actual !== 'worker-pool' || processor !== 'browser-tools') return {ok:false,code:'EXECUTION_POLICY_MISMATCH',toolId:toolId,expected:expected,actual:actual};
-    } else if (expected === 'browser') {
-      if (actual !== 'main-thread' || processor !== 'browser-tools') return {ok:false,code:'EXECUTION_POLICY_MISMATCH',toolId:toolId,expected:expected,actual:actual};
-    } else if (expected === 'special-page') {
+    if (expected==='browser-worker') {
+      if (actual!=='worker-pool' || processor!=='browser-tools') return {ok:false,code:'EXECUTION_POLICY_MISMATCH',toolId:toolId,expected:expected,actual:actual};
+    } else if (expected==='browser') {
+      if (actual!=='main-thread' || processor!=='browser-tools') return {ok:false,code:'EXECUTION_POLICY_MISMATCH',toolId:toolId,expected:expected,actual:actual};
+    } else if (expected==='special-page') {
       return {ok:false,code:'SPECIAL_PAGE_ONLY',toolId:toolId,expected:expected,actual:actual};
     } else {
       return {ok:false,code:'UNKNOWN_EXECUTION_POLICY',toolId:toolId,expected:expected};
     }
-    return {ok:true,toolId:toolId,module:entry.module,execution:expected,processor:processor,workerSafe:manifest.workerSafe===true,lazyLoad:manifest.lazyLoad!==false,streaming:manifest.streaming===true,validation:manifest.validation||null};
+
+    var caps=entry.capabilities || {};
+    var expectedLazy=caps.lazyLoad !== false;
+    var expectedPool=caps.workerPool === true;
+    var expectedStreaming=caps.streaming === 'adaptive-worker';
+    var actualLazy=manifest.lazyLoad !== false;
+    var actualPool=manifest.workerSafe === true && manifest.execution === 'worker-pool';
+    var actualStreaming=manifest.streaming === 'adaptive-worker';
+    if (actualLazy!==expectedLazy || actualPool!==expectedPool || actualStreaming!==expectedStreaming) {
+      return {
+        ok:false, code:'CAPABILITY_CONTRACT_MISMATCH', toolId:toolId,
+        expected:{lazyLoad:expectedLazy,workerPool:expectedPool,streaming:caps.streaming||'not-applicable'},
+        actual:{lazyLoad:actualLazy,workerPool:actualPool,streaming:manifest.streaming||false}
+      };
+    }
+    if (caps.fileSizePolicy && caps.fileSizePolicy !== 'unlimited') {
+      return {ok:false,code:'FILE_SIZE_POLICY_UNSUPPORTED',toolId:toolId,policy:caps.fileSizePolicy};
+    }
+    return {
+      ok:true,toolId:toolId,module:entry.module,execution:expected,processor:processor,
+      workerSafe:manifest.workerSafe===true,lazyLoad:actualLazy,streaming:manifest.streaming||false,
+      validation:manifest.validation||null,capabilities:{lazyLoad:actualLazy,workerPool:actualPool,streaming:manifest.streaming||'not-applicable',fileSizePolicy:caps.fileSizePolicy||'unlimited'}
+    };
   }
   async function authorize(toolId) { await registryReady(); return get(toolId); }
   async function install() {
