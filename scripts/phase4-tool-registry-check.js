@@ -93,6 +93,24 @@ if (/window\.SLUG_MAP\[rawSlug\]/.test(toolPage)) fail('SPA routing still uses S
 if (/window\.SLUG_MAP\[slug\]/.test(toolPage)) fail('Initial/special routing still uses SLUG_MAP as an identity authority.');
 if (!/registryRoute\.specialRoute/.test(toolPage)) fail('Standalone special routes are not registry-owned.');
 
+// Unit 7 capability-contract checks: registry capability metadata must be
+// enforced against the actual BrowserTools execution manifest at runtime.
+const executionPolicy = read('public/js/tool-execution-policy.js');
+if (!/CAPABILITY_CONTRACT_MISMATCH/.test(executionPolicy)) fail('Tool execution policy does not enforce capability-contract parity.');
+if (!/caps\.lazyLoad/.test(executionPolicy) || !/caps\.workerPool/.test(executionPolicy) || !/caps\.streaming/.test(executionPolicy)) fail('Tool execution policy does not consume registry capability metadata.');
+if (!/manifest\.lazyLoad/.test(executionPolicy) || !/manifest\.workerSafe/.test(executionPolicy) || !/manifest\.streaming/.test(executionPolicy)) fail('Tool execution policy does not compare actual processor capabilities.');
+if (!/FILE_SIZE_POLICY_UNSUPPORTED/.test(executionPolicy)) fail('Tool execution policy does not guard the file-size policy contract.');
+for (const t of (registry.tools || [])) {
+  const caps = t.capabilities || {};
+  if (caps.lazyLoad !== true) fail(t.id + ' must declare lazyLoad=true.');
+  if (caps.fileSizePolicy !== 'unlimited') fail(t.id + ' must declare unlimited file-size policy.');
+  if (t.execution === 'browser-worker') {
+    if (caps.workerPool !== true || caps.streaming !== 'adaptive-worker') fail(t.id + ' worker capability contract is incomplete.');
+  } else if (t.execution === 'browser' || t.execution === 'special-page') {
+    if (caps.workerPool !== false || caps.streaming !== 'not-applicable') fail(t.id + ' non-worker capability contract is inconsistent.');
+  }
+}
+
 // Unit 4 adaptive streaming checks: large worker-safe jobs must have an
 // adaptive streaming capability and the browser processor must route those
 // jobs through RuntimeStreamBridge without imposing a size/page rejection.
