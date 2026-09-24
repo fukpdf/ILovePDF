@@ -42,9 +42,6 @@
   var _xlsxWorker  = null;   // dedicated XLSX packaging Worker
   var _tessWorker  = null;   // Tesseract worker (createWorker)
   var _pdfInst     = null;   // pdfjsLib pdf instance
-  var _hardTimer   = null;
-  var _hardReject  = null;
-
   // ── LOG ────────────────────────────────────────────────────────────────────
   function _log(msg, d)  { console.debug('[PdfToExcelApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[PdfToExcelApp]',  msg, d !== undefined ? d : ''); }
@@ -92,7 +89,6 @@
   // ── GUARANTEED CLEANUP ─────────────────────────────────────────────────────
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_xlsxWorker)  { try { _xlsxWorker.terminate(); } catch (_) {} _xlsxWorker = null; }
     if (_tessWorker)  { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)     { try { _pdfInst.destroy();     } catch (_) {} _pdfInst    = null; }
@@ -114,16 +110,9 @@
   }
 
   // ── NON-ABANDONING TIMEOUT RACE ────────────────────────────────────────────
-  function _race(promise, ms, label) {
-    return new Promise(function (resolve, reject) {
-      var t = setTimeout(function () {
-        reject(new Error((label || 'Operation') + ' timed out after ' + (ms / 1000) + 's'));
-      }, ms);
-      promise.then(
-        function (v) { clearTimeout(t); resolve(v); },
-        function (e) { clearTimeout(t); reject(e); }
-      );
-    });
+  function _race(promise) {
+    // Compatibility wrapper retained for existing callers; no artificial timeout.
+    return Promise.resolve(promise);
   }
 
   // ── LANGUAGE DETECTION ─────────────────────────────────────────────────────
@@ -323,14 +312,7 @@
       }
       _xlsxWorker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _xlsxWorker = null;
-        reject(new Error('XLSX worker timed out after ' + (XLSX_LIMIT_MS / 1000) + 's'));
-      }, XLSX_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _xlsxWorker = null;
         var d = ev.data || {};
@@ -339,7 +321,6 @@
         reject(new Error('XLSX worker: unexpected response'));
       };
       w.onerror = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _xlsxWorker = null;
         reject(new Error('XLSX worker error: ' + (ev && ev.message || 'unknown')));
@@ -382,10 +363,6 @@
     var onStep = _makeStepper();
 
     // Hard-timeout: calls _cleanup() first so workers are ALWAYS terminated
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
