@@ -2929,14 +2929,21 @@ window.loadToolPage = function loadToolPage(path) {
 
   if (!rawSlug) { window.location.href = '/'; return; }
 
-  const slugMeta = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
-  if (slugMeta && slugMeta.special) {
-    window.location.href = slugMeta.special;
+  // Phase 4 Unit 6: SPA navigation resolves identity exclusively from the
+  // published Tool Registry. Legacy SLUG_MAP remains compatibility data only.
+  const registryMeta = (window.ToolRegistry && window.ToolRegistry.isReady())
+    ? (window.ToolRegistry.getBySlug(rawSlug) || window.ToolRegistry.get(rawSlug))
+    : null;
+  if (registryMeta && registryMeta.specialRoute) {
+    window.location.href = registryMeta.specialRoute;
     return;
   }
 
-  const toolId = (slugMeta && slugMeta.id) ? slugMeta.id : rawSlug;
-  const tool   = (typeof TOOLS !== 'undefined') ? TOOLS.find(t => t.id === toolId) : null;
+  const toolId = registryMeta ? registryMeta.id : rawSlug;
+  const legacyTool = (typeof TOOLS !== 'undefined') ? TOOLS.find(t => t.id === toolId) : null;
+  const tool = (window.ToolRegistry && window.ToolRegistry.isReady())
+    ? window.ToolRegistry.mergeLegacy(legacyTool)
+    : legacyTool;
 
   if (tool && tool.url && !path.startsWith(tool.url)) {
     window.location.href = tool.url;
