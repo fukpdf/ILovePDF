@@ -6,7 +6,7 @@ import { createUpload } from '../utils/upload.js';
 import { gsCompress } from '../utils/pdfTools.js';
 
 const router = express.Router();
-const upload = createUpload('pdf', 100 * 1024 * 1024);
+const upload = createUpload('pdf');
 
 // Returns 400 for known client-input errors, 500 for genuine server faults.
 function clientErrStatus(err) {
