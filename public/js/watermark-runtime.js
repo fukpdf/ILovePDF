@@ -37,8 +37,8 @@
 
     // ── Adapter ─────────────────────────────────────────────────────────────
     adapterMode:   'worker',
-    timeoutMs:     90000,
-    workerTimeout: 90000,
+    timeoutMs: 0,
+    workerTimeout: 0,
     timerOwner:    'wrt-tick',
 
     // DedupeKey: file identity + watermark config options.
