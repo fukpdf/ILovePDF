@@ -510,8 +510,9 @@ async function _dispatchStream(streamId, tool, options) {
     const op = OPS[tool];
     if (!op) throw new Error('Unknown tool: ' + tool);
     const buf = _mergeChunks(state.chunks);
-    state.chunks = []; // free memory before op (op will allocate its own)
-    const resultBuffer = await op([buf], options || {});
+    state.chunks = []; // free chunk list before op
+    state.fileBuffers.push(buf);
+    const resultBuffer = await op(state.fileBuffers, options || {});
     if (!resultBuffer) throw new Error('No output produced');
     self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
   } catch (err) {
@@ -528,9 +529,11 @@ self.onmessage = async function (e) {
   if (data.type === 'stream-init') {
     _streamState.set(data.streamId, {
       chunks:    [],
+      fileBuffers: [],
       tool:      data.tool,
       options:   data.options,
       totalSize: data.totalSize || 0,
+      totalFiles: data.totalFiles || 1,
     });
     return;
   }
@@ -541,12 +544,17 @@ self.onmessage = async function (e) {
       self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-init-not-received' });
       return;
     }
-    // Store chunk (already transferred — lives in worker RAM now, not main thread)
+    // Store chunk for the current source file.
     state.chunks.push(data.chunk);
-    // Ack immediately to allow main thread to send next chunk (backpressure)
-    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex });
+    // Ack immediately to preserve bounded backpressure.
+    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
     if (data.isLast) {
-      await _dispatchStream(data.streamId, state.tool, state.options);
+      const fileBuf = _mergeChunks(state.chunks);
+      state.chunks = [];
+      state.fileBuffers.push(fileBuf);
+      if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
+        await _dispatchStream(data.streamId, state.tool, state.options);
+      }
     }
     return;
   }
