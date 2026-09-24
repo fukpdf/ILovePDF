@@ -726,121 +726,36 @@
     return { blob: zipBlob, ext: '.zip', mime: 'application/zip' };
   }
 
+  async function _runImageWorker(op, file, opts) {
+    if (!file) throw new Error('No image supplied.');
+    const worker = RuntimeWorkerFactory.spawn('/workers/image-tools-worker.js');
+    const buffer = await file.arrayBuffer();
+    try {
+      const result = await new Promise((resolve, reject) => {
+        let settled=false;
+        const timer=setTimeout(()=>finish(reject,new Error('Image worker timed out.')),120000);
+        function finish(fn,v){if(settled)return;settled=true;clearTimeout(timer);fn(v);}
+        worker.onmessage=e=>{const d=e.data||{};if(d.__error)finish(reject,new Error(d.__error));else if(d.buffer instanceof ArrayBuffer)finish(resolve,d);};
+        worker.onerror=e=>finish(reject,new Error(e&&e.message||'Image worker failed'));
+        worker.postMessage({op:op,buffer:buffer,mime:file.type||'image/png',opts:opts||{},jobId:String(Date.now())},[buffer]);
+      });
+      return {blob:new Blob([result.buffer],{type:result.mime}),ext:result.ext,mime:result.mime};
+    } finally { try{worker.terminate();}catch(_){} }
+  }
+
   // ── IMAGE: CROP ──────────────────────────────────────────────────────────
-  async function cropImage(files, opts) {
-    const img = await loadImageFromFile(files[0]);
-    const xPct = clampPct(opts.x,      0);
-    const yPct = clampPct(opts.y,      0);
-    const wPct = clampPct(opts.width,  100);
-    const hPct = clampPct(opts.height, 100);
-    const sx = Math.floor(img.naturalWidth  * (xPct / 100));
-    const sy = Math.floor(img.naturalHeight * (yPct / 100));
-    const sw = Math.max(1, Math.floor(img.naturalWidth  * (wPct / 100)));
-    const sh = Math.max(1, Math.floor(img.naturalHeight * (hPct / 100)));
-    const canvas = document.createElement('canvas');
-    canvas.width = sw; canvas.height = sh;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-    const { mime, ext, q } = pickOutFormat(files[0]);
-    const blob = await canvasToBlob(canvas, mime, q);
-    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
-    return { blob, ext, mime };
+  async async function cropImage(files, opts) {
+    return _runImageWorker('crop-image', files[0], {x:opts.x,y:opts.y,width:opts.width,height:opts.height});
   }
 
   // ── IMAGE: RESIZE ────────────────────────────────────────────────────────
-  async function resizeImage(files, opts) {
-    const img = await loadImageFromFile(files[0]);
-    const preset = String(opts.preset || 'custom').toLowerCase();
-    let w, h;
-    if (preset === '1:1')      { w = 1080; h = 1080; }
-    else if (preset === '16:9'){ w = 1920; h = 1080; }
-    else if (preset === 'a4')  { w = 2480; h = 3508; }
-    else if (preset === 'hd')  { w = 1920; h = 1080; }
-    else {
-      w = parseInt(opts.width  || img.naturalWidth,  10) || img.naturalWidth;
-      h = parseInt(opts.height || img.naturalHeight, 10) || img.naturalHeight;
-    }
-    w = Math.max(1, Math.min(8000, w));
-    h = Math.max(1, Math.min(8000, h));
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, w, h);
-    const { mime, ext, q } = pickOutFormat(files[0]);
-    const blob = await canvasToBlob(canvas, mime, q);
-    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
-    return { blob, ext, mime };
+  async async function resizeImage(files, opts) {
+    return _runImageWorker('resize-image', files[0], {preset:String(opts.preset||'custom').toLowerCase(),width:opts.width,height:opts.height});
   }
 
   // ── IMAGE: FILTERS ───────────────────────────────────────────────────────
-  async function imageFilters(files, opts) {
-    const img = await loadImageFromFile(files[0]);
-    const w = img.naturalWidth, h = img.naturalHeight;
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-
-    // Try the fast CSS-filter path first; it covers most modes natively.
-    const filter = String(opts.filter || 'grayscale').toLowerCase();
-    const cssMap = {
-      grayscale: 'grayscale(100%)',
-      sepia:     'sepia(100%)',
-      blur:      'blur(4px)',
-      brighten:  'brightness(1.25)',
-      contrast:  'contrast(1.5)',
-      invert:    'invert(100%)',
-    };
-    if (cssMap[filter]) {
-      ctx.filter = cssMap[filter];
-      ctx.drawImage(img, 0, 0, w, h);
-      ctx.filter = 'none';
-    } else if (filter === 'sharpen') {
-      // 3x3 sharpen convolution via getImageData
-      ctx.drawImage(img, 0, 0, w, h);
-      const src  = ctx.getImageData(0, 0, w, h);
-      const dst  = ctx.createImageData(w, h);
-      const k    = [0,-1,0,-1,5,-1,0,-1,0];
-      const data = src.data, out = dst.data;
-      for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-          for (let c = 0; c < 3; c++) {
-            let sum = 0, ki = 0;
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
-                const i = ((y + dy) * w + (x + dx)) * 4 + c;
-                sum += data[i] * k[ki++];
-              }
-            }
-            out[(y * w + x) * 4 + c] = Math.max(0, Math.min(255, sum));
-          }
-          out[(y * w + x) * 4 + 3] = data[(y * w + x) * 4 + 3];
-        }
-      }
-      ctx.putImageData(dst, 0, 0);
-    } else {
-      // unknown filter → just draw as-is
-      ctx.drawImage(img, 0, 0, w, h);
-    }
-    const { mime, ext, q } = pickOutFormat(files[0]);
-    const blob = await canvasToBlob(canvas, mime, q);
-    canvas.width = 0; canvas.height = 0; // Phase 21: release canvas memory
-    return { blob, ext, mime };
-  }
-
-  function clampPct(v, fallback) {
-    const n = parseFloat(v);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.max(0, Math.min(100, n));
-  }
-
-  function pickOutFormat(file) {
-    const name = (file && file.name || '').toLowerCase();
-    const type = (file && file.type || '').toLowerCase();
-    if (name.endsWith('.png') || type.includes('png')) return { mime: 'image/png',  ext: '.png',  q: undefined };
-    if (name.endsWith('.webp')|| type.includes('webp'))return { mime: 'image/webp', ext: '.webp', q: 0.92 };
-    return { mime: 'image/jpeg', ext: '.jpg', q: 0.9 };
+  async async function imageFilters(files, opts) {
+    return _runImageWorker('image-filters', files[0], {filter:String(opts.filter||'grayscale').toLowerCase()});
   }
 
   // ── WORD TO PDF (v3.0 — full CSS layout engine) ──────────────────────────
