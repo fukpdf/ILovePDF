@@ -4319,7 +4319,7 @@
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
-    'jpg-to-pdf':    imagesToPdf,
+    'jpg-to-pdf':    imagesToPdfWorker,
     'pdf-to-jpg':    pdfToJpg,
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
