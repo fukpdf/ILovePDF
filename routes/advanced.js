@@ -6,10 +6,10 @@ import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { extractPdfText, textToPdf, extractiveSummarize, formatBytes } from '../utils/pdfText.js';
-import { UPLOAD_DIR } from '../utils/upload.js';
+import { createUpload } from '../utils/upload.js';
 
 const router = express.Router();
-const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = createUpload('pdf');
 
 function clientErrStatus(err) {
   const msg = (err && err.message) || '';
