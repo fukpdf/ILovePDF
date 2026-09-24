@@ -4619,7 +4619,7 @@
       execution: profile.workerSafe ? 'worker-pool' : (profile.clientSide ? 'main-thread' : 'unavailable'),
       lazyLoad: profile.lazyEngineLoad,
       workerSafe: profile.workerSafe,
-      streaming: false,
+      streaming: profile.workerSafe ? 'adaptive-worker' : false,
       validation: {
         version: VALIDATION_VERSION,
         input: profile.inputValidation,
@@ -4680,7 +4680,7 @@
       workerSafe: WORKER_TOOLS.has(toolId),
       lazyEngineLoad: true,
       workerPool: WORKER_TOOLS.has(toolId),
-      streamingInfrastructure: !!window.StreamHelpers,
+      streamingInfrastructure: !!getStreamBridge(),
       inputValidation: true,
       outputValidation: true,
       silentWorkerFallback: false,
@@ -4753,7 +4753,19 @@
       }
     } catch (_) {}
 
-    // ── Worker execution path (strict for eligible pure pdf-lib tools) ────
+    // Phase 4 Unit 4: resolve the shared streaming bridge only when its
+  // required APIs are actually available. Returning null is intentional:
+  // small jobs and environments without the bridge use the existing WorkerPool
+  // one-shot path; worker-safe tools never fall back to main-thread processing.
+  function getStreamBridge() {
+    const bridge = window.RuntimeStreamBridge;
+    if (!bridge) return null;
+    if (typeof bridge.pipelineStreamToWorker !== 'function') return null;
+    if (typeof bridge.streamFilesToWorkerReadable !== 'function') return null;
+    return bridge;
+  }
+
+  // ── Worker execution path (strict for eligible pure pdf-lib tools) ────
     // Unit 4: large jobs use RuntimeStreamBridge so the main thread does not
     // first allocate the entire input into ArrayBuffers. This is routing, not
     // a file-size limit: small jobs keep the faster WorkerPool one-shot path.
