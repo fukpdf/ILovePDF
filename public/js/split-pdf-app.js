@@ -55,8 +55,9 @@
         reject(new Error(TAG + ' worker error: ' + (ev && ev.message || 'unknown')));
       };
 
-      var xfer = buffer.slice(0);
-      w.postMessage({ op: 'split', buffers: [xfer], opts: opts, jobId: String(jobId) }, [xfer]);
+      // Transfer the original ArrayBuffer; slice() would briefly double the
+      // input footprint before transfer. Ownership moves to the worker here.
+      w.postMessage({ op: 'split', buffers: [buffer], opts: opts, jobId: String(jobId) }, [buffer]);
     });
   }
 
