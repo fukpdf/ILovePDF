@@ -582,6 +582,95 @@
     };
   }
 
+  // ── MULTI-FILE PATH: sequential chunk streaming into one worker ────────────
+  // Keeps all source files off the main-thread heap at once. The worker
+  // accumulates one source file, seals it, then accepts the next file.
+  async function streamFilesToWorkerReadable(workerUrl, files, message, opts) {
+    var streamId = ++_streamIdCounter;
+    var token = opts && opts.token ? opts.token : null;
+    var onProgress = opts && opts.onProgress ? opts.onProgress : null;
+    var chunkSz = _chunkSize();
+    if (!files || !files.length) throw new Error('no-files-to-stream');
+    if (token && token.cancelled) throw new Error('cancelled-before-stream');
+
+    return new Promise(function(resolve, reject) {
+      var w = null, done = false, fileIndex = 0, offset = 0, chunkIndex = 0;
+      var totalBytes = files.reduce(function(s, f) { return s + (f.size || 0); }, 0);
+      var sentInit = false, pending = false;
+
+      try { w = new Worker(workerUrl); } catch (e) {
+        reject(new Error('worker-spawn-failed: ' + e.message)); return;
+      }
+      var entry = { worker: w, cancelled: false };
+      _activeStreams.set(streamId, entry);
+
+      function finishError(err) {
+        if (done) return;
+        done = true; _activeStreams.delete(streamId);
+        try { w.terminate(); } catch (_) {}
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+
+      if (token) token.onCancel(function() {
+        entry.cancelled = true;
+        try { w.postMessage({ type:'stream-cancel', streamId:streamId }); } catch (_) {}
+        finishError(new Error('cancelled'));
+      });
+
+      async function sendChunk() {
+        if (done || entry.cancelled || pending) return;
+        if (!sentInit) {
+          sentInit = true;
+          w.postMessage(Object.assign({}, message, {
+            type:'stream-init', streamId:streamId, totalSize:totalBytes,
+            totalFiles:files.length
+          }));
+        }
+
+        while (fileIndex < files.length && offset >= files[fileIndex].size) {
+          fileIndex++; offset = 0; chunkIndex = 0;
+        }
+        if (fileIndex >= files.length) return;
+
+        var file = files[fileIndex];
+        var end = Math.min(offset + chunkSz, file.size);
+        try {
+          var buf = await file.slice(offset, end).arrayBuffer();
+          if (entry.cancelled || done) return;
+          pending = true;
+          var isLastFile = end >= file.size;
+          w.postMessage({
+            type:'stream-chunk', streamId:streamId, fileIndex:fileIndex,
+            chunk:buf, chunkIndex:chunkIndex, isLast:isLastFile,
+            totalFiles:files.length
+          }, [buf]);
+          offset = end; chunkIndex++;
+          if (onProgress && totalBytes) {
+            var processed = files.slice(0,fileIndex).reduce(function(s,f){return s+(f.size||0);},0)+offset;
+            onProgress(Math.min(90, 10 + (processed / totalBytes) * 75), 'Streaming file ' + (fileIndex + 1) + ' of ' + files.length + '…');
+          }
+        } catch (e) { finishError(e); }
+      }
+
+      w.onmessage = function(e) {
+        var d=e.data;
+        if (!d || d.streamId !== streamId) return;
+        if (d.type === 'stream-ack') {
+          pending=false;
+          sendChunk().catch(finishError);
+        } else if (d.type === 'stream-done') {
+          done=true; _activeStreams.delete(streamId);
+          try { w.terminate(); } catch (_) {}
+          resolve(d);
+        } else if (d.type === 'stream-error') {
+          finishError(new Error(d.__error || 'stream-worker-error'));
+        }
+      };
+      w.onerror = function(e) { finishError(new Error((e && e.message) || 'stream-worker-onerror')); };
+      sendChunk().catch(finishError);
+    });
+  }
+
   // ── Cancel all on pagehide ─────────────────────────────────────────────────
   global.addEventListener('pagehide', function () {
     _activeStreams.forEach(function (_, id) { _cancelStream(id); });
@@ -591,6 +680,7 @@
   global.RuntimeStreamBridge = {
     supportsTransferableStreams:  supportsTransferableStreams,
     streamToWorkerReadable:       streamToWorkerReadable,
+    streamFilesToWorkerReadable:   streamFilesToWorkerReadable,
     pipelineStreamToWorker:       pipelineStreamToWorker,
     cancelStream:                 _cancelStream,
     getStats:                     getStats,
