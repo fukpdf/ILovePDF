@@ -91,7 +91,7 @@
     // Phase 2 guard: RuntimeMemory tier
     if (window.RuntimeMemory) {
       if (window.RuntimeMemory.isEmergency()) {
-        throw new Error('memory_pressure');
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('merge:memory-pressure-advisory', { phase: phase }); } catch (_) {}
       }
       if (window.RuntimeMemory.isCritical()) {
         // Critical: still proceed, but trigger light cleanup first
@@ -105,7 +105,7 @@
     if (files && window.MemPressure) {
       var totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
       // Estimate: 3× total file size needed in heap (buffers + pdf-lib + output)
-      if (window.MemPressure.wouldExceedLimit && window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3))) {
+      if (window.MemPressure.wouldExceedLimit && window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3)) {
         try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('merge:memory-estimate-advisory', { phase: phase }); } catch (_) {}
       }
     }
@@ -116,9 +116,7 @@
       if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) {
         try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('merge:heap-pressure-advisory', { phase: phase }); } catch (_) {}
       }
-    } catch (e) {
-      if (e.message === 'memory_pressure') throw e;
-    }
+    } catch (_) {}
 
     if (window.RuntimeTelemetry) {
       try { window.RuntimeTelemetry.record('merge:memory-guard-ok', { phase: phase }); } catch (_) {}
