@@ -640,6 +640,41 @@
 
   // ── PDF -> JPG (basic, browser-side via pdfjs+canvas) ────────────────────
   // Renders every page to a JPG. Single-page → JPG blob. Multi-page → ZIP.
+  async function pdfToJpgWorker(files, opts) {
+    if (!files || !files.length) throw new Error('No PDF supplied');
+    const worker = RuntimeWorkerFactory.spawn('/workers/pdf-image-worker.js');
+    try {
+      const buffer = await files[0].arrayBuffer();
+      const quality = String((opts && opts.quality) || 'standard').toLowerCase();
+      const jpegQuality = quality === 'high' ? 0.92 : 0.85;
+      const scale = quality === 'high' ? 2.7 : 2.0;
+      const pages = await new Promise((resolve, reject) => {
+        worker.onmessage = function (event) {
+          const data = event.data || {};
+          if (data.type === 'pdf-to-jpg-done') resolve(data.pages || []);
+          else if (data.type === 'pdf-to-jpg-error') reject(new Error(data.message || 'PDF image worker failed'));
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'PDF image worker failed')); };
+        worker.postMessage({ type: 'pdf-to-jpg', buffer, quality: jpegQuality, scale }, [buffer]);
+      });
+      if (pages.length === 1) {
+        return { blob: new Blob([pages[0].buffer], { type: 'image/jpeg' }), ext: '.jpg', mime: 'image/jpeg' };
+      }
+      const JSZip = await loadJsZip();
+      const zip = new JSZip();
+      const baseName = (files[0].name || 'document').replace(/\\.[^.]+$/, '');
+      pages.forEach((page, i) => {
+        const n = String(i + 1).padStart(String(pages.length).length, '0');
+        zip.file(baseName + '-page-' + n + '.jpg', new Blob([page.buffer], { type: 'image/jpeg' }));
+      });
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      pages.length = 0;
+      return { blob: zipBlob, ext: '.zip', mime: 'application/zip' };
+    } finally {
+      try { worker.terminate(); } catch (_) {}
+    }
+  }
+
   async function pdfToJpg(files, opts) {
     const pdfjsLib = await loadPdfJs();
     const data = await readFileBytes(files[0]);
@@ -4320,7 +4355,7 @@
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdfWorker,
-    'pdf-to-jpg':    pdfToJpg,
+    'pdf-to-jpg':    pdfToJpgWorker,
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
     'image-filters': imageFilters,
