@@ -203,6 +203,8 @@ async function buildDocx(pages) {
 
   for (var pi = 0; pi < pages.length; pi++) {
     var p          = pages[pi];
+    // Release each parsed page payload as soon as its XML has been emitted.
+    pages[pi] = null;
     var rawText    = (p.text || '').trim();
     var paragraphs = p.paragraphs;
 
@@ -485,6 +487,7 @@ async function buildDocx(pages) {
   });
 
   body = null; docXml = null; stylesXml = null; numberingXml = null;
+  pages = null;
   return ab;
 }
 
