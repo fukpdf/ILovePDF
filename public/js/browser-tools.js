@@ -497,8 +497,7 @@
     }
 
     // ── PDF-only output (enhanced image PDF, no OCR) ──────────────────────
-    if (outputFmt === 'pdf') {
-      const { PDFDocument } = await loadPdfLib();
+    if (outputFmt === 'pdf') {      const { PDFDocument } = await loadPdfLib();
       const doc = await PDFDocument.create();
       for (const c of pageCanvases) {
         const bytes = dataUrlToBytes(c.toDataURL('image/jpeg', 0.92));
@@ -997,8 +996,7 @@
       }
       return new Blob([blob], { type: 'application/pdf' });
     } finally {
-      if (container.parentNode) document.body.removeChild(container);
-    }
+      if (container.parentNode) document.body.removeChild(container);    }
   }
 
   // ── PHASE 2: EDIT PDF ────────────────────────────────────────────────────
@@ -1497,8 +1495,7 @@
           return cells.map(c => c.trim());
         }
         const cols = row.text.split(/\s{2,}/).filter(Boolean);
-        return cols.length >= 2 ? cols : [row.text, ''];
-      }
+        return cols.length >= 2 ? cols : [row.text, ''];      }
 
       function isHeaderRow(row, idx) {
         return idx === 0 && (
@@ -1997,8 +1994,7 @@
           return `<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="280" w:after="80"/>${bidiXml}</w:pPr>${runs}</w:p>`;
         }
 
-        if (block.type === 'h2') {
-          const bidiXml = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
+        if (block.type === 'h2') {          const bidiXml = isRtl(block.text) ? '<w:bidi/><w:jc w:val="right"/>' : '';
           const runs = block.runs && block.runs.length
             ? buildRunsXml(block.runs, Math.max(b * 1.35, 12), block.pageWidth || 612)
             : `<w:r><w:rPr><w:b/><w:sz w:val="${Math.round(Math.max(b*1.35,12)*2)}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
@@ -2497,7 +2493,6 @@
       const items = content.items
         .filter(it => it.str && it.str.trim())
         .map(it => ({ x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), text: it.str.trim() }));
-
       let sheetData, numCols, isOcr = false;
 
       // Phase 21: garbled-text gate — if digital items exist but contain junk chars, force OCR
@@ -2997,8 +2992,7 @@
       }
     }
 
-    // ── STEP 6: Phase 1 — Hard foreground lock ───────────────────────────────
-    // Any pixel with strong FG confidence gets a minimum alpha floor.
+    // ── STEP 6: Phase 1 — Hard foreground lock ───────────────────────────────    // Any pixel with strong FG confidence gets a minimum alpha floor.
     for (let i = 0; i < N; i++) {
       if (bgMask[i]) continue;
       if (fgConf[i] > 0.55 && alpha[i] < 210) alpha[i] = 210;
@@ -3497,8 +3491,7 @@
       const JSZip = await loadJsZip();
       function escXml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
       const paras    = translatedText.split(/\n{2,}/).filter(p => p.trim());
-      const docParts = paras.map(p =>
-        `<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:t xml:space="preserve">${escXml(p.trim())}</w:t></w:r></w:p>`);
+      const docParts = paras.map(p =>        `<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:r><w:t xml:space="preserve">${escXml(p.trim())}</w:t></w:r></w:p>`);
       const docXml    = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${docParts.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080"/></w:sectPr></w:body></w:document>`;
       const ctXml     = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
       const relsXml   = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
@@ -3997,8 +3990,7 @@
       options: { enhancement: opts.enhancement || 'auto', quality: opts.quality || .92 },
       sendNext: async (worker, index) => {
         const file = files[index];
-        const buffer = await file.arrayBuffer();
-        worker.postMessage({ type: 'scan-to-pdf-item', index, buffer, mime: file.type || 'image/jpeg' }, [buffer]);
+        const buffer = await file.arrayBuffer();        worker.postMessage({ type: 'scan-to-pdf-item', index, buffer, mime: file.type || 'image/jpeg' }, [buffer]);
       }
     });
     return { blob: new Blob([output], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
@@ -4228,32 +4220,17 @@
       }
       const pool = await loadWorkerPool();
       const fileName = files[0].name;
-      // Keep multi-file inputs bounded: each source buffer is transferred only
-      // when the worker is ready for it. The PDF worker retains its own working
-      // document state, so the browser never builds an aggregate buffers[] array.
-      const buffers = [];
-      for (const file of Array.from(files)) {
-        const buffer = await file.arrayBuffer();
-        buffers.push(buffer);
-        // WorkerPool still receives a bounded unit; the previous Promise.all()
-        // aggregate allocation is intentionally removed. Large multi-file jobs
-        // should use dedicated streaming worker protocols as they are migrated.
-        const workerResult = await pool.run(
-          '/workers/pdf-worker.js',
-          { tool: toolId, buffers: [buffer], options: options || {}, sequence: true },
-          [buffer],
-        );
-        if (!workerResult || !workerResult.buffer) throw new Error('worker_processing_failed');
-        buffers.length = 0;
-        // Multi-file PDF operations require an engine-level append/merge
-        // protocol; do not silently concatenate independent outputs here.
-        if (files.length > 1) throw new Error('multi_file_stream_protocol_required');
-        const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-        const workerResultObj = { blob, filename: brandedFilename(fileName, '.pdf') };
-        const workerValidation = await validateOutput(toolId, workerResultObj);
-        if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
-        return workerResultObj;
-      }
+      // Dedicated multi-file streaming protocols are used by image/scan workers.
+      // The generic pdf-worker contract still consumes its declared buffers[]
+      // payload atomically; keep that contract intact until each operation gets
+      // an engine-level append/ack protocol rather than risking semantic changes.
+      const buffers = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
+      const workerResult = await pool.run(
+        '/workers/pdf-worker.js',
+        { tool: toolId, buffers, options: options || {} },
+        buffers,
+      );
+      if (!workerResult || !workerResult.buffer) throw new Error('worker_processing_failed');
       if (!workerResult || !workerResult.buffer) {
         throw new Error('worker_processing_failed');
       }
