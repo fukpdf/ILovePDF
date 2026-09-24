@@ -4132,6 +4132,18 @@
     const blob = result && result.blob instanceof Blob ? result.blob : (result instanceof Blob ? result : null);
     if (!blob) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The result could not be read. Please try again.' };
     if (blob.size <= 0) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file is empty. The document may be damaged or unsupported.' };
+    // Phase 3 shared boundary: every handler result passes the canonical
+    // browser-side MIME/signature/size validator before tool-specific checks.
+    if (window.ClientOutputValidation) {
+      try {
+        window.ClientOutputValidation.validate(blob, {
+          mime: blob.type || '',
+          maxBytes: 512 * 1024 * 1024,
+        });
+      } catch (e) {
+        return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: e.message || 'The output failed validation.' };
+      }
+    }
     const minBytes = blob.type.includes('pdf') ? 500
       : blob.type.includes('wordprocessingml') || blob.type.includes('spreadsheetml') || blob.type.includes('presentationml') ? 1000
       : blob.type.includes('image') || blob.type.includes('zip') ? 100
@@ -4196,7 +4208,7 @@
         throw new Error('worker_processing_failed');
       }
       const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-      const workerResultObj = { blob: new Blob([workerResult.buffer], { type: 'application/pdf' }), filename: brandedFilename(fileName, '.pdf') };
+      const workerResultObj = { blob, filename: brandedFilename(fileName, '.pdf') };
       const workerValidation = await validateOutput(toolId, workerResultObj);
       if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
       return workerResultObj;
