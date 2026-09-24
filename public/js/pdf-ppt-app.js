@@ -30,8 +30,7 @@
   var PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var PPTX_WORKER   = '/workers/pdf-ppt-pptx-worker.js';
   var TESS_CDN      = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var HARD_LIMIT_MS = 120000;  // 2 min: entire job hard cap
-  var PPTX_LIMIT_MS = 60000;   // 60 s: PPTX packaging (PptxGenJS can be slow on big decks)
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var PPTX_LIMIT_MS = 60000;   // 60 s: PPTX packaging (PptxGenJS can be slow on big decks)
   var OCR_PAGE_MS   = 45000;   // 45 s: per-page OCR recognition
   var OCR_INIT_MS   = 30000;   // 30 s: Tesseract.createWorker init
 
@@ -91,7 +90,7 @@
   // ── GUARANTEED CLEANUP ─────────────────────────────────────────────────────
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)   { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
+    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_pptxWorker)  { try { _pptxWorker.terminate(); } catch (_) {} _pptxWorker = null; }
     if (_tessWorker)  { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)     { try { _pdfInst.destroy();     } catch (_) {} _pdfInst    = null; }
@@ -367,11 +366,6 @@
 
     var hardPromise = new Promise(function (_, reject) {
       _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Conversion timed out. Please try with a smaller file.'));
-      }, HARD_LIMIT_MS);
     });
 
     var jobPromise = (async function () {
