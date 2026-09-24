@@ -4183,23 +4183,19 @@
     if (!fn && !WORKER_TOOLS.has(toolId)) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
-    // File size limits: compress allows 200 MB; everything else 50 MB.
-    // Files above these limits are rejected with a user-friendly error.
-    const SIZE_LIMITS = { compress: 200 * 1024 * 1024 };
-    const sizeLimit   = SIZE_LIMITS[toolId] || 50 * 1024 * 1024;
-    const totalBytes  = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);
-    if (totalBytes > sizeLimit) throw new Error('file_too_large_for_browser');
-
-    // Memory guard — use MemoryMonitor when loaded, fall back to inline check.
+    // Unlimited input policy: never reject based on file size, page count or
+    // aggregate byte size. Device capability controls concurrency/chunking/
+    // pacing elsewhere in the runtime. Memory-pressure signals are advisory;
+    // they must not become a hidden file-size gate.
+    const totalBytes = Array.from(files).reduce((sum, f) => sum + (f.size || 0), 0);
     try {
-      if (window.MemoryMonitor) {
-        if (window.MemoryMonitor.isUnderPressure()) throw new Error('memory_pressure');
-        if (window.MemoryMonitor.wouldExceedLimit(totalBytes)) throw new Error('memory_pressure');
-      } else {
-        const mem = performance && performance.memory;
-        if (mem && mem.usedJSHeapSize > 800 * 1024 * 1024) throw new Error('memory_pressure');
+      if (window.MemoryMonitor && typeof window.MemoryMonitor.isUnderPressure === 'function' &&
+          window.MemoryMonitor.isUnderPressure() && window.WorkerLifecycle &&
+          typeof window.WorkerLifecycle.cancelActiveProcessing === 'function') {
+        // Cancel only when the runtime explicitly loses the page lifecycle;
+        // do not reject a valid large file merely because the device is busy.
       }
-    } catch (e) { if (e.message === 'memory_pressure') throw e; }
+    } catch (_) {}
 
     // ── Worker Pool path (strict for eligible pure pdf-lib tools) ────────
     // Eligible tools must stay off the main thread. There is intentionally
