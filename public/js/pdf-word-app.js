@@ -392,6 +392,35 @@
     return function () {};  // no-op fallback
   }
 
+  // ── NATIVE PDF CONTENT EXTRACTION WORKER ─────────────────────────────────
+  async function _extractPdfItems(file, onStep) {
+    var worker = new Worker('/workers/pdf-content-extract-worker.js');
+    var timer = null;
+    var pages = [];
+    try {
+      var buf = await file.arrayBuffer();
+      return await new Promise(function (resolve, reject) {
+        timer = setTimeout(function () { reject(new Error('PDF content extraction timed out.')); }, HARD_LIMIT_MS);
+        worker.onmessage = function (event) {
+          var d = event.data || {};
+          if (d.type === 'pdf-content-page') {
+            pages.push({ pageNum: d.pageNum, totalPages: d.totalPages, items: d.items || [] });
+            if (onStep) onStep(1, 'active', 15 + Math.round((d.pageNum / d.totalPages) * 38), 'Page ' + d.pageNum + ' of ' + d.totalPages);
+          } else if (d.type === 'pdf-content-done') {
+            resolve(pages);
+          } else if (d.type === 'pdf-content-error') {
+            reject(new Error(d.message || 'PDF content extraction failed'));
+          }
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'PDF content extraction worker failed')); };
+        worker.postMessage({ type: 'extract-pdf-content', buffer: buf }, [buf]);
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+      try { worker.terminate(); } catch (_) {}
+    }
+  }
+
   // ── MAIN PROCESS FUNCTION ─────────────────────────────────────────────────
   async function process(files, opts) {
     // Re-entry guard — prevents a second call while one is already in flight.
@@ -426,36 +455,17 @@
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
-      // ── Phase 1: Load PDF.js + parse PDF ──────────────────────────────────
-      var pdfjsLib = await _loadPdfJs();
-      var buf      = await file.arrayBuffer();
-      var pdf      = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-      _pdfInst     = pdf;
-      buf          = null;   // release ArrayBuffer RAM
-
-      var total = pdf.numPages;
-      var pages = [];
-
+      // ── Phase 1: native PDF content extraction in dedicated Worker ───────
+      var extractedPages = await _extractPdfItems(file, onStep);
+      var total = extractedPages.length ? extractedPages[0].totalPages : 0;
+      var pages = extractedPages.filter(function (entry) {
+        return entry.items.some(function (it) { return it.str && it.str.trim(); });
+      }).map(function (entry) {
+        return { pageNum: entry.pageNum, paragraphs: _extractParagraphs(entry.items) };
+      });
+      extractedPages = null;
       onStep(0, 'done', 12);
-      onStep(1, 'active', 15, 'Processing content\u2026');
-
-      try {
-        for (var i = 1; i <= total; i++) {
-          var page    = await pdf.getPage(i);
-          var content = await page.getTextContent();
-          var isBlank = !content.items.some(function (it) { return it.str && it.str.trim(); });
-          if (!isBlank) {
-            pages.push({ pageNum: i, paragraphs: _extractParagraphs(content.items) });
-          }
-          page.cleanup();
-          onStep(1, 'active', 15 + Math.round((i / total) * 38), 'Page ' + i + ' of ' + total);
-        }
-      } finally {
-        // Always destroy the PDF instance — ensures PDF.js releases its worker
-        // and any OPFS/blob URLs, even if the loop was interrupted.
-        try { await pdf.destroy(); } catch (_) {}
-        _pdfInst = null;
-      }
+      onStep(1, 'active', 53, 'Native extraction complete');
 
       // ── Phase 2: Text quality check + OCR fallback ────────────────────────
       var totalChars = pages.reduce(function (s, p) {
