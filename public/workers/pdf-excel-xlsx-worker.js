@@ -66,10 +66,18 @@ function buildXlsx(sheets) {
     }
 
     self.XLSX.utils.book_append_sheet(wb, ws, _sanitizeSheetName(s.name));
+    // Drop the source sheet payload once it has been incorporated into the workbook.
+    sheets[i] = null;
+    coerced = null;
+    ws = null;
   }
 
   var arr = self.XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-  return new Uint8Array(arr).buffer;
+  sheets = null;
+  wb = null;
+  var result = new Uint8Array(arr).buffer;
+  arr = null;
+  return result;
 }
 
 self.onmessage = function (ev) {
