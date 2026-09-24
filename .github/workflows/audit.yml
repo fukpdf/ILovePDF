@@ -25,7 +25,38 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --omit=dev
 
-      - name: JavaScript syntax audit
+      - name: JavaScript syntax audit — backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          for root in cloudflare controllers middleware routes scripts utils; do
+            while IFS= read -r -d '' file; do
+              node --check "$file"
+              count=$((count + 1))
+            done < <(find "$root" -type f -name '*.js' -print0)
+          done
+          node --check server.js
+          count=$((count + 1))
+          echo "Backend syntax checked: $count JavaScript files"
+
+      - name: JavaScript syntax audit — public core workers
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          for root in public/admin/js public/core public/workers public/laba; do
+            while IFS= read -r -d '' file; do
+              node --check "$file"
+              count=$((count + 1))
+            done < <(find "$root" -type f -name '*.js' -print0)
+          done
+          node --check public/script.js
+          node --check public/sw.js
+          count=$((count + 2))
+          echo "Public core/worker syntax checked: $count JavaScript files"
+
+      - name: JavaScript syntax audit — public application code
         shell: bash
         run: |
           set -euo pipefail
@@ -33,8 +64,19 @@ jobs:
           while IFS= read -r -d '' file; do
             node --check "$file"
             count=$((count + 1))
-          done < <(find . -type f -name '*.js'             -not -path './node_modules/*'             -not -path './.git/*'             -print0)
-          echo "Syntax checked: $count JavaScript files"
+          done < <(find public/js -type f -name '*.js' -not -path 'public/js/bundles/*' -print0)
+          echo "Public application syntax checked: $count JavaScript files"
+
+      - name: JavaScript syntax audit — generated bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+            count=$((count + 1))
+          done < <(find public/js/bundles -type f -name '*.js' -print0)
+          echo "Generated bundle syntax checked: $count JavaScript files"
 
       - name: Enterprise source gate
         run: npm test
