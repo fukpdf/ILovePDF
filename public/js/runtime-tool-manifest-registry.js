@@ -238,6 +238,64 @@
     _overrides[toolId] = Object.assign({}, _overrides[toolId] || {}, overrides);
   }
 
+  // ── Phase 4 Unit 9: canonical Tool Registry contract ─────────────────────
+  // The Phase 4 JSON registry owns tool identity. This runtime manifest keeps
+  // its richer family/runtime policy data, but every registered tool must have
+  // exactly one manifest entry and every manifest entry must exist in the
+  // canonical registry. This prevents silent runtime drift as tools evolve.
+  var _registryContract = {
+    checked: false,
+    ok: false,
+    missing: [],
+    extra: [],
+    registryCount: 0,
+    manifestCount: Object.keys(TOOL_FAMILY).length,
+  };
+
+  function validateAgainstToolRegistry() {
+    var tr = G.ToolRegistry;
+    if (!tr || typeof tr.list !== 'function' || typeof tr.isReady !== 'function' || !tr.isReady()) {
+      return Object.assign({}, _registryContract, { checked: false, ok: false, reason: 'TOOL_REGISTRY_NOT_READY' });
+    }
+    var registryIds = tr.list().map(function (entry) { return entry && entry.id; }).filter(Boolean);
+    var manifestIds = Object.keys(TOOL_FAMILY);
+    var registrySet = new Set(registryIds);
+    var manifestSet = new Set(manifestIds);
+    var missing = manifestIds.filter(function (id) { return !registrySet.has(id); });
+    var extra = registryIds.filter(function (id) { return !manifestSet.has(id); });
+    _registryContract = {
+      checked: true,
+      ok: missing.length === 0 && extra.length === 0,
+      missing: missing,
+      extra: extra,
+      registryCount: registryIds.length,
+      manifestCount: manifestIds.length,
+    };
+    if (!_registryContract.ok) {
+      console.error(LOG, 'Tool Registry contract mismatch', _registryContract);
+    }
+    return Object.assign({}, _registryContract, {
+      missing: missing.slice(),
+      extra: extra.slice(),
+    });
+  }
+
+  function registryContractStatus() {
+    return Object.assign({}, _registryContract, {
+      missing: _registryContract.missing.slice(),
+      extra: _registryContract.extra.slice(),
+    });
+  }
+
+  function _bindRegistryContract() {
+    if (G.ToolRegistryReady && typeof G.ToolRegistryReady.then === 'function') {
+      G.ToolRegistryReady.then(function () { validateAgainstToolRegistry(); }).catch(function () {});
+    }
+    try {
+      G.addEventListener('ilovepdf:tool-registry-ready', validateAgainstToolRegistry, { once: true });
+    } catch (_) {}
+  }
+
   G.RuntimeToolManifestRegistry = Object.freeze({
     VERSION:    VERSION,
     get:        _get,
@@ -247,6 +305,10 @@
     getFamily:  function (toolId) { return TOOL_FAMILY[toolId] || null; },
     getFamilies: function () { return Object.keys(FAMILIES); },
     getActiveTools: function () { return Object.keys(_active).filter(function (k) { return _active[k]; }); },
+    validateAgainstToolRegistry: validateAgainstToolRegistry,
+    registryContractStatus: registryContractStatus,
   });
+
+  _bindRegistryContract();
 
 }(window));
