@@ -4556,6 +4556,42 @@
     };
   }
 
+  // Shared input validation boundary. It validates only deterministic
+  // client-side properties here; tool-specific semantic validation remains
+  // inside each processor.
+  function validateInputFiles(files, acceptedSpec, multipleFiles) {
+    if (!Array.isArray(files) || files.length === 0) {
+      return { ok: false, code: 'INVALID_INPUT', message: 'No files provided.' };
+    }
+    if (multipleFiles === false && files.length > 1) {
+      return { ok: false, code: 'INVALID_INPUT', message: 'Please select one file.' };
+    }
+
+    const accepted = String(acceptedSpec || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+    for (const file of files) {
+      if (!(file instanceof Blob) || typeof file.size !== 'number') {
+        return { ok: false, code: 'INVALID_INPUT', message: 'Invalid file input.' };
+      }
+      if (file.size <= 0) {
+        return { ok: false, code: 'INVALID_INPUT', message: 'The selected file is empty.' };
+      }
+      if (!accepted.length) continue;
+
+      const name = String(file.name || '').toLowerCase();
+      const type = String(file.type || '').toLowerCase();
+      const matches = accepted.some(rule => {
+        if (rule === '*/*') return true;
+        if (rule.endsWith('/*')) return type.startsWith(rule.slice(0, -1));
+        if (rule.startsWith('.')) return name.endsWith(rule);
+        return type === rule;
+      });
+      if (!matches) {
+        return { ok: false, code: 'UNSUPPORTED_FORMAT', message: 'One or more selected files are not supported by this tool.' };
+      }
+    }
+    return { ok: true };
+  }
+
   function getExecutionProfile(toolId) {
     return {
       clientSide: supports(toolId),
@@ -4649,6 +4685,7 @@
     supports,
     getExecutionProfile,
     getToolExecutionManifest,
+    validateInputFiles,
     process,
     prewarm,
     brandedFilename,
