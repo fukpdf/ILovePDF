@@ -111,7 +111,7 @@ const runtimeManifest = read('public/js/runtime-tool-manifest-registry.js');
 if (!/validateAgainstToolRegistry/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose the canonical Tool Registry contract.');
 if (!/registryContractStatus/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose contract diagnostics.');
 if (!/G\.ToolRegistryReady/.test(runtimeManifest) || !/ilovepdf:tool-registry-ready/.test(runtimeManifest)) fail('Runtime tool manifest registry does not bind validation to Tool Registry readiness.');
-const manifestBlock = runtimeManifest.match(/var TOOL_FAMILY = \{([\\s\\S]*?)\n  \};/);
+const manifestBlock = runtimeManifest.match(/var TOOL_FAMILY = \{([\s\S]*?)\n  \};/);
 if (!manifestBlock) {
   fail('Runtime tool manifest TOOL_FAMILY map not found.');
 } else {
