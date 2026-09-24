@@ -133,7 +133,7 @@ if (!/manifest\\[field\\]/.test(configLock)) fail('Runtime tool config lock does
 if (!/manifest-contract-fail/.test(configLock)) fail('Runtime tool config lock does not record manifest contract failures.');
 if (!/getContractStatus/.test(configLock)) fail('Runtime tool config lock does not expose contract diagnostics.');
 if (!/var contract = validateAgainstManifest\\(toolId, config\\)/.test(configLock)) fail('Runtime tool config lock does not enforce the manifest contract before locking.');
-if (!/cl\\.lock\\(toolId,/.test(read('public/js/runtime-tool-loader.js'))) fail('Runtime tool loader is not connected to RuntimeToolConfigLock.');
+if (!/cl\.lock\(toolId,/.test(read('public/js/runtime-tool-loader.js'))) fail('Runtime tool loader is not connected to RuntimeToolConfigLock.');
 
 
 // Unit 8 runtime registry integrity checks.
