@@ -113,12 +113,7 @@
         }
         if (cancelToken && typeof cancelToken.onCancel === 'function') {
           const onTokenCancel = () => cancel();
-          cancelToken.onCancel(onTokenCancel);
-          removeToken = () => {
-            // CancelToken does not expose unsubscribe; dropping this reference
-            // is sufficient because its callback list is cleared on cancellation.
-            // The callback is intentionally idempotent through settled.
-          };
+          removeToken = cancelToken.onCancel(onTokenCancel) || null;
         }
 
         worker.onmessage = e => {
