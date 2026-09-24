@@ -67,13 +67,24 @@
     validateFile(file, options);
     const timeoutMs = Math.max(1000, Number(options.timeoutMs) || DEFAULT_TIMEOUT);
     assertClientOnly(options);
-    const signal = options.signal || null;
+    const callerSignal = options.signal || null;
+    const internalController = (typeof AbortController === 'function') ? new AbortController() : null;
+    const signal = internalController ? internalController.signal : callerSignal;
     const lifecycleRelease = G.WorkerLifecycle && typeof G.WorkerLifecycle.registerProcessingController === 'function'
       ? G.WorkerLifecycle.registerProcessingController({ abort: function (reason) {
-          if (signal && typeof signal.dispatchEvent === 'function') {
-            try { signal.dispatchEvent(new Event('abort')); } catch (_) {}
+          if (internalController) {
+            try { internalController.abort(reason || 'lifecycle-cancel'); } catch (_) {}
           }
         } }) : null;
+    let callerAbortRelease = null;
+    if (callerSignal && typeof callerSignal.addEventListener === 'function' && internalController) {
+      const forwardAbort = () => { try { internalController.abort(callerSignal.reason || 'cancelled'); } catch (_) {} };
+      if (callerSignal.aborted) forwardAbort();
+      else {
+        callerSignal.addEventListener('abort', forwardAbort, { once: true });
+        callerAbortRelease = () => callerSignal.removeEventListener('abort', forwardAbort);
+      }
+    }
     const cancelToken = options.cancelToken || options.token || null;
     if (signal && signal.aborted) throw new Error('processing_cancelled');
 
@@ -102,6 +113,7 @@
             G.ClientFileLifecycle.releaseBuffer(bytes);
           }
           bytes = null;
+          if (callerAbortRelease) { try { callerAbortRelease(); } catch (_) {} callerAbortRelease = null; }
           if (lifecycleRelease) { try { lifecycleRelease(); } catch (_) {} }
         };
         const finish = (fn, value) => {
