@@ -111,6 +111,12 @@ for (const t of (registry.tools || [])) {
   }
 }
 
+// Unit 8 runtime registry integrity checks.
+if (!/function freezeEntry\(tool\)/.test(runtimeLoader)) fail('Runtime registry entries are not explicitly frozen.');
+if (!/Object\.freeze\(entry\.capabilities\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
+if (!/function health\(\)/.test(runtimeLoader) || !/health, mergeLegacy/.test(runtimeLoader)) fail('Runtime registry health API is missing.');
+if (!/toolCount: registry \? registry\.tools\.length : 0/.test(runtimeLoader)) fail('Runtime registry health does not expose loaded tool count.');
+
 // Unit 4 adaptive streaming checks: large worker-safe jobs must have an
 // adaptive streaming capability and the browser processor must route those
 // jobs through RuntimeStreamBridge without imposing a size/page rejection.
