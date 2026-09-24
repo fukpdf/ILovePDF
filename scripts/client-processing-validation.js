@@ -24,6 +24,17 @@ console.log('\n[Phase3] Client processing validation harness');
 assert('output-validator-present', existsSync(resolve(ROOT, 'public/js/client-output-validation.js')),
   'shared output validation boundary exists');
 const outputValidator = read('public/js/client-output-validation.js');
+const workerPoolSource = read('public/workers/workerPool.js');
+assert('workerpool-cancel-unsubscribe', /return function \\(\\)/.test(workerPoolSource) &&
+  /task\\.removeCancel/.test(workerPoolSource),
+  'worker-pool cancellation callbacks are removable and cleaned after settlement');
+assert('workerpool-cancel-terminates', /terminateCurrent\\(pool, slot, new Error\\('task_cancelled'\\)/.test(workerPoolSource),
+  'running cancellation terminates the abandoned worker before reuse');
+assert('workerpool-queued-cancel', /q\\.indexOf\\(task\\)/.test(workerPoolSource) &&
+  /task_cancelled/.test(workerPoolSource),
+  'queued cancellation removes the task before dispatch');
+
+
 assert('output-validator-api', /ClientOutputValidation/.test(outputValidator),
   'shared output validator API is exported');
 assert('output-empty-guard', /processing_output_empty/.test(outputValidator),
@@ -113,6 +124,14 @@ async function kernelHarness() {
   try { await pending; } catch (e) { timedOut = e && e.message === 'processing_worker_timeout'; }
   assert('worker-timeout', timedOut && spawnedWorker && spawnedWorker.terminated,
     'hung worker rejects on timeout and terminates');
+  assert('kernel-cancel-signal', /processing_cancelled/.test(source) &&
+    /addEventListener\\('abort'/.test(source) &&
+    /worker\\.terminate\\(\\)/.test(source),
+    'abort cancellation rejects and terminates the processing worker');
+  assert('kernel-buffer-lifecycle', /ClientFileLifecycle.*trackBuffer/s.test(source) &&
+    /ClientFileLifecycle.*releaseBuffer/s.test(source),
+    'transferred input buffer is tracked and released on cleanup paths');
+
   // Ensure kernel source keeps transferable semantics explicit.
   assert('kernel-transfer-contract', /postMessage\(\{ type: 'process-buffer', buffer: bytes \}, \[bytes\]\)/.test(source),
     'processBuffer transfers the input ArrayBuffer');
