@@ -2939,6 +2939,8 @@ window.loadToolPage = function loadToolPage(path) {
       const moduleActivation = window.ToolModuleRegistry.activate(currentTool.id);
       if (!moduleActivation.ok) {
         console.warn('[ToolModuleRegistry] activation failed:', currentTool.id);
+      } else if (moduleActivation.module.capability === 'unavailable') {
+        console.warn('[ToolModuleRegistry] no browser processor is registered for:', currentTool.id);
       }
     }
   } catch (_) {}
