@@ -4541,24 +4541,31 @@
   // Shared execution manifest consumed by the tool runtime. Metadata is
   // intentionally derived from the existing handler/capability maps so this
   // layer cannot advertise a processor that BrowserTools does not actually own.
+  const VALIDATION_VERSION = 2;
+
   function getToolExecutionManifest(toolId) {
     const profile = getExecutionProfile(toolId);
     return {
       toolId,
-      version: 1,
+      version: 2,
       processor: profile.clientSide ? 'browser-tools' : null,
       execution: profile.workerSafe ? 'worker-pool' : (profile.clientSide ? 'main-thread' : 'unavailable'),
       lazyLoad: profile.lazyEngineLoad,
       workerSafe: profile.workerSafe,
       streaming: false,
+      validation: {
+        version: VALIDATION_VERSION,
+        input: profile.inputValidation,
+        output: profile.outputValidation,
+      },
       outputValidation: profile.outputValidation,
       silentFallback: profile.silentWorkerFallback,
     };
   }
 
-  // Shared input validation boundary. It validates only deterministic
-  // client-side properties here; tool-specific semantic validation remains
-  // inside each processor.
+  // Shared input validation boundary. It validates deterministic file
+  // properties before any processor/worker is invoked. Tool-specific
+  // semantic validation remains inside each processor.
   function validateInputFiles(files, acceptedSpec, multipleFiles) {
     if (!Array.isArray(files) || files.length === 0) {
       return { ok: false, code: 'INVALID_INPUT', message: 'No files provided.' };
@@ -4579,14 +4586,22 @@
 
       const name = String(file.name || '').toLowerCase();
       const type = String(file.type || '').toLowerCase();
-      const matches = accepted.some(rule => {
+      const extensionMatch = accepted.some(rule => rule.startsWith('.') && name.endsWith(rule));
+      const mimeMatch = accepted.some(rule => {
         if (rule === '*/*') return true;
         if (rule.endsWith('/*')) return type.startsWith(rule.slice(0, -1));
-        if (rule.startsWith('.')) return name.endsWith(rule);
-        return type === rule;
+        return !rule.startsWith('.') && type === rule;
       });
+      const hasExtensionRules = accepted.some(rule => rule.startsWith('.'));
+      const hasMimeRules = accepted.some(rule => !rule.startsWith('.'));
+      const matches = (hasExtensionRules && extensionMatch) || (hasMimeRules && mimeMatch);
       if (!matches) {
         return { ok: false, code: 'UNSUPPORTED_FORMAT', message: 'One or more selected files are not supported by this tool.' };
+      }
+      // If both extension and browser-reported MIME are present, reject a
+      // direct contradiction (for example .pdf reported as image/png).
+      if (extensionMatch && type && hasMimeRules && !mimeMatch) {
+        return { ok: false, code: 'UNSUPPORTED_FORMAT', message: 'The file extension and detected file type do not match.' };
       }
     }
     return { ok: true };
@@ -4599,9 +4614,55 @@
       lazyEngineLoad: true,
       workerPool: WORKER_TOOLS.has(toolId),
       streamingInfrastructure: !!window.StreamHelpers,
+      inputValidation: true,
       outputValidation: true,
       silentWorkerFallback: false,
     };
+  }
+
+  function outputMimeMatchesFilename(filename, mime) {
+    const name = String(filename || '').toLowerCase();
+    const type = String(mime || '').toLowerCase();
+    if (!name || !type || type === 'application/octet-stream') return true;
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+    const rules = {
+      '.pdf': ['application/pdf'],
+      '.jpg': ['image/jpeg', 'image/jpg'],
+      '.jpeg': ['image/jpeg', 'image/jpg'],
+      '.png': ['image/png'],
+      '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+      '.pptx': ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+      '.txt': ['text/plain'],
+      '.zip': ['application/zip', 'application/x-zip-compressed'],
+    };
+    return !rules[ext] || rules[ext].includes(type);
+  }
+
+  async function validateOutput(toolId, result) {
+    if (!result) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'No output was produced. Please try again.' };
+    const blob = result && result.blob instanceof Blob ? result.blob : (result instanceof Blob ? result : null);
+    if (!blob) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The result could not be read. Please try again.' };
+    if (blob.size <= 0) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file is empty. The document may be damaged or unsupported.' };
+    const minBytes = blob.type.includes('pdf') ? 500
+      : blob.type.includes('wordprocessingml') || blob.type.includes('spreadsheetml') || blob.type.includes('presentationml') ? 1000
+      : blob.type.includes('image') || blob.type.includes('zip') ? 100
+      : blob.type.includes('text') ? 3 : 200;
+    if (blob.size < minBytes) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file appears incomplete. Please try again.' };
+    if (!outputMimeMatchesFilename(result && result.filename, blob.type)) {
+      return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file type does not match its filename.' };
+    }
+    if (blob.type.includes('text') && blob.size < 5000) {
+      try {
+        const text = await blob.text();
+        const stripped = text.replace(/={3,}/g, '').replace(/-{3,}/g, '')
+          .replace(/ILovePDF[^\\n]*/gi, '').replace(/Page\\s*\\d+/gi, '')
+          .replace(/Source\\s*:/gi, '').replace(/File\\s*[AB]\\s*:/gi, '')
+          .trim().replace(/\\s+/g, '');
+        if (stripped.length < 3) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'No readable content was found. For scanned documents, try the OCR tool.' };
+      } catch (_) {}
+    }
+    return { ok: true };
   }
 
   async function process(toolId, files, options) {
@@ -4647,10 +4708,10 @@
         throw new Error('worker_processing_failed');
       }
       const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-      if (!blob || blob.size < 200) {
-        throw new Error('worker_output_invalid');
-      }
-      return { blob, filename: brandedFilename(fileName, '.pdf') };
+      const workerResultObj = { blob: new Blob([workerResult.buffer], { type: 'application/pdf' }), filename: brandedFilename(fileName, '.pdf') };
+      const workerValidation = await validateOutput(toolId, workerResultObj);
+      if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
+      return workerResultObj;
     }
 
     // ── Main-thread path for tools that are not yet worker-safe ────────────
@@ -4671,14 +4732,11 @@
       'crop-image': 100, 'resize-image': 100, 'image-filters': 100,
     };
     const _minBytes = _MIN_SIZES[toolId] !== undefined ? _MIN_SIZES[toolId] : 200;
-    if (!blob || blob.size < _minBytes) {
-      const _why = (!blob || blob.size === 0)
-        ? 'The output file is empty. The document may be damaged or in an unsupported format.'
-        : 'The output file appears incomplete. Please try again with a different file.';
-      throw new Error(_why);
-    }
     const filename = brandedFilename(files[0].name, ext);
-    return { blob, filename };
+    const output = { blob, filename };
+    const validation = await validateOutput(toolId, output);
+    if (!validation.ok) throw new Error(validation.msg || 'OUTPUT_VALIDATION_FAILED');
+    return output;
   }
 
   window.BrowserTools = {
@@ -4686,6 +4744,7 @@
     getExecutionProfile,
     getToolExecutionManifest,
     validateInputFiles,
+    validateOutput,
     process,
     prewarm,
     brandedFilename,
