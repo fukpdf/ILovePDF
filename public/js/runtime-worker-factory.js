@@ -72,6 +72,7 @@
     '/workers/word-excel-worker.js',
     '/workers/powerpoint-pdf-worker.js',
     '/workers/ocr-pdf-worker.js',
+    '/workers/scan-pdf-worker.js',
     '/workers/image-pipeline-worker.js',
     '/workers/image-tools-worker.js',
     '/workers/remove-bg-worker.js',
