@@ -255,9 +255,11 @@ OPS.workflow = async function (buffers, opts) {
   if (steps.length === 0) throw new Error('Please select at least one operation');
 
   let currentBuf = buffers[0];
+  // The workflow owns the working buffer from this point onward.
+  buffers[0] = null;
 
   for (const step of steps) {
-    const doc = await PDFDocument.load(currentBuf, { ignoreEncryption: true });
+    let doc = await PDFDocument.load(currentBuf, { ignoreEncryption: true });
 
     switch (step.op) {
       case 'compress': {
@@ -322,6 +324,12 @@ OPS.workflow = async function (buffers, opts) {
       }
       default: break;
     }
+
+    // Drop the parsed document graph before the next workflow step loads the
+    // newly serialized buffer. This avoids retaining two complete document
+    // representations across step boundaries.
+    doc = null;
+    await Promise.resolve();
   }
 
   return currentBuf;
