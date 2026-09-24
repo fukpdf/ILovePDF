@@ -256,13 +256,30 @@ OPS.redact = async function (buffers, opts) {
 // ── message handler ───────────────────────────────────────────────────────────
 
 self.onmessage = async function (ev) {
-  const { op, buffers, opts, jobId } = ev.data || {};
+  const d = ev.data || {};
   try {
+    if (d.op === 'merge-stream-start') {
+      await mergeStartJob(d.count);
+      self.postMessage({ type: 'merge-stream-ready', count: mergeCount, jobId: d.jobId });
+      return;
+    }
+    if (d.op === 'merge-stream-item') {
+      await mergeAppend(d.buffer);
+      self.postMessage({ type: 'merge-stream-ack', index: d.index, jobId: d.jobId });
+      return;
+    }
+    if (d.op === 'merge-stream-finish') {
+      const result = await mergeFinish();
+      self.postMessage({ type: 'merge-stream-done', buffer: result, jobId: d.jobId }, [result]);
+      return;
+    }
+    const { op, buffers, opts, jobId } = d;
     if (!op || !OPS[op]) throw new Error('Unknown op: ' + op);
     const result = await OPS[op](buffers || [], opts || {});
     self.postMessage({ buffer: result, jobId }, [result]);
   } catch (err) {
-    self.postMessage({ __error: (err && err.message) || String(err), jobId });
+    mergeDoc = null; mergeCount = 0;
+    self.postMessage({ __error: (err && err.message) || String(err), type: 'merge-stream-error', jobId: d.jobId });
   }
 };
 
