@@ -1829,46 +1829,11 @@ function clearAll() {
 // Inspects every result before handing it to the download trigger.
 // Guards against empty blobs, malformed PDFs, and text-only whitespace outputs.
 const OutputValidator = {
-  _minBytes(mime) {
-    if (!mime) return 200;
-    if (mime.includes('pdf'))               return 500;
-    if (mime.includes('zip'))               return 200;
-    if (mime.includes('image'))             return 200;
-    if (mime.includes('text'))              return 3;
-    if (mime.includes('wordprocessingml')) return 1000;
-    if (mime.includes('spreadsheetml'))    return 1000;
-    if (mime.includes('presentationml'))   return 1000;
-    return 200;
-  },
-
   async check(toolId, result) {
-    if (!result) return { ok: false, msg: 'No output was produced. Please try again.' };
-    const blob = (result && result.blob instanceof Blob)
-      ? result.blob : (result instanceof Blob ? result : null);
-    if (!blob) return { ok: false, msg: 'The result could not be read. Please try again.' };
-
-    if (blob.size === 0)
-      return { ok: false, msg: 'The output file is empty. The document may be damaged or in an unsupported format.' };
-
-    const minBytes = this._minBytes(blob.type);
-    if (blob.size < minBytes)
-      return { ok: false, msg: 'The output file appears incomplete. Please try again with a different file.' };
-
-    // For text outputs: ensure content isn't just headers / whitespace.
-    if (blob.type && blob.type.includes('text') && blob.size < 5000) {
-      try {
-        const text = await blob.text();
-        const stripped = text
-          .replace(/={3,}/g, '').replace(/-{3,}/g, '')
-          .replace(/ILovePDF[^\n]*/gi, '').replace(/Page\s*\d+/gi, '')
-          .replace(/Source\s*:/gi, '').replace(/File\s*[AB]\s*:/gi, '')
-          .trim().replace(/\s+/g, '');
-        if (stripped.length < 3)
-          return { ok: false, msg: 'No readable content was found. For scanned documents, try the OCR tool.' };
-      } catch (_) {}
+    if (window.BrowserTools && typeof window.BrowserTools.validateOutput === 'function') {
+      return window.BrowserTools.validateOutput(toolId, result);
     }
-
-    return { ok: true };
+    return { ok: false, msg: 'Output validation is unavailable. Please reload and try again.' };
   },
 };
 
