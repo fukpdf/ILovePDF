@@ -8,14 +8,13 @@
   var TAG             = '[MergePdfApp]';
   var TOOL_ID         = 'merge';
   var PDF_LIB_WORKER  = '/workers/pdf-lib-worker.js';
-  var HARD_LIMIT_MS   = 120000; // 120 s — merge can be slow with many files
-  var WORKER_LIMIT_MS = 105000;
+  var WORKER_LIMIT_MS = 180000;
 
   // ── isolated state ──────────────────────────────────────────────────────────
   var _inFlight   = false;
   var _jobId      = 0;
   var _worker     = null;
-  var _hardTimer  = null;
+  var _hardTimer = null;
   var _hardReject = null;
 
   function _log(m, d)  { console.debug(TAG, m, d !== undefined ? d : ''); }
@@ -30,37 +29,34 @@
   }
 
   // ── dedicated worker (spawn-per-job, terminate-after-result) ───────────────
-  function _runWorker(buffers, opts, jobId) {
+  function _runWorker(files, opts, jobId) {
     return new Promise(function (resolve, reject) {
       var w;
       try { w = new Worker(PDF_LIB_WORKER); }
       catch (e) { return reject(new Error(TAG + ' worker spawn failed: ' + (e.message || e))); }
       _worker = w;
-
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _worker = null;
-        reject(new Error('Merge worker timed out.'));
-      }, WORKER_LIMIT_MS);
-
+      var timer = setTimeout(function () { try { w.terminate(); } catch (_) {} _worker = null; reject(new Error('Merge worker timed out.')); }, WORKER_LIMIT_MS);
+      var settled = false;
+      function finish(fn, value) { if (settled) return; settled = true; clearTimeout(timer); try { w.terminate(); } catch (_) {} _worker = null; fn(value); }
+      function send(index) {
+        return files[index].arrayBuffer().then(function (buffer) {
+          w.postMessage({ op: 'merge-stream-item', index: index, buffer: buffer, jobId: String(jobId) }, [buffer]);
+        });
+      }
       w.onmessage = function (ev) {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _worker = null;
         var d = ev.data || {};
-        if (d.__error) { reject(new Error(d.__error)); return; }
-        if (d.buffer instanceof ArrayBuffer) { resolve(d.buffer); return; }
-        reject(new Error(TAG + ' unexpected worker response'));
+        if (d.__error) return finish(reject, new Error(d.__error));
+        if (d.type === 'merge-stream-ready') return send(0).catch(function(e){ finish(reject,e); });
+        if (d.type === 'merge-stream-ack') {
+          var next = Number(d.index) + 1;
+          if (next < files.length) send(next).catch(function(e){ finish(reject,e); });
+          else w.postMessage({ op: 'merge-stream-finish', jobId: String(jobId) });
+          return;
+        }
+        if (d.type === 'merge-stream-done' && d.buffer instanceof ArrayBuffer) return finish(resolve, d.buffer);
       };
-      w.onerror = function (ev) {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _worker = null;
-        reject(new Error(TAG + ' worker error: ' + (ev && ev.message || 'unknown')));
-      };
-
-      // Transfer all buffers (zero-copy)
-      w.postMessage({ op: 'merge', buffers: buffers, opts: opts, jobId: String(jobId) }, buffers);
+      w.onerror = function(ev){ finish(reject, new Error(TAG + ' worker error: ' + (ev && ev.message || 'unknown'))); };
+      w.postMessage({ op: 'merge-stream-start', count: files.length, opts: opts || {}, jobId: String(jobId) });
     });
   }
 
@@ -88,26 +84,12 @@
 
     var hardPromise = new Promise(function (_, reject) {
       _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Merge timed out. Please try with fewer or smaller files.'));
-      }, HARD_LIMIT_MS);
+      _hardTimer = setTimeout(function () { _log('HARD TIMEOUT', jobId); _cleanup('hard-timeout'); reject(new Error('Merge timed out.')); }, WORKER_LIMIT_MS);
     });
 
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Reading files\u2026');
-      var buffers = [];
-      for (var i = 0; i < files.length; i++) {
-        var buf = await files[i].arrayBuffer();
-        buffers.push(buf);
-      }
-      onStep(0, 'done', 20);
-      onStep(1, 'active', 25, 'Merging pages\u2026');
-      await new Promise(function (r) { setTimeout(r, 4); });
-
-      var resultBuf = await _runWorker(buffers, opts || {}, jobId);
-      buffers = null;
+      var resultBuf = await _runWorker(files, opts || {}, jobId);
 
       onStep(1, 'done', 85);
       onStep(2, 'active', 90, 'Finalizing\u2026');
