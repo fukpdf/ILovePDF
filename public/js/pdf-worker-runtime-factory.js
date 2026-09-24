@@ -413,7 +413,7 @@
             priority:  'normal',
             label:     toolId + '-worker',
             dedupeKey: dedupeKey,
-            timeoutMs: cfg.workerTimeout || cfg.timeoutMs || 90000,
+            timeoutMs: (typeof cfg.workerTimeout === 'number') ? cfg.workerTimeout : ((typeof cfg.timeoutMs === 'number') ? cfg.timeoutMs : 90000),
             token:     token,
           }
         );
@@ -599,7 +599,7 @@
       _currentToken = window.RuntimeCancellation
         ? window.RuntimeCancellation.createScopedToken(toolId, {
             label:     toolId + '-run',
-            timeoutMs: cfg.timeoutMs || 90000,
+            timeoutMs: (typeof cfg.timeoutMs === 'number') ? cfg.timeoutMs : 90000,
           })
         : null;
 
