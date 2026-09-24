@@ -143,6 +143,11 @@ async function kernelHarness() {
     /state\.buffer\.set\(bytes, state\.offset\)/.test(read('public/workers/pdf-worker.js')) &&
     !/state\.chunks\.push\(data\.chunk\)/.test(read('public/workers/pdf-worker.js')),
     'generic PDF chunk streaming assembles into one pre-sized worker buffer instead of retaining every chunk');
+  assert('generic-merge-streaming-adapter',
+    /toolId === 'merge'[\s\S]*_runStreamingMergeWorker\(files/.test(read('public/js/browser-tools.js')) &&
+    /const buffer = await file\.arrayBuffer\(\)[\s\S]*postMessage\(\{ op: 'merge-stream-item'/.test(read('public/js/browser-tools.js')) &&
+    !/const buffers = await Promise\.all\(Array\.from\(files\)\.map\(f => f\.arrayBuffer\(\)\)\)/.test(read('public/js/browser-tools.js')),
+    'Generic Merge uses one-file-at-a-time transferable ingestion');
   assert('pdf-readable-stream-bounded',
     /data\.type === 'stream-pipe'[\s\S]*totalSize[\s\S]*_initStreamBuffer/.test(read('public/workers/pdf-worker.js')) &&
     !/data\.type === 'stream-pipe'[\s\S]*const chunks = \[\]/.test(read('public/workers/pdf-worker.js')),
