@@ -39,54 +39,60 @@ async function buildPptx(slides, docTitle) {
   });
 
   for (var i = 0; i < slides.length; i++) {
-    var s     = slides[i];
-    var slide = pptx.addSlide({ masterName: 'MASTER' });
+    var s = slides[i];
+    var bodyLines = (s.text || '').trim().split('\n')
+      .map(function (l) { return l.trim(); })
+      .filter(function (l) { return l.length > 0; });
 
-    slide.addText(String(s.title || 'Slide ' + s.pageNum).substring(0, 120), {
-      x: 0.28, y: 0.14, w: 9.3, h: 0.72,
-      fontSize: 22, bold: true, color: TC.title, fontFace: 'Calibri',
-      wrap: true, charSpacing: 0.5,
-    });
+    // Never discard source text. Long source pages are emitted as continuation
+    // slides instead of being truncated at an arbitrary line ceiling.
+    var chunkSize = 22;
+    var chunkCount = Math.max(1, Math.ceil(bodyLines.length / chunkSize));
 
-    var bodyText = (s.text || '').trim();
-    if (bodyText) {
-      var bodyLines = bodyText.split('\n')
-        .map(function (l) { return l.trim(); })
-        .filter(function (l) { return l.length > 0; });
+    for (var chunk = 0; chunk < chunkCount; chunk++) {
+      var slide = pptx.addSlide({ masterName: 'MASTER' });
+      var title = String(s.title || 'Slide ' + s.pageNum);
+      if (chunkCount > 1) title += ' — Part ' + (chunk + 1) + '/' + chunkCount;
 
-      var maxLines     = 22;
-      var usedLines    = bodyLines.slice(0, maxLines);
-      var wasTruncated = bodyLines.length > maxLines;
-
-      var bodyObjs = usedLines.map(function (line) {
-        return {
-          text:    line.substring(0, 220),
-          options: { bullet: { type: 'bullet' }, fontSize: 11, color: TC.text, fontFace: 'Calibri' },
-        };
+      slide.addText(title.substring(0, 120), {
+        x: 0.28, y: 0.14, w: 9.3, h: 0.72,
+        fontSize: 22, bold: true, color: TC.title, fontFace: 'Calibri',
+        wrap: true, charSpacing: 0.5,
       });
 
-      if (wasTruncated) {
-        bodyObjs.push({
-          text:    '\u2026 (' + (bodyLines.length - maxLines) + ' more lines)',
-          options: { fontSize: 9, color: TC.muted, italic: true, fontFace: 'Calibri' },
+      var usedLines = bodyLines.slice(chunk * chunkSize, (chunk + 1) * chunkSize);
+      if (usedLines.length) {
+        var bodyObjs = usedLines.map(function (line) {
+          return {
+            text: line.substring(0, 220),
+            options: { bullet: { type: 'bullet' }, fontSize: 11, color: TC.text, fontFace: 'Calibri' },
+          };
+        });
+        slide.addText(bodyObjs, {
+          x: 0.28, y: 1.05, w: 9.3, h: 5.5,
+          valign: 'top', wrap: true, autoFit: true
+        });
+      } else {
+        slide.addText('(No text content)', {
+          x: 0.28, y: 3.0, w: 9.3, h: 0.5,
+          fontSize: 11, color: TC.muted, italic: true, fontFace: 'Calibri', align: 'center',
         });
       }
 
-      slide.addText(bodyObjs, { x: 0.28, y: 1.05, w: 9.3, h: 5.5, valign: 'top', wrap: true, autoFit: true });
-    } else {
-      slide.addText('(No text content)', {
-        x: 0.28, y: 3.0, w: 9.3, h: 0.5,
-        fontSize: 11, color: TC.muted, italic: true, fontFace: 'Calibri', align: 'center',
+      slide.addText(String(s.pageNum) + (chunkCount > 1 ? ' • ' + (chunk + 1) : ''), {
+        x: 9.1, y: 6.6, w: 0.55, h: 0.25,
+        fontSize: 8, color: TC.muted, align: 'right', fontFace: 'Calibri',
       });
     }
 
-    slide.addText(String(s.pageNum), {
-      x: 9.1, y: 6.6, w: 0.55, h: 0.25,
-      fontSize: 8, color: TC.muted, align: 'right', fontFace: 'Calibri',
-    });
+    // Release the source slide payload before processing the next one.
+    slides[i] = null;
   }
 
-  return await pptx.write({ outputType: 'arraybuffer' });
+  var result = await pptx.write({ outputType: 'arraybuffer' });
+  slides = null;
+  pptx = null;
+  return result;
 }
 
 self.onmessage = async function (ev) {
