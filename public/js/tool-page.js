@@ -1924,6 +1924,22 @@ async function processFile() {
     return;
   }
 
+  // Shared execution-boundary input validation. The selected tool's
+  // accepted file contract is checked before any processor/worker is invoked.
+  if (window.BrowserTools && typeof window.BrowserTools.validateInputFiles === 'function') {
+    const inputValidation = window.BrowserTools.validateInputFiles(
+      selectedFiles.map(e => e.file),
+      currentTool.acceptedFiles,
+      currentTool.multipleFiles
+    );
+    if (!inputValidation.ok) {
+      showStatus('error',
+        _tp('status.invalid_input', 'Invalid input'),
+        inputValidation.message || _tp('status.invalid_input_msg', 'Please check the selected files and try again.'));
+      return;
+    }
+  }
+
   // Re-check 100MB limit defensively
   for (const e of selectedFiles) {
     if (e.file.size > MAX_FILE_BYTES) { showSignupModal(e.file); return; }
