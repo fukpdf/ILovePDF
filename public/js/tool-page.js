@@ -238,8 +238,7 @@ window.addEventListener('popstate', () => {
   const registryMeta = (window.ToolRegistry && window.ToolRegistry.isReady())
     ? window.ToolRegistry.getBySlug(rawSlug) || window.ToolRegistry.get(rawSlug)
     : null;
-  const meta    = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
-  const toolId  = registryMeta ? registryMeta.id : ((meta && meta.id) ? meta.id : rawSlug);
+  const toolId  = registryMeta ? registryMeta.id : rawSlug;
 
   if (currentTool && currentTool.id === toolId) {
     Flow.step = stepFromPath();
