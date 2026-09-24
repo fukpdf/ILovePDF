@@ -17,7 +17,7 @@
 //   PdfToWordApp installs a BrowserTools.process interceptor for 'pdf-to-word' ONLY.
 //   It runs a fully isolated pipeline where:
 //   — ALL async operations are wrapped in try/finally with guaranteed worker cleanup
-//   — A hard-timeout calls _cleanup() explicitly (terminates workers before rejecting)
+//   — Cancellation calls _cleanup() explicitly (terminates workers before rejecting)
 //   — A dedicated terminate-after-job Worker handles DOCX packaging (no shared WorkerPool)
 //   — Tesseract.createWorker() instances are tracked and terminated in _cleanup()
 //   — _inFlight flag prevents re-entry; always reset in finally
@@ -31,17 +31,14 @@
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var DOCX_LIMIT_MS  = 30000;   // 30 s: DOCX packaging
-  var OCR_PAGE_MS    = 45000;   // 45 s: per-page OCR recognition
-  var OCR_INIT_MS    = 30000;   // 30 s: Tesseract.createWorker init
-
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
   var _inFlight     = false;    // re-entry guard
   var _jobId        = 0;        // monotonic job counter
   var _docxWorker   = null;     // current DOCX packaging Worker
   var _tessWorker   = null;     // current Tesseract worker (from createWorker)
   var _pdfInst      = null;     // current pdfjsLib pdf instance
-  var _hardTimer    = null;     // job-level hard timeout handle
+  var _hardTimer    = null;     // job-level cancellation handle
   var _hardReject   = null;     // resolve fn for hard-timeout promise rejection
 
   // ── LOG ───────────────────────────────────────────────────────────────────
@@ -480,7 +477,7 @@
       };
     })();
 
-    // Race the job against the hard timeout. Cleanup always runs in finally.
+    // Race the job against the cancellation. Cleanup always runs in finally.
     try {
       return await jobPromise;
     } catch (err) {
