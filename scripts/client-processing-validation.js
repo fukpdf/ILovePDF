@@ -143,7 +143,7 @@ async function kernelHarness() {
     /scan-to-pdf-start/.test(read('public/workers/scan-pdf-worker.js')) &&
     /scan-to-pdf-ack/.test(read('public/workers/scan-pdf-worker.js')),
     'image and scan workers expose start/item/ack/finish streaming boundaries');
-  assert('browser-tool-worker-lifecycle'/, /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
+  assert('browser-tool-worker-lifecycle', /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
     /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
     'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
   assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
