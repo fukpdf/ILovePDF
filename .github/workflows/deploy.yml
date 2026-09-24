@@ -22,10 +22,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node 24
+      - name: Setup Node 22
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       # Deployment is blocked unless the production source gates pass on this commit.
