@@ -1,25 +1,31 @@
 import express from 'express';
-import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { extractPdfText, textToPdf, extractiveSummarize, formatBytes } from '../utils/pdfText.js';
-import { UPLOAD_DIR } from '../utils/upload.js';
+import { createUpload } from '../utils/upload.js';
+import { validateOutputBuffer } from '../utils/output-validator.js';
 
 const router = express.Router();
-const upload = multer({ dest: UPLOAD_DIR, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = createUpload('pdf');
 
 function clientErrStatus(err) {
   const msg = (err && err.message) || '';
   return /no (file|text|page|input)|image.based|scanned|unsupported|invalid|not found|empty|no extractable|no text|could not parse|corrupt/i.test(msg) ? 400 : 500;
 }
 
-function sendFile(res, buffer, contentType, filename) {
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(buffer);
+async function sendFile(res, buffer, contentType, filename) {
+  try {
+    await validateOutputBuffer(buffer, contentType);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('[output-validation] Advanced output rejected:', filename, err.reason || err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Generated output failed structural validation.' });
+  }
 }
 
 // Chunk text respecting sentence/paragraph boundaries
@@ -108,7 +114,7 @@ router.post('/ocr', upload.single('pdf'), async (req, res) => {
         }],
       });
       const buf = await Packer.toBuffer(doc);
-      return sendFile(res, buf,
+      return await sendFile(res, buf,
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'ilovepdf-ocr.docx');
     }
@@ -159,7 +165,7 @@ router.post('/ocr', upload.single('pdf'), async (req, res) => {
     const doc = new Document({ sections: [{ properties: {}, children }] });
     const buf = await Packer.toBuffer(doc);
 
-    sendFile(res, buf,
+    await sendFile(res, buf,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'ilovepdf-ocr.docx');
   } catch (err) {
@@ -332,7 +338,7 @@ router.post('/translate', upload.single('pdf'), async (req, res) => {
     ];
 
     cleanupFiles(req.file);
-    sendFile(res, Buffer.from(lines.join('\n'), 'utf-8'),
+    await sendFile(res, Buffer.from(lines.join('\n'), 'utf-8'),
       'text/plain; charset=utf-8',
       `ilovepdf-translated-${targetLang}.txt`);
   } catch (err) {

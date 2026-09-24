@@ -15,6 +15,7 @@ import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { extractPdfText, isPdfBuffer, wrapText, textToPdf } from '../utils/pdfText.js';
 import { createUpload } from '../utils/upload.js';
 import { magickImagesToPdf } from '../utils/pdfTools.js';
+import { validateOutputBuffer } from '../utils/output-validator.js';
 
 const require = createRequire(import.meta.url);
 const execAsync = promisify(exec);
@@ -25,10 +26,18 @@ const anyUpload = createUpload('any');
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
-function sendFile(res, buffer, contentType, filename) {
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(buffer);
+async function sendFile(res, buffer, contentType, filename) {
+  try {
+    await validateOutputBuffer(buffer, contentType);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('[output-validation] File rejected:', filename, err.reason || err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Generated output failed structural validation.' });
+    }
+  }
 }
 
 // ── IMAGES → PDF (existing, working) ──────────────────────────────────────
