@@ -15,7 +15,7 @@
 //   PdfToExcelApp installs a BrowserTools.process interceptor for 'pdf-to-excel'.
 //   It runs a fully isolated pipeline where:
 //   — ALL async operations are wrapped in try/finally with guaranteed cleanup
-//   — A hard-timeout calls _cleanup() FIRST (terminates workers), then rejects
+//   — Cancellation calls _cleanup() FIRST (terminates workers), then rejects
 //   — A dedicated terminate-after-job Worker handles XLSX packaging
 //   — Tesseract.createWorker() instances are tracked and terminated in _cleanup()
 //   — _inFlight flag prevents re-entry; always reset in finally
@@ -32,10 +32,7 @@
   var PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var XLSX_WORKER   = '/workers/pdf-excel-xlsx-worker.js';
   var TESS_CDN      = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var XLSX_LIMIT_MS = 30000;   // 30 s: XLSX packaging
-  var OCR_PAGE_MS   = 45000;   // 45 s: per-page OCR recognition
-  var OCR_INIT_MS   = 30000;   // 30 s: Tesseract.createWorker init
-
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ──────────────────────────────────────────────────────────
   var _inFlight    = false;
   var _jobId       = 0;
@@ -362,7 +359,7 @@
 
     var onStep = _makeStepper();
 
-    // Hard-timeout: calls _cleanup() first so workers are ALWAYS terminated
+    // Cancellation: calls _cleanup() first so workers are ALWAYS terminated
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
