@@ -87,6 +87,6 @@
 
   G.ClientProcessingKernel = Object.freeze({
     VERSION, DEFAULT_CHUNK, MAX_CHUNK, deviceProfile, chooseChunkSize,
-    readChunks, readFileChunks, assertClientOnly, createWorkerJob, processBuffer
+    readChunks, readFileChunks, validateFile, assertClientOnly, createWorkerJob, processBuffer
   });
 }(window));
