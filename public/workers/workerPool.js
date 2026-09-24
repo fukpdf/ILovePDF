@@ -21,7 +21,10 @@
   var TIMEOUT_MS         = 120000; // 2-minute hard cap per task
   var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
   var IDLE_TTL_MS        = 60000;  // terminate idle workers after 60 s
-  var MAX_QUEUE          = 50;     // reject tasks beyond this queue depth
+  var MAX_QUEUE          = 50;
+  var MAX_TASK_BYTES     = (_devMem <= 1) ? 64 * 1024 * 1024 :
+                           (_devMem <= 2) ? 128 * 1024 * 1024 :
+                           (_devMem <= 4) ? 256 * 1024 * 1024 : 512 * 1024 * 1024;     // reject tasks beyond this queue depth
   var MAX_TASKS_PER_SLOT = 60;     // rotate slot after N tasks to avoid accumulation
   // Faster heartbeat (15 s) catches hung workers sooner, especially on mobile
   // where OS may freeze workers without firing onerror.
@@ -392,6 +395,11 @@
     var pool = getPool(workerUrl);
 
     return new Promise(function (resolve, reject) {
+      var declaredBytes = Number(opts.inputBytes || opts.byteLength || 0);
+      if (declaredBytes > MAX_TASK_BYTES) {
+        reject(new Error('Worker task input exceeds the client device processing limit'));
+        return;
+      }
       if (queueLength(pool) >= MAX_QUEUE) {
         reject(new Error('Worker queue full — too many concurrent tasks'));
         return;
