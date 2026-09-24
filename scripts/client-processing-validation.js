@@ -132,6 +132,43 @@ async function pdfEngineHarness() {
   const rotatedOpen = await PDFDocument.load(rotated);
   assert('rotate-invariant', rotatedOpen.getPages()[0].getRotation().angle === 90,
     'rotation invariant survives save/reopen');
+
+  const source2 = await PDFDocument.create();
+  source2.addPage([300, 400]);
+  source2.addPage([500, 600]);
+  source2.addPage([700, 800]);
+  const source2Bytes = await source2.save();
+
+  const splitOut = await PDFDocument.create();
+  const splitSrc = await PDFDocument.load(source2Bytes);
+  const splitPages = await splitOut.copyPages(splitSrc, [2]);
+  splitPages.forEach(p => splitOut.addPage(p));
+  const splitBytes = await splitOut.save();
+  const splitOpen = await PDFDocument.load(splitBytes);
+  assert('split-invariant', splitOpen.getPageCount() === 1 &&
+    splitOpen.getPages()[0].getSize().width === 700,
+    'selected split page and its dimensions survive save/reopen');
+
+  const cropDoc = await PDFDocument.load(source2Bytes);
+  cropDoc.getPages()[0].setCropBox(20, 30, 240, 320);
+  const cropBytes = await cropDoc.save();
+  const cropOpen = await PDFDocument.load(cropBytes);
+  const cropPage = cropOpen.getPages()[0];
+  const cropSize = cropPage.getSize();
+  assert('crop-invariant', cropSize.width === 240 && cropSize.height === 320,
+    'crop box dimensions survive save/reopen');
+
+  const mergeOut = await PDFDocument.create();
+  const mergeA = await PDFDocument.load(source2Bytes);
+  const mergeB = await PDFDocument.load(splitBytes);
+  for (const srcDoc of [mergeA, mergeB]) {
+    const pages = await mergeOut.copyPages(srcDoc, srcDoc.getPageIndices());
+    pages.forEach(p => mergeOut.addPage(p));
+  }
+  const mergeBytes = await mergeOut.save();
+  const mergeOpen = await PDFDocument.load(mergeBytes);
+  assert('merge-invariant', mergeOpen.getPageCount() === 4,
+    'merged fixture preserves source page counts');
 }
 
 function workerContractHarness() {
