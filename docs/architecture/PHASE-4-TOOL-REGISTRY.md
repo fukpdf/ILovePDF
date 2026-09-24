@@ -35,3 +35,27 @@ Unit 1 establishes the authoritative identity/ownership contract. It does not ye
 
 ## Verification
 Source-level implementation is complete for Unit 1. CI/deployment verification is required before Phase 4 is marked complete.
+
+
+## Unit 2 — Browser runtime authority
+
+Implemented on `phase-4-unit-2-runtime-registry`.
+
+### Runtime delivery
+- `public/config/tool-registry.json` publishes the exact CI-audited registry to Firebase Hosting.
+- `public/js/tool-registry-runtime.js` loads and validates the registry before tool resolution.
+- `window.ToolRegistryReady` provides an explicit readiness barrier.
+- `tool-page.js` waits for the registry and resolves the legacy UI definition through `ToolRegistry.mergeLegacy()`.
+
+### Migration safety
+The legacy `TOOLS` array remains the compatibility/detail source for icons, descriptions, options, endpoints, and other UI-specific fields. Registry metadata is authoritative for identity, slug, module, execution class, version, entitlement, feature-flag, output, cleanup, and validation policy. This avoids a flag-day migration while making the runtime selection registry-driven.
+
+### Failure behavior
+If the published registry cannot be loaded or validated, the page fails open to the existing `TOOLS` resolution path so a registry delivery problem does not break the tool UI. CI prevents this fallback from being silently required in production by checking registry mirror parity and runtime wiring.
+
+### Verification gate
+`npm run audit:phase4` now additionally verifies:
+- published registry mirror is byte-identical to the canonical registry
+- browser registry loader exists and exposes its readiness promise
+- `tool-page.js` waits for the registry and uses registry-backed resolution
+- `tool.html` loads the registry runtime before `tool-page.js`

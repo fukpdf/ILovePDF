@@ -70,8 +70,21 @@ else {
   for (const id of mapIds) if (!registryIds.has(id)) fail('SLUG_MAP id missing from registry: ' + id);
 }
 
+// Unit 2 runtime-authority checks: the browser must receive the same registry
+// that CI audits, and the tool shell must wait for it before resolving tools.
+const publicRegistry = read('public/config/tool-registry.json');
+if (publicRegistry !== read('config/tool-registry.json')) fail('public/config/tool-registry.json is out of sync with config/tool-registry.json');
+const runtimeLoader = read('public/js/tool-registry-runtime.js');
+if (!/fetch\(ENDPOINT/.test(runtimeLoader)) fail('Runtime registry loader does not fetch the published registry.');
+if (!/ToolRegistryReady/.test(runtimeLoader)) fail('Runtime registry loader does not expose ToolRegistryReady.');
+const toolPage = read('public/js/tool-page.js');
+if (!/await window\.ToolRegistryReady/.test(toolPage)) fail('tool-page.js does not wait for the authoritative registry.');
+if (!/window\.ToolRegistry\.mergeLegacy\(legacyTool\)/.test(toolPage)) fail('tool-page.js does not resolve tools through ToolRegistry.');
+const toolShell = read('public/tool.html');
+if (!/src="\/js\/tool-registry-runtime\.js" defer/.test(toolShell)) fail('tool.html does not load the runtime registry before tool-page.js.');
+
 if (failures.length) {
-  console.error('[FAIL] Phase 4 Unit 1 registry gate (' + failures.length + ' issue(s))');
+  console.error('[FAIL] Phase 4 Unit 1 + Unit 2 registry gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
@@ -79,5 +92,7 @@ if (failures.length) {
   console.log('[PASS] unique tool IDs');
   console.log('[PASS] tools-config ↔ registry identity reconciliation');
   console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
-  console.log('\nPhase 4 Unit 1 registry gate: PASS (' + registry.tools.length + ' tools)');
+  console.log('[PASS] published browser registry mirror parity');
+  console.log('[PASS] runtime registry loader + tool-page authority wiring');
+  console.log('\nPhase 4 Unit 1 + Unit 2 registry gate: PASS (' + registry.tools.length + ' tools)');
 }
