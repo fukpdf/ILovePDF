@@ -257,7 +257,7 @@ window.addEventListener('popstate', () => {
 window.Flow = Flow; // exposed for queue-client and any future hookups
 window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
@@ -269,6 +269,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const toolId = (typeof window.resolveToolIdFromUrl === 'function')
     ? window.resolveToolIdFromUrl()
     : (window.__TOOL_ID || new URLSearchParams(window.location.search).get('id'));
+
+  // Phase 4 Unit 2: wait for the authoritative registry before resolving the tool.
+  // Legacy TOOLS remains the compatibility/detail source during migration; registry
+  // metadata owns identity, slug, routing, execution, and lifecycle policy.
+  if (window.ToolRegistryReady) {
+    try { await window.ToolRegistryReady; } catch (_) { /* fail open to legacy config */ }
+  }
 
   // ── Loop-safe redirect helper ────────────────────────────────────────────
   // Firebase Hosting's catch-all rewrite (** → /index.html) plus pathname-only
@@ -305,7 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (safeRedirect(slugMeta.special)) return;
   }
 
-  currentTool = TOOLS.find(t => t.id === toolId);
+  const legacyTool = TOOLS.find(t => t.id === toolId);
+  currentTool = (window.ToolRegistry && window.ToolRegistry.isReady())
+    ? window.ToolRegistry.mergeLegacy(legacyTool)
+    : legacyTool;
 
   // Tool has a dedicated standalone page (e.g. numbers-to-words → /n2w.html)
   if (currentTool && currentTool.url) {
