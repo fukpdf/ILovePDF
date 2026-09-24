@@ -93,8 +93,8 @@ if (!/function getStreamBridge\(\)/.test(browserTools)) fail('BrowserTools does 
 if (!/streamFilesToWorkerReadable/.test(browserTools)) fail('BrowserTools does not route multi-file worker jobs through the streaming bridge.');
 if (!/pipelineStreamToWorker/.test(browserTools)) fail('BrowserTools does not route large single-file worker jobs through the streaming bridge.');
 if (!/10 \* 1024 \* 1024/.test(browserTools)) fail('Adaptive streaming routing threshold is missing.');
-if (!/streaming:\s*['"]adaptive-worker['"]/.test(JSON.stringify(registry))) fail('Registry has no adaptive-worker capability declaration.');
-if (!/fileSizePolicy:\s*['"]unlimited['"]/.test(JSON.stringify(registry))) fail('Registry does not declare unlimited file-size policy.');
+if (!registry.tools.some(t => t.capabilities?.streaming === 'adaptive-worker')) fail('Registry has no adaptive-worker capability declaration.');
+if (!registry.tools.some(t => t.capabilities?.fileSizePolicy === 'unlimited')) fail('Registry does not declare unlimited file-size policy.');
 if (!/streamToWorkerReadable|streamFilesToWorkerReadable/.test(streamBridge)) fail('RuntimeStreamBridge streaming API is missing.');
 for (const t of (registry.tools || [])) {
   if (t.execution === 'browser-worker') {
