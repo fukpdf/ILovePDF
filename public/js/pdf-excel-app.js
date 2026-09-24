@@ -485,7 +485,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       PdfExcelScheduler.onFailure();
       PdfExcelRecoveryManager.onError(err);
