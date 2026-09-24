@@ -4292,7 +4292,6 @@
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdf,
     'protect':       protect,
-    'unlock':        unlock,
     'pdf-to-jpg':    pdfToJpg,
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
