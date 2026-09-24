@@ -12,5 +12,7 @@
   function cleanupObjectURLs() { urls.forEach(function (url) { try { URL.revokeObjectURL(url); } catch (_) {} }); urls.clear(); }
   function stats() { return { version: VERSION, trackedObjectURLs: urls.size, trackedBuffers: buffers.size }; }
   function cleanup() { cleanupObjectURLs(); buffers.clear(); }
+  G.addEventListener('pagehide', cleanup, { once: true });
+  G.addEventListener('beforeunload', cleanup, { once: true });
   G.ClientFileLifecycle = Object.freeze({ VERSION, trackObjectURL, revokeObjectURL, trackBuffer, releaseBuffer, cleanupObjectURLs, cleanup, stats });
 }(window));
