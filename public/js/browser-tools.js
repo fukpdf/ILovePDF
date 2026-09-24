@@ -202,35 +202,10 @@
   }
 
   // ── MERGE ────────────────────────────────────────────────────────────────
-  async function merge(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const out = await PDFDocument.create();
-    for (const f of files) {
-      const src = await PDFDocument.load(await readFileBytes(f), { ignoreEncryption: true });
-      const pages = await out.copyPages(src, src.getPageIndices());
-      pages.forEach(p => out.addPage(p));
-    }
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── SPLIT ────────────────────────────────────────────────────────────────
 
   // ── ROTATE ───────────────────────────────────────────────────────────────
-  async function rotate(files, opts) {
-    const angle = parseInt(opts.degrees || '0', 10);
-    if (angle === 0) return new Blob([await readFileBytes(files[0])], { type: 'application/pdf' });
-    const { PDFDocument, degrees } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = doc.getPageCount();
-    const targets = (!opts.pages || /^all$/i.test(opts.pages))
-      ? Array.from({ length: total }, (_, i) => i + 1)
-      : parsePageRange(opts.pages, total);
-    targets.forEach(n => {
-      const p = doc.getPage(n - 1);
-      p.setRotation(degrees((p.getRotation().angle + angle) % 360));
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── ORGANIZE (reorder) ───────────────────────────────────────────────────
 
@@ -4483,8 +4458,6 @@
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
-    'merge':         merge,
-    'rotate':        rotate,
     'page-numbers':  pageNumbers,
     'watermark':     watermark,
     'jpg-to-pdf':    imagesToPdf,
