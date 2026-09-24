@@ -129,10 +129,10 @@ if (!manifestBlock) {
 // Unit 10 runtime config ↔ RuntimeToolManifestRegistry contract.
 const configLock = read('public/js/runtime-tool-config-lock.js');
 if (!/validateAgainstManifest/.test(configLock)) fail('Runtime tool config lock does not expose the manifest contract validator.');
-if (!/manifest\\[field\\]/.test(configLock)) fail('Runtime tool config lock does not compare locked fields against the runtime manifest.');
+if (!/manifest\[field\]/.test(configLock)) fail('Runtime tool config lock does not compare locked fields against the runtime manifest.');
 if (!/manifest-contract-fail/.test(configLock)) fail('Runtime tool config lock does not record manifest contract failures.');
 if (!/getContractStatus/.test(configLock)) fail('Runtime tool config lock does not expose contract diagnostics.');
-if (!/var contract = validateAgainstManifest\\(toolId, config\\)/.test(configLock)) fail('Runtime tool config lock does not enforce the manifest contract before locking.');
+if (!/var contract = validateAgainstManifest\(toolId, config\)/.test(configLock)) fail('Runtime tool config lock does not enforce the manifest contract before locking.');
 if (!/cl\.lock\(toolId,/.test(read('public/js/runtime-tool-loader.js'))) fail('Runtime tool loader is not connected to RuntimeToolConfigLock.');
 
 
