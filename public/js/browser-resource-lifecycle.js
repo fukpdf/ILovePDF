@@ -108,12 +108,21 @@
     return { scopes: _scopes.size, workers: workers, urls: urls, buffers: buffers };
   }
 
-  // Memory pressure: release temporary browser resources first. This does not
-  // touch OPFS/IDB durable data or user-selected File objects.
+  // Memory pressure: release only explicitly anonymous/ephemeral resources.
+  // Active tool scopes stay intact so an in-progress preview is not broken.
   function onMemoryPressure() {
-    releaseAll();
+    if (window.ObjectURLRegistry) {
+      try { window.ObjectURLRegistry.revokeOwner('anonymous'); } catch (_) {}
+    }
+    _buffers.forEach(function (meta, token) {
+      if (meta.owner === 'anonymous' || meta.owner.indexOf('ephemeral-') === 0) {
+        _buffers.delete(token);
+        var s = get(meta.owner);
+        if (s) s.buffers.delete(token);
+      }
+    });
     if (window.StabilityMetrics) {
-      try { window.StabilityMetrics.recordEvent('p3-browser-resource-release'); } catch (_) {}
+      try { window.StabilityMetrics.recordEvent('p3-browser-resource-pressure-release'); } catch (_) {}
     }
   }
 
