@@ -265,20 +265,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
 
-  // Resolution order:
-  //   1. window.__TOOL_ID (Express SEO middleware injection — Node-served only)
-  //   2. ?id=… legacy query param
-  //   3. URL pathname slug → SLUG_MAP lookup (works on Firebase static hosting)
-  const toolId = (typeof window.resolveToolIdFromUrl === 'function')
-    ? window.resolveToolIdFromUrl()
-    : (window.__TOOL_ID || new URLSearchParams(window.location.search).get('id'));
-
-  // Phase 4 Unit 2: wait for the authoritative registry before resolving the tool.
-  // Legacy TOOLS remains the compatibility/detail source during migration; registry
-  // metadata owns identity, slug, routing, execution, and lifecycle policy.
+  // Phase 4: the published Tool Registry is the runtime routing authority.
+  // Resolve only after the registry readiness barrier so clean URLs never depend
+  // on the legacy SLUG_MAP identity table.
   if (window.ToolRegistryReady) {
-    try { await window.ToolRegistryReady; } catch (_) { /* fail open to legacy config */ }
+    try { await window.ToolRegistryReady; } catch (_) { /* registry failure is handled below */ }
   }
+  const pathnameSlug = (window.location.pathname || '/')
+    .replace(/^\/+|\/+$/g, '')
+    .toLowerCase()
+    .replace(/\/(preview|download)$/i, '');
+  const queryId = new URLSearchParams(window.location.search).get('id');
+  const registryByPath = window.ToolRegistry && window.ToolRegistry.isReady()
+    ? (window.ToolRegistry.getBySlug(pathnameSlug) || window.ToolRegistry.get(pathnameSlug))
+    : null;
+  const registryByQuery = window.ToolRegistry && window.ToolRegistry.isReady() && queryId
+    ? window.ToolRegistry.get(queryId)
+    : null;
+  const toolId = (window.__TOOL_ID && window.ToolRegistry && window.ToolRegistry.isReady())
+    ? (window.ToolRegistry.get(window.__TOOL_ID)?.id || window.__TOOL_ID)
+    : (registryByQuery?.id || registryByPath?.id || window.__TOOL_ID || queryId || pathnameSlug || null);
 
   // ── Loop-safe redirect helper ────────────────────────────────────────────
   // Firebase Hosting's catch-all rewrite (** → /index.html) plus pathname-only
@@ -307,12 +313,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return true;
   }
 
-  // Honour SLUG_MAP "special" redirects (e.g. numbers-to-words → /n2w.html).
-  // On Node this is handled server-side; on Firebase static we have to do it here.
+  // Registry-owned standalone routes replace the legacy SLUG_MAP special-route table.
   const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-  const slugMeta = window.SLUG_MAP && window.SLUG_MAP[slug];
-  if (slugMeta && slugMeta.special) {
-    if (safeRedirect(slugMeta.special)) return;
+  const registryRoute = window.ToolRegistry && window.ToolRegistry.isReady()
+    ? window.ToolRegistry.getBySlug(slug.replace(/\/(preview|download)$/i, ''))
+    : null;
+  if (registryRoute && registryRoute.specialRoute) {
+    if (safeRedirect(registryRoute.specialRoute)) return;
   }
 
   // Unit 5: resolve identity from the authoritative registry after its readiness barrier.
