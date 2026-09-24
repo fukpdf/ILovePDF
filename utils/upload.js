@@ -23,10 +23,9 @@ function fileFilter(kind) {
 }
 
 // kind: 'pdf' | 'image' | 'any'
-export function createUpload(kind = 'pdf', maxBytes = 100 * 1024 * 1024) {
+export function createUpload(kind = 'pdf') {
   return multer({
     dest: UPLOAD_DIR,
-    limits: { fileSize: maxBytes },
     fileFilter: fileFilter(kind),
   });
 }
