@@ -221,6 +221,35 @@
   // ignores EXIF, so landscape shots appear sideways. We read the tag with
   // StreamHelpers.readExifOrientation, then re-draw on a corrected canvas
   // before embedding — ensuring upright images in the resulting PDF.
+
+  // Worker path for JPG/PNG -> PDF. Keeps image bytes transferable and leaves
+  // DOM/canvas work out of the PDF assembly step. EXIF correction remains a
+  // separate image pipeline concern until its worker implementation is fixture-tested.
+  async function imagesToPdfWorker(files) {
+    if (!files || !files.length) throw new Error('No images supplied');
+    const worker = RuntimeWorkerFactory.spawn('/workers/image-pdf-worker.js');
+    const images = [];
+    try {
+      for (const file of files) {
+        const buffer = await file.arrayBuffer();
+        images.push({ buffer, type: file.type || '' });
+      }
+      const output = await new Promise((resolve, reject) => {
+        worker.onmessage = function (event) {
+          const data = event.data || {};
+          if (data.type === 'images-to-pdf-done') resolve(data.buffer);
+          else if (data.type === 'images-to-pdf-error') reject(new Error(data.message || 'Image PDF worker failed'));
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'Image PDF worker failed')); };
+        worker.postMessage({ type: 'images-to-pdf', images }, images.map(item => item.buffer));
+      });
+      return { blob: new Blob([output], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
+    } finally {
+      try { worker.terminate(); } catch (_) {}
+      images.length = 0;
+    }
+  }
+
   async function imagesToPdf(files) {
     const { PDFDocument } = await loadPdfLib();
     const doc = await PDFDocument.create();
