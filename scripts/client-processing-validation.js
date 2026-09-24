@@ -102,7 +102,7 @@ async function kernelHarness() {
   assert('worker-timeout', timedOut && spawnedWorker && spawnedWorker.terminated,
     'hung worker rejects on timeout and terminates');
   // Ensure kernel source keeps transferable semantics explicit.
-  assert('kernel-transfer-contract', /postMessage\\(\\{ type: 'process-buffer', buffer: bytes \\}, \\[bytes\\]\\)/.test(source),
+  assert('kernel-transfer-contract', /postMessage\(\{ type: 'process-buffer', buffer: bytes \}, \[bytes\]\)/.test(source),
     'processBuffer transfers the input ArrayBuffer');
  
 }
@@ -165,7 +165,7 @@ function workerContractHarness() {
   for (const rel of stale) assert('stale-worker:' + rel, !existsSync(resolve(ROOT, rel)), 'stale worker remains absent');
 
   const pdfWorker = read('public/workers/pdf-worker.js');
-  assert('pdf-worker-output-transfer', /postMessage\\([^;]*\\[.*buffer.*\\]/s.test(pdfWorker),
+  assert('pdf-worker-output-transfer', /postMessage\([^;]*\[.*buffer.*\]/s.test(pdfWorker),
     'PDF worker contains transferable output messaging');
 }
 
