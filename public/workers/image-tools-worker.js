@@ -34,8 +34,8 @@ OPS['crop-image'] = async function (buffer, mime, opts) {
   const bmp    = await createImageBitmap(blob);
   const srcW   = bmp.width, srcH = bmp.height;
 
-  const xPct = Math.max(0, Math.min(99, parseFloat(opts.x      || '0')))  / 100;
-  const yPct = Math.max(0, Math.min(99, parseFloat(opts.y      || '0')))  / 100;
+  const xPct = Math.max(0, Math.min(100, parseFloat(opts.x      || '0')))  / 100;
+  const yPct = Math.max(0, Math.min(100, parseFloat(opts.y      || '0')))  / 100;
   const wPct = Math.max(0.01, Math.min(1, parseFloat(opts.width  || '100') / 100));
   const hPct = Math.max(0.01, Math.min(1, parseFloat(opts.height || '100') / 100));
 
@@ -65,7 +65,7 @@ OPS['resize-image'] = async function (buffer, mime, opts) {
 
   let tw, th;
   const preset = opts.preset || '';
-  if (preset === '1:1')       { const s = Math.max(srcW, srcH); tw = s; th = s; }
+  if (preset === '1:1')       { tw = 1080; th = 1080; }
   else if (preset === '16:9') { tw = 1920; th = 1080; }
   else if (preset === 'a4')   { tw = 2480; th = 3508; }
   else if (preset === 'hd')   { tw = 1920; th = 1080; }
@@ -130,9 +130,9 @@ OPS['image-filters'] = async function (buffer, mime, opts) {
     // CSS filter fast path — supported in OffscreenCanvas in modern browsers
     const filterMap = {
       grayscale: 'grayscale(100%)',
-      sepia:     'sepia(80%)',
-      blur:      'blur(3px)',
-      brighten:  'brightness(140%)',
+      sepia:     'sepia(100%)',
+      blur:      'blur(4px)',
+      brighten:  'brightness(1.25)',
       contrast:  'contrast(150%)',
       invert:    'invert(100%)',
     };
