@@ -267,11 +267,50 @@
     //     reduces per-read memory instead of forcing a full-file read.
     var WORKER_STREAM_THRESHOLD = 10 * 1024 * 1024; // 10 MB
     var _canStream = (
-      !cfg.multiFile &&
       fileList.length === 1 &&
       file.size > WORKER_STREAM_THRESHOLD &&
       window.RuntimeStreamBridge
     );
+    var _canMultiStream = (
+      cfg.multiFile &&
+      fileList.length > 1 &&
+      window.RuntimeStreamBridge &&
+      typeof window.RuntimeStreamBridge.streamFilesToWorkerReadable === 'function'
+    );
+
+    if (_canMultiStream) {
+      if (window.RuntimeTelemetry) {
+        try { window.RuntimeTelemetry.record(toolId + ':multi-stream-dispatch', {
+          files: fileList.length, bytes: totalBytes
+        }); } catch (_) {}
+      }
+      onProgress(10, 'Streaming files to worker…');
+      var stopMultiTicker = _startProgressTicker(
+        10,
+        cfg.workerProgressMessages || ['Reading files…', 'Processing files…', 'Building PDF…', 'Finalising…'],
+        (cfg.timerOwner || toolId) + '-multi-stream-tk',
+        onProgress
+      );
+      try {
+        var multiStreamResult = await window.RuntimeStreamBridge.streamFilesToWorkerReadable(
+          WORKER_URL,
+          fileList,
+          { tool: toolId, options: opts },
+          { token: token, onProgress: onProgress }
+        );
+        stopMultiTicker();
+        if (!multiStreamResult || !multiStreamResult.buffer) throw new Error('multi-stream: worker produced no output');
+        if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'ok');
+        onProgress(95, 'Done!');
+        return { buffer: multiStreamResult.buffer, blobSize: multiStreamResult.buffer.byteLength };
+      } catch (multiStreamErr) {
+        stopMultiTicker();
+        console.warn('[PWRF]', toolId, 'multi-stream failed, falling back to full read:', multiStreamErr.message);
+        if (window.RuntimeTelemetry) {
+          try { window.RuntimeTelemetry.record(toolId + ':multi-stream-fallback', { error: multiStreamErr.message }); } catch (_) {}
+        }
+      }
+    }
 
     if (_canStream) {
       // Mark that we are using stream-native path (not a full-load)
