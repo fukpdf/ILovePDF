@@ -208,6 +208,10 @@ assert('streaming-worker-protocols', /images-to-pdf-start/.test(read('public/wor
     /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
     'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
   const mergeAdapter = read('public/js/merge-worker-adapter.js');
+  const rotateAdapter = read('public/js/rotate-worker-adapter.js');
+  assert('rotate-no-input-size-admission', !/wouldExceedLimit\s*\(/.test(rotateAdapter),
+    'rotate runtime does not reject normal inputs using a size-based admission gate');
+
   assert('merge-runtime-incremental-adapter', /pdf-lib-worker\.js/.test(mergeAdapter) && /merge-stream-start/.test(mergeAdapter) && /merge-stream-item/.test(mergeAdapter) && /merge-stream-ack/.test(mergeAdapter) && /merge-stream-finish/.test(mergeAdapter) && !/buffers\s*=\s*\[\]/.test(mergeAdapter),
     'runtime merge adapter uses the session-affine incremental worker protocol without accumulating buffers[]');
   assert('merge-runtime-total-bytes-regression', !/totalBytes:\s*totalBytes[\s\S]*var\s+totalBytes/.test(mergeAdapter),
