@@ -73,3 +73,15 @@ Implemented on `phase-4-unit-4-adaptive-stream-execution`.
 - Streaming is an execution optimization, not a rejection threshold; the registry explicitly retains an `unlimited` file-size policy.
 - No artificial page-count or file-size rejection was introduced.
 - Unit 4 is enforced by `npm run audit:phase4`.
+
+
+## Unit 6 — Legacy routing authority removal
+
+Implemented on `phase-4-unit-6-legacy-routing-removal`.
+
+- Initial tool resolution now waits for the published Tool Registry and resolves pathname/query/server identities through registry entries.
+- SPA popstate routing remains registry-backed and no longer treats `SLUG_MAP` as an identity authority.
+- Standalone/special routes are read from the registry `specialRoute` field.
+- `TOOLS` remains a UI/detail compatibility layer only; `SLUG_MAP` remains compatibility data for legacy surfaces but is not authoritative for runtime tool identity.
+- The Phase 4 audit rejects reintroduction of direct `SLUG_MAP` identity resolution in `tool-page.js`.
+- No file-size/page-count limits or server/Laba AI dependency are introduced.

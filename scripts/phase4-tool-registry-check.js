@@ -89,6 +89,9 @@ if (!/const registryMeta = \(window\.ToolRegistry/.test(toolPage)) fail('tool-pa
 if (!/const registryTool = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page initial routing is not registry-backed after readiness.');
 if (!/const authoritativeId = registryTool \? registryTool\.id : toolId/.test(toolPage)) fail('tool-page does not use registry identity as authoritative.');
 if (!/ToolRegistry\.getBySlug\(rawSlug\)/.test(toolPage)) fail('SPA routing does not resolve tool slugs through the registry.');
+if (/window\.SLUG_MAP\[rawSlug\]/.test(toolPage)) fail('SPA routing still uses SLUG_MAP as an identity authority.');
+if (/window\.SLUG_MAP\[slug\]/.test(toolPage)) fail('Initial/special routing still uses SLUG_MAP as an identity authority.');
+if (!/registryRoute\.specialRoute/.test(toolPage)) fail('Standalone special routes are not registry-owned.');
 
 // Unit 4 adaptive streaming checks: large worker-safe jobs must have an
 // adaptive streaming capability and the browser processor must route those
@@ -120,6 +123,7 @@ if (failures.length) {
   console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
   console.log('[PASS] published browser registry mirror parity');
   console.log('[PASS] runtime registry loader + tool-page authority wiring');
+  console.log('[PASS] Unit 6 legacy routing identity dependency removed');
   console.log('[PASS] registry-driven execution policy + BrowserTools capability reconciliation');
   console.log('\nPhase 4 Unit 1 + Unit 2 + Unit 3 + Unit 4 registry gate: PASS (' + registry.tools.length + ' tools)');
 }
