@@ -1139,95 +1139,6 @@
   // Depth-aware multi-pass repair: lenient load → page-by-page copy into
   // fresh document → metadata rebuild → mode-specific save. Opts-aware so
   // users can choose Fast / Standard / Deep / Maximum recovery.
-  async function repairPdf(files, opts) {
-    opts = opts || {};
-    const depth   = opts.repairDepth || 'standard';
-    const outMode = opts.outputMode  || 'preserve';
-
-    const { PDFDocument } = await loadPdfLib();
-    const bytes = await readFileBytes(files[0]);
-
-    // ── Analysis: try increasingly lenient load strategies ────────────────
-    let doc = null;
-    const strategies = [
-      { ignoreEncryption: true, throwOnInvalidObject: false },
-      { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false },
-    ];
-    for (const s of strategies) {
-      try {
-        doc = await PDFDocument.load(bytes, s);
-        if (doc && doc.getPageCount() > 0) break;
-        doc = null;
-      } catch (_) { doc = null; }
-    }
-
-    if (!doc) {
-      throw new Error(
-        'This PDF is too severely damaged to repair in the browser. ' +
-        'The file structure may be completely corrupted. Try Maximum Recovery mode or a desktop PDF repair tool.'
-      );
-    }
-
-    // ── Fast mode: quick uncompressed save ───────────────────────────────
-    if (depth === 'fast') {
-      const fastBytes = await doc.save({ useObjectStreams: false });
-      return new Blob([fastBytes], { type: 'application/pdf' });
-    }
-
-    // ── Standard / Deep / Maximum: page-by-page copy into fresh document ─
-    let bestDoc = doc;
-    try {
-      const freshDoc  = await PDFDocument.create();
-      const pageCount = doc.getPageCount();
-      for (let i = 0; i < pageCount; i++) {
-        try {
-          const [copied] = await freshDoc.copyPagesFrom(doc, [i]);
-          freshDoc.addPage(copied);
-        } catch (_) { /* skip unrecoverable page */ }
-      }
-      if (freshDoc.getPageCount() > 0) bestDoc = freshDoc;
-    } catch (_) { /* keep original doc */ }
-
-    // ── Maximum: second rebuild pass from intermediate ────────────────────
-    if (depth === 'maximum' && bestDoc !== doc) {
-      try {
-        const pass2 = await PDFDocument.create();
-        for (let i = 0; i < bestDoc.getPageCount(); i++) {
-          try {
-            const [copied] = await pass2.copyPagesFrom(bestDoc, [i]);
-            pass2.addPage(copied);
-          } catch (_) {}
-        }
-        if (pass2.getPageCount() > 0) bestDoc = pass2;
-      } catch (_) {}
-    }
-
-    // ── Rebuild metadata ──────────────────────────────────────────────────
-    try {
-      bestDoc.setTitle(bestDoc.getTitle() || 'Repaired Document');
-      bestDoc.setProducer('ILovePDF Repair');
-      bestDoc.setModificationDate(new Date());
-    } catch (_) {}
-
-    // ── Save with output-mode options ─────────────────────────────────────
-    const useObjStreams = (outMode === 'compatibility' || outMode === 'print-safe') ? false : true;
-    let finalBytes;
-    try {
-      finalBytes = await bestDoc.save({ useObjectStreams: useObjStreams });
-    } catch (_) {
-      finalBytes = await bestDoc.save({ useObjectStreams: false });
-    }
-
-    const finalBlob = new Blob([finalBytes], { type: 'application/pdf' });
-
-    // ── Sanity: output suspiciously small? fall back to pass-1 bytes ─────
-    if (finalBlob.size < 500 && bytes.byteLength > 1000) {
-      const fallback = await doc.save({ useObjectStreams: false });
-      return new Blob([fallback], { type: 'application/pdf' });
-    }
-
-    return finalBlob;
-  }
 
   // ── PDF TO WORD (v5.0 — Enterprise fidelity engine) ──────────────────────────
   // Features:
@@ -4421,7 +4332,6 @@
     // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
-    'repair':             repairPdf,
     'compare':            comparePdf,
     // ── Phase 4 ───────────────────────────────────────────────────────────
     'ocr':                ocrPdf,
