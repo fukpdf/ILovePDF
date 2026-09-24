@@ -130,6 +130,9 @@ async function kernelHarness() {
     'abort cancellation rejects and terminates the processing worker');
   assert('kernel-lifecycle-binding', /registerProcessingController/.test(source) && /internalController\.abort/.test(source),
     'WorkerLifecycle can cancel the active processing operation through an internal AbortController');
+  assert('browser-tool-worker-lifecycle', /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
+    /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
+    'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
   assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
     /ClientFileLifecycle[\s\S]*releaseBuffer/.test(source),
     'transferred input buffer is tracked and released on cleanup paths');
