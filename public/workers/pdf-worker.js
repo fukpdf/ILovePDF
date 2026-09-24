@@ -117,13 +117,17 @@ OPS.repair = async function (buffers) {
 
 OPS.merge = async function (buffers) {
   const merged = await PDFDocument.create();
-  for (const buf of buffers) {
+  for (let i = 0; i < buffers.length; i++) {
+    const buf = buffers[i];
     try {
       const src     = await PDFDocument.load(buf, { ignoreEncryption: true });
       const indices = src.getPageIndices();
       const copied  = await merged.copyPages(src, indices);
       copied.forEach(p => merged.addPage(p));
     } catch (_) { /* skip unreadable */ }
+    // Release the source ArrayBuffer reference as soon as its pages are copied.
+    // This does not impose a size/page limit; it reduces peak live memory.
+    buffers[i] = null;
   }
   const out = await merged.save({ useObjectStreams: true });
   return toArrayBuffer(out);
