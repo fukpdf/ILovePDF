@@ -2924,6 +2924,17 @@ window.loadToolPage = function loadToolPage(path) {
   }
 
   currentTool = tool;
+  // Activate the selected logical module without eagerly loading its processor.
+  // The module registry is a boundary/contract layer; BrowserTools remains the
+  // lazy execution owner for browser-capable tools.
+  try {
+    if (window.ToolModuleRegistry) {
+      const moduleActivation = window.ToolModuleRegistry.activate(currentTool.id);
+      if (!moduleActivation.ok) {
+        console.warn('[ToolModuleRegistry] activation failed:', currentTool.id);
+      }
+    }
+  } catch (_) {}
   buildSidebar(currentTool.id);
   setMetaForStep(Flow.step);
   renderStep();
