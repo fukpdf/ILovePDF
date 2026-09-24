@@ -474,7 +474,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       PdfPptScheduler.onFailure();
       PdfPptRecoveryManager.onError(err);
