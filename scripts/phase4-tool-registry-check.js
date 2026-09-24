@@ -70,12 +70,11 @@ else {
   for (const id of mapIds) if (!registryIds.has(id)) fail('SLUG_MAP id missing from registry: ' + id);
 }
 
-// Unit 2 runtime-authority checks: the browser must receive the same registry
-// that CI audits, and the tool shell must wait for it before resolving tools.
 const publicRegistry = read('public/config/tool-registry.json');
 if (publicRegistry !== read('config/tool-registry.json')) fail('public/config/tool-registry.json is out of sync with config/tool-registry.json');
 const runtimeLoader = read('public/js/tool-registry-runtime.js');
 if (!/fetch\(ENDPOINT/.test(runtimeLoader)) fail('Runtime registry loader does not fetch the published registry.');
+if (!/async function load\(\)/.test(runtimeLoader) || !/loading = fetch\(ENDPOINT/.test(runtimeLoader)) fail('Runtime registry loader load() implementation is missing or incomplete.');
 if (!/ToolRegistryReady/.test(runtimeLoader)) fail('Runtime registry loader does not expose ToolRegistryReady.');
 const toolPage = read('public/js/tool-page.js');
 if (!/await window\.ToolRegistryReady/.test(toolPage)) fail('tool-page.js does not wait for the authoritative registry.');
@@ -83,8 +82,6 @@ if (!/window\.ToolRegistry\.mergeLegacy\(legacyTool\)/.test(toolPage)) fail('too
 const toolShell = read('public/tool.html');
 if (!/src="\/js\/tool-registry-runtime\.js" defer/.test(toolShell)) fail('tool.html does not load the runtime registry before tool-page.js.');
 
-
-// Unit 5 registry-routing authority checks.
 if (!/const registryMeta = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page popstate routing is not registry-backed.');
 if (!/const registryTool = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page initial routing is not registry-backed after readiness.');
 if (!/const authoritativeId = registryTool \? registryTool\.id : toolId/.test(toolPage)) fail('tool-page does not use registry identity as authoritative.');
@@ -93,8 +90,6 @@ if (/window\.SLUG_MAP\[rawSlug\]/.test(toolPage)) fail('SPA routing still uses S
 if (/window\.SLUG_MAP\[slug\]/.test(toolPage)) fail('Initial/special routing still uses SLUG_MAP as an identity authority.');
 if (!/registryRoute\.specialRoute/.test(toolPage)) fail('Standalone special routes are not registry-owned.');
 
-// Unit 7 capability-contract checks: registry capability metadata must be
-// enforced against the actual BrowserTools execution manifest at runtime.
 const executionPolicy = read('public/js/tool-execution-policy.js');
 if (!/CAPABILITY_CONTRACT_MISMATCH/.test(executionPolicy)) fail('Tool execution policy does not enforce capability-contract parity.');
 if (!/caps\.lazyLoad/.test(executionPolicy) || !/caps\.workerPool/.test(executionPolicy) || !/caps\.streaming/.test(executionPolicy)) fail('Tool execution policy does not consume registry capability metadata.');
@@ -113,13 +108,10 @@ for (const t of (registry.tools || [])) {
 
 // Unit 8 runtime registry integrity checks.
 if (!/function freezeEntry\(tool\)/.test(runtimeLoader)) fail('Runtime registry entries are not explicitly frozen.');
-if (!/Object\.freeze\(entry\.capabilities\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
+if (!/entry\.capabilities\s*=\s*Object\.freeze\(\{\s*\.\.\.entry\.capabilities\s*\}\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
 if (!/function health\(\)/.test(runtimeLoader) || !/health, mergeLegacy/.test(runtimeLoader)) fail('Runtime registry health API is missing.');
 if (!/toolCount: registry \? registry\.tools\.length : 0/.test(runtimeLoader)) fail('Runtime registry health does not expose loaded tool count.');
 
-// Unit 4 adaptive streaming checks: large worker-safe jobs must have an
-// adaptive streaming capability and the browser processor must route those
-// jobs through RuntimeStreamBridge without imposing a size/page rejection.
 const browserTools = read('public/js/browser-tools.js');
 const streamBridge = read('public/js/runtime-stream-bridge.js');
 if (!/function getStreamBridge\(\)/.test(browserTools)) fail('BrowserTools does not expose the Unit 4 stream-bridge capability lookup.');
