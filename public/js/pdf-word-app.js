@@ -232,87 +232,17 @@
   // Creates an ISOLATED Tesseract.createWorker() instance per job.
   // Tracked in _tessWorker → guaranteed termination in _cleanup().
   async function _runOcr(file, lang, onStep) {
-    // Lazy-load Tesseract.js
-    if (!G.Tesseract) {
-      await new Promise(function (resolve, reject) {
-        var s     = document.createElement('script');
-        s.src     = TESS_CDN;
-        s.onload  = resolve;
-        s.onerror = function () { reject(new Error('Tesseract.js failed to load')); };
-        document.head.appendChild(s);
-      });
-    }
-    if (!G.Tesseract) throw new Error('OCR engine unavailable');
-
-    // Fast native pre-pass: skip OCR if all pages have good text
-    var pdfjsLib = await _loadPdfJs();
-    var buf0 = await file.arrayBuffer();
-    var pdfN = await pdfjsLib.getDocument({ data: buf0, isEvalSupported: false }).promise;
-    var nativeTexts = {};
-    try {
-      for (var ni = 1; ni <= pdfN.numPages; ni++) {
-        var np = await pdfN.getPage(ni);
-        var nc = await np.getTextContent();
-        var nt = nc.items.map(function (it) { return it.str; }).join(' ').trim();
-        nativeTexts[ni] = { text: nt, chars: nt.replace(/\s/g, '').length };
-        np.cleanup();
-      }
-    } finally {
-      try { await pdfN.destroy(); } catch (_) {}
-      buf0 = null;
-    }
-    var nKeys    = Object.keys(nativeTexts);
-    var allGood  = nKeys.length > 0 && nKeys.every(function (k) { return nativeTexts[k].chars >= 30; });
-    if (allGood) {
-      return nKeys.sort(function (a, b) { return +a - +b; }).map(function (k) {
-        return { pageNum: +k, text: nativeTexts[k].text, source: 'native' };
-      });
-    }
-
-    // Tesseract pass
-    onStep(1, 'active', 35, 'Running OCR\u2026');
-    var tw = await _race(
-      G.Tesseract.createWorker(lang, 1, { logger: function () {} }),
-      OCR_INIT_MS, 'OCR worker init'
-    );
-    _tessWorker = tw;   // register for cleanup
-
-    var buf1 = await file.arrayBuffer();
-    var pdf1 = await pdfjsLib.getDocument({ data: buf1, isEvalSupported: false }).promise;
-    var ocrPages = [];
-    var total    = pdf1.numPages;
-
-    try {
-      for (var oi = 1; oi <= total; oi++) {
-        var oPage  = await pdf1.getPage(oi);
-        var vp     = oPage.getViewport({ scale: 1.5 });
-        var cvs    = document.createElement('canvas');
-        cvs.width  = vp.width;
-        cvs.height = vp.height;
-        var ctx    = cvs.getContext('2d');
-        await oPage.render({ canvasContext: ctx, viewport: vp }).promise;
-        var dataUrl = cvs.toDataURL('image/png');
-        oPage.cleanup();
-        cvs.width = 0; cvs.height = 0; // release canvas memory
-
-        var recog = await _race(tw.recognize(dataUrl), OCR_PAGE_MS, 'OCR page ' + oi);
-        ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
-
-        onStep(1, 'active',
-          35 + Math.round((oi / total) * 18),
-          'OCR: page ' + oi + ' of ' + total
-        );
-      }
-    } finally {
-      try { await pdf1.destroy(); } catch (_) {}
-      buf1 = null;
-    }
-
-    // Terminate Tesseract worker immediately after use
-    try { await tw.terminate(); } catch (_) {}
-    _tessWorker = null;
-
-    return ocrPages;
+    if (!file) throw new Error('No PDF supplied for OCR.');
+    var worker = RuntimeWorkerFactory.spawn('/workers/ocr-pdf-worker.js');
+    var buffer = await file.arrayBuffer();
+    return await new Promise(function(resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function(){ finish(reject,new Error('OCR worker timed out.')); }, 180000);
+      function finish(fn,value){ if(settled)return; settled=true; clearTimeout(timer); try{worker.terminate();}catch(_){} fn(value); }
+      worker.onmessage = function(ev){ var d=ev.data||{}; if(d.type==='ocr-progress'){ if(onStep) onStep(1,'active',Math.min(94,18+(d.percent||0)),d.stage==='native'?'Checking native text…':'OCR: page '+d.page+' of '+d.total); } else if(d.type==='ocr-done'){ finish(resolve,d.pages||[]); } else if(d.type==='ocr-error'){ finish(reject,new Error(d.message||'OCR worker failed')); } };
+      worker.onerror = function(ev){ finish(reject,new Error(ev&&ev.message||'OCR worker failed')); };
+      worker.postMessage({type:'ocr-pdf',buffer:buffer,language:lang||'eng',scale:1.5},[buffer]);
+    });
   }
 
   // ── OCR RESULTS → STRUCTURED PAGES ───────────────────────────────────────
