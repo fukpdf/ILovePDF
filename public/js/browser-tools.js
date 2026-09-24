@@ -4737,23 +4737,21 @@
     if (!fn) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
-    // File size limits: compress allows 200 MB; everything else 50 MB.
-    // Files above these limits are rejected with a user-friendly error.
-    const SIZE_LIMITS = { compress: 200 * 1024 * 1024 };
-    const sizeLimit   = SIZE_LIMITS[toolId] || 50 * 1024 * 1024;
-    const totalBytes  = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);
-    if (totalBytes > sizeLimit) throw new Error('file_too_large_for_browser');
-
-    // Memory guard — use MemoryMonitor when loaded, fall back to inline check.
+    // There are intentionally no app-level file-size, page-count, or
+    // processing-time caps. Memory telemetry remains advisory so low-memory
+    // devices can continue with adaptive worker/chunk behavior instead of a
+    // fixed rejection threshold.
+    const totalBytes = Array.from(files).reduce((s, f) => s + (f.size || 0), 0);
     try {
-      if (window.MemoryMonitor) {
-        if (window.MemoryMonitor.isUnderPressure()) throw new Error('memory_pressure');
-        if (window.MemoryMonitor.wouldExceedLimit(totalBytes)) throw new Error('memory_pressure');
-      } else {
-        const mem = performance && performance.memory;
-        if (mem && mem.usedJSHeapSize > 800 * 1024 * 1024) throw new Error('memory_pressure');
+      if (window.MemoryMonitor && window.MemoryMonitor.isUnderPressure &&
+          window.MemoryMonitor.isUnderPressure() && window.RuntimeTelemetry) {
+        window.RuntimeTelemetry.record('browser-tools:memory-advisory', { toolId, totalBytes, state: 'pressure' });
       }
-    } catch (e) { if (e.message === 'memory_pressure') throw e; }
+      if (window.MemoryMonitor && window.MemoryMonitor.wouldExceedLimit &&
+          window.MemoryMonitor.wouldExceedLimit(totalBytes) && window.RuntimeTelemetry) {
+        window.RuntimeTelemetry.record('browser-tools:memory-advisory', { toolId, totalBytes, state: 'estimated-pressure' });
+      }
+    } catch (_) {}
 
     // ── Worker Pool path (strict for eligible pure pdf-lib tools) ────────
     // Eligible tools must stay off the main thread. There is intentionally
@@ -4765,7 +4763,10 @@
       }
       const pool = await loadWorkerPool();
       const fileName = files[0].name;
-      const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
+      const buffers  = [];
+      // Read sequentially rather than Promise.all so multi-file jobs do not
+      // create a simultaneous main-thread allocation spike before transfer.
+      for (const file of Array.from(files)) buffers.push(await file.arrayBuffer());
       const workerResult = await pool.run(
         '/workers/pdf-worker.js',
         { tool: toolId, buffers, options: options || {} },
