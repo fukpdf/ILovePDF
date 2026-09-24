@@ -2,24 +2,23 @@
 // Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
 //
 // Adapter mode: 'scheduler-only'
-//   ocr() in browser-tools.js uploads the PDF to the server for OCR processing
-//   (server-side text extraction + searchable PDF rebuild). pdf-worker.js does
-//   NOT have an OPS.ocr entry. The factory wraps the server upload+response cycle
+//   ocr() in browser-tools.js performs OCR locally in the browser with PDF.js
+//   and Tesseract. pdf-worker.js does NOT have an OPS.ocr entry. The factory wraps
+//   the local browser cycle
 //   inside a RuntimeScheduler slot, adding: cancellation, telemetry, memory guards,
 //   progress reporting, and retry-safe execution.
 //
 // Feature flag: window.RUNTIME_OCR_ENABLED = true (default)
 //   Set to false in DevTools to force legacy path.
 //
-// Timeout: 180s — OCR is CPU-intensive on the server; large multi-page scanned
-//   PDFs can take 60–90 seconds. The scheduler-only adapter's token propagates
-//   this timeout; the origProcess fetch call is bounded by the token's TTL.
+// Processing time is device-dependent. There is no artificial execution timeout;
+//   cancellation remains user-controlled and lifecycle cleanup remains active.
 //
 // Memory: 3× estimate — client holds input file + upload buffer + response Blob.
 //   Actual server-side memory is not tracked here.
 //
-// [FUTURE: StreamEngine] Streamed upload (ReadableStream) would replace the full
-//   file.arrayBuffer() pre-read, allowing upload to begin before full read.
+// [FUTURE: StreamEngine] Streaming PDF reads could further reduce peak input RAM
+//   for very large local OCR jobs.
 // [FUTURE: IndexedDB] Cache OCR result by file hash to skip re-upload on retry.
 // [FUTURE: AIOrchestrator] Could trigger post-OCR semantic indexing for AI search.
 //
