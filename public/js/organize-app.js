@@ -57,8 +57,8 @@
         reject(new Error(TAG + ' worker error: ' + (ev && ev.message || 'unknown')));
       };
 
-      var xfer = buffer.slice(0);
-      w.postMessage({ op: 'organize', buffers: [xfer], opts: opts, jobId: String(jobId) }, [xfer]);
+      // Transfer ownership directly; avoid a temporary duplicate of a large PDF.
+      w.postMessage({ op: 'organize', buffers: [buffer], opts: opts, jobId: String(jobId) }, [buffer]);
     });
   }
 
@@ -87,7 +87,7 @@
       _hardReject = reject;
       _hardTimer  = setTimeout(function () {
         _cleanup('hard-timeout');
-        reject(new Error('Organize timed out. Please try with a smaller file.'));
+        reject(new Error('Organize timed out. Please retry the operation.'));
       }, HARD_LIMIT_MS);
     });
 
