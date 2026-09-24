@@ -28,8 +28,8 @@
 
     // ── Adapter ─────────────────────────────────────────────────────────────
     adapterMode:   'worker',
-    timeoutMs:     90000,   // 90s hard cap; split is fast even on large PDFs
-    workerTimeout: 90000,
+    timeoutMs: 0,   // 90s hard cap; split is fast even on large PDFs
+    workerTimeout: 0,
     timerOwner:    'srt-tick',
 
     // ── Dedup key: tool + file identity + page range ─────────────────────────
