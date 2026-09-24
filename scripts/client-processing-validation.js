@@ -150,6 +150,21 @@ async function kernelHarness() {
     !/wouldExceedLimit\([^\n]*(totalBytes)[\s\S]{0,180}throw new Error\('memory_pressure'\)/.test(read('public/js/merge-runtime.js')) &&
     !/wouldExceedLimit\([^\n]*(file\.size)[\s\S]{0,180}throw new Error\('memory_pressure'\)/.test(read('public/js/rotate-runtime.js')),
     'PDF merge/rotate runtime guards do not reject based on input byte size');
+  assert('runtime-merge-streaming-adapter',
+    /pdf-lib-worker\.js/.test(read('public/js/merge-worker-adapter.js')) &&
+    /merge-stream-start/.test(read('public/js/merge-worker-adapter.js')) &&
+    /merge-stream-item/.test(read('public/js/merge-worker-adapter.js')) &&
+    /merge-stream-ack/.test(read('public/js/merge-worker-adapter.js')) &&
+    /files\[index\]\.arrayBuffer\(\)/.test(read('public/js/merge-worker-adapter.js')) &&
+    !/var buffers = \[\]/.test(read('public/js/merge-worker-adapter.js')),
+    'Runtime Merge reads and transfers one input buffer at a time through the streaming worker protocol');
+  assert('streaming-merge-worker-state',
+    /mergeStartJob/.test(read('public/workers/pdf-lib-worker.js')) &&
+    /mergeAppend/.test(read('public/workers/pdf-lib-worker.js')) &&
+    /mergeFinish/.test(read('public/workers/pdf-lib-worker.js')) &&
+    /mergeDoc = null/.test(read('public/workers/pdf-lib-worker.js')),
+    'Streaming merge worker owns only the resident output document and releases stream state on finish/error');
+
   assert('generic-merge-streaming-adapter',
     /toolId === 'merge'[\s\S]*_runStreamingMergeWorker\(files/.test(read('public/js/browser-tools.js')) &&
     /const buffer = await file\.arrayBuffer\(\)[\s\S]*postMessage\(\{ op: 'merge-stream-item'/.test(read('public/js/browser-tools.js')) &&
