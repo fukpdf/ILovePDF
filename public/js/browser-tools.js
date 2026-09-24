@@ -4291,7 +4291,6 @@
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdf,
-    'protect':       protect,
     'pdf-to-jpg':    pdfToJpg,
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
@@ -4302,7 +4301,6 @@
     'html-to-pdf':        htmlToPdf,
     // ── Phase 2 ───────────────────────────────────────────────────────────
     'edit':               editPdf,
-    'sign':               signPdf,
     // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
@@ -4325,7 +4323,7 @@
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
     'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
-    'page-numbers', 'watermark', 'repair', 'sign', 'redact', 'edit',
+    'page-numbers', 'watermark', 'repair', 'redact', 'edit',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
