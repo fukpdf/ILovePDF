@@ -28,24 +28,41 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Deployment is blocked unless the production source gates pass on this commit.
       - name: Install locked dependencies
         run: npm ci --omit=dev
 
-      - name: JavaScript syntax audit — backend
-        shell: bash
+      - name: Syntax audit — cloudflare
         run: |
           set -euo pipefail
-          count=0
-          for root in cloudflare controllers middleware routes scripts utils; do
-            while IFS= read -r -d '' file; do
-              node --check "$file"
-              count=$((count + 1))
-            done < <(find "$root" -type f -name '*.js' -print0)
-          done
-          node --check server.js
-          count=$((count + 1))
-          echo "Backend syntax checked: $count JavaScript files"
+          find cloudflare -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — controllers
+        run: |
+          set -euo pipefail
+          find controllers -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — middleware
+        run: |
+          set -euo pipefail
+          find middleware -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — routes
+        run: |
+          set -euo pipefail
+          find routes -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — scripts
+        run: |
+          set -euo pipefail
+          find scripts -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — utils
+        run: |
+          set -euo pipefail
+          find utils -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+
+      - name: Syntax audit — server
+        run: node --check server.js
 
       - name: JavaScript syntax audit — public core workers
         shell: bash
