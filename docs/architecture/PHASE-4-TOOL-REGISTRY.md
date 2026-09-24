@@ -131,3 +131,15 @@ Implemented on `phase-4-unit-10-config-contract`.
 - Contract failures are blocked, audited, and exposed through lightweight diagnostics instead of allowing silent cross-layer drift.
 - The existing runtime loader remains the activation path: manifest data feeds the config lock, and the lock enforces parity before accepting the configuration.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
+
+
+## Unit 11 — Runtime config seal manifest contract
+
+Implemented on `phase-4-unit-11-config-seal-contract`.
+
+- `RuntimeToolConfigSeal` now validates sealed snapshots against `RuntimeToolManifestRegistry` before accepting a snapshot.
+- Contract coverage mirrors the runtime configuration fields: family, hydration tier, memory budget, recovery policy, thermal policy, and offline capability.
+- Manifest hydration-tier lookup is exposed through the canonical manifest API, removing a previously optional/undefined lookup path used by the seal layer.
+- Contract diagnostics are exposed through `getContractStatus()`, and mismatched seals are blocked rather than silently recorded as valid runtime state.
+- Phase 4 CI verifies the seal-to-manifest contract and hydration-tier API.
+- No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
