@@ -24,7 +24,7 @@
 
   var LOG        = '[RWA]';
   var WORKER_URL = '/workers/pdf-worker.js';
-  var TIMEOUT_MS = 90000; // 90s — rotate is faster than merge; hard cap
+  var TIMEOUT_MS = 0; // 0 = no artificial execution-time cap; user cancellation remains available
 
   // ── DedupeKey ─────────────────────────────────────────────────────────────
   // Combines file identity + options so two different rotations of the
@@ -111,14 +111,14 @@
     if (token && token.cancelled) throw new Error('cancelled-before-read');
 
     // ── Memory guards ────────────────────────────────────────────────────────
-    if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
-      throw new Error('memory_pressure');
+    // Memory state is advisory only. Do not reject a valid rotation because
+    // a device is currently under pressure; runtime scheduling can adapt.
+    if (window.RuntimeMemory && window.RuntimeMemory.isEmergency() && window.RuntimeTelemetry) {
+      window.RuntimeTelemetry.record('rotate:memory-advisory', { size: file.size, state: 'emergency' });
     }
-    // Estimate: 2× file size (input buffer + pdf-lib internal)
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      if (window.MemPressure.wouldExceedLimit(file.size * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
+    if (window.MemPressure && window.MemPressure.wouldExceedLimit &&
+        window.MemPressure.wouldExceedLimit(file.size * 2, 1.5) && window.RuntimeTelemetry) {
+      window.RuntimeTelemetry.record('rotate:memory-advisory', { size: file.size, state: 'estimated-pressure' });
     }
 
     // ── Telemetry span ───────────────────────────────────────────────────────
