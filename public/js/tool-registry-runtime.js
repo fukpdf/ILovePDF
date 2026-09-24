@@ -38,6 +38,18 @@
         registry = normalize(data);
         G.ToolRegistry = api;
         G.dispatchEvent(new CustomEvent('ilovepdf:tool-registry-ready'));
+        // Unit 3: activate the registry-driven execution policy only after
+        // the authoritative registry is valid. BrowserTools remains the
+        // processor implementation; policy owns the allowed execution mode.
+        try {
+          if (!document.querySelector('script[data-tool-execution-policy]')) {
+            const s = document.createElement('script');
+            s.src = '/js/tool-execution-policy.js';
+            s.async = true;
+            s.dataset.toolExecutionPolicy = '1';
+            document.head.appendChild(s);
+          }
+        } catch (_) {}
         return registry;
       })
       .catch(function (error) {
