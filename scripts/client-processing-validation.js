@@ -21,6 +21,18 @@ function assert(id, condition, msg) { condition ? pass(id, msg) : fail(id, msg);
 function read(rel) { return readFileSync(resolve(ROOT, rel), 'utf8'); }
 
 console.log('\n[Phase3] Client processing validation harness');
+assert('output-validator-present', existsSync(resolve(ROOT, 'public/js/client-output-validation.js')),
+  'shared output validation boundary exists');
+const outputValidator = read('public/js/client-output-validation.js');
+assert('output-validator-api', /ClientOutputValidation/.test(outputValidator),
+  'shared output validator API is exported');
+assert('output-empty-guard', /processing_output_empty/.test(outputValidator),
+  'empty outputs are rejected');
+assert('output-size-guard', /processing_output_too_large/.test(outputValidator),
+  'oversized outputs are rejected');
+assert('output-pdf-signature-guard', /processing_output_invalid_pdf_signature/.test(outputValidator),
+  'invalid PDF signatures are rejected');
+
 
 async function kernelHarness() {
   const source = read('public/js/client-processing-kernel.js');
