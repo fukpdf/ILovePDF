@@ -8,21 +8,15 @@
   var TAG              = '[ResizeImageApp]';
   var TOOL_ID          = 'resize-image';
   var IMAGE_WORKER     = '/workers/image-tools-worker.js';
-  var HARD_LIMIT_MS    = 60000;
-  var WORKER_LIMIT_MS  = 50000;
-
-  var _inFlight   = false;
+    var _inFlight   = false;
   var _jobId      = 0;
   var _worker     = null;
-  var _hardTimer  = null;
-  var _hardReject = null;
-
+  
   function _log(m, d)  { console.debug(TAG, m, d !== undefined ? d : ''); }
   function _warn(m, d) { console.warn(TAG,  m, d !== undefined ? d : ''); }
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
     if (_worker)    { try { _worker.terminate(); } catch (_) {} _worker = null; }
     _inFlight = false;
   }
@@ -43,14 +37,7 @@
       catch (e) { return reject(new Error(TAG + ' worker spawn failed: ' + (e.message || e))); }
       _worker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _worker = null;
-        reject(new Error('Resize image worker timed out.'));
-      }, WORKER_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _worker = null;
         var d = ev.data || {};
@@ -65,7 +52,7 @@
         reject(new Error(TAG + ' worker error: ' + (ev && ev.message || 'unknown')));
       };
 
-      var xfer = buffer.slice(0);
+      var xfer = buffer;
       w.postMessage({ op: 'resize-image', buffer: xfer, mime: mime, opts: opts, jobId: String(jobId) }, [xfer]);
     });
   }
@@ -92,14 +79,6 @@
 
     var onStep = _step();
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _cleanup('hard-timeout');
-        reject(new Error('Resize image timed out.'));
-      }, HARD_LIMIT_MS);
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Reading image\u2026');
       var buf = await file.arrayBuffer();
@@ -120,7 +99,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       _warn('error', { job: jobId, err: err && err.message });
       throw err;
