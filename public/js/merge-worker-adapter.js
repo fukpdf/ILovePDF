@@ -118,13 +118,6 @@
     if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
       throw new Error('memory_pressure');
     }
-    var totalBytes = files.reduce(function (s, f) { return s + f.size; }, 0);
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      // Estimate: 2× file size in JS heap (raw bytes + pdf-lib internal copies)
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
-    }
 
     // ── Telemetry span ───────────────────────────────────────────────────────
     var spanId = null;
