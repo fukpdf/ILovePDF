@@ -18,11 +18,11 @@
                     (_devMem <= 2 || _devCores <= 4) ? 2 : 4;
   MAX_PER_URL = Math.max(1, Math.min(MAX_PER_URL, _devCores, 4));
 
-  var TIMEOUT_MS         = 120000; // 2-minute hard cap per task
+  var TIMEOUT_MS         = 0;      // 0 = no artificial per-task execution timeout
   var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
   var IDLE_TTL_MS        = 60000;  // terminate idle workers after 60 s
-  var MAX_QUEUE          = 50;     // reject tasks beyond this queue depth
-  var MAX_TASKS_PER_SLOT = 60;     // rotate slot after N tasks to avoid accumulation
+  var MAX_QUEUE          = 0;      // 0 = unbounded queue; backpressure is memory/lifecycle driven
+  var MAX_TASKS_PER_SLOT = 0;      // 0 = no artificial task-count cutoff
   // Faster heartbeat (15 s) catches hung workers sooner, especially on mobile
   // where OS may freeze workers without firing onerror.
   var HEARTBEAT_MS       = 15000;
@@ -207,16 +207,20 @@
       });
     }
 
-    slot.timer = setTimeout(function () {
-      settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
-      var w = spawnWorker(pool.url);
-      if (w) {
-        try { slot.worker.terminate(); } catch (_) {}
-        slot.worker    = w;
-        slot.taskCount = 0;
-        attachHandlers(pool, slot);
-      }
-    }, TIMEOUT_MS);
+    // TIMEOUT_MS === 0 deliberately disables the artificial execution timer.
+    // Cancellation, worker errors, lifecycle cleanup and memory pressure remain active.
+    if (TIMEOUT_MS > 0) {
+      slot.timer = setTimeout(function () {
+        settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
+        var w = spawnWorker(pool.url);
+        if (w) {
+          try { slot.worker.terminate(); } catch (_) {}
+          slot.worker    = w;
+          slot.taskCount = 0;
+          attachHandlers(pool, slot);
+        }
+      }, TIMEOUT_MS);
+    }
 
     if (!slot.worker || slot.crashes >= MAX_CRASHES) {
       settle(pool, slot, new Error('Worker unavailable — crash limit reached'), null);
@@ -241,7 +245,7 @@
     if (slot.busy || slot.crashes >= MAX_CRASHES) return;
 
     // Slot rotation — retire workers that have processed many tasks
-    if (slot.taskCount >= MAX_TASKS_PER_SLOT) {
+    if (MAX_TASKS_PER_SLOT > 0 && slot.taskCount >= MAX_TASKS_PER_SLOT) {
       var idx = pool.slots.indexOf(slot);
       if (idx !== -1) pool.slots.splice(idx, 1);
       try { slot.worker.terminate(); } catch (_) {}
@@ -280,7 +284,7 @@
       Object.keys(pools).forEach(function (url) {
         var pool = pools[url];
         pool.slots.forEach(function (slot) {
-          if (slot.busy && (now - slot.lastActive) > TIMEOUT_MS) {
+          if (TIMEOUT_MS > 0 && slot.busy && (now - slot.lastActive) > TIMEOUT_MS) {
             // Stuck worker — force settle with timeout error, then respawn
             try { slot.worker.terminate(); } catch (_) {}
             settle(pool, slot, new Error('Worker heartbeat timeout'), null);
@@ -369,7 +373,7 @@
     var pool = getPool(workerUrl);
 
     return new Promise(function (resolve, reject) {
-      if (queueLength(pool) >= MAX_QUEUE) {
+      if (MAX_QUEUE > 0 && queueLength(pool) >= MAX_QUEUE) {
         reject(new Error('Worker queue full — too many concurrent tasks'));
         return;
       }
