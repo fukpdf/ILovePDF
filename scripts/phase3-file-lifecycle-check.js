@@ -36,9 +36,9 @@ for (const file of ['utils/cleanup.js','routes/convert.js','routes/advanced.js',
 
 const advanced = read('routes/advanced.js');
 const r2 = read('routes/r2.js');
-if (!/multer\\s*\\(/.test(advanced) && !advanced.includes("from 'multer'")) pass('advanced-no-direct-multer', 'No direct multer configuration remains.');
+if (!/multer\s*\(/.test(advanced) && !advanced.includes("from 'multer'")) pass('advanced-no-direct-multer', 'No direct multer configuration remains.');
 else fail('advanced-no-direct-multer', 'Direct multer configuration remains.');
-if (!/multer\\s*\\(/.test(r2) && !r2.includes("from 'multer'")) pass('r2-no-direct-multer', 'No direct multer configuration remains.');
+if (!/multer\s*\(/.test(r2) && !r2.includes("from 'multer'")) pass('r2-no-direct-multer', 'No direct multer configuration remains.');
 else fail('r2-no-direct-multer', 'Direct multer configuration remains.');
 
 const results = checks.map(x => '[' + x.status + '] ' + x.id + ': ' + x.detail).join('\n');
