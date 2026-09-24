@@ -63,11 +63,25 @@ Current scope boundary:
 - This unit covers the shared PDF delivery path and the conversion router's generated-file delivery helper.
 - Other upload-producing/direct `sendFile`/response paths remain part of the Phase 3 lifecycle coverage audit and are not marked covered yet.
 
+## Unit 4 — Browser temporary resource lifecycle
+
+Added `public/js/browser-resource-lifecycle.js` and loaded it immediately after the existing Object URL registry.
+
+Capabilities:
+- Scoped ownership for temporary browser resources.
+- Object URL creation/revocation through the existing `ObjectURLRegistry` when available.
+- Explicit tracking/release of temporary buffers.
+- Worker tracking/release through the existing `WorkerLifecycle` when available.
+- Scope-level cleanup and global pagehide cleanup.
+- Memory-pressure cleanup is intentionally conservative: anonymous/ephemeral buffers and anonymous Object URLs may be released, while active tool scopes remain intact so an in-progress preview or operation is not broken.
+- Durable OPFS/IDB data and user-selected `File` objects are never deleted by this layer.
+
+This is a lifecycle API for future/current tool integrations; it does not monkey-patch every browser API or force-release active processing resources.
+
 ## Next Phase 3 units
 
-1. Browser temporary object URL / worker / buffer release hooks.
-2. Server and R2 lifecycle coverage audit across every upload-producing route.
-3. Security regression + runtime consistency verification.
+1. Server and R2 lifecycle coverage audit across every upload-producing route.
+2. Security regression + runtime consistency verification.
 
 ## Unit 2 — Unified input validation
 
