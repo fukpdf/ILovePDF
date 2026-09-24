@@ -81,8 +81,8 @@
     } catch (e) { return null; }
   }
 
-  // Wipe every key for this slug. Cheaper than a per-key delete loop and
-  // safe because keys are namespaced "{slug}::*".
+  // Wipe every key for this slug. The transaction itself is awaited so
+  // callers can rely on cleanup having completed before a lifecycle boundary.
   async function clearBlobs(slug) {
     try {
       const db = await openDB();
@@ -93,13 +93,31 @@
         const cursorReq = store.openCursor();
         cursorReq.onsuccess = e => {
           const c = e.target.result;
-          if (!c) return res();
+          if (!c) return;
           if (typeof c.key === 'string' && c.key.startsWith(prefix)) c.delete();
           c.continue();
         };
         cursorReq.onerror = () => rej(cursorReq.error);
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('IndexedDB cleanup aborted'));
       });
     } catch (e) { /* ignore */ }
+  }
+
+  // Explicit delivery boundary: once a result has been delivered/download
+  // initiated, remove both the source files and generated result from
+  // persistent browser state. This never clears unrelated tool/cache data.
+  async function clearAfterDelivery(slug) {
+    if (!slug) return false;
+    try {
+      sessionStorage.removeItem(SS_PREFIX + slug);
+    } catch (_) {}
+    try {
+      if (window.SessionPersist) window.SessionPersist.clear(slug);
+    } catch (_) {}
+    await clearBlobs(slug);
+    return true;
   }
 
   function save(slug, payload) {
@@ -147,7 +165,7 @@
 
   window.ToolState = {
     save, load, clear,
-    putBlob, getBlob, clearBlobs,
+    putBlob, getBlob, clearBlobs, clearAfterDelivery,
     rewriteBlobHrefs,
   };
 })();
