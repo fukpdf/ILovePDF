@@ -132,10 +132,15 @@
     var toolId = cfg.toolId;
     var file   = files[0];
 
-    // Pre-check: cancellation + emergency memory
+    // Pre-check: cancellation. Memory pressure is advisory; do not reject
+    // valid work solely because the device reports an emergency tier.
     if (token && token.cancelled) throw new Error('cancelled-before-dispatch');
     if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
-      throw new Error('memory_pressure');
+      try {
+        if (window.RuntimeTelemetry) window.RuntimeTelemetry.record(toolId + ':memory-pressure-advisory', {
+          phase: 'scheduler-dispatch',
+        });
+      } catch (_) {}
     }
 
     // Telemetry span for this dispatch phase
