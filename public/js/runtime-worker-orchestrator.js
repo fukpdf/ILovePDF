@@ -92,7 +92,7 @@
   //   token?      RuntimeCancellation token
   //   dedupeKey?  string — if set, deduplicate concurrent identical tasks
   //   label?      human-readable name for telemetry
-  //   timeoutMs?  per-task timeout (default: 120 000 ms = 2 min)
+  //   timeoutMs?  per-task timeout (0 = no artificial execution ceiling)
   //
   // [FUTURE: CrossTabWorkers] Insert cross-tab worker lookup here before
   // calling WorkerPool.run(). If a tab has an idle worker for this URL,
@@ -103,7 +103,7 @@
     var priority = opts.priority || 'normal';
     var token    = opts.token    || null;
     var dedupeKey = opts.dedupeKey || null;
-    var timeoutMs = (typeof opts.timeoutMs === 'number') ? opts.timeoutMs : 120000;
+    var timeoutMs = (typeof opts.timeoutMs === 'number') ? opts.timeoutMs : 0;
 
     // Deduplication
     if (dedupeKey) {
