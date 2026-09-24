@@ -23,7 +23,7 @@
 
   var LOG        = '[MWA]';
   var WORKER_URL = '/workers/pdf-worker.js';
-  var TIMEOUT_MS = 120000; // 2 minutes hard cap
+  var TIMEOUT_MS = 0; // 0 = no artificial execution-time cap; user cancellation remains available
 
   // ── DedupeKey: hash of file count + sizes + names ─────────────────────────
   // Prevents launching two identical merges concurrently (e.g., rapid double-click
@@ -115,15 +115,16 @@
     if (token && token.cancelled) throw new Error('cancelled-before-read');
 
     // ── Memory guard ─────────────────────────────────────────────────────────
-    if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
-      throw new Error('memory_pressure');
-    }
+    // Memory state is advisory only. Do not reject a valid merge because a
+    // device is currently under pressure; downstream chunking/cleanup and the
+    // worker scheduler can adapt concurrency while the user keeps control.
     var totalBytes = files.reduce(function (s, f) { return s + f.size; }, 0);
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      // Estimate: 2× file size in JS heap (raw bytes + pdf-lib internal copies)
-      if (window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
+    if (window.RuntimeMemory && window.RuntimeMemory.isEmergency() && window.RuntimeTelemetry) {
+      window.RuntimeTelemetry.record('merge:memory-advisory', { totalBytes: totalBytes, state: 'emergency' });
+    }
+    if (window.MemPressure && window.MemPressure.wouldExceedLimit &&
+        window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5) && window.RuntimeTelemetry) {
+      window.RuntimeTelemetry.record('merge:memory-advisory', { totalBytes: totalBytes, state: 'estimated-pressure' });
     }
 
     // ── Telemetry span ───────────────────────────────────────────────────────
