@@ -25,12 +25,12 @@ assert('output-validator-present', existsSync(resolve(ROOT, 'public/js/client-ou
   'shared output validation boundary exists');
 const outputValidator = read('public/js/client-output-validation.js');
 const workerPoolSource = read('public/workers/workerPool.js');
-assert('workerpool-cancel-unsubscribe', /return function \\(\\)/.test(workerPoolSource) &&
-  /task\\.removeCancel/.test(workerPoolSource),
+assert('workerpool-cancel-unsubscribe', /return function \(\)/.test(workerPoolSource) &&
+  /task\.removeCancel/.test(workerPoolSource),
   'worker-pool cancellation callbacks are removable and cleaned after settlement');
-assert('workerpool-cancel-terminates', /terminateCurrent\\(pool, slot, new Error\\('task_cancelled'\\)/.test(workerPoolSource),
+assert('workerpool-cancel-terminates', /terminateCurrent\(pool, slot, new Error\('task_cancelled'\)/.test(workerPoolSource),
   'running cancellation terminates the abandoned worker before reuse');
-assert('workerpool-queued-cancel', /q\\.indexOf\\(task\\)/.test(workerPoolSource) &&
+assert('workerpool-queued-cancel', /q\.indexOf\(task\)/.test(workerPoolSource) &&
   /task_cancelled/.test(workerPoolSource),
   'queued cancellation removes the task before dispatch');
 
@@ -125,11 +125,11 @@ async function kernelHarness() {
   assert('worker-timeout', timedOut && spawnedWorker && spawnedWorker.terminated,
     'hung worker rejects on timeout and terminates');
   assert('kernel-cancel-signal', /processing_cancelled/.test(source) &&
-    /addEventListener\\('abort'/.test(source) &&
-    /worker\\.terminate\\(\\)/.test(source),
+    /addEventListener\('abort'/.test(source) &&
+    /worker\.terminate\(\)/.test(source),
     'abort cancellation rejects and terminates the processing worker');
-  assert('kernel-buffer-lifecycle', /ClientFileLifecycle.*trackBuffer/s.test(source) &&
-    /ClientFileLifecycle.*releaseBuffer/s.test(source),
+  assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
+    /ClientFileLifecycle[\s\S]*releaseBuffer/.test(source),
     'transferred input buffer is tracked and released on cleanup paths');
 
   // Ensure kernel source keeps transferable semantics explicit.
