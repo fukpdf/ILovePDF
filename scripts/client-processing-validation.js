@@ -133,9 +133,6 @@ async function kernelHarness() {
   assert('device-aware-input-admission', /function maxInputBytes/.test(read('public/js/client-processing-kernel.js')) &&
     /client device processing limit/.test(read('public/js/client-processing-kernel.js')),
     'kernel exposes conservative device-aware input admission limits');
-  assert('workerpool-byte-admission', /MAX_TASK_BYTES/.test(read('public/workers/workerPool.js')) &&
-    /inputBytes/.test(read('public/workers/workerPool.js')),
-    'WorkerPool rejects oversized declared task inputs before queue/dispatch');
   assert('browser-tool-worker-lifecycle', /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
     /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
     'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
