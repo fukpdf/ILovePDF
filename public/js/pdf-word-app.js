@@ -53,7 +53,6 @@
   // Never throws.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_docxWorker)   { try { _docxWorker.terminate(); } catch (_) {} _docxWorker = null; }
     if (_tessWorker)   { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)      { try { _pdfInst.destroy();    } catch (_) {} _pdfInst    = null; }
@@ -79,16 +78,9 @@
   // Unlike runTool's withTimeout(), this does NOT abandon the inner promise.
   // It rejects the outer awaiter but the inner async stack will still reach
   // its own finally — the key property that prevents the worker leak.
-  function _race(promise, ms, label) {
-    return new Promise(function (resolve, reject) {
-      var t = setTimeout(function () {
-        reject(new Error((label || 'Operation') + ' timed out after ' + (ms / 1000) + 's'));
-      }, ms);
-      promise.then(
-        function (v) { clearTimeout(t); resolve(v); },
-        function (e) { clearTimeout(t); reject(e); }
-      );
-    });
+  function _race(promise) {
+    // Compatibility wrapper retained for existing callers; no artificial timeout.
+    return Promise.resolve(promise);
   }
 
   // ── LANGUAGE DETECTION ────────────────────────────────────────────────────
@@ -345,14 +337,7 @@
       }
       _docxWorker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _docxWorker = null;
-        reject(new Error('DOCX worker timed out after ' + (DOCX_LIMIT_MS / 1000) + 's'));
-      }, DOCX_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _docxWorker = null;
         var d = ev.data || {};
@@ -361,7 +346,6 @@
         reject(new Error('DOCX worker: unexpected response'));
       };
       w.onerror = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _docxWorker = null;
         reject(new Error('DOCX worker error: ' + (ev && ev.message || 'unknown')));
