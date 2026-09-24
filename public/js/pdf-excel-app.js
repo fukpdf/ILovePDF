@@ -395,36 +395,34 @@
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
-      // ── Phase 1: Load PDF.js + extract text per page ────────────────────
-      var pdfjsLib = await _loadPdfJs();
-      var buf      = await file.arrayBuffer();
-      var pdf      = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-      _pdfInst     = pdf;
-      buf          = null;
-
-      var total  = pdf.numPages;
-      var sheets = [];
-
-      onStep(0, 'done', 12);
-      onStep(1, 'active', 15, 'Processing content\u2026');
-
+      // ── Phase 1: native text/table extraction in a dedicated Worker ─────
+      var buf = await file.arrayBuffer();
+      var extractWorker = new Worker('/workers/pdf-text-extract-worker.js');
+      var extractionTimer = null;
+      var extracted;
       try {
-        for (var i = 1; i <= total; i++) {
-          var page    = await pdf.getPage(i);
-          var content = await page.getTextContent();
-          var isEmpty = !content.items.some(function (it) { return it.str && it.str.trim(); });
-          var rows    = isEmpty ? [['(empty)']] : _buildColumnRows(content.items);
-          sheets.push({
-            name: 'Page ' + i,
-            rows: rows.length ? rows : [['(empty)']],
-          });
-          page.cleanup();
-          onStep(1, 'active', 15 + Math.round((i / total) * 38), 'Page ' + i + ' of ' + total);
-        }
+        extracted = await new Promise(function (resolve, reject) {
+          extractionTimer = setTimeout(function () { reject(new Error('PDF text extraction timed out.')); }, HARD_LIMIT_MS);
+          extractWorker.onmessage = function (event) {
+            var data = event.data || {};
+            if (data.type === 'extract-pdf-text-done') resolve(data.sheets || []);
+            else if (data.type === 'extract-pdf-text-error') reject(new Error(data.message || 'PDF text extraction failed'));
+          };
+          extractWorker.onerror = function (event) { reject(new Error(event && event.message || 'PDF text extraction worker failed')); };
+          extractWorker.postMessage({ type: 'extract-pdf-text', buffer: buf }, [buf]);
+        });
       } finally {
-        try { await pdf.destroy(); } catch (_) {}
-        _pdfInst = null;
+        if (extractionTimer) clearTimeout(extractionTimer);
+        try { extractWorker.terminate(); } catch (_) {}
+        buf = null;
       }
+      var sheets = extracted.map(function (sheet) {
+        return { name: sheet.name, rows: sheet.rows, text: sheet.text || '' };
+      });
+      extracted = null;
+      onStep(0, 'done', 12);
+      onStep(1, 'active', 15, 'Processing content…');
+      onStep(1, 'active', 53, 'Native extraction complete');
 
       // ── Phase 2: Quality check + OCR fallback ───────────────────────────
       var allEmpty  = sheets.every(function (s) {
