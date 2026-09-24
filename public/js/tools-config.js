@@ -407,7 +407,7 @@ const TOOLS = [
     description: 'Temporarily unavailable — cryptographic PDF digital signing requires a standards-compliant signing engine',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/sign', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true,
+    multipleFiles: false, working: false, clientSide: false,
     options: [
       { id: 'signatureText', label: 'Your Name / Signature', type: 'text',   placeholder: 'John Doe' },
       { id: 'page',          label: 'Page to Sign (blank = last)', type: 'number', placeholder: '' }
@@ -452,7 +452,7 @@ const TOOLS = [
     description: 'Temporarily unavailable — standards-compliant PDF encryption is required',
     category: 'Security', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/protect', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true,
+    multipleFiles: false, working: false, clientSide: false,
     options: [
       { id: 'password', label: 'Password', type: 'text', placeholder: 'Enter a password' }
     ]
@@ -474,7 +474,7 @@ const TOOLS = [
     description: 'Fix corrupted or damaged PDF files',
     category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
     apiEndpoint: '/api/repair', acceptedFiles: '.pdf',
-    multipleFiles: false, working: true, clientSide: true,
+    multipleFiles: false, working: false, clientSide: false,
     options: [
       { id: 'repairDepth', label: 'Repair Depth', type: 'select', options: [
         { value: 'standard', label: 'Standard (Recommended)' },
