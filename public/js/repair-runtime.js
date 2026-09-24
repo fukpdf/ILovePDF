@@ -39,8 +39,8 @@
 
     // ── Adapter ─────────────────────────────────────────────────────────────
     adapterMode:   'worker',
-    timeoutMs:     120000,   // 2 min — heavily corrupt PDFs can be slow to parse
-    workerTimeout: 120000,
+    timeoutMs: 0,   // 2 min — heavily corrupt PDFs can be slow to parse
+    workerTimeout: 0,
     timerOwner:    'rprt-tick',
 
     buildDedupeKey: function (files) {
