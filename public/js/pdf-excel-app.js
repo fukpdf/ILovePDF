@@ -32,8 +32,7 @@
   var PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var XLSX_WORKER   = '/workers/pdf-excel-xlsx-worker.js';
   var TESS_CDN      = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var HARD_LIMIT_MS = 120000;  // 2 min: entire job hard cap
-  var XLSX_LIMIT_MS = 30000;   // 30 s: XLSX packaging
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var XLSX_LIMIT_MS = 30000;   // 30 s: XLSX packaging
   var OCR_PAGE_MS   = 45000;   // 45 s: per-page OCR recognition
   var OCR_INIT_MS   = 30000;   // 30 s: Tesseract.createWorker init
 
@@ -93,7 +92,7 @@
   // ── GUARANTEED CLEANUP ─────────────────────────────────────────────────────
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)   { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
+    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_xlsxWorker)  { try { _xlsxWorker.terminate(); } catch (_) {} _xlsxWorker = null; }
     if (_tessWorker)  { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)     { try { _pdfInst.destroy();     } catch (_) {} _pdfInst    = null; }
@@ -385,11 +384,6 @@
     // Hard-timeout: calls _cleanup() first so workers are ALWAYS terminated
     var hardPromise = new Promise(function (_, reject) {
       _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Conversion timed out. Please try with a smaller file.'));
-      }, HARD_LIMIT_MS);
     });
 
     var jobPromise = (async function () {
