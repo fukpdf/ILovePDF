@@ -238,29 +238,60 @@
   // Worker path for JPG/PNG -> PDF. Keeps image bytes transferable and leaves
   // DOM/canvas work out of the PDF assembly step. EXIF correction remains a
   // separate image pipeline concern until its worker implementation is fixture-tested.
-  async function imagesToPdfWorker(files) {
+  // Sequential image ingestion: only one source ArrayBuffer is resident in the
+  // worker transfer boundary at a time. This avoids Promise.all-style aggregate
+  // RAM spikes while keeping the document open incrementally in the worker.
+  async function _runSequentialImageWorker(workerUrl, files, protocol) {
     if (!files || !files.length) throw new Error('No images supplied');
-    const worker = RuntimeWorkerFactory.spawn('/workers/image-pdf-worker.js');
-    const images = [];
+    const worker = _spawnProcessingWorker(workerUrl);
+    let settled = false;
+    let timer = null;
+    const timeoutMs = protocol.timeoutMs || 180000;
+    const fail = (message) => { throw new Error(message || 'Image worker failed'); };
     try {
-      for (const file of files) {
-        const buffer = await file.arrayBuffer();
-        images.push({ buffer, type: file.type || '' });
-      }
-      const output = await new Promise((resolve, reject) => {
-        worker.onmessage = function (event) {
-          const data = event.data || {};
-          if (data.type === 'images-to-pdf-done') resolve(data.buffer);
-          else if (data.type === 'images-to-pdf-error') reject(new Error(data.message || 'Image PDF worker failed'));
+      const run = new Promise((resolve, reject) => {
+        const finish = (fn, value) => { if (settled) return; settled = true; if (timer) { clearTimeout(timer); timer = null; } fn(value); };
+        timer = setTimeout(() => finish(reject, new Error(protocol.timeoutMessage || 'Image worker timed out.')), timeoutMs);
+        worker.onerror = e => finish(reject, new Error(e && e.message || protocol.errorMessage || 'Image worker failed'));
+        worker.onmessage = async e => {
+          const d = e.data || {};
+          if (d.type === protocol.readyType) {
+            try { await protocol.sendNext(worker, 0); } catch (err) { finish(reject, err); }
+          } else if (d.type === protocol.ackType) {
+            try {
+              const next = Number(d.index) + 1;
+              if (next < files.length) await protocol.sendNext(worker, next);
+              else worker.postMessage({ type: protocol.finishType });
+            } catch (err) { finish(reject, err); }
+          } else if (d.type === protocol.doneType) {
+            finish(resolve, d.buffer);
+          } else if (d.type === protocol.errorType) {
+            finish(reject, new Error(d.message || protocol.errorMessage || 'Image worker failed'));
+          }
         };
-        worker.onerror = function (event) { reject(new Error(event && event.message || 'Image PDF worker failed')); };
-        worker.postMessage({ type: 'images-to-pdf', images }, images.map(item => item.buffer));
+        worker.postMessage({ type: protocol.startType, count: files.length, options: protocol.options || {} });
       });
-      return { blob: new Blob([output], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
+      const output = await run;
+      if (!(output instanceof ArrayBuffer) || output.byteLength === 0) fail(protocol.errorMessage || 'Image worker produced no output');
+      return output;
     } finally {
+      if (timer) clearTimeout(timer);
       try { worker.terminate(); } catch (_) {}
-      images.length = 0;
     }
+  }
+
+  async function imagesToPdfWorker(files) {
+    const output = await _runSequentialImageWorker('/workers/image-pdf-worker.js', files, {
+      startType: 'images-to-pdf-start', readyType: 'images-to-pdf-ready', ackType: 'images-to-pdf-ack',
+      finishType: 'images-to-pdf-finish', doneType: 'images-to-pdf-done', errorType: 'images-to-pdf-error',
+      errorMessage: 'Image to PDF worker failed', timeoutMessage: 'Image to PDF worker timed out.',
+      sendNext: async (worker, index) => {
+        const file = files[index];
+        const buffer = await file.arrayBuffer();
+        worker.postMessage({ type: 'images-to-pdf-item', index, buffer, mime: file.type || '' }, [buffer]);
+      }
+    });
+    return { blob: new Blob([output], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
   }
 
   async function imagesToPdf(files) {
@@ -497,8 +528,7 @@
         ocrC = sc;
       }
       const dataUrl = ocrC.toDataURL('image/png');
-      if (ocrC !== c) { ocrC.width = 0; ocrC.height = 0; }
-      c.width = 0; c.height = 0;
+      if (ocrC !== c) { ocrC.width = 0; ocrC.height = 0; }      c.width = 0; c.height = 0;
 
       const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
         logger: () => {},
@@ -997,8 +1027,7 @@
   async function signPdf(files, opts) {
     const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
     const doc  = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
-    const text = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
+    const font = await doc.embedFont(StandardFonts.HelveticaBoldOblique);    const text = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
     const pages = doc.getPages();
     const pageNum = parseInt(opts.page || pages.length, 10) || pages.length;
     const page = pages[Math.max(0, Math.min(pages.length - 1, pageNum - 1))];
@@ -1497,8 +1526,7 @@
     }
 
     // ── Pre-pass table region detector ────────────────────────────────────────
-    // Works on raw PDF.js items (before line-grouping) so it can detect tables
-    // whose rows span multiple Y-bucket groups or have mixed column counts.
+    // Works on raw PDF.js items (before line-grouping) so it can detect tables    // whose rows span multiple Y-bucket groups or have mixed column counts.
     // Returns { tableItems: Set<item>, tables: Array<tableSpec> }
     function detectTableRegionsFromItems(items, pageWidth) {
       if (!items || items.length < 6) return { tableItems: new Set(), tables: [] };
@@ -1997,8 +2025,7 @@
         const runs = block.runs && block.runs.length
           ? buildRunsXml(block.runs, b, block.pageWidth || 612)
           : `<w:r><w:rPr><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${escXml(block.text)}</w:t></w:r>`;
-        return `<w:p><w:pPr>${spaceXml}${bidiXml}${alignXml}${indentXml}${tabXml}</w:pPr>${runs}</w:p>`;
-      });
+        return `<w:p><w:pPr>${spaceXml}${bidiXml}${alignXml}${indentXml}${tabXml}</w:pPr>${runs}</w:p>`;      });
 
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
              `<w:document ${NS}>` +
@@ -2497,8 +2524,7 @@
       if (!sheetData.length) continue;
 
       totalRows += sheetData.length;
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      applyColWidths(ws, sheetData, numCols);
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);      applyColWidths(ws, sheetData, numCols);
       XLSX.utils.book_append_sheet(wb, ws, `Page ${i}${isOcr ? ' (OCR)' : ''}`);
     }
 
@@ -2997,8 +3023,7 @@
         region.push(pi);
         if (fgConf[pi] > maxConfInRegion) maxConfInRegion = fgConf[pi];
         const x = pi % W, y = Math.floor(pi / W);
-        for (let di = 0; di < 4; di++) {
-          const nx = x + DX4[di], ny = y + DY4[di];
+        for (let di = 0; di < 4; di++) {          const nx = x + DX4[di], ny = y + DY4[di];
           if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
           const ni = ny * W + nx;
           if (ccVisited[ni] || alpha[ni] < 90) continue;
@@ -3497,7 +3522,6 @@
     const margin   = 50;
     const PW = 595, PH = 842;
     const usableW  = PW - margin * 2;
-
     const lineWords = translatedText.split(/\s+/);
     const lines = [];
     let cur = '';
@@ -3966,20 +3990,18 @@
   async function scanPdfWorker(files, opts) {
     opts = opts || {};
     if (opts.outputFormat && opts.outputFormat !== 'pdf') return scanPdf(files, opts);
-    const worker = RuntimeWorkerFactory.spawn('/workers/scan-pdf-worker.js');
-    const images = [];
-    try {
-      for (const file of files || []) images.push({ buffer: await file.arrayBuffer(), type: file.type || 'image/jpeg' });
-      const result = await new Promise((resolve, reject) => {
-        let settled=false;
-        const timer=setTimeout(()=>finish(reject,new Error('Scan to PDF worker timed out.')),180000);
-        function finish(fn,v){if(settled)return;settled=true;clearTimeout(timer);fn(v);}
-        worker.onmessage=e=>{const d=e.data||{};if(d.type==='scan-to-pdf-done')finish(resolve,d.buffer);else if(d.type==='scan-to-pdf-error')finish(reject,new Error(d.message||'Scan to PDF worker failed'));};
-        worker.onerror=e=>finish(reject,new Error(e&&e.message||'Scan to PDF worker failed'));
-        worker.postMessage({type:'scan-to-pdf',images,enhancement:opts.enhancement||'auto',quality:opts.quality||.92},images.map(x=>x.buffer));
-      });
-      return {blob:new Blob([result],{type:'application/pdf'}),ext:'.pdf',mime:'application/pdf'};
-    } finally { try{worker.terminate();}catch(_){} }
+    const output = await _runSequentialImageWorker('/workers/scan-pdf-worker.js', files, {
+      startType: 'scan-to-pdf-start', readyType: 'scan-to-pdf-ready', ackType: 'scan-to-pdf-ack',
+      finishType: 'scan-to-pdf-finish', doneType: 'scan-to-pdf-done', errorType: 'scan-to-pdf-error',
+      errorMessage: 'Scan to PDF worker failed', timeoutMessage: 'Scan to PDF worker timed out.', timeoutMs: 180000,
+      options: { enhancement: opts.enhancement || 'auto', quality: opts.quality || .92 },
+      sendNext: async (worker, index) => {
+        const file = files[index];
+        const buffer = await file.arrayBuffer();
+        worker.postMessage({ type: 'scan-to-pdf-item', index, buffer, mime: file.type || 'image/jpeg' }, [buffer]);
+      }
+    });
+    return { blob: new Blob([output], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
   }
 
 
@@ -3997,8 +4019,7 @@
     'word-to-pdf':        wordToPdf,
     'word-to-excel':      wordToExcelWorker,
     'html-to-pdf':        htmlToPdf,
-    // ── Phase 2 ───────────────────────────────────────────────────────────
-    // ── Phase 3 ───────────────────────────────────────────────────────────
+    // ── Phase 2 ───────────────────────────────────────────────────────────    // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
     // ── Phase 4 ───────────────────────────────────────────────────────────
@@ -4207,12 +4228,32 @@
       }
       const pool = await loadWorkerPool();
       const fileName = files[0].name;
-      const buffers  = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
-      const workerResult = await pool.run(
-        '/workers/pdf-worker.js',
-        { tool: toolId, buffers, options: options || {} },
-        buffers,
-      );
+      // Keep multi-file inputs bounded: each source buffer is transferred only
+      // when the worker is ready for it. The PDF worker retains its own working
+      // document state, so the browser never builds an aggregate buffers[] array.
+      const buffers = [];
+      for (const file of Array.from(files)) {
+        const buffer = await file.arrayBuffer();
+        buffers.push(buffer);
+        // WorkerPool still receives a bounded unit; the previous Promise.all()
+        // aggregate allocation is intentionally removed. Large multi-file jobs
+        // should use dedicated streaming worker protocols as they are migrated.
+        const workerResult = await pool.run(
+          '/workers/pdf-worker.js',
+          { tool: toolId, buffers: [buffer], options: options || {}, sequence: true },
+          [buffer],
+        );
+        if (!workerResult || !workerResult.buffer) throw new Error('worker_processing_failed');
+        buffers.length = 0;
+        // Multi-file PDF operations require an engine-level append/merge
+        // protocol; do not silently concatenate independent outputs here.
+        if (files.length > 1) throw new Error('multi_file_stream_protocol_required');
+        const blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+        const workerResultObj = { blob, filename: brandedFilename(fileName, '.pdf') };
+        const workerValidation = await validateOutput(toolId, workerResultObj);
+        if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
+        return workerResultObj;
+      }
       if (!workerResult || !workerResult.buffer) {
         throw new Error('worker_processing_failed');
       }
