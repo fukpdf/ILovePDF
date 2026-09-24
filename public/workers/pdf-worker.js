@@ -510,17 +510,12 @@ OPS.compare = async function (buffers, opts) {
 // Main thread sends chunks one at a time; worker acks each before main sends next.
 // Accumulation happens in WORKER RAM (not main thread) — eliminates main-thread spike.
 
-const _streamState = new Map(); // streamId → { chunks, tool, options, totalSize }
+const _streamState = new Map(); // streamId → { buffer, offset, tool, options, totalSize }
 
-function _mergeChunks(chunks) {
-  const total  = chunks.reduce(function (s, c) { return s + c.byteLength; }, 0);
-  const merged = new Uint8Array(total);
-  let offset   = 0;
-  for (const chunk of chunks) {
-    merged.set(new Uint8Array(chunk), offset);
-    offset += chunk.byteLength;
-  }
-  return merged.buffer;
+function _initStreamBuffer(totalSize) {
+  const n = Number(totalSize);
+  if (!Number.isSafeInteger(n) || n < 0) throw new Error('invalid-stream-size');
+  return new Uint8Array(n);
 }
 
 async function _dispatchStream(streamId, tool, options) {
@@ -533,8 +528,8 @@ async function _dispatchStream(streamId, tool, options) {
   try {
     const op = OPS[tool];
     if (!op) throw new Error('Unknown tool: ' + tool);
-    const buf = _mergeChunks(state.chunks);
-    state.chunks = []; // free memory before op (op will allocate its own)
+    const buf = state.buffer.buffer;
+    state.buffer = null; // ownership moves to the operation boundary
     const resultBuffer = await op([buf], options || {});
     if (!resultBuffer) throw new Error('No output produced');
     self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
@@ -550,12 +545,17 @@ self.onmessage = async function (e) {
 
   // ── Phase 7A: chunk-ack streaming protocol ────────────────────────────────
   if (data.type === 'stream-init') {
-    _streamState.set(data.streamId, {
-      chunks:    [],
-      tool:      data.tool,
-      options:   data.options,
-      totalSize: data.totalSize || 0,
-    });
+    try {
+      _streamState.set(data.streamId, {
+        buffer: _initStreamBuffer(data.totalSize || 0),
+        offset: 0,
+        tool: data.tool,
+        options: data.options,
+        totalSize: Number(data.totalSize || 0),
+      });
+    } catch (err) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: err.message || String(err) });
+    }
     return;
   }
 
@@ -565,11 +565,26 @@ self.onmessage = async function (e) {
       self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-init-not-received' });
       return;
     }
-    // Store chunk (already transferred — lives in worker RAM now, not main thread)
-    state.chunks.push(data.chunk);
-    // Ack immediately to allow main thread to send next chunk (backpressure)
-    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex });
+    // Copy into the pre-sized worker buffer and immediately drop the transferred
+    // chunk reference. This keeps at most the final PDF buffer + one incoming chunk
+    // resident instead of retaining every chunk and then allocating another merged copy.
+    const chunk = data.chunk;
+    if (!(chunk instanceof ArrayBuffer)) {
+      self.postMessage({ type: 'stream-error', streamId, __error: 'invalid-stream-chunk' });
+      return;
+    }
+    const bytes = new Uint8Array(chunk);
+    if (state.offset + bytes.byteLength > state.totalSize) {
+      self.postMessage({ type: 'stream-error', streamId, __error: 'stream-size-overflow' });
+      _streamState.delete(streamId);
+      return;
+    }
+    state.buffer.set(bytes, state.offset);
+    state.offset += bytes.byteLength;
+    // Ack only after the chunk has been copied, providing real backpressure.
+    self.postMessage({ type: 'stream-ack', streamId, chunkIndex: data.chunkIndex });
     if (data.isLast) {
+      if (state.offset !== state.totalSize) { _streamState.delete(data.streamId); self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-size-mismatch' }); return; }
       await _dispatchStream(data.streamId, state.tool, state.options);
     }
     return;
