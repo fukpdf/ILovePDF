@@ -49,6 +49,7 @@ async function kernelHarness() {
           posted: null,
           onmessage: null,
           onerror: null,
+          postMessage(message, transfer) { this.posted = { message, transfer }; },
           terminate() { this.terminated = true; }
         };
         return spawnedWorker;
@@ -91,27 +92,15 @@ async function kernelHarness() {
   const fakeFile = new Blob([payload]);
   const pending = k.processBuffer('/workers/test-worker.js', fakeFile, { timeoutMs: 1000 });
   await new Promise(r => setTimeout(r, 25));
-  assert('transfer-list', spawnedWorker && spawnedWorker.posted === null,
-    'mock worker remains pending until response; timeout path is exercised');
-  // Replace postMessage after processBuffer has captured the worker.
-  // The original mock intentionally records the transfer without detaching it.
-  // Trigger a second run with an immediate response for transfer-list inspection.
-  spawnedWorker = null;
-  const fast = k.processBuffer('/workers/test-worker.js', fakeFile, { timeoutMs: 2000 });
-  await new Promise(r => setTimeout(r, 0));
-  const postedWorker = spawnedWorker;
-  const postCalls = postedWorker && postedWorker.posted;
-  // The mock is patched below only for this second invocation if needed.
-  if (postedWorker && !postCalls) {
-    // No-op: the kernel uses Worker.postMessage directly; contract scan below
-    // verifies the transfer list statically.
-  }
-  await new Promise(r => setTimeout(r, 1100));
+  assert('transfer-list', spawnedWorker && spawnedWorker.posted &&
+    spawnedWorker.posted.transfer && spawnedWorker.posted.transfer.length === 1 &&
+    spawnedWorker.posted.transfer[0] instanceof ArrayBuffer,
+    'input ArrayBuffer is placed in the transferable list');
+
   let timedOut = false;
   try { await pending; } catch (e) { timedOut = e && e.message === 'processing_worker_timeout'; }
-  assert('worker-timeout', timedOut && postedWorker && postedWorker.terminated,
+  assert('worker-timeout', timedOut && spawnedWorker && spawnedWorker.terminated,
     'hung worker rejects on timeout and terminates');
-
   // Ensure kernel source keeps transferable semantics explicit.
   assert('kernel-transfer-contract', /postMessage\\(\\{ type: 'process-buffer', buffer: bytes \\}, \\[bytes\\]\\)/.test(source),
     'processBuffer transfers the input ArrayBuffer');
