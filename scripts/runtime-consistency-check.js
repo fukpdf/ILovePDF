@@ -765,7 +765,7 @@ function checkArc11Files() {
   if (!debugHtml) {
     result('PASS', 'arc11-debug-html', 'debug.html is not part of the production tree; debug-only HTML reference check skipped');
   }
-  const hasDebugRef  = debugHtml.includes('runtime-arc11.bundle.js');
+  const hasDebugRef = !debugHtml || debugHtml.includes('runtime-arc11.bundle.js');
   if (!hasDebugRef) result('WARN', 'arc11-debug-html', 'debug.html missing runtime-arc11.bundle.js reference');
 
   if (present === ARC11_FILES.length && hasBundle && hasDebugRef) {
@@ -828,7 +828,7 @@ function checkArc12Files() {
   if (!debugHtml) {
     result('PASS', 'arc12-debug-html', 'debug.html is not part of the production tree; debug-only HTML reference check skipped');
   }
-  const hasDebugRef = debugHtml.includes('runtime-arc12.bundle.js');
+  const hasDebugRef = !debugHtml || debugHtml.includes('runtime-arc12.bundle.js');
   if (!hasDebugRef) result('WARN', 'arc12-debug-html', 'debug.html missing runtime-arc12.bundle.js reference');
 
   if (present === ARC12_FILES.length && hasBundle && hasDebugRef) {
@@ -891,7 +891,7 @@ function checkArc13Files() {
   if (!debugHtml) {
     result('PASS', 'arc13-debug-html', 'debug.html is not part of the production tree; debug-only HTML reference check skipped');
   }
-  const hasDebugRef = debugHtml.includes('runtime-arc13.bundle.js');
+  const hasDebugRef = !debugHtml || debugHtml.includes('runtime-arc13.bundle.js');
   if (!hasDebugRef) result('WARN', 'arc13-debug-html', 'debug.html missing runtime-arc13.bundle.js reference');
 
   if (present === ARC13_FILES.length && hasBundle && hasDebugRef) {
@@ -952,7 +952,7 @@ function checkArc14Files() {
   if (!debugHtml) {
     result('PASS', 'arc14-debug-html', 'debug.html is not part of the production tree; debug-only HTML reference check skipped');
   }
-  const hasDebugRef = debugHtml.includes('runtime-arc14.bundle.js');
+  const hasDebugRef = !debugHtml || debugHtml.includes('runtime-arc14.bundle.js');
   if (!hasDebugRef) result('WARN', 'arc14-debug-html', 'debug.html missing runtime-arc14.bundle.js reference');
 
   if (present === ARC14_FILES.length && hasBundle && hasDebugRef) {
@@ -1012,7 +1012,7 @@ function checkArc15Files() {
   if (!debugHtml) {
     result('PASS', 'arc15-debug-html', 'debug.html is not part of the production tree; debug-only HTML reference check skipped');
   }
-  const hasDebugRef = debugHtml.includes('runtime-arc15.bundle.js');
+  const hasDebugRef = !debugHtml || debugHtml.includes('runtime-arc15.bundle.js');
   if (!hasDebugRef) result('WARN', 'arc15-debug-html', 'debug.html missing runtime-arc15.bundle.js reference');
 
   if (present === ARC15_FILES.length && hasBundle && hasDebugRef) {
