@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { registerTempArtifact, releaseTempArtifact } from './file-lifecycle.js';
+import { validateOutputBuffer } from './output-validator.js';
 
 export function cleanupFiles(...files) {
   const allFiles = files.flat().filter(Boolean);
@@ -23,10 +24,19 @@ export function cleanupFiles(...files) {
   }, 8000);
 }
 
-export function sendPdf(res, bytes, filename = 'output.pdf') {
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(Buffer.from(bytes));
+export async function sendPdf(res, bytes, filename = 'output.pdf') {
+  try {
+    const buffer = Buffer.from(bytes || []);
+    await validateOutputBuffer(buffer, 'application/pdf');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('[output-validation] PDF rejected:', err.reason || err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Generated PDF failed structural validation.' });
+    }
+  }
 }
 
 export function placeholder(res, toolName) {
