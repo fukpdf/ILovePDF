@@ -40,9 +40,6 @@
   var _pptxWorker  = null;   // dedicated PPTX packaging Worker
   var _tessWorker  = null;   // Tesseract worker
   var _pdfInst     = null;   // pdfjsLib pdf instance
-  var _hardTimer   = null;
-  var _hardReject  = null;
-
   // ── LOG ────────────────────────────────────────────────────────────────────
   function _log(msg, d)  { console.debug('[PdfToPowerPointApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[PdfToPowerPointApp]',  msg, d !== undefined ? d : ''); }
@@ -90,7 +87,6 @@
   // ── GUARANTEED CLEANUP ─────────────────────────────────────────────────────
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_pptxWorker)  { try { _pptxWorker.terminate(); } catch (_) {} _pptxWorker = null; }
     if (_tessWorker)  { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)     { try { _pdfInst.destroy();     } catch (_) {} _pdfInst    = null; }
@@ -112,16 +108,9 @@
   }
 
   // ── NON-ABANDONING TIMEOUT RACE ────────────────────────────────────────────
-  function _race(promise, ms, label) {
-    return new Promise(function (resolve, reject) {
-      var t = setTimeout(function () {
-        reject(new Error((label || 'Operation') + ' timed out after ' + (ms / 1000) + 's'));
-      }, ms);
-      promise.then(
-        function (v) { clearTimeout(t); resolve(v); },
-        function (e) { clearTimeout(t); reject(e); }
-      );
-    });
+  function _race(promise) {
+    // Compatibility wrapper retained for existing callers; no artificial timeout.
+    return Promise.resolve(promise);
   }
 
   // ── LANGUAGE DETECTION ─────────────────────────────────────────────────────
@@ -301,14 +290,7 @@
       }
       _pptxWorker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _pptxWorker = null;
-        reject(new Error('PPTX worker timed out after ' + (PPTX_LIMIT_MS / 1000) + 's'));
-      }, PPTX_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _pptxWorker = null;
         var d = ev.data || {};
@@ -317,7 +299,6 @@
         reject(new Error('PPTX worker: unexpected response'));
       };
       w.onerror = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _pptxWorker = null;
         reject(new Error('PPTX worker error: ' + (ev && ev.message || 'unknown')));
@@ -363,10 +344,6 @@
     _log('start', { job: jobId, file: file.name, size: file.size });
 
     var onStep = _makeStepper();
-
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-    });
 
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
