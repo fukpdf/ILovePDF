@@ -599,22 +599,42 @@ self.onmessage = async function (e) {
 
   // ── Phase 7A: transferable ReadableStream (path A) ─────────────────────────
   if (data.type === 'stream-pipe') {
+    // Stream-native path: callers must provide the known byte length so the
+    // worker can assemble into one bounded buffer instead of retaining an
+    // unbounded chunk array. This path is currently unused by the browser
+    // adapters, but keeping it bounded prevents a latent large-file regression.
+    const streamId = data.streamId;
+    let state = null;
     try {
+      if (!data.stream || !Number.isSafeInteger(Number(data.totalSize)) || Number(data.totalSize) < 0) {
+        throw new Error('stream-total-size-required');
+      }
+      const totalSize = Number(data.totalSize);
+      state = { buffer: _initStreamBuffer(totalSize), offset: 0 };
       const reader = data.stream.getReader();
-      const chunks = [];
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(value instanceof ArrayBuffer ? value : (value.buffer || value));
+        const chunk = value instanceof ArrayBuffer
+          ? value
+          : (value && value.buffer instanceof ArrayBuffer ? value.buffer : null);
+        if (!chunk) throw new Error('invalid-stream-chunk');
+        const bytes = new Uint8Array(chunk);
+        if (state.offset + bytes.byteLength > totalSize) throw new Error('stream-size-overflow');
+        state.buffer.set(bytes, state.offset);
+        state.offset += bytes.byteLength;
       }
+      if (state.offset !== totalSize) throw new Error('stream-size-mismatch');
       const op = OPS[data.tool];
       if (!op) throw new Error('Unknown tool: ' + data.tool);
-      const buf          = _mergeChunks(chunks);
+      const buf = state.buffer.buffer;
+      state.buffer = null;
       const resultBuffer = await op([buf], data.options || {});
       if (!resultBuffer) throw new Error('No output produced');
-      self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: resultBuffer }, [resultBuffer]);
+      self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
     } catch (err) {
-      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: err.message || String(err) });
+      if (state) state.buffer = null;
+      self.postMessage({ type: 'stream-error', streamId, __error: err.message || String(err) });
     }
     return;
   }
