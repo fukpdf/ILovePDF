@@ -910,12 +910,15 @@
     try {
       const buffer = await file.arrayBuffer();
       const result = await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+        const timer = setTimeout(() => finish(reject, new Error('Word to Excel worker timed out.')), 120000);
         worker.onmessage = function (event) {
           const data = event.data || {};
-          if (data.type === 'word-to-excel-done') resolve(data.buffer);
-          else if (data.type === 'word-to-excel-error') reject(new Error(data.message || 'Word to Excel worker failed'));
+          if (data.type === 'word-to-excel-done') finish(resolve, data.buffer);
+          else if (data.type === 'word-to-excel-error') finish(reject, new Error(data.message || 'Word to Excel worker failed'));
         };
-        worker.onerror = function (event) { reject(new Error(event && event.message || 'Word to Excel worker failed')); };
+        worker.onerror = function (event) { finish(reject, new Error(event && event.message || 'Word to Excel worker failed')); };
         worker.postMessage({ type: 'word-to-excel', fileName: file.name, buffer }, [buffer]);
       });
       return { blob: new Blob([result], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
@@ -3948,8 +3951,11 @@
     try {
       const buffer = await file.arrayBuffer();
       const result = await new Promise((resolve, reject) => {
-        worker.onmessage = e => { const d=e.data||{}; if(d.type==='powerpoint-to-pdf-done') resolve(d.buffer); else if(d.type==='powerpoint-to-pdf-error') reject(new Error(d.message||'PowerPoint to PDF worker failed')); };
-        worker.onerror = e => reject(new Error(e&&e.message||'PowerPoint to PDF worker failed'));
+        let settled = false;
+        const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+        const timer = setTimeout(() => finish(reject, new Error('PowerPoint to PDF worker timed out.')), 120000);
+        worker.onmessage = e => { const d=e.data||{}; if(d.type==='powerpoint-to-pdf-done') finish(resolve,d.buffer); else if(d.type==='powerpoint-to-pdf-error') finish(reject,new Error(d.message||'PowerPoint to PDF worker failed')); };
+        worker.onerror = e => finish(reject,new Error(e&&e.message||'PowerPoint to PDF worker failed'));
         worker.postMessage({type:'powerpoint-to-pdf',buffer,pageSize:opts&&opts.pageSize,margins:opts&&opts.margins,handoutMode:opts&&opts.handoutMode,speakerNotes:opts&&opts.speakerNotes,watermark:opts&&opts.watermark},[buffer]);
       });
       return {blob:new Blob([result],{type:'application/pdf'}),ext:'.pdf',mime:'application/pdf'};
