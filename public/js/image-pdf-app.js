@@ -110,7 +110,7 @@
         var d = ev.data || {};
         if (d.__error) { finish(new Error(d.__error)); return; }
         if (d.type === 'ready') {
-          w.postMessage({ op: 'init', jobId: String(jobId) });
+          sendNext(0);
           return;
         }
         if (d.type === 'image-ack') {
@@ -150,16 +150,6 @@
       // The worker acknowledges each image before the next File is read, so
       // the main thread never accumulates every source image as ArrayBuffers.
       w.postMessage({ op: 'init', jobId: String(jobId) });
-      function start() { sendNext(0); }
-      var originalOnMessage = w.onmessage;
-      // Start after the worker has accepted initialization; a second init is
-      // harmless and keeps compatibility with cached worker startup timing.
-      w.addEventListener('message', function boot(ev) {
-        if (ev.data && ev.data.type === 'ready') {
-          w.removeEventListener('message', boot);
-          start();
-        }
-      });
     });
   }
 
