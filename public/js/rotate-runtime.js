@@ -92,7 +92,9 @@
   function _memoryGuard(phase, file) {
     // Phase 2: RuntimeMemory tier
     if (window.RuntimeMemory) {
-      if (window.RuntimeMemory.isEmergency()) throw new Error('memory_pressure');
+      if (window.RuntimeMemory.isEmergency()) {
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('rotate:memory-pressure-advisory', { phase: phase }); } catch (_) {}
+      }
       if (window.RuntimeMemory.isCritical()) {
         if (window.RuntimeCleanup) {
           try { window.RuntimeCleanup.lightCleanup('rotate-critical-guard'); } catch (_) {}
@@ -102,7 +104,7 @@
     // Heap estimate: 3× file size (buffer + pdf-lib internal + output)
     if (file && window.MemPressure && window.MemPressure.wouldExceedLimit) {
       if (window.MemPressure.wouldExceedLimit(file.size * 3, 1.3)) {
-        throw new Error('memory_pressure');
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('rotate:memory-estimate-advisory', { phase: phase }); } catch (_) {}
       }
     }
     // Inline heap check fallback
@@ -111,9 +113,7 @@
       if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) {
         try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('rotate:heap-pressure-advisory', { phase: phase }); } catch (_) {}
       }
-    } catch (e) {
-      if (e.message === 'memory_pressure') throw e;
-    }
+    } catch (_) {}
     if (window.RuntimeTelemetry) {
       try { window.RuntimeTelemetry.record('rotate:memory-guard-ok', { phase: phase }); } catch (_) {}
     }
