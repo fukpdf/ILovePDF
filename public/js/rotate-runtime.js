@@ -99,12 +99,6 @@
         }
       }
     }
-    // Heap estimate: 3× file size (buffer + pdf-lib internal + output)
-    if (file && window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      if (window.MemPressure.wouldExceedLimit(file.size * 3, 1.3)) {
-        throw new Error('memory_pressure');
-      }
-    }
     // Inline heap check fallback
     try {
       var mem = performance && performance.memory;
