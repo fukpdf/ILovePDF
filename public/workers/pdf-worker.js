@@ -518,6 +518,8 @@ async function _dispatchStream(streamId, tool, options) {
     state.fileBuffers.push(buf);
     const resultBuffer = await op(state.fileBuffers, options || {});
     if (!resultBuffer) throw new Error('No output produced');
+    state.chunks = [];
+    state.fileBuffers = [];
     self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
   } catch (err) {
     self.postMessage({ type: 'stream-error', streamId, __error: err.message || String(err) });
