@@ -37,6 +37,8 @@
   var _tabHidden = false;
   var _processingControllers = new Set();
   var _activeProcessingTokens = new Set();
+  var _processingControllers = new Set();
+  var _activeProcessingTokens = new Set();
 
   // ── Token factory — mirrors WorkerPool.CancelToken but nav-aware ──────────
   function NavToken() {
