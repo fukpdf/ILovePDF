@@ -1,0 +1,16 @@
+/* Client file lifecycle — browser-only resource hygiene. */
+(function (G) {
+  'use strict';
+  if (G.ClientFileLifecycle) return;
+  const VERSION = '1.0.0';
+  const urls = new Set();
+  const buffers = new Set();
+  function trackObjectURL(url) { if (typeof url === 'string' && url.startsWith('blob:')) urls.add(url); return url; }
+  function revokeObjectURL(url) { if (!url) return; try { URL.revokeObjectURL(url); } catch (_) {} urls.delete(url); }
+  function trackBuffer(buffer) { if (buffer instanceof ArrayBuffer) buffers.add(buffer); return buffer; }
+  function releaseBuffer(buffer) { if (buffer instanceof ArrayBuffer) buffers.delete(buffer); return null; }
+  function cleanupObjectURLs() { urls.forEach(function (url) { try { URL.revokeObjectURL(url); } catch (_) {} }); urls.clear(); }
+  function stats() { return { version: VERSION, trackedObjectURLs: urls.size, trackedBuffers: buffers.size }; }
+  function cleanup() { cleanupObjectURLs(); buffers.clear(); }
+  G.ClientFileLifecycle = Object.freeze({ VERSION, trackObjectURL, revokeObjectURL, trackBuffer, releaseBuffer, cleanupObjectURLs, cleanup, stats });
+}(window));
