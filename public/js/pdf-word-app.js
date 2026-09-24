@@ -407,13 +407,7 @@
 
     _log('start', { job: jobId, file: file.name, size: file.size, forceOcr: forceOcr });
 
-    // Hard timeout: if the job takes > HARD_LIMIT_MS, call _cleanup() (which
-    // terminates ALL active workers) then reject.  This is the key guarantee
-    // that prevents the second-run hang — the cleanup always fires.
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-    });
-
+    // No automatic job timeout. The user can cancel; finally still cleans up workers.\n
     // The actual job as an immediately-invoked async function so we can wrap
     // the entire thing in try/finally and guarantee cleanup even on unexpected
     // throws (e.g. OOM errors thrown by PDF.js during parsing).
@@ -504,7 +498,7 @@
 
     // Race the job against the hard timeout. Cleanup always runs in finally.
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       _log('error', { job: jobId, err: err && err.message });
       throw err;
