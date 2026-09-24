@@ -98,6 +98,22 @@ Before a migrated tool is marked complete:
 
 Browser visual rendering is a separate validation category and must only be reported when actually executed.
 
+## Module ownership reconciliation (Phase 1)
+
+The module registry is a contract boundary, not a processor implementation. The current
+36-tool configuration was audited against BrowserTools and special routes before module
+activation was tightened.
+
+Known execution gaps remain explicit:
+- `word-to-excel` is configured as client-side but has no BrowserTools handler yet.
+- `numbers-to-words` and `currency-converter` use special HTML routes and are not
+  BrowserTools processors.
+- These tools must not be forced through the standard BrowserTools path until their
+  dedicated module/processor contract is implemented.
+
+Migration rule: **configured tool → independent module contract → declared processor →
+validated execution**. A missing processor is an explicit gap, not a silent fallback.
+
 ## Current execution capability audit (Phase 1)
 
 Audited against the current `public/js/tools-config.js`, `public/js/browser-tools.js`, `public/workers/workerPool.js`, `public/workers/pdf-worker.js`, and `public/js/stream-helpers.js`.
