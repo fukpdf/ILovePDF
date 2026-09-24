@@ -86,3 +86,8 @@ This inventory is a migration map, not a claim that all listed tools are already
 Protect and Sign are not promoted into the authoritative worker registry because the current implementations are not standards-compliant security processors. `protect` creates a visual overlay rather than PDF encryption, and `sign` draws visible signature text rather than producing a cryptographic PDF digital signature. The legacy browser handlers and worker-tool registrations have been removed from the active dispatch path. They require dedicated Phase 3 security implementations before reactivation.
 
 `unlock` remains worker-only but must continue to report its actual password/permission behavior; it must not imply that every encrypted PDF can be unlocked without the appropriate credentials.
+
+
+## Edit + Compare migration update (2026-09-24)
+
+`edit` and `compare` are now worker-dispatched only. The legacy main-thread handlers were removed from the active handler map. The worker already contains both operations. `edit` currently means additive text placement at coordinates; it does not claim arbitrary in-place PDF text editing. `compare` currently produces a structural comparison report (page count, page size, metadata) and does not claim pixel-perfect or semantic text-diff equivalence.
