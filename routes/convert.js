@@ -19,9 +19,9 @@ import { magickImagesToPdf } from '../utils/pdfTools.js';
 const require = createRequire(import.meta.url);
 const execAsync = promisify(exec);
 const router = express.Router();
-const upload    = createUpload('pdf',   100 * 1024 * 1024);
-const imgUpload = createUpload('image', 100 * 1024 * 1024);
-const anyUpload = createUpload('any',   100 * 1024 * 1024);
+const upload    = createUpload('pdf');
+const imgUpload = createUpload('image');
+const anyUpload = createUpload('any');
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -83,8 +83,6 @@ router.post('/scan-to-pdf', imgUpload.array('images'), async (req, res) => {
 });
 
 // ── SHARED HELPER: read buffer + validate PDF magic + extract text ──────────
-const EXTRACT_TIMEOUT_MS = 60000;
-
 async function readAndExtract(filePath) {
   const buffer = await fs.promises.readFile(filePath);
   if (!isPdfBuffer(buffer)) {
