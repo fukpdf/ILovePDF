@@ -1,4 +1,4 @@
-// Worker Pool v5.0 — Phase 24 upgrade from v4.0.
+// Worker Pool v5.1 — deterministic cancellation/termination cleanup.
 // v4.x: priority queues (high/normal/low), CancelToken, heartbeat, slot rotation.
 // v5.0 NEW:
 //   — 4th queue tier: 'background' (AI batch jobs, prewarm, cleanup)
@@ -46,8 +46,13 @@
         _cbs = [];
       },
       onCancel: function (fn) {
-        if (_cancelled) { try { fn(); } catch (_) {} }
-        else _cbs.push(fn);
+        if (typeof fn !== 'function') return function () {};
+        if (_cancelled) { try { fn(); } catch (_) {} return function () {}; }
+        _cbs.push(fn);
+        return function () {
+          var i = _cbs.indexOf(fn);
+          if (i !== -1) _cbs.splice(i, 1);
+        };
       },
     };
   }
@@ -115,15 +120,11 @@
     slot.worker.onerror   = function (e) {
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
-      settle(pool, slot, err, null);
-      if (slot.crashes < MAX_CRASHES) {
-        var w = spawnWorker(pool.url);
-        if (w) { slot.worker = w; attachHandlers(pool, slot); }
-      }
+      terminateCurrent(pool, slot, err, true);
     };
     slot.worker.onmessageerror = function () {
       slot.crashes++;
-      settle(pool, slot, new Error('worker_message_error'), null);
+      terminateCurrent(pool, slot, new Error('worker_message_error'), true);
     };
   }
 
@@ -163,25 +164,60 @@
   function settle(pool, slot, err, data) {
     if (!slot.busy) return;
     clearTimeout(slot.timer);
+    slot.timer = null;
     var res = slot.resolve;
     var rej = slot.reject;
+    var task = slot.currentTask;
+    if (task && task.removeCancel) {
+      try { task.removeCancel(); } catch (_) {}
+      task.removeCancel = null;
+    }
     slot.busy        = false;
-    slot.timer       = null;
     slot.resolve     = null;
     slot.reject      = null;
     slot.currentTask = null;
     slot.lastActive  = Date.now();
 
-    if (err) {
-      rej(err);
-    } else if (data && data.__error) {
-      rej(new Error(data.__error));
-    } else {
-      res(data);
-    }
+    if (err) rej(err);
+    else if (data && data.__error) rej(new Error(data.__error));
+    else res(data);
 
     _startIdleTimer(pool, slot);
     drainOne(pool, slot);
+  }
+
+  // Terminate the worker before releasing a cancelled/timed-out task. This is
+  // essential: a late message from the abandoned task must never reach the next task.
+  function terminateCurrent(pool, slot, err, respawn) {
+    if (!slot.busy) return;
+    var oldWorker = slot.worker;
+    var task = slot.currentTask;
+    if (task && task.removeCancel) {
+      try { task.removeCancel(); } catch (_) {}
+      task.removeCancel = null;
+    }
+    if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+    try { oldWorker.terminate(); } catch (_) {}
+    var rej = slot.reject;
+    slot.busy = false;
+    slot.resolve = null;
+    slot.reject = null;
+    slot.currentTask = null;
+    slot.lastActive = Date.now();
+    if (rej) { try { rej(err); } catch (_) {} }
+
+    if (respawn && slot.crashes < MAX_CRASHES) {
+      var fresh = spawnWorker(pool.url);
+      if (fresh) {
+        slot.worker = fresh;
+        slot.taskCount = 0;
+        attachHandlers(pool, slot);
+      }
+    }
+    if (pool.slots.indexOf(slot) !== -1) {
+      if (slot.worker && respawn && slot.crashes < MAX_CRASHES) _startIdleTimer(pool, slot);
+      drainOne(pool, slot);
+    }
   }
 
   function dispatch(pool, slot, task) {
@@ -200,22 +236,16 @@
     slot.resolve     = task.resolve;
     slot.reject      = task.reject;
 
-    // Register cancellation handler
+    // Register cancellation handler. Running cancellation terminates the worker
+    // so abandoned computation cannot emit into a later task.
     if (task.token) {
-      task.token.onCancel(function () {
-        settle(pool, slot, new Error('task_cancelled'), null);
+      task.removeCancel = task.token.onCancel(function () {
+        terminateCurrent(pool, slot, new Error('task_cancelled'), true);
       });
     }
 
     slot.timer = setTimeout(function () {
-      settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
-      var w = spawnWorker(pool.url);
-      if (w) {
-        try { slot.worker.terminate(); } catch (_) {}
-        slot.worker    = w;
-        slot.taskCount = 0;
-        attachHandlers(pool, slot);
-      }
+      terminateCurrent(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), true);
     }, TIMEOUT_MS);
 
     if (!slot.worker || slot.crashes >= MAX_CRASHES) {
@@ -381,6 +411,7 @@
         reject:        reject,
         priority:      priority,
         token:         token,
+        removeCancel:  null,
         queued:        Date.now(),
       };
 
@@ -403,9 +434,18 @@
         }
       }
 
-      // All slots busy — enqueue with priority
+      // All slots busy — enqueue with priority. Keep a removable cancellation
+      // subscription so cancelled queued work never consumes a future slot.
       var q = pool.queues[priority] || pool.queues.normal;
       q.push(task);
+      if (token) {
+        task.removeCancel = token.onCancel(function () {
+          var idx = q.indexOf(task);
+          if (idx !== -1) q.splice(idx, 1);
+          task.removeCancel = null;
+          try { task.reject(new Error('task_cancelled')); } catch (_) {}
+        });
+      }
     });
   }
 
