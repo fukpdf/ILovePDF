@@ -40,8 +40,8 @@
     // ── Adapter ─────────────────────────────────────────────────────────────
     // OPS.compress runs two pdf-lib save passes — safe in worker, no canvas needed.
     adapterMode:   'worker',
-    timeoutMs:     120000,   // 2 min — compression can be slow on large scanned PDFs
-    workerTimeout: 120000,
+    timeoutMs: 0,   // 2 min — compression can be slow on large scanned PDFs
+    workerTimeout: 0,
     timerOwner:    'crt-tick',
 
     // DedupeKey: compress has no user-facing options, so file identity is sufficient.
