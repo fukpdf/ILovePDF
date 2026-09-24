@@ -1807,3 +1807,1166 @@ function attachDragHandlers() {
     }
   });
 }
+
+function rotateFile(index) {
+  if (!selectedFiles[index]) return;
+  selectedFiles[index].rotation = (selectedFiles[index].rotation + 90) % 360;
+  const degreesEl = document.getElementById('opt-degrees');
+  if (degreesEl) degreesEl.value = String(selectedFiles[index].rotation);
+  renderFileList();
+}
+
+function removeFile(index) {
+  const _rem = selectedFiles[index];
+  if (_rem && _rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
+  selectedFiles.splice(index, 1);
+  renderFileList();
+  if (selectedFiles.length === 0) {
+    closePageOrganizer();
+    if (typeof clearAllBursts === 'function') clearAllBursts();
+  }
+}
+
+function clearAll() {
+  selectedFiles.forEach(function (e) { if (e._thumbUrl) { try { URL.revokeObjectURL(e._thumbUrl); } catch (_) {} } });
+  selectedFiles = [];
+  renderFileList();
+  closePageOrganizer();
+  const r = document.getElementById('result-area');
+  if (r) r.innerHTML = '';
+  const input = document.getElementById('file-input');
+  if (input) input.value = '';
+  if (typeof clearAllBursts === 'function') clearAllBursts();
+  // Clear the captured download-step result so a fresh upload starts clean.
+  Flow.result = null;
+  // Wipe persisted state for this slug — sessionStorage + IndexedDB blobs.
+  if (window.ToolState && currentTool) ToolState.clear(Flow.baseSlug());
+  // Phase 3: also clear the cross-session resume pointer for this tool.
+  try { if (window.SessionPersist) window.SessionPersist.clearResume(); } catch (_) {}
+}
+
+// ── OUTPUT VALIDATOR ─────────────────────────────────────────────────────────
+// Inspects every result before handing it to the download trigger.
+// Guards against empty blobs, malformed PDFs, and text-only whitespace outputs.
+const OutputValidator = {
+  async check(toolId, result) {
+    if (window.BrowserTools && typeof window.BrowserTools.validateOutput === 'function') {
+      return window.BrowserTools.validateOutput(toolId, result);
+    }
+    return { ok: false, msg: 'Output validation is unavailable. Please reload and try again.' };
+  },
+};
+
+// ── PROCESSING RETRY WRAPPER ──────────────────────────────────────────────────
+// Attempt the browser-side processing up to MAX_ATTEMPTS times.
+// Terminal errors (file too large, user-correctable inputs) are not retried.
+async function tryWithRetry(toolId, files, opts) {
+  const MAX_ATTEMPTS = 2;
+  let lastErr;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 0) {
+        showProcessing(_tp('processing.alt_approach', 'Applying an alternative approach…'), _tp('processing.alt_approach_msg', 'This may take a moment.'));
+        await new Promise(r => setTimeout(r, 700));
+      }
+      return await window.BrowserTools.process(toolId, files, opts);
+    } catch (err) {
+      lastErr = err;
+      const m = (err && err.message) || '';
+      // Don't retry terminal / user-correctable conditions
+      if (
+        m === 'file_too_large_for_browser' ||
+        m === 'memory_pressure' ||
+        m === 'No files provided' ||
+        m.startsWith('Please enter') ||
+        m.startsWith('Please upload') ||
+        m.startsWith('No text provided') ||
+        m.includes('Please select') ||
+        m.includes('Please upload two')
+      ) throw err;
+    }
+  }
+  throw lastErr;
+}
+
+// ── PROCESS FILE ───────────────────────────────────────────────────────────
+
+async function processFile() {
+  // Re-entrancy guard: a rapid double-click must never launch two concurrent
+  // processing runs.  All downstream validation is synchronous so this guard
+  // fires before any async work begins.
+  if (_processingInFlight) return;
+  if (!currentTool) return;
+  if (selectedFiles.length === 0) {
+    showStatus('error', _tp('status.no_file', 'No file selected'), _tp('status.no_file_msg', 'Please upload a file before processing.'));
+    return;
+  }
+  if (!currentTool.working) { showComingSoon(currentTool.name); return; }
+
+  // Daily usage limit — guests 15/day, logged-in 100/day
+  if (window.UsageLimit && !window.UsageLimit.canUse()) {
+    window.UsageLimit.showLimitModal();
+    return;
+  }
+
+  // Shared execution-boundary input validation. The selected tool's
+  // accepted file contract is checked before any processor/worker is invoked.
+  if (window.BrowserTools && typeof window.BrowserTools.validateInputFiles === 'function') {
+    const inputValidation = window.BrowserTools.validateInputFiles(
+      selectedFiles.map(e => e.file),
+      currentTool.acceptedFiles,
+      currentTool.multipleFiles
+    );
+    if (!inputValidation.ok) {
+      showStatus('error',
+        _tp('status.invalid_input', 'Invalid input'),
+        inputValidation.message || _tp('status.invalid_input_msg', 'Please check the selected files and try again.'));
+      return;
+    }
+  }
+
+  // Re-check 100MB limit defensively
+  for (const e of selectedFiles) {
+    if (e.file.size > MAX_FILE_BYTES) { showSignupModal(e.file); return; }
+  }
+
+  // Past all synchronous validation — commit to processing.
+  // The try/finally below guarantees _processingInFlight and processBtn are
+  // always restored regardless of which exit path fires (success, error, throw).
+  _processingInFlight = true;
+  const processBtn = document.getElementById('process-btn');
+
+  // Soft 90-second warning: if processing is still running after 90 s, update
+  // the subtitle to reassure the user and hint at cancellation — without
+  // interrupting the actual processing.
+  let _softWarnTimer = setTimeout(() => {
+    try {
+      const msgEl = document.getElementById('processing-msg');
+      if (msgEl && _processingInFlight) {
+        msgEl.textContent = 'Still working\u2026 Large files can take a few minutes. You can cancel and try again if needed.';
+      }
+    } catch (_) {}
+  }, 90000);
+
+  // Phase 7J: record tool processing start in session recorder + forensics
+  try {
+    var _p7Sr = window.RuntimeSessionRecorder;
+    if (_p7Sr && typeof _p7Sr.record === 'function') {
+      _p7Sr.record('tool_process_start', {
+        tool: currentTool.id,
+        files: selectedFiles.length,
+        totalBytes: selectedFiles.reduce(function (s, e) { return s + (e.file ? e.file.size : 0); }, 0),
+      });
+    }
+  } catch (_) {}
+
+  // Phase 8J: persist processing start to IDB for cross-navigation forensics
+  try {
+    var _p8Sp = window.RuntimeSessionPersistence;
+    if (_p8Sp && typeof _p8Sp.persistEvent === 'function') {
+      _p8Sp.persistEvent('tool_process_start', {
+        tool: currentTool.id,
+        files: selectedFiles.length,
+      });
+    }
+  } catch (_) {}
+
+  // Phase 8J: check memory vault for any cached execution context
+  try {
+    var _p8Mv = window.RuntimeMemoryVault;
+    if (_p8Mv && typeof _p8Mv.store === 'function') {
+      _p8Mv.store('last_tool_dispatch', { tool: currentTool.id, ts: Date.now() }, 60000);
+    }
+  } catch (_) {}
+  try {
+    // ── Page-organizer integration ──────────────────────────────────────────
+    // If the user reordered, rotated, or deleted pages in the preview grid,
+    // assemble the edited PDF here and substitute it for the original file.
+    // Server-side and client-side flows both see the edited PDF transparently.
+    if (pageOrganizer && selectedFiles.length === 1) {
+      try {
+        if (pageOrganizer.getPageCount() === 0) {
+          showStatus('error', _tp('status.no_pages', 'No pages selected'), _tp('status.no_pages_msg', 'Please keep at least one page before processing.'));
+          return;
+        }
+        showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
+        const { file: editedFile } = await pageOrganizer.getEditedPdf();
+        if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
+        selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
+        // Rotate tool safety net: PageOrganizer has already baked every rotation
+        // into editedFile. Ensure the degrees dropdown reads '0' so the rotate()
+        // function in BrowserTools exits early (angle === 0 path) and does NOT
+        // apply any additional rotation on top of the already-processed PDF.
+        if (currentTool.id === 'rotate') {
+          const _safetyDegEl = document.getElementById('opt-degrees');
+          if (_safetyDegEl) _safetyDegEl.value = '0';
+        }
+        hideProcessing();
+      } catch (err) {
+        hideProcessing();
+        showStatus('error', 'Please try again',
+          'Processing is taking longer than usual. Please wait or try again later.');
+        return;
+      }
+    }
+
+    const formData = new FormData();
+
+    if (currentTool.multipleFiles) {
+      const isImgInput = currentTool.group === 'image' ||
+                         currentTool.id === 'scan-to-pdf' ||
+                         currentTool.id === 'jpg-to-pdf';
+      const field = isImgInput ? 'images' : 'pdfs';
+      selectedFiles.forEach(e => formData.append(field, e.file));
+    } else {
+      const field = currentTool.group === 'image' ? 'image' : 'pdf';
+      formData.append(field, selectedFiles[0].file);
+    }
+
+    // Per-file rotations (server may use; safe to ignore otherwise)
+    formData.append('rotations', JSON.stringify(selectedFiles.map(e => e.rotation)));
+
+    (currentTool.options || []).forEach(opt => {
+      const el = document.getElementById(`opt-${opt.id}`);
+      if (el && el.value.trim() !== '') formData.append(opt.id, el.value.trim());
+    });
+    // Compress: inject the tier-aware level value (slider → 'low'|'medium'|'high').
+    if (currentTool.id === 'compress') {
+      const lvl = readCompressLevel();
+      if (lvl) formData.append('level', lvl);
+    }
+
+    showProcessing(_tp('steps.processing_file', 'Processing your file…'), _tp('steps.usual_time', 'This usually takes only a few seconds.'));
+    if (processBtn) processBtn.disabled = true;
+
+    // ── Browser-side path FIRST: dispatch only through the authoritative
+    // execution manifest. There is no server/upload fallback for a tool that
+    // declares a browser processor but cannot execute it locally.
+    const executionManifest = (window.BrowserTools &&
+      typeof window.BrowserTools.getToolExecutionManifest === 'function')
+      ? window.BrowserTools.getToolExecutionManifest(currentTool.id)
+      : null;
+
+    const toolModule = (window.ToolModuleRegistry && typeof window.ToolModuleRegistry.get === 'function')
+      ? window.ToolModuleRegistry.get(currentTool.id) : null;
+
+    if (currentTool.clientSide && toolModule &&
+        toolModule.independent === true &&
+        executionManifest &&
+        executionManifest.processor === 'browser-tools' &&
+        toolModule.processor === executionManifest.processor) {
+      try {
+        const opts = {};
+        (currentTool.options || []).forEach(o => {
+          const el = document.getElementById(`opt-${o.id}`);
+          if (el && el.value !== '') opts[o.id] = el.value;
+        });
+        const result = await tryWithRetry(
+          currentTool.id,
+          selectedFiles.map(e => e.file),
+          opts,
+        );
+
+        // ── Output Validation Layer ───────────────────────────────────────
+        const validation = await OutputValidator.check(currentTool.id, result);
+        if (!validation.ok) {
+          hideProcessing();
+          showStatus('error', _tp('status.result_incomplete', 'Result incomplete'), validation.msg);
+          return;
+        }
+
+        const { blob, filename } = result;
+        hideProcessing();
+        if (window.UsageLimit) window.UsageLimit.record(selectedFiles.length);
+
+        // Phase 7J: record success to session recorder + forensics snapshot
+        try {
+          var _p7SrOk = window.RuntimeSessionRecorder;
+          if (_p7SrOk && typeof _p7SrOk.record === 'function') {
+            _p7SrOk.record('tool_process_success', {
+              tool: currentTool.id,
+              outputBytes: blob ? blob.size : 0,
+            });
+          }
+          var _p7Fok = window.RuntimeForensics;
+          if (_p7Fok && typeof _p7Fok.snapshot === 'function') {
+            _p7Fok.snapshot('tool-success', { tool: currentTool.id, outputBytes: blob ? blob.size : 0 });
+          }
+        } catch (_) {}
+
+        // Compress: surface "already optimised" when the PDF could not be shrunk.
+        const isAlreadyOpt = currentTool.id === 'compress' && result.alreadyOptimized;
+        showStatus(
+          'success',
+          isAlreadyOpt ? _tp('status.already_opt', 'Already optimised') : _tp('status.file_ready', 'Your file is ready'),
+          isAlreadyOpt
+            ? _tp('status.already_opt_msg', 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.')
+            : _tp('status.click_download', 'Click the Download button below to save your file.'),
+          createStatusUrl(blob),
+          filename,
+        );
+        if (currentTool.id === 'compress') appendCompressAdvancedLink();
+        return;
+      } catch (err) {
+        hideProcessing();
+        const rawMsg = (err && err.message) || '';
+        let userMsg = 'Something went wrong. Please try again.';
+        if (rawMsg === 'file_too_large_for_browser') {
+          userMsg = 'This file is too large to process directly. Please use a file under 50 MB.';
+        } else if (rawMsg === 'memory_pressure') {
+          userMsg = 'Your device is running low on memory. Please close other tabs and try again.';
+        } else if (rawMsg && rawMsg !== '__orig__' &&
+                   rawMsg !== 'NO_BROWSER_GAIN' &&
+                   rawMsg !== 'No browser-side compression possible' &&
+                   !rawMsg.startsWith('no_processor_') &&
+                   !rawMsg.includes('Worker') &&
+                   !rawMsg.includes('wasm') &&
+                   !rawMsg.includes('OPFS') &&
+                   !rawMsg.includes('chunk') &&
+                   !rawMsg.includes('ArrayBuffer') &&
+                   rawMsg.length < 220) {
+          userMsg = rawMsg.charAt(0).toUpperCase() + rawMsg.slice(1).replace(/_/g, ' ');
+        }
+
+        // Phase 7J: forensics snapshot + incident engine + session recorder on errors
+        try {
+          var _p7Tool = currentTool ? currentTool.id : 'unknown';
+          var _p7Ctx  = { tool: _p7Tool, error: rawMsg.slice(0, 120) };
+
+          var _p7Rf = window.RuntimeForensics;
+          if (_p7Rf && typeof _p7Rf.snapshot === 'function') {
+            _p7Rf.snapshot('tool-error', _p7Ctx);
+          }
+
+          var _p7Sr2 = window.RuntimeSessionRecorder;
+          if (_p7Sr2 && typeof _p7Sr2.record === 'function') {
+            _p7Sr2.record('tool_process_error', _p7Ctx);
+          }
+
+          // Only raise an incident for genuine failures (not "no browser gain")
+          if (rawMsg !== 'NO_BROWSER_GAIN' && rawMsg !== 'No browser-side compression possible') {
+            var _p7Inc = window.RuntimeIncidentEngine;
+            if (_p7Inc && typeof _p7Inc.report === 'function') {
+              _p7Inc.report('browser-tool-error', 35, 'tool-page', _p7Ctx);
+            }
+            var _p7Ss = window.RuntimeSecurityStream;
+            if (_p7Ss && typeof _p7Ss.push === 'function') {
+              _p7Ss.push('tool-error', 'tool-page', 'WARN',
+                'Browser tool error: ' + _p7Tool, _p7Ctx);
+            }
+          }
+        } catch (_) {}
+
+        showStatus('error', _tp('status.processing_failed', 'Processing failed'), userMsg);
+        return;
+      }
+    }
+
+    // No verified browser processor exists for this tool. Do not upload the
+    // user's file through an unverified fallback path.
+    hideProcessing();
+    showStatus('error', _tp('status.tool_unavailable', 'Tool unavailable'),
+      _tp('status.tool_unavailable_msg', 'This tool is not yet available in your browser. Please try again in a moment.'));
+  } finally {
+    // Always restore button state and clear the re-entrancy guard — regardless
+    // of which exit path fired (success return, error return, or uncaught throw).
+    clearTimeout(_softWarnTimer);
+    _processingInFlight = false;
+    if (processBtn) processBtn.disabled = false;
+  }
+}
+
+// ── BRANDED FILENAME ───────────────────────────────────────────────────────
+// Returns "ILovePDF-[Original-Name].<ext>" — strips original ext, sanitises.
+function brandedFilename(originalName, newExt) {
+  const base = (originalName || 'file').replace(/\.[^.]+$/, '');
+  const safe = base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'file';
+  return `ILovePDF-${safe}${newExt}`;
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+
+function setMeta(name, content) {
+  let m = document.querySelector(`meta[name="${name}"]`);
+  if (!m) { m = document.createElement('meta'); m.name = name; document.head.appendChild(m); }
+  m.content = content;
+}
+
+function mimeToExt(ct) {
+  if (ct.includes('application/pdf')) return '.pdf';
+  if (ct.includes('wordprocessingml') || ct.includes('msword')) return '.docx';
+  if (ct.includes('spreadsheetml') || ct.includes('ms-excel')) return '.xlsx';
+  if (ct.includes('presentationml') || ct.includes('ms-powerpoint')) return '.pptx';
+  if (ct.includes('image/jpeg')) return '.jpg';
+  if (ct.includes('image/png'))  return '.png';
+  if (ct.includes('image/webp')) return '.webp';
+  if (ct.includes('application/zip')) return '.zip';
+  return '.bin';
+}
+
+function triggerDownload(blob, filename) {
+  const reg = window.ObjectURLRegistry;
+  const url  = reg ? reg.create(blob, 'trigger-download') : URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => {
+    try { reg ? reg.revoke(url) : URL.revokeObjectURL(url); } catch (_) {}
+  }, 30000);
+}
+
+// Create an object URL for showStatus download links and schedule automatic
+// revocation after 5 minutes (generous enough for any user action).
+// Routes through ObjectURLRegistry when available so memory-pressure cleanup
+// and pagehide revocation both fire correctly.
+function createStatusUrl(blob) {
+  if (window.ObjectURLRegistry) {
+    const url = window.ObjectURLRegistry.create(blob, 'status-download');
+    setTimeout(() => {
+      try { window.ObjectURLRegistry.revoke(url); } catch (_) {}
+    }, 5 * 60 * 1000);
+    return url;
+  }
+  const url = URL.createObjectURL(blob);
+  setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 5 * 60 * 1000);
+  return url;
+}
+
+// Fetch with automatic retry on HTTP 429 (rate-limit only — hard limits like
+// LIMIT_REACHED are not retried). Up to maxRetries attempts with exponential
+// back-off starting at 1 s, doubling each time, capped at 8 s.
+async function fetchWithRetry(url, options, maxRetries) {
+  maxRetries = (maxRetries === undefined) ? 3 : maxRetries;
+  let delay = 1000;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const r = await fetch(url, options);
+    if (r.status === 429) {
+      try {
+        const data = await r.clone().json();
+        // Hard limits should surface to the user immediately — no retry.
+        if (data.error === 'LIMIT_REACHED' || data.error === 'FILE_TOO_LARGE') return r;
+      } catch (_) {}
+      if (attempt < maxRetries) {
+        await new Promise(res => setTimeout(res, delay));
+        delay = Math.min(delay * 2, 8000);
+        continue;
+      }
+    }
+    return r;
+  }
+}
+
+// Compress: small "need more compression?" CTA appended below the standard
+// success card. Clicking it runs a render-based deep compression entirely in
+// the browser: each page is rasterised to JPEG then re-embedded in a new PDF.
+function appendCompressAdvancedLink() {
+  const area = document.getElementById('result-area');
+  if (!area || area.querySelector('.compress-advanced-link')) return;
+  const link = document.createElement('div');
+  link.className = 'compress-advanced-link';
+  link.innerHTML = `
+    <p class="compress-advanced-hint">Need a smaller file?</p>
+    <button type="button" class="btn btn-outline btn-sm" id="try-advanced-compress">
+      <i data-lucide="zap"></i> Try deep compression
+    </button>
+    <p class="compress-advanced-note">Renders each page as an optimised image for maximum size reduction.</p>
+    <p class="compress-advanced-note" style="color:#92400e;font-size:11px;margin-top:3px;">
+      &#9888; Text will not be selectable after deep compression.
+    </p>
+  `;
+  area.appendChild(link);
+  if (window.lucide) lucide.createIcons();
+  const btn = link.querySelector('#try-advanced-compress');
+  if (btn) btn.addEventListener('click', runAdvancedCompress, { once: true });
+}
+
+async function runAdvancedCompress() {
+  if (!selectedFiles || !selectedFiles.length) return;
+  const btn = document.getElementById('try-advanced-compress');
+  if (btn) { btn.disabled = true; btn.textContent = 'Compressing…'; }
+  const processBtn = document.getElementById('process-btn');
+  if (processBtn) processBtn.disabled = true;
+  showProcessing('Applying deep compression…', 'Rendering pages for maximum size reduction.');
+
+  // srcPdf is declared outside the try so the finally block can always destroy
+  // it, even if an error fires mid-loop (prevents PDF.js memory leak).
+  let srcPdf = null;
+  try {
+    // Render-based deep compression: every page → JPEG canvas → re-embedded PDF.
+    const { PDFDocument } = await window.BrowserTools._loadPdfLib();
+    let pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib) {
+      const _p = window.__pdfjsLibPromise ||
+        import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
+          const lib = m && (m.default || m);
+          lib.GlobalWorkerOptions.workerSrc =
+            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+          window.pdfjsLib = lib;
+          return lib;
+        });
+      window.__pdfjsLibPromise = _p;
+      pdfjsLib = await _p;
+    }
+
+    const file = selectedFiles[0].file;
+    // [FUTURE: StreamEngine] Replace file.arrayBuffer() with OPFS byte-range
+    // streaming so giant PDFs don't spike the JS heap during deep compress.
+    let data  = await file.arrayBuffer();
+    srcPdf    = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    data      = null; // release ArrayBuffer reference; PDF.js owns it now
+    const total  = srcPdf.numPages;
+    const outDoc = await PDFDocument.create();
+
+    for (let i = 1; i <= total; i++) {
+      showProcessing(
+        `Deep compression — page ${i} of ${total}…`,
+        'Optimising image quality for a smaller file size.',
+      );
+      const page = await srcPdf.getPage(i);
+      // Native page size (points) — preserve original dimensions exactly.
+      const vp1   = page.getViewport({ scale: 1 });
+      const pw    = vp1.width;
+      const ph    = vp1.height;
+      // Render at ~110 DPI (scale ≈ 1.53) — good balance of quality vs size.
+      const scale = Math.min(1.53, 110 / 72);
+      const vp    = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(vp.width);
+      canvas.height = Math.round(vp.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      page.cleanup();
+      const jpgBytes = await new Promise((res, rej) => {
+        canvas.toBlob(b => {
+          if (!b) { rej(new Error('Canvas encode failed')); return; }
+          b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
+        }, 'image/jpeg', 0.72);
+      });
+      // Zero canvas dimensions to release GPU texture memory before next page.
+      canvas.width = 0; canvas.height = 0;
+      const img = await outDoc.embedJpg(jpgBytes);
+      const pg  = outDoc.addPage([pw, ph]);
+      pg.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+    }
+
+    const outBytes = await outDoc.save({ useObjectStreams: true });
+    const blob     = new Blob([outBytes], { type: 'application/pdf' });
+    const filename = brandedFilename(file.name, '.pdf');
+    const saved    = Math.max(0, Math.round((1 - blob.size / file.size) * 100));
+
+    hideProcessing();
+    if (window.UsageLimit) window.UsageLimit.record(1);
+    showStatus(
+      'success',
+      saved > 0 ? `Reduced by ${saved}%` : 'Compression complete',
+      'Click the Download button below to save your file.',
+      createStatusUrl(blob),
+      filename,
+    );
+  } catch (err) {
+    hideProcessing();
+    const msg = (err && err.message && err.message.length < 200)
+      ? err.message : 'Please try again with a different file.';
+    showStatus('error', 'Deep compression failed', msg);
+  } finally {
+    // Always destroy the PDF.js document — even on mid-loop errors.
+    // This frees the decoded stream data and worker references.
+    if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
+    if (processBtn) processBtn.disabled = false;
+  }
+}
+
+function showStatus(type, title, message, downloadUrl, filename) {
+  // Phase 7J: push error/success events into the security stream
+  try {
+    if (type === 'error') {
+      var _p7Ss3 = window.RuntimeSecurityStream;
+      if (_p7Ss3 && typeof _p7Ss3.push === 'function') {
+        _p7Ss3.push('tool-status-error', 'tool-page', 'INFO',
+          title, { msg: (message || '').slice(0, 120) });
+      }
+    }
+  } catch (_) {}
+
+  const area = document.getElementById('result-area');
+  if (!area) return;
+  const icons = { loading: `<div class="spinner"></div>`, success: `<i data-lucide="check-circle-2"></i>`, error: `<i data-lucide="alert-circle"></i>` };
+  const classes = { loading: 'status-loading', success: 'status-success', error: 'status-error' };
+  // The download CTA is wrapped in .dl-pulse so the button visibly *swells*
+  // once the file is ready, drawing the eye. On click we fire a heavy,
+  // persistent particle burst + stop the pulse (see attachDownloadBurst).
+  const downloadBtn = (downloadUrl && filename)
+    ? `<div class="download-btn-wrap">
+         <span class="dl-pulse">
+           <a href="${downloadUrl}" download="${filename}"
+              class="btn btn-primary dl-burst-trigger">
+             <i data-lucide="download"></i> ${currentTool && currentTool.id === 'rotate' ? 'Download PDF' : 'Download File'}
+           </a>
+         </span>
+       </div>`
+    : '';
+  area.innerHTML = `
+    <div class="status-card ${classes[type]}">
+      ${icons[type]}
+      <div>
+        <div class="status-card-title">${title}</div>
+        <div class="status-card-msg">${message}</div>
+        ${downloadBtn}
+      </div>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+  attachDownloadBurst(area);
+
+  // 3-step flow: success results live on the dedicated /download page so the
+  // user sees a clear "your file is ready" page with a fallback download
+  // button. Errors stay inline on the preview step. Skip if we're already
+  // on the download step (re-rendering existing result html).
+  if (type === 'success' && Flow.step !== 'download') {
+    Flow.commitResult();
+  }
+}
+
+// ── DOWNLOAD BURST ─────────────────────────────────────────────────────────
+// Wires the visual "explosion" of particles around the Download Again button
+// the first time the user clicks it. Idempotent — safe to call repeatedly.
+function attachDownloadBurst(scope) {
+  const root = scope || document;
+  root.querySelectorAll('.dl-burst-trigger:not([data-burst-bound])').forEach((btn) => {
+    btn.dataset.burstBound = '1';
+    btn.addEventListener('click', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top  + rect.height / 2;
+      explodeAt(cx, cy);
+      const wrap = btn.closest('.dl-pulse');
+      if (wrap) wrap.classList.add('dl-fired');
+      // Don't preventDefault — the actual download must still fire.
+      // Cleanup is deliberately delayed so the browser has time to start the
+      // download, then removes only this tool's temporary source/result state.
+      try {
+        if (window.ToolState && currentTool) {
+          const slug = Flow.baseSlug();
+          setTimeout(() => {
+            try {
+              if (window.ToolState.clearAfterDelivery) {
+                window.ToolState.clearAfterDelivery(slug);
+              } else {
+                window.ToolState.clear(slug);
+              }
+            } catch (_) {}
+          }, 5000);
+        }
+      } catch (_) {}
+    });
+  });
+}
+
+// Fires a heavy burst of coloured particles across the viewport from (x, y).
+// Particles are PERSISTENT — they remain on screen until clearAllBursts() is
+// called (on Clear / new upload / page refresh).
+function explodeAt(x, y) {
+  const N = 90;
+  const colors = ['#E5322E', '#ff6a5b', '#ffb84a', '#10b981', '#3b82f6',
+                  '#a855f7', '#f59e0b', '#06b6d4', '#ec4899', '#22c55e'];
+  const host = document.createElement('div');
+  host.className = 'burst-host burst-persist';
+  host.style.left = x + 'px';
+  host.style.top  = y + 'px';
+  document.body.appendChild(host);
+
+  // Maximum reach: a generous fraction of the smaller viewport dimension so
+  // the burst really feels like it covers the container.
+  const reach = Math.max(window.innerWidth, window.innerHeight) * 0.6;
+
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement('span');
+    p.className = 'burst-particle';
+    const angle    = (Math.PI * 2 * i) / N + Math.random() * 0.5;
+    const distance = 120 + Math.random() * reach;
+    const size     = 8 + Math.random() * 14;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance + 80; // slight downward gravity
+    const dur = 900 + Math.random() * 600;
+    const rot = (Math.random() * 720 - 360).toFixed(0);
+    const shape = Math.random() < 0.35 ? '4px' : '50%'; // mix of squares/dots
+    p.style.width  = size + 'px';
+    p.style.height = size + 'px';
+    p.style.borderRadius = shape;
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.setProperty('--dx', dx + 'px');
+    p.style.setProperty('--dy', dy + 'px');
+    p.style.setProperty('--dur', dur + 'ms');
+    p.style.setProperty('--rot', rot + 'deg');
+    host.appendChild(p);
+  }
+  // NOTE: no setTimeout removal — host persists until cleared.
+}
+
+// Removes any persistent burst hosts from the DOM. Called on Clear All / on
+// removing the last file / on starting a new upload.
+function clearAllBursts() {
+  document.querySelectorAll('.burst-host.burst-persist').forEach((el) => el.remove());
+}
+
+// Expose globally so queue-client.js (or any future caller) can re-trigger
+// after dynamically appending its own download CTA.
+window.attachDownloadBurst = attachDownloadBurst;
+window.explodeAt = explodeAt;
+window.clearAllBursts = clearAllBursts;
+
+function showTextResult(text, label = 'Result') {
+  const area = document.getElementById('result-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div class="text-result-card">
+      <div class="text-result-header">
+        <span class="text-result-label"><i data-lucide="file-text"></i> ${label}</span>
+        <button class="btn btn-outline btn-sm" onclick="copyTextResult(this)"><i data-lucide="copy"></i> Copy</button>
+      </div>
+      <textarea class="text-result-area" readonly>${escapeHtml(text)}</textarea>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+  if (Flow.step !== 'download') Flow.commitResult();
+}
+
+function showReport(report) {
+  const area = document.getElementById('result-area');
+  if (!area) return;
+  const rows = Object.entries(report).map(([k, v]) => `
+    <div class="report-row">
+      <span class="report-key">${k}</span>
+      <span class="report-val">${v}</span>
+    </div>`).join('');
+  area.innerHTML = `
+    <div class="text-result-card">
+      <div class="text-result-header">
+        <span class="text-result-label"><i data-lucide="bar-chart-2"></i> Comparison Report</span>
+      </div>
+      <div class="report-table">${rows}</div>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+  if (Flow.step !== 'download') Flow.commitResult();
+}
+
+function copyTextResult(btn) {
+  const ta = btn.closest('.text-result-card')?.querySelector('textarea');
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    btn.innerHTML = '<i data-lucide="check"></i> Copied!';
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { btn.innerHTML = '<i data-lucide="copy"></i> Copy'; if (window.lucide) lucide.createIcons(); }, 2000);
+  });
+}
+
+function showComingSoon(toolName) {
+  const modal = document.getElementById('coming-soon-modal');
+  const label = document.getElementById('modal-tool-name');
+  if (!modal) return;
+  if (label) label.textContent = toolName || 'This feature';
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function renderSeoContent(tool) {
+  const catDesc = {
+    'Organize PDFs':       'organize, rearrange, and manage PDF documents',
+    'Compress & Optimize': 'compress and reduce PDF file size without losing quality',
+    'Convert From PDF':    'convert PDF files to other popular formats',
+    'Convert To PDF':      'convert documents and images into PDF format',
+    'Edit & Annotate':     'edit, annotate, and modify your PDF files',
+    'Security':            'protect and secure your PDF documents',
+    'Advanced Tools':      'perform advanced AI-powered PDF operations',
+    'Image Tools':         'edit, transform, and enhance images',
+  };
+  const kw = catDesc[tool.category] || 'work with PDF and document files';
+  const isImage = tool.group === 'image';
+  const fileType = isImage ? 'image' : 'PDF';
+
+  // Rotate gets purpose-built copy because this page is both a tool and a
+  // useful landing page for people searching for PDF rotation help.
+  if (tool.id === 'rotate') {
+    const rotateFaq = [
+      { q: 'How do I rotate a PDF page?', a: 'Upload your PDF, review the page previews, choose All, Portrait, or Landscape, then select Right or Left and click Rotate PDF.' },
+      { q: 'Can I rotate only selected pages?', a: 'Yes. Use the page preview editor to work with the pages that need a different orientation before creating the final PDF.' },
+      { q: 'Does rotating a PDF reduce quality?', a: 'Rotation changes the page orientation rather than re-encoding the page content, so the original text, images, and vector content are not intentionally compressed just because you rotate a page.' },
+      { q: 'Can I undo a PDF rotation?', a: 'Yes. Before processing, use Reset all. After creating a file, rotate it in the opposite direction to reverse the same 90-degree change.' },
+    ];
+
+    return `
+      <section class="seo-content seo-content--rotate" aria-labelledby="rotate-seo-heading">
+        <div class="seo-intro">
+          <span class="seo-kicker">PDF ROTATION TOOL</span>
+          <h2 id="rotate-seo-heading">Rotate PDF Online — Free, Fast &amp; Easy</h2>
+          <p><strong>Need to turn a sideways PDF page upright?</strong> This free online PDF rotator lets you rotate PDF pages to the correct orientation and create a clean file ready to read, share, or print.</p>
+          <p>It is useful for scanned documents, contracts, invoices, forms, notes, and other PDFs where one or more pages appear sideways or upside down.</p>
+        </div>
+
+        <div class="seo-feature-grid">
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="scan-search"></i></span>
+            <h3>See the page before you rotate</h3>
+            <p>Review the actual PDF page previews so you can identify the pages that need correction.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="rotate-cw"></i></span>
+            <h3>Rotate right or left</h3>
+            <p>Choose the direction that matches the way your page needs to turn, with separate portrait and landscape controls.</p>
+          </article>
+          <article class="seo-feature-card">
+            <span class="seo-feature-icon"><i data-lucide="printer"></i></span>
+            <h3>Ready for sharing and printing</h3>
+            <p>Correct the orientation before sending the document to a client, colleague, archive, or printer.</p>
+          </article>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>How to rotate a PDF online</h3>
+          <ol class="seo-steps">
+            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
+            <li><strong>Check the page previews</strong> — identify pages that are sideways or upside down.</li>
+            <li><strong>Choose the pages to rotate</strong> — use All, Portrait, or Landscape when you need a specific orientation.</li>
+            <li><strong>Choose Right or Left</strong> — apply the direction that fixes the page orientation.</li>
+            <li><strong>Rotate PDF</strong> — create the corrected PDF and download the finished file.</li>
+          </ol>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Why rotate a PDF?</h3>
+          <ul class="seo-benefits">
+            <li><strong>Fix sideways scans.</strong> Correct pages captured in the wrong orientation by scanners or mobile devices.</li>
+            <li><strong>Clean up mixed documents.</strong> Make portrait and landscape pages easier to read in the same PDF.</li>
+            <li><strong>Improve print readiness.</strong> Correct page orientation before printing or sending a document for review.</li>
+            <li><strong>Keep the workflow simple.</strong> Preview the document first instead of guessing which direction to rotate it.</li>
+          </ul>
+        </div>
+
+        <div class="seo-section-block">
+          <h3>Common PDF rotation use cases</h3>
+          <div class="seo-usecase-grid">
+            <div><strong>Scanned contracts</strong><span>Fix individual pages that were scanned sideways.</span></div>
+            <div><strong>Invoices &amp; receipts</strong><span>Make business documents easier to review and archive.</span></div>
+            <div><strong>Study notes</strong><span>Correct photographed or scanned pages before sharing.</span></div>
+            <div><strong>Office forms</strong><span>Standardize mixed portrait and landscape pages.</span></div>
+          </div>
+        </div>
+
+        <div class="seo-section-block seo-trust-block">
+          <h3>Free PDF rotation without unnecessary steps</h3>
+          <p>There is no desktop software to install and no complicated PDF editor to learn. The page is designed around the task people actually came to complete: <strong>upload, inspect, rotate, and download.</strong></p>
+        </div>
+      </section>
+      ${renderToolFaq(tool, rotateFaq)}
+    `;
+  }
+
+  if (tool.id === 'crop') {
+    const cropFaq = [
+      { q: 'How do I crop a PDF?', a: 'Upload your PDF, adjust the crop area for the page, review the result, and create the cropped PDF.' },
+      { q: 'Can I remove PDF margins?', a: 'Yes. Cropping can remove unwanted white space or margins around the page content.' },
+      { q: 'Will cropping change the original PDF file?', a: 'No. The uploaded file is used to create a separate processed result; your original file is not edited in place.' },
+      { q: 'Can I crop a scanned PDF?', a: 'Yes. Cropping is useful for scanned documents, receipts, forms, screenshots, and other PDFs with extra page margins.' },
+    ];
+
+    return `
+      <section class="seo-content seo-content--tool seo-content--crop" aria-labelledby="crop-seo-heading">
+        <div class="seo-intro">
+          <span class="seo-kicker">PDF CROP TOOL</span>
+          <h2 id="crop-seo-heading">Crop PDF Online — Free, Fast &amp; Simple</h2>
+          <p><strong>Need to remove unwanted PDF margins?</strong> This online PDF crop tool helps you trim page edges and keep the content you actually need.</p>
+          <p>Crop scanned documents, forms, receipts, notes, screenshots, and other PDF pages before sharing, printing, or archiving them.</p>
+        </div>
+
+        <div class="seo-feature-grid">
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="crop"></i></span><div><h3>Trim unwanted page space</h3><p>Remove extra margins and empty areas around the useful content on your PDF pages.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="scan-search"></i></span><div><h3>Review before processing</h3><p>Use the page workflow to check the document before creating the final cropped PDF.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="printer"></i></span><div><h3>Prepare cleaner documents</h3><p>Crop pages before printing, presenting, sharing, or storing the finished document.</p></div></article>
+        </div>
+
+        <div class="seo-section-block seo-section-with-sticker">
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="crop"></i></span><div><span class="seo-section-kicker">STEP-BY-STEP</span><h3>How to crop a PDF online</h3></div></div>
+          <ol class="seo-steps">
+            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
+            <li><strong>Open the crop controls</strong> — review the page and identify the margins or areas you want to remove.</li>
+            <li><strong>Set the crop values</strong> — adjust the page edges according to the content you want to keep.</li>
+            <li><strong>Review the result</strong> — check that important text, images, and page content remain inside the crop area.</li>
+            <li><strong>Crop PDF</strong> — process the document and download the finished file.</li>
+          </ol>
+        </div>
+
+        <div class="seo-section-block seo-section-with-sticker">
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="scan-search"></i></span><div><span class="seo-section-kicker">CLEANER PAGES</span><h3>Why crop a PDF?</h3></div></div>
+          <ul class="seo-benefits">
+            <li><strong>Remove excess margins.</strong> Trim empty space around scanned or photographed pages.</li>
+            <li><strong>Focus the document.</strong> Keep attention on the content that matters.</li>
+            <li><strong>Improve print layout.</strong> Reduce unnecessary page space before printing.</li>
+            <li><strong>Clean up scans.</strong> Remove borders and surrounding areas from scanned paperwork.</li>
+          </ul>
+        </div>
+
+        <div class="seo-section-block seo-section-with-sticker">
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span><div><span class="seo-section-kicker">REAL-WORLD USE</span><h3>Common PDF cropping use cases</h3></div></div>
+          <div class="seo-usecase-grid">
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="file-scan"></i></span><strong>Scanned documents</strong><span>Remove scanner borders and excess white space.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="receipt-text"></i></span><strong>Receipts &amp; invoices</strong><span>Focus pages on the useful transaction details.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="clipboard-pen-line"></i></span><strong>Forms &amp; applications</strong><span>Trim unnecessary page areas before sharing.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="book-open"></i></span><strong>Study material</strong><span>Clean up photographed or scanned notes.</span></article>
+          </div>
+        </div>
+
+        <div class="seo-section-block seo-trust-block seo-section-with-sticker">
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span><div><span class="seo-section-kicker">SIMPLE WORKFLOW</span><h3>Crop PDF pages without unnecessary steps</h3></div></div>
+          <p>The workflow is built around a simple task: <strong>upload, adjust, review, and download.</strong> You can prepare a cleaner PDF without installing desktop software.</p>
+        </div>
+      </section>
+      ${renderToolFaq(tool, cropFaq)}
+    `;
+  }
+
+  // Generic SEO content for the other tools.
+  const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
+  const extra = (window.TOOL_CONTENT && window.TOOL_CONTENT[slug]) || null;
+
+  const benefitsBlock = extra ? `
+      <h3>Benefits of ${escapeHtml(tool.name)}</h3>
+      <ul class="seo-benefits">
+        ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n        ')}
+      </ul>` : '';
+
+  const useCasesBlock = extra ? `
+      <h3>Common use cases</h3>
+      <ul class="seo-usecases">
+        ${extra.useCases.map(uc => `<li><strong>${escapeHtml(uc.audience)}:</strong> ${uc.body}</li>`).join('\\n        ')}
+      </ul>` : '';
+
+  return `
+    <div class="seo-content">
+      <h2>${tool.name} Online — Free, Fast &amp; Secure</h2>
+      <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, instantly. No software to download, no account to create, no hidden fees.</p>
+      <p>Drag and drop your ${fileType} onto the upload area or click to browse. Files up to 100&nbsp;MB are supported. Once processing is complete, the file is deleted from our servers automatically — usually within seconds.</p>
+      <h3>How ${tool.name} works</h3>
+      <ol class="seo-steps">
+        <li><strong>Upload your file</strong> — drag &amp; drop or click the upload area.</li>
+        <li><strong>Preview &amp; configure</strong> — review your file and adjust any options.</li>
+        <li><strong>Process</strong> — click the Process button and wait a few seconds.</li>
+        <li><strong>Download</strong> — your file is ready instantly. We delete it shortly after.</li>
+      </ol>
+      ${benefitsBlock}
+      ${useCasesBlock}
+      <h3>Why choose ILovePDF?</h3>
+      <ul class="seo-why">
+        <li><strong>Fast.</strong> Most files are processed in seconds.</li>
+        <li><strong>Free.</strong> No watermark, no daily cap, no signup needed for files under 100&nbsp;MB.</li>
+        <li><strong>Secure.</strong> Processing follows the tool's configured processing path; see the site's privacy information for data handling details.</li>
+        <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
+      </ul>
+    </div>
+    ${extra && extra.faq && extra.faq.length ? renderToolFaq(tool, extra.faq) : ''}`;
+}
+function renderToolFaq(tool, faq) {
+  const items = faq.map(f => `
+      <details class="blog-faq-item">
+        <summary>${escapeHtml(f.q)}</summary>
+        <div class="blog-faq-answer"><p>${f.a}</p></div>
+      </details>`).join('');
+  // FAQ content remains visible and useful to visitors. Do not emit FAQPage
+  // structured data: Google retired FAQ rich results in May 2026.
+  return `
+    <section class="tool-faq" aria-label="Frequently asked questions">
+      <h2>Frequently asked questions about ${escapeHtml(tool.name)}</h2>
+      <div class="blog-faq-list">${items}</div>
+    </section>`;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── COMPRESS — single-page preview + tier-aware options ───────────────────
+// Free users get the strongest compression (~30% reduction, hard-coded).
+// Paid / logged-in users get a Low / Medium / High slider that maps to the
+// `level` option the backend route already understands.
+function isPaidUser() {
+  // Logged-in (any auth provider) is treated as "paid" for the compress
+  // slider gate. If a real billing tier exists later, swap this for a
+  // window.AuthUI.current().plan === 'pro' check.
+  try {
+    if (window.AuthUI && window.AuthUI.current) return !!window.AuthUI.current();
+    if (window.firebase?.auth) return !!window.firebase.auth().currentUser;
+  } catch (_) {}
+  return false;
+}
+
+function renderCompressOptionsHtml() {
+  // BUG-2 FIX: slider is now available to all users — no paid gate.
+  return `
+    <div class="options-section compress-options" data-compress-options="all">
+      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Level</div>
+      <div class="compress-slider-wrap">
+        <input type="range" min="0" max="2" step="1" value="1"
+               class="compress-slider" id="opt-level" />
+        <div class="compress-slider-labels">
+          <span data-lvl="0">Low<br><small>Best quality</small></span>
+          <span data-lvl="1" class="active">Medium<br><small>Recommended</small></span>
+          <span data-lvl="2">High<br><small>Smallest file</small></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Wire the slider's active-label tracking once the options HTML is in DOM.
+function wireCompressSlider() {
+  const slider = document.getElementById('opt-level');
+  if (!slider) return;
+  const labels = document.querySelectorAll('.compress-slider-labels [data-lvl]');
+  function paint() {
+    const v = String(slider.value);
+    labels.forEach((s) => s.classList.toggle('active', s.dataset.lvl === v));
+  }
+  slider.addEventListener('input', paint);
+  paint();
+}
+
+// Render a single-page thumbnail preview for the uploaded compress PDF.
+async function renderCompressPreview() {
+  const list = document.getElementById('files-list');
+  if (!list) return;
+  const entry = selectedFiles[0];
+  if (!entry) return;
+
+  // Mount/reuse the host element above the plain file row.
+  let host = document.getElementById('compress-preview-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'compress-preview-host';
+    list.parentNode.insertBefore(host, list);
+  }
+  host.innerHTML = `
+    <div class="compress-preview">
+      <div class="po-spinner" style="width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#E5322E;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <div class="compress-preview-meta">Reading <strong>${escapeHtml(entry.file.name)}</strong>…</div>
+    </div>`;
+
+  // Wire the slider regardless of preview success.
+  wireCompressSlider();
+
+  if (!window.PdfPreview) return;
+  let pdfDoc;
+  try {
+    pdfDoc = await window.PdfPreview.loadDocument(entry.file);
+    const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 280, 0);
+    canvas.classList.add('compress-preview-canvas');
+    host.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'compress-preview';
+    wrap.appendChild(canvas);
+    const meta = document.createElement('div');
+    meta.className = 'compress-preview-meta';
+    meta.innerHTML = `
+      <strong>${escapeHtml(entry.file.name)}</strong><br>
+      ${formatBytes(entry.file.size)} · ${pdfDoc.pageCount} page${pdfDoc.pageCount === 1 ? '' : 's'} · Showing page 1
+    `;
+    wrap.appendChild(meta);
+    host.appendChild(wrap);
+  } catch (err) {
+    host.innerHTML = `
+      <div class="compress-preview">
+        <div class="compress-preview-meta" style="color:#b91c1c">
+          Couldn't render a preview. Your file will still be compressed.
+        </div>
+      </div>`;
+  } finally {
+    try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
+  }
+}
+
+// Convert the slider value (0/1/2) into the level string the Express
+// /api/compress route forwards to the upstream processor.
+function readCompressLevel() {
+  // BUG-2 FIX: read actual slider value for all users.
+  const slider = document.getElementById('opt-level');
+  if (!slider) return 'medium';
+  const v = parseInt(slider.value, 10);
+  if (v === 0) return 'low';
+  if (v === 2) return 'high';
+  return 'medium';
+}
+
+// ── SPA NAVIGATION ─────────────────────────────────────────────────────────
+// Exposed so chrome.js (and any future code) can navigate to any tool without
+// a full page reload. Only meaningful when the tool.html shell is in the DOM.
+window.loadToolPage = function loadToolPage(path) {
+  const step = /\/preview\/?$/i.test(path)  ? 'preview'
+             : /\/download\/?$/i.test(path) ? 'download'
+             : 'upload';
+
+  const rawSlug = path
+    .replace(/^\/+/, '')
+    .replace(/\/(preview|download)\/?$/i, '')
+    .toLowerCase()
+    .split('?')[0]
+    .split('#')[0];
+
+  if (!rawSlug) { window.location.href = '/'; return; }
+
+  const slugMeta = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
+  if (slugMeta && slugMeta.special) {
+    window.location.href = slugMeta.special;
+    return;
+  }
+
+  const toolId = (slugMeta && slugMeta.id) ? slugMeta.id : rawSlug;
+  const tool   = (typeof TOOLS !== 'undefined') ? TOOLS.find(t => t.id === toolId) : null;
+
+  if (tool && tool.url && !path.startsWith(tool.url)) {
+    window.location.href = tool.url;
+    return;
+  }
+
+  // Reset in-progress state
+  selectedFiles = [];
+  if (pageOrganizer) { try { pageOrganizer.destroy(); } catch (_) {} pageOrganizer = null; }
+  Flow.result = null;
+  Flow.step   = step;
+
+  if (!tool) {
+    currentTool = null;
+    renderNotFound(toolId, rawSlug);
+    try { sessionStorage.removeItem('__tp_redir__'); } catch (_) {}
+    return;
+  }
+
+  currentTool = tool;
+  // Activate the selected logical module without eagerly loading its processor.
+  // The module registry is a boundary/contract layer; BrowserTools remains the
+  // lazy execution owner for browser-capable tools.
+  try {
+    if (window.ToolModuleRegistry) {
+      const moduleActivation = window.ToolModuleRegistry.activate(currentTool.id);
+      if (!moduleActivation.ok) {
+        console.warn('[ToolModuleRegistry] activation failed:', currentTool.id);
+      } else if (moduleActivation.module.capability === 'unavailable') {
+        console.warn('[ToolModuleRegistry] no browser processor is registered for:', currentTool.id);
+      }
+    }
+  } catch (_) {}
+  buildSidebar(currentTool.id);
+  setMetaForStep(Flow.step);
+  renderStep();
+  try { window.scrollTo(0, 0); } catch (_) {}
+  if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+};
