@@ -138,7 +138,16 @@ async function kernelHarness() {
     /images-to-pdf-item/.test(browserToolsSource) && /scan-to-pdf-item/.test(browserToolsSource) &&
     !/async function imagesToPdfWorker[\\s\\S]*Promise\.all/.test(browserToolsSource),
     'multi-image PDF adapters transfer one source buffer at a time');
-    assert('merge-stream-protocol', /merge-stream-start/.test(read('public/workers/pdf-lib-worker.js')) &&
+    assert('pdf-stream-bounded-assembly',
+    /_initStreamBuffer\(data\.totalSize \|\| 0\)/.test(read('public/workers/pdf-worker.js')) &&
+    /state\.buffer\.set\(bytes, state\.offset\)/.test(read('public/workers/pdf-worker.js')) &&
+    !/state\.chunks\.push\(data\.chunk\)/.test(read('public/workers/pdf-worker.js')),
+    'generic PDF chunk streaming assembles into one pre-sized worker buffer instead of retaining every chunk');
+  assert('pdf-runtime-no-input-size-gate',
+    !/wouldExceedLimit\(totalBytes \* 3|wouldExceedLimit\(totalBytes \* 2/.test(read('public/js/pdf-worker-runtime-factory.js')),
+    'PDF runtime does not reject jobs solely from input byte-size estimates');
+
+  assert('merge-stream-protocol', /merge-stream-start/.test(read('public/workers/pdf-lib-worker.js')) &&
     /merge-stream-item/.test(read('public/workers/pdf-lib-worker.js')) && /merge-stream-ack/.test(read('public/workers/pdf-lib-worker.js')) &&
     /merge-stream-finish/.test(read('public/workers/pdf-lib-worker.js')) && /merge-stream-ready/.test(read('public/js/merge-pdf-app.js')),
     'Merge PDF transfers one source ArrayBuffer at a time and waits for worker ACK');
