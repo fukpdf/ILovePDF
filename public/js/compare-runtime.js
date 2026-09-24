@@ -35,8 +35,8 @@
     // ── Adapter ─────────────────────────────────────────────────────────────
     adapterMode:   'worker',
     multiFile:     true,    // read ALL files (fileA + fileB) before dispatch
-    timeoutMs:     120000,  // 2 min — two PDFs to load + report to generate
-    workerTimeout: 120000,
+    timeoutMs: 0,  // 2 min — two PDFs to load + report to generate
+    workerTimeout: 0,
     timerOwner:    'cmrt-tick',
 
     // ── Dedup key: both file identities ──────────────────────────────────────
