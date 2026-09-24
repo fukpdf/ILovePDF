@@ -70,6 +70,7 @@
     '/workers/pdf-text-extract-worker.js',
     '/workers/pdf-content-extract-worker.js',
     '/workers/word-excel-worker.js',
+    '/workers/powerpoint-pdf-worker.js',
     '/workers/image-pipeline-worker.js',
     '/workers/image-tools-worker.js',
     '/workers/remove-bg-worker.js',
