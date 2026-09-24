@@ -198,7 +198,14 @@
   var _overrides = {};
 
   // ── Active tools registry ─────────────────────────────────────────────────
+  // Word-to-Excel currently executes through the browser processor on the main
+  // thread; do not advertise the family-level PDF worker set for this tool.
   var _active = {};
+  _overrides['word-to-excel'] = {
+    workers: [],
+    recoveryPolicy: 'isolate',
+    offlineCapable: true,
+  };
 
   // ── Build manifest for a toolId ───────────────────────────────────────────
   function _build(toolId) {
