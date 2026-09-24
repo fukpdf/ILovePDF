@@ -2,7 +2,8 @@
 (function (G) {
   'use strict';
   if (G.ClientProcessingKernel) return;
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
+  const DEFAULT_TIMEOUT = 120000;
   const DEFAULT_CHUNK = 2 * 1024 * 1024;
   const MAX_CHUNK = 8 * 1024 * 1024;
 
@@ -55,7 +56,15 @@
     return G.RuntimeWorkerFactory.spawn(workerUrl);
   }
 
+  function validateFile(file, options) {
+    if (!(file instanceof Blob)) throw new TypeError('A File/Blob is required');
+    const maxBytes = Number(options && options.maxBytes) || 0;
+    if (maxBytes > 0 && file.size > maxBytes) throw new Error('Input exceeds the configured client processing limit');
+  }
+
   async function processBuffer(workerUrl, file, options) {
+    validateFile(file, options || {});
+    const timeoutMs = Math.max(1000, Number(options && options.timeoutMs) || DEFAULT_TIMEOUT);
     assertClientOnly(options);
     const worker = createWorkerJob(workerUrl, options);
     const bytes = await file.arrayBuffer();
@@ -67,8 +76,11 @@
         try { worker.terminate(); } catch (_) {}
         fn(value);
       };
-      worker.onmessage = e => finish(resolve, e.data);
-      worker.onerror = e => finish(reject, new Error((e && e.message) || 'processing_worker_error'));
+      const timer = setTimeout(() => finish(reject, new Error('processing_worker_timeout')), timeoutMs);
+      const oldFinish = finish;
+      const finishWithTimer = (fn, value) => { clearTimeout(timer); oldFinish(fn, value); };
+      worker.onmessage = e => finishWithTimer(resolve, e.data);
+      worker.onerror = e => finishWithTimer(reject, new Error((e && e.message) || 'processing_worker_error'));
       worker.postMessage({ type: 'process-buffer', buffer: bytes }, [bytes]);
     });
   }
