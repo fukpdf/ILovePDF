@@ -108,7 +108,9 @@
     // Inline heap check fallback
     try {
       var mem = performance && performance.memory;
-      if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) throw new Error('memory_pressure');
+      if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) {
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('rotate:heap-pressure-advisory', { phase: phase }); } catch (_) {}
+      }
     } catch (e) {
       if (e.message === 'memory_pressure') throw e;
     }
@@ -170,7 +172,7 @@
     _currentToken = window.RuntimeCancellation
       ? window.RuntimeCancellation.createScopedToken('rotate-pdf', {
           label:     'rotate-pdf-run',
-          timeoutMs: 180000, // 3m hard cap (same as merge; rotate finishes faster)
+          timeoutMs: 0, // no artificial processing-time cutoff
         })
       : null;
 
