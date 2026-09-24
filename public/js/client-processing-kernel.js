@@ -2,12 +2,11 @@
 (function (G) {
   'use strict';
   if (G.ClientProcessingKernel) return;
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const DEFAULT_TIMEOUT = 120000;
   const DEFAULT_CHUNK = 2 * 1024 * 1024;
   const MAX_CHUNK = 8 * 1024 * 1024;
-  const DEFAULT_MAX_INPUT = 512 * 1024 * 1024;
-
+  
   function clampChunkSize(size) {
     const n = Number(size);
     if (!Number.isFinite(n)) return DEFAULT_CHUNK;
@@ -57,22 +56,15 @@
     return G.RuntimeWorkerFactory.spawn(workerUrl);
   }
 
-  function maxInputBytes(options) {
-    const p = deviceProfile();
-    const explicit = Number(options && options.maxBytes);
-    if (explicit > 0) return Math.min(explicit, DEFAULT_MAX_INPUT);
-    // Keep a conservative admission ceiling because PDF/image engines can
-    // transiently hold decoded buffers several times larger than the file.
-    if (p.memoryGB <= 1) return 64 * 1024 * 1024;
-    if (p.memoryGB <= 2) return 128 * 1024 * 1024;
-    if (p.memoryGB <= 4) return 256 * 1024 * 1024;
-    return DEFAULT_MAX_INPUT;
+  function maxInputBytes() {
+    // Processing is intentionally not capped by file size. This function is
+    // retained as an observability hook; memory safety is handled by adaptive
+    // chunking, worker concurrency and backpressure rather than hard rejection.
+    return Infinity;
   }
 
-  function validateFile(file, options) {
+  function validateFile(file) {
     if (!(file instanceof Blob)) throw new TypeError('A File/Blob is required');
-    const maxBytes = maxInputBytes(options || {});
-    if (file.size > maxBytes) throw new Error('Input exceeds the client device processing limit');
   }
 
   async function processBuffer(workerUrl, file, options) {
