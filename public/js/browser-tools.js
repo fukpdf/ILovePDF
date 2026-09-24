@@ -3950,11 +3950,7 @@
     return blob;
   }
 
-  // ── DISPATCH TABLE ───────────────────────────────────────────────────────
-  // Each handler returns either a Blob (PDF, default ext) OR an object
-  // { blob, ext, mime } when the output format isn't .pdf.
-  const HANDLERS = {
-    async function scanPdfWorker(files, opts) {
+  async function scanPdfWorker(files, opts) {
     opts = opts || {};
     if (opts.outputFormat && opts.outputFormat !== 'pdf') return scanPdf(files, opts);
     const worker = RuntimeWorkerFactory.spawn('/workers/scan-pdf-worker.js');
@@ -3973,6 +3969,11 @@
     } finally { try{worker.terminate();}catch(_){} }
   }
 
+
+  // ── DISPATCH TABLE ───────────────────────────────────────────────────────
+  // Each handler returns either a Blob (PDF, default ext) OR an object
+  // { blob, ext, mime } when the output format isn't .pdf.
+  const HANDLERS = {
   // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdfWorker,
     'pdf-to-jpg':    pdfToJpgWorker,
