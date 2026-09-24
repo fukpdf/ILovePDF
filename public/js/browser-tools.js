@@ -4300,11 +4300,9 @@
     'word-to-excel':      wordToExcel,
     'html-to-pdf':        htmlToPdf,
     // ── Phase 2 ───────────────────────────────────────────────────────────
-    'edit':               editPdf,
     // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
-    'compare':            comparePdf,
     // ── Phase 4 ───────────────────────────────────────────────────────────
     'ocr':                ocrPdf,
     'background-remover': backgroundRemover,
@@ -4323,7 +4321,7 @@
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
     'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
-    'page-numbers', 'watermark', 'repair', 'redact', 'edit',
+    'page-numbers', 'watermark', 'repair', 'redact', 'edit', 'compare',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
