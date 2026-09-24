@@ -31,6 +31,7 @@ const OPS = {};
 // opts: { x, y, width, height } — all 0-100 percentages of source dimensions
 OPS['crop-image'] = async function (buffer, mime, opts) {
   const blob   = new Blob([buffer], { type: mime });
+  buffer = null;
   const bmp    = await createImageBitmap(blob);
   const srcW   = bmp.width, srcH = bmp.height;
 
@@ -52,6 +53,8 @@ OPS['crop-image'] = async function (buffer, mime, opts) {
   const om   = outMime(mime);
   const blob2 = await canvas.convertToBlob({ type: om, quality: 0.92 });
   const buf   = await blob2.arrayBuffer();
+  canvas.width = 0;
+  canvas.height = 0;
   return { buffer: buf, mime: om, ext: extFromMime(om) };
 };
 
@@ -60,6 +63,7 @@ OPS['crop-image'] = async function (buffer, mime, opts) {
 // presets: '1:1', '16:9', 'a4', 'hd', 'thumb'
 OPS['resize-image'] = async function (buffer, mime, opts) {
   const blob = new Blob([buffer], { type: mime });
+  buffer = null;
   const bmp  = await createImageBitmap(blob);
   const srcW = bmp.width, srcH = bmp.height;
 
