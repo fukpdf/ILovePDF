@@ -11,15 +11,12 @@
   var _inFlight   = false;
   var _jobId      = 0;
   var _worker     = null;
-  var _hardTimer  = null;
-  var _hardReject = null;
 
   function _log(m, d)  { console.debug(TAG, m, d !== undefined ? d : ''); }
   function _warn(m, d) { console.warn(TAG,  m, d !== undefined ? d : ''); }
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
     if (_worker)    { try { _worker.terminate(); } catch (_) {} _worker = null; }
     _inFlight = false;
   }
@@ -31,14 +28,7 @@
       catch (e) { return reject(new Error(TAG + ' worker spawn failed: ' + (e.message || e))); }
       _worker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _worker = null;
-        reject(new Error('Split worker timed out.'));
-      }, WORKER_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _worker = null;
         var d = ev.data || {};
@@ -79,14 +69,6 @@
 
     var onStep = _step();
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _cleanup('hard-timeout');
-        reject(new Error('Split timed out. Please try with a smaller file.'));
-      }, HARD_LIMIT_MS);
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Reading file\u2026');
       var buf = await file.arrayBuffer();
@@ -107,7 +89,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       _warn('error', { job: jobId, err: err && err.message });
       throw err;
