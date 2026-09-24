@@ -120,3 +120,14 @@ Implemented on `phase-4-unit-9-runtime-manifest-contract`.
 - The richer runtime manifest remains responsible for family-level hydration, worker, memory, recovery, offline, thermal, and analytics policy; it no longer operates with an unverified tool-identity universe.
 - Phase 4 CI audits the one-to-one identity contract and registry-count parity.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
+
+
+## Unit 10 — Runtime config manifest contract
+
+Implemented on `phase-4-unit-10-config-contract`.
+
+- `RuntimeToolConfigLock` now validates each tool's locked runtime fields against `RuntimeToolManifestRegistry` before creating an immutable config snapshot.
+- Contract coverage includes family, hydration tier, memory budget, recovery policy, thermal policy, and offline capability.
+- Contract failures are blocked, audited, and exposed through lightweight diagnostics instead of allowing silent cross-layer drift.
+- The existing runtime loader remains the activation path: manifest data feeds the config lock, and the lock enforces parity before accepting the configuration.
+- No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
