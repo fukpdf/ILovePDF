@@ -55,6 +55,9 @@ jobs:
       - name: Runtime consistency audit
         run: npm run audit:runtime
 
+      - name: Phase 3 security + file lifecycle audit
+        run: npm run audit:phase3
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
