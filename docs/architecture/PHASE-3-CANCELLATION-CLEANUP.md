@@ -33,3 +33,11 @@ This is a deterministic source/contract and PDF-engine harness. Browser E2E, rea
 - `public/js/processing-experience.js` provides rotating friendly processing copy with slower cadence on low-capability devices.
 - The processing experience must remain informational and non-blocking; actual progress/state remains authoritative.
 - Cartoon/illustration presentation is a UI layer and should be added per tool without coupling it to processing engines.
+
+## Large multi-file ingestion
+
+The image-to-PDF and scan-to-PDF adapters now use an incremental start/item/ack/finish protocol. Each source file is read and transferred only when the worker acknowledges the previous item, so the browser does not construct an aggregate `ArrayBuffer[]` for these workflows. The worker retains only its document state plus the current transferred input while pages are appended.
+
+The generic `pdf-worker.js` contract still accepts an atomic `buffers[]` payload for legacy pure-pdf-lib operations. It is intentionally not changed to a fake sequential loop: multi-file operations need operation-specific append/ack semantics to preserve merge/split/organize behavior. Those operations remain a migration target rather than silently changing their semantics.
+
+This does not introduce a product file-size or page-count limit. Device capability should continue to influence pacing/concurrency, while operation-specific security guards (such as archive/pixel safety) remain separate from product admission policy.
