@@ -1855,8 +1855,6 @@ async function tryWithRetry(toolId, files, opts) {
       const m = (err && err.message) || '';
       // Don't retry terminal / user-correctable conditions
       if (
-        m === 'file_too_large_for_browser' ||
-        m === 'memory_pressure' ||
         m === 'No files provided' ||
         m.startsWith('Please enter') ||
         m.startsWith('Please upload') ||
