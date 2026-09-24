@@ -4197,6 +4197,72 @@
     return { ok: true };
   }
 
+  // Generic merge adapter: bounded one-file-at-a-time ingestion for callers that
+  // reach browser-tools directly instead of the dedicated merge UI.
+  async function _runStreamingMergeWorker(files, opts) {
+    if (!files || !files.length) throw new Error('No files supplied');
+    const worker = _spawnProcessingWorker('/workers/pdf-lib-worker.js');
+    const jobId = 'merge-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    let timer = null;
+    let settled = false;
+    let index = 0;
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const finish = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          fn(value);
+        };
+        const arm = () => {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => finish(reject, new Error('Merge worker timed out. Please retry the operation.')), 180000);
+        };
+        worker.onmessage = async (event) => {
+          const data = event.data || {};
+          if (data.__error || data.type === 'merge-stream-error') {
+            finish(reject, new Error(data.__error || 'Merge worker failed'));
+            return;
+          }
+          if (data.type === 'merge-stream-ready') {
+            arm();
+            await sendNext();
+            return;
+          }
+          if (data.type === 'merge-stream-ack') {
+            arm();
+            await sendNext();
+            return;
+          }
+          if (data.type === 'merge-stream-done') {
+            finish(resolve, data.buffer);
+          }
+        };
+        worker.onerror = () => finish(reject, new Error('Merge worker failed'));
+        const sendNext = async () => {
+          if (settled) return;
+          if (index >= files.length) {
+            worker.postMessage({ op: 'merge-stream-finish', jobId });
+            arm();
+            return;
+          }
+          const file = files[index];
+          const buffer = await file.arrayBuffer();
+          const current = index++;
+          worker.postMessage({ op: 'merge-stream-item', index: current, jobId, buffer }, [buffer]);
+          arm();
+        };
+        worker.postMessage({ op: 'merge-stream-start', count: files.length, jobId });
+        arm();
+      });
+      if (!(result instanceof ArrayBuffer) || result.byteLength === 0) throw new Error('Merge worker produced no output');
+      return { buffer: result };
+    } finally {
+      if (timer) clearTimeout(timer);
+      try { worker.terminate(); } catch (_) {}
+    }
+  }
+
   async function process(toolId, files, options) {
     const fn = HANDLERS[toolId];
     if (!fn && !WORKER_TOOLS.has(toolId)) throw new Error(`No client-side handler for ${toolId}`);
@@ -4226,11 +4292,22 @@
       }
       const pool = await loadWorkerPool();
       const fileName = files[0].name;
-      // Dedicated multi-file streaming protocols are used by image/scan workers.
-      // The generic pdf-worker contract still consumes its declared buffers[]
-      // payload atomically; keep that contract intact until each operation gets
-      // an engine-level append/ack protocol rather than risking semantic changes.
-      const buffers = await Promise.all(Array.from(files).map(f => f.arrayBuffer()));
+      // Merge has an engine-level append/ack protocol, so never aggregate all
+      // input ArrayBuffers in browser memory. Other generic PDF operations remain
+      // on their existing atomic contract until they gain equivalent append semantics.
+      if (toolId === 'merge') {
+        const streamed = await _runStreamingMergeWorker(files, options || {});
+        if (!streamed || !streamed.buffer) throw new Error('worker_processing_failed');
+        const blob = new Blob([streamed.buffer], { type: 'application/pdf' });
+        const workerResultObj = { blob, filename: brandedFilename(fileName, '.pdf') };
+        const workerValidation = await validateOutput(toolId, workerResultObj);
+        if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
+        return workerResultObj;
+      }
+      const buffers = [];
+      for (const file of Array.from(files)) {
+        buffers.push(await file.arrayBuffer());
+      }
       const workerResult = await pool.run(
         '/workers/pdf-worker.js',
         { tool: toolId, buffers, options: options || {} },
