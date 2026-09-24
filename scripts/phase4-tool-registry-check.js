@@ -34,22 +34,29 @@ if (!registry || registry.schemaVersion !== 1 || !Array.isArray(registry.tools))
   }
 }
 
-const configIds = [];
-const configIdRe = /\bid:\s*'([^']+)'/g;
-let m;
-while ((m = configIdRe.exec(config))) configIds.push(m[1]);
-unique(configIds, 'tools-config id');
+const toolsBlock = config.match(/const TOOLS\s*=\s*\[([\s\S]*?)\n\];/);
+if (!toolsBlock) {
+  fail('TOOLS block not found.');
+} else {
+  const configIds = [];
+  const configIdRe = /^\s{2,4}id:\s*'([^']+)'/gm;
+  let m;
+  while ((m = configIdRe.exec(toolsBlock[1]))) configIds.push(m[1]);
+  unique(configIds, 'tools-config tool id');
+
+  const registryIds = new Set((registry.tools || []).map(t => t.id));
+  const configIdSet = new Set(configIds);
+  for (const id of registryIds) if (!configIdSet.has(id)) fail('Registry tool missing from tools-config: ' + id);
+  for (const id of configIdSet) if (!registryIds.has(id)) fail('tools-config tool missing from registry: ' + id);
+}
 
 const registryIds = new Set((registry.tools || []).map(t => t.id));
-const configIdSet = new Set(configIds);
-for (const id of registryIds) if (!configIdSet.has(id)) fail('Registry tool missing from tools-config: ' + id);
-for (const id of configIdSet) if (!registryIds.has(id)) fail('tools-config tool missing from registry: ' + id);
-
 const slugBlock = config.match(/window\.SLUG_MAP\s*=\s*\{([\s\S]*?)\n\};/);
 if (!slugBlock) fail('SLUG_MAP block not found.');
 else {
   const mapIds = [];
   const mapRe = /'([^']+)'\s*:\s*\{\s*id:\s*'([^']+)'/g;
+  let m;
   while ((m = mapRe.exec(slugBlock[1]))) mapIds.push(m[2]);
   unique(mapIds, 'SLUG_MAP id');
   for (const id of mapIds) if (!registryIds.has(id)) fail('SLUG_MAP id missing from registry: ' + id);
@@ -61,7 +68,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log('[PASS] registry schema + required fields');
-  console.log('[PASS] unique IDs and slugs');
+  console.log('[PASS] unique tool IDs');
   console.log('[PASS] tools-config ↔ registry identity reconciliation');
   console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
   console.log('\nPhase 4 Unit 1 registry gate: PASS (' + registry.tools.length + ' tools)');
