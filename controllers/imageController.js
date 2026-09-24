@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import fs from 'fs';
 import { cleanupFiles } from '../utils/cleanup.js';
+import { validateOutputBuffer } from '../utils/output-validator.js';
 
 const ALLOWED_IMAGE_FORMATS = new Set(['jpeg', 'jpg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif', 'heif']);
 const MAX_PIXELS = 50_000_000;
@@ -26,10 +27,16 @@ async function validateImageBuffer(buffer) {
   return meta;
 }
 
-function sendImage(res, buffer, mimeType, filename) {
-  res.setHeader('Content-Type', mimeType);
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(buffer);
+async function sendImage(res, buffer, mimeType, filename) {
+  try {
+    await validateOutputBuffer(buffer, mimeType);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('[output-validation] Image rejected:', filename, err.reason || err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Generated image failed structural validation.' });
+  }
 }
 
 export async function backgroundRemove(req, res) {
@@ -88,7 +95,7 @@ export async function cropImage(req, res) {
     if (safeW <= 0 || safeH <= 0) return res.status(400).json({ error: 'Crop region is outside image bounds.' });
     const result = await sharp(buffer).extract({ left, top, width: safeW, height: safeH }).toBuffer();
     const ext = meta.format === 'jpeg' || meta.format === 'jpg' ? 'jpg' : 'png';
-    cleanupFiles(req.file); sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-crop.${ext}`);
+    cleanupFiles(req.file); await sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-crop.${ext}`);
   } catch (err) { cleanupFiles(req.file); res.status(err.status || 500).json({ error: err.message }); }
 }
 
@@ -110,7 +117,7 @@ export async function resizeImage(req, res) {
     if (targetW * targetH > MAX_PIXELS) return res.status(413).json({ error: `Requested output exceeds ${MAX_PIXELS / 1e6} MP.` });
     const result = await sharp(buffer).resize(targetW, targetH, { fit: fitMode, withoutEnlargement: false }).toBuffer();
     const ext = meta.format === 'jpeg' || meta.format === 'jpg' ? 'jpg' : 'png';
-    cleanupFiles(req.file); sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-resize.${ext}`);
+    cleanupFiles(req.file); await sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-resize.${ext}`);
   } catch (err) { cleanupFiles(req.file); res.status(err.status || 500).json({ error: err.message }); }
 }
 
@@ -133,6 +140,6 @@ export async function applyFilters(req, res) {
     }
     const result = await pipeline.toBuffer();
     const ext = meta.format === 'jpeg' || meta.format === 'jpg' ? 'jpg' : 'png';
-    cleanupFiles(req.file); sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-filter-${filter}.${ext}`);
+    cleanupFiles(req.file); await sendImage(res, result, ext === 'jpg' ? 'image/jpeg' : 'image/png', `ilovepdf-filter-${filter}.${ext}`);
   } catch (err) { cleanupFiles(req.file); res.status(err.status || 500).json({ error: err.message }); }
 }
