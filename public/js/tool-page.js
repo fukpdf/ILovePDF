@@ -2435,6 +2435,22 @@ function attachDownloadBurst(scope) {
       const wrap = btn.closest('.dl-pulse');
       if (wrap) wrap.classList.add('dl-fired');
       // Don't preventDefault — the actual download must still fire.
+      // Cleanup is deliberately delayed so the browser has time to start the
+      // download, then removes only this tool's temporary source/result state.
+      try {
+        if (window.ToolState && currentTool) {
+          const slug = Flow.baseSlug();
+          setTimeout(() => {
+            try {
+              if (window.ToolState.clearAfterDelivery) {
+                window.ToolState.clearAfterDelivery(slug);
+              } else {
+                window.ToolState.clear(slug);
+              }
+            } catch (_) {}
+          }, 5000);
+        }
+      } catch (_) {}
     });
   });
 }
