@@ -40,6 +40,39 @@ function parseRange(str, total) {
 
 const OPS = {};
 
+let mergeDoc = null;
+let mergeCount = 0;
+let mergeIndex = 0;
+
+async function mergeStartJob(count) {
+  mergeDoc = await PDFDocument.create();
+  mergeCount = Math.max(0, Number(count) || 0);
+  mergeIndex = 0;
+}
+
+async function mergeAppend(buffer) {
+  if (!(buffer instanceof ArrayBuffer)) throw new Error('merge-stream-item requires ArrayBuffer');
+  if (!mergeDoc) throw new Error('merge-stream-start required');
+  const src = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const indices = src.getPageIndices();
+  const copied = await mergeDoc.copyPages(src, indices);
+  copied.forEach(function (page) { mergeDoc.addPage(page); });
+  mergeIndex++;
+}
+
+async function mergeFinish() {
+  if (!mergeDoc) throw new Error('merge-stream-start required');
+  if (mergeCount > 0 && mergeIndex !== mergeCount) throw new Error('merge-stream-count-mismatch');
+  if (mergeDoc.getPageCount() === 0) throw new Error('No readable pages found in the provided files');
+  const out = await mergeDoc.save({ useObjectStreams: true });
+  mergeDoc = null;
+  mergeCount = 0;
+  mergeIndex = 0;
+  return toAB(out);
+}
+
+
+
 OPS.merge = async function (buffers) {
   const out = await PDFDocument.create();
   for (const buf of buffers) {
