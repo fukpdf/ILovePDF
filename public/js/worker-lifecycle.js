@@ -37,6 +37,7 @@
   var _tabHidden = false;
   var _processingControllers = new Set();
   var _activeProcessingTokens = new Set();
+  var _processingWorkers = new Set();
 
   // ── Token factory — mirrors WorkerPool.CancelToken but nav-aware ──────────
   function NavToken() {
@@ -211,6 +212,17 @@
     return function () { _processingControllers.delete(controller); };
   }
 
+  function registerProcessingWorker(worker) {
+    if (!worker || typeof worker.terminate !== 'function') return function () {};
+    _processingWorkers.add(worker);
+    return function () { _processingWorkers.delete(worker); };
+  }
+
+  function _terminateProcessingWorkers() {
+    _processingWorkers.forEach(function (worker) { try { worker.terminate(); } catch (_) {} });
+    _processingWorkers.clear();
+  }
+
   function registerProcessingToken(token) {
     if (!token || typeof token.cancel !== 'function') return function () {};
     _activeProcessingTokens.add(token);
@@ -218,6 +230,7 @@
   }
 
   function _cancelActiveProcessing(reason) {
+    _terminateProcessingWorkers();
     _processingControllers.forEach(function (controller) { try { controller.abort(reason || 'cancelled'); } catch (_) {} });
     _processingControllers.clear();
     _activeProcessingTokens.forEach(function (token) { try { token.cancel(reason || 'cancelled'); } catch (_) {} });
@@ -357,6 +370,8 @@
     dispatch:        dispatchToPool,
     cancelAllTokens: _cancelAllNavTokens,
     registerProcessingController: registerProcessingController,
+    registerProcessingWorker: registerProcessingWorker,
+    terminateProcessingWorkers: _terminateProcessingWorkers,
     registerProcessingToken: registerProcessingToken,
     cancelActiveProcessing: _cancelActiveProcessing,
     getStats:        getStats,
