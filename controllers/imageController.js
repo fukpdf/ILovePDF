@@ -73,7 +73,7 @@ export async function backgroundRemove(req, res) {
     }
     const result = await sharp(Buffer.from(pixels), { raw: { width, height, channels: 4 } }).png({ compressionLevel: 6 }).toBuffer();
     cleanupFiles(req.file);
-    sendImage(res, result, 'image/png', 'ilovepdf-bg-removed.png');
+    await sendImage(res, result, 'image/png', 'ilovepdf-bg-removed.png');
   } catch (err) {
     cleanupFiles(req.file);
     res.status(err.status || 500).json({ error: err.message });
