@@ -103,7 +103,7 @@
     var priority = opts.priority || 'normal';
     var token    = opts.token    || null;
     var dedupeKey = opts.dedupeKey || null;
-    var timeoutMs = opts.timeoutMs || 120000;
+    var timeoutMs = (typeof opts.timeoutMs === 'number') ? opts.timeoutMs : 120000;
 
     // Deduplication
     if (dedupeKey) {
@@ -207,6 +207,18 @@
 
     // Timeout race — tid is cleared when taskP wins so no dangling fire
     var _tid = null;
+    // timeoutMs === 0 explicitly disables the execution watchdog.
+    // Cancellation tokens, pagehide handling, worker errors, and memory
+    // controls remain active; there is no artificial file-size/time cutoff.
+    if (timeoutMs <= 0) {
+      return taskP.then(function (result) {
+        if (window.WorkerLeakDetector && window.WorkerLeakDetector.pulse) {
+          try { window.WorkerLeakDetector.pulse(url); } catch (_) {}
+        }
+        return result;
+      });
+    }
+
     var timeoutP = new Promise(function (_, reject) {
       _tid = setTimeout(function () {
         _tid = null;
@@ -218,9 +230,7 @@
 
     return Promise.race([
       taskP.then(function (result) {
-        // Clear timeout so it never fires on an already-complete task
         if (_tid !== null) { clearTimeout(_tid); _tid = null; }
-        // Auto-pulse WorkerLeakDetector: marks this worker as alive
         if (window.WorkerLeakDetector && window.WorkerLeakDetector.pulse) {
           try { window.WorkerLeakDetector.pulse(url); } catch (_) {}
         }
