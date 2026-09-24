@@ -9,54 +9,43 @@
   let loadError = null;
   let loading = null;
 
+  function freezeEntry(tool) {
+    const entry = { ...tool };
+    if (Array.isArray(entry.dependencies)) entry.dependencies = Object.freeze(entry.dependencies.slice());
+    if (entry.capabilities && typeof entry.capabilities === 'object') {
+      entry.capabilities = Object.freeze({ ...entry.capabilities });
+    }
+    return Object.freeze(entry);
+  }
+
   function normalize(data) {
     if (!data || data.schemaVersion !== 1 || !Array.isArray(data.tools)) {
       throw new Error('Invalid tool registry payload');
     }
     const byId = new Map();
     const bySlug = new Map();
+    const frozenTools = [];
     for (const tool of data.tools) {
       if (!tool || typeof tool.id !== 'string' || typeof tool.slug !== 'string') {
         throw new Error('Invalid tool registry entry');
       }
       if (byId.has(tool.id) || bySlug.has(tool.slug)) throw new Error('Duplicate tool registry identity');
-      byId.set(tool.id, Object.freeze({ ...tool }));
-      bySlug.set(tool.slug, Object.freeze({ ...tool }));
+      const entry = freezeEntry(tool);
+      frozenTools.push(entry);
+      byId.set(entry.id, entry);
+      bySlug.set(entry.slug, entry);
     }
-    return Object.freeze({ schemaVersion: data.schemaVersion, generatedFrom: data.generatedFrom, tools: Object.freeze(data.tools.slice()), byId, bySlug });
+    return Object.freeze({ schemaVersion: data.schemaVersion, generatedFrom: data.generatedFrom, tools: Object.freeze(frozenTools), byId, bySlug });
   }
 
-  async function load() {
-    if (registry) return registry;
-    if (loading) return loading;
-    loading = fetch(ENDPOINT, { credentials: 'omit', cache: 'no-store' })
-      .then(function (response) {
-        if (!response.ok) throw new Error('Tool registry HTTP ' + response.status);
-        return response.json();
-      })
-      .then(function (data) {
-        registry = normalize(data);
-        G.ToolRegistry = api;
-        G.dispatchEvent(new CustomEvent('ilovepdf:tool-registry-ready'));
-        // Unit 3: activate the registry-driven execution policy only after
-        // the authoritative registry is valid. BrowserTools remains the
-        // processor implementation; policy owns the allowed execution mode.
-        try {
-          if (!document.querySelector('script[data-tool-execution-policy]')) {
-            const s = document.createElement('script');
-            s.src = '/js/tool-execution-policy.js';
-            s.async = true;
-            s.dataset.toolExecutionPolicy = '1';
-            document.head.appendChild(s);
-          }
-        } catch (_) {}
-        return registry;
-      })
-      .catch(function (error) {
-        loadError = error;
-        throw error;
-      });
-    return loading;
+  function health() {
+    return {
+      ready: !!registry,
+      endpoint: ENDPOINT,
+      toolCount: registry ? registry.tools.length : 0,
+      schemaVersion: registry ? registry.schemaVersion : null,
+      error: loadError ? String(loadError.message || loadError) : null
+    };
   }
 
   function get(id) { return registry ? registry.byId.get(id) || null : null; }
@@ -81,7 +70,7 @@
     });
   }
 
-  const api = Object.freeze({ load, get, getBySlug, list, isReady, error, mergeLegacy, endpoint: ENDPOINT });
+  const api = Object.freeze({ load, get, getBySlug, list, isReady, error, health, mergeLegacy, endpoint: ENDPOINT });
   G.ToolRegistry = api;
   G.ToolRegistryReady = load().catch(function () { return null; });
 })(window);
