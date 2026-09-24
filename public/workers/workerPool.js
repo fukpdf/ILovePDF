@@ -311,17 +311,10 @@
         var pool = pools[url];
         pool.slots.forEach(function (slot) {
           if (slot.busy && (now - slot.lastActive) > TIMEOUT_MS) {
-            // Stuck worker — force settle with timeout error, then respawn
-            try { slot.worker.terminate(); } catch (_) {}
-            settle(pool, slot, new Error('Worker heartbeat timeout'), null);
-            var fresh = spawnWorker(pool.url);
-            if (fresh) {
-              slot.worker    = fresh;
-              slot.crashes   = 0;
-              slot.taskCount = 0;
-              slot.lastActive = Date.now();
-              attachHandlers(pool, slot);
-            }
+            // Stuck worker — terminate first, reject the task, then attach a fresh
+            // worker. This prevents a timed-out worker from being reused.
+            slot.crashes = 0;
+            terminateCurrent(pool, slot, new Error('Worker heartbeat timeout'), true);
           }
         });
 
