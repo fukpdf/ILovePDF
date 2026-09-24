@@ -84,6 +84,12 @@ const toolShell = read('public/tool.html');
 if (!/src="\/js\/tool-registry-runtime\.js" defer/.test(toolShell)) fail('tool.html does not load the runtime registry before tool-page.js.');
 
 
+// Unit 5 registry-routing authority checks.
+if (!/const registryMeta = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page popstate routing is not registry-backed.');
+if (!/const registryTool = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page initial routing is not registry-backed after readiness.');
+if (!/const authoritativeId = registryTool \? registryTool\.id : toolId/.test(toolPage)) fail('tool-page does not use registry identity as authoritative.');
+if (!/ToolRegistry\.getBySlug\(rawSlug\)/.test(toolPage)) fail('SPA routing does not resolve tool slugs through the registry.');
+
 // Unit 4 adaptive streaming checks: large worker-safe jobs must have an
 // adaptive streaming capability and the browser processor must route those
 // jobs through RuntimeStreamBridge without imposing a size/page rejection.

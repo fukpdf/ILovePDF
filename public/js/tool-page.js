@@ -235,8 +235,11 @@ function stepFromPath() {
 window.addEventListener('popstate', () => {
   const path    = window.location.pathname;
   const rawSlug = path.replace(/^\/+/, '').replace(/\/(preview|download)\/?$/i, '').toLowerCase().split('?')[0].split('#')[0];
+  const registryMeta = (window.ToolRegistry && window.ToolRegistry.isReady())
+    ? window.ToolRegistry.getBySlug(rawSlug) || window.ToolRegistry.get(rawSlug)
+    : null;
   const meta    = window.SLUG_MAP && window.SLUG_MAP[rawSlug];
-  const toolId  = (meta && meta.id) ? meta.id : rawSlug;
+  const toolId  = registryMeta ? registryMeta.id : ((meta && meta.id) ? meta.id : rawSlug);
 
   if (currentTool && currentTool.id === toolId) {
     Flow.step = stepFromPath();
@@ -312,7 +315,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (safeRedirect(slugMeta.special)) return;
   }
 
-  const legacyTool = TOOLS.find(t => t.id === toolId);
+  // Unit 5: resolve identity from the authoritative registry after its readiness barrier.
+  // TOOLS remains UI/detail compatibility data only.
+  const pathSlug = slug.replace(/\/(preview|download)$/i, '');
+  const registryTool = (window.ToolRegistry && window.ToolRegistry.isReady())
+    ? (window.ToolRegistry.getBySlug(pathSlug) || window.ToolRegistry.get(toolId))
+    : null;
+  const authoritativeId = registryTool ? registryTool.id : toolId;
+  const legacyTool = TOOLS.find(t => t.id === authoritativeId);
   currentTool = (window.ToolRegistry && window.ToolRegistry.isReady())
     ? window.ToolRegistry.mergeLegacy(legacyTool)
     : legacyTool;
