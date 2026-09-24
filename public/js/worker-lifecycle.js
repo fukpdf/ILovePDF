@@ -35,6 +35,8 @@
 
   // Track whether the tab is currently hidden (for concurrency reduction)
   var _tabHidden = false;
+  var _processingControllers = new Set();
+  var _activeProcessingTokens = new Set();
 
   // ── Token factory — mirrors WorkerPool.CancelToken but nav-aware ──────────
   function NavToken() {
@@ -203,6 +205,25 @@
   // or navigation occurs. Pass as opts.navToken to create().
   var _activeNavTokens = [];
 
+  function registerProcessingController(controller) {
+    if (!controller || typeof controller.abort !== 'function') return function () {};
+    _processingControllers.add(controller);
+    return function () { _processingControllers.delete(controller); };
+  }
+
+  function registerProcessingToken(token) {
+    if (!token || typeof token.cancel !== 'function') return function () {};
+    _activeProcessingTokens.add(token);
+    return function () { _activeProcessingTokens.delete(token); };
+  }
+
+  function _cancelActiveProcessing(reason) {
+    _processingControllers.forEach(function (controller) { try { controller.abort(reason || 'cancelled'); } catch (_) {} });
+    _processingControllers.clear();
+    _activeProcessingTokens.forEach(function (token) { try { token.cancel(reason || 'cancelled'); } catch (_) {} });
+    _activeProcessingTokens.clear();
+  }
+
   function createNavToken() {
     var tok = NavToken();
     _activeNavTokens.push(tok);
@@ -225,6 +246,7 @@
   // Existing workers continue running — no forced termination.
   function _onHide() {
     _tabHidden = true;
+    _cancelActiveProcessing('tab-hidden');
     if (window.StabilityMetrics) {
       try { window.StabilityMetrics.recordEvent('wl-tab-hidden:workers-' + _countAlive()); } catch (_) {}
     }
@@ -243,6 +265,7 @@
   // On pagehide: cancel all nav tokens (triggers release of all workers
   // created via createNavToken). Then forcibly release any remaining.
   window.addEventListener('pagehide', function () {
+    _cancelActiveProcessing('pagehide');
     _cancelAllNavTokens('pagehide');
     // Release any workers not covered by a nav token
     _registry.forEach(function (meta, worker) {
@@ -333,6 +356,9 @@
     createNavToken:  createNavToken,
     dispatch:        dispatchToPool,
     cancelAllTokens: _cancelAllNavTokens,
+    registerProcessingController: registerProcessingController,
+    registerProcessingToken: registerProcessingToken,
+    cancelActiveProcessing: _cancelActiveProcessing,
     getStats:        getStats,
   };
 
