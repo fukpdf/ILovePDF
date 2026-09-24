@@ -29,7 +29,7 @@
   const NEUTRAL_ERR = 'Processing is taking longer than usual. Please wait or try again later.';
 
   const POLL_MS    = 1500;                  // 1.5 s — instant feedback
-  const MAX_WAIT_MS = 10 * 60 * 1000;       // 10 minutes ceiling
+  const MAX_WAIT_MS = 0;                    // 0 = no artificial processing ceiling
 
   // Try to fetch a Firebase ID token if the user is signed in. Best-effort —
   // anonymous users still work (server falls back to IP-based guest tier).
@@ -77,7 +77,7 @@
     const start = Date.now();
     const url = window.queueUrl('/api/job-status/' + encodeURIComponent(jobId));
     let consecutiveErrors = 0;
-    while (Date.now() - start < MAX_WAIT_MS) {
+    while (MAX_WAIT_MS === 0 || Date.now() - start < MAX_WAIT_MS) {
       try {
         const r = await fetch(url, { headers: await getAuthHeader() });
         if (r.ok) {
