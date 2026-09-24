@@ -303,6 +303,7 @@
     isActive:   function (toolId) { return !!_active[toolId]; },
     register:   _register,
     getFamily:  function (toolId) { return TOOL_FAMILY[toolId] || null; },
+    getHydrationTier: function (toolId) { var m = _get(toolId); return m ? m.hydrationTier : null; },
     getFamilies: function () { return Object.keys(FAMILIES); },
     getActiveTools: function () { return Object.keys(_active).filter(function (k) { return _active[k]; }); },
     validateAgainstToolRegistry: validateAgainstToolRegistry,
