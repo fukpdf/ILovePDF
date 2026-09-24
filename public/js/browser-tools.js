@@ -561,24 +561,6 @@
   // Re-saves the PDF using object streams + metadata strip. Returns the best
   // result available — if no size improvement is possible, the original bytes
   // are returned (never throws NO_BROWSER_GAIN; callers get a valid file).
-  async function compress(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const original = await readFileBytes(files[0]);
-    const doc = await PDFDocument.load(original, { ignoreEncryption: true, updateMetadata: false });
-    // Strip metadata to claw back a few bytes
-    try {
-      doc.setTitle(''); doc.setAuthor(''); doc.setSubject('');
-      doc.setKeywords([]); doc.setProducer('ILovePDF'); doc.setCreator('ILovePDF');
-    } catch (_) {}
-    const out = await doc.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 200,
-    });
-    // Return whichever is smaller — always give the caller a valid PDF.
-    const best = out.byteLength < original.byteLength ? out : original;
-    return new Blob([best], { type: 'application/pdf' });
-  }
 
   // ── PROTECT PDF (browser-side) ───────────────────────────────────────────
   // pdf-lib does not support saving encrypted PDFs natively. We use a
@@ -4422,7 +4404,6 @@
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'jpg-to-pdf':    imagesToPdf,
-    'compress':      compress,
     'protect':       protect,
     'unlock':        unlock,
     'pdf-to-jpg':    pdfToJpg,
