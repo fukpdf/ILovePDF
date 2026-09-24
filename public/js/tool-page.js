@@ -2027,7 +2027,14 @@ async function processFile() {
       ? window.BrowserTools.getToolExecutionManifest(currentTool.id)
       : null;
 
-    if (currentTool.clientSide && executionManifest && executionManifest.processor === 'browser-tools') {
+    const toolModule = (window.ToolModuleRegistry && typeof window.ToolModuleRegistry.get === 'function')
+      ? window.ToolModuleRegistry.get(currentTool.id) : null;
+
+    if (currentTool.clientSide && toolModule &&
+        toolModule.independent === true &&
+        executionManifest &&
+        executionManifest.processor === 'browser-tools' &&
+        toolModule.processor === executionManifest.processor) {
       try {
         const opts = {};
         (currentTool.options || []).forEach(o => {
