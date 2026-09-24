@@ -138,6 +138,19 @@
 
   // WorkerPool is a local script — no CDN or IDB needed.
   let workerPoolPromise = null;
+  function _spawnProcessingWorker(url) {
+    const worker = RuntimeWorkerFactory.spawn(url);
+    const release = window.WorkerLifecycle && typeof window.WorkerLifecycle.registerProcessingWorker === 'function'
+      ? window.WorkerLifecycle.registerProcessingWorker(worker) : function () {};
+    const originalTerminate = worker.terminate.bind(worker);
+    let released = false;
+    worker.terminate = function () {
+      if (!released) { released = true; try { release(); } catch (_) {} }
+      return originalTerminate();
+    };
+    return worker;
+  }
+
   function loadWorkerPool() {
     if (window.WorkerPool) return Promise.resolve(window.WorkerPool);
     if (workerPoolPromise) return workerPoolPromise;
