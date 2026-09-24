@@ -2,7 +2,7 @@
 (function (G) {
   'use strict';
   if (G.ClientProcessingKernel) return;
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   const DEFAULT_TIMEOUT = 120000;
   const DEFAULT_CHUNK = 2 * 1024 * 1024;
   const MAX_CHUNK = 8 * 1024 * 1024;
@@ -63,34 +63,87 @@
   }
 
   async function processBuffer(workerUrl, file, options) {
-    validateFile(file, options || {});
-    const timeoutMs = Math.max(1000, Number(options && options.timeoutMs) || DEFAULT_TIMEOUT);
+    options = options || {};
+    validateFile(file, options);
+    const timeoutMs = Math.max(1000, Number(options.timeoutMs) || DEFAULT_TIMEOUT);
     assertClientOnly(options);
+    const signal = options.signal || null;
+    const cancelToken = options.cancelToken || options.token || null;
+    if (signal && signal.aborted) throw new Error('processing_cancelled');
+
     const worker = createWorkerJob(workerUrl, options);
-    const bytes = await file.arrayBuffer();
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (fn, value) => {
-        if (settled) return;
-        settled = true;
-        try { worker.terminate(); } catch (_) {}
-        fn(value);
-      };
-      const timer = setTimeout(() => finish(reject, new Error('processing_worker_timeout')), timeoutMs);
-      const oldFinish = finish;
-      const finishWithTimer = (fn, value) => { clearTimeout(timer); oldFinish(fn, value); };
-      worker.onmessage = e => {
-        try {
-          const data = e.data;
-          if (options && options.validateOutput && G.ClientOutputValidation && data && data.buffer) {
-            G.ClientOutputValidation.validate(data.buffer, options.validateOutput === true ? {} : options.validateOutput);
+    let bytes = null;
+    try {
+      bytes = await file.arrayBuffer();
+      if (signal && signal.aborted) throw new Error('processing_cancelled');
+      if (cancelToken && cancelToken.cancelled) throw new Error('processing_cancelled');
+      if (G.ClientFileLifecycle && typeof G.ClientFileLifecycle.trackBuffer === 'function') {
+        G.ClientFileLifecycle.trackBuffer(bytes);
+      }
+
+      return await new Promise((resolve, reject) => {
+        let settled = false;
+        let timer = null;
+        let removeAbort = null;
+        let removeToken = null;
+
+        const cleanup = () => {
+          if (timer) { clearTimeout(timer); timer = null; }
+          if (removeAbort) { try { removeAbort(); } catch (_) {} removeAbort = null; }
+          if (removeToken) { try { removeToken(); } catch (_) {} removeToken = null; }
+          try { worker.terminate(); } catch (_) {}
+          if (G.ClientFileLifecycle && typeof G.ClientFileLifecycle.releaseBuffer === 'function' && bytes instanceof ArrayBuffer) {
+            G.ClientFileLifecycle.releaseBuffer(bytes);
           }
-          finishWithTimer(resolve, data);
-        } catch (err) { finishWithTimer(reject, err); }
-      };
-      worker.onerror = e => finishWithTimer(reject, new Error((e && e.message) || 'processing_worker_error'));
-      worker.postMessage({ type: 'process-buffer', buffer: bytes }, [bytes]);
-    });
+          bytes = null;
+        };
+        const finish = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          fn(value);
+        };
+        const cancel = () => finish(reject, new Error('processing_cancelled'));
+
+        timer = setTimeout(() => finish(reject, new Error('processing_worker_timeout')), timeoutMs);
+        if (signal) {
+          const onAbort = () => cancel();
+          signal.addEventListener('abort', onAbort, { once: true });
+          removeAbort = () => signal.removeEventListener('abort', onAbort);
+        }
+        if (cancelToken && typeof cancelToken.onCancel === 'function') {
+          const onTokenCancel = () => cancel();
+          cancelToken.onCancel(onTokenCancel);
+          removeToken = () => {
+            // CancelToken does not expose unsubscribe; dropping this reference
+            // is sufficient because its callback list is cleared on cancellation.
+            // The callback is intentionally idempotent through settled.
+          };
+        }
+
+        worker.onmessage = e => {
+          try {
+            const data = e.data;
+            if (options.validateOutput && G.ClientOutputValidation && data && data.buffer) {
+              G.ClientOutputValidation.validate(data.buffer, options.validateOutput === true ? {} : options.validateOutput);
+            }
+            finish(resolve, data);
+          } catch (err) { finish(reject, err); }
+        };
+        worker.onerror = e => finish(reject, new Error((e && e.message) || 'processing_worker_error'));
+        try {
+          worker.postMessage({ type: 'process-buffer', buffer: bytes }, [bytes]);
+        } catch (err) {
+          finish(reject, new Error((err && err.message) || 'processing_worker_postmessage_error'));
+        }
+      });
+    } catch (err) {
+      try { worker.terminate(); } catch (_) {}
+      if (G.ClientFileLifecycle && typeof G.ClientFileLifecycle.releaseBuffer === 'function' && bytes instanceof ArrayBuffer) {
+        G.ClientFileLifecycle.releaseBuffer(bytes);
+      }
+      throw err;
+    }
   }
 
   G.ClientProcessingKernel = Object.freeze({
