@@ -114,12 +114,9 @@
     if (window.RuntimeMemory && window.RuntimeMemory.isEmergency()) {
       throw new Error('memory_pressure');
     }
-    // Estimate: 2× file size (input buffer + pdf-lib internal)
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit) {
-      if (window.MemPressure.wouldExceedLimit(file.size * 2, 1.5)) {
-        throw new Error('memory_pressure');
-      }
-    }
+    // No product input-size/page-count admission gate. Runtime emergency
+    // safeguards above remain available; normal large files are processed
+    // through the worker path with the runtime's adaptive pacing/backpressure.
 
     // ── Telemetry span ───────────────────────────────────────────────────────
     var spanId = null;
