@@ -4211,6 +4211,26 @@
   // margins ('none'|'narrow'|'normal'), scaling ('fit-page'|'fit-width'|'actual').
   // Auto-switches to landscape when col count > 6. Dynamic column widths.
   // Validates output; throws on empty/corrupt result.
+  async function excelToPdfWorker(files, opts) {
+    if (!files || !files.length) throw new Error('No spreadsheet supplied');
+    const worker = RuntimeWorkerFactory.spawn('/workers/spreadsheet-pdf-worker.js');
+    try {
+      const buffer = await files[0].arrayBuffer();
+      const result = await new Promise((resolve, reject) => {
+        worker.onmessage = function (event) {
+          const data = event.data || {};
+          if (data.type === 'spreadsheet-to-pdf-done') resolve(data.buffer);
+          else if (data.type === 'spreadsheet-to-pdf-error') reject(new Error(data.message || 'Spreadsheet PDF worker failed'));
+        };
+        worker.onerror = function (event) { reject(new Error(event && event.message || 'Spreadsheet PDF worker failed')); };
+        worker.postMessage({ type: 'spreadsheet-to-pdf', buffer, pageSize: opts && opts.pageSize, margins: opts && opts.margins, orientation: opts && opts.orientation }, [buffer]);
+      });
+      return { blob: new Blob([result], { type: 'application/pdf' }), ext: '.pdf', mime: 'application/pdf' };
+    } finally {
+      try { worker.terminate(); } catch (_) {}
+    }
+  }
+
   async function excelToPdf(files, opts) {
     const XLSX = await loadXlsx();
     const { PDFDocument: PDFDoc, StandardFonts: SF, rgb: RGB } = await loadPdfLib();
@@ -4377,7 +4397,7 @@
     'workflow':           workflowPdf,
     'pdf-to-powerpoint':  pdfToPowerpoint,
     'powerpoint-to-pdf':  powerpointToPdf,
-    'excel-to-pdf':       excelToPdf,
+    'excel-to-pdf':       excelToPdfWorker,
     'scan-to-pdf':        scanPdf,
   };
 
