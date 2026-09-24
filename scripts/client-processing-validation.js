@@ -143,6 +143,10 @@ async function kernelHarness() {
     /state\.buffer\.set\(bytes, state\.offset\)/.test(read('public/workers/pdf-worker.js')) &&
     !/state\.chunks\.push\(data\.chunk\)/.test(read('public/workers/pdf-worker.js')),
     'generic PDF chunk streaming assembles into one pre-sized worker buffer instead of retaining every chunk');
+  assert('pdf-readable-stream-bounded',
+    /data\.type === 'stream-pipe'[\s\S]*totalSize[\s\S]*_initStreamBuffer/.test(read('public/workers/pdf-worker.js')) &&
+    !/data\.type === 'stream-pipe'[\s\S]*const chunks = \[\]/.test(read('public/workers/pdf-worker.js')),
+    'ReadableStream PDF ingestion does not accumulate an unbounded chunk array');
   assert('pdf-stream-error-cleanup',
     /_streamState\.delete\(streamId\)[\s\S]*invalid-stream-chunk/.test(read('public/workers/pdf-worker.js')) &&
     /state\.buffer = null;[\s\S]*stream-size-overflow/.test(read('public/workers/pdf-worker.js')) &&
