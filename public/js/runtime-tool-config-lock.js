@@ -45,15 +45,51 @@
   var _configs   = {}; // toolId → frozen config
   var _checksums = {}; // toolId → expected checksum
   var _lockLog   = []; // audit trail: { toolId, ts, action, detail }
+  var _contractStatus = {}; // toolId → manifest parity snapshot
 
   function _audit(toolId, action, detail) {
     _lockLog.push({ toolId: toolId, ts: Date.now(), action: action, detail: detail || {} });
     if (_lockLog.length > 200) _lockLog.shift();
   }
 
+  // ── Runtime manifest contract ─────────────────────────────────────────────
+  // The RuntimeToolManifestRegistry owns richer per-tool runtime policy. The
+  // config lock must never silently diverge from that policy.
+  function validateAgainstManifest(toolId, config) {
+    var mr = G.RuntimeToolManifestRegistry;
+    if (!mr || typeof mr.get !== 'function') {
+      return { checked: false, ok: true, reason: 'MANIFEST_REGISTRY_UNAVAILABLE' };
+    }
+    var manifest = mr.get(toolId);
+    if (!manifest) {
+      return { checked: true, ok: false, reason: 'MANIFEST_NOT_FOUND', toolId: toolId };
+    }
+    var fields = ['family', 'hydrationTier', 'memoryBudgetMb', 'recoveryPolicy', 'thermalPolicy', 'offlineCapable'];
+    var mismatches = [];
+    fields.forEach(function (field) {
+      if (config[field] !== undefined && config[field] !== manifest[field]) {
+        mismatches.push({ field: field, config: config[field], manifest: manifest[field] });
+      }
+    });
+    var result = { checked: true, ok: mismatches.length === 0, toolId: toolId, mismatches: mismatches };
+    _contractStatus[toolId] = Object.freeze({
+      checked: result.checked,
+      ok: result.ok,
+      mismatches: mismatches.slice(),
+    });
+    if (!result.ok) {
+      console.error(LOG, 'manifest contract mismatch:', toolId, result);
+      _audit(toolId, 'manifest-contract-fail', { mismatches: mismatches });
+    }
+    return result;
+  }
+
   // ── Lock a tool config ────────────────────────────────────────────────────
   function lock(toolId, config) {
     if (!toolId || typeof config !== 'object') return;
+
+    var contract = validateAgainstManifest(toolId, config);
+    if (!contract.ok) return;
 
     if (_configs[toolId]) {
       // Already locked — log mutation attempt
@@ -128,6 +164,11 @@
     validate: validate,
     isLocked: function (toolId) { return !!_configs[toolId]; },
     getAuditLog: function () { return _lockLog.slice(); },
+    validateAgainstManifest: validateAgainstManifest,
+    getContractStatus: function (toolId) {
+      if (!toolId) return Object.assign({}, _contractStatus);
+      return _contractStatus[toolId] || null;
+    },
     getAll:   function () {
       var out = {};
       Object.keys(_configs).forEach(function (k) { out[k] = _configs[k]; });
