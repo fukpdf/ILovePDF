@@ -78,10 +78,26 @@ Capabilities:
 
 This is a lifecycle API for future/current tool integrations; it does not monkey-patch every browser API or force-release active processing resources.
 
+## Unit 5 — Server + R2 lifecycle coverage audit
+
+Audited the upload-producing server routes and storage boundary.
+
+Covered/fixed:
+- `routes/advanced.js`: legacy direct multer configuration replaced with shared `createUpload('pdf')`, removing its legacy 100 MB request limit and inheriting content-signature validation.
+- `routes/image.js`: direct multer replaced with shared `createUpload('image')`.
+- `routes/r2.js`: direct multer replaced with shared `createUpload('any')`; the legacy 100 MB R2 request limit and duplicate temporary upload directory were removed. Temporary local files now use the shared upload directory and lifecycle sweeper.
+- `controllers/imageController.js`: generated image responses now pass through output structural validation.
+- `routes/advanced.js`: generated responses now pass through output structural validation.
+- Existing `utils/r2.js` temporary objects remain under `tmp/` with a 10-minute TTL and 5-minute sweeper; permanent `users/<uid>/` objects are intentionally excluded from temporary cleanup.
+
+Audit boundary:
+- User-requested durable R2 files are not deleted by temporary lifecycle cleanup.
+- No new file-size/page-count processing cap was introduced by this unit.
+- Existing image pixel-dimension safety validation remains an image-processing guard, not a generic upload-size limit.
+
 ## Next Phase 3 units
 
-1. Server and R2 lifecycle coverage audit across every upload-producing route.
-2. Security regression + runtime consistency verification.
+1. Security regression + runtime consistency verification.
 
 ## Unit 2 — Unified input validation
 
