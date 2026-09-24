@@ -94,5 +94,6 @@ if (failures.length) {
   console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
   console.log('[PASS] published browser registry mirror parity');
   console.log('[PASS] runtime registry loader + tool-page authority wiring');
-  console.log('\nPhase 4 Unit 1 + Unit 2 registry gate: PASS (' + registry.tools.length + ' tools)');
+  console.log('[PASS] registry-driven execution policy + BrowserTools capability reconciliation');
+  console.log('\nPhase 4 Unit 1 + Unit 2 + Unit 3 registry gate: PASS (' + registry.tools.length + ' tools)');
 }
