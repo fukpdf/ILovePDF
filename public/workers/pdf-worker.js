@@ -570,13 +570,15 @@ self.onmessage = async function (e) {
     // resident instead of retaining every chunk and then allocating another merged copy.
     const chunk = data.chunk;
     if (!(chunk instanceof ArrayBuffer)) {
+      _streamState.delete(streamId);
       self.postMessage({ type: 'stream-error', streamId, __error: 'invalid-stream-chunk' });
       return;
     }
     const bytes = new Uint8Array(chunk);
     if (state.offset + bytes.byteLength > state.totalSize) {
-      self.postMessage({ type: 'stream-error', streamId, __error: 'stream-size-overflow' });
+      state.buffer = null;
       _streamState.delete(streamId);
+      self.postMessage({ type: 'stream-error', streamId, __error: 'stream-size-overflow' });
       return;
     }
     state.buffer.set(bytes, state.offset);
@@ -584,7 +586,7 @@ self.onmessage = async function (e) {
     // Ack only after the chunk has been copied, providing real backpressure.
     self.postMessage({ type: 'stream-ack', streamId, chunkIndex: data.chunkIndex });
     if (data.isLast) {
-      if (state.offset !== state.totalSize) { _streamState.delete(data.streamId); self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-size-mismatch' }); return; }
+      if (state.offset !== state.totalSize) { state.buffer = null; _streamState.delete(data.streamId); self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-size-mismatch' }); return; }
       await _dispatchStream(data.streamId, state.tool, state.options);
     }
     return;
