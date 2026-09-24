@@ -214,19 +214,6 @@
   }
 
   // ── SPLIT ────────────────────────────────────────────────────────────────
-  async function split(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = src.getPageCount();
-    const range = opts.range || '';
-    const pages = parsePageRange(range, total);
-    if (!pages.length) throw new Error('No valid pages selected');
-
-    const out = await PDFDocument.create();
-    const copied = await out.copyPages(src, pages.map(n => n - 1));
-    copied.forEach(p => out.addPage(p));
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── ROTATE ───────────────────────────────────────────────────────────────
   async function rotate(files, opts) {
@@ -246,28 +233,6 @@
   }
 
   // ── ORGANIZE (reorder) ───────────────────────────────────────────────────
-  async function organize(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = src.getPageCount();
-    const rawOrder = String(opts.pageOrder || '').trim();
-    // pageOrder is OPTIONAL. When absent (e.g. user used drag-and-drop via the
-    // PageOrganizer grid and left the number field blank), use the identity order
-    // so the already-reordered PDF passes through unchanged.
-    // Only throw when the user explicitly typed something that is entirely invalid.
-    let order;
-    if (rawOrder === '') {
-      order = Array.from({ length: total }, (_, i) => i + 1);
-    } else {
-      order = rawOrder.split(',').map(s => parseInt(s.trim(), 10))
-        .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
-      if (!order.length) throw new Error('Invalid page order. Use comma-separated 1-indexed numbers, e.g. 3,1,2');
-    }
-    const out = await PDFDocument.create();
-    const copied = await out.copyPages(src, order.map(n => n - 1));
-    copied.forEach(p => out.addPage(p));
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── PAGE NUMBERS ─────────────────────────────────────────────────────────
   async function pageNumbers(files, opts) {
@@ -311,23 +276,6 @@
   }
 
   // ── CROP ─────────────────────────────────────────────────────────────────
-  async function crop(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const cl = Math.max(0, parseFloat(opts.cropLeft   || '0')) / 100;
-    const cr = Math.max(0, parseFloat(opts.cropRight  || '0')) / 100;
-    const ct = Math.max(0, parseFloat(opts.cropTop    || '0')) / 100;
-    const cb = Math.max(0, parseFloat(opts.cropBottom || '0')) / 100;
-    doc.getPages().forEach(p => {
-      const { width, height } = p.getSize();
-      const x = width * cl;
-      const y = height * cb;
-      const w = Math.max(10, width  * (1 - cl - cr));
-      const h = Math.max(10, height * (1 - ct - cb));
-      p.setCropBox(x, y, w, h);
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── JPG/PNG -> PDF (Phase 23B: EXIF orientation correction) ─────────────
   // JPEG images from phones/cameras often carry an EXIF Orientation tag that
@@ -4536,12 +4484,9 @@
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
     'merge':         merge,
-    'split':         split,
     'rotate':        rotate,
-    'organize':      organize,
     'page-numbers':  pageNumbers,
     'watermark':     watermark,
-    'crop':          crop,
     'jpg-to-pdf':    imagesToPdf,
     'compress':      compress,
     'protect':       protect,
@@ -4580,7 +4525,7 @@
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
-    'compress', 'workflow', 'merge', 'rotate',
+    'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
     'page-numbers', 'watermark', 'sign', 'redact', 'edit',
   ]);
 
@@ -4589,10 +4534,6 @@
   // not execute processing or mutate the selected file. It is intentionally
   // narrow so other tools keep their existing lazy-loading behavior.
   async function prewarm(toolId) {
-    if (toolId === 'crop') {
-      await loadPdfLib();
-      return { warmed: true, dependency: 'pdf-lib' };
-    }
     if (toolId === 'word-to-excel') {
       await Promise.all([loadMammoth(), loadXlsx()]);
       return { warmed: true, dependency: 'mammoth+xlsx' };
@@ -4600,7 +4541,7 @@
     return { warmed: false };
   }
 
-  function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
+  function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId) || WORKER_TOOLS.has(toolId); }
 
   // Phase 1 execution profile: one authoritative capability query for the
   // shared platform. This reports actual current capabilities only; it does
@@ -4734,7 +4675,7 @@
 
   async function process(toolId, files, options) {
     const fn = HANDLERS[toolId];
-    if (!fn) throw new Error(`No client-side handler for ${toolId}`);
+    if (!fn && !WORKER_TOOLS.has(toolId)) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
     // File size limits: compress allows 200 MB; everything else 50 MB.
