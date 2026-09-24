@@ -85,3 +85,15 @@ Implemented on `phase-4-unit-6-legacy-routing-removal`.
 - `TOOLS` remains a UI/detail compatibility layer only; `SLUG_MAP` remains compatibility data for legacy surfaces but is not authoritative for runtime tool identity.
 - The Phase 4 audit rejects reintroduction of direct `SLUG_MAP` identity resolution in `tool-page.js`.
 - No file-size/page-count limits or server/Laba AI dependency are introduced.
+
+
+## Unit 7 — Runtime capability contract
+
+Implemented on `phase-4-unit-7-capability-contract`.
+
+- Registry capability metadata is now an enforced runtime contract, not documentation only.
+- `ToolExecutionPolicy` compares registry `lazyLoad`, `workerPool`, and `streaming` capabilities with the actual BrowserTools execution manifest before processing.
+- Worker tools must remain worker-pool backed with `adaptive-worker` streaming; browser/special-page tools cannot silently advertise worker execution.
+- The registry file-size policy remains `unlimited`; unsupported restrictive policies are rejected rather than silently applied.
+- The Phase 4 audit validates every registry entry's capability contract and the runtime enforcement boundary.
+- This closes capability drift between the authoritative registry and processor implementation without adding file-size/page-count limits or a server/Laba AI dependency.
