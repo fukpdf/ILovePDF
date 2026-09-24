@@ -46,8 +46,16 @@ if (!toolsBlock) {
 
   const registryIds = new Set((registry.tools || []).map(t => t.id));
   const configIdSet = new Set(configIds);
-  for (const id of registryIds) if (!configIdSet.has(id)) fail('Registry tool missing from tools-config: ' + id);
-  for (const id of configIdSet) if (!registryIds.has(id)) fail('tools-config tool missing from registry: ' + id);
+  const slugBlockForIdentity = config.match(/window\.SLUG_MAP\s*=\s*\{([\s\S]*?)\n\};/);
+  const slugIdSet = new Set();
+  if (slugBlockForIdentity) {
+    const slugIdentityRe = /'([^']+)'\s*:\s*\{\s*id:\s*'([^']+)'/g;
+    let sm;
+    while ((sm = slugIdentityRe.exec(slugBlockForIdentity[1]))) slugIdSet.add(sm[2]);
+  }
+  const routableIdSet = new Set([...configIdSet, ...slugIdSet]);
+  for (const id of registryIds) if (!routableIdSet.has(id)) fail('Registry tool missing from TOOLS/SLUG_MAP: ' + id);
+  for (const id of routableIdSet) if (!registryIds.has(id)) fail('Routable tool missing from registry: ' + id);
 }
 
 const registryIds = new Set((registry.tools || []).map(t => t.id));
