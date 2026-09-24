@@ -105,15 +105,17 @@
     if (files && window.MemPressure) {
       var totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
       // Estimate: 3× total file size needed in heap (buffers + pdf-lib + output)
-      if (window.MemPressure.wouldExceedLimit && window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3)) {
-        throw new Error('memory_pressure');
+      if (window.MemPressure.wouldExceedLimit && window.MemPressure.wouldExceedLimit(totalBytes * 3, 1.3))) {
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('merge:memory-estimate-advisory', { phase: phase }); } catch (_) {}
       }
     }
 
     // Legacy check (inline performance.memory)
     try {
       var mem = performance && performance.memory;
-      if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) throw new Error('memory_pressure');
+      if (mem && mem.usedJSHeapSize > 900 * 1024 * 1024) {
+        try { if (window.RuntimeTelemetry) window.RuntimeTelemetry.record('merge:heap-pressure-advisory', { phase: phase }); } catch (_) {}
+      }
     } catch (e) {
       if (e.message === 'memory_pressure') throw e;
     }
@@ -150,7 +152,7 @@
     _currentToken = window.RuntimeCancellation
       ? window.RuntimeCancellation.createScopedToken('merge-pdf', {
           label:     'merge-pdf-run',
-          timeoutMs: 180000, // 3 minute hard cap
+          timeoutMs: 0, // no artificial processing-time cutoff
         })
       : null;
 
