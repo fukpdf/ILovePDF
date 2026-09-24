@@ -1,6 +1,6 @@
 # Phase 3 — Security, Validation & File Lifecycle
 
-Status: Unit 1 implemented on `phase-3-security-file-lifecycle`
+Status: Units 1–3 implemented on `phase-3-security-file-lifecycle`
 
 ## Audit findings
 
@@ -39,13 +39,35 @@ This unit does not:
 - claim that all tools already use the shared lifecycle;
 - alter tool processors.
 
+## Unit 3 — Output structural validation
+
+Added `utils/output-validator.js` as the shared generated-artifact validation layer.
+
+Validation rules:
+- PDF output must have the `%PDF-` signature, must parse through `pdf-lib`, and must contain at least one page.
+- DOCX/XLSX/PPTX and ZIP outputs must have a ZIP container signature and successfully parse through `JSZip` with at least one entry.
+- Generated JPEG/PNG/GIF/WebP/BMP/TIFF outputs are checked against their expected file signatures.
+- JSON output is parsed before delivery.
+- Unknown output types still receive a non-empty-buffer check so existing tools remain compatible.
+
+Delivery integration:
+- `utils/cleanup.js::sendPdf()` now validates every PDF before headers/body delivery.
+- `routes/convert.js::sendFile()` now validates generated conversion artifacts before delivery.
+
+Failure behavior:
+- Structurally invalid generated artifacts are never sent as successful downloads.
+- The server logs the validation reason and returns a generic HTTP 500 response when headers have not yet been sent.
+- No new file-size or page-count processing limits were introduced; the PDF page check only rejects a structurally empty generated PDF.
+
+Current scope boundary:
+- This unit covers the shared PDF delivery path and the conversion router's generated-file delivery helper.
+- Other upload-producing/direct `sendFile`/response paths remain part of the Phase 3 lifecycle coverage audit and are not marked covered yet.
+
 ## Next Phase 3 units
 
-1. Unified input validation contract, including content/signature checks where technically safe.
-2. Output structural validation before success/delivery.
-3. Browser temporary object URL / worker / buffer release hooks.
-4. Server and R2 lifecycle coverage audit across every upload-producing route.
-5. Security regression + runtime consistency verification.
+1. Browser temporary object URL / worker / buffer release hooks.
+2. Server and R2 lifecycle coverage audit across every upload-producing route.
+3. Security regression + runtime consistency verification.
 
 ## Unit 2 — Unified input validation
 
