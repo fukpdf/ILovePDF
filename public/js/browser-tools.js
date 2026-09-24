@@ -527,7 +527,8 @@
         ocrC = sc;
       }
       const dataUrl = ocrC.toDataURL('image/png');
-      if (ocrC !== c) { ocrC.width = 0; ocrC.height = 0; }      c.width = 0; c.height = 0;
+      if (ocrC !== c) { ocrC.width = 0; ocrC.height = 0; }
+      c.width = 0; c.height = 0;
 
       const { data: ocrData } = await Tesseract.recognize(dataUrl, lang, {
         logger: () => {},
@@ -1025,7 +1026,8 @@
   async function signPdf(files, opts) {
     const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
     const doc  = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.HelveticaBoldOblique);    const text = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
+    const font = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
+    const text = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
     const pages = doc.getPages();
     const pageNum = parseInt(opts.page || pages.length, 10) || pages.length;
     const page = pages[Math.max(0, Math.min(pages.length - 1, pageNum - 1))];
@@ -2519,7 +2521,8 @@
       if (!sheetData.length) continue;
 
       totalRows += sheetData.length;
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);      applyColWidths(ws, sheetData, numCols);
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      applyColWidths(ws, sheetData, numCols);
       XLSX.utils.book_append_sheet(wb, ws, `Page ${i}${isOcr ? ' (OCR)' : ''}`);
     }
 
@@ -3017,7 +3020,8 @@
         region.push(pi);
         if (fgConf[pi] > maxConfInRegion) maxConfInRegion = fgConf[pi];
         const x = pi % W, y = Math.floor(pi / W);
-        for (let di = 0; di < 4; di++) {          const nx = x + DX4[di], ny = y + DY4[di];
+        for (let di = 0; di < 4; di++) {
+          const nx = x + DX4[di], ny = y + DY4[di];
           if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
           const ni = ny * W + nx;
           if (ccVisited[ni] || alpha[ni] < 90) continue;
@@ -3515,6 +3519,7 @@
     const margin   = 50;
     const PW = 595, PH = 842;
     const usableW  = PW - margin * 2;
+
     const lineWords = translatedText.split(/\s+/);
     const lines = [];
     let cur = '';
@@ -4011,7 +4016,8 @@
     'word-to-pdf':        wordToPdf,
     'word-to-excel':      wordToExcelWorker,
     'html-to-pdf':        htmlToPdf,
-    // ── Phase 2 ───────────────────────────────────────────────────────────    // ── Phase 3 ───────────────────────────────────────────────────────────
+    // ── Phase 2 ───────────────────────────────────────────────────────────
+    // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
     // ── Phase 4 ───────────────────────────────────────────────────────────
