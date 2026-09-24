@@ -60,6 +60,7 @@
   var _pending = new Map();
 
   function _scheduleRevoke(url, owner, delayMs) {
+    if (window.ClientFileLifecycle) window.ClientFileLifecycle.trackObjectURL(url);
     var reg = window.ObjectURLRegistry;
     var timerId = setTimeout(function () {
       _pending.delete(url);
@@ -86,6 +87,7 @@
       if (reg) reg.revoke(url);
       else URL.revokeObjectURL(url);
     } catch (_) {}
+    if (window.ClientFileLifecycle) window.ClientFileLifecycle.revokeObjectURL(url);
   }
 
   function _revokeAllPending() {
@@ -96,6 +98,7 @@
         if (reg) reg.revoke(url);
         else URL.revokeObjectURL(url);
       } catch (_) {}
+      if (window.ClientFileLifecycle) window.ClientFileLifecycle.revokeObjectURL(url);
     });
     _pending.clear();
   }
