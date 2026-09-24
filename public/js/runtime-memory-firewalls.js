@@ -1,6 +1,7 @@
 // RuntimeMemoryFirewalls v1.0 — Arc 5 / Phase C / Target 3
 // =====================================================================
-// Per-tool hard memory budgets + isolated panic mode.
+// Per-tool memory telemetry + adaptive reclaim.
+// Thresholds are advisory signals, not artificial file/page/time limits.
 //
 // Arc 4 gap: RuntimeMemoryOrchestrator operates at FAMILY level. When
 // the AI family hits 88% heap, ALL AI tool workers are terminated. But
@@ -116,7 +117,10 @@
     return 'panic';
   }
 
-  // ── Panic a single tool ───────────────────────────────────────────────────
+  // ── Pressure response for a single tool ───────────────────────────────────
+  // Memory thresholds trigger reclamation/telemetry only. They must never
+  // terminate an active job or reject a valid file solely because its size
+  // exceeds an arbitrary heap budget.
   function panic(toolId, reason) {
     var fw = _firewalls[toolId];
     if (!fw) return;
@@ -133,28 +137,10 @@
       if (mi) mi.trim(toolId);
     } catch (_) {}
 
-    // 3. Get worker URL and terminate only that tool's pool
-    try {
-      var mesh = G.RuntimeToolWorkerMesh;
-      var node = mesh && mesh.getNode(toolId);
-      if (node && node.workerUrl) {
-        var wp = G.WorkerPool;
-        if (wp && typeof wp.terminatePool === 'function') {
-          // Only terminate if no active tasks
-          var stats = wp.getStats && wp.getStats();
-          var urlStats = stats && stats[node.workerUrl];
-          if (!urlStats || urlStats.busy === 0) {
-            wp.terminatePool(node.workerUrl);
-          }
-        }
-      }
-    } catch (_) {}
-
-    // 4. Record crash on tool mesh
-    try {
-      var mesh2 = G.RuntimeToolWorkerMesh;
-      if (mesh2) mesh2.recordCrash(toolId, 'memory-panic');
-    } catch (_) {}
+    // Do NOT terminate workers or record a synthetic crash here. A memory
+    // threshold is an advisory signal, not evidence that the processor failed.
+    // Active work continues; reclaim handlers and adaptive schedulers reduce
+    // pressure without turning a large job into an artificial rejection.
 
     try {
       G.dispatchEvent(new CustomEvent('memory-firewall:panic', {
@@ -173,7 +159,7 @@
     fw.tier = newTier;
 
     if (newTier === 'panic' && prevTier !== 'panic') {
-      panic(toolId, 'budget-exceeded');
+      panic(toolId, 'advisory-budget-pressure');
     } else if (newTier === 'critical' && prevTier === 'ok') {
       console.debug(LOG, 'critical budget:', toolId, '—', Math.round(usageMb) + '/' + fw.budgetMb + ' MB');
       try {
