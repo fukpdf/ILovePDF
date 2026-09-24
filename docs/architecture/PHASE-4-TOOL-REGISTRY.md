@@ -97,3 +97,14 @@ Implemented on `phase-4-unit-7-capability-contract`.
 - The registry file-size policy remains `unlimited`; unsupported restrictive policies are rejected rather than silently applied.
 - The Phase 4 audit validates every registry entry's capability contract and the runtime enforcement boundary.
 - This closes capability drift between the authoritative registry and processor implementation without adding file-size/page-count limits or a server/Laba AI dependency.
+
+
+## Unit 8 — Runtime registry integrity
+
+Implemented on `phase-4-unit-8-registry-integrity`.
+
+- Published registry entries are normalized into immutable runtime snapshots.
+- Tool entries, dependency arrays, and capability metadata are frozen so consumers cannot mutate authoritative execution metadata after load.
+- The runtime registry exposes a lightweight `health()` snapshot with readiness, endpoint, schema version, loaded tool count, and load error state for diagnostics.
+- The Phase 4 audit verifies the immutable entry/capability boundary and health API.
+- No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
