@@ -73,36 +73,20 @@ OPS.compress = async function (buffers) {
     updateMetadata: false,
   });
 
-  // Strip metadata to save space
   await stripMetadata(doc);
 
-  // Pass 1: object streams + no default page (most effective general strategy)
-  const pass1 = await doc.save({
+  // One streaming-friendly save pass keeps peak memory bounded by a single
+  // parsed document plus the output buffer. A second reload/save pass would
+  // temporarily retain two complete PDF representations for little benefit.
+  const out = await doc.save({
     useObjectStreams: true,
     addDefaultPage: false,
     objectsPerTick: 50,
   });
-  const pass1Buf = toArrayBuffer(pass1);
+  const result = toArrayBuffer(out);
 
-  // Pass 2: reload pass1 result and re-save (second defragmentation pass)
-  let pass2Buf = pass1Buf;
-  try {
-    if (pass1Buf.byteLength < original.byteLength) {
-      const doc2  = await PDFDocument.load(pass1Buf, { ignoreEncryption: true, updateMetadata: false });
-      const pass2 = await doc2.save({ useObjectStreams: true, addDefaultPage: false });
-      const p2    = toArrayBuffer(pass2);
-      // Only keep pass2 if it's actually smaller
-      if (p2.byteLength < pass1Buf.byteLength) pass2Buf = p2;
-    }
-  } catch (_) {}
-
-  // Pick smallest result that is still smaller than original
-  const best = [pass1Buf, pass2Buf]
-    .filter(b => b.byteLength < original.byteLength)
-    .sort((a, b) => a.byteLength - b.byteLength)[0];
-
-  // If no strategy improved the size, return the original so callers always get valid output.
-  return best || original;
+  // Prefer the compressed representation only when it is actually smaller.
+  return result.byteLength < original.byteLength ? result : original;
 };
 
 OPS.repair = async function (buffers) {
@@ -354,6 +338,8 @@ OPS.split = async function (buffers, opts) {
   const copied = await out.copyPages(src, pages.map(n => n - 1));
   copied.forEach(p => out.addPage(p));
   const result = await out.save();
+  // The source document is no longer needed after pages have been copied.
+  buffers[0] = null;
   return toArrayBuffer(result);
 };
 
@@ -369,6 +355,8 @@ OPS.organize = async function (buffers, opts) {
   const copied = await out.copyPages(src, order.map(n => n - 1));
   copied.forEach(p => out.addPage(p));
   const result = await out.save();
+  // Release the original input reference once all requested pages are copied.
+  buffers[0] = null;
   return toArrayBuffer(result);
 };
 
