@@ -138,7 +138,11 @@ async function kernelHarness() {
     /images-to-pdf-item/.test(browserToolsSource) && /scan-to-pdf-item/.test(browserToolsSource) &&
     !/async function imagesToPdfWorker[\\s\\S]*Promise\.all/.test(browserToolsSource),
     'multi-image PDF adapters transfer one source buffer at a time');
-  assert('streaming-worker-protocols', /images-to-pdf-start/.test(read('public/workers/image-pdf-worker.js')) &&
+    assert('merge-stream-protocol', /merge-stream-start/.test(read('public/workers/pdf-lib-worker.js')) &&
+    /merge-stream-item/.test(read('public/workers/pdf-lib-worker.js')) && /merge-stream-ack/.test(read('public/workers/pdf-lib-worker.js')) &&
+    /merge-stream-finish/.test(read('public/workers/pdf-lib-worker.js')) && /merge-stream-ready/.test(read('public/js/merge-pdf-app.js')),
+    'Merge PDF transfers one source ArrayBuffer at a time and waits for worker ACK');
+assert('streaming-worker-protocols', /images-to-pdf-start/.test(read('public/workers/image-pdf-worker.js')) &&
     /images-to-pdf-ack/.test(read('public/workers/image-pdf-worker.js')) &&
     /scan-to-pdf-start/.test(read('public/workers/scan-pdf-worker.js')) &&
     /scan-to-pdf-ack/.test(read('public/workers/scan-pdf-worker.js')),
