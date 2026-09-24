@@ -1,7 +1,7 @@
 import { JWT_SECRET as SECRET } from '../utils/secret.js';
 // R2 storage routes — temporary upload + signed download + (auth'd) user files
 import express from 'express';
-import multer from 'multer';
+import { createUpload } from '../utils/upload.js';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import os from 'os';
@@ -24,16 +24,7 @@ const r2DownloadLimiter = rateLimit({ windowMs: 60_000, max: 120, standardHeader
 const R2_TMP_DIR = path.join(os.tmpdir(), 'ilovepdf-r2-uploads');
 try { fs.mkdirSync(R2_TMP_DIR, { recursive: true }); } catch (_) {}
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, R2_TMP_DIR),
-    filename:    (_req, file,  cb) => {
-      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${safe}`);
-    },
-  }),
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
-});
+const upload = createUpload('any');
 
 async function _readAndClean(filePath) {
   try {
