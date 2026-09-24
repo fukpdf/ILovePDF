@@ -143,6 +143,11 @@ async function kernelHarness() {
     /state\.buffer\.set\(bytes, state\.offset\)/.test(read('public/workers/pdf-worker.js')) &&
     !/state\.chunks\.push\(data\.chunk\)/.test(read('public/workers/pdf-worker.js')),
     'generic PDF chunk streaming assembles into one pre-sized worker buffer instead of retaining every chunk');
+  assert('no-hidden-pdf-size-memory-admission',
+    !/wouldExceedLimit\([^\n]*(totalBytes|file\.size)[\s\S]{0,180}throw new Error\('memory_pressure'\)/.test(read('public/js/merge-worker-adapter.js')) &&
+    !/wouldExceedLimit\([^\n]*(totalBytes)[\s\S]{0,180}throw new Error\('memory_pressure'\)/.test(read('public/js/merge-runtime.js')) &&
+    !/wouldExceedLimit\([^\n]*(file\.size)[\s\S]{0,180}throw new Error\('memory_pressure'\)/.test(read('public/js/rotate-runtime.js')),
+    'PDF merge/rotate runtime guards do not reject based on input byte size');
   assert('generic-merge-streaming-adapter',
     /toolId === 'merge'[\s\S]*_runStreamingMergeWorker\(files/.test(read('public/js/browser-tools.js')) &&
     /const buffer = await file\.arrayBuffer\(\)[\s\S]*postMessage\(\{ op: 'merge-stream-item'/.test(read('public/js/browser-tools.js')) &&
