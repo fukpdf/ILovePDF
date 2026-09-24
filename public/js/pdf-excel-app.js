@@ -253,7 +253,7 @@
         oPage.cleanup();
         cvs.width = 0; cvs.height = 0;
 
-        var recog = await _race(tw.recognize(dataUrl), OCR_PAGE_MS, 'OCR page ' + oi);
+        var recog = await _race(tw.recognize(dataUrl));
         ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
 
         if (onStep) onStep(1, 'active',
