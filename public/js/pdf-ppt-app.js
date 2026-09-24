@@ -14,7 +14,7 @@
 //   PdfToPowerPointApp installs a BrowserTools.process interceptor for
 //   'pdf-to-powerpoint' ONLY.  Fully isolated pipeline with:
 //   — ALL async operations in try/finally with guaranteed worker cleanup
-//   — Hard-timeout calls _cleanup() FIRST (terminates workers), then rejects
+//   — Cancellation calls _cleanup() FIRST (terminates workers), then rejects
 //   — Dedicated terminate-after-job Worker for PPTX packaging
 //   — Tesseract.createWorker() tracked and terminated in _cleanup()
 //   — _inFlight flag prevents re-entry; always reset in finally
@@ -30,10 +30,7 @@
   var PDFJS_WORKER  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var PPTX_WORKER   = '/workers/pdf-ppt-pptx-worker.js';
   var TESS_CDN      = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var PPTX_LIMIT_MS = 60000;   // 60 s: PPTX packaging (PptxGenJS can be slow on big decks)
-  var OCR_PAGE_MS   = 45000;   // 45 s: per-page OCR recognition
-  var OCR_INIT_MS   = 30000;   // 30 s: Tesseract.createWorker init
-
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ──────────────────────────────────────────────────────────
   var _inFlight    = false;
   var _jobId       = 0;
