@@ -130,10 +130,20 @@ async function kernelHarness() {
     'abort cancellation rejects and terminates the processing worker');
   assert('kernel-lifecycle-binding', /registerProcessingController/.test(source) && /internalController\.abort/.test(source),
     'WorkerLifecycle can cancel the active processing operation through an internal AbortController');
-  assert('device-aware-input-admission', /function maxInputBytes/.test(read('public/js/client-processing-kernel.js')) &&
-    /client device processing limit/.test(read('public/js/client-processing-kernel.js')),
-    'kernel exposes conservative device-aware input admission limits');
-  assert('browser-tool-worker-lifecycle', /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
+  assert('unlimited-input-policy', /return Infinity/.test(read('public/js/client-processing-kernel.js')) &&
+    !/file_too_large_for_browser|memory_pressure/.test(read('public/js/client-processing-kernel.js')),
+    'shared kernel keeps large-file processing uncapped while using runtime memory controls');
+  const browserToolsSource = read('public/js/browser-tools.js');
+  assert('streaming-image-ingestion', /_runSequentialImageWorker/.test(browserToolsSource) &&
+    /images-to-pdf-item/.test(browserToolsSource) && /scan-to-pdf-item/.test(browserToolsSource) &&
+    !/async function imagesToPdfWorker[\\s\\S]*Promise\.all/.test(browserToolsSource),
+    'multi-image PDF adapters transfer one source buffer at a time');
+  assert('streaming-worker-protocols', /images-to-pdf-start/.test(read('public/workers/image-pdf-worker.js')) &&
+    /images-to-pdf-ack/.test(read('public/workers/image-pdf-worker.js')) &&
+    /scan-to-pdf-start/.test(read('public/workers/scan-pdf-worker.js')) &&
+    /scan-to-pdf-ack/.test(read('public/workers/scan-pdf-worker.js')),
+    'image and scan workers expose start/item/ack/finish streaming boundaries');
+  assert('browser-tool-worker-lifecycle'/, /_spawnProcessingWorker/.test(read('public/js/browser-tools.js')) &&
     /registerProcessingWorker/.test(read('public/js/browser-tools.js')),
     'migrated BrowserTools workers register with WorkerLifecycle and are released on terminate');
   assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
