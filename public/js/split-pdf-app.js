@@ -7,8 +7,6 @@
   var TAG             = '[SplitPdfApp]';
   var TOOL_ID         = 'split';
   var PDF_LIB_WORKER  = '/workers/pdf-lib-worker.js';
-  var HARD_LIMIT_MS   = 90000;
-  var WORKER_LIMIT_MS = 75000;
 
   var _inFlight   = false;
   var _jobId      = 0;
