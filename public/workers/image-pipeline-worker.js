@@ -23,62 +23,90 @@ importScripts('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js')
 var PDFDocument = self.PDFLib.PDFDocument;
 
 self.onmessage = async function (e) {
-  var data   = e.data || {};
-  var op     = data.op;
-  var images = data.images || [];
-  var jobId  = data.jobId  || '';
-
-  if (op !== 'images-to-pdf') {
-    self.postMessage({ __error: 'image-pipeline-worker: unknown op: ' + op });
-    return;
-  }
-  if (!images.length) {
-    self.postMessage({ __error: 'image-pipeline-worker: no images provided' });
-    return;
-  }
-
+  var data = e.data || {};
+  var op = data.op;
   try {
-    var doc      = await PDFDocument.create();
-    var embedded = 0;
-
-    for (var ii = 0; ii < images.length; ii++) {
-      var img     = images[ii];
-      var bytes   = new Uint8Array(img.data);
-      var isPng   = img.mime === 'image/png' ||
-                    (img.name && /\.png$/i.test(img.name));
-      var pdfImg  = null;
-
-      // Try primary format, then fallback to the other
-      try {
-        pdfImg = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-      } catch (_) {
-        try {
-          pdfImg = isPng ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
-        } catch (e2) {
-          // Skip unembeddable image rather than aborting the whole job
-          console.warn('image-pipeline-worker: skip unembeddable image', img.name, e2.message);
-          continue;
-        }
-      }
-
-      if (pdfImg) {
-        var page = doc.addPage([pdfImg.width, pdfImg.height]);
-        page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
-        embedded++;
-      }
-    }
-
-    if (embedded === 0) {
-      self.postMessage({ __error: 'None of the provided images could be embedded into the PDF.', jobId: jobId });
+    if (op === 'init') {
+      self.__imagePdfDoc = await PDFDocument.create();
+      self.__imagePdfEmbedded = 0;
+      self.postMessage({ type: 'ready', jobId: data.jobId || '' });
       return;
     }
 
-    var out    = await doc.save();
-    var outBuf = (out.buffer instanceof ArrayBuffer) ? out.buffer : out.buffer.slice(0);
+    if (op === 'add-image') {
+      if (!self.__imagePdfDoc) throw new Error('image-pipeline-worker: pipeline not initialized');
+      var bytes = new Uint8Array(data.data);
+      var isPng = data.mime === 'image/png' || (data.name && /\.png$/i.test(data.name));
+      var pdfImg = null;
 
-    self.postMessage({ buffer: outBuf, pages: embedded, jobId: jobId }, [outBuf]);
+      try {
+        pdfImg = isPng ? await self.__imagePdfDoc.embedPng(bytes) : await self.__imagePdfDoc.embedJpg(bytes);
+      } catch (_) {
+        try {
+          pdfImg = isPng ? await self.__imagePdfDoc.embedJpg(bytes) : await self.__imagePdfDoc.embedPng(bytes);
+        } catch (e2) {
+          console.warn('image-pipeline-worker: skip unembeddable image', data.name, e2.message);
+          self.postMessage({ type: 'image-ack', index: data.index, skipped: true, jobId: data.jobId || '' });
+          return;
+        }
+      }
+
+      var page = self.__imagePdfDoc.addPage([pdfImg.width, pdfImg.height]);
+      page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
+      self.__imagePdfEmbedded++;
+      // The transferred ArrayBuffer is detached on the main thread and the
+      // worker releases its view before acknowledging the next image.
+      bytes = null;
+      pdfImg = null;
+      self.postMessage({ type: 'image-ack', index: data.index, jobId: data.jobId || '' });
+      return;
+    }
+
+    if (op === 'finalize') {
+      if (!self.__imagePdfDoc) throw new Error('image-pipeline-worker: pipeline not initialized');
+      if (!self.__imagePdfEmbedded) throw new Error('None of the provided images could be embedded into the PDF.');
+      var out = await self.__imagePdfDoc.save({ useObjectStreams: true, addDefaultPage: false, objectsPerTick: 50 });
+      var outBuf = (out.buffer instanceof ArrayBuffer) ? out.buffer : out.buffer.slice(0);
+      self.__imagePdfDoc = null;
+      self.__imagePdfEmbedded = 0;
+      self.postMessage({ type: 'done', buffer: outBuf, pages: data.pages || 0, jobId: data.jobId || '' }, [outBuf]);
+      return;
+    }
+
+    if (op === 'images-to-pdf') {
+      // Backward-compatible one-message protocol for older callers.
+      var images = data.images || [];
+      if (!images.length) throw new Error('image-pipeline-worker: no images provided');
+      self.__imagePdfDoc = await PDFDocument.create();
+      self.__imagePdfEmbedded = 0;
+      for (var ii = 0; ii < images.length; ii++) {
+        var img = images[ii];
+        var bytes2 = new Uint8Array(img.data);
+        var isPng2 = img.mime === 'image/png' || (img.name && /\.png$/i.test(img.name));
+        var pdfImg2 = null;
+        try { pdfImg2 = isPng2 ? await self.__imagePdfDoc.embedPng(bytes2) : await self.__imagePdfDoc.embedJpg(bytes2); }
+        catch (_) {
+          try { pdfImg2 = isPng2 ? await self.__imagePdfDoc.embedJpg(bytes2) : await self.__imagePdfDoc.embedPng(bytes2); }
+          catch (e2) { continue; }
+        }
+        if (pdfImg2) {
+          var page2 = self.__imagePdfDoc.addPage([pdfImg2.width, pdfImg2.height]);
+          page2.drawImage(pdfImg2, { x: 0, y: 0, width: pdfImg2.width, height: pdfImg2.height });
+          self.__imagePdfEmbedded++;
+        }
+      }
+      if (!self.__imagePdfEmbedded) throw new Error('None of the provided images could be embedded into the PDF.');
+      var out2 = await self.__imagePdfDoc.save({ useObjectStreams: true, addDefaultPage: false, objectsPerTick: 50 });
+      var outBuf2 = (out2.buffer instanceof ArrayBuffer) ? out2.buffer : out2.buffer.slice(0);
+      self.__imagePdfDoc = null;
+      self.__imagePdfEmbedded = 0;
+      self.postMessage({ type: 'done', buffer: outBuf2, pages: self.__imagePdfEmbedded || 0, jobId: data.jobId || '' }, [outBuf2]);
+      return;
+    }
+
+    throw new Error('image-pipeline-worker: unknown op: ' + op);
   } catch (err) {
-    self.postMessage({ __error: err.message || String(err), jobId: jobId });
+    self.postMessage({ __error: err.message || String(err), jobId: data.jobId || '' });
   }
 };
 
