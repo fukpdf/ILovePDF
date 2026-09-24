@@ -68,6 +68,12 @@
     const timeoutMs = Math.max(1000, Number(options.timeoutMs) || DEFAULT_TIMEOUT);
     assertClientOnly(options);
     const signal = options.signal || null;
+    const lifecycleRelease = G.WorkerLifecycle && typeof G.WorkerLifecycle.registerProcessingController === 'function'
+      ? G.WorkerLifecycle.registerProcessingController({ abort: function (reason) {
+          if (signal && typeof signal.dispatchEvent === 'function') {
+            try { signal.dispatchEvent(new Event('abort')); } catch (_) {}
+          }
+        } }) : null;
     const cancelToken = options.cancelToken || options.token || null;
     if (signal && signal.aborted) throw new Error('processing_cancelled');
 
@@ -96,6 +102,7 @@
             G.ClientFileLifecycle.releaseBuffer(bytes);
           }
           bytes = null;
+          if (lifecycleRelease) { try { lifecycleRelease(); } catch (_) {} }
         };
         const finish = (fn, value) => {
           if (settled) return;
@@ -137,6 +144,7 @@
       if (G.ClientFileLifecycle && typeof G.ClientFileLifecycle.releaseBuffer === 'function' && bytes instanceof ArrayBuffer) {
         G.ClientFileLifecycle.releaseBuffer(bytes);
       }
+      if (lifecycleRelease) { try { lifecycleRelease(); } catch (_) {} }
       throw err;
     }
   }
