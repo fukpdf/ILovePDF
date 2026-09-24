@@ -124,10 +124,12 @@ async function kernelHarness() {
   try { await pending; } catch (e) { timedOut = e && e.message === 'processing_worker_timeout'; }
   assert('worker-timeout', timedOut && spawnedWorker && spawnedWorker.terminated,
     'hung worker rejects on timeout and terminates');
-  assert('kernel-cancel-signal', /processing_cancelled/.test(source) &&
+  assert('kernel-cancel-signal', /AbortController/.test(source) && /processing_cancelled/.test(source) &&
     /addEventListener\('abort'/.test(source) &&
     /worker\.terminate\(\)/.test(source),
     'abort cancellation rejects and terminates the processing worker');
+  assert('kernel-lifecycle-binding', /registerProcessingController/.test(source) && /internalController\.abort/.test(source),
+    'WorkerLifecycle can cancel the active processing operation through an internal AbortController');
   assert('kernel-buffer-lifecycle', /ClientFileLifecycle[\s\S]*trackBuffer/.test(source) &&
     /ClientFileLifecycle[\s\S]*releaseBuffer/.test(source),
     'transferred input buffer is tracked and released on cleanup paths');
