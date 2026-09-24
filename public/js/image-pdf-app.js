@@ -22,8 +22,8 @@
   var PDFJS_URL       = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
   var PDFJS_WORKER    = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var PIPELINE_WORKER = '/workers/image-pipeline-worker.js';
-  var HARD_LIMIT_MS   = 90000;   // 90 s
-  var WORKER_LIMIT_MS = 80000;   // 80 s
+  // No artificial file/page/time limits. Processing remains constrained only by
+  // the browser/device's real resources; recovery and cancellation stay active.
 
   var _inFlight        = false;
   var _jobId           = 0;
@@ -31,7 +31,6 @@
   var _pdfInst         = null;
   var _canvasList      = [];
   var _hardTimer       = null;
-  var _hardReject      = null;
 
   function _log(msg, d)  { console.debug('[ImagePdfApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[ImagePdfApp]',  msg, d !== undefined ? d : ''); }
@@ -45,7 +44,12 @@
   };
   var ImagePdfMemoryManager = {
     checkMemory: function () {
-      if (G.memTier && G.memTier() === 'critical') throw new Error('Not enough memory. Please close other tabs.');
+      try {
+        if (G.RuntimeTelemetry && G.memTier && G.memTier() === 'critical') {
+          G.RuntimeTelemetry.record('image-pdf:memory-advisory', { state: 'critical' });
+        }
+      } catch (_) {}
+      return true;
     },
   };
   var ImagePdfRecoveryManager = {
@@ -64,7 +68,7 @@
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)       { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
+    if (_hardTimer)       { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_pipelineWorker)  { try { _pipelineWorker.terminate(); } catch (_) {} _pipelineWorker = null; }
     if (_pdfInst)         { try { _pdfInst.destroy();           } catch (_) {} _pdfInst        = null; }
     _canvasList.forEach(_freeCanvas);
@@ -86,59 +90,90 @@
   }
 
   // ── jpg-to-pdf path ────────────────────────────────────────────────────────
-  function _runPipelineWorker(images, jobId) {
+  function _runPipelineWorker(files, jobId, onStep) {
     return new Promise(function (resolve, reject) {
       var w;
       try { w = new Worker(PIPELINE_WORKER); }
       catch (e) { return reject(new Error('image-pipeline-worker spawn failed: ' + (e.message || e))); }
       _pipelineWorker = w;
 
-      var timer = setTimeout(function () {
+      var settled = false;
+      function finish(err, value) {
+        if (settled) return;
+        settled = true;
         try { w.terminate(); } catch (_) {}
         _pipelineWorker = null;
-        reject(new Error('Image-to-PDF worker timed out.'));
-      }, WORKER_LIMIT_MS);
+        if (err) reject(err); else resolve(value);
+      }
 
       w.onmessage = function (ev) {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _pipelineWorker = null;
         var d = ev.data || {};
-        if (d.__error) { reject(new Error(d.__error)); return; }
-        if (d.buffer instanceof ArrayBuffer) { resolve(d); return; }
-        reject(new Error('image-pipeline-worker: unexpected response'));
+        if (d.__error) { finish(new Error(d.__error)); return; }
+        if (d.type === 'ready') {
+          w.postMessage({ op: 'init', jobId: String(jobId) });
+          return;
+        }
+        if (d.type === 'image-ack') {
+          var index = d.index;
+          onStep(0, 'active', 5 + Math.round(((index + 1) / files.length) * 20), 'Loaded image ' + (index + 1));
+          sendNext(index + 1);
+          return;
+        }
+        if (d.type === 'done' && d.buffer instanceof ArrayBuffer) {
+          finish(null, d);
+          return;
+        }
+        finish(new Error('image-pipeline-worker: unexpected response'));
       };
       w.onerror = function (ev) {
-        clearTimeout(timer);
-        try { w.terminate(); } catch (_) {}
-        _pipelineWorker = null;
-        reject(new Error('image-pipeline-worker error: ' + (ev && ev.message || 'unknown')));
+        finish(new Error('image-pipeline-worker error: ' + (ev && ev.message || 'unknown')));
       };
 
-      var transferBufs = images.map(function (img) { return img.data; });
-      w.postMessage({ op: 'images-to-pdf', images: images, jobId: String(jobId) }, transferBufs);
+      function sendNext(index) {
+        if (index >= files.length) {
+          onStep(1, 'active', 28, 'Converting images to PDF…');
+          w.postMessage({ op: 'finalize', jobId: String(jobId) });
+          return;
+        }
+        files[index].arrayBuffer().then(function (buf) {
+          w.postMessage({
+            op: 'add-image',
+            data: buf,
+            mime: files[index].type || 'image/jpeg',
+            name: files[index].name,
+            index: index,
+            jobId: String(jobId),
+          }, [buf]);
+        }).catch(function (err) { finish(err); });
+      }
+
+      // The worker acknowledges each image before the next File is read, so
+      // the main thread never accumulates every source image as ArrayBuffers.
+      w.postMessage({ op: 'init', jobId: String(jobId) });
+      function start() { sendNext(0); }
+      var originalOnMessage = w.onmessage;
+      // Start after the worker has accepted initialization; a second init is
+      // harmless and keeps compatibility with cached worker startup timing.
+      w.addEventListener('message', function boot(ev) {
+        if (ev.data && ev.data.type === 'ready') {
+          w.removeEventListener('message', boot);
+          start();
+        }
+      });
     });
   }
 
   async function _processJpgToPdf(files, opts, onStep, jobId) {
-    onStep(0, 'active', 5, 'Reading your images\u2026');
-
-    var images = [];
-    for (var i = 0; i < files.length; i++) {
-      var f   = files[i];
-      var buf = await f.arrayBuffer();
-      images.push({ data: buf, mime: f.type || 'image/jpeg', name: f.name });
-      onStep(0, 'active', 5 + Math.round((i / files.length) * 20), 'Loading image ' + (i + 1));
-    }
+    onStep(0, 'active', 5, 'Reading your images…');
+    onStep(0, 'active', 5, 'Preparing image pipeline…');
 
     onStep(0, 'done', 25);
-    onStep(1, 'active', 28, 'Converting to PDF\u2026');
+    onStep(1, 'active', 28, 'Converting to PDF…');
 
-    var wResult = await _runPipelineWorker(images, jobId);
-    images = null;
+    var wResult = await _runPipelineWorker(files, jobId, onStep);
 
     onStep(1, 'done', 85);
-    onStep(2, 'active', 88, 'Finalizing\u2026');
+    onStep(2, 'active', 88, 'Finalizing…');
 
     var blob = new Blob([wResult.buffer], { type: 'application/pdf' });
     onStep(2, 'done', 100);
@@ -256,21 +291,14 @@
 
     var onStep = _makeStepper();
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Conversion timed out. Please try with a smaller file.'));
-      }, HARD_LIMIT_MS);
-    });
+    var hardPromise = null;
 
     var jobPromise = (toolId === 'pdf-to-jpg')
       ? _processPdfToJpg(files, opts, onStep, jobId)
       : _processJpgToPdf(files, opts, onStep, jobId);
 
     try {
-      var result = await Promise.race([jobPromise, hardPromise]);
+      var result = await jobPromise;
       ImagePdfTelemetry.record('job:done', { job: jobId, blobSize: result.blob && result.blob.size });
       _log('done', { job: jobId });
       return result;
