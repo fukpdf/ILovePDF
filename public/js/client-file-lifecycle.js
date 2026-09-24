@@ -11,17 +11,14 @@
   function releaseBuffer(buffer) { if (buffer instanceof ArrayBuffer) buffers.delete(buffer); return null; }
   function trackResult(result) {
     if (!result) return result;
-    if (result.blob instanceof Blob) return result;
-    if (result instanceof Blob) return result;
+    if (result.url) trackObjectURL(result.url);
+    if (result.buffer instanceof ArrayBuffer) trackBuffer(result.buffer);
     return result;
   }
   function releaseResult(result) {
     if (!result) return null;
     if (result.url) revokeObjectURL(result.url);
     if (result.buffer instanceof ArrayBuffer) releaseBuffer(result.buffer);
-    if (result.blob && result.blob instanceof Blob && result.blob.__clientLifecycleUrl) {
-      revokeObjectURL(result.blob.__clientLifecycleUrl);
-    }
     return null;
   }
   function cleanupObjectURLs() { urls.forEach(function (url) { try { URL.revokeObjectURL(url); } catch (_) {} }); urls.clear(); }
