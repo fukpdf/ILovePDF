@@ -31,8 +31,7 @@
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var HARD_LIMIT_MS  = 90000;   // 90 s: entire job hard cap (terminates workers)
-  var DOCX_LIMIT_MS  = 30000;   // 30 s: DOCX packaging
+  // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n  var DOCX_LIMIT_MS  = 30000;   // 30 s: DOCX packaging
   var OCR_PAGE_MS    = 45000;   // 45 s: per-page OCR recognition
   var OCR_INIT_MS    = 30000;   // 30 s: Tesseract.createWorker init
 
@@ -54,7 +53,7 @@
   // Never throws.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)    { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
+    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; }
     if (_docxWorker)   { try { _docxWorker.terminate(); } catch (_) {} _docxWorker = null; }
     if (_tessWorker)   { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)      { try { _pdfInst.destroy();    } catch (_) {} _pdfInst    = null; }
@@ -413,11 +412,6 @@
     // that prevents the second-run hang — the cleanup always fires.
     var hardPromise = new Promise(function (_, reject) {
       _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Conversion timed out. Please try with a smaller file or check your connection.'));
-      }, HARD_LIMIT_MS);
     });
 
     // The actual job as an immediately-invoked async function so we can wrap
