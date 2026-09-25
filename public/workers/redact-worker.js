@@ -109,7 +109,8 @@ self.onmessage = async function (ev) {
   var d = ev.data || {};
   var jobId = d.jobId;
   try {
-    if (d.op !== 'redact') throw new Error('redact-worker: unsupported op "' + d.op + '"');
+    if (d.op !== 'redact' && d.tool !== 'redact') throw new Error('redact-worker: unsupported operation');
+    d.opts = d.opts || d.options || {};
     var inputBuf = d.buffers[0];
 
     var opts = d.opts || {};
