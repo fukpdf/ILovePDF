@@ -140,6 +140,10 @@
 
   function _endStreamTelemetry(entry, status) {
     if (!entry || entry.telemetryEnded) return;
+    if (entry.removeCancelListener) {
+      try { entry.removeCancelListener(); } catch (_) {}
+      entry.removeCancelListener = null;
+    }
     entry.telemetryEnded = true;
     if (global.RuntimeTelemetry && entry.spanId !== null && entry.spanId !== undefined) {
       try { global.RuntimeTelemetry.endSpan(entry.spanId, status); } catch (_) {}
