@@ -278,16 +278,6 @@
     return window.RotateWorkerAdapter.dispatch(file, opts, onProgress, token);
   }
 
-  // ── Legacy path ───────────────────────────────────────────────────────────
-  // [Task Group R012] Direct call to saved original BrowserTools.process.
-  async function runRotateLegacy(file, opts) {
-    if (!_origProcess) throw new Error('Original BrowserTools.process not saved');
-    if (window.RuntimeTelemetry) {
-      try { window.RuntimeTelemetry.record('rotate:legacy-path', { sizeMB: Math.round(file.size / 1024 / 1024) }); } catch (_) {}
-    }
-    return _origProcess('rotate', [file], opts);
-  }
-
   // ── Full runtime entry ─────────────────────────────────────────────────────
   // [Task Group R003] execute() is what the monkey-patch calls.
   // Returns { blob, filename } always (runtime or legacy), or throws if both fail.
