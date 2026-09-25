@@ -1,56 +1,51 @@
-// RuntimeToolLoader v1.0 — Arc 3 / Phase A / Target 2
+// RuntimeToolLoader v1.1 — Arc 3 / Phase A / Target 2
 // =====================================================================
-// Tool-aware boot sequencer.
-//
-// At DOMContentLoaded:
-//   1. Resolves current toolId from URL (via window.resolveToolIdFromUrl)
-//   2. Looks up manifest in RuntimeToolManifestRegistry
-//   3. Activates the tool's hydration domain
-//   4. Registers the tool's worker domain
-//   5. Locks the tool's runtime config
-//   6. Activates memory island for the tool
-//   7. Opens analytics domain for the tool
-//   8. Emits 'tool:runtime-ready' event
-//
-// If no toolId (e.g. homepage), boots in 'platform' mode (all P0 only).
-// If tool is unknown, logs a debug warning and boots in 'generic' mode.
-//
-// The loader is a lightweight coordinator — it calls into other Arc 3
-// modules that have already been loaded via deferred script tags.
-//
-// Boot is idempotent: repeated calls for the same toolId are no-ops.
+// Tool-aware boot sequencer with an authoritative registry readiness gate.
+// The runtime never publishes tool:runtime-ready until the canonical
+// Tool Registry has been resolved and the manifest/config contract is ready.
 // =====================================================================
 (function (G) {
   'use strict';
 
   if (G.RuntimeToolLoader) return;
-  var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG     = '[ToolLoader]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
-  var _toolId  = null;
-  var _manifest = null;
-  var _booted  = false;
+  var _toolId    = null;
+  var _manifest  = null;
+  var _booted    = false;
+  var _bootPromise = null;
 
-  // ── Safe caller ───────────────────────────────────────────────────────────
   function _safeCall(label, fn) {
-    try { fn(); } catch (e) { console.debug(LOG, label, 'error:', e && e.message || e); }
+    try { return fn(); }
+    catch (e) {
+      console.debug(LOG, label, 'error:', e && e.message || e);
+      return null;
+    }
   }
 
-  // ── Resolve current tool ──────────────────────────────────────────────────
   function _resolveToolId() {
     try {
       if (typeof G.resolveToolIdFromUrl === 'function') {
         return G.resolveToolIdFromUrl() || null;
       }
     } catch (_) {}
-    // Fallback: read from injected global
     try { if (G.__TOOL_ID) return G.__TOOL_ID; } catch (_) {}
     return null;
   }
 
-  // ── Activate hydration domain ─────────────────────────────────────────────
+  async function _awaitRegistry() {
+    try {
+      if (G.ToolRegistryReady && typeof G.ToolRegistryReady.then === 'function') {
+        await G.ToolRegistryReady;
+      }
+    } catch (e) {
+      console.debug(LOG, 'registry readiness error:', e && e.message || e);
+    }
+    return G.ToolRegistry || null;
+  }
+
   function _activateHydration(toolId, manifest) {
     _safeCall('hydration-domain', function () {
       var hd = G.RuntimeHydrationDomains;
@@ -59,7 +54,6 @@
     });
   }
 
-  // ── Register worker domain ────────────────────────────────────────────────
   function _activateWorkerDomain(toolId, manifest) {
     _safeCall('worker-domain', function () {
       var wd = G.RuntimeWorkerDomainRegistry;
@@ -70,12 +64,12 @@
     });
   }
 
-  // ── Lock tool config ──────────────────────────────────────────────────────
   function _lockConfig(toolId, manifest) {
-    _safeCall('config-lock', function () {
-      var cl = G.RuntimeToolConfigLock;
-      if (!cl || !manifest) return;
-      cl.lock(toolId, {
+    if (!toolId || !manifest) return false;
+    var cl = G.RuntimeToolConfigLock;
+    if (!cl || typeof cl.lock !== 'function') return false;
+    try {
+      var locked = cl.lock(toolId, {
         family:         manifest.family,
         hydrationTier:  manifest.hydrationTier,
         memoryBudgetMb: manifest.memoryBudgetMb,
@@ -83,10 +77,33 @@
         thermalPolicy:  manifest.thermalPolicy,
         offlineCapable: manifest.offlineCapable,
       });
-    });
+      return locked !== null && locked !== undefined;
+    } catch (e) {
+      console.debug(LOG, 'config-lock error:', e && e.message || e);
+      return false;
+    }
   }
 
-  // ── Activate memory island ────────────────────────────────────────────────
+  function _sealConfig(toolId, manifest) {
+    if (!toolId || !manifest) return false;
+    var cs = G.RuntimeToolConfigSeal;
+    if (!cs || typeof cs.seal !== 'function') return false;
+    try {
+      var sealed = cs.seal(toolId, {
+        family:         manifest.family,
+        hydrationTier:  manifest.hydrationTier,
+        memoryBudgetMb: manifest.memoryBudgetMb,
+        recoveryPolicy: manifest.recoveryPolicy,
+        thermalPolicy:  manifest.thermalPolicy,
+        offlineCapable: manifest.offlineCapable,
+      });
+      return sealed !== null && sealed !== undefined;
+    } catch (e) {
+      console.debug(LOG, 'config-seal error:', e && e.message || e);
+      return false;
+    }
+  }
+
   function _activateMemoryIsland(toolId, manifest) {
     _safeCall('memory-island', function () {
       var mi = G.RuntimeMemoryIslands;
@@ -95,7 +112,6 @@
     });
   }
 
-  // ── Open analytics domain ─────────────────────────────────────────────────
   function _openAnalyticsDomain(toolId, manifest) {
     _safeCall('analytics-domain', function () {
       var ad = G.RuntimeAnalyticsDomains;
@@ -104,7 +120,6 @@
     });
   }
 
-  // ── Activate bundle segments ──────────────────────────────────────────────
   function _activateBundleSegments(toolId, manifest) {
     _safeCall('bundle-segments', function () {
       var bs = G.RuntimeToolBundleSegments;
@@ -113,7 +128,6 @@
     });
   }
 
-  // ── Open recovery domain ──────────────────────────────────────────────────
   function _openRecoveryDomain(toolId, manifest) {
     _safeCall('recovery-domain', function () {
       var rd = G.RuntimeRecoveryDomains;
@@ -122,54 +136,68 @@
     });
   }
 
-  // ── Main boot ─────────────────────────────────────────────────────────────
-  function _boot() {
-    if (_booted) return;
-    _booted = true;
+  async function _boot() {
+    if (_bootPromise) return _bootPromise;
+    _bootPromise = (async function () {
+      var registry = await _awaitRegistry();
+      _toolId = _resolveToolId();
+      _manifest = null;
 
-    _toolId   = _resolveToolId();
-    _manifest = null;
-
-    if (_toolId) {
-      _safeCall('manifest-lookup', function () {
+      if (_toolId) {
         var mr = G.RuntimeToolManifestRegistry;
         if (mr) {
           _manifest = mr.get(_toolId);
-          mr.activate(_toolId);
+          if (_manifest) mr.activate(_toolId);
         }
+      }
+
+      console.debug(LOG, 'boot — toolId:', _toolId || '(none)', '— family:', _manifest ? _manifest.family : 'n/a');
+
+      if (_toolId && registry && !_manifest) {
+        console.debug(LOG, 'manifest missing for registry-authorized tool:', _toolId);
+        return false;
+      }
+
+      _activateHydration(_toolId, _manifest);
+      _activateWorkerDomain(_toolId, _manifest);
+
+      if (_toolId && _manifest) {
+        if (!_lockConfig(_toolId, _manifest)) {
+          console.debug(LOG, 'runtime config lock rejected:', _toolId);
+          return false;
+        }
+        if (!_sealConfig(_toolId, _manifest)) {
+          console.debug(LOG, 'runtime config seal rejected:', _toolId);
+          return false;
+        }
+      }
+
+      _activateMemoryIsland(_toolId, _manifest);
+      _openAnalyticsDomain(_toolId, _manifest);
+      _activateBundleSegments(_toolId, _manifest);
+      _openRecoveryDomain(_toolId, _manifest);
+
+      _booted = true;
+      _safeCall('dispatch-ready', function () {
+        G.dispatchEvent(new CustomEvent('tool:runtime-ready', {
+          detail: {
+            toolId: _toolId,
+            family: _manifest ? _manifest.family : null,
+            manifest: _manifest,
+            registryReady: !!registry,
+            configSealed: !_toolId || !_manifest ? false : true,
+          },
+          bubbles: false,
+        }));
       });
-    }
 
-    console.debug(LOG, 'boot — toolId:', _toolId || '(none)', '— family:', _manifest ? _manifest.family : 'n/a');
-
-    // Always activate regardless of whether manifest was found
-    _activateHydration(_toolId, _manifest);
-    _activateWorkerDomain(_toolId, _manifest);
-    _lockConfig(_toolId, _manifest);
-    _activateMemoryIsland(_toolId, _manifest);
-    _openAnalyticsDomain(_toolId, _manifest);
-    _activateBundleSegments(_toolId, _manifest);
-    _openRecoveryDomain(_toolId, _manifest);
-
-    _safeCall('dispatch-ready', function () {
-      G.dispatchEvent(new CustomEvent('tool:runtime-ready', {
-        detail: {
-          toolId:   _toolId,
-          family:   _manifest ? _manifest.family : null,
-          manifest: _manifest,
-        },
-        bubbles: false,
-      }));
-    });
-
-    console.debug(LOG, 'tool runtime ready — toolId:', _toolId);
+      console.debug(LOG, 'tool runtime ready — toolId:', _toolId);
+      return true;
+    })();
+    return _bootPromise;
   }
 
-  // ── Deferred boot (after all Arc 3 files have loaded) ────────────────────
-  function _deferredBoot() {
-    // Use a brief timeout so all deferred scripts have executed first
-    setTimeout(_boot, 0);
-  }
+  function _deferredBoot() { setTimeout(_boot, 0); }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _deferredBoot, { once: true });
@@ -178,11 +206,11 @@
   }
 
   G.RuntimeToolLoader = Object.freeze({
-    VERSION:     VERSION,
-    getToolId:   function () { return _toolId; },
+    VERSION: VERSION,
+    getToolId: function () { return _toolId; },
     getManifest: function () { return _manifest; },
-    isBooted:    function () { return _booted; },
-    boot:        _boot, // allow manual re-trigger for SPAs
+    isBooted: function () { return _booted; },
+    boot: _boot,
   });
 
 }(window));

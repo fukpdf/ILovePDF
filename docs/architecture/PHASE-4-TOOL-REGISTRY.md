@@ -33,10 +33,6 @@ The registry is metadata only. It does not execute processors, load engines, or 
 ### Scope
 Unit 1 establishes the authoritative identity/ownership contract. It does not yet migrate runtime consumers away from the legacy `TOOLS` array or `SLUG_MAP`; that is a later Phase 4 unit so runtime behavior remains stable during the transition.
 
-## Verification
-Source-level implementation is complete for Unit 1. CI/deployment verification is required before Phase 4 is marked complete.
-
-
 ## Unit 2 — Browser runtime authority
 
 Implemented on `phase-4-unit-2-runtime-registry`.
@@ -60,7 +56,6 @@ If the published registry cannot be loaded or validated, the page fails open to 
 - `tool-page.js` waits for the registry and uses registry-backed resolution
 - `tool.html` loads the registry runtime before `tool-page.js`
 
-
 ## Unit 4 — Adaptive Worker Streaming
 
 Implemented on `phase-4-unit-4-adaptive-stream-execution`.
@@ -74,7 +69,6 @@ Implemented on `phase-4-unit-4-adaptive-stream-execution`.
 - No artificial page-count or file-size rejection was introduced.
 - Unit 4 is enforced by `npm run audit:phase4`.
 
-
 ## Unit 6 — Legacy routing authority removal
 
 Implemented on `phase-4-unit-6-legacy-routing-removal`.
@@ -85,7 +79,6 @@ Implemented on `phase-4-unit-6-legacy-routing-removal`.
 - `TOOLS` remains a UI/detail compatibility layer only; `SLUG_MAP` remains compatibility data for legacy surfaces but is not authoritative for runtime tool identity.
 - The Phase 4 audit rejects reintroduction of direct `SLUG_MAP` identity resolution in `tool-page.js`.
 - No file-size/page-count limits or server/Laba AI dependency are introduced.
-
 
 ## Unit 7 — Runtime capability contract
 
@@ -98,7 +91,6 @@ Implemented on `phase-4-unit-7-capability-contract`.
 - The Phase 4 audit validates every registry entry's capability contract and the runtime enforcement boundary.
 - This closes capability drift between the authoritative registry and processor implementation without adding file-size/page-count limits or a server/Laba AI dependency.
 
-
 ## Unit 8 — Runtime registry integrity
 
 Implemented on `phase-4-unit-8-registry-integrity`.
@@ -108,7 +100,6 @@ Implemented on `phase-4-unit-8-registry-integrity`.
 - The runtime registry exposes a lightweight `health()` snapshot with readiness, endpoint, schema version, loaded tool count, and load error state for diagnostics.
 - The Phase 4 audit verifies the immutable entry/capability boundary and health API.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
-
 
 ## Unit 9 — Runtime manifest contract
 
@@ -121,7 +112,6 @@ Implemented on `phase-4-unit-9-runtime-manifest-contract`.
 - Phase 4 CI audits the one-to-one identity contract and registry-count parity.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
 
-
 ## Unit 10 — Runtime config manifest contract
 
 Implemented on `phase-4-unit-10-config-contract`.
@@ -132,7 +122,6 @@ Implemented on `phase-4-unit-10-config-contract`.
 - The existing runtime loader remains the activation path: manifest data feeds the config lock, and the lock enforces parity before accepting the configuration.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
 
-
 ## Unit 11 — Runtime config seal manifest contract
 
 Implemented on `phase-4-unit-11-config-seal-contract`.
@@ -142,4 +131,17 @@ Implemented on `phase-4-unit-11-config-seal-contract`.
 - Manifest hydration-tier lookup is exposed through the canonical manifest API, removing a previously optional/undefined lookup path used by the seal layer.
 - Contract diagnostics are exposed through `getContractStatus()`, and mismatched seals are blocked rather than silently recorded as valid runtime state.
 - Phase 4 CI verifies the seal-to-manifest contract and hydration-tier API.
+- No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
+
+## Unit 12 — Runtime activation gate
+
+Implemented on `phase-4-unit-12-runtime-activation-gate`.
+
+- `RuntimeToolLoader` now awaits the canonical `ToolRegistryReady` barrier before resolving a tool runtime.
+- Tool activation uses the registry-backed manifest as the runtime authority; a registry-authorized tool without a manifest is blocked from emitting `tool:runtime-ready`.
+- Config locking is now a hard activation prerequisite for known tools.
+- Config sealing is now also a hard activation prerequisite, closing the gap where the independent seal layer existed but was not part of the activation boundary.
+- Boot state is promise-based and idempotent through `_bootPromise`, preventing concurrent activation races.
+- `tool:runtime-ready` exposes registry readiness and config-seal state for diagnostics.
+- The audit gate verifies the activation barrier and all contract prerequisites.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
