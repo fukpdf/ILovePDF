@@ -106,7 +106,6 @@ for (const t of (registry.tools || [])) {
   }
 }
 
-// Unit 9 canonical Tool Registry ↔ RuntimeToolManifestRegistry contract.
 const runtimeManifest = read('public/js/runtime-tool-manifest-registry.js');
 if (!/validateAgainstToolRegistry/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose the canonical Tool Registry contract.');
 if (!/registryContractStatus/.test(runtimeManifest)) fail('Runtime tool manifest registry does not expose contract diagnostics.');
@@ -126,17 +125,13 @@ if (!manifestBlock) {
   if (manifestIds.length !== registry.tools.length) fail('Runtime manifest tool count does not equal canonical registry count.');
 }
 
-// Unit 10 runtime config ↔ RuntimeToolManifestRegistry contract.
 const configLock = read('public/js/runtime-tool-config-lock.js');
 if (!/validateAgainstManifest/.test(configLock)) fail('Runtime tool config lock does not expose the manifest contract validator.');
 if (!/manifest\[field\]/.test(configLock)) fail('Runtime tool config lock does not compare locked fields against the runtime manifest.');
 if (!/manifest-contract-fail/.test(configLock)) fail('Runtime tool config lock does not record manifest contract failures.');
 if (!/getContractStatus/.test(configLock)) fail('Runtime tool config lock does not expose contract diagnostics.');
 if (!/var contract = validateAgainstManifest\(toolId, config\)/.test(configLock)) fail('Runtime tool config lock does not enforce the manifest contract before locking.');
-if (!/cl\.lock\(toolId,/.test(read('public/js/runtime-tool-loader.js'))) fail('Runtime tool loader is not connected to RuntimeToolConfigLock.');
 
-
-// Unit 11 RuntimeToolConfigSeal ↔ RuntimeToolManifestRegistry contract.
 const configSeal = read('public/js/runtime-tool-config-seal.js');
 if (!/validateAgainstManifest/.test(configSeal)) fail('Runtime tool config seal does not expose the manifest contract validator.');
 if (!/manifest\[field\]/.test(configSeal)) fail('Runtime tool config seal does not compare sealed fields against the manifest.');
@@ -144,7 +139,6 @@ if (!/var contract = validateAgainstManifest\(toolId, cfg\)/.test(configSeal)) f
 if (!/getContractStatus/.test(configSeal)) fail('Runtime tool config seal does not expose contract diagnostics.');
 if (!/getHydrationTier: function/.test(runtimeManifest)) fail('Runtime tool manifest does not expose hydration tier lookup used by config sealing.');
 
-// Unit 8 runtime registry integrity checks.
 if (!/function freezeEntry\(tool\)/.test(runtimeLoader)) fail('Runtime registry entries are not explicitly frozen.');
 if (!/entry\.capabilities\s*=\s*Object\.freeze\(\{\s*\.\.\.entry\.capabilities\s*\}\)/.test(runtimeLoader)) fail('Runtime registry capabilities are not immutable.');
 if (!/function health\(\)/.test(runtimeLoader) || !/health, mergeLegacy/.test(runtimeLoader)) fail('Runtime registry health API is missing.');
@@ -166,8 +160,19 @@ for (const t of (registry.tools || [])) {
   }
 }
 
+// Unit 12 runtime activation gate.
+const toolLoader = read('public/js/runtime-tool-loader.js');
+if (!/async function _awaitRegistry\(\)/.test(toolLoader)) fail('Runtime tool loader does not await Tool Registry readiness.');
+if (!/G\.ToolRegistryReady/.test(toolLoader)) fail('Runtime tool loader does not consume ToolRegistryReady.');
+if (!/async function _boot\(\)/.test(toolLoader)) fail('Runtime tool loader boot is not promise-based.');
+if (!/RuntimeToolConfigSeal/.test(toolLoader) || !/_sealConfig/.test(toolLoader)) fail('Runtime tool loader does not enforce the config seal before runtime-ready.');
+if (!/config seal rejected/.test(toolLoader)) fail('Runtime tool loader does not block runtime activation when config sealing fails.');
+if (!/registryReady: !!registry/.test(toolLoader)) fail('Runtime ready event does not expose registry readiness state.');
+if (!/configSealed: !_toolId \|\| !_manifest \? false : true/.test(toolLoader)) fail('Runtime ready event does not expose config seal state.');
+if (!/_bootPromise/.test(toolLoader)) fail('Runtime tool loader lacks idempotent boot promise state.');
+
 if (failures.length) {
-  console.error('[FAIL] Phase 4 Unit 1 + Unit 2 + Unit 3 + Unit 4 registry gate (' + failures.length + ' issue(s))');
+  console.error('[FAIL] Phase 4 registry/runtime gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
@@ -177,7 +182,9 @@ if (failures.length) {
   console.log('[PASS] SLUG_MAP ↔ registry reconciliation');
   console.log('[PASS] published browser registry mirror parity');
   console.log('[PASS] runtime registry loader + tool-page authority wiring');
-  console.log('[PASS] Unit 6 legacy routing identity dependency removed');
+  console.log('[PASS] legacy routing identity dependency removed');
   console.log('[PASS] registry-driven execution policy + BrowserTools capability reconciliation');
-  console.log('\nPhase 4 Unit 1 + Unit 2 + Unit 3 + Unit 4 registry gate: PASS (' + registry.tools.length + ' tools)');
+  console.log('[PASS] Units 8–11 runtime integrity + contract gates');
+  console.log('[PASS] Unit 12 runtime activation gate');
+  console.log('\nPhase 4 registry/runtime gate: PASS (' + registry.tools.length + ' tools)');
 }
