@@ -544,7 +544,7 @@ const ocrAdapter = read('public/js/ocr-worker-adapter.js');
 if (!/G\.__OCRToolEngine\.process/.test(ocrAdapter)) fail('OCR adapter does not bind to the isolated OCR engine.');
 if (/WorkerPool\.run\(/.test(ocrAdapter)) fail('OCR adapter contains a direct WorkerPool fallback.');
 if (!/TIMEOUT_MS=0/.test(ocrAdapter)) fail('OCR adapter has an artificial scheduler timeout.');
-if (!/dedupeKey:key\(file,opts\)/.test(ocrAdapter)) fail('OCR adapter dedupe key is missing.');
+if (!/function key\(file,opts\)/.test(ocrAdapter) || !/dedupeKey:key/.test(ocrAdapter)) fail('OCR adapter dedupe key is missing.');
 if (!/cancel\(reason\)/.test(ocrAdapter)) fail('OCR adapter cancellation contract is missing.');
 if (!/ocr-worker-adapter\.js/.test(toolHtml) || !/ocr-runtime\.js/.test(toolHtml)) fail('OCR canonical runtime files are not loaded by the standard tool shell.');
 
