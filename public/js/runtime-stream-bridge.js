@@ -220,6 +220,24 @@
       var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null };
       _activeStreams.set(streamId, entry);
 
+      function finishTransferRuntimeError(err, status) {
+        if (entry.terminal) return;
+        entry.terminal = true;
+        _activeStreams.delete(streamId);
+        try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, status || 'error');
+        reject(err instanceof Error ? err : new Error(String(err || 'stream-worker-error')));
+      }
+
+      function finishTransferFallback(err) {
+        if (entry.terminal) return;
+        entry.terminal = true;
+        _activeStreams.delete(streamId);
+        try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'fallback');
+        reject(_fallbackStreamError(err));
+      }
+
       if (token) {
         entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
       }
@@ -237,12 +255,7 @@
           _telStream('done', { streamId: streamId });
           resolve(d);
         } else if (d.type === 'stream-error') {
-          if (entry.terminal) return;
-          entry.terminal = true;
-          _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          _endStreamTelemetry(entry, 'error');
-          reject(new Error(d.__error || 'stream-worker-error'));
+          finishTransferRuntimeError(new Error(d.__error || 'stream-worker-error'));
         } else if (d.type === 'stream-progress' && onProgress) {
           try { onProgress(d.pct, d.label); } catch (_) {}
         }
@@ -250,12 +263,7 @@
 
       w.onerror = function (e) {
         if (entry.terminal) return;
-        entry.terminal = true;
-        _activeStreams.delete(streamId);
-        if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
-        try { w.terminate(); } catch (_) {}
-        _endStreamTelemetry(entry, 'error');
-        reject(new Error((e && e.message) || 'stream-worker-onerror'));
+        finishTransferRuntimeError(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
       // Build the transferable stream
@@ -266,10 +274,7 @@
 
       if (!fileStream) {
         // Browser doesn't support File.stream() — fall through to path B
-        _activeStreams.delete(streamId);
-        try { w.terminate(); } catch (_) {}
-        _endStreamTelemetry(entry, 'fallback');
-        reject(_fallbackStreamError('file-stream-unavailable'));
+        finishTransferFallback('file-stream-unavailable');
         return;
       }
 
@@ -283,8 +288,7 @@
       // 8G: security validation on outbound message
       if (global.RuntimeSecurity) {
         try { global.RuntimeSecurity.validateWorkerMessage(msg); } catch (se) {
-          _activeStreams.delete(streamId);
-          finishRuntimeError(se);
+          finishTransferRuntimeError(se);
           return;
         }
       }
@@ -292,10 +296,7 @@
       try {
         w.postMessage(msg, [fileStream]);
       } catch (postErr) {
-        _activeStreams.delete(streamId);
-        try { w.terminate(); } catch (_) {}
-        _endStreamTelemetry(entry, 'fallback');
-        reject(_fallbackStreamError('stream-postmessage-failed: ' + postErr.message));
+        finishTransferFallback('stream-postmessage-failed: ' + postErr.message);
       }
     });
   }
