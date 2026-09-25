@@ -176,3 +176,19 @@ The adapter now delegates to `BrowserTools.process('page-numbers', ...)`, uses t
 No artificial file-size, page-count or processing-time limit is introduced. Large-file execution remains under the shared adaptive WorkerPool/streaming route.
 
 Verification: `scripts/phase5-page-numbers-check.js`.
+
+
+## Unit 12 — Redact PDF
+
+Audit found Redact was intentionally using a dedicated `redact-worker.js` because true redaction requires pdf.js rasterisation; the shared pdf-lib rectangle operation was previously proven insecure because the underlying text remained recoverable. The app also owned fixed 120s/105s timers and bypassed the shared BrowserTools runtime.
+
+The migration keeps the security-isolated worker family, but moves ownership into the shared runtime:
+1. Redact is routed through `BrowserTools.process('redact', ...)`.
+2. WorkerPool handles normal Redact jobs using the isolated `/workers/redact-worker.js` URL.
+3. Adaptive RuntimeStreamBridge handles large inputs using the same isolated worker URL.
+4. The Redact worker now supports transferable-stream and chunk-stream protocols while retaining its pdf.js raster-flattening security model.
+5. The app adapter uses the shared CancelToken and lifecycle contract.
+6. No artificial file-size, page-count or processing-time rejection limit is introduced.
+7. The insecure shared `OPS.redact` path is not used for authoritative Redact processing.
+
+Verification: `scripts/phase5-redact-check.js`.
