@@ -20,7 +20,6 @@
   var PDFJS_WORKER    = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var SUMMARY_WORKER  = '/workers/summary-worker.js';
   var TESS_CDN        = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var HARD_LIMIT_MS   = 120000;  // 2 min
   var SUMMARY_LIMIT_MS = 20000;  // 20 s for scoring worker
   var OCR_INIT_MS     = 30000;
   var OCR_PAGE_MS     = 45000;
@@ -62,7 +61,6 @@
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)      { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
     if (_summaryWorker)  { try { _summaryWorker.terminate(); } catch (_) {} _summaryWorker = null; }
     if (_tessWorker)     { try { _tessWorker.terminate();    } catch (_) {} _tessWorker    = null; }
     if (_pdfInst)        { try { _pdfInst.destroy();         } catch (_) {} _pdfInst       = null; }
@@ -210,15 +208,6 @@
     var onStep = _makeStepper();
     var maxSentences = parseInt((opts && (opts.sentences || opts.length)) || '7', 10) || 7;
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Summarization timed out. Please try with a smaller document.'));
-      }, HARD_LIMIT_MS);
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
@@ -308,7 +297,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       SummaryScheduler.onFailure();
       SummaryRecoveryManager.onError(err);
