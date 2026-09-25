@@ -266,6 +266,14 @@
         finishTransferRuntimeError(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
+      // MessagePort delivery failures are terminal transport errors. Treat
+      // messageerror exactly like worker errors so the stream cannot remain
+      // registered or retain its cancellation/telemetry lifecycle.
+      w.onmessageerror = function () {
+        if (entry.terminal) return;
+        finishTransferRuntimeError(new Error('stream-worker-message-error'));
+      };
+
       // Build the transferable stream
       var fileStream;
       try {
@@ -557,6 +565,11 @@
         finishRuntimeError(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
+      w.onmessageerror = function () {
+        if (entry.terminal) return;
+        finishRuntimeError(new Error('stream-worker-message-error'));
+      };
+
       // Kick off the first chunk
       _sendNextChunk().catch(function (err) {
         finishRuntimeError(err);
@@ -748,6 +761,7 @@
         }
       };
       w.onerror = function(e) { finishError(new Error((e && e.message) || 'stream-worker-onerror')); };
+      w.onmessageerror = function() { finishError(new Error('stream-worker-message-error')); };
       sendChunk().catch(finishError);
     });
   }
