@@ -484,6 +484,9 @@
 
   function prewarm(workerUrl) {
     if (!workerUrl) return false;
+    // Hidden tabs should not grow speculative worker capacity. Active tasks
+    // continue normally; only new prewarm/spare-worker creation is suppressed.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
     var pool = getPool(workerUrl);
     // Idempotent per URL: an existing healthy idle/busy slot is already warm.
     // Never create a second slot just because another prewarm caller fired.
