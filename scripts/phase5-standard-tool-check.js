@@ -523,3 +523,32 @@ if (!compareTool || compareTool.execution !== 'browser-worker') fail('Compare re
 if (!compareTool || !compareTool.capabilities || compareTool.capabilities.streaming !== 'adaptive-worker') fail('Compare registry does not declare adaptive worker streaming.');
 if (!compareTool || !compareTool.capabilities || compareTool.capabilities.workerPool !== true) fail('Compare registry does not declare worker pool execution.');
 if (!/compare-worker-adapter\.js/.test(toolHtml)) fail('Compare adapter is not loaded by the standard tool shell.');
+
+
+// ── Translate canonical tool ─────────────────────────────────────────────
+requirePdfWorkerContract('translate', 'Translate');
+const translateApp = read('public/js/translate-pdf-app.js');
+if (!/G\.TranslateRuntime\.execute/.test(translateApp)) fail('Translate app does not dispatch to canonical TranslateRuntime.');
+if (!/ToolAppManager\.registerTool\('translate'/.test(translateApp)) fail('Translate ToolApp boundary is not registered.');
+if (!/cancelActive/.test(translateApp)) fail('Translate lifecycle cancellation is missing.');
+if (/new Worker\(|translation-worker\.js|HARD_LIMIT_MS|WORKER_LIMIT_MS|PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED/i.test(translateApp)) fail('Translate app still owns legacy worker/factory timeout architecture.');
+
+const translateRuntime = read('public/js/translate-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
+if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
+
+const translateAdapter = read('public/js/translate-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(translateAdapter)) fail('Translate adapter does not use RuntimeWorkers.dispatch.');
+if (!/TIMEOUT_MS=0/.test(translateAdapter)) fail('Translate adapter has an artificial execution timeout.');
+if (!/dedupeKey:key\(file,o\)/.test(translateAdapter)) fail('Translate adapter does not provide a deterministic dedupe key.');
+if (!/WORKER_URL='\/workers\/pdf-worker\.js'/.test(translateAdapter)) fail('Translate adapter does not use shared PDF worker.');
+
+const translateWorker = read('public/workers/pdf-worker.js');
+if (!/OPS\.translate\s*=\s*async function/.test(translateWorker)) fail('Shared PDF worker has no Translate operation.');
+
+const translateTool = (registry.tools || []).find(t => t.id === 'translate');
+if (!translateTool || translateTool.execution !== 'browser-worker') fail('Translate registry is not browser-worker.');
+if (!translateTool || translateTool.capabilities.streaming !== 'adaptive-worker') fail('Translate registry does not declare adaptive worker streaming.');
+if (!translateTool || translateTool.capabilities.workerPool !== true) fail('Translate registry does not declare worker pool execution.');
+if (!/translate-worker-adapter\.js/.test(toolHtml)) fail('Translate adapter is not loaded by the standard tool shell.');
