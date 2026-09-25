@@ -1,0 +1,6 @@
+// OCR Runtime v1.0 — canonical RuntimeScheduler boundary.
+(function(G){'use strict';if(G.OCRRuntime)return;var token=null;
+async function execute(files,opts){if(!Array.isArray(files)||!files.length)throw new Error('No PDF file provided');if(!G.RuntimeScheduler||typeof G.RuntimeScheduler.run!=='function')throw new Error('RuntimeScheduler is unavailable — canonical OCR runtime cannot execute');if(!G.OCRWorkerAdapter)throw new Error('OCRWorkerAdapter is unavailable');token=new(G.WorkerPool&&G.WorkerPool.CancelToken?G.WorkerPool.CancelToken:function(){this.cancelled=false;this.cancel=function(){this.cancelled=true;};})();try{return await G.RuntimeScheduler.run('ocr',function(t,onProgress){return G.OCRWorkerAdapter.dispatch(files[0],opts,onProgress,t||token);},{token:token,timeoutMs:0,label:'ocr'});}finally{token=null;}}
+function cancelActive(reason){if(token&&token.cancel)token.cancel(reason||'cancelled');if(G.OCRWorkerAdapter&&G.OCRWorkerAdapter.cancel)G.OCRWorkerAdapter.cancel(reason||'cancelled');}
+function getDiagnostics(){return{active:!!token,hasAdapter:!!G.OCRWorkerAdapter,timeoutMs:0};}
+G.OCRRuntime={execute:execute,cancelActive:cancelActive,getDiagnostics:getDiagnostics};}(window));
