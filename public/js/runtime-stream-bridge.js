@@ -213,7 +213,7 @@
       _activeStreams.set(streamId, entry);
 
       if (token) {
-        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
+        entry.removeCancelListener = entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
       }
 
       w.onmessage = function (e) {
@@ -244,6 +244,7 @@
         if (entry.terminal) return;
         entry.terminal = true;
         _activeStreams.delete(streamId);
+        if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, 'error');
         reject(new Error((e && e.message) || 'stream-worker-onerror'));
@@ -320,7 +321,7 @@
         return;
       }
 
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null };
       _activeStreams.set(streamId, entry);
 
       if (token) {
@@ -643,18 +644,19 @@
         });
       }
       _telStream('started', { streamId: streamId, tool: message && message.tool, totalBytes: totalBytes });
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null };
       _activeStreams.set(streamId, entry);
 
       function finishError(err) {
         if (done || entry.terminal) return;
         done = true; entry.terminal = true; _activeStreams.delete(streamId);
+        if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, 'error');
         reject(err instanceof Error ? err : new Error(String(err)));
       }
 
-      if (token) token.onCancel(function() {
+      if (token) entry.removeCancelListener = token.onCancel(function() {
         _cancelStream(streamId);
         if (!done) {
           done = true;
@@ -715,6 +717,7 @@
           sendChunk().catch(finishError);
         } else if (d.type === 'stream-done') {
           done=true; entry.terminal=true; _activeStreams.delete(streamId);
+          if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
           try { w.terminate(); } catch (_) {}
           _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
