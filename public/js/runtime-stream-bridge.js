@@ -742,6 +742,13 @@
           }
           w.postMessage(chunkMsg, [buf]);
           offset = end; chunkIndex++;
+          // Empty files have no byte offset to advance. Move to the next
+          // source file immediately after their single terminal chunk is sent.
+          if (file.size === 0) {
+            fileIndex++;
+            offset = 0;
+            chunkIndex = 0;
+          }
           if (onProgress && totalBytes) {
             var processed = files.slice(0,fileIndex).reduce(function(s,f){return s+(f.size||0);},0)+offset;
             onProgress(Math.min(90, 10 + (processed / totalBytes) * 75), 'Streaming file ' + (fileIndex + 1) + ' of ' + files.length + '…');
