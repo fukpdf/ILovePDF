@@ -176,18 +176,8 @@
             token:     token,
           }
         );
-      } else if (window.WorkerPool && window.WorkerPool.run) {
-        // Fallback: direct WorkerPool.run (legacy path)
-        var wpToken = null;
-        if (window.WorkerPool.CancelToken) wpToken = window.WorkerPool.CancelToken();
-        if (token && wpToken) {
-          token.onCancel(function () { try { wpToken.cancel(); } catch (_) {} });
-        }
-        var wpOpts = {};
-        if (wpToken) wpOpts.token = wpToken;
-        workerResult = await window.WorkerPool.run(WORKER_URL, workerMsg, [buf], wpOpts);
       } else {
-        throw new Error('no-worker-runtime');
+        throw new Error('RuntimeWorkers is unavailable — canonical Rotate worker runtime cannot dispatch');
       }
     } finally {
       stopTicker();
@@ -201,13 +191,13 @@
 
     if (!workerResult || !workerResult.buffer) {
       if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'empty-result');
-      throw new Error('Worker produced empty output — falling back');
+      throw new Error('Worker produced empty output');
     }
 
     var blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
     if (blob.size === 0) {
       if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'zero-size');
-      throw new Error('Worker produced empty output — falling back');
+      throw new Error('Worker produced empty output');
     }
 
     if (spanId !== null && window.RuntimeTelemetry) {
