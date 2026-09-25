@@ -24,22 +24,22 @@ else {
 if (JSON.stringify(tool) !== JSON.stringify(pub)) fail('Canonical and published Sign registry entries differ.');
 
 const browser = read('public/js/browser-tools.js');
-const workerSet = browser.match(/const WORKER_TOOLS = new Set\\(\\[([\\s\\S]*?)\\]\\);/)?.[1] || '';
+const workerSet = browser.match(/const WORKER_TOOLS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
 if (!/['"]sign['"]/.test(workerSet)) fail('Sign is not in WORKER_TOOLS.');
-if (!/pipelineStreamToWorker/.test(browser) || !/pool\\.run\\(/.test(browser)) fail('Shared adaptive WorkerPool routing is missing.');
+if (!/pipelineStreamToWorker/.test(browser) || !/pool\.run\(/.test(browser)) fail('Shared adaptive WorkerPool routing is missing.');
 if (!/cancelToken/.test(browser)) fail('Shared cancellation routing is missing.');
 
 const worker = read('public/workers/pdf-worker.js');
-if (!/OPS\\.sign\\s*=\\s*async function/.test(worker)) fail('Shared Sign operation missing.');
+if (!/OPS\.sign\s*=\s*async function/.test(worker)) fail('Shared Sign operation missing.');
 if (!/signatureText/.test(worker) || !/drawLine/.test(worker)) fail('Sign worker signature contract is incomplete.');
 
 const app = read('public/js/sign-app.js');
-if (/pdf-lib-worker\\.js/.test(app)) fail('Sign app still references dedicated pdf-lib worker.');
-if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|setTimeout\\(/.test(app)) fail('Sign app retains an artificial processing timeout.');
-if (!/BrowserTools\\.process\\(TOOL_ID/.test(app)) fail('Sign app does not delegate to shared BrowserTools.');
-if (!/WorkerPool\\.CancelToken/.test(app)) fail('Sign app has no shared cancellation token.');
-if (!/function unmount\\(\\)/.test(app) || !/function destroy\\(\\)/.test(app)) fail('Sign lifecycle adapter incomplete.');
-if (/signatureText/.test(app) && /_log\\([^)]*signatureText/.test(app)) fail('Sign app logs signature text.');
+if (/pdf-lib-worker\.js/.test(app)) fail('Sign app still references dedicated pdf-lib worker.');
+if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|setTimeout\(/.test(app)) fail('Sign app retains an artificial processing timeout.');
+if (!/BrowserTools\.process\(TOOL_ID/.test(app)) fail('Sign app does not delegate to shared BrowserTools.');
+if (!/WorkerPool\.CancelToken/.test(app)) fail('Sign app has no shared cancellation token.');
+if (!/function unmount\(\)/.test(app) || !/function destroy\(\)/.test(app)) fail('Sign lifecycle adapter incomplete.');
+if (/signatureText/.test(app) && /_log\([^)]*signatureText/.test(app)) fail('Sign app logs signature text.');
 
 const runtime = read('public/js/sign-runtime.js');
 if (!/timeoutMs:\s*0/.test(runtime) || !/workerTimeout:\s*0/.test(runtime)) fail('Sign runtime legacy adapter still declares finite processing timeout.');
