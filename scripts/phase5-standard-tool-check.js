@@ -205,6 +205,40 @@ if (!/buffers\[0\]\s*=\s*null/.test(pageNumbersBlock)) fail('Page Numbers worker
 if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
 if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
 
+// ── Watermark canonical tool ──────────────────────────────────────────────
+requirePdfWorkerContract('watermark', 'Watermark');
+const watermarkApp = read('public/js/watermark-pdf-app.js');
+if (!/runtime\(\)\.execute\(files\[0\], opts \|\| \{\}\)/.test(watermarkApp)) fail('Watermark app does not dispatch to WatermarkRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(watermarkApp)) fail('Watermark ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(watermarkApp) && !/function unmount\(\) \{ cancel\(\); \}/.test(watermarkApp)) fail('Watermark unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?_cancel\(/.test(watermarkApp) && !/function reset\(\) \{ cancel\(\); \}/.test(watermarkApp)) fail('Watermark reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(watermarkApp) && !/function destroy\(\) \{ cancel\(\); \}/.test(watermarkApp)) fail('Watermark destroy cancellation is missing.');
+
+const watermarkRuntime = read('public/js/watermark-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(watermarkRuntime)) fail('Watermark runtime does not use RuntimeScheduler.');
+if (!/RuntimeScheduler is unavailable/.test(watermarkRuntime)) fail('Watermark runtime does not fail closed.');
+if (!/__watermarkRunToken/.test(watermarkRuntime)) fail('Watermark run ownership token is missing.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback/i.test(watermarkRuntime)) fail('Watermark runtime retains legacy/fallback architecture.');
+if (!/timeoutMs: 0/.test(watermarkRuntime)) fail('Watermark runtime does not use an unlimited execution timeout.');
+
+const watermarkAdapter = read('public/js/watermark-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(watermarkAdapter)) fail('Watermark adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(watermarkAdapter)) fail('Watermark adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS = 0/.test(watermarkAdapter)) fail('Watermark adapter has an artificial timeout.');
+if (!/pipelineStreamToWorker/.test(watermarkAdapter)) fail('Watermark adapter does not use adaptive streaming.');
+if (!/STREAM_THRESHOLD = 10 \* 1024 \* 1024/.test(watermarkAdapter)) fail('Watermark adaptive threshold is missing.');
+if (!/dedupeKey: key\(file, opts\)/.test(watermarkAdapter)) fail('Watermark dedupe key is missing.');
+if (!/text/.test(watermarkAdapter) || !/opacity/.test(watermarkAdapter) || !/position/.test(watermarkAdapter)) fail('Watermark option identity is incomplete.');
+
+const watermarkWorker = read('public/workers/pdf-worker.js');
+const watermarkBlock = watermarkWorker.match(/OPS\.watermark\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!watermarkBlock) fail('Shared PDF worker has no Watermark operation.');
+if (!/PDFDocument\.load/.test(watermarkBlock) || !/drawText/.test(watermarkBlock)) fail('Watermark worker drawing contract is incomplete.');
+if (!/text/.test(watermarkBlock) || !/opacity/.test(watermarkBlock) || !/position/.test(watermarkBlock)) fail('Watermark worker does not consume watermark options.');
+if (!/buffers\[0\]\s*=\s*null/.test(watermarkBlock)) fail('Watermark worker does not release the source buffer.');
+if (!/['"]watermark['"]/.test(workerSet)) fail('Watermark is not in BrowserTools WORKER_TOOLS.');
+if (!/watermark-worker-adapter\.js/.test(toolHtml)) fail('Watermark adapter is not loaded by the standard tool shell.');
+
 // ── Merge canonical tool ───────────────────────────────────────────────────
 requirePdfWorkerContract('merge', 'Merge');
 const mergeApp = read('public/js/merge-pdf-app.js');
