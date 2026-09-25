@@ -280,9 +280,8 @@
       if (global.RuntimeSecurity) {
         try { global.RuntimeSecurity.validateWorkerMessage(msg); } catch (se) {
           _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          _endStreamTelemetry(entry, 'error');
-          reject(se); return;
+          finishRuntimeError(se);
+          return;
         }
       }
 
@@ -401,9 +400,16 @@
             streamId:  streamId,
             totalSize: totalSize,
           });
-          w.postMessage(initMsg);
+          try {
+            w.postMessage(initMsg);
+          } catch (initErr) {
+            finishRuntimeError(new Error('stream-init-postmessage-failed: ' + initErr.message));
+            return;
+          }
           // Kick off first prefetch after init
-          _prefetchNext().catch(function () {});
+          _prefetchNext().catch(function (err) {
+            finishRuntimeError(err);
+          });
         }
 
         if (offset >= totalSize) {
@@ -485,10 +491,7 @@
         try {
           w.postMessage(chunkMsg, [buf]); // zero-copy transfer
         } catch (postErr) {
-          _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          _endStreamTelemetry(entry, 'error');
-          reject(new Error('chunk-postmessage-failed: ' + postErr.message));
+          finishRuntimeError(new Error('chunk-postmessage-failed: ' + postErr.message));
           return;
         }
 
