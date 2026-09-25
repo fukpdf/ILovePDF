@@ -19,7 +19,7 @@ else {
 }
 if(pub!==read('config/tool-registry.json')) fail('registry parity');
 const bt=read('public/js/browser-tools.js');
-const wt=bt.match(/const WORKER_TOOLS = new Set\\(\\[([\\s\\S]*?)\\]\\);/)?.[1]||'';
+const wt=bt.match(/const WORKER_TOOLS = new Set\(\[([\s\S]*?)\]\);/)?.[1]||'';
 if(!/['"]repair['"]/.test(wt)) fail('Repair not in WORKER_TOOLS');
 if(!/pipelineStreamToWorker/.test(bt)||!/WorkerPool/.test(bt)) fail('shared worker runtime missing');
 if(/HARD_LIMIT_MS|WORKER_LIMIT_MS|120000|100000/.test(bt)) fail('fixed timeout remains in BrowserTools');
