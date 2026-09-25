@@ -61,7 +61,7 @@
   // ── Progress reporter ─────────────────────────────────────────────────────
   // Updates RuntimeProgress (when _progressTask exists) AND window.showProcessing
   // (already visible — we update the spinner text mid-run for better UX).
-  function _buildProgressReporter(opts) {
+  function _buildProgressReporter(opts, progressTask) {
     var degrees = String((opts && opts.degrees) || '0');
     var pages   = String((opts && opts.pages)   || 'all');
     var subtitle = pages === 'all'
@@ -70,8 +70,8 @@
     var _lastMilestone = -1;
 
     return function onProgress(pct, msg) {
-      if (_progressTask) {
-        try { window.RuntimeProgress.report(_progressTask.taskId, 0, pct, msg); } catch (_) {}
+      if (progressTask) {
+        try { window.RuntimeProgress.report(progressTask.taskId, 0, pct, msg); } catch (_) {}
       }
       if (window.showProcessing) {
         try { window.showProcessing('Rotating PDF…', msg || subtitle); } catch (_) {}
@@ -132,13 +132,16 @@
 
   // ── Post-run cleanup ──────────────────────────────────────────────────────
   // [Task Group R011] Idempotent cleanup — safe to call multiple times.
-  function _runPostRotateCleanup(reason) {
+  function _runPostRotateCleanup(reason, ownerToken, ownerSpan, ownerCleanupIds) {
     reason = reason || 'unknown';
+    var cleanupIds = ownerCleanupIds || _cleanupIds;
+    var span = ownerSpan !== undefined ? ownerSpan : _currentSpan;
+    var ownsCurrentState = !ownerToken || _currentToken === ownerToken;
 
     if (window.RuntimeCleanup) {
       try {
-        _cleanupIds.blobs.forEach(function (id) { window.RuntimeCleanup.untrackBlob(id); });
-        _cleanupIds.generic.forEach(function (id) { window.RuntimeCleanup.untrackGeneric(id); });
+        cleanupIds.blobs.forEach(function (id) { window.RuntimeCleanup.untrackBlob(id); });
+        cleanupIds.generic.forEach(function (id) { window.RuntimeCleanup.untrackGeneric(id); });
       } catch (_) {}
     }
 
@@ -148,14 +151,14 @@
         try { window.RuntimeTelemetry.record('rotate:cancel', { reason: reason }); } catch (_) {}
       }
       // Close the active span if it is still open
-      if (_currentSpan !== null) {
+      if (span !== null) {
         var _spanOutcome = (reason.startsWith('error:') || reason.startsWith('nav-cancel:')) ? 'error' : 'ok';
-        try { window.RuntimeTelemetry.endSpan(_currentSpan, _spanOutcome); } catch (_) {}
+        try { window.RuntimeTelemetry.endSpan(span, _spanOutcome); } catch (_) {}
       }
       try { window.RuntimeTelemetry.record('rotate:cleanup', { reason: reason }); } catch (_) {}
     }
 
-    _resetRunState();
+    if (ownsCurrentState) _resetRunState();
   }
 
   // ── Core runtime path ─────────────────────────────────────────────────────
@@ -163,23 +166,28 @@
   // Returns { blob, filename } on success; runtime errors propagate to the caller.
   async function runRotateRuntime(file, opts) {
     var startTs = Date.now();
+    var runToken = null;
+    var runSpan = null;
+    var runProgressTask = null;
+    var runCleanupIds = { blobs: [], generic: [] };
 
     // ── Pre-flight memory guard ──────────────────────────────────────────────
     _memoryGuard('pre-start', file);
 
     // ── Cancellation token ───────────────────────────────────────────────────
     // [Task Group R010]
-    _currentToken = window.RuntimeCancellation
+    runToken = window.RuntimeCancellation
       ? window.RuntimeCancellation.createScopedToken('rotate-pdf', {
           label:     'rotate-pdf-run',
           timeoutMs: 0, // no artificial processing-time cutoff
         })
       : null;
+    _currentToken = runToken;
 
     // ── Telemetry span ───────────────────────────────────────────────────────
     // [Task Group R009]
     if (window.RuntimeTelemetry) {
-      _currentSpan = window.RuntimeTelemetry.startSpan('rotate:full-run', {
+      runSpan = window.RuntimeTelemetry.startSpan('rotate:full-run', {
         name:     file.name,
         size:     file.size,
         degrees:  (opts && opts.degrees) || '0',
@@ -196,12 +204,12 @@
     // ── RuntimeScheduler slot ────────────────────────────────────────────────
     // [Task Group R005] RuntimeScheduler.run() manages its own internal
     // RuntimeProgress task via opts.label — do NOT create _progressTask here.
-    var onProgress = _buildProgressReporter(opts);
+    var onProgress = _buildProgressReporter(opts, runProgressTask);
 
     onProgress(2, 'Preparing…');
     _memoryGuard('pre-read', file);
 
-    if (_currentToken && _currentToken.cancelled) throw new Error('cancelled');
+    if (runToken && runToken.cancelled) throw new Error('cancelled');
 
     var workerResult;
     if (window.RuntimeScheduler) {
@@ -209,19 +217,20 @@
       // progress task via opts.label — no duplicate task needed here.
       workerResult = await window.RuntimeScheduler.run(
         function () {
-          return _doWorkerDispatch(file, opts, onProgress, _currentToken);
+          return _doWorkerDispatch(file, opts, onProgress, runToken);
         },
         {
           type:     'rotate',
           priority: 'normal',
           label:    'rotate-pdf',
-          token:    _currentToken,
+          token:    runToken,
         }
       );
     } else {
       // No scheduler: create a local progress task so the worker path remains usable
       if (window.RuntimeProgress) {
-        _progressTask = window.RuntimeProgress.createSimpleTask('rotate-pdf', _currentToken);
+        runProgressTask = window.RuntimeProgress.createSimpleTask('rotate-pdf', runToken);
+        if (_currentToken === runToken) _progressTask = runProgressTask;
       }
       workerResult = await _doWorkerDispatch(file, opts, onProgress, _currentToken);
     }
@@ -242,7 +251,7 @@
       var cleanId = window.RuntimeCleanup.trackGeneric(function () {
         // placeholder; OPFS cleanup will go here
       }, 'rotate-output-blob');
-      _cleanupIds.generic.push(cleanId);
+      runCleanupIds.generic.push(cleanId);
     }
 
     // ── Telemetry: success ────────────────────────────────────────────────────
@@ -255,10 +264,10 @@
         pages:       (opts && opts.pages)   || 'all',
         safeMode:    _shouldUseSafeMode(file),
       });
-      if (_currentSpan !== null) window.RuntimeTelemetry.endSpan(_currentSpan, 'ok');
+      if (runSpan !== null) window.RuntimeTelemetry.endSpan(runSpan, 'ok');
     }
 
-    if (_progressTask) { try { _progressTask.complete(); } catch (_) {} }
+    if (runProgressTask) { try { runProgressTask.complete(); } catch (_) {} }
 
     // ── Filename ──────────────────────────────────────────────────────────────
     var filename = window.BrowserTools && window.BrowserTools.brandedFilename
@@ -266,7 +275,7 @@
       : 'ILovePDF-rotated.pdf';
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
-    _runPostRotateCleanup('success');
+    _runPostRotateCleanup('success', runToken, runSpan, runCleanupIds);
 
     return { blob: blob, filename: filename };
   }
@@ -283,6 +292,7 @@
   // [Task Group R003] execute() is what the monkey-patch calls.
   // Returns { blob, filename } from the canonical runtime path, or throws.
   async function execute(file, opts) {
+    var executionToken = null;
     var safeMode = _shouldUseSafeMode(file);
     if (safeMode && window.RuntimeTelemetry) {
       try { window.RuntimeTelemetry.record('rotate:safe-mode', {
@@ -291,8 +301,10 @@
     }
 
     try {
-      return await runRotateRuntime(file, opts);
+      var result = await runRotateRuntime(file, opts);
+      return result;
     } catch (runtimeErr) {
+      executionToken = _currentToken;
       var failReason = (runtimeErr && runtimeErr.message) || 'unknown';
 
       // [Task Group R012] Runtime errors are terminal; do not switch pipelines.
@@ -300,7 +312,7 @@
           failReason.startsWith('cancelled-') ||
           failReason === 'memory_pressure'    ||
           failReason === 'runtime-emergency') {
-        _runPostRotateCleanup('error:' + failReason);
+        _runPostRotateCleanup('error:' + failReason, executionToken);
         throw runtimeErr;
       }
 
@@ -363,8 +375,9 @@
   if (window.LifecycleManager) {
     window.LifecycleManager.onHide(function (reason) {
       if (_currentToken && !_currentToken.cancelled) {
-        _currentToken.cancel(reason === 'pagehide' ? 'pagehide' : 'tab-hidden');
-        _runPostRotateCleanup('nav-cancel:' + reason);
+        var hideToken = _currentToken;
+        hideToken.cancel(reason === 'pagehide' ? 'pagehide' : 'tab-hidden');
+        _runPostRotateCleanup('nav-cancel:' + reason, hideToken);
       }
     });
   }
@@ -428,8 +441,9 @@
 
     cancelActive: function (reason) {
       if (_currentToken && !_currentToken.cancelled) {
-        _currentToken.cancel(reason || 'manual-cancel');
-        _runPostRotateCleanup('manual-cancel');
+        var cancelToken = _currentToken;
+        cancelToken.cancel(reason || 'manual-cancel');
+        _runPostRotateCleanup('manual-cancel', cancelToken);
         return true;
       }
       return false;
