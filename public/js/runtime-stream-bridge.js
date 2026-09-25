@@ -144,6 +144,10 @@
       try { entry.removeCancelListener(); } catch (_) {}
       entry.removeCancelListener = null;
     }
+    if (entry.cleanupTransientResources) {
+      try { entry.cleanupTransientResources(); } catch (_) {}
+      entry.cleanupTransientResources = null;
+    }
     entry.telemetryEnded = true;
     if (global.RuntimeTelemetry && entry.spanId !== null && entry.spanId !== undefined) {
       try { global.RuntimeTelemetry.endSpan(entry.spanId, status); } catch (_) {}
@@ -341,8 +345,7 @@
 
       function finishRuntimeError(err) {
         if (entry.terminal) return;
-        if (_memRetryTimer !== null) { clearTimeout(_memRetryTimer); _memRetryTimer = null; }
-        _prefetchBuf = null;
+        if (entry.cleanupTransientResources) entry.cleanupTransientResources();
         done = true;
         entry.terminal = true;
         _activeStreams.delete(streamId);
@@ -363,6 +366,16 @@
       var _prefetchLast = false;  // true if prefetch covers the last byte
       var _prefetching  = false;  // read in-flight guard
       var _memRetryTimer = null;  // bounded retry timer, cleared on terminal state
+
+      entry.cleanupTransientResources = function () {
+        if (_memRetryTimer !== null) {
+          clearTimeout(_memRetryTimer);
+          _memRetryTimer = null;
+        }
+        _prefetchBuf = null;
+        _prefetchEnd = 0;
+        _prefetchLast = false;
+      };
 
       async function _prefetchNext() {
         if (_prefetching || _prefetchBuf) return;
@@ -531,12 +544,7 @@
           resolve(d);
 
         } else if (d.type === 'stream-error') {
-          done = true;
-          entry.terminal = true;
-          _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          _endStreamTelemetry(entry, 'error');
-          reject(new Error(d.__error || 'stream-chunk-error'));
+          finishRuntimeError(new Error(d.__error || 'stream-chunk-error'));
 
         } else if (d.type === 'stream-progress' && onProgress) {
           try { onProgress(d.pct, d.label); } catch (_) {}
@@ -545,11 +553,7 @@
 
       w.onerror = function (e) {
         if (entry.terminal) return;
-        entry.terminal = true;
-        _activeStreams.delete(streamId);
-        try { w.terminate(); } catch (_) {}
-        _endStreamTelemetry(entry, 'error');
-        reject(new Error((e && e.message) || 'stream-worker-onerror'));
+        finishRuntimeError(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
       // Kick off the first chunk
