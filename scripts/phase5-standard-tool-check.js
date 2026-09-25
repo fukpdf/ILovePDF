@@ -460,3 +460,28 @@ if (!/\[buffer\]/.test(protectAdapter)) fail('Protect adapter does not transfer 
 const protectWorker = read('public/workers/pdf-worker.js');
 if (!/OPS\.protect\s*=\s*async function/.test(protectWorker)) fail('Shared PDF worker has no Protect operation.');
 if (!/Please enter a password to protect the PDF/.test(protectWorker)) fail('Protect worker password validation is missing.');
+
+
+// ── Unlock canonical tool ────────────────────────────────────────────────
+requirePdfWorkerContract('unlock', 'Unlock');
+const unlockApp = read('public/js/unlock-pdf-app.js');
+if (!/G\.UnlockRuntime\.execute/.test(unlockApp)) fail('Unlock app does not dispatch to canonical UnlockRuntime.');
+if (!/ToolAppManager\.registerTool\('unlock'/.test(unlockApp)) fail('Unlock ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?cancelActive/.test(unlockApp)) fail('Unlock unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?cancelActive/.test(unlockApp)) fail('Unlock reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?cancelActive/.test(unlockApp)) fail('Unlock destroy cancellation is missing.');
+
+const unlockRuntime = read('public/js/unlock-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(unlockRuntime)) fail('UnlockRuntime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|fallback/i.test(unlockRuntime)) fail('UnlockRuntime retains legacy factory/fallback architecture.');
+if (!/timeoutMs:0/.test(unlockRuntime)) fail('UnlockRuntime does not use an unlimited execution timeout.');
+
+const unlockAdapter = read('public/js/unlock-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(unlockAdapter)) fail('Unlock adapter does not use RuntimeWorkers.dispatch.');
+if (/WorkerPool\.run\(/.test(unlockAdapter)) fail('Unlock adapter retains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(unlockAdapter)) fail('Unlock adapter has an artificial execution timeout.');
+if (!/dedupeKey:key\(file\)/.test(unlockAdapter)) fail('Unlock adapter does not provide a dedupe key.');
+if (!/\[buffer\]/.test(unlockAdapter)) fail('Unlock adapter does not transfer the input ArrayBuffer.');
+
+const unlockWorker = read('public/workers/pdf-worker.js');
+if (!/OPS\.unlock\s*=\s*async function/.test(unlockWorker)) fail('Shared PDF worker has no Unlock operation.');
