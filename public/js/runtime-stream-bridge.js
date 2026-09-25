@@ -682,7 +682,7 @@
         });
       }
       _telStream('started', { streamId: streamId, tool: message && message.tool, totalBytes: totalBytes });
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null, cancelReject: reject };
       _activeStreams.set(streamId, entry);
 
       function finishError(err) {
