@@ -35,7 +35,8 @@
     "audit:phase5:worker-cancel": "node scripts/phase5-worker-cancel-check.js",
     "audit:phase5:worker-lifecycle": "node scripts/phase5-worker-lifecycle-check.js",
     "audit:phase5:stream-cancel": "node scripts/phase5-stream-cancel-check.js",
-    "audit:phase5:stream-terminal-state": "node scripts/phase5-stream-terminal-state-check.js"
+    "audit:phase5:stream-terminal-state": "node scripts/phase5-stream-terminal-state-check.js",
+    "audit:phase5:multifile-stream-lifecycle": "node scripts/phase5-multifile-stream-lifecycle-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
