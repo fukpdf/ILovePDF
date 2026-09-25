@@ -106,7 +106,7 @@
     'excel-to-pdf':        '/workers/pdf-excel-xlsx-worker.js',
     'pdf-to-ppt':          '/workers/pdf-ppt-pptx-worker.js',
     'ocr-pdf':             '/workers/advanced-worker.js',
-    'compare-pdf':         '/workers/compare-worker.js',
+    'compare-pdf':         '/workers/pdf-worker.js',
     'remove-background':   '/workers/remove-bg-worker.js',
     'repair-pdf':          '/workers/repair-worker.js',
     'ai-summarizer':       '/workers/summary-worker.js',
