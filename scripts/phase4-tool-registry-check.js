@@ -179,6 +179,12 @@ if (!/manifest\.hydrationTier/.test(toolLoader)) fail('Runtime tool loader does 
 if (!/hydration activation rejected/.test(toolLoader)) fail('Runtime tool loader does not block readiness when hydration activation fails.');
 if (!/hydrationTier: _manifest \? _manifest\.hydrationTier : null/.test(toolLoader)) fail('Runtime ready event does not expose hydration tier.');
 if (!/hydrationActivated: !!\(_toolId && _manifest\)/.test(toolLoader)) fail('Runtime ready event does not expose hydration activation state.');
+if (!/hydrationActivationVerified: !!\(_toolId && _manifest\)/.test(toolLoader)) fail('Runtime ready event does not expose verified hydration activation state.');
+if (!/result\.ok !== true/.test(toolLoader)) fail('Runtime tool loader does not verify hydration activation success.');
+if (!/activationStatus/.test(hydrationDomains)) fail('Runtime hydration domains do not expose activation status diagnostics.');
+if (!/errorCount: errors\.length/.test(hydrationDomains)) fail('Runtime hydration domains do not record activation errors.');
+if (!/hydration-domain:activation-failed/.test(hydrationDomains)) fail('Runtime hydration domains do not emit activation failure diagnostics.');
+if (!/return \{ ok: ok/.test(hydrationDomains)) fail('Runtime hydration domains activation does not return an explicit success result.');
 
 if (failures.length) {
   console.error('[FAIL] Phase 4 registry/runtime gate (' + failures.length + ' issue(s))');
@@ -196,5 +202,6 @@ if (failures.length) {
   console.log('[PASS] Units 8–11 runtime integrity + contract gates');
   console.log('[PASS] Unit 12 runtime activation gate');
   console.log('[PASS] Unit 13 manifest-tier hydration activation gate');
+  console.log('[PASS] Unit 14 hydration activation integrity + failure verification gate');
   console.log('\nPhase 4 registry/runtime gate: PASS (' + registry.tools.length + ' tools)');
 }
