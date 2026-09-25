@@ -292,3 +292,16 @@ The OCR stage now consumes `totalPages` from the shared extraction result and pr
 Obsolete page-side PDF.js/Tesseract loader state was removed from `pdf-word-app.js`. No artificial timeout or file/page limit was introduced.
 
 Verification: `scripts/phase5-pdf-to-word-ocr-check.js`.
+
+
+## Unit 20 — PDF to Word text structuring isolation
+
+Unit 20 moves the PDF.js content-item → paragraph/line structure stage into the existing PDF extraction worker. The page no longer performs the font-height analysis, line bucketing, heading/list/form/signature detection, paragraph merging, or duplicate filtering for native PDF text.
+
+The extraction worker now returns structured paragraphs directly. The existing formatting semantics are preserved, including RTL/multilingual text handling, heading levels, list detection, signature/form markers, bold/italic detection, visual x-position data, and page width metadata.
+
+This avoids sending raw PDF.js item arrays back to the page only to immediately process them again, reducing main-thread CPU work and duplicate structured-clone traffic.
+
+OCR rendering/recognition and DOCX packaging remain on WorkerPool. No artificial file-size/page-count/processing-time limit is introduced.
+
+Verification: `scripts/phase5-pdf-to-word-structure-check.js`.
