@@ -664,10 +664,15 @@
         if (done || entry.cancelled || pending) return;
         if (!sentInit) {
           sentInit = true;
-          w.postMessage(Object.assign({}, message, {
+          var initMsg = Object.assign({}, message, {
             type:'stream-init', streamId:streamId, totalSize:totalBytes,
             totalFiles:files.length
-          }));
+          });
+          if (global.RuntimeSecurity) {
+            try { global.RuntimeSecurity.validateWorkerMessage(initMsg); }
+            catch (se) { finishError(se); return; }
+          }
+          w.postMessage(initMsg);
         }
 
         while (fileIndex < files.length && offset >= files[fileIndex].size) {
@@ -682,11 +687,16 @@
           if (entry.cancelled || done) return;
           pending = true;
           var isLastFile = end >= file.size;
-          w.postMessage({
+          var chunkMsg = {
             type:'stream-chunk', streamId:streamId, fileIndex:fileIndex,
             chunk:buf, chunkIndex:chunkIndex, isLast:isLastFile,
             totalFiles:files.length
-          }, [buf]);
+          };
+          if (global.RuntimeSecurity) {
+            try { global.RuntimeSecurity.validateWorkerMessage(chunkMsg); }
+            catch (se) { finishError(se); return; }
+          }
+          w.postMessage(chunkMsg, [buf]);
           offset = end; chunkIndex++;
           if (onProgress && totalBytes) {
             var processed = files.slice(0,fileIndex).reduce(function(s,f){return s+(f.size||0);},0)+offset;
