@@ -170,6 +170,7 @@ if (!/pageOrder/.test(organizeBlock)) fail('Organize worker does not consume pag
 if (!/buffers\[0\]\s*=\s*null/.test(organizeBlock)) fail('Organize worker does not release the source buffer.');
 if (!/\bresult\b/.test(organizeBlock)) fail('Organize worker does not produce a result buffer.');
 if (!/['"]organize['"]/.test(workerSet)) fail('Organize is not in BrowserTools WORKER_TOOLS.');
+if (!/currentTool\.id === 'organize'[\s\S]*?getOrderSummary/.test(toolPage) || !/opts\.pageOrder\s*=\s*Array\.isArray\(summary\.order\)/.test(toolPage)) fail('Organize page order is not passed from PageOrganizer to the canonical worker options.');
 
 // ── Merge canonical tool ───────────────────────────────────────────────────
 requirePdfWorkerContract('merge', 'Merge');
