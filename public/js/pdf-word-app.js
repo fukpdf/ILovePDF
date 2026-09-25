@@ -45,7 +45,8 @@
     var result = await G.WorkerPool.run(EXTRACT_WORKER, {op:'extract-text',buffer:buf,jobId:String(jobId)}, transfer, {priority:'normal',token:cancelToken});
     if (!result || result.__error) throw new Error(result && result.__error || 'PDF extraction worker failed');
     if (!Array.isArray(result.pages)) throw new Error('PDF extraction worker returned invalid pages');
-    return result.pages;
+    if (!result.analysis || typeof result.analysis.totalChars !== 'number') throw new Error('PDF extraction worker returned invalid quality analysis');
+    return result;
   }
 
   async function _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId) {
@@ -60,6 +61,7 @@
     if (!result || result.__error) throw new Error(result && result.__error || 'OCR worker failed');
     if (typeof result.text !== 'string') throw new Error('OCR worker returned invalid text');
     if (!Array.isArray(result.paragraphs)) throw new Error('OCR worker returned invalid paragraphs');
+    if (typeof result.charCount !== 'number') throw new Error('OCR worker returned invalid character count');
     return result;
   }
 
@@ -121,6 +123,7 @@
       var imageBlob = new Blob([rendered.buffer], {type: rendered.mimeType || 'image/png'});
       var recog = await _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId);
       ocrPages.push({ pageNum: oi, text: recog.text || '', paragraphs: recog.paragraphs || [], source: 'ocr' });
+      ocrPages._charCount = (ocrPages._charCount || 0) + recog.charCount;
 
       onStep(1, 'active',
         35 + Math.round((oi / total) * 18),
@@ -145,7 +148,7 @@
     }).then(function (d) {
       if (!d || d.__error) throw new Error((d && d.__error) || 'DOCX worker: unexpected response');
       if (!d.buffer) throw new Error('DOCX worker returned no document buffer');
-      return d.buffer;
+      return d;
     });
   }
 
@@ -195,7 +198,8 @@
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
       // ── Phase 1: PDF.js extraction in shared WorkerPool ───────────────────
-      var extractedPages = await _extractWithSharedWorker(file, cancelToken, onStep, jobId);
+      var extracted = await _extractWithSharedWorker(file, cancelToken, onStep, jobId);
+      var extractedPages = extracted.pages;
       var total = extractedPages.length;
       var pages = extractedPages.map(function (p) {
         return { pageNum: p.pageNum, paragraphs: p.paragraphs || [] };
@@ -205,16 +209,13 @@
 
 
       // ── Phase 2: Text quality check + OCR fallback ────────────────────────
-      var totalChars = pages.reduce(function (s, p) {
-        return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
-      }, 0);
-      var avgCharsPerPage = total > 0 ? totalChars / total : 0;
+      var avgCharsPerPage = extracted.analysis.avgCharsPerPage;
       var needsOcr = forceOcr || !pages.length || avgCharsPerPage < 8;
 
       if (needsOcr) {
         _log('OCR trigger', { avgCharsPerPage: avgCharsPerPage, forceOcr: forceOcr });
         var ocrRaw  = await _runOcr(file, ocrLang, onStep, cancelToken, jobId, total);
-        var ocrLen  = ocrRaw.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
+        var ocrLen  = ocrRaw._charCount;
         if (ocrLen < 10) {
           throw new Error('No readable text found. This may be a scanned document with unclear content.');
         }
@@ -231,7 +232,8 @@
       onStep(2, 'active', 57, 'Building document\u2026');
 
       // ── Phase 3: DOCX build via dedicated isolated worker ─────────────────
-      var docxBuf = await _buildDocx(pages, jobId, cancelToken);
+      var docxResult = await _buildDocx(pages, jobId, cancelToken);
+      var docxBuf = docxResult.buffer;
       // Worker already terminated inside _buildDocx on success/error.
 
       onStep(2, 'done', 90);
@@ -242,10 +244,8 @@
       });
       docxBuf = null;
 
-      var finalChars = pages.reduce(function (s, p) {
-        return s + p.paragraphs.reduce(function (ps, para) { return ps + (para.text || '').length; }, 0);
-      }, 0);
-      var finalParas = pages.reduce(function (s, p) { return s + p.paragraphs.length; }, 0);
+      var finalChars = docxResult.stats && typeof docxResult.stats.chars === 'number' ? docxResult.stats.chars : 0;
+      var finalParas = docxResult.stats && typeof docxResult.stats.paras === 'number' ? docxResult.stats.paras : 0;
 
       onStep(3, 'done', 100);
       _log('done', { job: jobId, blobSize: blob.size, chars: finalChars, pages: total });
