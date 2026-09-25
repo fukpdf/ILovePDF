@@ -96,10 +96,10 @@
 
   // ── Tool → worker URL mapping ─────────────────────────────────────────────
   var TOOL_WORKER_MAP = {
-    'compress-pdf':        '/workers/compress-worker.js',
+    'compress-pdf':        '/workers/pdf-worker.js',
     'merge-pdf':           '/workers/pdf-lib-worker.js',
     'split-pdf':           '/workers/pdf-lib-worker.js',
-    'rotate-pdf':          '/workers/pdf-lib-worker.js',
+    'rotate-pdf':          '/workers/pdf-worker.js',
     'pdf-to-word':         '/workers/pdf-word-docx-worker.js',
     'word-to-pdf':         '/workers/pdf-word-docx-worker.js',
     'pdf-to-excel':        '/workers/pdf-excel-xlsx-worker.js',
@@ -108,9 +108,9 @@
     'ocr-pdf':             '/workers/advanced-worker.js',
     'compare-pdf':         '/workers/pdf-worker.js',
     'remove-background':   '/workers/remove-bg-worker.js',
-    'repair-pdf':          '/workers/repair-worker.js',
+    'repair-pdf':          '/workers/pdf-worker.js',
     'ai-summarizer':       '/workers/summary-worker.js',
-    'translate-pdf':       '/workers/translation-worker.js',
+    'translate-pdf':       '/workers/pdf-worker.js',
     'image-tools':         '/workers/image-tools-worker.js',
     'image-pipeline':      '/workers/image-pipeline-worker.js',
   };
