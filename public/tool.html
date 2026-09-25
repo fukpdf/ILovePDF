@@ -489,8 +489,6 @@
   <!-- Load order: registry (patches BrowserTools.process once, after merge+rotate chain) -->
   <!--             factory (shared createPdfToolRuntime function, no side effects)       -->
   <!--             per-tool runtimes (each registers with registry, sets feature flag)   -->
-  <script src="/js/pdf-runtime-registry.js" defer></script>
-  <script src="/js/pdf-worker-runtime-factory.js" defer></script>
   <!-- scheduler-only tools (main-thread pdf-lib, wrapped in RuntimeScheduler slot) -->
   <script src="/js/split-worker-adapter.js" defer></script>
   <script src="/js/split-runtime.js" defer></script>
