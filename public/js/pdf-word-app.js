@@ -17,13 +17,10 @@
 (function (G) {
   'use strict';
 
-  var PDFJS_URL      = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-  var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
   var EXTRACT_WORKER = '/workers/pdf-word-extract-worker.js';
   var RENDER_WORKER  = '/workers/pdf-word-render-worker.js';
   var OCR_WORKER     = '/workers/pdf-word-ocr-worker.js';
-  var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
   var _inFlight     = false;    // re-entry guard
