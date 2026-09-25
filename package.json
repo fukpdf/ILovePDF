@@ -44,7 +44,8 @@
     "audit:phase5:stream-late-progress": "node scripts/phase5-stream-late-progress-check.js",
     "audit:phase5:stream-cancel-listener": "node scripts/phase5-stream-cancel-listener-check.js",
     "audit:phase5:all-stream-listener-cleanup": "node scripts/phase5-all-stream-listener-cleanup-check.js",
-    "audit:phase5:central-stream-listener-finalization": "node scripts/phase5-central-stream-listener-finalization-check.js"
+    "audit:phase5:central-stream-listener-finalization": "node scripts/phase5-central-stream-listener-finalization-check.js",
+    "audit:phase5:stream-fallback-finalization": "node scripts/phase5-stream-fallback-finalization-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
