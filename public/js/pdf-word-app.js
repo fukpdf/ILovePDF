@@ -30,14 +30,11 @@
   var PDFJS_URL      = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
-  // DOCX packaging is now scheduled through the shared WorkerPool. The worker
-  // remains isolated because PDF→Word has a richer protocol than pdf-worker.js.
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
   var _inFlight     = false;    // re-entry guard
   var _jobId        = 0;        // monotonic job counter
-  var _docxWorker   = null;     // current DOCX packaging Worker
   var _tessWorker   = null;     // current Tesseract worker (from createWorker)
   var _pdfInst      = null;     // current pdfjsLib pdf instance
 
@@ -50,7 +47,6 @@
   // Never throws.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_docxWorker)   { try { _docxWorker.terminate(); } catch (_) {} _docxWorker = null; }
     if (_tessWorker)   { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)      { try { _pdfInst.destroy();    } catch (_) {} _pdfInst    = null; }
     _inFlight = false;
@@ -491,7 +487,6 @@
     return {
       inFlight:    _inFlight,
       jobId:       _jobId,
-      hasDocxWorker: !!_docxWorker,
       hasTessWorker: !!_tessWorker,
     };
   }
