@@ -4580,7 +4580,7 @@
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
-    'compress', 'workflow', 'merge', 'rotate', 'crop',
+    'compress', 'workflow', 'merge', 'split', 'rotate', 'crop',
     'page-numbers', 'watermark', 'sign', 'redact', 'edit',
   ]);
 
