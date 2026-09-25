@@ -119,25 +119,72 @@ OPS.merge = async function (buffers) {
 
 OPS.rotate = async function (buffers, opts) {
   const deg = parseInt(opts.degrees || '0', 10);
-  if (deg === 0) return buffers[0];
-  const doc   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const pagePlan = Array.isArray(opts.pagePlan) ? opts.pagePlan : null;
+
+  // RotateRuntime may receive a per-page plan from the preview organizer.
+  // The worker applies that plan directly to the original PDF so rotation is
+  // never baked on the main thread before the canonical worker dispatch.
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
   const pages = doc.getPages();
+
+  if (pagePlan) {
+    const normalizedPlan = [];
+    const seen = new Set();
+
+    for (const item of pagePlan) {
+      const n = Number(item && item.page);
+      if (!Number.isInteger(n) || n < 1 || n > pages.length || seen.has(n)) continue;
+      seen.add(n);
+      const delta = ((Number(item.degrees) || 0) % 360 + 360) % 360;
+      normalizedPlan.push({ page: n, degrees: delta });
+    }
+
+    // An empty/invalid plan must not silently erase the document.
+    if (normalizedPlan.length === 0) {
+      throw new Error('Invalid Rotate PDF page plan');
+    }
+
+    const isIdentity = normalizedPlan.length === pages.length &&
+      normalizedPlan.every((item, i) => item.page === i + 1 && item.degrees === 0);
+    if (isIdentity) return buffers[0];
+
+    // Rebuild in the organizer's page order. This also preserves the existing
+    // page /Rotate value by adding the requested delta to each copied page.
+    const outDoc = await PDFDocument.create();
+    const copied = await outDoc.copyPages(
+      doc,
+      normalizedPlan.map(item => item.page - 1)
+    );
+
+    copied.forEach((page, i) => {
+      const delta = normalizedPlan[i].degrees;
+      const current = page.getRotation().angle || 0;
+      const normalized = ((current + delta) % 360 + 360) % 360;
+      if (normalized !== 0 || current !== 0) page.setRotation(degrees(normalized));
+      outDoc.addPage(page);
+    });
+
+    return toArrayBuffer(await outDoc.save());
+  }
+
+  // Compatibility path for direct RotateRuntime calls that provide a simple
+  // global degree/page-range option rather than a preview page plan.
+  if (deg === 0) return buffers[0];
+
   const range = (opts.pages && !/^all$/i.test(String(opts.pages).trim()))
     ? parsePageRange(opts.pages, pages.length)
     : pages.map((_, i) => i + 1);
+
   for (const n of range) {
     const p = pages[n - 1];
     if (p) {
-      // Normalize to pdf-lib's canonical 0..359° range so negative inputs
-      // (for example -90) preserve the intended clockwise/counter-clockwise
-      // semantics without creating a negative page rotation value.
       const current = p.getRotation().angle || 0;
       const normalized = ((current + deg) % 360 + 360) % 360;
       p.setRotation(degrees(normalized));
     }
   }
-  const out = await doc.save();
-  return toArrayBuffer(out);
+
+  return toArrayBuffer(await doc.save());
 };
 
 OPS.crop = async function (buffers, opts) {
