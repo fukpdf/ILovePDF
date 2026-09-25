@@ -62,6 +62,8 @@
       "group": "pdf",
       "badge": "PDF",
       "working": true,
+      "multipleFiles": true,
+      "clientSide": true,
       "specialRoute": null,
       "module": "pdf-module",
       "execution": "browser-worker",
