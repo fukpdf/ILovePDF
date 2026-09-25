@@ -83,12 +83,13 @@ if (!/JSON\.stringify\(opts\.pagePlan\)/.test(rotateAdapter)) fail('Rotate dedup
 
 const rotateWorker = read('public/workers/pdf-worker.js');
 const rotateBlock = rotateWorker.match(/OPS\.rotate\s*=\s*async function[\s\S]*?(?=\nOPS\.[A-Za-z'\[]|\n\/\/ ──)/)?.[0] || '';
+const rotateExecutableBlock = rotateBlock.replace(/\/\/.*$/gm, '');
 if (!rotateBlock) fail('Shared PDF worker Rotate operation could not be isolated.');
-if (!/Array\.isArray\(opts\.pagePlan\)/.test(rotateBlock)) fail('Rotate worker does not consume pagePlan.');
-if (!/normalizedPlan\.length\s*!==\s*pages\.length/.test(rotateBlock)) fail('Rotate worker does not require a complete page plan.');
-if (!/item\.page\s*===\s*i\s*\+\s*1/.test(rotateBlock)) fail('Rotate worker does not enforce ordered original page numbers.');
-if (!/page\.getRotation\(\)\.angle/.test(rotateBlock)) fail('Rotate worker does not preserve intrinsic PDF rotation.');
-if (/\b(?:PDFDocument\.)?copyPages\s*\(/.test(rotateBlock)) fail('Rotate worker rebuilds pages with copyPages().');
+if (!/Array\.isArray\(opts\.pagePlan\)/.test(rotateExecutableBlock)) fail('Rotate worker does not consume pagePlan.');
+if (!/normalizedPlan\.length\s*!==\s*pages\.length/.test(rotateExecutableBlock)) fail('Rotate worker does not require a complete page plan.');
+if (!/item\.page\s*===\s*i\s*\+\s*1/.test(rotateExecutableBlock)) fail('Rotate worker does not enforce ordered original page numbers.');
+if (!/page\.getRotation\(\)\.angle/.test(rotateExecutableBlock)) fail('Rotate worker does not preserve intrinsic PDF rotation.');
+if (/\b(?:PDFDocument\.)?copyPages\s*\(/.test(rotateExecutableBlock)) fail('Rotate worker rebuilds pages with copyPages().');
 
 const rotateOrganizer = read('public/js/page-organizer.js');
 if (!/allowStructuralEdits\s*=\s*opts\.allowStructuralEdits\s*!==\s*false/.test(rotateOrganizer)) fail('PageOrganizer structural-edit isolation is missing.');
