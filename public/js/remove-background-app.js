@@ -95,14 +95,7 @@
       catch (e) { return reject(new Error('remove-bg-worker spawn failed: ' + (e.message || e))); }
       _removeBgWorker = w;
 
-      var timer = setTimeout(function () {
-        try { w.terminate(); } catch (_) {}
-        _removeBgWorker = null;
-        reject(new Error('Background removal worker timed out.'));
-      }, WORKER_LIMIT_MS);
-
       w.onmessage = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _removeBgWorker = null;
         var d = ev.data || {};
@@ -111,7 +104,6 @@
         reject(new Error('remove-bg-worker: unexpected response'));
       };
       w.onerror = function (ev) {
-        clearTimeout(timer);
         try { w.terminate(); } catch (_) {}
         _removeBgWorker = null;
         reject(new Error('remove-bg-worker error: ' + (ev && ev.message || 'unknown')));
