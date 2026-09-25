@@ -12,9 +12,6 @@
 //   - tryWithRetry(), OutputValidator, showStatus, Flow: zero modifications
 //   - Runtime failures remain visible to the caller; no hidden legacy fallback is used.
 //
-// Runtime diagnostic flag: window.RUNTIME_ROTATE_ENABLED = true (default)
-//               Set to false only to mark runtime as disabled in diagnostics;
-//               it does not select an alternate processing pipeline.
 //
 // [FUTURE: StreamEngine] Replace _readFile() in RotateWorkerAdapter with
 // OPFS byte-range chunks when StreamEngine ships.
@@ -35,10 +32,6 @@
 
   if (window.RotateRuntime) return;
 
-  // ── Feature flag ──────────────────────────────────────────────────────────
-  if (typeof window.RUNTIME_ROTATE_ENABLED === 'undefined') {
-    window.RUNTIME_ROTATE_ENABLED = true;
-  }
 
   var LOG   = '[RRT]';
   var OWNER = 'rotate-runtime';
@@ -440,16 +433,10 @@
     execute:          execute,
     runRotateRuntime: runRotateRuntime,
 
-    // Kept as a compatibility flag for diagnostics/configuration. Disabling
-    // the runtime no longer switches to a legacy processor; execution remains
-    // on the canonical runtime path so there is no hidden alternate pipeline.
-    enable:  function () { window.RUNTIME_ROTATE_ENABLED = true;  console.info(LOG, 'runtime ENABLED');  },
-    disable: function () { window.RUNTIME_ROTATE_ENABLED = false; console.info(LOG, 'runtime DISABLED — execution remains runtime-owned'); },
 
-    // [Task Group R003] Diagnostics
+    // Diagnostics
     getDiagnostics: function () {
       return {
-        runtimeEnabled: window.RUNTIME_ROTATE_ENABLED,
         patchActive:    !!_origProcess,
         activeToken:    _currentToken ? { id: _currentToken.id, cancelled: _currentToken.cancelled } : null,
         activeSpan:     _currentSpan,
@@ -469,5 +456,5 @@
     },
   };
 
-  console.debug(LOG, 'RotateRuntime ready — Phase 3 pilot active | RUNTIME_ROTATE_ENABLED:', window.RUNTIME_ROTATE_ENABLED);
+  console.debug(LOG, 'RotateRuntime ready — canonical runtime routing active');
 }());
