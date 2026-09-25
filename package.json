@@ -22,7 +22,8 @@
     "audit:phase5:redact": "node scripts/phase5-redact-check.js",
     "audit:phase5:protect": "node scripts/phase5-protect-check.js",
     "audit:phase5:unlock": "node scripts/phase5-unlock-check.js",
-    "audit:phase5:pdf-to-word": "node scripts/phase5-pdf-to-word-check.js"
+    "audit:phase5:pdf-to-word": "node scripts/phase5-pdf-to-word-check.js",
+    "audit:phase5:pdf-to-word-extract": "node scripts/phase5-pdf-to-word-extract-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",

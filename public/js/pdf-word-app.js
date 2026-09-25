@@ -21,6 +21,7 @@
   var PDFJS_URL      = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
+  var EXTRACT_WORKER = '/workers/pdf-word-extract-worker.js';
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
@@ -65,6 +66,16 @@
   function _race(promise) {
     // Compatibility wrapper retained for existing callers; no artificial timeout.
     return Promise.resolve(promise);
+  }
+
+  async function _extractWithSharedWorker(file, cancelToken, onStep, jobId) {
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') throw new Error('Shared WorkerPool runtime unavailable');
+    var buf = await file.arrayBuffer();
+    var transfer = [buf];
+    var result = await G.WorkerPool.run(EXTRACT_WORKER, {op:'extract-text',buffer:buf,jobId:String(jobId)}, transfer, {priority:'normal',token:cancelToken});
+    if (!result || result.__error) throw new Error(result && result.__error || 'PDF extraction worker failed');
+    if (!Array.isArray(result.pages)) throw new Error('PDF extraction worker returned invalid pages');
+    return result.pages;
   }
 
   // ── LANGUAGE DETECTION ────────────────────────────────────────────────────
@@ -371,36 +382,15 @@
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
-      // ── Phase 1: Load PDF.js + parse PDF ──────────────────────────────────
-      var pdfjsLib = await _loadPdfJs();
-      var buf      = await file.arrayBuffer();
-      var pdf      = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
-      _pdfInst     = pdf;
-      buf          = null;   // release ArrayBuffer RAM
+      // ── Phase 1: PDF.js extraction in shared WorkerPool ───────────────────
+      var extractedPages = await _extractWithSharedWorker(file, cancelToken, onStep, jobId);
+      var total = extractedPages.length;
+      var pages = extractedPages.map(function (p) {
+        return { pageNum: p.pageNum, paragraphs: _extractParagraphs(p.items || []) };
+      }).filter(function (p) { return p.paragraphs.length > 0; });
+      onStep(0, 'done', 53);
+      onStep(1, 'active', 55, 'Checking text quality…');
 
-      var total = pdf.numPages;
-      var pages = [];
-
-      onStep(0, 'done', 12);
-      onStep(1, 'active', 15, 'Processing content\u2026');
-
-      try {
-        for (var i = 1; i <= total; i++) {
-          var page    = await pdf.getPage(i);
-          var content = await page.getTextContent();
-          var isBlank = !content.items.some(function (it) { return it.str && it.str.trim(); });
-          if (!isBlank) {
-            pages.push({ pageNum: i, paragraphs: _extractParagraphs(content.items) });
-          }
-          page.cleanup();
-          onStep(1, 'active', 15 + Math.round((i / total) * 38), 'Page ' + i + ' of ' + total);
-        }
-      } finally {
-        // Always destroy the PDF instance — ensures PDF.js releases its worker
-        // and any OPFS/blob URLs, even if the loop was interrupted.
-        try { await pdf.destroy(); } catch (_) {}
-        _pdfInst = null;
-      }
 
       // ── Phase 2: Text quality check + OCR fallback ────────────────────────
       var totalChars = pages.reduce(function (s, p) {

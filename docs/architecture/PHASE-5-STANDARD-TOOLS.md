@@ -237,3 +237,17 @@ Implemented in this unit:
 6. No artificial processing timeout was introduced.
 
 This is intentionally a **sub-migration**, not a claim that the entire PDF→Word pipeline is now worker-safe. PDF.js extraction/OCR and browser-dependent fidelity modules remain to be isolated before the registry can truthfully advertise full shared-worker execution.
+
+
+## Unit 16 — PDF to Word native extraction
+
+The next PDF→Word sub-stage is now isolated: PDF.js native text extraction runs in `public/workers/pdf-word-extract-worker.js` through the shared WorkerPool.
+
+- The app transfers the input ArrayBuffer to the shared extraction worker.
+- PDF.js parsing and `getTextContent()` page extraction occur off the main UI thread.
+- WorkerPool cancellation is propagated through the existing CancelToken.
+- The existing paragraph reconstruction and DOCX builder semantics are preserved.
+- DOCX packaging continues through the shared WorkerPool.
+- OCR fallback remains a separate browser-dependent stage because it currently uses Tesseract plus canvas rendering; it is not falsely marked as worker-safe yet.
+
+Verification: `scripts/phase5-pdf-to-word-extract-check.js` — 13/13 checks passed.
