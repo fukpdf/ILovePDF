@@ -140,6 +140,37 @@ if (!/out\.getPageCount\(\) === 0/.test(splitBlock)) fail('Split worker does not
 
 if (!/['"]split['"]/.test(workerSet)) fail('Split is not in BrowserTools WORKER_TOOLS.');
 
+// ── Organize canonical tool ────────────────────────────────────────────────
+requirePdfWorkerContract('organize', 'Organize');
+const organizeApp = read('public/js/organize-app.js');
+if (!/runtime\(\)\.execute\(files\[0\],opts\|\|\{\}\)/.test(organizeApp)) fail('Organize app does not dispatch to OrganizeRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID,function\(\)/.test(organizeApp)) fail('Organize ToolApp boundary is not registered.');
+if (!/function unmount\(\)\{cancel\(/.test(organizeApp) || !/function reset\(\)\{cancel\(/.test(organizeApp) || !/function destroy\(\)\{cancel\(/.test(organizeApp)) fail('Organize lifecycle cancellation is incomplete.');
+
+const organizeRuntime = read('public/js/organize-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(organizeRuntime)) fail('OrganizeRuntime does not use RuntimeScheduler.');
+if (!/RuntimeScheduler is unavailable/.test(organizeRuntime)) fail('OrganizeRuntime does not fail closed.');
+if (!/__organizeRunToken/.test(organizeRuntime)) fail('Organize run ownership token is missing.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back/i.test(organizeRuntime)) fail('OrganizeRuntime retains legacy factory/fallback architecture.');
+if (!/timeoutMs:0/.test(organizeRuntime)) fail('OrganizeRuntime does not use an unlimited execution timeout.');
+
+const organizeAdapter = read('public/js/organize-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(organizeAdapter)) fail('Organize adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(organizeAdapter)) fail('Organize adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(organizeAdapter)) fail('Organize adapter has an artificial timeout.');
+if (!/pipelineStreamToWorker/.test(organizeAdapter)) fail('Organize adapter does not use adaptive streaming.');
+if (!/STREAM_THRESHOLD\s*=\s*10\s*\*\s*1024\s*\*\s*1024/.test(organizeAdapter)) fail('Organize adaptive threshold is missing.');
+if (!/dedupeKey\s*:\s*key\(file\s*,\s*opts\)/.test(organizeAdapter)) fail('Organize dedupe key is missing.');
+
+const organizeWorker = read('public/workers/pdf-worker.js');
+const organizeBlock = organizeWorker.match(/OPS\.organize\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!organizeBlock) fail('Shared PDF worker has no Organize operation.');
+if (!/PDFDocument\.load/.test(organizeBlock) || !/copyPages/.test(organizeBlock)) fail('Organize worker page reorder contract is incomplete.');
+if (!/pageOrder/.test(organizeBlock)) fail('Organize worker does not consume pageOrder.');
+if (!/buffers\[0\]\s*=\s*null/.test(organizeBlock)) fail('Organize worker does not release the source buffer.');
+if (!/\bresult\b/.test(organizeBlock)) fail('Organize worker does not produce a result buffer.');
+if (!/['"]organize['"]/.test(workerSet)) fail('Organize is not in BrowserTools WORKER_TOOLS.');
+
 // ── Merge canonical tool ───────────────────────────────────────────────────
 requirePdfWorkerContract('merge', 'Merge');
 const mergeApp = read('public/js/merge-pdf-app.js');
