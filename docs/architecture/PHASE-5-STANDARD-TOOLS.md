@@ -305,3 +305,21 @@ This avoids sending raw PDF.js item arrays back to the page only to immediately 
 OCR rendering/recognition and DOCX packaging remain on WorkerPool. No artificial file-size/page-count/processing-time limit is introduced.
 
 Verification: `scripts/phase5-pdf-to-word-structure-check.js`.
+
+
+## Unit 21 — PDF to Word OCR text structuring isolation
+
+Unit 21 removes the remaining OCR text-to-paragraph CPU stage from the page context. After Tesseract recognition, `public/workers/pdf-word-ocr-worker.js` now normalises OCR symbols and builds the same heading/list paragraph contract before returning the result through WorkerPool.
+
+Implementation:
+1. OCR recognition and OCR text structuring now share the isolated WorkerPool boundary.
+2. The worker returns both raw OCR text and structured paragraphs for compatibility and quality checks.
+3. `pdf-word-app.js` validates the structured paragraph payload and consumes it directly.
+4. The page-side `_ocrToPages()` function and OCR line splitting/heading/list parsing were removed.
+5. Multilingual/RTL text is kept as returned text; existing DOCX packaging remains unchanged.
+6. Tesseract nested-worker lifecycle and the outer WorkerPool cancellation boundary remain intact.
+7. No artificial file-size, page-count, or processing-time rejection limit is introduced.
+
+This is another **sub-migration**; PDF→Word is still not declared fully worker-safe because remaining fidelity/document-preparation stages must be audited independently.
+
+Verification: `scripts/phase5-pdf-to-word-ocr-structure-check.js`.
