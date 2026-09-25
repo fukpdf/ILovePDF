@@ -217,7 +217,7 @@
         return;
       }
 
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null, cleanupTransientResources: null };
       _activeStreams.set(streamId, entry);
 
       function finishTransferRuntimeError(err, status) {
