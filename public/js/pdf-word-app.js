@@ -1,17 +1,8 @@
 // PdfToWordApp v1.0 — Isolated PDF→Word Tool App (Phase 2 Microfrontend Migration)
 //
-// PROBLEM SOLVED:
-//   "First run fails, second run hangs forever."
-//
-//   Root cause: window.BrowserTools.process calls advanced-engine.js processors['pdf-to-word'],
-//   which is wrapped by runTool() using `withTimeout(proc(), TOOL_TIMEOUT_MS)`.
-//   withTimeout() races two promises — when the timeout fires it rejects the outer promise
-//   but the inner proc() continues running UNOBSERVED.  The proc() may have already spawned:
-//     (a) a Tesseract.createWorker() whose finally-block never runs (nobody awaiting the proc)
-//     (b) a pdf.destroy() / pdfSource.cleanup() call that is skipped
-//   On the next run, the leaked Tesseract worker from (a) is still loading traineddata from
-//   CDN/OPFS.  A second createWorker() call on the same language blocks on the same OPFS
-//   write-lock → hangs forever.
+// Worker-safe packaging migration for the high-fidelity PDF→Word pipeline.
+// PDF.js extraction/OCR remains page-context code until its browser-dependent
+// stages are isolated; DOCX packaging is now owned by the shared WorkerPool.
 //
 // SOLUTION:
 //   PdfToWordApp installs a BrowserTools.process interceptor for 'pdf-to-word' ONLY.
