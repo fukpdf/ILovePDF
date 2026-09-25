@@ -52,6 +52,12 @@
   var LOG = '[RSB]';
   var _streamIdCounter = 0;
 
+  function _fallbackStreamError(message) {
+    var err = new Error(message);
+    err.streamFallbackEligible = true;
+    return err;
+  }
+
   // ── Transferable stream detection ──────────────────────────────────────────
   // A ReadableStream is transferable when the browser implements the WHATWG
   // Streams Living Standard §8.2.7. We probe by attempting a real postMessage
@@ -196,7 +202,7 @@
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
-        reject(new Error('worker-spawn-failed: ' + e.message));
+        reject(_fallbackStreamError('worker-spawn-failed: ' + e.message));
         return;
       }
 
@@ -249,7 +255,7 @@
         // Browser doesn't support File.stream() — fall through to path B
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        reject(new Error('file-stream-unavailable'));
+        reject(_fallbackStreamError('file-stream-unavailable'));
         return;
       }
 
@@ -274,7 +280,7 @@
       } catch (postErr) {
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        reject(new Error('stream-postmessage-failed: ' + postErr.message));
+        reject(_fallbackStreamError('stream-postmessage-failed: ' + postErr.message));
       }
     });
   }
@@ -555,7 +561,8 @@
       try {
         return await _streamViaTransferableStream(workerUrl, file, message, opts);
       } catch (errA) {
-        console.warn(LOG, 'transferable stream path failed, falling back to chunk-ack:', errA.message);
+        if (!errA || !errA.streamFallbackEligible) throw errA;
+        console.warn(LOG, 'transferable stream transport unavailable, falling back to chunk-ack:', errA.message);
         if (global.RuntimeTelemetry) {
           try { global.RuntimeTelemetry.record('stream-bridge:transferable-fallback', { error: errA.message }); } catch (_) {}
         }
