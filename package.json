@@ -40,7 +40,8 @@
     "audit:phase5:transferable-fallback-safety": "node scripts/phase5-transferable-fallback-safety-check.js",
     "audit:phase5:stream-setup-telemetry": "node scripts/phase5-stream-setup-telemetry-check.js",
     "audit:phase5:stream-runtime-error-finalization": "node scripts/phase5-stream-runtime-error-finalization-check.js",
-    "audit:phase5:multifile-stream-security": "node scripts/phase5-multifile-stream-security-check.js"
+    "audit:phase5:multifile-stream-security": "node scripts/phase5-multifile-stream-security-check.js",
+    "audit:phase5:stream-late-progress": "node scripts/phase5-stream-late-progress-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
