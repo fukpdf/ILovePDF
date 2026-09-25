@@ -18,7 +18,8 @@
     "audit:phase5:edit": "node scripts/phase5-edit-check.js",
     "audit:phase5:watermark": "node scripts/phase5-watermark-check.js",
     "audit:phase5:sign": "node scripts/phase5-sign-check.js",
-    "audit:phase5:page-numbers": "node scripts/phase5-page-numbers-check.js"
+    "audit:phase5:page-numbers": "node scripts/phase5-page-numbers-check.js",
+    "audit:phase5:redact": "node scripts/phase5-redact-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
