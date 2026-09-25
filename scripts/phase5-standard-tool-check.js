@@ -525,6 +525,29 @@ if (!compareTool || !compareTool.capabilities || compareTool.capabilities.worker
 if (!/compare-worker-adapter\.js/.test(toolHtml)) fail('Compare adapter is not loaded by the standard tool shell.');
 
 
+
+// ── OCR canonical specialized tool boundary ────────────────────────────────
+const ocrApp = read('public/js/ocr-tool-app.js');
+if (!/G\.OCRRuntime\.execute/.test(ocrApp)) fail('OCR app does not dispatch to canonical OCRRuntime.');
+if (!/ToolAppManager\.registerTool\('ocr'/.test(ocrApp)) fail('OCR ToolApp boundary is not registered.');
+if (!/G\.__OCRToolEngine/.test(ocrApp)) fail('OCR engine boundary is missing.');
+if (!/G\.OCRRuntime\.cancelActive\('unmount'\)/.test(ocrApp) || !/G\.OCRRuntime\.cancelActive\('reset'\)/.test(ocrApp) || !/G\.OCRRuntime\.cancelActive\('destroy'\)/.test(ocrApp)) fail('OCR lifecycle cancellation is incomplete.');
+if (/PdfWorkerRuntimeFactory|RUNTIME_OCR_ENABLED/i.test(ocrApp)) fail('OCR app retains legacy runtime factory/feature flag architecture.');
+
+const ocrRuntime = read('public/js/ocr-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(ocrRuntime)) fail('OCRRuntime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|fallback/i.test(ocrRuntime)) fail('OCRRuntime retains legacy/fallback architecture.');
+if (!/timeoutMs:0/.test(ocrRuntime)) fail('OCRRuntime does not use an unlimited scheduler timeout.');
+if (!/OCRWorkerAdapter\.dispatch/.test(ocrRuntime)) fail('OCRRuntime does not dispatch through OCRWorkerAdapter.');
+
+const ocrAdapter = read('public/js/ocr-worker-adapter.js');
+if (!/G\.__OCRToolEngine\.process/.test(ocrAdapter)) fail('OCR adapter does not bind to the isolated OCR engine.');
+if (/WorkerPool\.run\(/.test(ocrAdapter)) fail('OCR adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS=0/.test(ocrAdapter)) fail('OCR adapter has an artificial scheduler timeout.');
+if (!/dedupeKey:key\(file,opts\)/.test(ocrAdapter)) fail('OCR adapter dedupe key is missing.');
+if (!/cancel\(reason\)/.test(ocrAdapter)) fail('OCR adapter cancellation contract is missing.');
+if (!/ocr-worker-adapter\.js/.test(toolHtml) || !/ocr-runtime\.js/.test(toolHtml)) fail('OCR canonical runtime files are not loaded by the standard tool shell.');
+
 // ── Translate canonical tool ─────────────────────────────────────────────
 requirePdfWorkerContract('translate', 'Translate');
 const translateApp = read('public/js/translate-pdf-app.js');
