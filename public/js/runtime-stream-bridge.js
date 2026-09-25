@@ -342,6 +342,8 @@
 
       function finishRuntimeError(err) {
         if (entry.terminal) return;
+        if (_memRetryTimer !== null) { clearTimeout(_memRetryTimer); _memRetryTimer = null; }
+        _prefetchBuf = null;
         done = true;
         entry.terminal = true;
         _activeStreams.delete(streamId);
@@ -361,6 +363,7 @@
       var _prefetchEnd  = 0;      // file offset after prefetch read
       var _prefetchLast = false;  // true if prefetch covers the last byte
       var _prefetching  = false;  // read in-flight guard
+      var _memRetryTimer = null;  // bounded retry timer, cleared on terminal state
 
       async function _prefetchNext() {
         if (_prefetching || _prefetchBuf) return;
@@ -376,8 +379,9 @@
             _prefetchEnd  = nextEnd;
             _prefetchLast = (nextEnd >= totalSize);
           }
-        } catch (_) {
-          // silently discard — _sendNextChunk will re-read on ack
+        } catch (err) {
+          if (!entry.terminal && !entry.cancelled && !done) finishRuntimeError(err);
+          return;
         }
         _prefetching = false;
       }
@@ -410,13 +414,16 @@
         // 8G: MemDefense gate — pause chunk pipeline under memory pressure
         if (_streamsPaused) {
           // Retry in 500ms
-          setTimeout(function () {
-            if (!entry.cancelled && !done) {
-              _sendNextChunk().catch(function (err) {
-                finishRuntimeError(err);
-              });
-            }
-          }, 500);
+          if (_memRetryTimer === null) {
+            _memRetryTimer = setTimeout(function () {
+              _memRetryTimer = null;
+              if (!entry.cancelled && !entry.terminal && !done) {
+                _sendNextChunk().catch(function (err) {
+                  finishRuntimeError(err);
+                });
+              }
+            }, 500);
+          }
           return;
         }
 
@@ -447,9 +454,7 @@
         }
 
         if (entry.cancelled) {
-          _activeStreams.delete(streamId);
-          try { w.terminate(); } catch (_) {}
-          reject(new Error('cancelled'));
+          finishRuntimeError(new Error('cancelled'));
           return;
         }
 
