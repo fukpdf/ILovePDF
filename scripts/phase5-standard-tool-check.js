@@ -172,6 +172,39 @@ if (!/\bresult\b/.test(organizeBlock)) fail('Organize worker does not produce a 
 if (!/['"]organize['"]/.test(workerSet)) fail('Organize is not in BrowserTools WORKER_TOOLS.');
 if (!/currentTool\.id === 'organize'[\s\S]*?getOrderSummary/.test(toolPage) || !/opts\.pageOrder\s*=\s*Array\.isArray\(summary\.order\)/.test(toolPage)) fail('Organize page order is not passed from PageOrganizer to the canonical worker options.');
 
+
+// ── Page Numbers canonical tool ────────────────────────────────────────────
+requirePdfWorkerContract('page-numbers', 'Page Numbers');
+const pageNumbersApp = read('public/js/page-numbers-app.js');
+if (!/runtime\(\)\.execute\(files\[0\],opts \|\| \{\}\)/.test(pageNumbersApp)) fail('Page Numbers app does not dispatch to PageNumbersRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(pageNumbersApp)) fail('Page Numbers ToolApp boundary is not registered.');
+if (!/function unmount\(\) \{ cancel\(\); \}/.test(pageNumbersApp) || !/function reset\(\) \{ cancel\(\); \}/.test(pageNumbersApp) || !/function destroy\(\) \{ cancel\(\); \}/.test(pageNumbersApp)) fail('Page Numbers lifecycle cancellation is incomplete.');
+
+const pageNumbersRuntime = read('public/js/page-numbers-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(pageNumbersRuntime)) fail('Page Numbers runtime does not use RuntimeScheduler.');
+if (!/RuntimeScheduler is unavailable/.test(pageNumbersRuntime)) fail('Page Numbers runtime does not fail closed.');
+if (!/__pageNumbersRunToken/.test(pageNumbersRuntime)) fail('Page Numbers run ownership token is missing.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback/i.test(pageNumbersRuntime)) fail('Page Numbers runtime retains legacy/fallback architecture.');
+if (!/timeoutMs: 0/.test(pageNumbersRuntime)) fail('Page Numbers runtime does not use an unlimited execution timeout.');
+
+const pageNumbersAdapter = read('public/js/page-numbers-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(pageNumbersAdapter)) fail('Page Numbers adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(pageNumbersAdapter)) fail('Page Numbers adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS = 0/.test(pageNumbersAdapter)) fail('Page Numbers adapter has an artificial timeout.');
+if (!/pipelineStreamToWorker/.test(pageNumbersAdapter)) fail('Page Numbers adapter does not use adaptive streaming.');
+if (!/STREAM_THRESHOLD = 10 \* 1024 \* 1024/.test(pageNumbersAdapter)) fail('Page Numbers adaptive threshold is missing.');
+if (!/dedupeKey: key\(file, opts\)/.test(pageNumbersAdapter)) fail('Page Numbers dedupe key is missing.');
+if (!/startFrom/.test(pageNumbersAdapter) || !/position/.test(pageNumbersAdapter)) fail('Page Numbers option identity is incomplete.');
+
+const pageNumbersWorker = read('public/workers/pdf-worker.js');
+const pageNumbersBlock = pageNumbersWorker.match(/OPS\['page-numbers'\]\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!pageNumbersBlock) fail('Shared PDF worker has no Page Numbers operation.');
+if (!/PDFDocument\.load/.test(pageNumbersBlock) || !/getPages\(\)/.test(pageNumbersBlock) || !/drawText/.test(pageNumbersBlock)) fail('Page Numbers worker drawing contract is incomplete.');
+if (!/startFrom/.test(pageNumbersBlock) || !/position/.test(pageNumbersBlock)) fail('Page Numbers worker does not consume numbering options.');
+if (!/buffers\[0\] = null/.test(pageNumbersBlock)) fail('Page Numbers worker does not release the source buffer.');
+if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
+if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
+
 // ── Merge canonical tool ───────────────────────────────────────────────────
 requirePdfWorkerContract('merge', 'Merge');
 const mergeApp = read('public/js/merge-pdf-app.js');
@@ -219,6 +252,7 @@ if (failures.length) {
 } else {
   console.log('[PASS] Crop reference contract');
   console.log('[PASS] Rotate canonical-tool contract');
+  console.log('[PASS] Page Numbers canonical-tool contract');
   console.log('[PASS] Merge canonical-tool contract');
   console.log('Phase 5 standard-tool gate: PASS');
 }
