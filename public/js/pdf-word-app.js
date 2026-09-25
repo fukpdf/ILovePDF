@@ -116,102 +116,8 @@
 
   // ── TEXT EXTRACTION FROM PDF.JS CONTENT ITEMS ─────────────────────────────
   // Implements the core of AE's _buildParaLines logic.
-  function _extractParagraphs(items) {
-    if (!items || !items.length) return [];
-
-    var validItems = items.filter(function (it) { return it.str && it.str.trim() && it.transform; });
-    if (!validItems.length) return [];
-
-    // Font-height stats
-    var heights = validItems.map(function (it) { return Math.abs(it.transform[3]); }).filter(function (h) { return h > 0; });
-    heights.sort(function (a, b) { return a - b; });
-    var medH = heights[Math.floor(heights.length / 2)] || 10;
-    var maxH = heights[heights.length - 1] || 10;
-    var yBkt = Math.max(2, Math.min(8, Math.round(medH * 0.35)));
-
-    // Group into y-buckets
-    var lineMap = {};
-    validItems.forEach(function (it) {
-      var yk = Math.round(it.transform[5] / yBkt) * yBkt;
-      if (!lineMap[yk]) lineMap[yk] = [];
-      lineMap[yk].push(it);
-    });
-
-    var ys  = Object.keys(lineMap).map(Number).sort(function (a, b) { return b - a; });
-    var out = [];
-    var lastY = null, lastText = '', lastH = medH;
-
-    ys.forEach(function (y) {
-      var row   = lineMap[y].sort(function (a, b) { return a.transform[4] - b.transform[4]; });
-      var txt   = '';
-      for (var i = 0; i < row.length; i++) {
-        var s = row[i].str || '';
-        if (!s) continue;
-        if (txt && !txt.endsWith(' ') && !s.startsWith(' ')) {
-          // Insert space if there is a visual gap between glyphs
-          var prevRight = i > 0 ? (row[i - 1].transform[4] + (row[i - 1].width || 0)) : 0;
-          if (prevRight > 0 && (row[i].transform[4] - prevRight) > medH * 0.25) txt += ' ';
-        }
-        txt += s;
-      }
-      txt = _normSym(txt.trim());
-      if (!txt) return;
-
-      var lineH    = Math.max.apply(null, row.map(function (it) { return Math.abs(it.transform[3]); }));
-      var lineBold = row.some(function (it) { return it.fontName && /bold/i.test(it.fontName); });
-      var lineItal = row.some(function (it) { return it.fontName && /italic|oblique/i.test(it.fontName); });
-
-      if (_isSignLine(txt)) {
-        out.push({ text: txt, isHeading: false, isList: false, isNumList: false, isSignature: true, fontSize: lineH });
-        lastY = y; lastText = txt; lastH = lineH; return;
-      }
-
-      var isList    = _LIST_RE.test(txt);
-      var isNumList = _NUMLIST_RE.test(txt);
-      var isSection = _SECTION_RE.test(txt.trim());
-      var isForm    = !isList && !isNumList && _isFormLine(txt);
-      var isHeading = !isList && !isForm && (
-        lineH > medH * 1.3 || (lineBold && lineH >= medH) || isSection ||
-        (txt.length >= 2 && txt.length < 90 && txt === txt.toUpperCase() && /[A-Z]/.test(txt))
-      );
-      var level = 0;
-      if (isHeading) {
-        level = lineH >= maxH * 0.85 ? 1 : lineH >= medH * 1.5 ? 2 : lineH >= medH * 1.2 ? 3 : 4;
-      }
-
-      var gap      = lastY !== null ? lastY - y : 0;
-      var newBlock = gap > medH * 2.0 || isHeading || isForm || isSection;
-      var sentEnd  = lastText ? /[.!?:;)\]"'\u2019\u201d]$/.test(lastText.trim()) : true;
-      var merge    = !newBlock && !sentEnd && gap > 0 && gap < medH * 1.8 &&
-                     Math.abs(lineH - lastH) < medH * 0.3 && lastY !== null && !isForm;
-
-      if (merge && out.length) {
-        var last = out[out.length - 1];
-        if (last && !last.isHeading && !last.isSignature && !last.isForm) {
-          last.text = last.text.trim().endsWith('-')
-            ? last.text.trim().slice(0, -1) + txt
-            : last.text + ' ' + txt;
-          last.bold   = last.bold   || lineBold;
-          last.italic = last.italic || lineItal;
-          lastY = y; lastText = txt; lastH = lineH; return;
-        }
-      }
-      var xs = row.map(function (it) { return it.transform[4]; }).filter(function (x) { return x > 0; });
-      out.push({
-        text: txt, isHeading: isHeading, isList: isList, isNumList: isNumList,
-        isSection: isSection, isForm: isForm, bold: lineBold, italic: lineItal,
-        level: level, fontSize: lineH,
-        xPositions: xs.length > 1 ? xs : undefined, pageWidth: 612,
-      });
-      lastY = y; lastText = txt; lastH = lineH;
-    });
-
-    // Remove consecutive duplicates (scanning artefacts)
-    return out.filter(function (p, i) {
-      return i === 0 || p.text.trim().toLowerCase() !== out[i - 1].text.trim().toLowerCase();
-    });
-  }
-
+    // Text structuring now runs inside pdf-word-extract-worker.js to keep
+  // PDF.js output processing off the page context.
   // ── OCR FALLBACK ──────────────────────────────────────────────────────────
   // Native PDF.js extraction has already completed in Phase 1 through
   // _extractWithSharedWorker(). This stage must not reopen the PDF in page
@@ -333,7 +239,7 @@
       var extractedPages = await _extractWithSharedWorker(file, cancelToken, onStep, jobId);
       var total = extractedPages.length;
       var pages = extractedPages.map(function (p) {
-        return { pageNum: p.pageNum, paragraphs: _extractParagraphs(p.items || []) };
+        return { pageNum: p.pageNum, paragraphs: p.paragraphs || [] };
       }).filter(function (p) { return p.paragraphs.length > 0; });
       onStep(0, 'done', 53);
       onStep(1, 'active', 55, 'Checking text quality…');
