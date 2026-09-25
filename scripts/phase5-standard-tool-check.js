@@ -127,10 +127,10 @@ if (!/timeoutMs:0/.test(splitRuntime)) fail('SplitRuntime does not use an unlimi
 const splitAdapter = read('public/js/split-worker-adapter.js');
 if (!/RuntimeWorkers\.dispatch\(/.test(splitAdapter)) fail('Split adapter does not use RuntimeWorkers.');
 if (/WorkerPool\.run\(/.test(splitAdapter)) fail('Split adapter contains a direct WorkerPool fallback.');
-if (!/TIMEOUT_MS=0/.test(splitAdapter)) fail('Split adapter has an artificial timeout.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(splitAdapter)) fail('Split adapter has an artificial timeout.');
 if (!/pipelineStreamToWorker/.test(splitAdapter)) fail('Split adapter does not use adaptive streaming.');
-if (!/STREAM_THRESHOLD=10\*1024\*1024/.test(splitAdapter)) fail('Split adaptive threshold is missing.');
-if (!/dedupeKey:key\(file,opts\)/.test(splitAdapter)) fail('Split dedupe key is missing.');
+if (!/STREAM_THRESHOLD\s*=\s*10\s*\*\s*1024\s*\*\s*1024/.test(splitAdapter)) fail('Split adaptive threshold is missing.');
+if (!/dedupeKey\s*:\s*key\(file\s*,\s*opts\)/.test(splitAdapter)) fail('Split dedupe key is missing.');
 
 const splitWorker = read('public/workers/pdf-worker.js');
 const splitBlock = splitWorker.match(/OPS\.split\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
