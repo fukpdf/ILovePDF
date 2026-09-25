@@ -4581,7 +4581,7 @@
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
     'compress', 'workflow', 'merge', 'rotate', 'crop',
-    'page-numbers', 'watermark', 'sign', 'redact', 'edit',
+    'page-numbers', 'watermark', 'sign', 'redact', 'protect', 'unlock', 'edit', 'repair',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
@@ -4775,8 +4775,19 @@
         throw new Error('worker_processing_unavailable');
       }
       const fileName = files[0].name;
-      const workerUrl = '/workers/pdf-worker.js';
+      const workerUrl = toolId === 'redact' ? '/workers/redact-worker.js' : '/workers/pdf-worker.js';
       const bridge = getStreamBridge();
+      const callerOptions = options || {};
+      // CancelToken objects are intentionally kept out of the structured-clone
+      // message. The shared runtime consumes the token at the scheduling/stream
+      // boundary and only serializable options cross into the PDF worker.
+      const cancelToken = callerOptions.cancelToken || null;
+      const workerOptions = { ...callerOptions };
+      delete workerOptions.cancelToken;
+      const onProgress = callerOptions.onProgress;
+      delete workerOptions.onProgress;
+      const priority = callerOptions.priority || 'normal';
+      delete workerOptions.priority;
       let workerResult = null;
 
       if (bridge) {
@@ -4785,14 +4796,14 @@
           const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
           if (totalBytes >= 10 * 1024 * 1024) {
             workerResult = await bridge.streamFilesToWorkerReadable(
-              workerUrl, Array.from(files), { tool: toolId, options: options || {} },
-              { onProgress: options && options.onProgress }
+              workerUrl, Array.from(files), { tool: toolId, options: workerOptions },
+              { onProgress, token: cancelToken }
             );
           }
         } else if (files[0].size >= 10 * 1024 * 1024) {
           workerResult = await bridge.pipelineStreamToWorker(
-            workerUrl, files[0], { tool: toolId, options: options || {} },
-            { onProgress: options && options.onProgress }
+            workerUrl, files[0], { tool: toolId, options: workerOptions },
+            { onProgress, token: cancelToken }
           );
         }
       }
@@ -4805,8 +4816,9 @@
         for (const file of Array.from(files)) buffers.push(await file.arrayBuffer());
         workerResult = await pool.run(
           workerUrl,
-          { tool: toolId, buffers, options: options || {} },
+          { tool: toolId, buffers, options: workerOptions },
           buffers,
+          { priority, token: cancelToken }
         );
       }
 
