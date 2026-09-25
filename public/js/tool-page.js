@@ -1599,7 +1599,7 @@ function maybeOpenPageOrganizer() {
   list.style.display = 'none';
 
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
-  window.PageOrganizer.open(host, files[0], { onChange: () => {} })
+  window.PageOrganizer.open(host, files[0], { onChange: () => {}, allowStructuralEdits: !(currentTool && currentTool.id === 'rotate') })
     .then(ctrl => {
       pageOrganizer = ctrl;
       try { window.dispatchEvent(new CustomEvent('ilpdf:rotate-organizer-ready')); } catch (_) {}
