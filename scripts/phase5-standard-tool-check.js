@@ -305,6 +305,25 @@ if (!editBlock) fail('Shared PDF worker has no Edit operation.');
 if (!/PDFDocument\.load/.test(editBlock) || !/doc\.drawText|page\.drawText/.test(editBlock)) fail('Edit worker text operation contract is incomplete.');
 if (!/fontSize/.test(editBlock) || !/opts\.page/.test(editBlock)) fail('Edit worker page/font options contract is incomplete.');
 
+// ── Repair PDF canonical tool ───────────────────────────────────────────────
+requirePdfWorkerContract('repair', 'Repair PDF');
+const repairRuntime = read('public/js/repair-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(repairRuntime)) fail('Repair runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback|RUNTIME_REPAIR_ENABLED/i.test(repairRuntime)) fail('Repair runtime retains legacy/fallback architecture.');
+if (!/timeoutMs:0/.test(repairRuntime)) fail('Repair runtime does not use unlimited execution timeout.');
+
+const repairAdapter = read('public/js/repair-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(repairAdapter)) fail('Repair adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(repairAdapter)) fail('Repair adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS=0/.test(repairAdapter)) fail('Repair adapter has an artificial execution timeout.');
+if (!/dedupeKey:key\(file\)/.test(repairAdapter)) fail('Repair dedupe key is missing.');
+if (!/buffers:\[buffer\]/.test(repairAdapter)) fail('Repair adapter input transfer is incomplete.');
+
+const repairApp = read('public/js/repair-pdf-app.js');
+if (!/ToolAppManager\.registerTool\('repair'/.test(repairApp)) fail('Repair app canonical ToolApp boundary is missing.');
+if (!/cancelActive\('unmount'\)/.test(repairApp) || !/cancelActive\('destroy'\)/.test(repairApp)) fail('Repair app lifecycle cancellation is incomplete.');
+if (/new Worker\(|repair-worker\.js|HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(repairApp)) fail('Repair app still owns a legacy dedicated worker/timeout path.');
+
 // ── Workflow Builder canonical tool ─────────────────────────────────────────
 requirePdfWorkerContract('workflow', 'Workflow Builder');
 const workflowRuntime = read('public/js/workflow-runtime.js');
