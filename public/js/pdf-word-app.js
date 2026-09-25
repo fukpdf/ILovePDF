@@ -38,7 +38,7 @@
     _inFlight = false;
   }
 
-  async function _extractWithSharedWorker(file, cancelToken, onStep, jobId) {
+  async function _extractWithSharedWorker(file, cancelToken, onStep, jobId, forceOcr) {
     if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') throw new Error('Shared WorkerPool runtime unavailable');
     var buf = await file.arrayBuffer();
     var transfer = [buf];
@@ -198,7 +198,7 @@
       onStep(0, 'active', 5, 'Preparing your file\u2026');
 
       // ── Phase 1: PDF.js extraction in shared WorkerPool ───────────────────
-      var extracted = await _extractWithSharedWorker(file, cancelToken, onStep, jobId);
+      var extracted = await _extractWithSharedWorker(file, cancelToken, onStep, jobId, forceOcr);
       var extractedPages = extracted.pages;
       var total = extractedPages.length;
       var pages = extractedPages.map(function (p) {
@@ -209,14 +209,12 @@
 
 
       // ── Phase 2: Text quality check + OCR fallback ────────────────────────
-      var avgCharsPerPage = extracted.analysis.avgCharsPerPage;
-      var needsOcr = forceOcr || !pages.length || avgCharsPerPage < 8;
+      var needsOcr = !!extracted.needsOcr;
 
       if (needsOcr) {
-        _log('OCR trigger', { avgCharsPerPage: avgCharsPerPage, forceOcr: forceOcr });
+        _log('OCR trigger', { decision: extracted.ocrDecision, forceOcr: forceOcr });
         var ocrRaw  = await _runOcr(file, ocrLang, onStep, cancelToken, jobId, total);
-        var ocrLen  = ocrRaw._charCount;
-        if (ocrLen < 10) {
+        if (!ocrRaw.length || !ocrRaw._readable) {
           throw new Error('No readable text found. This may be a scanned document with unclear content.');
         }
         pages = ocrRaw.map(function (p) {
