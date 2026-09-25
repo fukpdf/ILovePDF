@@ -4,14 +4,13 @@
 // Differences from MergeRuntime:
 //   - Single-file input (opts.degrees + opts.pages carried through)
 //   - DedupeKey includes rotation angle and page range
-//   - Timeout: 90s (rotate is faster than merge)
-//   - Worker timeout: 90s vs 180s
+//   - No artificial processing-time cutoff; cancellation/runtime pressure remain available
 //
 // DESIGN: Monkey-patches BrowserTools.process('rotate', ...) only.
 //   - All other tools: completely unaffected
 //   - processFile() in tool-page.js: zero modifications
 //   - tryWithRetry(), OutputValidator, showStatus, Flow: zero modifications
-//   - On any runtime failure: auto-fallback to original BrowserTools.process()
+//   - Runtime failures remain visible to the caller; no hidden legacy fallback is used.
 //
 // Feature flag: window.RUNTIME_ROTATE_ENABLED = true (default)
 //               Set to false in DevTools to force legacy path.
@@ -293,10 +292,6 @@
   // [Task Group R003] execute() is what the monkey-patch calls.
   // Returns { blob, filename } always (runtime or legacy), or throws if both fail.
   async function execute(file, opts) {
-    if (!window.RUNTIME_ROTATE_ENABLED) {
-      return runRotateLegacy(file, opts);
-    }
-
     var safeMode = _shouldUseSafeMode(file);
     if (safeMode && window.RuntimeTelemetry) {
       try { window.RuntimeTelemetry.record('rotate:safe-mode', {
@@ -318,19 +313,14 @@
         throw runtimeErr;
       }
 
-      // Log fallback reason
       if (window.RuntimeTelemetry) {
-        try { window.RuntimeTelemetry.record('rotate:runtime-fallback', { reason: failReason }); } catch (_) {}
+        try { window.RuntimeTelemetry.record('rotate:runtime-error', { reason: failReason }); } catch (_) {}
       }
       if (window.RuntimeEventBus) {
         try { window.RuntimeEventBus.emit('health:degraded', { component: 'rotate-runtime', reason: failReason }); } catch (_) {}
       }
-      console.warn(LOG, 'runtime path failed — falling back to legacy. reason:', failReason);
-
-      _runPostRotateCleanup('fallback:' + failReason);
-
-      // [Task Group R012] Auto-fallback to legacy
-      return runRotateLegacy(file, opts);
+      _runPostRotateCleanup('error:' + failReason);
+      throw runtimeErr;
     }
   }
 
