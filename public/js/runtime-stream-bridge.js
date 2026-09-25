@@ -481,10 +481,8 @@
         // 8G: security validation on chunk message
         if (global.RuntimeSecurity) {
           try { global.RuntimeSecurity.validateWorkerMessage(chunkMsg); } catch (se) {
-            _activeStreams.delete(streamId);
-            try { w.terminate(); } catch (_) {}
-            _endStreamTelemetry(entry, 'error');
-            reject(se); return;
+            finishRuntimeError(se);
+            return;
           }
         }
 
