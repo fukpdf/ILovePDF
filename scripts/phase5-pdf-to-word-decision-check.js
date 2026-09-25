@@ -13,6 +13,7 @@ const checks=[
  ['page no longer computes OCR threshold',!/avgCharsPerPage < 8/.test(app)],
  ['page no longer forces decision locally',!/forceOcr \|\| !pages\.length/.test(app)],
  ['OCR worker returns readability',/readable:charCount>=10/.test(ocr)],
+ ['page aggregates OCR readability',/ocrPages\._readable = .*recog\.readable/.test(app)],
  ['page consumes OCR readability',/!ocrRaw\.length \|\| !ocrRaw\._readable/.test(app)],
  ['WorkerPool extraction retained',/WorkerPool\.run\(\s*EXTRACT_WORKER/.test(app)],
  ['WorkerPool OCR retained',/WorkerPool\.run\(\s*OCR_WORKER/.test(app)],
