@@ -1,96 +1,47 @@
-// Watermark Runtime v1.0 — Phase 3 Bulk Migration
-// Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
-//
-// Adapter mode: 'worker'
-//   watermark IS in WORKER_TOOLS and pdf-worker.js OPS table (OPS.watermark).
-//   Dispatches to pdf-worker.js via RuntimeWorkers.dispatch() (Phase 2 orchestration)
-//   with WorkerPool.run() as fallback, matching the RotateWorkerAdapter pattern.
-//
-// Feature flag: window.RUNTIME_WATERMARK_ENABLED = true (default)
-//   Set to false in DevTools to force legacy path.
-//
-// DedupeKey: includes file identity + text + opacity + position, so two
-//   different watermark configs for the same file are treated as distinct.
-//   The text is capped at 20 chars to keep the key readable in telemetry.
-//
-// [FUTURE: StreamEngine] Replace file.arrayBuffer() in _workerDispatch with
-//   OPFS byte-range reader so large PDFs don't spike the JS heap.
-//
-// [FUTURE: OPFSRuntime] Write watermarked output to OPFS before Blob creation.
-//
-// Exposed as: window.WatermarkRuntime
+// Watermark Runtime v2.0 — canonical RuntimeScheduler + RuntimeWorkers
 (function () {
   'use strict';
-
   if (window.WatermarkRuntime) return;
-
-  if (!window.PdfWorkerRuntimeFactory) {
-    console.warn('[WRT] PdfWorkerRuntimeFactory not loaded — WatermarkRuntime skipped');
-    return;
+  var currentToken = null;
+  function startSpan(file) {
+    try { if (window.RuntimeTelemetry && typeof window.RuntimeTelemetry.startSpan === 'function') return window.RuntimeTelemetry.startSpan('watermark:execute', { name: file.name, size: file.size }); } catch (_) {}
+    return null;
   }
-
-  window.PdfWorkerRuntimeFactory.createPdfToolRuntime({
-    toolId:      'watermark',
-    namespace:   'WatermarkRuntime',
-    flagName:    'RUNTIME_WATERMARK_ENABLED',
-    LOG:         '[WRT]',
-
-    // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode:   'worker',
-    timeoutMs: 0,
-    workerTimeout: 0,
-    timerOwner:    'wrt-tick',
-
-    // DedupeKey: file identity + watermark config options.
-    // Text capped at 20 chars in key — full text is in opts passed to worker.
-    buildDedupeKey: function (files, opts) {
-      var text    = String((opts && opts.text)     || 'WATERMARK').slice(0, 20);
-      var opacity = String((opts && opts.opacity)  || '0.3');
-      var pos     = String((opts && opts.position) || 'center');
-      return 'watermark:' + files[0].name + ':' + files[0].size + ':' + text + ':' + opacity + ':' + pos;
-    },
-
-    workerProgressMessages: [
-      'Applying watermark…',
-      'Stamping pages…',
-      'Processing text overlay…',
-      'Finalising document…',
-    ],
-
-    // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function () {
-      return 'Adding watermark…';
-    },
-    buildProgressSubtitle: function (files, opts) {
-      var text = String((opts && opts.text) || 'WATERMARK').slice(0, 40);
-      var pos  = (opts && opts.position) || 'center';
-      return '"' + text + '" · ' + pos;
-    },
-
-    // ── Telemetry ─────────────────────────────────────────────────────────────
-    buildSpanAttrs: function (files, opts) {
-      return {
-        name:       files[0] && files[0].name,
-        size:       files[0] && files[0].size,
-        textLength: ((opts && opts.text) || '').length,
-        opacity:    (opts && opts.opacity)  || '0.3',
-        position:   (opts && opts.position) || 'center',
-      };
-    },
-    buildSuccessAttrs: function (files, blob, opts, ms) {
-      return {
-        textLength:  ((opts && opts.text) || '').length,
-        opacity:     (opts && opts.opacity)  || '0.3',
-        position:    (opts && opts.position) || 'center',
-        inputBytes:  files[0] && files[0].size,
-      };
-    },
-
-    // ── Filename ──────────────────────────────────────────────────────────────
-    buildFilename: function (files) {
-      return window.BrowserTools && window.BrowserTools.brandedFilename
-        ? window.BrowserTools.brandedFilename(files[0].name, '.pdf')
-        : 'ILovePDF-watermarked.pdf';
-    },
-  });
+  function endSpan(span, status) { try { if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, status); } catch (_) {} }
+  function cleanup(owner, label) {
+    if (owner && currentToken && owner !== currentToken) return;
+    if (label && window.RuntimeCleanup) { try { window.RuntimeCleanup.run(label); } catch (_) {} }
+    if (!owner || owner === currentToken) currentToken = null;
+  }
+  async function execute(file, opts) {
+    opts = opts || {};
+    if (!file) throw new Error('No file provided');
+    if (!window.RuntimeScheduler || typeof window.RuntimeScheduler.run !== 'function') throw new Error('RuntimeScheduler is unavailable — canonical Watermark runtime cannot execute');
+    if (!window.WatermarkWorkerAdapter || typeof window.WatermarkWorkerAdapter.dispatch !== 'function') throw new Error('WatermarkWorkerAdapter is unavailable — canonical worker runtime cannot execute');
+    var token = new (window.WorkerPool && window.WorkerPool.CancelToken ? window.WorkerPool.CancelToken : function () { this.cancelled = false; this.cancel = function () { this.cancelled = true; }; })();
+    currentToken = token;
+    var span = startSpan(file);
+    try {
+      var result = await window.RuntimeScheduler.run('watermark', async function (taskToken, onProgress) {
+        if (taskToken && taskToken.cancelled) throw new Error('cancelled-before-dispatch');
+        return window.WatermarkWorkerAdapter.dispatch(file, opts, onProgress, taskToken || token);
+      }, { token: token, timeoutMs: 0, label: 'watermark' });
+      if (!result || !result.buffer || !result.buffer.byteLength) throw new Error('Watermark produced empty output');
+      var blob = new Blob([result.buffer], { type: 'application/pdf' });
+      var filename = window.BrowserTools && window.BrowserTools.brandedFilename ? window.BrowserTools.brandedFilename(file.name, '.pdf') : 'ILovePDF-watermarked.pdf';
+      endSpan(span, 'ok'); cleanup(token, 'watermark-success');
+      return { blob: blob, filename: filename };
+    } catch (err) {
+      endSpan(span, 'error'); cleanup(token, 'watermark-error');
+      try { Object.defineProperty(err, '__watermarkRunToken', { value: token, configurable: true }); } catch (_) {}
+      throw err;
+    }
+  }
+  function cancelActive(reason) {
+    var token = currentToken;
+    if (token && typeof token.cancel === 'function') { try { token.cancel(reason || 'cancelled'); } catch (_) {} }
+    cleanup(token, 'watermark-cancel-' + (reason || 'manual'));
+  }
+  function getDiagnostics() { return { active: !!currentToken, hasAdapter: !!(window.WatermarkWorkerAdapter && typeof window.WatermarkWorkerAdapter.dispatch === 'function') }; }
+  window.WatermarkRuntime = { execute: execute, cancelActive: cancelActive, getDiagnostics: getDiagnostics };
 }());
