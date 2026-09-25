@@ -340,3 +340,11 @@ Unit 23 moves the OCR-fallback decision boundary into the extraction worker. The
 The documented thresholds and forced-OCR behavior are preserved; this change relocates decision analysis rather than changing conversion policy. WorkerPool and cancellation paths remain unchanged, and no artificial file-size/page-count/processing-time limit was added.
 
 Verification: `scripts/phase5-pdf-to-word-decision-check.js`.
+
+## Unit 24 — WorkerPool priority validation audit
+
+The Phase 24 WorkerPool introduced four queue tiers (`high`, `normal`, `low`, `background`) and priority validation. Audit found `run()` referenced an undefined `pool_proto_queues` symbol, which could throw before a task was dispatched whenever WorkerPool was called. The validation now checks the authoritative `TIER_ORDER` array and falls back unknown priorities to `normal`.
+
+No queue-size, task-count, or execution-time policy was changed. Cancellation, starvation prevention, adaptive worker caps, idle cleanup, and zero artificial execution timeout remain intact.
+
+Verification: `scripts/phase5-worker-pool-check.js`.
