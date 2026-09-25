@@ -32,7 +32,8 @@
     "audit:phase5:pdf-to-word-quality": "node scripts/phase5-pdf-to-word-quality-check.js",
     "audit:phase5:pdf-to-word-decision": "node scripts/phase5-pdf-to-word-decision-check.js",
     "audit:phase5:worker-pool": "node scripts/phase5-worker-pool-check.js",
-    "audit:phase5:worker-cancel": "node scripts/phase5-worker-cancel-check.js"
+    "audit:phase5:worker-cancel": "node scripts/phase5-worker-cancel-check.js",
+    "audit:phase5:worker-lifecycle": "node scripts/phase5-worker-lifecycle-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
