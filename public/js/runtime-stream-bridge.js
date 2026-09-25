@@ -217,7 +217,7 @@
 
       w.onmessage = function (e) {
         var d = e.data;
-        if (!d || d.streamId !== streamId) return;
+        if (!d || d.streamId !== streamId || entry.terminal) return;
         if (d.type === 'stream-done') {
           if (entry.terminal) return;
           entry.terminal = true;
