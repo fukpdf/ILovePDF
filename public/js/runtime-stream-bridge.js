@@ -380,6 +380,7 @@
             _prefetchLast = (nextEnd >= totalSize);
           }
         } catch (err) {
+          _prefetching = false;
           if (!entry.terminal && !entry.cancelled && !done) finishRuntimeError(err);
           return;
         }
@@ -445,10 +446,7 @@
           try {
             buf = await slice.arrayBuffer();
           } catch (readErr) {
-            _activeStreams.delete(streamId);
-            try { w.terminate(); } catch (_) {}
-            _endStreamTelemetry(entry, 'error');
-            reject(readErr);
+            finishRuntimeError(readErr);
             return;
           }
         }
