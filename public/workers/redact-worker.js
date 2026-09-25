@@ -106,11 +106,57 @@ async function renderRedactedPage(pdfjsDoc, pageNum, rectPct) {
 }
 
 async function processRedactBuffer(inputBuf, opts) {
-    await docForRender.destroy(); } catch (_) {}
+    var xPct = Math.max(0, parseFloat(opts.x || '10')) / 100;
+        var yPct = Math.max(0, parseFloat(opts.y || '40')) / 100;
+        var wPct = Math.max(0.01, parseFloat(opts.width || '30')) / 100;
+        var hPct = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
+        // Canvas y-origin is top-down; PDF/pdf-lib y-origin is bottom-up. The
+        // rectangle math below stays in canvas (top-down) space throughout
+        // rendering, so no conversion is needed here — this differs from the
+        // old pdf-lib-worker.js OPS.redact, which had to flip Y because it drew
+        // directly in PDF coordinate space via pdf-lib's drawRectangle.
+        var rectPct = { x: xPct, y: yPct, width: wPct, height: hPct };
+    
+        // Two independent copies: pdf.js and pdf-lib each parse the input
+        // themselves and each may consume/retain their own buffer.
+        var pdfjsLib = await loadPdfJs();
+        var docForRender = await pdfjsLib.getDocument({ data: inputBuf.slice(0), isEvalSupported: false }).promise;
+        var srcDoc = await PDFDocument.load(inputBuf, { ignoreEncryption: true });
+    
+        var totalPages = srcDoc.getPageCount();
+        var targetSet = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
+          ? null // null = every page
+          : new Set(parseRange(String(opts.pages), totalPages));
+    
+        var outDoc = await PDFDocument.create();
+    
+        for (var i = 0; i < totalPages; i++) {
+          var pageNum = i + 1;
+          var isTarget = targetSet === null || targetSet.has(pageNum);
+    
+          if (isTarget) {
+            var rendered = await renderRedactedPage(docForRender, pageNum, rectPct);
+            var pngImage = await outDoc.embedPng(rendered.bytes);
+            var newPage = outDoc.addPage([rendered.widthPt, rendered.heightPt]);
+            newPage.drawImage(pngImage, {
+              x: 0, y: 0, width: rendered.widthPt, height: rendered.heightPt,
+            });
+          } else {
+            // Non-redacted pages are copied unchanged (still vector/searchable),
+            // using the same copyPages mechanism already proven working in
+            // merge-pdf-app.js and organize-app.js.
+            var copied = await outDoc.copyPages(srcDoc, [i]);
+            outDoc.addPage(copied[0]);
+          }
+        }
+    
+        try { await docForRender.destroy(); } catch (_) {}
     
         var resultBytes = await outDoc.save();
         var resultBuf = resultBytes.buffer.slice(resultBytes.byteOffset, resultBytes.byteOffset + resultBytes.byteLength);
         return resultBuf;
+    }
+    
 }
 
 var _streamJobs = new Map();
@@ -126,21 +172,17 @@ self.onmessage = async function (ev) {
       while (true) {
         var next = await reader.read();
         if (next.done) break;
-        if (next.value) {
-          parts.push(next.value);
-          total += next.value.byteLength || next.value.length || 0;
-        }
+        if (next.value) { parts.push(next.value); total += next.value.byteLength || next.value.length || 0; }
         self.postMessage({ type: 'stream-progress', streamId: d.streamId, pct: totalSizeProgress(total, d.totalSize), label: 'Reading PDF…' });
       }
-      var merged = new Uint8Array(total);
-      var off = 0;
+      var merged = new Uint8Array(total), off = 0;
       for (var i = 0; i < parts.length; i++) { merged.set(new Uint8Array(parts[i]), off); off += parts[i].byteLength; }
       var result = await processRedactBuffer(merged.buffer, d.options || {});
       self.postMessage({ type: 'stream-done', streamId: d.streamId, buffer: result }, [result]);
       return;
     }
     if (d.type === 'stream-init') {
-      _streamJobs.set(d.streamId, { parts: [], total: 0, options: d.options || {}, totalSize: d.totalSize || 0 });
+      _streamJobs.set(d.streamId, { parts: [], total: 0, options: d.options || {} });
       return;
     }
     if (d.type === 'stream-chunk') {
@@ -162,15 +204,8 @@ self.onmessage = async function (ev) {
     var result3 = await processRedactBuffer(d.buffers[0], d.opts || {});
     self.postMessage({ buffer: result3, jobId: jobId }, [result3]);
   } catch (err) {
-    if (d.streamId && String(d.type || '').indexOf('stream-') === 0) {
-      self.postMessage({ type: 'stream-error', streamId: d.streamId, __error: (err && err.message) || String(err) });
-    } else {
-      self.postMessage({ __error: (err && err.message) || String(err), jobId: jobId });
-    }
+    if (d.streamId && String(d.type || '').indexOf('stream-') === 0) self.postMessage({ type: 'stream-error', streamId: d.streamId, __error: (err && err.message) || String(err) });
+    else self.postMessage({ __error: (err && err.message) || String(err), jobId: jobId });
   }
 };
-
-function totalSizeProgress(done, total) {
-  if (!total) return 0;
-  return Math.max(0, Math.min(100, Math.round(done / total * 100)));
-}
+function totalSizeProgress(done,total){ if(!total)return 0; return Math.max(0,Math.min(100,Math.round(done/total*100))); }
