@@ -12,8 +12,9 @@
 //   - tryWithRetry(), OutputValidator, showStatus, Flow: zero modifications
 //   - Runtime failures remain visible to the caller; no hidden legacy fallback is used.
 //
-// Feature flag: window.RUNTIME_ROTATE_ENABLED = true (default)
-//               Set to false in DevTools to force legacy path.
+// Runtime diagnostic flag: window.RUNTIME_ROTATE_ENABLED = true (default)
+//               Set to false only to mark runtime as disabled in diagnostics;
+//               it does not select an alternate processing pipeline.
 //
 // [FUTURE: StreamEngine] Replace _readFile() in RotateWorkerAdapter with
 // OPFS byte-range chunks when StreamEngine ships.
@@ -159,7 +160,7 @@
 
   // ── Core runtime path ─────────────────────────────────────────────────────
   // [Task Group R003] Full runtime-driven rotate.
-  // Returns { blob, filename } on success; throws to trigger fallback.
+  // Returns { blob, filename } on success; runtime errors propagate to the caller.
   async function runRotateRuntime(file, opts) {
     var startTs = Date.now();
 
@@ -218,7 +219,7 @@
         }
       );
     } else {
-      // No scheduler: create own progress task as fallback only
+      // No scheduler: create a local progress task so the worker path remains usable
       if (window.RuntimeProgress) {
         _progressTask = window.RuntimeProgress.createSimpleTask('rotate-pdf', _currentToken);
       }
@@ -280,7 +281,7 @@
 
   // ── Full runtime entry ─────────────────────────────────────────────────────
   // [Task Group R003] execute() is what the monkey-patch calls.
-  // Returns { blob, filename } always (runtime or legacy), or throws if both fail.
+  // Returns { blob, filename } from the canonical runtime path, or throws.
   async function execute(file, opts) {
     var safeMode = _shouldUseSafeMode(file);
     if (safeMode && window.RuntimeTelemetry) {
@@ -294,7 +295,7 @@
     } catch (runtimeErr) {
       var failReason = (runtimeErr && runtimeErr.message) || 'unknown';
 
-      // [Task Group R012] Terminal errors: do NOT fallback
+      // [Task Group R012] Runtime errors are terminal; do not switch pipelines.
       if (failReason === 'cancelled'         ||
           failReason.startsWith('cancelled-') ||
           failReason === 'memory_pressure'    ||
