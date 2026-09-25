@@ -18,6 +18,8 @@ const checks=[
  ['page OCR still uses render worker',/WorkerPool\.run\(\s*RENDER_WORKER/.test(app)],
  ['DOCX WorkerPool preserved',/WorkerPool\.run\(DOCX_WORKER/.test(app)],
  ['no artificial timeout',!/75s|90s|TOOL_TIMEOUT_MS|OCR_INIT_MS/.test(app)],
+ ['no page-side PDF.js OCR prepass',!/function _runOcr[\\s\\S]*?getDocument|function _runOcr[\\s\\S]*?getTextContent/.test(app)],
+ ['OCR uses shared extraction page count',/var totalPages\\)\\s*\\{[\\s\\S]*?var total = totalPages \\|\\| 0;/.test(app)],
  ['audit gate self-checks',lines.length>0],
 ];
 let pass=0;for(const [n,ok] of checks){console.log((ok?'PASS ':'FAIL ')+n);if(ok)pass++;}
