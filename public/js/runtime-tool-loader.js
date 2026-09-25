@@ -9,7 +9,7 @@
   if (G.RuntimeToolLoader) return;
 
   var LOG = '[ToolLoader]';
-  var VERSION = '1.3';
+  var VERSION = '1.4';
   var _toolId = null;
   var _manifest = null;
   var _booted = false;
@@ -33,11 +33,20 @@
 
   async function _awaitRegistry() {
     try {
-      if (G.ToolRegistryReady && typeof G.ToolRegistryReady.then === 'function') await G.ToolRegistryReady;
+      if (!G.ToolRegistryReady || typeof G.ToolRegistryReady.then !== 'function') {
+        console.debug(LOG, 'authoritative registry readiness barrier unavailable');
+        return null;
+      }
+      var ready = await G.ToolRegistryReady;
+      if (!ready || !G.ToolRegistry || typeof G.ToolRegistry.isReady !== 'function' || !G.ToolRegistry.isReady()) {
+        console.debug(LOG, 'authoritative registry did not become ready');
+        return null;
+      }
+      return G.ToolRegistry;
     } catch (e) {
       console.debug(LOG, 'registry readiness error:', e && e.message || e);
+      return null;
     }
-    return G.ToolRegistry || null;
   }
 
   function _activateHydration(toolId, manifest) {
@@ -151,7 +160,17 @@
       _toolId = _resolveToolId();
       _manifest = null;
 
+      if (_toolId && !registry) {
+        console.debug(LOG, 'authoritative registry unavailable for tool:', _toolId);
+        return false;
+      }
+
       if (_toolId) {
+        var registryTool = typeof registry.get === 'function' ? registry.get(_toolId) : null;
+        if (!registryTool) {
+          console.debug(LOG, 'tool is not present in authoritative registry:', _toolId);
+          return false;
+        }
         var mr = G.RuntimeToolManifestRegistry;
         if (mr) {
           _manifest = mr.get(_toolId);
@@ -159,7 +178,7 @@
         }
       }
 
-      if (_toolId && registry && !_manifest) {
+      if (_toolId && !_manifest) {
         console.debug(LOG, 'manifest missing for registry-authorized tool:', _toolId);
         return false;
       }
