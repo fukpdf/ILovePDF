@@ -5,7 +5,7 @@ const ext=fs.readFileSync('public/workers/pdf-word-extract-worker.js','utf8');
 const ocr=fs.readFileSync('public/workers/pdf-word-ocr-worker.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const checks=[
- ['extraction receives forceOcr',/forceOcr:\s*!!forceOcr/.test(app)],
+ ['extraction receives forceOcr',/forceOcr:\s*forceOcr/.test(app)],
  ['worker computes needsOcr',/var needsOcr=/.test(ext)],
  ['worker preserves 8-char OCR threshold',/avgCharsPerPage<8/.test(ext)],
  ['worker distinguishes decision reason',/ocrDecision=/.test(ext)],
