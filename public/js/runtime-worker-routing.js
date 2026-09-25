@@ -47,14 +47,13 @@
   // ── Capability inference from URL ──────────────────────────────────────────
   var URL_CAPABILITY_MAP = [
     { pattern: /pdf-lib/,          caps: ['pdf', 'wasm', 'compress', 'merge', 'split'] },
-    { pattern: /pdf-worker/,       caps: ['pdf', 'render', 'extract'] },
+    { pattern: /pdf-worker/,       caps: ['pdf', 'render', 'extract', 'translate', 'repair', 'compare'] },
     { pattern: /compress/,         caps: ['compress', 'pdf', 'image'] },
     { pattern: /pdf-word|docx/,    caps: ['pdf', 'convert', 'word'] },
     { pattern: /pdf-excel|xlsx/,   caps: ['pdf', 'convert', 'excel'] },
     { pattern: /pdf-ppt|pptx/,     caps: ['pdf', 'convert', 'powerpoint'] },
     { pattern: /ocr/,              caps: ['ocr', 'image', 'text-extract'] },
     { pattern: /summary|ai-sum/,   caps: ['ai', 'text', 'summarize'] },
-    { pattern: /translation/,      caps: ['ai', 'text', 'translate'] },
     { pattern: /image-tools|image-pipeline/, caps: ['image', 'resize', 'crop', 'filter'] },
     { pattern: /remove-bg/,        caps: ['image', 'ai', 'background-remove'] },
     { pattern: /advanced/,         caps: ['pdf', 'advanced', 'repair', 'compare'] },
