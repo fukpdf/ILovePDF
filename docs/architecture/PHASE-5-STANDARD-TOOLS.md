@@ -50,3 +50,20 @@ Each standard tool will be audited against the same lifecycle:
 register metadata → load on demand → validate input → prepare engine → process → validate output → expose result → cleanup.
 
 Processing internals remain tool-owned; the shared platform owns lifecycle, contracts, routing, resource management, and verification.
+
+
+## Unit 5 — Split PDF migration
+
+### Audit findings
+- Split used a dedicated `pdf-lib-worker.js` per job and terminated it after completion.
+- The app had no shared WorkerPool or adaptive streaming path.
+- The shared `pdf-worker.js` already exposed `OPS.split`.
+- The canonical and published registries originally described Split as `browser` with no worker-pool/streaming capability.
+
+### Implementation
+- Migrated Split to shared `WorkerPool` execution.
+- Added `RuntimeStreamBridge.pipelineStreamToWorker` for large single-file inputs.
+- Added `WorkerPool.CancelToken` and lifecycle cancellation cleanup.
+- Removed the dedicated per-job worker dependency from the tool app.
+- Aligned both registries with `browser-worker`, `workerPool=true`, `streaming=adaptive-worker`, and `fileSizePolicy=unlimited`.
+- Added `scripts/phase5-split-check.js` for static contract validation.
