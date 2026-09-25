@@ -42,6 +42,27 @@ if (/MAX_FILE_BYTES|100\s*\*\s*1024\s*1024/.test(app)) fail('Crop app contains a
 if (!/WorkerPool\.CancelToken/.test(app)) fail('Crop app has no cancellation token.');
 if (!/function unmount\(\)/.test(app) || !/_cancel\(\)/.test(app)) fail('Crop app lifecycle cleanup is incomplete.');
 
+const compress = (registry.tools || []).find(t => t.id === 'compress');
+if (!compress) fail('Compress is missing from the canonical tool registry.');
+else {
+  if (compress.slug !== 'compress-pdf') fail('Compress slug is not compress-pdf.');
+  if (compress.module !== 'pdf-module') fail('Compress module owner is not pdf-module.');
+  if (compress.execution !== 'browser-worker') fail('Compress execution is not browser-worker.');
+  if (!compress.capabilities || compress.capabilities.lazyLoad !== true) fail('Compress lazyLoad contract is missing.');
+  if (compress.capabilities.workerPool !== true) fail('Compress workerPool contract is missing.');
+  if (compress.capabilities.streaming !== 'adaptive-worker') fail('Compress adaptive-worker streaming contract is missing.');
+  if (compress.capabilities.fileSizePolicy !== 'unlimited') fail('Compress file-size policy is not unlimited.');
+}
+const compressApp = read('public/js/compress-pdf-app.js');
+if (!/WorkerPool\\.run/.test(compressApp)) fail('Compress app does not use shared WorkerPool execution.');
+if (!/RuntimeStreamBridge/.test(compressApp) || !/pipelineStreamToWorker/.test(compressApp)) fail('Compress app does not use adaptive streaming for large files.');
+if (/HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(compressApp)) fail('Compress app retains an artificial processing timeout.');
+if (/MAX_FILE_BYTES|100\\s*\\*\\s*1024\\s*1024/.test(compressApp)) fail('Compress app contains an artificial file-size limit.');
+if (/inlineFallback|PDFLIB_CDN|cdn\\.jsdelivr/.test(compressApp)) fail('Compress app retains a main-thread/CDN fallback.');
+if (!/WorkerPool\\.CancelToken/.test(compressApp)) fail('Compress app has no cancellation token.');
+if (!/function unmount\\(\\)/.test(compressApp) || !/_cancel\\(\\)/.test(compressApp)) fail('Compress app lifecycle cleanup is incomplete.');
+if (!/OPS\\.compress\\s*=\\s*async function/.test(worker)) fail('Shared PDF worker has no Compress operation.');
+
 const toolPage = read('public/js/tool-page.js');
 if (/MAX_FILE_BYTES/.test(toolPage)) fail('Shared tool page still contains the legacy MAX_FILE_BYTES rejection.');
 if (!/BrowserTools\.validateInputFiles/.test(toolPage)) fail('Shared input validation boundary is missing from tool-page.');
@@ -65,5 +86,8 @@ if (failures.length) {
   console.log('[PASS] Crop unlimited file-size / no artificial timeout policy');
   console.log('[PASS] shared input/output validation boundaries');
   console.log('[PASS] standard tool shell integration');
+  console.log('[PASS] Compress registry + WorkerPool + streaming contract');
+  console.log('[PASS] shared PDF worker Compress operation');
+  console.log('[PASS] Compress cancellation + lifecycle cleanup');
   console.log('\nPhase 5 Unit 1 Crop reference gate: PASS');
 }
