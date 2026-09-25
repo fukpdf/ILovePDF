@@ -288,6 +288,7 @@ OPS.sign = async function (buffers, opts) {
   page.drawLine({ start: { x: x - 4, y: y - 5 }, end: { x: x + tw + 4, y: y - 5 }, thickness: 0.6, color: rgb(0.4, 0.4, 0.4) });
   page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.55) });
   const out = await doc.save();
+  buffers[0] = null;
   return toArrayBuffer(out);
 };
 
