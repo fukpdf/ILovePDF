@@ -234,7 +234,7 @@
   // Tesseract recognition remains page-context; PDF page rasterisation is delegated
   // to the isolated shared WorkerPool render worker below. The Tesseract instance
   // is still tracked in _tessWorker → guaranteed termination in _cleanup().
-  async function _runOcr(file, lang, onStep, cancelToken, jobId) {
+  async function _runOcr(file, lang, onStep, cancelToken, jobId, totalPages) {
     // Lazy-load Tesseract.js
     if (!G.Tesseract) {
       await new Promise(function (resolve, reject) {
@@ -280,12 +280,8 @@
     );
     _tessWorker = tw;   // register for cleanup
 
-    var pdfMeta = await _loadPdfJs();
-    var metaBuf = await file.arrayBuffer();
-    var pdfMetaDoc = await pdfMeta.getDocument({ data: metaBuf, isEvalSupported: false }).promise;
-    var total = pdfMetaDoc.numPages;
-    try { await pdfMetaDoc.destroy(); } catch (_) {}
-    metaBuf = null;
+    var total = totalPages || 0;
+    if (!total) throw new Error('OCR render stage received no page count');
 
     var ocrPages = [];
     var renderScale = 1.5;
@@ -408,7 +404,7 @@
 
       if (needsOcr) {
         _log('OCR trigger', { avgCharsPerPage: avgCharsPerPage, forceOcr: forceOcr });
-        var ocrRaw  = await _runOcr(file, ocrLang, onStep, cancelToken, jobId);
+        var ocrRaw  = await _runOcr(file, ocrLang, onStep, cancelToken, jobId, total);
         var ocrLen  = ocrRaw.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
         if (ocrLen < 10) {
           throw new Error('No readable text found. This may be a scanned document with unclear content.');
