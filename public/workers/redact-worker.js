@@ -155,8 +155,6 @@ async function processRedactBuffer(inputBuf, opts) {
         var resultBytes = await outDoc.save();
         var resultBuf = resultBytes.buffer.slice(resultBytes.byteOffset, resultBytes.byteOffset + resultBytes.byteLength);
         return resultBuf;
-    }
-    
 }
 
 var _streamJobs = new Map();
