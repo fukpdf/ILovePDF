@@ -111,7 +111,6 @@
   }
 
   /* ── Trigger scheduling ─────────────────────────────────────────────────── */
-  var _idleHandle = null;
   var _fallbackTimer = null;
   var _triggered = false;
 
@@ -127,7 +126,6 @@
 
   if (typeof G.requestIdleCallback === 'function') {
     G.requestIdleCallback(function () {
-      _idleHandle = null;
       triggerLoad();
     }, { timeout: 4000 });
 
