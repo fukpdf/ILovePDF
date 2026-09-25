@@ -628,7 +628,10 @@
 
       if (token) token.onCancel(function() {
         _cancelStream(streamId);
-        finishError(new Error('cancelled'));
+        if (!done) {
+          done = true;
+          reject(new Error('cancelled'));
+        }
       });
 
       async function sendChunk() {
