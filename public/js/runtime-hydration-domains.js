@@ -30,7 +30,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG     = '[HydDomains]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
   // ── Domain registry ───────────────────────────────────────────────────────
   var _domains = {};
@@ -56,31 +56,42 @@
 
   // ── Run one tier within a domain ──────────────────────────────────────────
   function _runTier(domain, tier) {
-    if (domain.activated[tier]) return;
-    domain.activated[tier] = true;
-    var start   = _now();
+    if (domain.activated[tier]) {
+      return { ok: true, alreadyActive: true, toolId: domain.toolId, tier: tier, errors: 0, modules: 0 };
+    }
+    var start = _now();
     var modules = domain.registry.filter(function (m) { return m.tier === tier && !m.activated; });
-
+    var errors = [];
     modules.forEach(function (m) {
       try {
         var t0 = _now();
         m.fn();
-        m.activated  = true;
+        m.activated = true;
         m.durationMs = _now() - t0;
       } catch (e) {
-        console.debug(LOG, 'module error:', domain.toolId, '/', m.name, e && e.message || e);
+        var message = e && e.message || String(e);
+        errors.push({ name: m.name, message: message });
+        console.debug(LOG, 'module error:', domain.toolId, '/', m.name, message);
       }
     });
-
     var dur = _now() - start;
-    domain.metrics[tier] = { startTs: start, durationMs: dur, count: modules.length };
-    console.debug(LOG, domain.toolId, tier, 'activated —', modules.length, 'modules in', dur + 'ms');
-
+    var ok = errors.length === 0;
+    if (ok) domain.activated[tier] = true;
+    domain.metrics[tier] = {
+      startTs: start,
+      durationMs: dur,
+      count: modules.length,
+      activatedCount: modules.filter(function (m) { return m.activated; }).length,
+      errorCount: errors.length,
+      errors: errors.slice(),
+      ok: ok,
+    };
     try {
-      G.dispatchEvent(new CustomEvent('hydration-domain:activated', {
-        detail: { toolId: domain.toolId, tier: tier, durationMs: dur },
+      G.dispatchEvent(new CustomEvent(ok ? 'hydration-domain:activated' : 'hydration-domain:activation-failed', {
+        detail: { toolId: domain.toolId, tier: tier, durationMs: dur, ok: ok, errorCount: errors.length },
       }));
     } catch (_) {}
+    return { ok: ok, alreadyActive: false, toolId: domain.toolId, tier: tier, errors: errors.slice(), modules: modules.length, activatedCount: modules.filter(function (m) { return m.activated; }).length };
   }
 
   // ── Schedule a tier with appropriate timing ───────────────────────────────
@@ -141,7 +152,7 @@
   function activate(toolId, tier) {
     var domain = _domains[toolId];
     if (!domain) domain = createDomain(toolId);
-    _runTier(domain, tier);
+    return _runTier(domain, tier);
   }
 
   function activateAll(toolId) {
@@ -159,6 +170,11 @@
       toolId:    toolId,
       activated: Object.assign({}, domain.activated),
       metrics:   Object.assign({}, domain.metrics),
+      activationStatus: Object.keys(domain.metrics).reduce(function (out, tier) {
+        var metric = domain.metrics[tier];
+        out[tier] = metric ? { ok: metric.ok !== false, errorCount: metric.errorCount || 0 } : null;
+        return out;
+      }, {}),
       modules:   domain.registry.map(function (m) {
         return { name: m.name, tier: m.tier, activated: m.activated, durationMs: m.durationMs };
       }),
