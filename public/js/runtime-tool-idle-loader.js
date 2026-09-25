@@ -88,6 +88,14 @@
     '/js/analytics-sync.js',
   ];
 
+  /*
+   * Dependency boundary: tool.html loads the core prerequisites before this
+   * deferred loader (event bus/state/telemetry/memory, adaptive pipeline,
+   * runtime core/CentralRuntime, BrowserTools, DownloadManager, analytics and
+   * AI scheduler). The idle modules below may therefore initialize safely in
+   * this order. Modules that depend on DOMContentLoaded also self-initialize
+   * when document.readyState is already interactive/complete.
+   */
   /* ── Sequential loader ──────────────────────────────────────────────────── */
   var _loaded = false;
 
