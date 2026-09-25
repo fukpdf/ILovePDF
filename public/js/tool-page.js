@@ -1971,27 +1971,25 @@ async function processFile() {
   } catch (_) {}
   try {
     // ── Page-organizer integration ──────────────────────────────────────────
-    // If the user reordered, rotated, or deleted pages in the preview grid,
-    // assemble the edited PDF here and substitute it for the original file.
-    // Server-side and client-side flows both see the edited PDF transparently.
+    // Rotate PDF is worker-owned: keep the original bytes intact and pass the
+    // page rotation/order plan to RotateRuntime instead of baking a new PDF on
+    // the main thread. Other page-level tools retain their existing editor path.
+    let rotatePagePlan = null;
     if (pageOrganizer && selectedFiles.length === 1) {
       try {
         if (pageOrganizer.getPageCount() === 0) {
           showStatus('error', _tp('status.no_pages', 'No pages selected'), _tp('status.no_pages_msg', 'Please keep at least one page before processing.'));
           return;
         }
-        showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
-        const { file: editedFile } = await pageOrganizer.getEditedPdf();
-        selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
-        // Rotate tool safety net: PageOrganizer has already baked every rotation
-        // into editedFile. Ensure the degrees dropdown reads '0' so the rotate()
-        // function in BrowserTools exits early (angle === 0 path) and does NOT
-        // apply any additional rotation on top of the already-processed PDF.
-        if (currentTool.id === 'rotate') {
-          const _safetyDegEl = document.getElementById('opt-degrees');
-          if (_safetyDegEl) _safetyDegEl.value = '0';
+
+        if (currentTool.id === 'rotate' && typeof pageOrganizer.getRotationPlan === 'function') {
+          rotatePagePlan = pageOrganizer.getRotationPlan();
+        } else {
+          showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
+          const { file: editedFile } = await pageOrganizer.getEditedPdf();
+          selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
+          hideProcessing();
         }
-        hideProcessing();
       } catch (err) {
         hideProcessing();
         showStatus('error', 'Please try again',
@@ -2051,6 +2049,9 @@ async function processFile() {
           const el = document.getElementById(`opt-${o.id}`);
           if (el && el.value !== '') opts[o.id] = el.value;
         });
+        if (currentTool.id === 'rotate' && rotatePagePlan) {
+          opts.pagePlan = rotatePagePlan;
+        }
         const result = await tryWithRetry(
           currentTool.id,
           selectedFiles.map(e => e.file),
