@@ -498,6 +498,35 @@ OPS.unlock = async function (buffers) {
   return toArrayBuffer(out);
 };
 
+
+
+// OPS.translate — assembles a translated text report from pre-translated page data.
+// Network translation/OCR stays browser-side; final CPU-heavy report encoding runs in the shared worker.
+OPS.translate = async function (buffers, opts) {
+  if (!buffers || !buffers[0]) throw new Error('Translated payload is missing');
+  const payload = JSON.parse(new TextDecoder().decode(new Uint8Array(buffers[0])));
+  const pages = Array.isArray(payload.pages) ? payload.pages : [];
+  const targetLang = String(payload.targetLang || 'es');
+  const srcLang = String(payload.srcLang || 'en');
+  const sourceName = String(payload.sourceName || 'document');
+  const totalPages = Number(payload.totalPages || pages.length || 0);
+  const lines = [
+    'ILovePDF — Translated (' + targetLang.toUpperCase() + ')',
+    '='.repeat(50),
+    'Source    : ' + sourceName,
+    'Pages     : ' + totalPages,
+    'Direction : ' + srcLang.toUpperCase() + ' → ' + targetLang.toUpperCase(),
+    'Generated : ' + new Date().toISOString(), ''
+  ];
+  pages.forEach(function (pg) {
+    lines.push('--- Page ' + pg.num + ' ---');
+    lines.push(pg.text && String(pg.text).trim() ? String(pg.text) : '(empty page)');
+    lines.push('');
+  });
+  const buf = new TextEncoder().encode(lines.join('\\n')).buffer;
+  buffers[0] = null;
+  return toArrayBuffer(buf);
+};
 // OPS.compare — structural PDF comparison using pdf-lib only (no DOM/pdfjsLib needed).
 // Generates a PDF comparison report covering: page counts, page sizes, metadata.
 // Returns a proper application/pdf buffer, consistent with all other worker OPS.
