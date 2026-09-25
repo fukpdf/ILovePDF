@@ -520,6 +520,7 @@
   <script src="/js/workflow-worker-adapter.js" defer></script>
   <script src="/js/workflow-runtime.js" defer></script>
   <!-- Phase 3 continued — scheduler-only tools (no OPS entry; main-thread or server-side) -->
+  <script src="/js/compare-worker-adapter.js" defer></script>
   <script src="/js/compare-runtime.js" defer></script>
   <script src="/js/ocr-runtime.js" defer></script>
   <script src="/js/translate-runtime.js" defer></script>
@@ -542,7 +543,7 @@
   <!-- Phase 2C: Isolated ToolApps — fix "first fail / second hang" WorkerPool+Tesseract leaks -->
   <!--   compress-pdf-app   — intercepts 'compress'           → compress-worker.js (dedicated) -->
   <!--   repair-pdf-app     — intercepts 'repair'             → repair-worker.js (dedicated) -->
-  <!--   compare-pdf-app    — intercepts 'compare'            → PDF.js + isolated Tesseract + compare-worker.js -->
+  <!--   compare-pdf-app    — canonical ToolApp boundary → CompareRuntime → shared pdf-worker.js -->
   <!--   ai-summarizer-app  — intercepts 'ai-summarize'       → PDF.js + isolated Tesseract + summary-worker.js -->
   <!--   translate-pdf-app  — intercepts 'translate'          → PDF.js + isolated Tesseract + mymemory API -->
   <!--   remove-background-app — intercepts 'background-remover' → remove-bg-worker.js (dedicated) -->
