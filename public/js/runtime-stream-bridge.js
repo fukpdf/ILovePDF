@@ -194,6 +194,7 @@
 
     // 8G: reject if MemDefense has paused streams
     if (_streamsPaused) {
+      if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'paused');
       return Promise.reject(new Error('stream-paused-by-memdefense'));
     }
 
@@ -202,6 +203,7 @@
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
+        if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'error');
         reject(_fallbackStreamError('worker-spawn-failed: ' + e.message));
         return;
       }
@@ -271,6 +273,7 @@
         try { global.RuntimeSecurity.validateWorkerMessage(msg); } catch (se) {
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'error');
           reject(se); return;
         }
       }
@@ -310,6 +313,7 @@
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
+        if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'error');
         reject(new Error('worker-spawn-failed: ' + e.message));
         return;
       }
@@ -419,6 +423,7 @@
           } catch (readErr) {
             _activeStreams.delete(streamId);
             try { w.terminate(); } catch (_) {}
+            _endStreamTelemetry(entry, 'error');
             reject(readErr);
             return;
           }
@@ -452,6 +457,7 @@
           try { global.RuntimeSecurity.validateWorkerMessage(chunkMsg); } catch (se) {
             _activeStreams.delete(streamId);
             try { w.terminate(); } catch (_) {}
+            _endStreamTelemetry(entry, 'error');
             reject(se); return;
           }
         }
@@ -461,6 +467,7 @@
         } catch (postErr) {
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'error');
           reject(new Error('chunk-postmessage-failed: ' + postErr.message));
           return;
         }
