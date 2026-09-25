@@ -38,6 +38,7 @@
       throw new Error('worker_processing_unavailable');
     }
 
+    _cancelToken = G.WorkerPool.CancelToken ? new G.WorkerPool.CancelToken() : null;
     var bridge = G.RuntimeStreamBridge;
     if (bridge && typeof bridge.pipelineStreamToWorker === 'function' &&
         file.size >= STREAM_THRESHOLD) {
@@ -45,7 +46,7 @@
         WORKER,
         file,
         { tool: TOOL_ID, options: opts || {} },
-        { onProgress: function (pct, label) {
+        { token: _cancelToken, onProgress: function (pct, label) {
           try { _step()(1, 'active', Math.max(25, Math.min(84, pct || 25)), label || 'Cropping pages…'); } catch (_) {}
         } }
       );
@@ -54,7 +55,6 @@
     }
 
     var buffer = await file.arrayBuffer();
-    _cancelToken = new G.WorkerPool.CancelToken();
     var result = await G.WorkerPool.run(
       WORKER,
       { tool: TOOL_ID, buffers: [buffer], options: opts || {}, jobId: String(jobId) },
