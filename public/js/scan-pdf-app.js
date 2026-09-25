@@ -27,8 +27,6 @@
   var _jobId         = 0;
   var _tessWorker    = null;
   var _pageCanvases  = [];
-  var _hardTimer     = null;
-  var _hardReject    = null;
 
   function _log(msg, d)  { console.debug('[ScanPdfApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[ScanPdfApp]',  msg, d !== undefined ? d : ''); }
@@ -155,7 +153,6 @@
 
       // Validate combined size
       var totalMB = files.reduce(function (s, f) { return s + f.size; }, 0) / 1048576;
-      if (totalMB > 400) throw new Error('The combined image size (' + totalMB.toFixed(0) + ' MB) is too large. Please use fewer or smaller images.');
 
       // Load + enhance all images
       _pageCanvases = [];
