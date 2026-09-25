@@ -8,7 +8,6 @@
 
   var TAG           = '[HtmlPdfApp]';
   var TOOL_ID       = 'html-to-pdf';
-  var HARD_LIMIT_MS = 120000; // 2 min — html2canvas can be slow on complex pages
 
   var _inFlight     = false;
   var _jobId        = 0;
@@ -24,7 +23,6 @@
   // Zeros all canvases created during processing, removes container element.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer) { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
 
     // Zero out any canvases to release GPU memory
     for (var i = 0; i < _canvases.length; i++) {
@@ -110,15 +108,6 @@
 
     var onStep = _step();
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _uninstallCanvasTracker();
-        _cleanup('hard-timeout');
-        reject(new Error('HTML to PDF timed out. The document may be too complex.'));
-      }, HARD_LIMIT_MS);
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Reading HTML file\u2026');
       var htmlText = await file.text();
@@ -168,7 +157,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       _uninstallCanvasTracker();
       _warn('error', { job: jobId, err: err && err.message });
