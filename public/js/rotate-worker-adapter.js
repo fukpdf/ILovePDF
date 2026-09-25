@@ -32,7 +32,10 @@
   function _dedupeKey(file, opts) {
     var deg   = String((opts && opts.degrees) || '0');
     var pages = String((opts && opts.pages)   || 'all');
-    return 'rotate:' + file.name + ':' + file.size + ':' + deg + ':' + pages;
+    var plan  = opts && Array.isArray(opts.pagePlan)
+      ? JSON.stringify(opts.pagePlan)
+      : '';
+    return 'rotate:' + file.name + ':' + file.size + ':' + deg + ':' + pages + ':' + plan;
   }
 
   // ── File-read phase ────────────────────────────────────────────────────────
