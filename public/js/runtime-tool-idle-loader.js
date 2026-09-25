@@ -5,23 +5,24 @@
  * signals idle time — never during the critical render path.
  *
  * STRATEGY:
- *   • Crawler detected  → skip all idle scripts (no parse cost for bots)
- *   • Normal user       → load after requestIdleCallback fires (≤4 s timeout)
- *                         with a 5 s hard fallback timer
+ *   • Crawler detected → skip all idle scripts (no parse cost for bots)
+ *   • Normal user → load on the first requestIdleCallback opportunity,
+ *                   with a 4 s requestIdleCallback timeout
+ *   • Browsers without requestIdleCallback → 5 s fallback timer
+ *   • File/drop input interaction → accelerate immediately
  *   • Upload UI / chrome.js / tool-page.js remain completely unaffected
  *
  * TARGET SYSTEMS (all purely additive, use _s() / window.X guards):
  *   1.  runtime-diagnostics-center.js  — enterprise diagnostics (Phase 27)
  *   2.  runtime-prefetch.js            — predictive route prefetch (Phase 28)
- *   3.  (removed legacy worker warmup)       — idle worker pool warmup
- *   4.  runtime-processing-concurrency.js — browser-side processing semaphore
- *   5.  runtime-compression-presets.js — adaptive compression preset selector
- *   6.  runtime-session-intel.js       — session funnel + rage-click + heatmap
- *   7.  runtime-tool-engagement.js     — per-tool engagement counters
- *   8.  runtime-pinned-tools.js        — pinned recent tools UI
- *   9.  runtime-ai-graph.js            — AI pipeline DAG visualiser (Phase 29)
- *   10. runtime-cross-tab.js           — BroadcastChannel tab coordination
- *   11. runtime-ai-orchestrator.js     — AI provider chain wiring (Phase 6E)
+ *   3.  runtime-processing-concurrency.js — browser-side processing semaphore
+ *   4.  runtime-compression-presets.js — adaptive compression preset selector
+ *   5.  runtime-session-intel.js       — session funnel + rage-click + heatmap
+ *   6.  runtime-tool-engagement.js     — per-tool engagement counters
+ *   7.  runtime-pinned-tools.js        — pinned recent tools UI
+ *   8.  runtime-ai-graph.js            — AI pipeline DAG visualiser (Phase 29)
+ *   9.  runtime-cross-tab.js           — BroadcastChannel tab coordination
+ *   10. runtime-ai-orchestrator.js     — AI provider chain wiring (Phase 6E)
  *
  * GUARANTEES:
  *   • Upload / preview / processing / download — completely unaffected
@@ -49,10 +50,8 @@
   /* ── Script loader ──────────────────────────────────────────────────────── */
   /**
    * loadScript(src) → Promise<void>
-   * Injects a <script async=false> so the browser downloads it without
-   * blocking but preserves relative ordering within the idle batch.
-   * Always resolves — errors are logged and swallowed so one 404 or
-   * syntax error cannot stall the rest of the idle stack.
+   * Injects a <script async=false> and preserves relative ordering within
+   * the idle batch. Always resolves so one failed file cannot stall the chain.
    */
   function loadScript(src) {
     return new Promise(function (resolve) {
@@ -60,9 +59,9 @@
         resolve(); return;
       }
       var s = document.createElement('script');
-      s.src   = src;
+      s.src = src;
       s.async = false;
-      s.onload  = function () { resolve(); };
+      s.onload = function () { resolve(); };
       s.onerror = function (e) {
         console.warn('[ToolIdleLoader] failed to load:', src, e);
         resolve();
@@ -111,25 +110,40 @@
     return;
   }
 
-  /* ── Trigger: requestIdleCallback → 2 s inner delay (4 s hard timeout) ─── */
-  var _idleTimer;
+  /* ── Trigger scheduling ─────────────────────────────────────────────────── */
+  var _idleHandle = null;
+  var _fallbackTimer = null;
+  var _triggered = false;
+
+  function triggerLoad() {
+    if (_triggered || _loaded) return;
+    _triggered = true;
+    if (_fallbackTimer !== null) {
+      clearTimeout(_fallbackTimer);
+      _fallbackTimer = null;
+    }
+    loadAll();
+  }
 
   if (typeof G.requestIdleCallback === 'function') {
     G.requestIdleCallback(function () {
-      _idleTimer = setTimeout(loadAll, 2000);
+      _idleHandle = null;
+      triggerLoad();
     }, { timeout: 4000 });
+
+    _fallbackTimer = setTimeout(triggerLoad, 5000);
   } else {
-    _idleTimer = setTimeout(loadAll, 5000);
+    _fallbackTimer = setTimeout(triggerLoad, 5000);
   }
 
   /* ── Accelerate on first file drop / input interaction ──────────────────── */
   function _onFirstInteraction() {
     document.removeEventListener('dragenter', _onFirstInteraction, true);
-    document.removeEventListener('change',    _onFirstInteraction, true);
-    clearTimeout(_idleTimer);
-    loadAll();
+    document.removeEventListener('change', _onFirstInteraction, true);
+    triggerLoad();
   }
+
   document.addEventListener('dragenter', _onFirstInteraction, true);
-  document.addEventListener('change',    _onFirstInteraction, true);
+  document.addEventListener('change', _onFirstInteraction, true);
 
 }(window));
