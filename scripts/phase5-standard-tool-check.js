@@ -317,8 +317,8 @@ const workflowAdapter = read('public/js/workflow-worker-adapter.js');
 if (!/RuntimeWorkers\.dispatch\(/.test(workflowAdapter)) fail('Workflow adapter does not use RuntimeWorkers.');
 if (/WorkerPool\.run\(/.test(workflowAdapter)) fail('Workflow adapter contains a direct WorkerPool fallback.');
 if (!/TIMEOUT_MS = 0/.test(workflowAdapter)) fail('Workflow adapter has an artificial execution timeout.');
-if (!/dedupeKey: key\(file, opts\)/.test(workflowAdapter)) fail('Workflow dedupe key is missing.');
-if (!/buffers: \[buffer\]/.test(workflowAdapter)) fail('Workflow adapter input transfer is incomplete.');
+if (!/dedupeKey:key\(file,opts\)/.test(workflowAdapter)) fail('Workflow dedupe key is missing.');
+if (!/buffers:\[buffer\]/.test(workflowAdapter)) fail('Workflow adapter input transfer is incomplete.');
 
 const workflowWorker = read('public/workers/pdf-worker.js');
 const workflowBlock = workflowWorker.match(/OPS\.workflow\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
