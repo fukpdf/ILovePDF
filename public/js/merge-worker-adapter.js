@@ -99,6 +99,25 @@
 
     var buffers;
     try {
+      // Large multi-file jobs use the shared streaming bridge so the main thread
+      // never accumulates every source PDF at once. Smaller jobs stay on the
+      // canonical RuntimeWorkers/WorkerPool dispatch path.
+      var streamThreshold = 10 * 1024 * 1024;
+      if (totalBytes >= streamThreshold && window.RuntimeStreamBridge &&
+          typeof window.RuntimeStreamBridge.streamFilesToWorkerReadable === 'function') {
+        onProgress(8, 'Preparing streaming merge…');
+        var streamed = await window.RuntimeStreamBridge.streamFilesToWorkerReadable(
+          WORKER_URL,
+          files,
+          { tool: 'merge', options: opts },
+          { token: token, onProgress: onProgress }
+        );
+        if (!streamed || !streamed.buffer) throw new Error('Worker produced empty output');
+        if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, 'ok');
+        onProgress(100, 'Done!');
+        return { buffer: streamed.buffer, blobSize: streamed.buffer.byteLength };
+      }
+
       buffers = await _readFiles(files, onProgress, token);
       if (token && token.cancelled) throw new Error('cancelled-after-read');
 
