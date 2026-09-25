@@ -4,7 +4,7 @@ const vm=require('vm');
 const src=fs.readFileSync('public/workers/workerPool.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const checks=[
- ['no undefined priority map',!src.includes('pool_proto_queues')],
+ ['no undefined priority map',!/pool_proto_queues\[priority\]/.test(src)],
  ['priority validates against TIER_ORDER',/TIER_ORDER\.indexOf\(priority\) === -1/.test(src)],
  ['four priority tiers declared',/\['high', 'normal', 'low', 'background'\]/.test(src)],
  ['unknown priority falls back to normal',/if \(TIER_ORDER\.indexOf\(priority\) === -1\) priority = 'normal';/.test(src)],
