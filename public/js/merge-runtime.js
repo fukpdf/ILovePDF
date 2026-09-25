@@ -120,27 +120,24 @@
       var onProgress = _progressReporter(files.length, null);
       var workerResult;
 
-      if (window.RuntimeScheduler && typeof window.RuntimeScheduler.run === 'function') {
-        workerResult = await window.RuntimeScheduler.run(
-          function () {
-            return window.MergeWorkerAdapter.dispatch(files, opts || {}, onProgress, runToken);
-          },
-          {
-            type: 'merge',
-            priority: 'normal',
-            label: 'merge-pdf',
-            token: runToken
-          }
-        );
-      } else {
-        if (window.RuntimeProgress) {
-          task = window.RuntimeProgress.createSimpleTask('merge-pdf', runToken);
-          if (_currentToken === runToken) _progressTask = task;
-        }
-        onProgress = _progressReporter(files.length, task);
-        if (!window.MergeWorkerAdapter) throw new Error('MergeWorkerAdapter is not loaded');
-        workerResult = await window.MergeWorkerAdapter.dispatch(files, opts || {}, onProgress, runToken);
+      if (!window.RuntimeScheduler || typeof window.RuntimeScheduler.run !== 'function') {
+        throw new Error('RuntimeScheduler is unavailable — canonical Merge execution cannot start');
       }
+      if (!window.MergeWorkerAdapter || typeof window.MergeWorkerAdapter.dispatch !== 'function') {
+        throw new Error('MergeWorkerAdapter is unavailable — canonical Merge execution cannot start');
+      }
+
+      workerResult = await window.RuntimeScheduler.run(
+        function () {
+          return window.MergeWorkerAdapter.dispatch(files, opts || {}, onProgress, runToken);
+        },
+        {
+          type: 'merge',
+          priority: 'normal',
+          label: 'merge-pdf',
+          token: runToken
+        }
+      );
 
       _memoryGuard('post-worker', null);
       if (!workerResult || !workerResult.buffer) throw new Error('Merge worker returned no output');
