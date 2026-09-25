@@ -176,7 +176,7 @@ if (!/currentTool\.id === 'organize'[\s\S]*?getOrderSummary/.test(toolPage) || !
 // ── Page Numbers canonical tool ────────────────────────────────────────────
 requirePdfWorkerContract('page-numbers', 'Page Numbers');
 const pageNumbersApp = read('public/js/page-numbers-app.js');
-if (!/runtime\(\)\.execute\(files\[0\],opts \|\| \{\}\)/.test(pageNumbersApp)) fail('Page Numbers app does not dispatch to PageNumbersRuntime.');
+if (!/runtime\(\)\.execute\(files\[0\]\s*,\s*opts\s*\|\|\s*\{\}\)/.test(pageNumbersApp)) fail('Page Numbers app does not dispatch to PageNumbersRuntime.');
 if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(pageNumbersApp)) fail('Page Numbers ToolApp boundary is not registered.');
 if (!/function unmount\(\) \{ cancel\(\); \}/.test(pageNumbersApp) || !/function reset\(\) \{ cancel\(\); \}/.test(pageNumbersApp) || !/function destroy\(\) \{ cancel\(\); \}/.test(pageNumbersApp)) fail('Page Numbers lifecycle cancellation is incomplete.');
 
@@ -201,7 +201,7 @@ const pageNumbersBlock = pageNumbersWorker.match(/OPS\['page-numbers'\]\s*=\s*as
 if (!pageNumbersBlock) fail('Shared PDF worker has no Page Numbers operation.');
 if (!/PDFDocument\.load/.test(pageNumbersBlock) || !/getPages\(\)/.test(pageNumbersBlock) || !/drawText/.test(pageNumbersBlock)) fail('Page Numbers worker drawing contract is incomplete.');
 if (!/startFrom/.test(pageNumbersBlock) || !/position/.test(pageNumbersBlock)) fail('Page Numbers worker does not consume numbering options.');
-if (!/buffers\[0\] = null/.test(pageNumbersBlock)) fail('Page Numbers worker does not release the source buffer.');
+if (!/buffers\[0\]\s*=\s*null/.test(pageNumbersBlock)) fail('Page Numbers worker does not release the source buffer.');
 if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
 if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
 
