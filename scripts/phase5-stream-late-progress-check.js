@@ -2,8 +2,9 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const p='public/js/runtime-stream-bridge.js',x=fs.readFileSync(p,'utf8');
-const start=x.indexOf('w.onmessage = function(e) {');
-const end=x.indexOf('w.onerror = function(e)',start);
+const marker=x.indexOf("d.type === 'stream-progress'");
+const start=x.lastIndexOf('w.onmessage = function (e) {',marker);
+const end=x.indexOf('w.onerror = function (e)',start);
 const m=x.slice(start,end);
 const checks=[
  ['transfer onmessage checks terminal before dispatch',/if \(!d \|\| d\.streamId !== streamId \|\| entry\.terminal\) return;/.test(m)],
