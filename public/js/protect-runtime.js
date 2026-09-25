@@ -1,80 +1,23 @@
-// Protect Runtime v2.0 — Phase 4 Worker Promotion
-// Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
-//
-// Adapter mode: 'worker'
-//   OPS.protect in pdf-worker.js applies a visual lock overlay using pure pdf-lib.
-//   The factory reads files[0], transfers the ArrayBuffer to the worker (zero-copy),
-//   and returns a PDF with the lock overlay drawn on every page.
-//
-// SECURITY NOTE: The password is forwarded to the worker only inside opts{}.
-//   It is NEVER recorded in telemetry, dedup keys, span attrs, or log messages.
-//
-// Feature flag: window.RUNTIME_PROTECT_ENABLED = true (default)
-//   Set to false in DevTools to force legacy path.
-//
-// Exposed as: window.ProtectRuntime
-(function () {
-  'use strict';
-
-  if (window.ProtectRuntime) return;
-
-  if (!window.PdfWorkerRuntimeFactory) {
-    console.warn('[PRT] PdfWorkerRuntimeFactory not loaded — ProtectRuntime skipped');
-    return;
-  }
-
-  window.PdfWorkerRuntimeFactory.createPdfToolRuntime({
-    toolId:      'protect',
-    namespace:   'ProtectRuntime',
-    flagName:    'RUNTIME_PROTECT_ENABLED',
-    LOG:         '[PRT]',
-
-    // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode:   'worker',
-    timeoutMs: 0,
-    workerTimeout: 0,
-    timerOwner:    'prt-tick',
-
-    // ── Dedup key: file identity only — password intentionally excluded ───────
-    buildDedupeKey: function (files) {
-      return 'protect:' + (files[0] && files[0].name) + ':' + (files[0] && files[0].size);
-    },
-
-    workerProgressMessages: [
-      'Protecting PDF…',
-      'Applying password protection…',
-      'Drawing security overlay…',
-      'Finalising protected document…',
-    ],
-
-    // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function () {
-      return 'Protecting PDF…';
-    },
-    buildProgressSubtitle: function () {
-      return 'Applying password protection…';
-    },
-
-    // ── Telemetry (NO password data anywhere) ─────────────────────────────────
-    buildSpanAttrs: function (files) {
-      return {
-        name: files[0] && files[0].name,
-        size: files[0] && files[0].size,
-        // password intentionally omitted from telemetry
-      };
-    },
-    buildSuccessAttrs: function (files, blob) {
-      return {
-        inputBytes: files[0] && files[0].size,
-        // password intentionally omitted from telemetry
-      };
-    },
-
-    // ── Filename ──────────────────────────────────────────────────────────────
-    buildFilename: function (files) {
-      return window.BrowserTools && window.BrowserTools.brandedFilename
-        ? window.BrowserTools.brandedFilename(files[0].name, '.pdf')
-        : 'ILovePDF-protected.pdf';
-    },
-  });
+// Protect Runtime v2.0 — canonical RuntimeScheduler + RuntimeWorkers
+(function(){
+'use strict';
+if(window.ProtectRuntime)return;
+var currentToken=null;
+async function execute(file,opts){
+ if(!file)throw new Error('No file provided');
+ if(!window.RuntimeScheduler||typeof window.RuntimeScheduler.run!=='function')throw new Error('RuntimeScheduler is unavailable — canonical Protect runtime cannot execute');
+ if(!window.ProtectWorkerAdapter||typeof window.ProtectWorkerAdapter.dispatch!=='function')throw new Error('ProtectWorkerAdapter is unavailable — canonical Protect worker runtime cannot execute');
+ var token=new(window.WorkerPool&&window.WorkerPool.CancelToken?window.WorkerPool.CancelToken:function(){this.cancelled=false;this.cancel=function(){this.cancelled=true;};})();
+ currentToken=token;
+ try{
+  var result=await window.RuntimeScheduler.run('protect',function(taskToken,onProgress){return window.ProtectWorkerAdapter.dispatch(file,opts,onProgress,taskToken||token);},{token:token,timeoutMs:0,label:'protect'});
+  if(!result||!result.buffer||!result.buffer.byteLength)throw new Error('Protect produced empty output');
+  var blob=new Blob([result.buffer],{type:'application/pdf'});
+  var filename=window.BrowserTools&&window.BrowserTools.brandedFilename?window.BrowserTools.brandedFilename(file.name,'.pdf'):'ILovePDF-protected.pdf';
+  return {blob:blob,filename:filename};
+ }finally{if(currentToken===token)currentToken=null;}
+}
+function cancelActive(reason){if(currentToken&&typeof currentToken.cancel==='function')currentToken.cancel(reason||'cancelled');}
+function getDiagnostics(){return{active:!!currentToken,hasAdapter:!!(window.ProtectWorkerAdapter&&typeof window.ProtectWorkerAdapter.dispatch==='function')};}
+window.ProtectRuntime={execute:execute,cancelActive:cancelActive,getDiagnostics:getDiagnostics};
 }());
