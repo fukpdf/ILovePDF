@@ -480,6 +480,7 @@ async function buildDocx(pages) {
   zip.file('word/settings.xml',            settingsXml);
   zip.file('word/_rels/document.xml.rels', wordRels);
 
+  var stats={chars:pages.reduce(function(s,p){return s+(p.paragraphs||[]).reduce(function(ps,q){return ps+(q.text||'').length;},0);},0),paras:pages.reduce(function(s,p){return s+(p.paragraphs||[]).length;},0),pages:pages.length};
   var ab = await zip.generateAsync({
     type: 'arraybuffer',
     compression: 'DEFLATE',
@@ -499,7 +500,7 @@ self.onmessage = async function (e) {
     if (data.op !== 'build-docx') throw new Error('Unknown op: ' + data.op);
     if (!data.pages || !data.pages.length) throw new Error('No pages provided');
     var buf = await buildDocx(data.pages);
-    self.postMessage({ buffer: buf, jobId: jobId }, [buf]);
+    self.postMessage({ buffer: buf, stats: stats, jobId: jobId }, [buf]);
   } catch (err) {
     self.postMessage({ __error: (err && err.message) || 'DOCX build error', jobId: jobId });
   }
