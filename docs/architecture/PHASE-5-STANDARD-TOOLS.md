@@ -270,3 +270,14 @@ Implementation:
 This is a **sub-migration**. PDF→Word is not yet declared fully worker-safe because OCR recognition and other high-fidelity browser-dependent stages still require independent validation.
 
 Verification: `scripts/phase5-pdf-to-word-ocr-render-check.js`.
+
+
+## Unit 18 — PDF to Word Tesseract OCR isolation
+
+Unit 18 moves Tesseract recognition behind a dedicated WorkerPool boundary. The page no longer owns a Tesseract.js worker directly. The isolated OCR worker dynamically loads Tesseract.js v5 and creates the nested Tesseract browser worker with explicit worker/language paths. This preserves the documented Tesseract.js architecture while allowing the shared WorkerPool to own the outer job boundary and cancellation.
+
+The raster image produced by Unit 17 is transferred into the OCR worker. OCR text is transferred back as plain text. Existing language detection, OCR page conversion, RTL/multilingual handling, and DOCX packaging remain unchanged.
+
+This remains a sub-migration until browser compatibility is exercised across supported devices; no claim of full PDF→Word worker migration is made yet.
+
+Verification: scripts/phase5-pdf-to-word-ocr-check.js.
