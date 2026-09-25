@@ -245,6 +245,7 @@ OPS['page-numbers'] = async function (buffers, opts) {
   });
 
   const out = await doc.save();
+  buffers[0] = null;
   return toArrayBuffer(out);
 };
 
