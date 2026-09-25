@@ -42,7 +42,7 @@
     if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') throw new Error('Shared WorkerPool runtime unavailable');
     var buf = await file.arrayBuffer();
     var transfer = [buf];
-    var result = await G.WorkerPool.run(EXTRACT_WORKER, {op:'extract-text',buffer:buf,jobId:String(jobId)}, transfer, {priority:'normal',token:cancelToken});
+    var result = await G.WorkerPool.run(EXTRACT_WORKER, {op:'extract-text',buffer:buf,jobId:String(jobId),forceOcr:!!forceOcr}, transfer, {priority:'normal',token:cancelToken});
     if (!result || result.__error) throw new Error(result && result.__error || 'PDF extraction worker failed');
     if (!Array.isArray(result.pages)) throw new Error('PDF extraction worker returned invalid pages');
     if (!result.analysis || typeof result.analysis.totalChars !== 'number') throw new Error('PDF extraction worker returned invalid quality analysis');
@@ -124,6 +124,7 @@
       var recog = await _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId);
       ocrPages.push({ pageNum: oi, text: recog.text || '', paragraphs: recog.paragraphs || [], source: 'ocr' });
       ocrPages._charCount = (ocrPages._charCount || 0) + recog.charCount;
+      ocrPages._readable = !!ocrPages._readable || !!recog.readable;
 
       onStep(1, 'active',
         35 + Math.round((oi / total) * 18),
