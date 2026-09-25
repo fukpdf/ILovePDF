@@ -252,6 +252,33 @@ if (!/signatureText|opts\.text/.test(signBlock)) fail('Sign worker does not cons
 if (!/buffers\[0\]\s*=\s*null/.test(signBlock)) fail('Sign worker does not release the source buffer.');
 if (!/sign-worker-adapter\.js/.test(toolHtml)) fail('Sign adapter is not loaded by the standard tool shell.');
 
+// ── Compress PDF canonical tool ─────────────────────────────────────────────
+requirePdfWorkerContract('compress', 'Compress PDF');
+const compressApp = read('public/js/compress-pdf-app.js');
+if (!/runtime\(\)\.execute\(files\[0\], opts \|\| \{\}\)/.test(compressApp)) fail('Compress app does not dispatch to CompressRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(compressApp)) fail('Compress ToolApp boundary is not registered.');
+if (!/function unmount\(\) \{ cancel\(\); \}/.test(compressApp) || !/function reset\(\) \{ cancel\(\); \}/.test(compressApp) || !/function destroy\(\) \{ cancel\(\); \}/.test(compressApp)) fail('Compress lifecycle cancellation is incomplete.');
+
+const compressRuntime = read('public/js/compress-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(compressRuntime)) fail('Compress runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback|inlineFallback/i.test(compressRuntime)) fail('Compress runtime retains legacy/fallback architecture.');
+if (!/__compressRunToken/.test(compressRuntime)) fail('Compress run ownership token is missing.');
+if (!/timeoutMs: 0/.test(compressRuntime)) fail('Compress runtime does not use an unlimited execution timeout.');
+
+const compressAdapter = read('public/js/compress-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(compressAdapter)) fail('Compress adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(compressAdapter)) fail('Compress adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS = 0/.test(compressAdapter)) fail('Compress adapter has an artificial execution timeout.');
+if (!/dedupeKey: key\(file, opts\)/.test(compressAdapter)) fail('Compress dedupe key is missing.');
+if (!/buffers: \[buffer\]/.test(compressAdapter)) fail('Compress adapter input transfer is incomplete.');
+
+const compressWorker = read('public/workers/pdf-worker.js');
+const compressBlock = compressWorker.match(/OPS\.compress\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!compressBlock) fail('Shared PDF worker has no Compress operation.');
+if (!/PDFDocument\.load/.test(compressBlock) || !/useObjectStreams/.test(compressBlock)) fail('Compress worker optimization contract is incomplete.');
+if (!/stripMetadata/.test(compressBlock)) fail('Compress worker does not strip document metadata.');
+if (!/result\.byteLength < original\.byteLength/.test(compressBlock)) fail('Compress worker does not avoid returning a larger result.');
+
 // ── Watermark canonical tool ──────────────────────────────────────────────
 requirePdfWorkerContract('watermark', 'Watermark');
 const watermarkApp = read('public/js/watermark-pdf-app.js');
@@ -331,6 +358,7 @@ if (failures.length) {
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
+  console.log('[PASS] Compress PDF canonical-tool contract');
   console.log('[PASS] Crop reference contract');
   console.log('[PASS] Rotate canonical-tool contract');
   console.log('[PASS] Page Numbers canonical-tool contract');
