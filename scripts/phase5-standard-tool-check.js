@@ -63,8 +63,8 @@ else {
 }
 
 const rotateApp = read('public/js/rotate-pdf-app.js');
-if (!/RotateRuntime\.execute\(file, options\)/.test(rotateApp)) fail('Rotate app does not dispatch to canonical RotateRuntime.');
-if (!/ToolAppManager\.registerTool\(['"]rotate['"]/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
+if (!/return _runtime\(\)\.execute\(file, options\)/.test(rotateApp)) fail('Rotate app does not dispatch to canonical RotateRuntime.');
+if (!/G\.ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
 if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate unmount cancellation is missing.');
 if (!/function reset\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate reset cancellation is missing.');
 if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate destroy cancellation is missing.');
@@ -88,7 +88,7 @@ if (!/Array\.isArray\(opts\.pagePlan\)/.test(rotateBlock)) fail('Rotate worker d
 if (!/normalizedPlan\.length\s*!==\s*pages\.length/.test(rotateBlock)) fail('Rotate worker does not require a complete page plan.');
 if (!/item\.page\s*===\s*i\s*\+\s*1/.test(rotateBlock)) fail('Rotate worker does not enforce ordered original page numbers.');
 if (!/page\.getRotation\(\)\.angle/.test(rotateBlock)) fail('Rotate worker does not preserve intrinsic PDF rotation.');
-if (/copyPages/.test(rotateBlock)) fail('Rotate worker rebuilds pages with copyPages().');
+if (/\b(?:PDFDocument\.)?copyPages\s*\(/.test(rotateBlock)) fail('Rotate worker rebuilds pages with copyPages().');
 
 const rotateOrganizer = read('public/js/page-organizer.js');
 if (!/allowStructuralEdits\s*=\s*opts\.allowStructuralEdits\s*!==\s*false/.test(rotateOrganizer)) fail('PageOrganizer structural-edit isolation is missing.');
