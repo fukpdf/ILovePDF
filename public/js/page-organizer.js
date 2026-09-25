@@ -622,6 +622,15 @@
       };
     }
 
+    // Rotate PDF runtime bridge: expose only the page rotation plan so the
+    // canonical worker can apply rotations to the original PDF.
+    function getRotationPlan() {
+      return pages.map((p) => ({
+        page: p.originalIndex + 1,
+        degrees: ((Number(p.rotation) || 0) % 360 + 360) % 360,
+      }));
+    }
+
     // Idempotent destroy — safe to call multiple times.
     let _destroyed = false;
     function destroy() {
@@ -690,6 +699,7 @@
     return {
       getEditedPdf,
       getOrderSummary,
+      getRotationPlan,
       getPageCount: () => pages.length,
       applyRotationAll,
       applyRotationByOrientation,
