@@ -416,10 +416,12 @@
   window.RotateRuntime = {
     execute:          execute,
     runRotateRuntime: runRotateRuntime,
-    runRotateLegacy:  runRotateLegacy,
 
+    // Kept as a compatibility flag for diagnostics/configuration. Disabling
+    // the runtime no longer switches to a legacy processor; execution remains
+    // on the canonical runtime path so there is no hidden alternate pipeline.
     enable:  function () { window.RUNTIME_ROTATE_ENABLED = true;  console.info(LOG, 'runtime ENABLED');  },
-    disable: function () { window.RUNTIME_ROTATE_ENABLED = false; console.info(LOG, 'runtime DISABLED — legacy path active'); },
+    disable: function () { window.RUNTIME_ROTATE_ENABLED = false; console.info(LOG, 'runtime DISABLED — execution remains runtime-owned'); },
 
     // [Task Group R003] Diagnostics
     getDiagnostics: function () {
