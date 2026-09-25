@@ -162,6 +162,7 @@
     if (entry.abortController) {
       try { entry.abortController.abort(); } catch (_) {}
     }
+    if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
     _endStreamTelemetry(entry, 'cancelled');
     var bus = global.RuntimeEventBus;
     if (bus && bus.emit) {
@@ -212,7 +213,7 @@
       _activeStreams.set(streamId, entry);
 
       if (token) {
-        token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
+        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
       }
 
       w.onmessage = function (e) {
@@ -222,6 +223,7 @@
           if (entry.terminal) return;
           entry.terminal = true;
           _activeStreams.delete(streamId);
+          if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
           try { w.terminate(); } catch (_) {}
           _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
