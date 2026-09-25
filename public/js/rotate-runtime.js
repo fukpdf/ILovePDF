@@ -134,9 +134,15 @@
   // [Task Group R011] Idempotent cleanup — safe to call multiple times.
   function _runPostRotateCleanup(reason, ownerToken, ownerSpan, ownerCleanupIds) {
     reason = reason || 'unknown';
-    var cleanupIds = ownerCleanupIds || _cleanupIds;
+    var hasExplicitOwner = arguments.length >= 2;
+    var ownsCurrentState = !hasExplicitOwner || _currentToken === ownerToken;
+    // An explicitly supplied null token means this run never acquired a
+    // cancellation owner. Never touch global cleanup/state belonging to another
+    // overlapping run in that case.
+    var cleanupIds = (hasExplicitOwner && ownerToken === null)
+      ? { blobs: [], generic: [] }
+      : (ownerCleanupIds || _cleanupIds);
     var span = ownerSpan !== undefined ? ownerSpan : _currentSpan;
-    var ownsCurrentState = !ownerToken || _currentToken === ownerToken;
 
     if (window.RuntimeCleanup) {
       try {
@@ -335,7 +341,7 @@
       if (window.RuntimeEventBus) {
         try { window.RuntimeEventBus.emit('health:degraded', { component: 'rotate-runtime', reason: failReason }); } catch (_) {}
       }
-      _runPostRotateCleanup('error:' + failReason);
+      _runPostRotateCleanup('error:' + failReason, executionToken);
       throw runtimeErr;
     }
   }
