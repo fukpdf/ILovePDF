@@ -53,38 +53,36 @@
     _log('mounted — RotateRuntime is canonical');
   }
 
-  function unmount() {
-    if (G.RotateRuntime && typeof G.RotateRuntime.disable === 'function') {
-      // Do not disable the runtime on unmount; the feature flag is global and
-      // must not be changed merely because a tool page was navigated away from.
+  function _cancel(reason) {
+    if (G.RotateRuntime && typeof G.RotateRuntime.cancelActive === 'function') {
+      try { return G.RotateRuntime.cancelActive(reason); } catch (_) {}
     }
+    return false;
+  }
+
+  function unmount() {
+    _cancel('tool-unmount');
     _log('unmounted');
   }
 
   function reset() {
-    if (G.RotateRuntime && typeof G.RotateRuntime.recover === 'function') {
-      try { G.RotateRuntime.recover(1); } catch (_) {}
-    }
+    _cancel('tool-reset');
     _log('reset');
   }
 
   function recover(level) {
-    if (G.RotateRuntime && typeof G.RotateRuntime.recover === 'function') {
-      try { G.RotateRuntime.recover(level || 1); } catch (_) {}
-    }
+    _cancel('tool-recover-' + (level || 1));
     _log('recover', level || 1);
   }
 
   function destroy() {
-    if (G.RotateRuntime && typeof G.RotateRuntime.recover === 'function') {
-      try { G.RotateRuntime.recover(1); } catch (_) {}
-    }
+    _cancel('tool-destroy');
     _log('destroy');
   }
 
   function getState() {
-    if (G.RotateRuntime && typeof G.RotateRuntime.getState === 'function') {
-      try { return G.RotateRuntime.getState(); } catch (_) {}
+    if (G.RotateRuntime && typeof G.RotateRuntime.getDiagnostics === 'function') {
+      try { return G.RotateRuntime.getDiagnostics(); } catch (_) {}
     }
     return { runtime: 'unavailable' };
   }
