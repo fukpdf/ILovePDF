@@ -11,8 +11,6 @@
 
   var _inFlight     = false;
   var _jobId        = 0;
-  var _hardTimer    = null;
-  var _hardReject   = null;
   var _container    = null; // hidden render container
   var _canvases     = [];   // canvases created during processing
 
