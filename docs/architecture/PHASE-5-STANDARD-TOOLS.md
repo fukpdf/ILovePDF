@@ -323,3 +323,12 @@ Implementation:
 This is another **sub-migration**; PDF→Word is still not declared fully worker-safe because remaining fidelity/document-preparation stages must be audited independently.
 
 Verification: `scripts/phase5-pdf-to-word-ocr-structure-check.js`.
+
+
+## Unit 22 — PDF to Word quality analysis isolation
+
+Unit 22 moves remaining conversion-quality bookkeeping out of the PDF→Word page context. The extraction worker now computes native-text character metrics and returns `analysis.avgCharsPerPage`; the page uses that worker result to decide whether OCR is required. The OCR worker returns its character count directly, avoiding a second page-side reduction over OCR text. The DOCX worker now returns final character/paragraph/page statistics with the generated buffer, so final quality metadata no longer requires page-side traversal of the document structure.
+
+No conversion semantics or OCR threshold were changed. No artificial file-size/page-count/processing-time limit was introduced. This remains a sub-migration and does not yet constitute a full PDF→Word worker-migration claim.
+
+Verification: `scripts/phase5-pdf-to-word-quality-check.js`.
