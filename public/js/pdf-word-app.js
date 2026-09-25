@@ -30,6 +30,8 @@
   var PDFJS_URL      = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
+  // DOCX packaging is now scheduled through the shared WorkerPool. The worker
+  // remains isolated because PDF→Word has a richer protocol than pdf-worker.js.
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
@@ -322,33 +324,21 @@
   // ── DOCX BUILD VIA DEDICATED WORKER ──────────────────────────────────────
   // Spawns a FRESH pdf-word-docx-worker.js per job — no shared WorkerPool slot.
   // Worker tracked in _docxWorker → guaranteed termination in _cleanup().
-  function _buildDocx(pages, jobId) {
-    return new Promise(function (resolve, reject) {
-      var w;
-      try {
-        w = new Worker(DOCX_WORKER);
-      } catch (e) {
-        return reject(new Error('DOCX worker spawn failed: ' + (e.message || e)));
-      }
-      _docxWorker = w;
-
-      w.onmessage = function (ev) {
-        try { w.terminate(); } catch (_) {}
-        _docxWorker = null;
-        var d = ev.data || {};
-        if (d.__error) { reject(new Error(d.__error)); return; }
-        if (d.buffer)  { resolve(d.buffer); return; }
-        reject(new Error('DOCX worker: unexpected response'));
-      };
-      w.onerror = function (ev) {
-        try { w.terminate(); } catch (_) {}
-        _docxWorker = null;
-        reject(new Error('DOCX worker error: ' + (ev && ev.message || 'unknown')));
-      };
-
-      w.postMessage({ op: 'build-docx', pages: pages, jobId: String(jobId) });
+  function _buildDocx(pages, jobId, cancelToken) {
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') {
+      return Promise.reject(new Error('Shared WorkerPool runtime unavailable'));
+    }
+    var message = { op: 'build-docx', pages: pages, jobId: String(jobId) };
+    return G.WorkerPool.run(DOCX_WORKER, message, [], {
+      priority: 'normal',
+      token: cancelToken || null,
+    }).then(function (d) {
+      if (!d || d.__error) throw new Error((d && d.__error) || 'DOCX worker: unexpected response');
+      if (!d.buffer) throw new Error('DOCX worker returned no document buffer');
+      return d.buffer;
     });
   }
+
 
   // ── BRANDED FILENAME ─────────────────────────────────────────────────────
   function _filename(orig) {
@@ -383,6 +373,7 @@
     var forceOcr = !!(opts && (opts._forceOcr || opts._retryForceOcr));
     var ocrLang  = _detectLang(file.name);
     var onStep   = _makeStepper();
+    var cancelToken = (G.WorkerPool && G.WorkerPool.CancelToken) ? new G.WorkerPool.CancelToken() : null;
 
     _log('start', { job: jobId, file: file.name, size: file.size, forceOcr: forceOcr });
 
@@ -449,7 +440,7 @@
       onStep(2, 'active', 57, 'Building document\u2026');
 
       // ── Phase 3: DOCX build via dedicated isolated worker ─────────────────
-      var docxBuf = await _buildDocx(pages, jobId);
+      var docxBuf = await _buildDocx(pages, jobId, cancelToken);
       // Worker already terminated inside _buildDocx on success/error.
 
       onStep(2, 'done', 90);
@@ -482,6 +473,7 @@
       _log('error', { job: jobId, err: err && err.message });
       throw err;
     } finally {
+      if (cancelToken && cancelToken.cancelled === false) { try { cancelToken.cancel(); } catch (_) {} }
       // This finally block is the CRITICAL guarantee:
       // Whether the job succeeded, errored, or was hard-timed-out,
       // all workers are terminated and the in-flight flag is reset.
