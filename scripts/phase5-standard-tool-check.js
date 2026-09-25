@@ -485,3 +485,41 @@ if (!/\[buffer\]/.test(unlockAdapter)) fail('Unlock adapter does not transfer th
 
 const unlockWorker = read('public/workers/pdf-worker.js');
 if (!/OPS\.unlock\s*=\s*async function/.test(unlockWorker)) fail('Shared PDF worker has no Unlock operation.');
+
+
+// ── Compare canonical tool ───────────────────────────────────────────────
+requirePdfWorkerContract('compare', 'Compare');
+const compareApp = read('public/js/compare-pdf-app.js');
+if (!/G\.CompareRuntime\.execute/.test(compareApp)) fail('Compare app does not dispatch to canonical CompareRuntime.');
+if (!/ToolAppManager\.registerTool\('compare'/.test(compareApp)) fail('Compare ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?cancelActive/.test(compareApp)) fail('Compare unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?cancelActive/.test(compareApp)) fail('Compare reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?cancelActive/.test(compareApp)) fail('Compare destroy cancellation is missing.');
+if (/new Worker\(|compare-worker\.js|HARD_LIMIT_MS|WORKER_LIMIT_MS|Tesseract/i.test(compareApp)) fail('Compare app still owns the legacy dedicated worker/OCR timeout path.');
+
+const compareRuntime = read('public/js/compare-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(compareRuntime)) fail('CompareRuntime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|fallback|RUNTIME_COMPARE_ENABLED/i.test(compareRuntime)) fail('CompareRuntime retains legacy/factory/fallback architecture.');
+if (!/timeoutMs:0/.test(compareRuntime)) fail('CompareRuntime does not use an unlimited execution timeout.');
+if (!/cancelActive/.test(compareRuntime)) fail('CompareRuntime cancellation is missing.');
+
+const compareAdapter = read('public/js/compare-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(compareAdapter)) fail('Compare adapter does not use RuntimeWorkers.dispatch.');
+if (/WorkerPool\.run\(/.test(compareAdapter)) fail('Compare adapter retains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS=0/.test(compareAdapter)) fail('Compare adapter has an artificial execution timeout.');
+if (!/dedupeKey:key\(files\)/.test(compareAdapter)) fail('Compare adapter does not provide a two-file dedupe key.');
+if (!/buffers\.push\(buffer\)/.test(compareAdapter)) fail('Compare adapter does not preserve multi-file input buffers.');
+if (!/WORKER_URL='\/workers\/pdf-worker\.js'/.test(compareAdapter)) fail('Compare adapter does not use the shared PDF worker.');
+
+const compareWorker = read('public/workers/pdf-worker.js');
+if (!/OPS\.compare\s*=\s*async function/.test(compareWorker)) fail('Shared PDF worker has no Compare operation.');
+if (!/Two PDFs required for comparison/.test(compareWorker)) fail('Compare worker does not validate two PDF inputs.');
+if (!/PDFDocument\.load\(buffers\[0\]/.test(compareWorker) || !/PDFDocument\.load\(buffers\[1\]/.test(compareWorker)) fail('Compare worker does not load both PDF inputs.');
+if (!/Structural result/.test(compareWorker)) fail('Compare worker structural report contract is missing.');
+if (!/buffers\[0\] = null/.test(compareWorker) || !/buffers\[1\] = null/.test(compareWorker)) fail('Compare worker does not release source buffers.');
+
+const compareTool = (registry.tools || []).find(t => t.id === 'compare');
+if (!compareTool || compareTool.execution !== 'browser-worker') fail('Compare registry is not browser-worker.');
+if (!compareTool || !compareTool.capabilities || compareTool.capabilities.streaming !== 'adaptive-worker') fail('Compare registry does not declare adaptive worker streaming.');
+if (!compareTool || !compareTool.capabilities || compareTool.capabilities.workerPool !== true) fail('Compare registry does not declare worker pool execution.');
+if (!/compare-worker-adapter\.js/.test(toolHtml)) fail('Compare adapter is not loaded by the standard tool shell.');
