@@ -139,13 +139,15 @@ OPS.rotate = async function (buffers, opts) {
       normalizedPlan.push({ page: n, degrees: delta });
     }
 
-    // An empty/invalid plan must not silently erase the document.
-    if (normalizedPlan.length === 0) {
-      throw new Error('Invalid Rotate PDF page plan');
+    // A canonical Rotate page plan must describe every original page exactly
+    // once. Accepting a partial plan would make the UI state and exported PDF
+    // diverge silently (the omitted pages would keep their old rotation).
+    if (normalizedPlan.length !== pages.length ||
+        !normalizedPlan.every((item, i) => item.page === i + 1)) {
+      throw new Error('Invalid Rotate PDF page plan: expected one entry per page');
     }
 
-    const isIdentity = normalizedPlan.length === pages.length &&
-      normalizedPlan.every((item, i) => item.page === i + 1 && item.degrees === 0);
+    const isIdentity = normalizedPlan.every((item) => item.degrees === 0);
     if (isIdentity) return buffers[0];
 
     // Rotate the already-loaded source document in place. The organizer's plan
