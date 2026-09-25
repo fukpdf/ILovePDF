@@ -401,3 +401,12 @@ Audited the sequential multi-file RuntimeStreamBridge path after Unit 28. The pa
 Unit 29 adds a dedicated multi-file telemetry span, started/done stream telemetry, idempotent success/error span closure, and preserves the existing terminal/cancellation isolation. No artificial file-size, page-count, task-count, or processing-time limit was introduced.
 
 Verification: npm run audit:phase5:multifile-stream-lifecycle.
+
+
+## Phase 5 Unit 30 — Transferable-stream fallback safety
+
+Audit found that the primary stream dispatcher treated every transferable-stream rejection as permission to retry through chunk-ack. That can duplicate a real worker processing failure after the transferable worker has already received the job. Unit 30 now marks only transport/setup failures as fallback-eligible and rethrows processing/security errors instead of silently rerunning the operation.
+
+Transport/setup fallback cases remain: worker spawn failure, unavailable File.stream(), and transferable postMessage failure. Worker processing errors remain terminal for the current operation. Added a dedicated audit and JavaScript syntax gate.
+
+Verification: npm run audit:phase5:transferable-fallback-safety.
