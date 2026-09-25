@@ -89,14 +89,73 @@ OPS.compress = async function (buffers) {
   return result.byteLength < original.byteLength ? result : original;
 };
 
-OPS.repair = async function (buffers) {
-  const doc = await PDFDocument.load(buffers[0], {
-    ignoreEncryption: true,
-    throwOnInvalidObject: false,
-  });
-  doc.setTitle(doc.getTitle() || 'Repaired Document');
-  const out = await doc.save({ useObjectStreams: false });
-  return toArrayBuffer(out);
+OPS.repair = async function (buffers, opts) {
+  opts = opts || {};
+  const depth = String(opts.repairDepth || 'standard').toLowerCase();
+  const outMode = String(opts.outputMode || 'preserve').toLowerCase();
+
+  let doc = null;
+  const strategies = [
+    { ignoreEncryption: true, throwOnInvalidObject: false },
+    { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false },
+  ];
+  for (const strategy of strategies) {
+    try {
+      doc = await PDFDocument.load(buffers[0], strategy);
+      if (doc && doc.getPageCount() > 0) break;
+      doc = null;
+    } catch (_) { doc = null; }
+  }
+  if (!doc || doc.getPageCount() < 1) {
+    throw new Error('This PDF is too severely damaged to repair in the browser.');
+  }
+
+  let bestDoc = doc;
+  if (depth !== 'fast') {
+    try {
+      const rebuilt = await PDFDocument.create();
+      const pageCount = doc.getPageCount();
+      for (let i = 0; i < pageCount; i++) {
+        try {
+          const copied = await rebuilt.copyPages(doc, [i]);
+          if (copied[0]) rebuilt.addPage(copied[0]);
+        } catch (_) {}
+      }
+      if (rebuilt.getPageCount() > 0) bestDoc = rebuilt;
+    } catch (_) {}
+  }
+
+  if (depth === 'maximum' && bestDoc !== doc) {
+    try {
+      const second = await PDFDocument.create();
+      for (let i = 0; i < bestDoc.getPageCount(); i++) {
+        try {
+          const copied = await second.copyPages(bestDoc, [i]);
+          if (copied[0]) second.addPage(copied[0]);
+        } catch (_) {}
+      }
+      if (second.getPageCount() > 0) bestDoc = second;
+    } catch (_) {}
+  }
+
+  try {
+    bestDoc.setTitle(bestDoc.getTitle() || 'Repaired Document');
+    bestDoc.setProducer('ILovePDF Repair');
+    bestDoc.setModificationDate(new Date());
+  } catch (_) {}
+
+  const useObjectStreams = outMode === 'compatibility' || outMode === 'print-safe' ? false : true;
+  let output;
+  try {
+    output = await bestDoc.save({ useObjectStreams });
+  } catch (_) {
+    output = await bestDoc.save({ useObjectStreams: false });
+  }
+  if (!output || output.byteLength < 10) throw new Error('Repair produced an empty result.');
+  const verify = await PDFDocument.load(output, { ignoreEncryption: true, throwOnInvalidObject: false });
+  if (!verify || verify.getPageCount() < 1) throw new Error('Repair verification failed.');
+  buffers[0] = null;
+  return toArrayBuffer(output);
 };
 
 OPS.merge = async function (buffers) {

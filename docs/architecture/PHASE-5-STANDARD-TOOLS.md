@@ -50,3 +50,23 @@ Each standard tool will be audited against the same lifecycle:
 register metadata → load on demand → validate input → prepare engine → process → validate output → expose result → cleanup.
 
 Processing internals remain tool-owned; the shared platform owns lifecycle, contracts, routing, resource management, and verification.
+
+
+## Unit 7 — Repair PDF
+
+Branch: `phase-5-unit-7-repair-reference`
+
+### Audit findings
+
+Repair had two competing browser execution paths: a dedicated `repair-pdf-app.js` / `repair-worker.js` path with fixed timeouts, and an existing shared `OPS.repair` operation in `pdf-worker.js`. The registry still declared Repair as main browser execution. The dedicated path also performed extra PDF.js verification.
+
+### Unit 7 implementation
+
+Repair now uses the authoritative shared BrowserTools execution boundary:
+- WorkerPool for normal jobs.
+- RuntimeStreamBridge adaptive streaming for large files.
+- Shared `OPS.repair` in `pdf-worker.js`.
+- Existing Repair depth modes (`fast`, `standard`, `deep`, `maximum`) and output modes are preserved in the worker operation.
+- The worker verifies that the generated PDF can be loaded and contains at least one page before returning it.
+- `repair-pdf-app.js` is now only a lifecycle adapter; it no longer owns a dedicated worker, CDN dependency, fixed timeout, or alternate processing path.
+- Both registries declare browser-worker, adaptive-worker streaming, WorkerPool, lazy loading, and unlimited file-size policy.
