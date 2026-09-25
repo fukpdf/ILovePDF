@@ -436,6 +436,7 @@ OPS.split = async function (buffers, opts) {
   const copied = await out.copyPages(src, pages.map(n => n - 1));
   copied.forEach(p => out.addPage(p));
   const result = await out.save();
+  if (out.getPageCount() === 0) throw new Error('Split produced empty output');
   // The source document is no longer needed after pages have been copied.
   buffers[0] = null;
   return toArrayBuffer(result);
