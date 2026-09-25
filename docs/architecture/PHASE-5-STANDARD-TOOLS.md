@@ -50,3 +50,35 @@ Each standard tool will be audited against the same lifecycle:
 register metadata → load on demand → validate input → prepare engine → process → validate output → expose result → cleanup.
 
 Processing internals remain tool-owned; the shared platform owns lifecycle, contracts, routing, resource management, and verification.
+
+
+## Unit 3 — Compress PDF migration
+
+Branch: `phase-5-unit-3-compress-reference`
+
+Compress is the third standard-tool migration target.
+
+### Audit findings
+
+Before this unit:
+- Compress spawned a dedicated `compress-worker.js` per job.
+- Compress had fixed 75-second worker and 90-second hard processing timers.
+- Compress also contained a main-thread pdf-lib CDN fallback and an original-file fallback.
+- The canonical registry already declared browser-worker execution, adaptive-worker streaming, WorkerPool capability, and unlimited file-size policy.
+- The shared PDF worker already exposes `OPS.compress`, including the existing “return the smaller representation” behavior.
+
+### Unit 3 implementation
+
+Compress now:
+1. remains tool-owned through `CompressPdfApp`;
+2. uses the shared `WorkerPool` for normal jobs;
+3. uses `RuntimeStreamBridge.pipelineStreamToWorker` for large single-file jobs;
+4. uses a cancellation token for lifecycle cleanup;
+5. uses the existing shared PDF worker Compress operation;
+6. removes the dedicated spawn-per-job worker;
+7. removes fixed processing-time rejection timers;
+8. removes the main-thread/CDN fallback so processing stays inside the browser worker architecture;
+9. keeps unlimited file-size/page policy;
+10. preserves the output contract and already-optimized indication.
+
+The Phase 5 audit gate now checks the Compress migration contract in addition to Crop and Rotate.
