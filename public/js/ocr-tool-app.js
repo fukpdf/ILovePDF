@@ -483,18 +483,22 @@
       _warn('ToolAppManager not available — registration skipped');
       return;
     }
+    if (!G.OCRRuntime || typeof G.OCRRuntime.execute !== 'function') {
+      _warn('OCRRuntime not available — registration skipped');
+      return;
+    }
     G.ToolAppManager.registerTool('ocr', function () {
       return {
-        process:  process,
+        process:  function (files, opts) { return G.OCRRuntime.execute(files, opts || {}); },
         mount:    mount,
-        unmount:  unmount,
-        reset:    reset,
-        recover:  recover,
-        destroy:  destroy,
+        unmount:  function () { G.OCRRuntime.cancelActive('unmount'); unmount(); },
+        reset:    function () { G.OCRRuntime.cancelActive('reset'); reset(); },
+        recover:  function () { G.OCRRuntime.cancelActive('recover'); recover(); },
+        destroy:  function () { G.OCRRuntime.cancelActive('destroy'); destroy(); },
         getState: getState,
       };
     });
-    _log('registered with ToolAppManager for ocr');
+    _log('registered with ToolAppManager for ocr via OCRRuntime');
   }
 
   if (document.readyState === 'loading') {
@@ -502,6 +506,13 @@
   } else {
     _register();
   }
+
+  // Canonical runtime engine hook: the OCR engine keeps DOM/Tesseract ownership,
+  // while OCRRuntime/OCRWorkerAdapter own scheduling and lifecycle boundaries.
+  G.__OCRToolEngine = {
+    process: process,
+    cancel: function (reason) { _cleanup(reason || 'runtime-cancel'); },
+  };
 
   // ── EXPOSE RUNTIME OBJECTS ─────────────────────────────────────────────────
   G.OCRScheduler       = OCRScheduler;
