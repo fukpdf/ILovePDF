@@ -213,7 +213,7 @@
       _activeStreams.set(streamId, entry);
 
       if (token) {
-        entry.removeCancelListener = entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
+        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
       }
 
       w.onmessage = function (e) {
