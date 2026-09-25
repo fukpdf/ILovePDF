@@ -354,3 +354,14 @@ Verification: `scripts/phase5-worker-pool-check.js`.
 Audit found that cancelling an active WorkerPool task previously settled its Promise but left the same Worker alive. The slot could then be reused for another queued task while the cancelled worker computation continued. Unit 25 retires the active worker on cancellation, spawns a replacement, and only then settles the cancelled task so the slot cannot overlap cancelled work with a new job.
 
 Verification: `scripts/phase5-worker-cancel-check.js`.
+## Phase 5 Unit 26 — Worker lifecycle isolation
+- Branch: `phase-5-unit-26-worker-lifecycle-isolation-reference`
+- Focus: stale worker event isolation, replacement-before-settle ordering, and replacement failure retirement.
+- WorkerPool now captures worker identity in handlers so late `message`/`error`/`messageerror` events from retired workers cannot mutate a replacement slot.
+- Failed workers are terminated and replaced before the current task is settled, preventing queue drain from dispatching onto a dead worker.
+- If replacement creation fails, the slot is retired instead of being reused.
+- Cancellation replacement failure also retires the slot.
+- No artificial processing timeout, file-size limit, or task-count cutoff was introduced.
+- Validation gate: `npm run audit:phase5:worker-lifecycle`.
+- PR status: open/not merged after creation; CI is reported only if an actual workflow run is observed.
+
