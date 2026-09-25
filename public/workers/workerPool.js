@@ -203,6 +203,18 @@
     // Register cancellation handler
     if (task.token) {
       task.token.onCancel(function () {
+        // A Worker cannot be interrupted by resolving the Promise alone. Retire
+        // the active worker first so a cancelled job cannot keep mutating the
+        // same worker while the slot is reused for the next queued task.
+        if (!slot.busy || slot.currentTask !== task) return;
+        try { slot.worker.terminate(); } catch (_) {}
+        var replacement = spawnWorker(pool.url);
+        if (replacement) {
+          slot.worker = replacement;
+          slot.crashes = 0;
+          slot.taskCount = 0;
+          attachHandlers(pool, slot);
+        }
         settle(pool, slot, new Error('task_cancelled'), null);
       });
     }
@@ -368,7 +380,7 @@
     var token    = opts.token    || null;
 
     // Phase 24: validate priority — unknown tiers fall back to 'normal'
-    if (!pool_proto_queues[priority]) priority = 'normal';
+    if (TIER_ORDER.indexOf(priority) === -1) priority = 'normal';
 
     var pool = getPool(workerUrl);
 
@@ -412,9 +424,6 @@
       q.push(task);
     });
   }
-
-  // Phase 24: sentinel used for priority validation in run()
-  var pool_proto_queues = { high: 1, normal: 1, low: 1, background: 1 };
 
   function getStats() {
     var out = {};
