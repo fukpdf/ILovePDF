@@ -497,6 +497,22 @@
     return false;
   }
 
+  function terminateAll() {
+    Object.keys(pools).forEach(function (url) {
+      terminatePool(url);
+    });
+  }
+
+  // Navigation cleanup: release every WorkerPool-owned worker on a real page
+  // unload. Keep BFCache entries intact because pagehide can be followed by
+  // pageshow without a full document teardown.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', function (event) {
+      if (event && event.persisted) return;
+      terminateAll();
+    }, { passive: true });
+  }
+
   function terminatePool(workerUrl) {
     var pool = pools[workerUrl];
     if (!pool) return;
@@ -518,7 +534,7 @@
     run:           run,
     getStats:      getStats,
     prewarm:       prewarm,
-    terminatePool: terminatePool,
+    terminatePool: terminatePool,\n    terminateAll:  terminateAll,
     CancelToken:   CancelToken,   // v4.0
     MAX_WORKERS:   MAX_PER_URL,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
     // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
