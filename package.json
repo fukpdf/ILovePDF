@@ -62,7 +62,8 @@
     "audit:phase5:stream-promise-settlement-completeness": "node scripts/phase5-stream-promise-settlement-completeness-check.js",
     "audit:phase5:stream-active-registry-lifecycle": "node scripts/phase5-stream-active-registry-lifecycle-check.js",
     "audit:phase5:multifile-empty-file-lifecycle": "node scripts/phase5-multifile-empty-file-lifecycle-check.js",
-    "audit:phase5:worker-stream-state-lifecycle": "node scripts/phase5-worker-stream-state-lifecycle-check.js"
+    "audit:phase5:worker-stream-state-lifecycle": "node scripts/phase5-worker-stream-state-lifecycle-check.js",
+    "audit:phase5:multifile-progress-accounting": "node scripts/phase5-multifile-progress-accounting-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
