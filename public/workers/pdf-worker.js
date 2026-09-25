@@ -148,23 +148,19 @@ OPS.rotate = async function (buffers, opts) {
       normalizedPlan.every((item, i) => item.page === i + 1 && item.degrees === 0);
     if (isIdentity) return buffers[0];
 
-    // Rebuild in the organizer's page order. This also preserves the existing
-    // page /Rotate value by adding the requested delta to each copied page.
-    const outDoc = await PDFDocument.create();
-    const copied = await outDoc.copyPages(
-      doc,
-      normalizedPlan.map(item => item.page - 1)
-    );
-
-    copied.forEach((page, i) => {
-      const delta = normalizedPlan[i].degrees;
+    // Rotate the already-loaded source document in place. The organizer's plan
+    // contains original page numbers and does not request page reordering, so
+    // rebuilding with PDFDocument.copyPages() is unnecessary and can drop
+    // document-level structures such as forms/attachments/outlines.
+    for (const item of normalizedPlan) {
+      const page = pages[item.page - 1];
+      if (!page) continue;
       const current = page.getRotation().angle || 0;
-      const normalized = ((current + delta) % 360 + 360) % 360;
+      const normalized = ((current + item.degrees) % 360 + 360) % 360;
       if (normalized !== 0 || current !== 0) page.setRotation(degrees(normalized));
-      outDoc.addPage(page);
-    });
+    }
 
-    return toArrayBuffer(await outDoc.save());
+    return toArrayBuffer(await doc.save());
   }
 
   // Compatibility path for direct RotateRuntime calls that provide a simple
