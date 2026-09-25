@@ -348,3 +348,9 @@ The Phase 24 WorkerPool introduced four queue tiers (`high`, `normal`, `low`, `b
 No queue-size, task-count, or execution-time policy was changed. Cancellation, starvation prevention, adaptive worker caps, idle cleanup, and zero artificial execution timeout remain intact.
 
 Verification: `scripts/phase5-worker-pool-check.js`.
+
+## Unit 25 — Worker cancellation isolation
+
+Audit found that cancelling an active WorkerPool task previously settled its Promise but left the same Worker alive. The slot could then be reused for another queued task while the cancelled worker computation continued. Unit 25 retires the active worker on cancellation, spawns a replacement, and only then settles the cancelled task so the slot cannot overlap cancelled work with a new job.
+
+Verification: `scripts/phase5-worker-cancel-check.js`.
