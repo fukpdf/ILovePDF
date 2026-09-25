@@ -202,132 +202,18 @@
   }
 
   // ── MERGE ────────────────────────────────────────────────────────────────
-  async function merge(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const out = await PDFDocument.create();
-    for (const f of files) {
-      const src = await PDFDocument.load(await readFileBytes(f), { ignoreEncryption: true });
-      const pages = await out.copyPages(src, src.getPageIndices());
-      pages.forEach(p => out.addPage(p));
-    }
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── SPLIT ────────────────────────────────────────────────────────────────
-  async function split(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = src.getPageCount();
-    const range = opts.range || '';
-    const pages = parsePageRange(range, total);
-    if (!pages.length) throw new Error('No valid pages selected');
-
-    const out = await PDFDocument.create();
-    const copied = await out.copyPages(src, pages.map(n => n - 1));
-    copied.forEach(p => out.addPage(p));
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── ROTATE ───────────────────────────────────────────────────────────────
-  async function rotate(files, opts) {
-    const angle = parseInt(opts.degrees || '0', 10);
-    if (angle === 0) return new Blob([await readFileBytes(files[0])], { type: 'application/pdf' });
-    const { PDFDocument, degrees } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = doc.getPageCount();
-    const targets = (!opts.pages || /^all$/i.test(opts.pages))
-      ? Array.from({ length: total }, (_, i) => i + 1)
-      : parsePageRange(opts.pages, total);
-    targets.forEach(n => {
-      const p = doc.getPage(n - 1);
-      p.setRotation(degrees((p.getRotation().angle + angle) % 360));
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── ORGANIZE (reorder) ───────────────────────────────────────────────────
-  async function organize(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const src = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const total = src.getPageCount();
-    const rawOrder = String(opts.pageOrder || '').trim();
-    // pageOrder is OPTIONAL. When absent (e.g. user used drag-and-drop via the
-    // PageOrganizer grid and left the number field blank), use the identity order
-    // so the already-reordered PDF passes through unchanged.
-    // Only throw when the user explicitly typed something that is entirely invalid.
-    let order;
-    if (rawOrder === '') {
-      order = Array.from({ length: total }, (_, i) => i + 1);
-    } else {
-      order = rawOrder.split(',').map(s => parseInt(s.trim(), 10))
-        .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
-      if (!order.length) throw new Error('Invalid page order. Use comma-separated 1-indexed numbers, e.g. 3,1,2');
-    }
-    const out = await PDFDocument.create();
-    const copied = await out.copyPages(src, order.map(n => n - 1));
-    copied.forEach(p => out.addPage(p));
-    return new Blob([await out.save()], { type: 'application/pdf' });
-  }
 
   // ── PAGE NUMBERS ─────────────────────────────────────────────────────────
-  async function pageNumbers(files, opts) {
-    const { PDFDocument, StandardFonts, rgb } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const total = doc.getPageCount();
-    const start = parseInt(opts.startFrom || '1', 10) || 1;
-    const position = (opts.position || 'bottom-center').toLowerCase();
-    doc.getPages().forEach((page, idx) => {
-      const { width } = page.getSize();
-      const label = `${start + idx} / ${start + total - 1}`;
-      const tw = font.widthOfTextAtSize(label, 11);
-      let x = (width - tw) / 2;
-      if (position.includes('left'))  x = 24;
-      if (position.includes('right')) x = width - tw - 24;
-      const y = position.startsWith('top') ? page.getSize().height - 22 : 14;
-      page.drawText(label, { x, y, size: 11, font, color: rgb(0.4, 0.4, 0.4) });
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── WATERMARK ────────────────────────────────────────────────────────────
-  async function watermark(files, opts) {
-    const { PDFDocument, StandardFonts, rgb, degrees } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const font = await doc.embedFont(StandardFonts.HelveticaBold);
-    const text = (opts.text || 'WATERMARK').slice(0, 80);
-    const opacity = Math.min(0.9, Math.max(0.05, parseFloat(opts.opacity || '0.3')));
-    const position = (opts.position || 'center').toLowerCase();
-    doc.getPages().forEach(page => {
-      const { width, height } = page.getSize();
-      const size = Math.min(width, height) * 0.07;
-      const tw = font.widthOfTextAtSize(text, size);
-      let x = (width - tw) / 2, y = (height - size) / 2, rot = 45;
-      if (position === 'top')    { y = height - size - 30; rot = 0; }
-      if (position === 'bottom') { y = 30; rot = 0; }
-      page.drawText(text, { x, y, size, font, color: rgb(0.6, 0.6, 0.6), opacity, rotate: degrees(rot) });
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── CROP ─────────────────────────────────────────────────────────────────
-  async function crop(files, opts) {
-    const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const cl = Math.max(0, parseFloat(opts.cropLeft   || '0')) / 100;
-    const cr = Math.max(0, parseFloat(opts.cropRight  || '0')) / 100;
-    const ct = Math.max(0, parseFloat(opts.cropTop    || '0')) / 100;
-    const cb = Math.max(0, parseFloat(opts.cropBottom || '0')) / 100;
-    doc.getPages().forEach(p => {
-      const { width, height } = p.getSize();
-      const x = width * cl;
-      const y = height * cb;
-      const w = Math.max(10, width  * (1 - cl - cr));
-      const h = Math.max(10, height * (1 - ct - cb));
-      p.setCropBox(x, y, w, h);
-    });
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── JPG/PNG -> PDF (Phase 23B: EXIF orientation correction) ─────────────
   // JPEG images from phones/cameras often carry an EXIF Orientation tag that
@@ -675,24 +561,6 @@
   // Re-saves the PDF using object streams + metadata strip. Returns the best
   // result available — if no size improvement is possible, the original bytes
   // are returned (never throws NO_BROWSER_GAIN; callers get a valid file).
-  async function compress(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const original = await readFileBytes(files[0]);
-    const doc = await PDFDocument.load(original, { ignoreEncryption: true, updateMetadata: false });
-    // Strip metadata to claw back a few bytes
-    try {
-      doc.setTitle(''); doc.setAuthor(''); doc.setSubject('');
-      doc.setKeywords([]); doc.setProducer('ILovePDF'); doc.setCreator('ILovePDF');
-    } catch (_) {}
-    const out = await doc.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 200,
-    });
-    // Return whichever is smaller — always give the caller a valid PDF.
-    const best = out.byteLength < original.byteLength ? out : original;
-    return new Blob([best], { type: 'application/pdf' });
-  }
 
   // ── PROTECT PDF (browser-side) ───────────────────────────────────────────
   // pdf-lib does not support saving encrypted PDFs natively. We use a
@@ -740,12 +608,6 @@
   // ── UNLOCK PDF (browser-side) ────────────────────────────────────────────
   // Loads with ignoreEncryption and re-saves an unencrypted copy. Works for
   // PDFs that don't require an owner password to open (the typical case).
-  async function unlock(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const out = await doc.save({ useObjectStreams: true });
-    return new Blob([out], { type: 'application/pdf' });
-  }
 
   // ── PDF -> JPG (basic, browser-side via pdfjs+canvas) ────────────────────
   // Renders every page to a JPG. Single-page → JPG blob. Multi-page → ZIP.
@@ -1192,24 +1054,6 @@
   }
 
   // ── PHASE 2: REDACT PDF ──────────────────────────────────────────────────
-  async function redactPdf(files, opts) {
-    const { PDFDocument, rgb } = await loadPdfLib();
-    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const pages = doc.getPages();
-    const total = pages.length;
-    const xPct  = Math.max(0, parseFloat(opts.x      || '10')) / 100;
-    const yPct  = Math.max(0, parseFloat(opts.y      || '40')) / 100;
-    const wPct  = Math.max(0.01, parseFloat(opts.width  || '30')) / 100;
-    const hPct  = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
-    const targets = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
-      ? pages
-      : parsePageRange(String(opts.pages), total).map(n => pages[n - 1]).filter(Boolean);
-    for (const page of targets) {
-      const { width, height } = page.getSize();
-      page.drawRectangle({ x: width * xPct, y: height * (1 - yPct - hPct), width: width * wPct, height: height * hPct, color: rgb(0, 0, 0) });
-    }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
-  }
 
   // ── Shared OCR line reconstructor ────────────────────────────────────────
   // Groups Tesseract word objects by Y-midpoint proximity into visual lines,
@@ -1271,95 +1115,6 @@
   // Depth-aware multi-pass repair: lenient load → page-by-page copy into
   // fresh document → metadata rebuild → mode-specific save. Opts-aware so
   // users can choose Fast / Standard / Deep / Maximum recovery.
-  async function repairPdf(files, opts) {
-    opts = opts || {};
-    const depth   = opts.repairDepth || 'standard';
-    const outMode = opts.outputMode  || 'preserve';
-
-    const { PDFDocument } = await loadPdfLib();
-    const bytes = await readFileBytes(files[0]);
-
-    // ── Analysis: try increasingly lenient load strategies ────────────────
-    let doc = null;
-    const strategies = [
-      { ignoreEncryption: true, throwOnInvalidObject: false },
-      { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false },
-    ];
-    for (const s of strategies) {
-      try {
-        doc = await PDFDocument.load(bytes, s);
-        if (doc && doc.getPageCount() > 0) break;
-        doc = null;
-      } catch (_) { doc = null; }
-    }
-
-    if (!doc) {
-      throw new Error(
-        'This PDF is too severely damaged to repair in the browser. ' +
-        'The file structure may be completely corrupted. Try Maximum Recovery mode or a desktop PDF repair tool.'
-      );
-    }
-
-    // ── Fast mode: quick uncompressed save ───────────────────────────────
-    if (depth === 'fast') {
-      const fastBytes = await doc.save({ useObjectStreams: false });
-      return new Blob([fastBytes], { type: 'application/pdf' });
-    }
-
-    // ── Standard / Deep / Maximum: page-by-page copy into fresh document ─
-    let bestDoc = doc;
-    try {
-      const freshDoc  = await PDFDocument.create();
-      const pageCount = doc.getPageCount();
-      for (let i = 0; i < pageCount; i++) {
-        try {
-          const [copied] = await freshDoc.copyPagesFrom(doc, [i]);
-          freshDoc.addPage(copied);
-        } catch (_) { /* skip unrecoverable page */ }
-      }
-      if (freshDoc.getPageCount() > 0) bestDoc = freshDoc;
-    } catch (_) { /* keep original doc */ }
-
-    // ── Maximum: second rebuild pass from intermediate ────────────────────
-    if (depth === 'maximum' && bestDoc !== doc) {
-      try {
-        const pass2 = await PDFDocument.create();
-        for (let i = 0; i < bestDoc.getPageCount(); i++) {
-          try {
-            const [copied] = await pass2.copyPagesFrom(bestDoc, [i]);
-            pass2.addPage(copied);
-          } catch (_) {}
-        }
-        if (pass2.getPageCount() > 0) bestDoc = pass2;
-      } catch (_) {}
-    }
-
-    // ── Rebuild metadata ──────────────────────────────────────────────────
-    try {
-      bestDoc.setTitle(bestDoc.getTitle() || 'Repaired Document');
-      bestDoc.setProducer('ILovePDF Repair');
-      bestDoc.setModificationDate(new Date());
-    } catch (_) {}
-
-    // ── Save with output-mode options ─────────────────────────────────────
-    const useObjStreams = (outMode === 'compatibility' || outMode === 'print-safe') ? false : true;
-    let finalBytes;
-    try {
-      finalBytes = await bestDoc.save({ useObjectStreams: useObjStreams });
-    } catch (_) {
-      finalBytes = await bestDoc.save({ useObjectStreams: false });
-    }
-
-    const finalBlob = new Blob([finalBytes], { type: 'application/pdf' });
-
-    // ── Sanity: output suspiciously small? fall back to pass-1 bytes ─────
-    if (finalBlob.size < 500 && bytes.byteLength > 1000) {
-      const fallback = await doc.save({ useObjectStreams: false });
-      return new Blob([fallback], { type: 'application/pdf' });
-    }
-
-    return finalBlob;
-  }
 
   // ── PDF TO WORD (v5.0 — Enterprise fidelity engine) ──────────────────────────
   // Features:
@@ -4535,17 +4290,7 @@
   // { blob, ext, mime } when the output format isn't .pdf.
   const HANDLERS = {
     // ── existing browser tools (DO NOT TOUCH) ────────────────────────────
-    'merge':         merge,
-    'split':         split,
-    'rotate':        rotate,
-    'organize':      organize,
-    'page-numbers':  pageNumbers,
-    'watermark':     watermark,
-    'crop':          crop,
     'jpg-to-pdf':    imagesToPdf,
-    'compress':      compress,
-    'protect':       protect,
-    'unlock':        unlock,
     'pdf-to-jpg':    pdfToJpg,
     'crop-image':    cropImage,
     'resize-image':  resizeImage,
@@ -4555,14 +4300,9 @@
     'word-to-excel':      wordToExcel,
     'html-to-pdf':        htmlToPdf,
     // ── Phase 2 ───────────────────────────────────────────────────────────
-    'edit':               editPdf,
-    'sign':               signPdf,
-    'redact':             redactPdf,
     // ── Phase 3 ───────────────────────────────────────────────────────────
     'pdf-to-word':        pdfToWord,
     'pdf-to-excel':       pdfToExcel,
-    'repair':             repairPdf,
-    'compare':            comparePdf,
     // ── Phase 4 ───────────────────────────────────────────────────────────
     'ocr':                ocrPdf,
     'background-remover': backgroundRemover,
@@ -4580,8 +4320,8 @@
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
-    'compress', 'workflow', 'merge', 'rotate',
-    'page-numbers', 'watermark', 'sign', 'redact', 'edit',
+    'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
+    'page-numbers', 'watermark', 'repair', 'redact', 'edit', 'compare',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
@@ -4589,10 +4329,6 @@
   // not execute processing or mutate the selected file. It is intentionally
   // narrow so other tools keep their existing lazy-loading behavior.
   async function prewarm(toolId) {
-    if (toolId === 'crop') {
-      await loadPdfLib();
-      return { warmed: true, dependency: 'pdf-lib' };
-    }
     if (toolId === 'word-to-excel') {
       await Promise.all([loadMammoth(), loadXlsx()]);
       return { warmed: true, dependency: 'mammoth+xlsx' };
@@ -4600,7 +4336,7 @@
     return { warmed: false };
   }
 
-  function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
+  function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId) || WORKER_TOOLS.has(toolId); }
 
   // Phase 1 execution profile: one authoritative capability query for the
   // shared platform. This reports actual current capabilities only; it does
@@ -4734,7 +4470,7 @@
 
   async function process(toolId, files, options) {
     const fn = HANDLERS[toolId];
-    if (!fn) throw new Error(`No client-side handler for ${toolId}`);
+    if (!fn && !WORKER_TOOLS.has(toolId)) throw new Error(`No client-side handler for ${toolId}`);
     if (!files || !files.length) throw new Error('No files provided');
 
     // There are intentionally no app-level file-size, page-count, or

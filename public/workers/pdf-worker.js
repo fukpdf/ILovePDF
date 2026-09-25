@@ -335,6 +335,30 @@ OPS.workflow = async function (buffers, opts) {
   return currentBuf;
 };
 
+OPS.crop = async function (buffers, opts) {
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const cl = Math.max(0, parseFloat(opts.cropLeft || '0')) / 100;
+  const cr = Math.max(0, parseFloat(opts.cropRight || '0')) / 100;
+  const ct = Math.max(0, parseFloat(opts.cropTop || '0')) / 100;
+  const cb = Math.max(0, parseFloat(opts.cropBottom || '0')) / 100;
+
+  if (cl + cr >= 1 || ct + cb >= 1) {
+    throw new Error('Crop margins leave no usable page area');
+  }
+
+  for (const page of doc.getPages()) {
+    const { width, height } = page.getSize();
+    const x = width * cl;
+    const y = height * cb;
+    const w = Math.max(10, width * (1 - cl - cr));
+    const h = Math.max(10, height * (1 - ct - cb));
+    page.setCropBox(x, y, w, h);
+  }
+
+  const out = await doc.save();
+  return toArrayBuffer(out);
+};
+
 // ── Phase 4: Promoted scheduler-only tools → worker-dispatch mode ─────────────
 
 OPS.split = async function (buffers, opts) {

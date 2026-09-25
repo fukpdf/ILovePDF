@@ -1,0 +1,91 @@
+/* ILovePDF Shared Platform Tokens — Phase 2
+ * Canonical aliases for the existing visual language.
+ * This layer defines reusable primitives without changing the current identity.
+ */
+:root {
+  --ilpdf-color-primary: #4f46e5;
+  --ilpdf-color-primary-2: #7c3aed;
+  --ilpdf-color-primary-3: #9333ea;
+  --ilpdf-color-text: #1a1f36;
+  --ilpdf-color-text-soft: #5b6478;
+  --ilpdf-color-text-muted: #8a92a6;
+  --ilpdf-color-surface: #ffffff;
+  --ilpdf-color-surface-2: #f1f3f9;
+  --ilpdf-color-background: #f8fafc;
+  --ilpdf-color-border: #e5e8f0;
+  --ilpdf-color-success: #10b981;
+  --ilpdf-color-warning: #f59e0b;
+  --ilpdf-color-danger: #ef4444;
+
+  --ilpdf-gradient-brand: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+  --ilpdf-gradient-soft: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+
+  --ilpdf-radius-sm: 8px;
+  --ilpdf-radius-md: 12px;
+  --ilpdf-radius-lg: 14px;
+  --ilpdf-radius-pill: 999px;
+
+  --ilpdf-shadow-sm: 0 4px 16px rgba(79,70,229,.08);
+  --ilpdf-shadow-md: 0 10px 30px rgba(79,70,229,.12);
+  --ilpdf-shadow-lg: 0 20px 40px rgba(79,70,229,.18);
+
+  --ilpdf-space-1: 4px;
+  --ilpdf-space-2: 8px;
+  --ilpdf-space-3: 12px;
+  --ilpdf-space-4: 16px;
+  --ilpdf-space-5: 24px;
+  --ilpdf-space-6: 32px;
+  --ilpdf-space-7: 40px;
+  --ilpdf-space-8: 48px;
+
+  --ilpdf-content-max: 1240px;
+  --ilpdf-focus-ring: 3px solid #4f46e5;
+}
+
+/* Small reusable layout/accessibility primitives. */
+.ilpdf-container {
+  width: min(var(--ilpdf-content-max), calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.ilpdf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ilpdf-space-4);
+}
+
+.ilpdf-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ilpdf-space-3);
+}
+
+.ilpdf-surface {
+  background: var(--ilpdf-color-surface);
+  border: 1px solid var(--ilpdf-color-border);
+  border-radius: var(--ilpdf-radius-lg);
+  box-shadow: var(--ilpdf-shadow-sm);
+}
+
+.ilpdf-focus-ring:focus-visible,
+.ilpdf-focus-ring:focus {
+  outline: var(--ilpdf-focus-ring);
+  outline-offset: 3px;
+}
+
+.ilpdf-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 680px) {
+  .ilpdf-container { width: min(100% - 28px, 560px); }
+}
