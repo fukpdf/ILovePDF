@@ -111,18 +111,54 @@
   }
 
   function attachHandlers(pool, slot) {
-    slot.worker.onmessage = function (e) { settle(pool, slot, null, e.data); };
-    slot.worker.onerror   = function (e) {
+    var worker = slot.worker;
+    worker.onmessage = function (e) {
+      // Ignore late messages from a worker that has already been retired.
+      if (slot.worker !== worker) return;
+      settle(pool, slot, null, e.data);
+    };
+    worker.onerror = function (e) {
+      // A retired worker may still deliver a queued error event after a
+      // replacement has already been installed. Never let that stale event
+      // mutate the replacement slot.
+      if (slot.worker !== worker) return;
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
-      settle(pool, slot, err, null);
+
+      // Retire the failed worker before settling so drainOne() can never
+      // dispatch the next queued task onto the dead worker.
+      try { worker.terminate(); } catch (_) {}
+      var replacement = null;
       if (slot.crashes < MAX_CRASHES) {
-        var w = spawnWorker(pool.url);
-        if (w) { slot.worker = w; attachHandlers(pool, slot); }
+        replacement = spawnWorker(pool.url);
+        if (replacement) {
+          slot.worker = replacement;
+          attachHandlers(pool, slot);
+          slot.taskCount = 0;
+          slot.lastActive = Date.now();
+        }
       }
+
+      // If replacement failed, mark the slot retired. settle() will reject
+      // the current task; drainOne() will skip the retired slot.
+      if (!replacement) slot.crashes = MAX_CRASHES;
+      settle(pool, slot, err, null);
     };
-    slot.worker.onmessageerror = function () {
+    worker.onmessageerror = function () {
+      if (slot.worker !== worker) return;
       slot.crashes++;
+      var replacement = null;
+      try { worker.terminate(); } catch (_) {}
+      if (slot.crashes < MAX_CRASHES) {
+        replacement = spawnWorker(pool.url);
+        if (replacement) {
+          slot.worker = replacement;
+          attachHandlers(pool, slot);
+          slot.taskCount = 0;
+          slot.lastActive = Date.now();
+        }
+      }
+      if (!replacement) slot.crashes = MAX_CRASHES;
       settle(pool, slot, new Error('worker_message_error'), null);
     };
   }
@@ -203,6 +239,21 @@
     // Register cancellation handler
     if (task.token) {
       task.token.onCancel(function () {
+        // A Worker cannot be interrupted by resolving the Promise alone. Retire
+        // the active worker first so a cancelled job cannot keep mutating the
+        // same worker while the slot is reused for the next queued task.
+        if (!slot.busy || slot.currentTask !== task) return;
+        try { slot.worker.terminate(); } catch (_) {}
+        var replacement = spawnWorker(pool.url);
+        if (replacement) {
+          slot.worker = replacement;
+          slot.crashes = 0;
+          slot.taskCount = 0;
+          attachHandlers(pool, slot);
+        } else {
+          // Never leave a terminated worker in a reusable idle slot.
+          slot.crashes = MAX_CRASHES;
+        }
         settle(pool, slot, new Error('task_cancelled'), null);
       });
     }
@@ -368,7 +419,7 @@
     var token    = opts.token    || null;
 
     // Phase 24: validate priority — unknown tiers fall back to 'normal'
-    if (!pool_proto_queues[priority]) priority = 'normal';
+    if (TIER_ORDER.indexOf(priority) === -1) priority = 'normal';
 
     var pool = getPool(workerUrl);
 
@@ -412,9 +463,6 @@
       q.push(task);
     });
   }
-
-  // Phase 24: sentinel used for priority validation in run()
-  var pool_proto_queues = { high: 1, normal: 1, low: 1, background: 1 };
 
   function getStats() {
     var out = {};
