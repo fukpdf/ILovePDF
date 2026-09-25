@@ -1,91 +1,45 @@
-// Edit Runtime v1.0 — Phase 3 Bulk Migration
-// Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
-//
-// Adapter mode: 'worker'
-//   edit has OPS.edit in pdf-worker.js. Draws text onto a target page at an x/y
-//   percentage position. Pure pdf-lib — no canvas, no main-thread APIs.
-//
-// Feature flag: window.RUNTIME_EDIT_ENABLED = true (default)
-//   Set to false in DevTools to force legacy path.
-//
-// DedupeKey: includes text + x/y + page to distinguish different edit operations
-//   on the same file. Text is capped at 40 chars in the key (full text in opts).
-//
-// Memory multiplier: 2× (input + doc + output).
-//
-// [FUTURE: StreamEngine] Replace file.arrayBuffer() with OPFS byte-range reader.
-// [FUTURE: OPFSRuntime] Write edited output to OPFS before Blob creation.
-//
-// Exposed as: window.EditRuntime
+// Edit Runtime v2.0 — canonical RuntimeScheduler + RuntimeWorkers
 (function () {
   'use strict';
-
   if (window.EditRuntime) return;
-
-  if (!window.PdfWorkerRuntimeFactory) {
-    console.warn('[ERT] PdfWorkerRuntimeFactory not loaded — EditRuntime skipped');
-    return;
+  var currentToken = null;
+  function cleanup(owner, label) {
+    if (owner && currentToken && owner !== currentToken) return;
+    if (label && window.RuntimeCleanup) { try { window.RuntimeCleanup.run(label); } catch (_) {} }
+    if (!owner || owner === currentToken) currentToken = null;
   }
-
-  window.PdfWorkerRuntimeFactory.createPdfToolRuntime({
-    toolId:      'edit',
-    namespace:   'EditRuntime',
-    flagName:    'RUNTIME_EDIT_ENABLED',
-    LOG:         '[ERT]',
-
-    // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode:   'worker',
-    timeoutMs: 0,
-    workerTimeout: 0,
-    timerOwner:    'ert-tick',
-
-    buildDedupeKey: function (files, opts) {
-      var text = String((opts && opts.text) || '').slice(0, 40);
-      var x    = String((opts && opts.x)    || '50');
-      var y    = String((opts && opts.y)    || '50');
-      var pg   = String((opts && opts.page) || '1');
-      return 'edit:' + files[0].name + ':' + files[0].size + ':' + text + ':' + x + ':' + y + ':' + pg;
-    },
-
-    workerProgressMessages: [
-      'Editing PDF…',
-      'Loading document…',
-      'Placing text on page…',
-      'Saving changes…',
-    ],
-
-    // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function () {
-      return 'Editing PDF…';
-    },
-    buildProgressSubtitle: function (files, opts) {
-      var page = (opts && opts.page) ? 'Page ' + opts.page : 'All pages';
-      return page + ' — adding text…';
-    },
-
-    // ── Telemetry ─────────────────────────────────────────────────────────────
-    buildSpanAttrs: function (files, opts) {
-      return {
-        name:       files[0] && files[0].name,
-        size:       files[0] && files[0].size,
-        textLength: ((opts && opts.text) || '').length,
-        page:       (opts && opts.page) || '1',
-        fontSize:   (opts && opts.fontSize) || '14',
-      };
-    },
-    buildSuccessAttrs: function (files, blob, opts) {
-      return {
-        inputBytes:  files[0] && files[0].size,
-        textLength:  ((opts && opts.text) || '').length,
-        page:        (opts && opts.page) || '1',
-      };
-    },
-
-    // ── Filename ──────────────────────────────────────────────────────────────
-    buildFilename: function (files) {
-      return window.BrowserTools && window.BrowserTools.brandedFilename
-        ? window.BrowserTools.brandedFilename(files[0].name, '.pdf')
-        : 'ILovePDF-edited.pdf';
-    },
-  });
+  async function execute(file, opts) {
+    opts = opts || {};
+    if (!file) throw new Error('No file provided');
+    if (!window.RuntimeScheduler || typeof window.RuntimeScheduler.run !== 'function')
+      throw new Error('RuntimeScheduler is unavailable — canonical Edit runtime cannot execute');
+    if (!window.EditWorkerAdapter || typeof window.EditWorkerAdapter.dispatch !== 'function')
+      throw new Error('EditWorkerAdapter is unavailable — canonical worker runtime cannot execute');
+    var token = new (window.WorkerPool && window.WorkerPool.CancelToken ? window.WorkerPool.CancelToken :
+      function(){this.cancelled=false;this.cancel=function(){this.cancelled=true;};})();
+    currentToken = token;
+    try {
+      var result = await window.RuntimeScheduler.run('edit', async function(taskToken, onProgress) {
+        if (taskToken && taskToken.cancelled) throw new Error('cancelled-before-dispatch');
+        return window.EditWorkerAdapter.dispatch(file, opts, onProgress, taskToken || token);
+      }, {token:token, timeoutMs:0, label:'edit'});
+      if (!result || !result.buffer || !result.buffer.byteLength) throw new Error('Edit produced empty output');
+      var blob = new Blob([result.buffer], {type:'application/pdf'});
+      var filename = window.BrowserTools && window.BrowserTools.brandedFilename ?
+        window.BrowserTools.brandedFilename(file.name, '.pdf') : 'ILovePDF-edited.pdf';
+      cleanup(token, 'edit-success');
+      return {blob:blob, filename:filename};
+    } catch (err) {
+      cleanup(token, 'edit-error');
+      try { Object.defineProperty(err, '__editRunToken', {value:token, configurable:true}); } catch (_) {}
+      throw err;
+    }
+  }
+  function cancelActive(reason) {
+    var token=currentToken;
+    if (token && typeof token.cancel==='function') { try { token.cancel(reason || 'cancelled'); } catch (_) {} }
+    cleanup(token, 'edit-cancel-' + (reason || 'manual'));
+  }
+  function getDiagnostics(){return {active:!!currentToken,hasAdapter:!!(window.EditWorkerAdapter&&typeof window.EditWorkerAdapter.dispatch==='function')};}
+  window.EditRuntime={execute:execute,cancelActive:cancelActive,getDiagnostics:getDiagnostics};
 }());
