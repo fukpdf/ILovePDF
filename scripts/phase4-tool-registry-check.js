@@ -175,7 +175,7 @@ if (!/_bootPromise/.test(toolLoader)) fail('Runtime tool loader lacks idempotent
 const bundleSegments = read('public/js/runtime-tool-bundle-segments.js');
 if (!/function activateForTool\(toolId, family\)/.test(bundleSegments)) fail('Runtime tool bundle segments do not expose activation.');
 if (!/return Promise\.resolve\(\{ ok: true, alreadyActive: false/.test(bundleSegments)) fail('Runtime tool bundle segments do not expose explicit activation results.');
-if (!/result\.ok !== true/.test(bundleSegments)) fail('Runtime tool bundle segments do not verify successful segment loads.');
+if (!/result\.ok\s*!==\s*true/.test(bundleSegments) && !/if \(\!result\.ok\)/.test(bundleSegments)) fail('Runtime tool bundle segments do not verify successful segment loads.');
 if (!/_activated\[family\] = true/.test(bundleSegments)) fail('Runtime tool bundle segments do not track successful family activation.');
 if (!/tool-bundle-segments:activation-failed/.test(bundleSegments)) fail('Runtime tool bundle segments do not emit activation failure diagnostics.');
 if (!/async function _activateBundleSegments/.test(toolLoader)) fail('Runtime tool loader does not await bundle segment activation.');
