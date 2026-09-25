@@ -200,10 +200,35 @@
     slot.resolve     = task.resolve;
     slot.reject      = task.reject;
 
-    // Register cancellation handler
+    // Register cancellation handler. A cancelled active task must release
+    // the promise AND retire the worker that may still be executing the
+    // transferred job. Calling settle() alone would mark the slot idle while
+    // the old worker keeps running, allowing a late result to race with the
+    // next task on the same slot.
     if (task.token) {
       task.token.onCancel(function () {
-        settle(pool, slot, new Error('task_cancelled'), null);
+        if (!slot.busy || slot.currentTask !== task) return;
+
+        clearTimeout(slot.timer);
+        slot.timer       = null;
+        slot.busy        = false;
+        slot.currentTask = null;
+
+        var rejectTask = slot.reject;
+        slot.resolve = null;
+        slot.reject  = null;
+
+        // Retire the worker before draining another task so the cancelled
+        // computation cannot continue in the background or leak into reuse.
+        var idx = pool.slots.indexOf(slot);
+        if (idx !== -1) pool.slots.splice(idx, 1);
+        try { slot.worker.terminate(); } catch (_) {}
+
+        if (rejectTask) {
+          try { rejectTask(new Error('task_cancelled')); } catch (_) {}
+        }
+
+        drainAll(pool);
       });
     }
 
