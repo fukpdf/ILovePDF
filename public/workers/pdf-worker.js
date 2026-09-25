@@ -635,6 +635,8 @@ self.onmessage = async function (e) {
       options:   data.options,
       totalSize: data.totalSize || 0,
       totalFiles: data.totalFiles || 1,
+      mergeDoc:  data.tool === 'merge' ? await PDFDocument.create() : null,
+      mergePages: 0,
     });
     return;
   }
@@ -652,9 +654,38 @@ self.onmessage = async function (e) {
     if (data.isLast) {
       const fileBuf = _mergeChunks(state.chunks);
       state.chunks = [];
-      state.fileBuffers.push(fileBuf);
-      if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
-        await _dispatchStream(data.streamId, state.tool, state.options);
+
+      // Merge streams are processed one source PDF at a time. This keeps the
+      // worker from accumulating every input buffer before pdf-lib starts
+      // copying pages, while preserving input order.
+      if (state.tool === 'merge') {
+        try {
+          if (!(fileBuf instanceof ArrayBuffer) || fileBuf.byteLength === 0) {
+            throw new Error('Merge input ' + ((data.fileIndex || 0) + 1) + ' is empty or invalid');
+          }
+          const src = await PDFDocument.load(fileBuf, { ignoreEncryption: true });
+          const indices = src.getPageIndices();
+          const copied = await state.mergeDoc.copyPages(src, indices);
+          copied.forEach(p => state.mergeDoc.addPage(p));
+          state.mergePages += copied.length;
+          // Drop the source buffer/document before accepting the next file.
+          state.fileBuffers = [];
+          if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
+            if (state.mergePages === 0) throw new Error('Merge produced no pages');
+            const out = await state.mergeDoc.save({ useObjectStreams: true });
+            state.mergeDoc = null;
+            _streamState.delete(data.streamId);
+            self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: out }, [out]);
+          }
+        } catch (err) {
+          _streamState.delete(data.streamId);
+          self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'Unable to read Merge input ' + ((data.fileIndex || 0) + 1) + ': ' + (err && err.message || 'invalid PDF') });
+        }
+      } else {
+        state.fileBuffers.push(fileBuf);
+        if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
+          await _dispatchStream(data.streamId, state.tool, state.options);
+        }
       }
     }
     return;
