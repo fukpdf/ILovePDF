@@ -133,11 +133,17 @@ if (!/TIMEOUT_MS\s*=\s*0/.test(mergeAdapter)) fail('Merge adapter has an artific
 if (!/_dedupeKey\(files\)/.test(mergeAdapter)) fail('Merge dedupe key is missing.');
 if (!/file\.arrayBuffer\(\)/.test(mergeAdapter)) fail('Merge adapter does not read browser File inputs.');
 if (!/buffers\.push\(await file\.arrayBuffer\(\)\)/.test(mergeAdapter)) fail('Merge adapter input ordering is not explicit.');
+if (!/streamFilesToWorkerReadable/.test(mergeAdapter)) fail('Merge adapter does not use the shared multi-file streaming bridge.');
+if (!/streamThreshold\s*=\s*10\s*\*\s*1024\s*\*\s*1024/.test(mergeAdapter)) fail('Merge adaptive streaming threshold is missing.');
+if (!/totalBytes\s*>=\s*streamThreshold/.test(mergeAdapter)) fail('Merge adapter does not route large jobs to streaming.');
 
 if (!/throw new Error\('Merge requires at least one PDF'\)/.test(worker)) fail('Merge worker does not reject an empty input set.');
 if (!/Unable to read Merge input/.test(worker)) fail('Merge worker silently skips unreadable Merge inputs.');
 if (!/totalPages === 0/.test(worker)) fail('Merge worker does not reject an empty merged document.');
 if (!/buffers\[i\] = null/.test(worker)) fail('Merge worker does not release each source buffer after copying.');
+if (!/state\.tool === 'merge'/.test(worker)) fail('Merge stream worker does not have an incremental Merge path.');
+if (!/state\.mergeDoc\.copyPages/.test(worker)) fail('Merge stream worker does not copy each streamed source into the output document.');
+if (!/state\.mergePages\s*===\s*0/.test(worker)) fail('Merge stream worker does not reject an empty streamed output.');
 if (/MAX_FILE_BYTES|HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(worker)) fail('Shared PDF worker contains an artificial Merge processing limit.');
 
 const mergeTool = (registry.tools || []).find(t => t.id === 'merge');
