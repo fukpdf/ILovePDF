@@ -46,8 +46,12 @@
         _cbs = [];
       },
       onCancel: function (fn) {
-        if (_cancelled) { try { fn(); } catch (_) {} }
-        else _cbs.push(fn);
+        if (_cancelled) { try { fn(); } catch (_) {} return function () {}; }
+        _cbs.push(fn);
+        return function () {
+          var i = _cbs.indexOf(fn);
+          if (i !== -1) _cbs.splice(i, 1);
+        };
       },
     };
   }
