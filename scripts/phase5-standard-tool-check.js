@@ -205,6 +205,31 @@ if (!/buffers\[0\]\s*=\s*null/.test(pageNumbersBlock)) fail('Page Numbers worker
 if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
 if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
 
+// ── Sign PDF canonical tool ───────────────────────────────────────────────
+requirePdfWorkerContract('sign', 'Sign PDF');
+const signApp = read('public/js/sign-pdf-app.js');
+if (!/execute\(f\[0\],o\|\|\{\}\)/.test(signApp)) fail('Sign app does not dispatch to SignRuntime.');
+if (!/ToolAppManager\.registerTool\(ID,function\(\)/.test(signApp)) fail('Sign ToolApp boundary is not registered.');
+if (!/function unmount\(\)\{cancel\(\)\}/.test(signApp) || !/function reset\(\)\{cancel\(\)\}/.test(signApp) || !/function destroy\(\)\{cancel\(\)\}/.test(signApp)) fail('Sign lifecycle cancellation is incomplete.');
+const signRuntime = read('public/js/sign-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(signRuntime)) fail('Sign runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|fallback/i.test(signRuntime)) fail('Sign runtime retains legacy/fallback architecture.');
+if (!/timeoutMs:0/.test(signRuntime)) fail('Sign runtime has an artificial timeout.');
+if (!/__signRunToken/.test(signRuntime)) fail('Sign run ownership token is missing.');
+const signAdapter = read('public/js/sign-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(signAdapter)) fail('Sign adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(signAdapter)) fail('Sign adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS:W|T=0/.test(signAdapter)) fail('Sign adapter timeout contract is missing.');
+if (!/pipelineStreamToWorker/.test(signAdapter) || !/S=10\*1024\*1024/.test(signAdapter)) fail('Sign adaptive streaming contract is missing.');
+if (!/dedupeKey:key\(f,o\)/.test(signAdapter)) fail('Sign dedupe key is missing.');
+const signWorker = read('public/workers/pdf-worker.js');
+const signBlock = signWorker.match(/OPS\.sign\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!signBlock) fail('Shared PDF worker has no Sign operation.');
+if (!/PDFDocument\.load/.test(signBlock) || !/drawText/.test(signBlock) || !/drawLine/.test(signBlock)) fail('Sign worker drawing contract is incomplete.');
+if (!/signatureText|opts\.text/.test(signBlock)) fail('Sign worker does not consume signature text.');
+if (!/buffers\[0\]\s*=\s*null/.test(signBlock)) fail('Sign worker does not release the source buffer.');
+if (!/sign-worker-adapter\.js/.test(toolHtml)) fail('Sign adapter is not loaded by the standard tool shell.');
+
 // ── Watermark canonical tool ──────────────────────────────────────────────
 requirePdfWorkerContract('watermark', 'Watermark');
 const watermarkApp = read('public/js/watermark-pdf-app.js');
