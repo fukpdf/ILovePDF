@@ -26,7 +26,8 @@
     "audit:phase5:pdf-to-word-extract": "node scripts/phase5-pdf-to-word-extract-check.js",
     "audit:phase5:pdf-to-word-ocr-render": "node scripts/phase5-pdf-to-word-ocr-render-check.js",
     "audit:phase5:pdf-to-word-ocr": "node scripts/phase5-pdf-to-word-ocr-check.js",
-    "audit:phase5:pdf-to-word-ocr-native": "node scripts/phase5-pdf-to-word-ocr-check.js"
+    "audit:phase5:pdf-to-word-ocr-native": "node scripts/phase5-pdf-to-word-ocr-check.js",
+    "audit:phase5:pdf-to-word-structure": "node scripts/phase5-pdf-to-word-structure-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
