@@ -279,6 +279,32 @@ if (!/PDFDocument\.load/.test(compressBlock) || !/useObjectStreams/.test(compres
 if (!/stripMetadata/.test(compressBlock)) fail('Compress worker does not strip document metadata.');
 if (!/result\.byteLength < original\.byteLength/.test(compressBlock)) fail('Compress worker does not avoid returning a larger result.');
 
+// ── Edit PDF canonical tool ─────────────────────────────────────────────────
+requirePdfWorkerContract('edit', 'Edit PDF');
+const editApp = read('public/js/edit-pdf-app.js');
+if (!/__canonical/.test(editApp) || !/runtime\(\)\.execute\(files\[0\],opts\|\|\{\}\)/.test(editApp)) fail('Edit app does not dispatch to canonical EditRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(editApp)) fail('Edit ToolApp boundary is not registered.');
+if (!/function unmount\(\)\{cancel\(\);\}/.test(editApp) || !/function reset\(\)\{cancel\(\);\}/.test(editApp) || !/function destroy\(\)\{cancel\(\);\}/.test(editApp)) fail('Edit lifecycle cancellation is incomplete.');
+
+const editRuntime = read('public/js/edit-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(editRuntime)) fail('Edit runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback/i.test(editRuntime)) fail('Edit runtime retains legacy/fallback architecture.');
+if (!/__editRunToken/.test(editRuntime)) fail('Edit run ownership token is missing.');
+if (!/timeoutMs:0/.test(editRuntime)) fail('Edit runtime does not use an unlimited execution timeout.');
+
+const editAdapter = read('public/js/edit-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(editAdapter)) fail('Edit adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(editAdapter)) fail('Edit adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS = 0/.test(editAdapter)) fail('Edit adapter has an artificial execution timeout.');
+if (!/dedupeKey: key\(file, opts\)/.test(editAdapter)) fail('Edit dedupe key is missing.');
+if (!/buffers: \[buffer\]/.test(editAdapter)) fail('Edit adapter input transfer is incomplete.');
+
+const editWorker = read('public/workers/pdf-worker.js');
+const editBlock = editWorker.match(/OPS\.edit\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!editBlock) fail('Shared PDF worker has no Edit operation.');
+if (!/PDFDocument\.load/.test(editBlock) || !/doc\.drawText|page\.drawText/.test(editBlock)) fail('Edit worker text operation contract is incomplete.');
+if (!/fontSize/.test(editBlock) || !/opts\.page/.test(editBlock)) fail('Edit worker page/font options contract is incomplete.');
+
 // ── Watermark canonical tool ──────────────────────────────────────────────
 requirePdfWorkerContract('watermark', 'Watermark');
 const watermarkApp = read('public/js/watermark-pdf-app.js');
@@ -359,6 +385,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log('[PASS] Compress PDF canonical-tool contract');
+  console.log('[PASS] Edit PDF canonical-tool contract');
   console.log('[PASS] Crop reference contract');
   console.log('[PASS] Rotate canonical-tool contract');
   console.log('[PASS] Page Numbers canonical-tool contract');
