@@ -150,7 +150,10 @@
   function _onFirstInteraction() {
     document.removeEventListener('dragenter', _onFirstInteraction, true);
     document.removeEventListener('change', _onFirstInteraction, true);
-    triggerLoad();
+    // Do not compete with the first upload/worker dispatch. The dedicated
+    // RuntimeWorkerPrewarm path handles worker startup immediately; this idle
+    // UI/analytics stack starts after the processing path has had 1 second.
+    setTimeout(triggerLoad, 1000);
   }
 
   document.addEventListener('dragenter', _onFirstInteraction, true);
