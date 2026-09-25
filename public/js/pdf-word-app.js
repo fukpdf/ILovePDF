@@ -24,6 +24,7 @@
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
   var EXTRACT_WORKER = '/workers/pdf-word-extract-worker.js';
   var RENDER_WORKER  = '/workers/pdf-word-render-worker.js';
+  var OCR_WORKER     = '/workers/pdf-word-ocr-worker.js';
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
@@ -78,6 +79,20 @@
     if (!result || result.__error) throw new Error(result && result.__error || 'PDF extraction worker failed');
     if (!Array.isArray(result.pages)) throw new Error('PDF extraction worker returned invalid pages');
     return result.pages;
+  }
+
+  async function _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId) {
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') throw new Error('Shared WorkerPool runtime unavailable');
+    var buffer = await imageBlob.arrayBuffer();
+    var result = await G.WorkerPool.run(
+      OCR_WORKER,
+      {op:'recognize', buffer:buffer, lang:lang, jobId:String(jobId)},
+      [buffer],
+      {priority:'normal', token:cancelToken}
+    );
+    if (!result || result.__error) throw new Error(result && result.__error || 'OCR worker failed');
+    if (typeof result.text !== 'string') throw new Error('OCR worker returned invalid text');
+    return result;
   }
 
   async function _renderOcrPageWithSharedWorker(file, pageNum, scale, cancelToken, jobId) {
@@ -272,10 +287,8 @@
       });
     }
 
-    // Tesseract pass
-    onStep(1, 'active', 35, 'Running OCR\u2026');
-    var tw = await _race(G.Tesseract.createWorker(lang, 1, { logger: function () {} }));
-    _tessWorker = tw;   // register for cleanup
+    // Tesseract recognition is isolated behind the shared WorkerPool.
+    onStep(1, 'active', 35, 'Running OCR\\u2026');
 
     var total = totalPages || 0;
     if (!total) throw new Error('OCR render stage received no page count');
@@ -285,18 +298,14 @@
     for (var oi = 1; oi <= total; oi++) {
       var rendered = await _renderOcrPageWithSharedWorker(file, oi, renderScale, cancelToken, jobId);
       var imageBlob = new Blob([rendered.buffer], {type: rendered.mimeType || 'image/png'});
-      var recog = await _race(tw.recognize(imageBlob));
-      ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
+      var recog = await _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId);
+      ocrPages.push({ pageNum: oi, text: recog.text || '', source: 'ocr' });
 
       onStep(1, 'active',
         35 + Math.round((oi / total) * 18),
         'OCR: page ' + oi + ' of ' + total
       );
     }
-
-    // Terminate Tesseract worker immediately after use
-    try { await tw.terminate(); } catch (_) {}
-    _tessWorker = null;
 
     return ocrPages;
   }
