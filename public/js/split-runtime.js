@@ -33,6 +33,8 @@ async function execute(file,opts){
     cleanup('success',token);
     return {blob:blob,filename:filename};
   }catch(err){
+    if(window.RuntimeTelemetry&&span!==null)try{window.RuntimeTelemetry.endSpan(span,'error');}catch(_){}
+    cleanup('error',token);
     try{Object.defineProperty(err,'__splitRunToken',{value:token,configurable:true});}catch(_){}
     throw err;
   }
