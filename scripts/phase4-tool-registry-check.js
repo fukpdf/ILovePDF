@@ -171,6 +171,15 @@ if (!/registryReady: !!registry/.test(toolLoader)) fail('Runtime ready event doe
 if (!/configSealed: !_toolId \|\| !_manifest \? false : true/.test(toolLoader)) fail('Runtime ready event does not expose config seal state.');
 if (!/_bootPromise/.test(toolLoader)) fail('Runtime tool loader lacks idempotent boot promise state.');
 
+// Unit 13 hydration activation gate.
+const hydrationDomains = read('public/js/runtime-hydration-domains.js');
+if (!/function activate\(toolId, tier\)/.test(hydrationDomains)) fail('Runtime hydration domains do not expose explicit tier activation.');
+if (!/hd\.activate\(toolId, tier\)/.test(toolLoader)) fail('Runtime tool loader does not activate the manifest-selected hydration tier.');
+if (!/manifest\.hydrationTier/.test(toolLoader)) fail('Runtime tool loader does not consume the manifest hydration tier.');
+if (!/hydration activation rejected/.test(toolLoader)) fail('Runtime tool loader does not block readiness when hydration activation fails.');
+if (!/hydrationTier: _manifest \? _manifest\.hydrationTier : null/.test(toolLoader)) fail('Runtime ready event does not expose hydration tier.');
+if (!/hydrationActivated: !!\(_toolId && _manifest\)/.test(toolLoader)) fail('Runtime ready event does not expose hydration activation state.');
+
 if (failures.length) {
   console.error('[FAIL] Phase 4 registry/runtime gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
@@ -186,5 +195,6 @@ if (failures.length) {
   console.log('[PASS] registry-driven execution policy + BrowserTools capability reconciliation');
   console.log('[PASS] Units 8–11 runtime integrity + contract gates');
   console.log('[PASS] Unit 12 runtime activation gate');
+  console.log('[PASS] Unit 13 manifest-tier hydration activation gate');
   console.log('\nPhase 4 registry/runtime gate: PASS (' + registry.tools.length + ' tools)');
 }

@@ -1,20 +1,18 @@
-// RuntimeToolLoader v1.1 — Arc 3 / Phase A / Target 2
+// RuntimeToolLoader v1.2 — Arc 3 / Phase A / Target 2
 // =====================================================================
-// Tool-aware boot sequencer with an authoritative registry readiness gate.
-// The runtime never publishes tool:runtime-ready until the canonical
-// Tool Registry has been resolved and the manifest/config contract is ready.
+// Tool-aware boot sequencer with authoritative registry/config gates.
+// Hydration activation is now explicit and manifest-tier driven.
 // =====================================================================
 (function (G) {
   'use strict';
 
   if (G.RuntimeToolLoader) return;
 
-  var LOG     = '[ToolLoader]';
-  var VERSION = '1.1';
-
-  var _toolId    = null;
-  var _manifest  = null;
-  var _booted    = false;
+  var LOG = '[ToolLoader]';
+  var VERSION = '1.2';
+  var _toolId = null;
+  var _manifest = null;
+  var _booted = false;
   var _bootPromise = null;
 
   function _safeCall(label, fn) {
@@ -27,9 +25,7 @@
 
   function _resolveToolId() {
     try {
-      if (typeof G.resolveToolIdFromUrl === 'function') {
-        return G.resolveToolIdFromUrl() || null;
-      }
+      if (typeof G.resolveToolIdFromUrl === 'function') return G.resolveToolIdFromUrl() || null;
     } catch (_) {}
     try { if (G.__TOOL_ID) return G.__TOOL_ID; } catch (_) {}
     return null;
@@ -37,9 +33,7 @@
 
   async function _awaitRegistry() {
     try {
-      if (G.ToolRegistryReady && typeof G.ToolRegistryReady.then === 'function') {
-        await G.ToolRegistryReady;
-      }
+      if (G.ToolRegistryReady && typeof G.ToolRegistryReady.then === 'function') await G.ToolRegistryReady;
     } catch (e) {
       console.debug(LOG, 'registry readiness error:', e && e.message || e);
     }
@@ -47,11 +41,21 @@
   }
 
   function _activateHydration(toolId, manifest) {
-    _safeCall('hydration-domain', function () {
-      var hd = G.RuntimeHydrationDomains;
-      if (!hd) return;
-      hd.createDomain(toolId, manifest ? manifest.hydrationTier : 'P2');
-    });
+    if (!toolId || !manifest) return false;
+    var hd = G.RuntimeHydrationDomains;
+    if (!hd || typeof hd.createDomain !== 'function' || typeof hd.activate !== 'function') {
+      console.debug(LOG, 'hydration domain unavailable:', toolId);
+      return false;
+    }
+    try {
+      hd.createDomain(toolId, manifest.hydrationTier || 'P2');
+      var tier = manifest.hydrationTier || 'P2';
+      hd.activate(toolId, tier);
+      return true;
+    } catch (e) {
+      console.debug(LOG, 'hydration activation error:', e && e.message || e);
+      return false;
+    }
   }
 
   function _activateWorkerDomain(toolId, manifest) {
@@ -70,11 +74,11 @@
     if (!cl || typeof cl.lock !== 'function') return false;
     try {
       var locked = cl.lock(toolId, {
-        family:         manifest.family,
-        hydrationTier:  manifest.hydrationTier,
+        family: manifest.family,
+        hydrationTier: manifest.hydrationTier,
         memoryBudgetMb: manifest.memoryBudgetMb,
         recoveryPolicy: manifest.recoveryPolicy,
-        thermalPolicy:  manifest.thermalPolicy,
+        thermalPolicy: manifest.thermalPolicy,
         offlineCapable: manifest.offlineCapable,
       });
       return locked !== null && locked !== undefined;
@@ -90,11 +94,11 @@
     if (!cs || typeof cs.seal !== 'function') return false;
     try {
       var sealed = cs.seal(toolId, {
-        family:         manifest.family,
-        hydrationTier:  manifest.hydrationTier,
+        family: manifest.family,
+        hydrationTier: manifest.hydrationTier,
         memoryBudgetMb: manifest.memoryBudgetMb,
         recoveryPolicy: manifest.recoveryPolicy,
-        thermalPolicy:  manifest.thermalPolicy,
+        thermalPolicy: manifest.thermalPolicy,
         offlineCapable: manifest.offlineCapable,
       });
       return sealed !== null && sealed !== undefined;
@@ -151,14 +155,16 @@
         }
       }
 
-      console.debug(LOG, 'boot — toolId:', _toolId || '(none)', '— family:', _manifest ? _manifest.family : 'n/a');
-
       if (_toolId && registry && !_manifest) {
         console.debug(LOG, 'manifest missing for registry-authorized tool:', _toolId);
         return false;
       }
 
-      _activateHydration(_toolId, _manifest);
+      if (_toolId && _manifest && !_activateHydration(_toolId, _manifest)) {
+        console.debug(LOG, 'hydration activation rejected:', _toolId);
+        return false;
+      }
+
       _activateWorkerDomain(_toolId, _manifest);
 
       if (_toolId && _manifest) {
@@ -183,9 +189,11 @@
           detail: {
             toolId: _toolId,
             family: _manifest ? _manifest.family : null,
+            hydrationTier: _manifest ? _manifest.hydrationTier : null,
             manifest: _manifest,
             registryReady: !!registry,
             configSealed: !_toolId || !_manifest ? false : true,
+            hydrationActivated: !!(_toolId && _manifest),
           },
           bubbles: false,
         }));
@@ -199,11 +207,8 @@
 
   function _deferredBoot() { setTimeout(_boot, 0); }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _deferredBoot, { once: true });
-  } else {
-    _deferredBoot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _deferredBoot, { once: true });
+  else _deferredBoot();
 
   G.RuntimeToolLoader = Object.freeze({
     VERSION: VERSION,

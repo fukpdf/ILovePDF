@@ -145,3 +145,16 @@ Implemented on `phase-4-unit-12-runtime-activation-gate`.
 - `tool:runtime-ready` exposes registry readiness and config-seal state for diagnostics.
 - The audit gate verifies the activation barrier and all contract prerequisites.
 - No file-size/page-count limits, server processing dependency, or Laba AI dependency is introduced.
+
+
+## Unit 13 — Manifest-tier hydration activation
+
+Implemented on `phase-4-unit-13-hydration-activation`.
+
+- Runtime hydration domains already exposed explicit `activate(toolId, tier)` semantics, but the activation gate previously created a domain without actually activating the manifest-selected tier.
+- `RuntimeToolLoader` now consumes the canonical manifest `hydrationTier` and explicitly activates that tier after registry/manifest resolution.
+- Hydration activation is now a hard prerequisite for `tool:runtime-ready`; a missing hydration domain or activation failure blocks readiness.
+- The ready diagnostic exposes `hydrationTier` and `hydrationActivated` so runtime state is observable.
+- Existing P0/P1/P2 scheduling behavior remains owned by `RuntimeHydrationDomains`; Unit 13 only closes the missing loader-to-domain activation boundary.
+- Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
+- `npm run audit:phase4` now verifies the Unit 13 hydration activation contract.
