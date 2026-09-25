@@ -64,6 +64,22 @@ const browserRuntimeIds = [
   ['resize-image', 'Image Resize'], ['image-filters', 'Image Filters'],
 ];
 browserRuntimeIds.forEach(function (pair) { requireBrowserRuntimeContract(pair[0], pair[1]); });
+const browserEngineLimitChecks = [
+  ['ai-summarize', 'public/js/ai-summarizer-app.js'],
+  ['scan-to-pdf', 'public/js/scan-pdf-app.js'],
+  ['background-remover', 'public/js/remove-background-app.js'],
+  ['html-to-pdf', 'public/js/html-pdf-app.js'],
+];
+browserEngineLimitChecks.forEach(function (pair) {
+  const source = read(pair[1]);
+  if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|hard-timeout|hardPromise|_hardTimer|_hardReject/.test(source)) {
+    fail(pair[0] + ' retains an artificial execution timeout.');
+  }
+  if (/totalMB\s*>\s*400|400\s*\*\s*1024\s*\*\s*1024/.test(source)) {
+    fail(pair[0] + ' retains an artificial 400 MB input limit.');
+  }
+});
+
 
 if (!/browser-tool-runtime\.js/.test(read('public/tool.html'))) fail('Canonical browser runtime adapter is not loaded by the standard tool shell.');
 if (!/registryTool\.execution === 'browser'/.test(read('public/js/tool-page.js'))) fail('Tool page does not route registry browser tools through BrowserToolRuntime.');
