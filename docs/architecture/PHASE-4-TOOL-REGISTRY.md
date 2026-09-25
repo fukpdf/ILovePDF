@@ -186,3 +186,16 @@ Implemented on `phase-4-unit-15-registry-readiness-gate`.
 - Registry delivery/identity failures therefore block `tool:runtime-ready` instead of silently booting from secondary metadata.
 - The Phase 4 audit enforces the readiness barrier and canonical identity check.
 - Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
+
+
+## Unit 16 — Bundle segment activation integrity
+
+Implemented on `phase-4-unit-16-bundle-activation-integrity`.
+
+- Runtime bundle activation now returns an explicit result describing success, requested bundles, and activation errors.
+- A family is not marked active until every required bundle segment reports `loaded === true`.
+- Failed segment loads remain retryable because the family is not recorded as activated.
+- A `tool-bundle-segments:activation-failed` event exposes scoped failure diagnostics.
+- `RuntimeToolLoader` now awaits bundle activation and blocks `tool:runtime-ready` when required segments cannot be verified.
+- The Phase 4 audit enforces the explicit activation result, successful-load verification, failure diagnostics, and loader hard gate.
+- Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.

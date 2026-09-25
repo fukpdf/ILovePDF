@@ -171,6 +171,17 @@ if (!/registryReady: !!registry/.test(toolLoader)) fail('Runtime ready event doe
 if (!/configSealed: !_toolId \|\| !_manifest \? false : true/.test(toolLoader)) fail('Runtime ready event does not expose config seal state.');
 if (!/_bootPromise/.test(toolLoader)) fail('Runtime tool loader lacks idempotent boot promise state.');
 
+// Unit 16 bundle segment activation integrity gate.
+const bundleSegments = read('public/js/runtime-tool-bundle-segments.js');
+if (!/function activateForTool\(toolId, family\)/.test(bundleSegments)) fail('Runtime tool bundle segments do not expose activation.');
+if (!/return Promise\.resolve\(\{ ok: true, alreadyActive: false/.test(bundleSegments)) fail('Runtime tool bundle segments do not expose explicit activation results.');
+if (!/result\.ok !== true/.test(bundleSegments)) fail('Runtime tool bundle segments do not verify successful segment loads.');
+if (!/_activated\[family\] = true/.test(bundleSegments)) fail('Runtime tool bundle segments do not track successful family activation.');
+if (!/tool-bundle-segments:activation-failed/.test(bundleSegments)) fail('Runtime tool bundle segments do not emit activation failure diagnostics.');
+if (!/async function _activateBundleSegments/.test(toolLoader)) fail('Runtime tool loader does not await bundle segment activation.');
+if (!/bundle segment activation rejected/.test(toolLoader)) fail('Runtime tool loader does not block readiness when bundle activation fails.');
+if (!/await _activateBundleSegments\(_toolId, _manifest\)/.test(toolLoader)) fail('Runtime tool loader does not enforce bundle activation as a hard prerequisite.');
+
 // Unit 13 hydration activation gate.
 const hydrationDomains = read('public/js/runtime-hydration-domains.js');
 if (!/function activate\(toolId, tier\)/.test(hydrationDomains)) fail('Runtime hydration domains do not expose explicit tier activation.');
@@ -208,5 +219,6 @@ if (failures.length) {
   console.log('[PASS] Unit 13 manifest-tier hydration activation gate');
   console.log('[PASS] Unit 14 hydration activation integrity + failure verification gate');
   console.log('[PASS] Unit 15 authoritative registry readiness + identity gate');
+  console.log('[PASS] Unit 16 bundle segment activation integrity + readiness gate');
   console.log('\nPhase 4 registry/runtime gate: PASS (' + registry.tools.length + ' tools)');
 }

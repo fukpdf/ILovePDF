@@ -52,45 +52,56 @@
 
   // ── Activate segments for a tool ─────────────────────────────────────────
   function activateForTool(toolId, family) {
-    if (!family) return;
+    if (!family) return Promise.resolve({ ok: true, alreadyActive: false, family: null, toolId: toolId, bundles: [], errors: [] });
     if (_activated[family]) {
       console.debug(LOG, 'segments already active for family:', family);
-      return;
+      return Promise.resolve({ ok: true, alreadyActive: true, family: family, toolId: toolId, bundles: (FAMILY_SEGMENTS[family] || BASE_BUNDLES).slice(), errors: [] });
     }
 
     var segments = FAMILY_SEGMENTS[family] || BASE_BUNDLES;
-    _activated[family] = true;
-    _loadLog.push({ family: family, toolId: toolId, ts: Date.now(), bundles: segments.slice() });
+    var reg = G.RuntimeBundleRegistry;
+    if (!reg || typeof reg.load !== 'function' || typeof reg.status !== 'function') {
+      console.debug(LOG, 'RuntimeBundleRegistry unavailable for:', family);
+      return Promise.resolve({ ok: false, alreadyActive: false, family: family, toolId: toolId, bundles: segments.slice(), errors: ['registry-unavailable'] });
+    }
 
     console.debug(LOG, 'activating segments for', family, '/', toolId, '—', segments.join(', '));
 
-    // Load each segment in dependency order
-    var reg = G.RuntimeBundleRegistry;
-    if (!reg) {
-      console.debug(LOG, 'RuntimeBundleRegistry not available — segments queued');
-      // Queue for later: retry after 2 seconds
-      setTimeout(function () {
-        var r = G.RuntimeBundleRegistry;
-        if (r) {
-          segments.forEach(function (seg) {
-            r.load(seg).catch(function (e) {
-              console.debug(LOG, 'segment load error:', seg, e && e.message || e);
-            });
-          });
-        }
-      }, 2000);
-      return;
-    }
-
-    // Load sequentially to preserve dependency order
-    segments.reduce(function (chain, seg) {
-      return chain.then(function () {
-        return reg.load(seg).catch(function (e) {
-          // Non-fatal: segment may already be loaded via script tags
-          console.debug(LOG, 'segment load note:', seg, e && e.message || e);
+    // Load sequentially so dependency order is preserved. The family is not
+    // marked active until every requested segment has successfully loaded.
+    return segments.reduce(function (chain, seg) {
+      return chain.then(function (result) {
+        if (!result.ok) return result;
+        return reg.load(seg).then(function () {
+          var state = reg.status();
+          if (!state || !state[seg] || state[seg].loaded !== true) {
+            result.errors.push(seg + ':not-loaded');
+            result.ok = false;
+            return result;
+          }
+          return result;
+        }).catch(function (e) {
+          result.errors.push(seg + ':' + String(e && e.message || e));
+          result.ok = false;
+          return result;
         });
       });
-    }, Promise.resolve());
+    }, Promise.resolve({ ok: true, alreadyActive: false, family: family, toolId: toolId, bundles: segments.slice(), errors: [] }))
+      .then(function (result) {
+        if (result.ok) {
+          _activated[family] = true;
+          _loadLog.push({ family: family, toolId: toolId, ts: Date.now(), bundles: segments.slice() });
+          console.debug(LOG, 'segments activated:', family, '/', toolId);
+        } else {
+          try {
+            G.dispatchEvent(new CustomEvent('tool-bundle-segments:activation-failed', {
+              detail: { family: family, toolId: toolId, bundles: segments.slice(), errors: result.errors.slice() }
+            }));
+          } catch (_) {}
+          console.debug(LOG, 'segment activation failed:', family, result.errors);
+        }
+        return result;
+      });
   }
 
   // ── Status ────────────────────────────────────────────────────────────────

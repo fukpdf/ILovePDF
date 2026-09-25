@@ -9,7 +9,7 @@
   if (G.RuntimeToolLoader) return;
 
   var LOG = '[ToolLoader]';
-  var VERSION = '1.4';
+  var VERSION = '1.5';
   var _toolId = null;
   var _manifest = null;
   var _booted = false;
@@ -137,12 +137,24 @@
     });
   }
 
-  function _activateBundleSegments(toolId, manifest) {
-    _safeCall('bundle-segments', function () {
-      var bs = G.RuntimeToolBundleSegments;
-      if (!bs || !manifest) return;
-      bs.activateForTool(toolId, manifest.family);
-    });
+  async function _activateBundleSegments(toolId, manifest) {
+    if (!toolId || !manifest) return true;
+    var bs = G.RuntimeToolBundleSegments;
+    if (!bs || typeof bs.activateForTool !== 'function') {
+      console.debug(LOG, 'bundle segment activation unavailable:', toolId);
+      return false;
+    }
+    try {
+      var result = await bs.activateForTool(toolId, manifest.family);
+      if (!result || result.ok !== true) {
+        console.debug(LOG, 'bundle segment activation rejected:', toolId, manifest.family, result || 'no-result');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.debug(LOG, 'bundle segment activation error:', e && e.message || e);
+      return false;
+    }
   }
 
   function _openRecoveryDomain(toolId, manifest) {
@@ -203,7 +215,10 @@
 
       _activateMemoryIsland(_toolId, _manifest);
       _openAnalyticsDomain(_toolId, _manifest);
-      _activateBundleSegments(_toolId, _manifest);
+      if (_toolId && _manifest && !(await _activateBundleSegments(_toolId, _manifest))) {
+        console.debug(LOG, 'bundle segment activation rejected:', _toolId);
+        return false;
+      }
       _openRecoveryDomain(_toolId, _manifest);
 
       _booted = true;
