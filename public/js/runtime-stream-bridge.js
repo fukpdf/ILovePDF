@@ -264,6 +264,7 @@
         // Browser doesn't support File.stream() — fall through to path B
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'fallback');
         reject(_fallbackStreamError('file-stream-unavailable'));
         return;
       }
@@ -290,6 +291,7 @@
       } catch (postErr) {
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'fallback');
         reject(_fallbackStreamError('stream-postmessage-failed: ' + postErr.message));
       }
     });
@@ -555,7 +557,8 @@
 
   // ── PRIMARY API: streamToWorkerReadable ────────────────────────────────────
   // Routes to path A (transferable stream) or path B (chunk-ack), auto-
-  // detecting browser capability. Falls back gracefully to path B on any error.
+  // detecting browser capability. Falls back to path B only for explicit
+  // transport/setup failures marked streamFallbackEligible.
   //
   // workerUrl:   '/workers/pdf-worker.js' or '/workers/advanced-worker.js'
   // file:        File or Blob
