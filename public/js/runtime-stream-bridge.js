@@ -350,7 +350,7 @@
       _activeStreams.set(streamId, entry);
 
       if (token) {
-        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
+        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); });
       }
 
       var totalSize    = file.size;
