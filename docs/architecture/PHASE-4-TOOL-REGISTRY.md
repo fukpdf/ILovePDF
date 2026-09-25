@@ -158,3 +158,19 @@ Implemented on `phase-4-unit-13-hydration-activation`.
 - Existing P0/P1/P2 scheduling behavior remains owned by `RuntimeHydrationDomains`; Unit 13 only closes the missing loader-to-domain activation boundary.
 - Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
 - `npm run audit:phase4` now verifies the Unit 13 hydration activation contract.
+
+
+## Unit 14 — Hydration activation integrity
+
+Implemented on `phase-4-unit-14-hydration-integrity`.
+
+- `RuntimeHydrationDomains.activate()` now returns an explicit activation result instead of silently succeeding.
+- Hydration module exceptions are collected into tier metrics; a tier is not marked active when one or more modules fail.
+- Successful modules remain marked activated, allowing a retry to execute only modules that previously failed.
+- Activation diagnostics expose `errorCount`, `errors`, `activatedCount`, and a compact `activationStatus` snapshot.
+- A dedicated `hydration-domain:activation-failed` event is emitted when a tier cannot be fully activated.
+- `RuntimeToolLoader` now requires the explicit activation result to be `ok === true` before emitting `tool:runtime-ready`.
+- Ready diagnostics distinguish requested hydration activation from verified activation.
+- This closes the Unit 13 gap where a caught hydration-module exception could otherwise be treated as successful activation.
+- Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
+- `npm run audit:phase4` enforces the Unit 14 hydration-integrity contract.
