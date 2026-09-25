@@ -14,7 +14,19 @@
     "audit:runtime": "node scripts/runtime-consistency-check.js",
     "audit:phase3": "node scripts/phase3-file-lifecycle-check.js",
     "audit:phase4": "node scripts/phase4-tool-registry-check.js",
-    "audit:phase5": "node scripts/phase5-standard-tool-check.js"
+    "audit:phase5": "node scripts/phase5-standard-tool-check.js",
+    "audit:phase5:edit": "node scripts/phase5-edit-check.js",
+    "audit:phase5:watermark": "node scripts/phase5-watermark-check.js",
+    "audit:phase5:sign": "node scripts/phase5-sign-check.js",
+    "audit:phase5:page-numbers": "node scripts/phase5-page-numbers-check.js",
+    "audit:phase5:redact": "node scripts/phase5-redact-check.js",
+    "audit:phase5:protect": "node scripts/phase5-protect-check.js",
+    "audit:phase5:unlock": "node scripts/phase5-unlock-check.js",
+    "audit:phase5:pdf-to-word": "node scripts/phase5-pdf-to-word-check.js",
+    "audit:phase5:pdf-to-word-extract": "node scripts/phase5-pdf-to-word-extract-check.js",
+    "audit:phase5:pdf-to-word-ocr-render": "node scripts/phase5-pdf-to-word-ocr-render-check.js",
+    "audit:phase5:pdf-to-word-ocr": "node scripts/phase5-pdf-to-word-ocr-check.js",
+    "audit:phase5:pdf-to-word-ocr-native": "node scripts/phase5-pdf-to-word-ocr-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
