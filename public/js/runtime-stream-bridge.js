@@ -172,6 +172,10 @@
     }
     if (entry.removeCancelListener) { try { entry.removeCancelListener(); } catch (_) {} entry.removeCancelListener = null; }
     _endStreamTelemetry(entry, 'cancelled');
+    if (entry.cancelReject) {
+      try { entry.cancelReject(new Error('cancelled')); } catch (_) {}
+      entry.cancelReject = null;
+    }
     var bus = global.RuntimeEventBus;
     if (bus && bus.emit) {
       try { bus.emit('stream:cancelled', { streamId: streamId }); } catch (_) {}
@@ -217,7 +221,7 @@
         return;
       }
 
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null, cleanupTransientResources: null };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null, cleanupTransientResources: null, cancelReject: reject };
       _activeStreams.set(streamId, entry);
 
       function finishTransferRuntimeError(err, status) {
@@ -227,6 +231,7 @@
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, status || 'error');
         reject(err instanceof Error ? err : new Error(String(err || 'stream-worker-error')));
+        entry.cancelReject = null;
       }
 
       function finishTransferFallback(err) {
@@ -236,10 +241,11 @@
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, 'fallback');
         reject(_fallbackStreamError(err));
+        entry.cancelReject = null;
       }
 
       if (token) {
-        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); reject(new Error('cancelled')); });
+        entry.removeCancelListener = token.onCancel(function () { _cancelStream(streamId); });
       }
 
       w.onmessage = function (e) {
@@ -253,6 +259,7 @@
           try { w.terminate(); } catch (_) {}
           _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
+          entry.cancelReject = null;
           resolve(d);
         } else if (d.type === 'stream-error') {
           finishTransferRuntimeError(new Error(d.__error || 'stream-worker-error'));
@@ -339,7 +346,7 @@
         return;
       }
 
-      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, removeCancelListener: null, cancelReject: reject };
       _activeStreams.set(streamId, entry);
 
       if (token) {
@@ -361,6 +368,7 @@
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, 'error');
         reject(err instanceof Error ? err : new Error(String(err || 'stream-runtime-error')));
+        entry.cancelReject = null;
       }
 
       // Wait for ack before sending next chunk — real backpressure
@@ -550,6 +558,7 @@
           try { w.terminate(); } catch (_) {}
           _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
+          entry.cancelReject = null;
           resolve(d);
 
         } else if (d.type === 'stream-error') {
@@ -683,14 +692,11 @@
         try { w.terminate(); } catch (_) {}
         _endStreamTelemetry(entry, 'error');
         reject(err instanceof Error ? err : new Error(String(err)));
+        entry.cancelReject = null;
       }
 
       if (token) entry.removeCancelListener = token.onCancel(function() {
         _cancelStream(streamId);
-        if (!done) {
-          done = true;
-          reject(new Error('cancelled'));
-        }
       });
 
       async function sendChunk() {
@@ -755,6 +761,7 @@
           try { w.terminate(); } catch (_) {}
           _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
+          entry.cancelReject = null;
           resolve(d);
         } else if (d.type === 'stream-error') {
           finishError(new Error(d.__error || 'stream-worker-error'));
