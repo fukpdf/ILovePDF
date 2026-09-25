@@ -274,10 +274,7 @@
 
     // Tesseract pass
     onStep(1, 'active', 35, 'Running OCR\u2026');
-    var tw = await _race(
-      G.Tesseract.createWorker(lang, 1, { logger: function () {} }),
-      OCR_INIT_MS, 'OCR worker init'
-    );
+    var tw = await _race(G.Tesseract.createWorker(lang, 1, { logger: function () {} }));
     _tessWorker = tw;   // register for cleanup
 
     var total = totalPages || 0;
