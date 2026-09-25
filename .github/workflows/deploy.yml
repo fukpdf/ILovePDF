@@ -117,6 +117,9 @@ jobs:
       - name: Phase 4 tool registry audit
         run: npm run audit:phase4
 
+      - name: Phase 5 standard tool audit
+        run: npm run audit:phase5
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:

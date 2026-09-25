@@ -133,6 +133,23 @@ OPS.rotate = async function (buffers, opts) {
   return toArrayBuffer(out);
 };
 
+OPS.crop = async function (buffers, opts) {
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const cl = Math.max(0, parseFloat(opts.cropLeft || '0')) / 100;
+  const cr = Math.max(0, parseFloat(opts.cropRight || '0')) / 100;
+  const ct = Math.max(0, parseFloat(opts.cropTop || '0')) / 100;
+  const cb = Math.max(0, parseFloat(opts.cropBottom || '0')) / 100;
+  doc.getPages().forEach(function (page) {
+    const size = page.getSize();
+    const x = size.width * cl;
+    const y = size.height * cb;
+    const width = Math.max(10, size.width * (1 - cl - cr));
+    const height = Math.max(10, size.height * (1 - ct - cb));
+    page.setCropBox(x, y, width, height);
+  });
+  return toArrayBuffer(await doc.save());
+};
+
 OPS['page-numbers'] = async function (buffers, opts) {
   const doc      = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
   const font     = await doc.embedFont(StandardFonts.Helvetica);

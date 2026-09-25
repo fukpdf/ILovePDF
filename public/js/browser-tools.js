@@ -4580,7 +4580,7 @@
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
-    'compress', 'workflow', 'merge', 'rotate',
+    'compress', 'workflow', 'merge', 'rotate', 'crop',
     'page-numbers', 'watermark', 'sign', 'redact', 'edit',
   ]);
 
@@ -4590,8 +4590,8 @@
   // narrow so other tools keep their existing lazy-loading behavior.
   async function prewarm(toolId) {
     if (toolId === 'crop') {
-      await loadPdfLib();
-      return { warmed: true, dependency: 'pdf-lib' };
+      await loadWorkerPool();
+      return { warmed: true, dependency: 'pdf-worker + worker-pool' };
     }
     if (toolId === 'word-to-excel') {
       await Promise.all([loadMammoth(), loadXlsx()]);
