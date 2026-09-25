@@ -587,3 +587,36 @@ if (!translateTool || translateTool.execution !== 'browser-worker') fail('Transl
 if (!translateTool || translateTool.capabilities.streaming !== 'adaptive-worker') fail('Translate registry does not declare adaptive worker streaming.');
 if (!translateTool || translateTool.capabilities.workerPool !== true) fail('Translate registry does not declare worker pool execution.');
 if (!/translate-worker-adapter\.js/.test(toolHtml)) fail('Translate adapter is not loaded by the standard tool shell.');
+
+// ── Shared worker infrastructure close-out contract ────────────────────────
+const workerPool = read('public/workers/workerPool.js');
+if (!/function terminateAll\(\)/.test(workerPool)) fail('WorkerPool terminateAll contract is missing.');
+if (!/pagehide/.test(workerPool) || !/event && event\.persisted/.test(workerPool)) fail('WorkerPool navigation/BFCache cleanup contract is missing.');
+if (!/document\.visibilityState === 'hidden'/.test(workerPool)) fail('WorkerPool hidden-tab prewarm guard is missing.');
+if (!/if \(slot\.busy\) return;/.test(workerPool)) fail('WorkerPool idle cleanup is not busy-worker safe.');
+
+const workerDetector = read('public/js/worker-leak-detector.js');
+if (!/Observer-only/.test(workerDetector)) fail('WorkerLeakDetector is not explicitly observer-only.');
+if (/worker\.terminate\(\)/.test(workerDetector)) fail('WorkerLeakDetector directly terminates workers.');
+
+const workerOrchestrator = read('public/js/runtime-worker-orchestrator.js');
+if (/WorkerLeakDetector[\s\S]{0,200}terminateZombies/.test(workerOrchestrator)) fail('Runtime worker orchestrator still owns zombie termination.');
+
+const workerRouting = read('public/js/runtime-worker-routing.js');
+if (!/pdf-worker/.test(workerRouting) || !/translate/.test(workerRouting) || !/repair/.test(workerRouting) || !/compare/.test(workerRouting)) fail('Canonical PDF worker capability routing is incomplete.');
+if (/pattern: \/translation\//.test(workerRouting)) fail('Deleted translation-worker routing residue remains.');
+
+for (const infrastructureFile of [
+  'public/js/runtime-worker-factory.js',
+  'public/js/runtime-worker-routing.js',
+  'public/js/runtime-worker-mesh.js',
+  'public/js/runtime-tool-worker-mesh.js',
+  'public/js/runtime-processor-workers.js',
+  'public/js/runtime-stream-workers.js',
+  'public/js/runtime-shield-workers.js',
+  'public/js/runtime-worker-coordinator.js',
+  'public/js/runtime-worker-prewarm.js',
+  'public/js/worker-lifecycle.js'
+]) {
+  if (!toolHtml.includes(infrastructureFile.split('/').pop())) fail('Standard tool shell does not load ' + infrastructureFile + '.');
+}
