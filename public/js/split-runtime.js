@@ -1,78 +1,46 @@
-// Split Runtime v2.0 — Phase 4 Worker Promotion
-// Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
-//
-// Adapter mode: 'worker'
-//   OPS.split in pdf-worker.js handles page-range extraction using pure pdf-lib.
-//   The factory reads files[0], transfers the ArrayBuffer to the worker (zero-copy),
-//   and returns a single-output PDF containing the selected pages.
-//
-// Feature flag: window.RUNTIME_SPLIT_ENABLED = true (default)
-//   Set to false in DevTools to force legacy path.
-//
-// Exposed as: window.SplitRuntime
-(function () {
-  'use strict';
-
-  if (window.SplitRuntime) return;
-
-  if (!window.PdfWorkerRuntimeFactory) {
-    console.warn('[SRT] PdfWorkerRuntimeFactory not loaded — SplitRuntime skipped');
-    return;
+// Split Runtime v3.0 — canonical RuntimeScheduler/RuntimeWorkers path
+(function(){
+'use strict';
+if(window.SplitRuntime)return;
+var currentToken=null,currentSpan=null;
+function cleanup(reason,owner){
+  var owns=arguments.length<2||currentToken===owner;
+  if(window.RuntimeTelemetry)try{window.RuntimeTelemetry.record('split:cleanup',{reason:reason});}catch(_){}
+  if(owns){currentToken=null;currentSpan=null;}
+}
+async function execute(file,opts){
+  opts=opts||{};
+  var token=null,span=null;
+  try{
+    if(!file)throw new Error('No file provided');
+    token=window.RuntimeCancellation&&window.RuntimeCancellation.createScopedToken
+      ?window.RuntimeCancellation.createScopedToken('split-pdf',{label:'split-pdf-run',timeoutMs:0}):null;
+    currentToken=token;
+    if(window.RuntimeTelemetry){span=window.RuntimeTelemetry.startSpan('split:full-run',{name:file.name,size:file.size,range:opts.range||''});currentSpan=span;}
+    if(!window.RuntimeScheduler||typeof window.RuntimeScheduler.run!=='function')throw new Error('RuntimeScheduler is unavailable — canonical Split execution cannot start');
+    if(!window.SplitWorkerAdapter||typeof window.SplitWorkerAdapter.dispatch!=='function')throw new Error('SplitWorkerAdapter is unavailable — canonical Split execution cannot start');
+    var result=await window.RuntimeScheduler.run(function(){
+      return window.SplitWorkerAdapter.dispatch(file,opts,function(p,msg){
+        if(window.showProcessing)try{window.showProcessing('Splitting PDF…',msg||'Extracting pages…');}catch(_){}
+      },token);
+    },{type:'split',priority:'normal',label:'split-pdf',token:token});
+    if(!result||!result.buffer)throw new Error('Split worker returned no output');
+    var blob=new Blob([result.buffer],{type:'application/pdf'});
+    if(!blob.size)throw new Error('Split output is empty');
+    var filename=window.BrowserTools&&window.BrowserTools.brandedFilename
+      ?window.BrowserTools.brandedFilename(file.name,'.pdf'):'ILovePDF-split.pdf';
+    if(window.RuntimeTelemetry&&span!==null)try{window.RuntimeTelemetry.endSpan(span,'ok');}catch(_){}
+    cleanup('success',token);
+    return {blob:blob,filename:filename};
+  }catch(err){
+    try{Object.defineProperty(err,'__splitRunToken',{value:token,configurable:true});}catch(_){}
+    throw err;
   }
-
-  window.PdfWorkerRuntimeFactory.createPdfToolRuntime({
-    toolId:      'split',
-    namespace:   'SplitRuntime',
-    flagName:    'RUNTIME_SPLIT_ENABLED',
-    LOG:         '[SRT]',
-
-    // ── Adapter ─────────────────────────────────────────────────────────────
-    adapterMode:   'worker',
-    timeoutMs: 0,   // 90s hard cap; split is fast even on large PDFs
-    workerTimeout: 0,
-    timerOwner:    'srt-tick',
-
-    // ── Dedup key: tool + file identity + page range ─────────────────────────
-    buildDedupeKey: function (files, opts) {
-      return 'split:' + (files[0] && files[0].name) + ':' + (files[0] && files[0].size) + ':' + (opts && opts.range || '');
-    },
-
-    workerProgressMessages: [
-      'Splitting PDF…',
-      'Extracting pages…',
-      'Building output document…',
-      'Finalising split…',
-    ],
-
-    // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function () {
-      return 'Splitting PDF…';
-    },
-    buildProgressSubtitle: function (files, opts) {
-      var range = (opts && opts.range) ? String(opts.range) : '';
-      return range ? 'Extracting pages: ' + range : 'Extracting pages…';
-    },
-
-    // ── Telemetry ─────────────────────────────────────────────────────────────
-    buildSpanAttrs: function (files, opts) {
-      return {
-        name:  files[0] && files[0].name,
-        size:  files[0] && files[0].size,
-        range: (opts && opts.range) || '',
-      };
-    },
-    buildSuccessAttrs: function (files, blob, opts) {
-      return {
-        range:       (opts && opts.range) || '',
-        inputBytes:  files[0] && files[0].size,
-      };
-    },
-
-    // ── Filename ──────────────────────────────────────────────────────────────
-    buildFilename: function (files) {
-      return window.BrowserTools && window.BrowserTools.brandedFilename
-        ? window.BrowserTools.brandedFilename(files[0].name, '.pdf')
-        : 'ILovePDF-split.pdf';
-    },
-  });
+}
+async function runSplitRuntime(file,opts){return execute(file,opts);}
+function cancelActive(reason){
+  if(currentToken&&!currentToken.cancelled){var t=currentToken;t.cancel(reason||'manual-cancel');cleanup('cancel:'+(reason||'manual-cancel'),t);return true;}
+  return false;
+}
+window.SplitRuntime={execute:execute,runSplitRuntime:runSplitRuntime,cancelActive:cancelActive,getDiagnostics:function(){return{runtimeEnabled:true,activeToken:currentToken?{id:currentToken.id,cancelled:currentToken.cancelled}:null,activeSpan:currentSpan,workerAdapter:!!window.SplitWorkerAdapter};}};
 }());
