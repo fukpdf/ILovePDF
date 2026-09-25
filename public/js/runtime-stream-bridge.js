@@ -512,11 +512,11 @@
       };
 
       w.onerror = function (e) {
+        if (entry.terminal) return;
+        entry.terminal = true;
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        if (global.RuntimeTelemetry && spanId !== null) {
-          global.RuntimeTelemetry.endSpan(spanId, 'error');
-        }
+        _endStreamTelemetry(entry, 'error');
         reject(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
@@ -620,15 +620,14 @@
       _activeStreams.set(streamId, entry);
 
       function finishError(err) {
-        if (done) return;
-        done = true; _activeStreams.delete(streamId);
+        if (done || entry.terminal) return;
+        done = true; entry.terminal = true; _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
         reject(err instanceof Error ? err : new Error(String(err)));
       }
 
       if (token) token.onCancel(function() {
-        entry.cancelled = true;
-        try { w.postMessage({ type:'stream-cancel', streamId:streamId }); } catch (_) {}
+        _cancelStream(streamId);
         finishError(new Error('cancelled'));
       });
 
@@ -669,12 +668,12 @@
 
       w.onmessage = function(e) {
         var d=e.data;
-        if (!d || d.streamId !== streamId) return;
+        if (!d || d.streamId !== streamId || entry.terminal) return;
         if (d.type === 'stream-ack') {
           pending=false;
           sendChunk().catch(finishError);
         } else if (d.type === 'stream-done') {
-          done=true; _activeStreams.delete(streamId);
+          done=true; entry.terminal=true; _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
           resolve(d);
         } else if (d.type === 'stream-error') {
