@@ -52,6 +52,12 @@
   var LOG = '[RSB]';
   var _streamIdCounter = 0;
 
+  function _fallbackStreamError(message) {
+    var err = new Error(message);
+    err.streamFallbackEligible = true;
+    return err;
+  }
+
   // ── Transferable stream detection ──────────────────────────────────────────
   // A ReadableStream is transferable when the browser implements the WHATWG
   // Streams Living Standard §8.2.7. We probe by attempting a real postMessage
@@ -132,17 +138,34 @@
   // ── Active stream registry (for cancellation) ──────────────────────────────
   var _activeStreams = new Map();
 
+  function _endStreamTelemetry(entry, status) {
+    if (!entry || entry.telemetryEnded) return;
+    entry.telemetryEnded = true;
+    if (global.RuntimeTelemetry && entry.spanId !== null && entry.spanId !== undefined) {
+      try { global.RuntimeTelemetry.endSpan(entry.spanId, status); } catch (_) {}
+    }
+  }
+
   function _cancelStream(streamId) {
     var entry = _activeStreams.get(streamId);
-    if (!entry) return;
+    if (!entry || entry.cancelled || entry.terminal) return;
     entry.cancelled = true;
+    entry.terminal = true;
+    // Cancellation is terminal at the bridge boundary. Notify the worker
+    // first so cooperative workers can discard partial state, then terminate
+    // immediately so an uncooperative worker cannot continue consuming CPU or
+    // holding transferred stream/chunk resources after the Promise is settled.
     if (entry.worker) {
-      try {
-        entry.worker.postMessage({ type: 'stream-cancel', streamId: streamId });
-      } catch (_) {}
+      try { entry.worker.postMessage({ type: 'stream-cancel', streamId: streamId }); } catch (_) {}
+      try { entry.worker.terminate(); } catch (_) {}
     }
     if (entry.abortController) {
       try { entry.abortController.abort(); } catch (_) {}
+    }
+    _endStreamTelemetry(entry, 'cancelled');
+    var bus = global.RuntimeEventBus;
+    if (bus && bus.emit) {
+      try { bus.emit('stream:cancelled', { streamId: streamId }); } catch (_) {}
     }
     _activeStreams.delete(streamId);
   }
@@ -171,6 +194,7 @@
 
     // 8G: reject if MemDefense has paused streams
     if (_streamsPaused) {
+      if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'paused');
       return Promise.reject(new Error('stream-paused-by-memdefense'));
     }
 
@@ -179,11 +203,12 @@
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
-        reject(new Error('worker-spawn-failed: ' + e.message));
+        if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'error');
+        reject(_fallbackStreamError('worker-spawn-failed: ' + e.message));
         return;
       }
 
-      var entry = { worker: w, cancelled: false, abortController: null };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId, abortController: null };
       _activeStreams.set(streamId, entry);
 
       if (token) {
@@ -194,19 +219,19 @@
         var d = e.data;
         if (!d || d.streamId !== streamId) return;
         if (d.type === 'stream-done') {
+          if (entry.terminal) return;
+          entry.terminal = true;
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
-          if (global.RuntimeTelemetry && spanId !== null) {
-            global.RuntimeTelemetry.endSpan(spanId, 'ok');
-          }
+          _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
           resolve(d);
         } else if (d.type === 'stream-error') {
+          if (entry.terminal) return;
+          entry.terminal = true;
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
-          if (global.RuntimeTelemetry && spanId !== null) {
-            global.RuntimeTelemetry.endSpan(spanId, 'error');
-          }
+          _endStreamTelemetry(entry, 'error');
           reject(new Error(d.__error || 'stream-worker-error'));
         } else if (d.type === 'stream-progress' && onProgress) {
           try { onProgress(d.pct, d.label); } catch (_) {}
@@ -214,11 +239,11 @@
       };
 
       w.onerror = function (e) {
+        if (entry.terminal) return;
+        entry.terminal = true;
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        if (global.RuntimeTelemetry && spanId !== null) {
-          global.RuntimeTelemetry.endSpan(spanId, 'error');
-        }
+        _endStreamTelemetry(entry, 'error');
         reject(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
@@ -232,7 +257,7 @@
         // Browser doesn't support File.stream() — fall through to path B
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        reject(new Error('file-stream-unavailable'));
+        reject(_fallbackStreamError('file-stream-unavailable'));
         return;
       }
 
@@ -248,6 +273,7 @@
         try { global.RuntimeSecurity.validateWorkerMessage(msg); } catch (se) {
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'error');
           reject(se); return;
         }
       }
@@ -257,7 +283,7 @@
       } catch (postErr) {
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        reject(new Error('stream-postmessage-failed: ' + postErr.message));
+        reject(_fallbackStreamError('stream-postmessage-failed: ' + postErr.message));
       }
     });
   }
@@ -287,11 +313,12 @@
     return new Promise(function (resolve, reject) {
       var w = null;
       try { w = new Worker(workerUrl); } catch (e) {
+        if (global.RuntimeTelemetry && spanId) global.RuntimeTelemetry.endSpan(spanId, 'error');
         reject(new Error('worker-spawn-failed: ' + e.message));
         return;
       }
 
-      var entry = { worker: w, cancelled: false };
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId };
       _activeStreams.set(streamId, entry);
 
       if (token) {
@@ -396,6 +423,7 @@
           } catch (readErr) {
             _activeStreams.delete(streamId);
             try { w.terminate(); } catch (_) {}
+            _endStreamTelemetry(entry, 'error');
             reject(readErr);
             return;
           }
@@ -429,6 +457,7 @@
           try { global.RuntimeSecurity.validateWorkerMessage(chunkMsg); } catch (se) {
             _activeStreams.delete(streamId);
             try { w.terminate(); } catch (_) {}
+            _endStreamTelemetry(entry, 'error');
             reject(se); return;
           }
         }
@@ -438,6 +467,7 @@
         } catch (postErr) {
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'error');
           reject(new Error('chunk-postmessage-failed: ' + postErr.message));
           return;
         }
@@ -456,7 +486,7 @@
 
       w.onmessage = function (e) {
         var d = e.data;
-        if (!d || d.streamId !== streamId) return;
+        if (!d || d.streamId !== streamId || entry.terminal) return;
 
         if (d.type === 'stream-ack') {
           // 8G: record ack latency for enterprise telemetry
@@ -474,21 +504,19 @@
 
         } else if (d.type === 'stream-done') {
           done = true;
+          entry.terminal = true;
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
-          if (global.RuntimeTelemetry && spanId !== null) {
-            global.RuntimeTelemetry.endSpan(spanId, 'ok');
-          }
+          _endStreamTelemetry(entry, 'ok');
           _telStream('done', { streamId: streamId });
           resolve(d);
 
         } else if (d.type === 'stream-error') {
           done = true;
+          entry.terminal = true;
           _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
-          if (global.RuntimeTelemetry && spanId !== null) {
-            global.RuntimeTelemetry.endSpan(spanId, 'error');
-          }
+          _endStreamTelemetry(entry, 'error');
           reject(new Error(d.__error || 'stream-chunk-error'));
 
         } else if (d.type === 'stream-progress' && onProgress) {
@@ -497,11 +525,11 @@
       };
 
       w.onerror = function (e) {
+        if (entry.terminal) return;
+        entry.terminal = true;
         _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
-        if (global.RuntimeTelemetry && spanId !== null) {
-          global.RuntimeTelemetry.endSpan(spanId, 'error');
-        }
+        _endStreamTelemetry(entry, 'error');
         reject(new Error((e && e.message) || 'stream-worker-onerror'));
       };
 
@@ -540,7 +568,8 @@
       try {
         return await _streamViaTransferableStream(workerUrl, file, message, opts);
       } catch (errA) {
-        console.warn(LOG, 'transferable stream path failed, falling back to chunk-ack:', errA.message);
+        if (!errA || !errA.streamFallbackEligible) throw errA;
+        console.warn(LOG, 'transferable stream transport unavailable, falling back to chunk-ack:', errA.message);
         if (global.RuntimeTelemetry) {
           try { global.RuntimeTelemetry.record('stream-bridge:transferable-fallback', { error: errA.message }); } catch (_) {}
         }
@@ -601,20 +630,30 @@
       try { w = new Worker(workerUrl); } catch (e) {
         reject(new Error('worker-spawn-failed: ' + e.message)); return;
       }
-      var entry = { worker: w, cancelled: false };
+      var spanId = null;
+      if (global.RuntimeTelemetry) {
+        spanId = global.RuntimeTelemetry.startSpan('stream-bridge:multi-file', {
+          streamId: streamId, size: totalBytes, tool: message && message.tool,
+        });
+      }
+      _telStream('started', { streamId: streamId, tool: message && message.tool, totalBytes: totalBytes });
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId };
       _activeStreams.set(streamId, entry);
 
       function finishError(err) {
-        if (done) return;
-        done = true; _activeStreams.delete(streamId);
+        if (done || entry.terminal) return;
+        done = true; entry.terminal = true; _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'error');
         reject(err instanceof Error ? err : new Error(String(err)));
       }
 
       if (token) token.onCancel(function() {
-        entry.cancelled = true;
-        try { w.postMessage({ type:'stream-cancel', streamId:streamId }); } catch (_) {}
-        finishError(new Error('cancelled'));
+        _cancelStream(streamId);
+        if (!done) {
+          done = true;
+          reject(new Error('cancelled'));
+        }
       });
 
       async function sendChunk() {
@@ -654,13 +693,15 @@
 
       w.onmessage = function(e) {
         var d=e.data;
-        if (!d || d.streamId !== streamId) return;
+        if (!d || d.streamId !== streamId || entry.terminal) return;
         if (d.type === 'stream-ack') {
           pending=false;
           sendChunk().catch(finishError);
         } else if (d.type === 'stream-done') {
-          done=true; _activeStreams.delete(streamId);
+          done=true; entry.terminal=true; _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'ok');
+          _telStream('done', { streamId: streamId });
           resolve(d);
         } else if (d.type === 'stream-error') {
           finishError(new Error(d.__error || 'stream-worker-error'));
