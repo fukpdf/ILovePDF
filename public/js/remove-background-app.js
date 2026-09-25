@@ -24,8 +24,6 @@
   var _removeBgWorker = null;
   var _canvas         = null; // source canvas
   var _outputCanvas   = null; // result canvas
-  var _hardTimer      = null;
-  var _hardReject     = null;
 
   function _log(msg, d)  { console.debug('[RemoveBackgroundApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[RemoveBackgroundApp]',  msg, d !== undefined ? d : ''); }
