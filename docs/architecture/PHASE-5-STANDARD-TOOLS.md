@@ -374,3 +374,21 @@ Verification: `scripts/phase5-worker-cancel-check.js`.
 - Validation gate: `npm run audit:phase5:worker-lifecycle`.
 - PR status: open/not merged after creation; CI is reported only if an actual workflow run is observed.
 
+
+
+## Phase 5 Unit 28 — RuntimeStreamBridge terminal-state isolation
+
+Audit found a second-order stream lifecycle race after Unit 27: cancellation terminated the worker, but stream telemetry could remain open, and late terminal messages/errors were not uniformly guarded by a bridge-level terminal state. The multi-file streaming cancellation path also used a separate cleanup path instead of the shared cancellation boundary.
+
+Unit 28 now:
+1. adds an idempotent _endStreamTelemetry() helper so cancellation, success, and errors cannot double-close a telemetry span;
+2. marks active stream entries terminal before cancellation cleanup;
+3. ends stream telemetry with a cancelled status and emits a stream:cancelled event;
+4. ignores late worker messages/errors after terminal cancellation/completion;
+5. applies the shared cancellation boundary to multi-file streaming as well;
+6. preserves immediate worker termination, cooperative stream-cancel, AbortController cleanup, adaptive chunking, transferable streams, and backpressure;
+7. adds a dedicated terminal-state audit and JavaScript syntax check.
+
+No artificial file-size, page-count, task-count, or processing-time limit was introduced.
+
+Verification: npm run audit:phase5:stream-terminal-state.
