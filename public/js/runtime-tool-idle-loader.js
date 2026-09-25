@@ -71,7 +71,11 @@
   }
 
   /* ── Idle stack ─────────────────────────────────────────────────────────── */
-  var IDLE_STACK = [
+  // Root modules have no dependency on another idle-stack module and can be
+  // fetched concurrently. The second wave contains only modules whose direct
+  // idle-stack dependency was verified: AI graph → diagnostics, responsive ads
+  // → AdManager, analytics sync → AnalyticsEngine.
+  var IDLE_ROOT_STACK = [
     '/js/runtime-diagnostics-center.js',
     '/js/runtime-prefetch.js',
     '/js/runtime-processing-concurrency.js',
@@ -79,39 +83,21 @@
     '/js/runtime-session-intel.js',
     '/js/runtime-tool-engagement.js',
     '/js/runtime-pinned-tools.js',
-    '/js/runtime-ai-graph.js',
     '/js/runtime-cross-tab.js',
     '/js/runtime-ai-orchestrator.js',
     '/js/ad-manager.js',
-    '/js/ad-responsive-engine.js',
     '/js/analytics-engine.js',
+  ];
+
+  var IDLE_DEPENDENT_STACK = [
+    '/js/runtime-ai-graph.js',
+    '/js/ad-responsive-engine.js',
     '/js/analytics-sync.js',
   ];
 
-  /*
-   * Dependency boundary: tool.html loads the core prerequisites before this
-   * deferred loader (event bus/state/telemetry/memory, adaptive pipeline,
-   * runtime core/CentralRuntime, BrowserTools, DownloadManager, analytics and
-   * AI scheduler). The idle modules below may therefore initialize safely in
-   * this order. Modules that depend on DOMContentLoaded also self-initialize
-   * when document.readyState is already interactive/complete.
-   */
-  /* ── Sequential loader ──────────────────────────────────────────────────── */
-  var _loaded = false;
+  var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length;
 
-  async function loadAll() {
-    if (_loaded) return;
-    _loaded = true;
-    console.debug('[ToolIdleLoader] loading idle runtime stack (' + IDLE_STACK.length + ' modules)…');
-    for (var i = 0; i < IDLE_STACK.length; i++) {
-      await loadScript(IDLE_STACK[i]);
-    }
-    console.debug('[ToolIdleLoader] idle runtime stack ready');
-    try {
-      G.dispatchEvent(new CustomEvent('ilovepdf:tool-idle-stack-ready'));
-    } catch (_) {}
-  }
-
+  /* ── Dependency boundary ──────────────────────────────────────────────── */
   /* ── Crawler guard ──────────────────────────────────────────────────────── */
   if (isCrawler()) {
     console.debug('[ToolIdleLoader] crawler detected — idle stack skipped');
