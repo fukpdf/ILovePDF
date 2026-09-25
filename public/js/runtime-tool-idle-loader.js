@@ -30,7 +30,7 @@
  *   • Arc systems — untouched
  *   • Workers — untouched
  *   • Security chain — untouched
- *   • Order preserved: loadScript(async=false) loads sequentially
+ *   • Dependency waves preserve required order while independent modules load concurrently
  *   • Idempotent: skips any script tag already in the document
  *   • Fault-tolerant: one failed file never blocks the rest of the chain
  *
@@ -98,6 +98,21 @@
   var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length;
 
   /* ── Dependency boundary ──────────────────────────────────────────────── */
+  /* ── Sequential/dependency-wave loader ───────────────────────────────── */
+  var _loaded = false;
+
+  async function loadAll() {
+    if (_loaded) return;
+    _loaded = true;
+    console.debug('[ToolIdleLoader] loading idle runtime stack (' + IDLE_STACK_COUNT + ' modules)…');
+    await Promise.all(IDLE_ROOT_STACK.map(loadScript));
+    await Promise.all(IDLE_DEPENDENT_STACK.map(loadScript));
+    console.debug('[ToolIdleLoader] idle runtime stack ready');
+    try {
+      G.dispatchEvent(new CustomEvent('ilovepdf:tool-idle-stack-ready'));
+    } catch (_) {}
+  }
+
   /* ── Crawler guard ──────────────────────────────────────────────────────── */
   if (isCrawler()) {
     console.debug('[ToolIdleLoader] crawler detected — idle stack skipped');
