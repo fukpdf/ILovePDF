@@ -1984,6 +1984,9 @@ async function processFile() {
 
         if (currentTool.id === 'rotate' && typeof pageOrganizer.getRotationPlan === 'function') {
           rotatePagePlan = pageOrganizer.getRotationPlan();
+        } else if (currentTool.id === 'organize' && typeof pageOrganizer.getOrderSummary === 'function') {
+          // Keep the original PDF bytes intact; the canonical Organize worker
+          // applies the page order directly so the UI and exported structure stay aligned.
         } else {
           showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
           const { file: editedFile } = await pageOrganizer.getEditedPdf();
@@ -2051,6 +2054,10 @@ async function processFile() {
         });
         if (currentTool.id === 'rotate' && rotatePagePlan) {
           opts.pagePlan = rotatePagePlan;
+        }
+        if (currentTool.id === 'organize' && pageOrganizer && typeof pageOrganizer.getOrderSummary === 'function') {
+          const summary = pageOrganizer.getOrderSummary();
+          opts.pageOrder = Array.isArray(summary.order) ? summary.order.join(',') : '';
         }
         const result = await tryWithRetry(
           currentTool.id,
