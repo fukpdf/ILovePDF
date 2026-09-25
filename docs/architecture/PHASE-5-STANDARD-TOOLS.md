@@ -332,3 +332,11 @@ Unit 22 moves remaining conversion-quality bookkeeping out of the PDF→Word pag
 No conversion semantics or OCR threshold were changed. No artificial file-size/page-count/processing-time limit was introduced. This remains a sub-migration and does not yet constitute a full PDF→Word worker-migration claim.
 
 Verification: `scripts/phase5-pdf-to-word-quality-check.js`.
+
+## Unit 23 — PDF to Word conversion decision isolation
+
+Unit 23 moves the OCR-fallback decision boundary into the extraction worker. The worker now receives the explicit force-OCR option, evaluates the existing native-text threshold (`avgCharsPerPage < 8`) and returns `needsOcr` plus a descriptive decision reason. The page consumes that decision rather than recomputing the threshold. The OCR worker also returns its existing readability threshold (`charCount >= 10`) as `readable`, so the page no longer calculates that threshold itself.
+
+The documented thresholds and forced-OCR behavior are preserved; this change relocates decision analysis rather than changing conversion policy. WorkerPool and cancellation paths remain unchanged, and no artificial file-size/page-count/processing-time limit was added.
+
+Verification: `scripts/phase5-pdf-to-word-decision-check.js`.
