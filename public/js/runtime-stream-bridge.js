@@ -692,7 +692,12 @@
             try { global.RuntimeSecurity.validateWorkerMessage(initMsg); }
             catch (se) { finishError(se); return; }
           }
-          w.postMessage(initMsg);
+          try {
+            w.postMessage(initMsg);
+          } catch (initErr) {
+            finishError(new Error('stream-init-postmessage-failed: ' + initErr.message));
+            return;
+          }
         }
 
         while (fileIndex < files.length && offset >= files[fileIndex].size) {
