@@ -75,7 +75,6 @@
   var IDLE_STACK = [
     '/js/runtime-diagnostics-center.js',
     '/js/runtime-prefetch.js',
-    '/js/runtime-worker-warmup.js',
     '/js/runtime-processing-concurrency.js',
     '/js/runtime-compression-presets.js',
     '/js/runtime-session-intel.js',
