@@ -1862,7 +1862,7 @@ async function tryWithRetry(toolId, files, opts) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       if (attempt > 0) {
-        showProcessing(_tp('processing.alt_approach', 'Applying an alternative approach…'), _tp('processing.alt_approach_msg', 'This may take a moment.'));
+        showProcessing(_tp('processing.retrying', 'Retrying processing…'), _tp('processing.retrying_msg', 'The browser worker is retrying the operation.'));
         await new Promise(r => setTimeout(r, 700));
       }
       return await window.BrowserTools.process(toolId, files, opts);
@@ -2103,7 +2103,7 @@ async function processFile() {
         const rawMsg = (err && err.message) || '';
         let userMsg = 'Something went wrong. Please try again.';
         if (rawMsg === 'file_too_large_for_browser') {
-          userMsg = 'This file is too large to process directly. Please use a file under 50 MB.';
+          userMsg = 'Your device could not complete this browser-side operation. Please try again; larger documents may simply require more device memory or processing time.';
         } else if (rawMsg === 'memory_pressure') {
           userMsg = 'Your device is running low on memory. Please close other tabs and try again.';
         } else if (rawMsg && rawMsg !== '__orig__' &&
