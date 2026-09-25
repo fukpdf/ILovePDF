@@ -112,3 +112,28 @@ Device/memory pressure remains adaptive through the shared worker/runtime layers
 `scripts/phase5-edit-check.js` is the Unit 8 migration gate. It checks registry parity, WorkerPool/stream routing, cancellation propagation, shared worker Edit support, rich editor-state export, output verification, the ToolApp adapter, the Edit PRO export path, lifecycle cleanup, and the no-artificial-timeout policy.
 
 Production deployment remains gated by the Phase 5 validation chain.
+
+
+## Unit 9 — Watermark PDF
+
+Branch: `phase-5-unit-9-watermark-reference`
+
+### Audit findings
+
+The registry already declared Watermark as browser-worker/WorkerPool/adaptive-worker/unlimited, and `pdf-worker.js` already contained an `OPS.watermark` operation. However, the actual `watermark-pdf-app.js` still bypassed the shared runtime by spawning a dedicated `pdf-lib-worker.js`, reading the complete file on the main thread, and enforcing 75s/90s processing timers.
+
+### Unit 9 implementation
+
+Watermark now:
+1. uses the existing shared BrowserTools WorkerPool route;
+2. uses RuntimeStreamBridge for large single-file inputs;
+3. propagates shared cancellation tokens;
+4. removes the dedicated per-job worker and fixed processing timers;
+5. preserves the existing text/opacity/position semantics while extending the worker contract to support top/bottom/left/right and corner positions plus configurable angle/font scale;
+6. verifies the worker-produced PDF by reopening it and checking page count;
+7. keeps the ToolAppManager lifecycle contract: mount, unmount, reset, recover, destroy, getState;
+8. retains the registry's browser-worker, WorkerPool, adaptive-worker, and unlimited-file policy.
+
+No artificial file-size, page-count, or processing-time rejection limit was added.
+
+Verification is provided by `scripts/phase5-watermark-check.js`.
