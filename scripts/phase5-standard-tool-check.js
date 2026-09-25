@@ -110,6 +110,36 @@ if (!/Number\(page\.rotate\s*\|\|\s*0\)/.test(rotatePreview) || !/basePageRotati
   fail('Rotate preview does not combine intrinsic and requested rotation.');
 }
 
+// ── Split canonical tool ───────────────────────────────────────────────────
+requirePdfWorkerContract('split', 'Split');
+const splitApp = read('public/js/split-pdf-app.js');
+if (!/runtime\(\)\.execute\(files\[0\],opts\|\|\{\}\)/.test(splitApp)) fail('Split app does not dispatch to SplitRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID,function\(\)/.test(splitApp)) fail('Split ToolApp boundary is not registered.');
+if (!/function unmount\(\)\{cancel\(/.test(splitApp) || !/function reset\(\)\{cancel\(/.test(splitApp) || !/function destroy\(\)\{cancel\(/.test(splitApp)) fail('Split lifecycle cancellation is incomplete.');
+
+const splitRuntime = read('public/js/split-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(splitRuntime)) fail('SplitRuntime does not use RuntimeScheduler.');
+if (!/RuntimeScheduler is unavailable/.test(splitRuntime)) fail('SplitRuntime does not fail closed.');
+if (!/__splitRunToken/.test(splitRuntime)) fail('Split run ownership token is missing.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back/i.test(splitRuntime)) fail('SplitRuntime retains legacy factory/fallback architecture.');
+if (!/timeoutMs:0/.test(splitRuntime)) fail('SplitRuntime does not use an unlimited execution timeout.');
+
+const splitAdapter = read('public/js/split-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(splitAdapter)) fail('Split adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(splitAdapter)) fail('Split adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS=0/.test(splitAdapter)) fail('Split adapter has an artificial timeout.');
+if (!/pipelineStreamToWorkerReadable/.test(splitAdapter)) fail('Split adapter does not use adaptive streaming.');
+if (!/STREAM_THRESHOLD=10\*1024\*1024/.test(splitAdapter)) fail('Split adaptive threshold is missing.');
+if (!/dedupeKey:key\(file,opts\)/.test(splitAdapter)) fail('Split dedupe key is missing.');
+
+const splitWorker = read('public/workers/pdf-worker.js');
+const splitBlock = splitWorker.match(/OPS\.split\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!splitBlock) fail('Shared PDF worker has no Split operation.');
+if (!/PDFDocument\.load/.test(splitBlock) || !/parsePageRange/.test(splitBlock) || !/copyPages/.test(splitBlock)) fail('Split worker page extraction contract is incomplete.');
+if (!/out\.getPageCount\(\) === 0/.test(splitBlock)) fail('Split worker does not reject empty output.');
+
+if (!/['"]split['"]/.test(workerSet)) fail('Split is not in BrowserTools WORKER_TOOLS.');
+
 // ── Merge canonical tool ───────────────────────────────────────────────────
 requirePdfWorkerContract('merge', 'Merge');
 const mergeApp = read('public/js/merge-pdf-app.js');
