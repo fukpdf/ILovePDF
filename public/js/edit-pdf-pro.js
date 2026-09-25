@@ -51,6 +51,7 @@
 
   // Keyboard handler ref — stored so destroy() can removeEventListener precisely.
   let _keydownHandler = null;
+  let _exportToken = null;
 
   // ── Public mount ──────────────────────────────────────────────────────────
   async function mount(file, container, onResult) {
@@ -444,6 +445,7 @@
 
   // ── Destroy: remove window listeners and reset state ──────────────────────
   function destroy() {
+    if (_exportToken) { try { _exportToken.cancel(); } catch (_) {} _exportToken = null; }
     if (_keydownHandler) { window.removeEventListener('keydown', _keydownHandler); _keydownHandler = null; }
     _reset();
   }
@@ -999,121 +1001,86 @@
     const btn = container.querySelector('#epro-export');
     if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
 
-    // Validation
     const visiblePages = _pageOrder.filter(p => !_deletedPages.has(p));
     if (visiblePages.length === 0) {
-      alert('No pages remaining. Please keep at least one page.'); 
+      alert('No pages remaining. Please keep at least one page.');
       if (btn) { btn.disabled = false; btn.textContent = '⬇ Export PDF'; }
       return;
     }
 
+    if (!window.BrowserTools || typeof window.BrowserTools.process !== 'function') {
+      if (btn) { btn.disabled = false; btn.textContent = '⬇ Export PDF'; }
+      alert('Shared PDF worker runtime is unavailable.');
+      return;
+    }
+
+    const token = (window.WorkerPool && window.WorkerPool.CancelToken)
+      ? new window.WorkerPool.CancelToken()
+      : null;
+    _exportToken = token;
+
     try {
-      if (!window.PDFLib) await _loadLibs();
-      const { PDFDocument, rgb, StandardFonts } = window.PDFLib;
+      const editorState = {
+        pageOrder: _pageOrder.slice(),
+        pageRotations: Object.assign({}, _pageRotations),
+        deletedPages: Array.from(_deletedPages),
+        annotations: _annotations.map(function (a) {
+          return {
+            id: a.id,
+            page: a.page,
+            type: a.type,
+            x: a.x,
+            y: a.y,
+            w: a.w,
+            h: a.h,
+            content: a.content || '',
+            style: Object.assign({}, a.style || {}),
+          };
+        }),
+        renderScale: _renderScale,
+      };
 
-      const srcDoc = await PDFDocument.load(_fileBytes, { ignoreEncryption: true });
-      const outDoc = await PDFDocument.create();
-
-      // Copy pages in the new order (skip deleted)
-      for (const origP of visiblePages) {
-        if (origP < 0) {
-          // Blank page — use standard A4 size
-          outDoc.addPage([595, 842]);
-          continue;
-        }
-        const [copied] = await outDoc.copyPages(srcDoc, [origP - 1]);
-        const extraRot = _pageRotations[origP] || 0;
-        if (extraRot !== 0) {
-          const { degrees } = window.PDFLib;
-          copied.setRotation(degrees((copied.getRotation().angle + extraRot) % 360));
-        }
-        outDoc.addPage(copied);
-      }
-
-      // Bake annotations onto each page
-      const font      = await outDoc.embedFont(StandardFonts.Helvetica);
-      const fontBold  = await outDoc.embedFont(StandardFonts.HelveticaBold);
-
-      // Map view-index → out-doc page index
-      for (let vi = 1; vi <= visiblePages.length; vi++) {
-        const page = outDoc.getPages()[vi - 1];
-        if (!page) continue;
-        const { width: pw, height: ph } = page.getSize();
-
-        // Get page-canvas dimensions for coordinate mapping
-        const annots = _annotations.filter(a => a.page === vi);
-        if (!annots.length) continue;
-
-        // We need to know what rendered canvas size was used for this page
-        // Approximate using pdf.js viewport (renderScale * zoom) — or use actual canvas
-        const canvas = container.querySelector('#epro-page-canvas');
-        const cw = canvas && _curPage === vi ? canvas.width : pw * _renderScale * _zoom;
-        const ch = canvas && _curPage === vi ? canvas.height : ph * _renderScale * _zoom;
-        const scaleX = pw / cw;
-        const scaleY = ph / ch;
-
-        for (const a of annots) {
-          // Convert canvas coords to PDF coords (PDF origin is bottom-left)
-          const px = a.x * _zoom * scaleX;
-          const py = ph - (a.y + a.h) * _zoom * scaleY;
-          const pw2 = a.w * _zoom * scaleX;
-          const ph2 = a.h * _zoom * scaleY;
-
-          if (a.type === 'text') {
-            const s = a.style;
-            const fs = Math.max(6, Math.min(96, (s.fontSize || 14)));
-            const hexToRgb = hex => { const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255; return rgb(r,g,b); };
-            const col = _isValidHex(s.color) ? hexToRgb(s.color) : rgb(0,0,0);
-            const useFont = s.bold ? fontBold : font;
-            // Bg rect
-            if (s.bgColor && s.bgColor !== 'transparent' && _isValidHex(s.bgColor)) {
-              page.drawRectangle({ x: px, y: py, width: pw2, height: ph2, color: hexToRgb(s.bgColor), opacity: s.opacity || 1 });
-            }
-            // Text — pdf-lib only supports single-line; split on newlines
-            const lines = (a.content || '').split('\n');
-            const lineH = fs * 1.4;
-            lines.forEach((line, li) => {
-              const ty = py + ph2 - fs - li * lineH;
-              if (ty < 0) return;
-              try {
-                page.drawText(line || ' ', { x: px + 2, y: ty, size: fs, font: useFont, color: col, opacity: s.opacity || 1, maxWidth: pw2 });
-              } catch (_) {}
-            });
-          } else if (a.type === 'highlight') {
-            const col = _hexToRgbArr(a.style.color || '#ffff00');
-            page.drawRectangle({ x: px, y: py, width: pw2, height: ph2, color: rgb(...col), opacity: a.style.opacity || 0.45 });
-          } else if (a.type === 'whiteout') {
-            page.drawRectangle({ x: px, y: py, width: pw2, height: ph2, color: rgb(1,1,1), opacity: 1 });
-          } else if (a.type === 'image' || a.type === 'signature' || a.type === 'draw-img') {
-            try {
-              const dataUrl = a.content;
-              const isPng = dataUrl.includes('image/png') || dataUrl.includes('data:image/svg');
-              const imgData = _dataUrlToBytes(dataUrl);
-              const embedded = isPng ? await outDoc.embedPng(imgData) : await outDoc.embedJpg(imgData);
-              page.drawImage(embedded, { x: px, y: py, width: pw2, height: Math.abs(ph2), opacity: a.style.opacity || 1 });
-            } catch (_) {}
+      const result = await window.BrowserTools.process('edit', [_file], {
+        editorState: editorState,
+        cancelToken: token,
+        priority: 'high',
+        onProgress: function (percent, message) {
+          if (btn && Number.isFinite(percent)) {
+            btn.textContent = 'Exporting… ' + Math.round(percent) + '%';
           }
-        }
+          const loader = container.querySelector('#epro-loader');
+          if (loader && message) {
+            loader.style.display = 'flex';
+            loader.textContent = message;
+          }
+        },
+      });
+
+      if (!result || !result.blob || result.blob.size < 500) {
+        throw new Error('Export produced an empty or corrupt PDF.');
       }
 
-      const bytes = await outDoc.save({ useObjectStreams: true });
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-
-      // Validation
-      if (!blob || blob.size < 500) throw new Error('Export produced an empty or corrupt PDF.');
-
-      const fname = 'ILovePDF-' + (_file.name.replace(/\.[^.]+$/, '') || 'edited') + '.pdf';
-      if (_onResult) _onResult(blob, fname, 'application/pdf');
+      const fname = result.filename || ('ILovePDF-' + (_file.name.replace(/.[^.]+$/, '') || 'edited') + '.pdf');
+      if (_onResult) _onResult(result.blob, fname, 'application/pdf');
       else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = fname;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
       }
     } catch (e) {
-      alert('Export failed: ' + (e.message || 'Unknown error'));
-      console.error('[EditPDFPro] export error:', e);
+      if (!(e && (e.message === 'task_cancelled' || e.message === 'cancelled' || e.message === 'cancelled-before-stream'))) {
+        alert('Export failed: ' + (e.message || 'Unknown error'));
+        console.error('[EditPDFPro] export error:', e);
+      }
     } finally {
+      if (_exportToken === token) _exportToken = null;
+      const loader = container.querySelector('#epro-loader');
+      if (loader) loader.style.display = 'none';
       if (btn) { btn.disabled = false; btn.textContent = '⬇ Export PDF'; }
     }
   }
