@@ -235,28 +235,63 @@ OPS['page-numbers'] = async function (buffers, opts) {
 };
 
 OPS.watermark = async function (buffers, opts) {
-  const doc     = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
-  const font    = await doc.embedFont(StandardFonts.HelveticaBold);
-  const text    = opts.text || 'WATERMARK';
+  opts = opts || {};
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const font = await doc.embedFont(StandardFonts.HelveticaBold);
+  const text = String(opts.text || 'WATERMARK').slice(0, 200);
   const opacity = Math.max(0.05, Math.min(0.9, parseFloat(opts.opacity || '0.3')));
-  const position = opts.position || 'center';
+  const position = String(opts.position || 'center').toLowerCase();
+  const angle = Number.isFinite(Number(opts.angle)) ? Number(opts.angle) : null;
+  const fontScale = Math.max(0.02, Math.min(0.2, parseFloat(opts.fontScale || '0.07')));
 
   for (const page of doc.getPages()) {
     const { width, height } = page.getSize();
-    const fontSize = Math.min(width, height) * 0.07;
-    const tw       = font.widthOfTextAtSize(text, fontSize);
-    let x, y, rot;
-    if (position === 'center')      { x = (width - tw) / 2; y = (height - fontSize) / 2; rot = degrees(45); }
-    else if (position === 'top-left')    { x = 20; y = height - fontSize - 20; rot = degrees(0); }
-    else if (position === 'top-right')   { x = width - tw - 20; y = height - fontSize - 20; rot = degrees(0); }
-    else if (position === 'bottom-left') { x = 20; y = 20; rot = degrees(0); }
-    else                                 { x = width - tw - 20; y = 20; rot = degrees(0); }
-    page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.5, 0.5, 0.5), opacity, rotate: rot });
+    const fontSize = Math.max(8, Math.min(Math.min(width, height) * 0.25, Math.min(width, height) * fontScale));
+    const tw = font.widthOfTextAtSize(text, fontSize);
+    const margin = Math.max(20, Math.min(width, height) * 0.04);
+    let x = (width - tw) / 2;
+    let y = (height - fontSize) / 2;
+    let rot = angle == null ? 45 : angle;
+
+    switch (position) {
+      case 'top':
+      case 'top-center':
+        x = (width - tw) / 2; y = height - fontSize - margin; rot = angle == null ? 0 : angle; break;
+      case 'top-left':
+        x = margin; y = height - fontSize - margin; rot = angle == null ? 0 : angle; break;
+      case 'top-right':
+        x = width - tw - margin; y = height - fontSize - margin; rot = angle == null ? 0 : angle; break;
+      case 'bottom':
+      case 'bottom-center':
+        x = (width - tw) / 2; y = margin; rot = angle == null ? 0 : angle; break;
+      case 'bottom-left':
+        x = margin; y = margin; rot = angle == null ? 0 : angle; break;
+      case 'bottom-right':
+        x = width - tw - margin; y = margin; rot = angle == null ? 0 : angle; break;
+      case 'left':
+        x = margin; y = (height - tw) / 2; rot = angle == null ? 90 : angle; break;
+      case 'right':
+        x = width - margin - fontSize; y = (height + tw) / 2; rot = angle == null ? 90 : angle; break;
+      case 'center':
+      default:
+        rot = angle == null ? 45 : angle; break;
+    }
+
+    page.drawText(text, {
+      x, y, size: fontSize, font,
+      color: rgb(0.5, 0.5, 0.5),
+      opacity,
+      rotate: degrees(rot),
+    });
   }
-  const out = await doc.save();
+
+  const out = await doc.save({ useObjectStreams: true });
+  const verify = await PDFDocument.load(out, { ignoreEncryption: true });
+  if (verify.getPageCount() !== doc.getPageCount()) {
+    throw new Error('Watermark output verification failed: page count mismatch.');
+  }
   return toArrayBuffer(out);
 };
-
 OPS.sign = async function (buffers, opts) {
   const doc    = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
   const font   = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
