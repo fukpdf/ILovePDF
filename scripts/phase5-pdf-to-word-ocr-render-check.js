@@ -3,7 +3,7 @@ const fs = require('fs');
 const app = fs.readFileSync('public/js/pdf-word-app.js','utf8');
 const worker = fs.readFileSync('public/workers/pdf-word-render-worker.js','utf8');
 const checks = [
-  ['render worker declared', app.includes("RENDER_WORKER = '/workers/pdf-word-render-worker.js'")],
+  ['render worker declared', app.includes("RENDER_WORKER  = '/workers/pdf-word-render-worker.js'")],
   ['render uses WorkerPool', /WorkerPool\.run\(\s*RENDER_WORKER/.test(app)],
   ['render passes CancelToken', /RENDER_WORKER[\s\S]{0,700}token:cancelToken/.test(app)],
   ['render transfers PDF buffer', /RENDER_WORKER[\s\S]{0,700}\[buf\]/.test(app)],
