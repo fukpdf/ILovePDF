@@ -73,6 +73,9 @@
       return chain.then(function (result) {
         if (!result.ok) return result;
         return reg.load(seg).then(function () {
+          // Require the activation result itself to remain explicitly successful before
+          // accepting the registry's loaded-state verification below.
+          if (result.ok !== true) return result;
           var state = reg.status();
           if (!state || !state[seg] || state[seg].loaded !== true) {
             result.errors.push(seg + ':not-loaded');
