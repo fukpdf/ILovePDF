@@ -432,9 +432,21 @@
         }
       }
 
-      // All slots busy — enqueue with priority
+      // All slots busy — enqueue with priority.
+      // A queued cancellation must remove only this task and reject it;
+      // otherwise a cancelled Rotate request can remain in the queue until
+      // another task drains it, retaining its payload/transfer references.
       var q = pool.queues[priority] || pool.queues.normal;
       q.push(task);
+
+      if (token) {
+        token.onCancel(function () {
+          var idx = q.indexOf(task);
+          if (idx === -1) return; // already dequeued/settled
+          q.splice(idx, 1);
+          try { reject(new Error('task_cancelled')); } catch (_) {}
+        });
+      }
     });
   }
 
