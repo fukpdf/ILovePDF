@@ -106,6 +106,9 @@
     _loaded = true;
     console.debug('[ToolIdleLoader] loading idle runtime stack (' + IDLE_STACK_COUNT + ' modules)…');
     await Promise.all(IDLE_ROOT_STACK.map(loadScript));
+    // Keep heavier background modules off the immediate idle CPU burst. Their
+    // direct dependencies are already initialized by the root wave.
+    await new Promise(function (resolve) { setTimeout(resolve, 1000); });
     await Promise.all(IDLE_DEPENDENT_STACK.map(loadScript));
     console.debug('[ToolIdleLoader] idle runtime stack ready');
     try {
