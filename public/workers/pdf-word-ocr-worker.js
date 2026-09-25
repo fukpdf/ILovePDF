@@ -30,7 +30,8 @@ self.onmessage=async function(ev){
     var text=ret&&ret.data&&typeof ret.data.text==='string'?ret.data.text:'';
     var paragraphs=structureOcrText(text);
     await _active.terminate();_active=null;
-    self.postMessage({op:'result',text:text,paragraphs:paragraphs,charCount:text.length,jobId:d.jobId});
+    var charCount=text.length;
+    self.postMessage({op:'result',text:text,paragraphs:paragraphs,charCount:charCount,readable:charCount>=10,jobId:d.jobId});
   }catch(e){
     try{if(_active)await _active.terminate();}catch(_){}
     _active=null;
