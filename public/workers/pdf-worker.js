@@ -127,7 +127,14 @@ OPS.rotate = async function (buffers, opts) {
     : pages.map((_, i) => i + 1);
   for (const n of range) {
     const p = pages[n - 1];
-    if (p) p.setRotation(degrees((p.getRotation().angle + deg) % 360));
+    if (p) {
+      // Normalize to pdf-lib's canonical 0..359° range so negative inputs
+      // (for example -90) preserve the intended clockwise/counter-clockwise
+      // semantics without creating a negative page rotation value.
+      const current = p.getRotation().angle || 0;
+      const normalized = ((current + deg) % 360 + 360) % 360;
+      p.setRotation(degrees(normalized));
+    }
   }
   const out = await doc.save();
   return toArrayBuffer(out);
