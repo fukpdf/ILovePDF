@@ -50,3 +50,37 @@ Each standard tool will be audited against the same lifecycle:
 register metadata → load on demand → validate input → prepare engine → process → validate output → expose result → cleanup.
 
 Processing internals remain tool-owned; the shared platform owns lifecycle, contracts, routing, resource management, and verification.
+
+
+## Unit 2 — Rotate PDF migration
+
+Branch: `phase-5-unit-2-rotate-reference`
+
+Rotate is the second standard-tool migration target.
+
+### Audit findings
+
+Before this unit:
+- Rotate used a dedicated `pdf-lib-worker.js` spawned per job.
+- Rotate imposed fixed 75-second worker and 90-second hard processing timers.
+- Rotate was already declared worker-safe in the registry, but its tool-owned processor did not use the shared persistent WorkerPool/adaptive streaming lifecycle.
+- The shared PDF worker already exposed the Rotate operation, so the migration could preserve the existing rotation semantics.
+
+### Unit 2 implementation
+
+Rotate now:
+1. remains tool-owned through `RotatePdfApp`;
+2. uses the shared `WorkerPool` for normal jobs;
+3. uses `RuntimeStreamBridge.pipelineStreamToWorker` for large single-file jobs;
+4. uses a cancellation token so unmount/reset/recovery can cancel active work;
+5. uses the existing shared PDF worker Rotate operation;
+6. retains the existing rotation options contract (`degrees` and `pages`);
+7. removes the fixed processing-time rejection timers;
+8. keeps the unlimited file-size/page policy;
+9. keeps shared input/output validation at the platform boundary.
+
+### Verification
+
+`npm run audit:phase5` now checks both the Crop Unit 1 reference contract and the Rotate Unit 2 migration contract.
+
+Production deployment remains gated by the Phase 5 audit in `.github/workflows/deploy.yml`.
