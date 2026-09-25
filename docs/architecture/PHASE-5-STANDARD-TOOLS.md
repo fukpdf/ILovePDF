@@ -137,3 +137,31 @@ Watermark now:
 No artificial file-size, page-count, or processing-time rejection limit was added.
 
 Verification is provided by `scripts/phase5-watermark-check.js`.
+
+
+## Unit 10 — Sign PDF
+
+Branch: `phase-5-unit-10-sign-reference`
+
+### Audit findings
+
+Sign had two browser execution layers: `sign-runtime.js` already used the shared PDF worker factory, but the authoritative `sign-app.js` still intercepted the tool with a dedicated `pdf-lib-worker.js`, read the complete file on the main thread, and enforced 75s/90s processing timers.
+
+### Unit 10 implementation
+
+Sign now:
+1. routes the ToolAppManager processing adapter through shared `BrowserTools.process('sign', ...)`;
+2. uses the existing shared `OPS.sign` operation;
+3. uses WorkerPool for normal jobs and adaptive streaming for large single-file jobs;
+4. propagates shared cancellation tokens;
+5. removes the dedicated per-job worker and fixed processing timers from the authoritative Sign adapter;
+6. preserves signature text, target-page behavior, styled signature and underline output;
+7. explicitly keeps signature text out of diagnostic logging;
+8. preserves mount/unmount/reset/recover/destroy/getState lifecycle semantics;
+9. retains the registry's browser-worker, WorkerPool, adaptive-worker and unlimited-file policy.
+
+The legacy `sign-runtime.js` remains compatible and already declares zero finite timeout values; it is not used as a competing processing implementation after `sign-app.js` registration.
+
+No artificial file-size, page-count or processing-time rejection limit was added.
+
+Verification is provided by `scripts/phase5-sign-check.js`.

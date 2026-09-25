@@ -16,7 +16,8 @@
     "audit:phase4": "node scripts/phase4-tool-registry-check.js",
     "audit:phase5": "node scripts/phase5-standard-tool-check.js",
     "audit:phase5:edit": "node scripts/phase5-edit-check.js",
-    "audit:phase5:watermark": "node scripts/phase5-watermark-check.js"
+    "audit:phase5:watermark": "node scripts/phase5-watermark-check.js",
+    "audit:phase5:sign": "node scripts/phase5-sign-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
