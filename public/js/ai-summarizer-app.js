@@ -29,8 +29,6 @@
   var _summaryWorker  = null;
   var _tessWorker     = null;
   var _pdfInst        = null;
-  var _hardTimer      = null;
-  var _hardReject     = null;
 
   function _log(msg, d)  { console.debug('[AiSummarizerApp]', msg, d !== undefined ? d : ''); }
   function _warn(msg, d) { console.warn('[AiSummarizerApp]',  msg, d !== undefined ? d : ''); }
