@@ -165,3 +165,14 @@ The legacy `sign-runtime.js` remains compatible and already declares zero finite
 No artificial file-size, page-count or processing-time rejection limit was added.
 
 Verification is provided by `scripts/phase5-sign-check.js`.
+
+
+## Unit 11 — Add Page Numbers
+
+Audit found the authoritative Page Numbers adapter still spawned a dedicated `pdf-lib-worker.js` and enforced 75s/90s processing timers, despite the registry and shared worker already advertising the shared browser-worker contract.
+
+The adapter now delegates to `BrowserTools.process('page-numbers', ...)`, uses the shared cancellation token and preserves lifecycle methods. The existing shared `OPS['page-numbers']` operation remains authoritative for numbering and position behavior.
+
+No artificial file-size, page-count or processing-time limit is introduced. Large-file execution remains under the shared adaptive WorkerPool/streaming route.
+
+Verification: `scripts/phase5-page-numbers-check.js`.
