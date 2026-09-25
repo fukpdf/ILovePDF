@@ -83,21 +83,17 @@
   }
 
   function terminateZombies() {
-    var now       = Date.now();
-    var terminated = 0;
-    _tracked.forEach(function (meta, worker) {
-      if (!meta.terminated && (now - meta.lastPulse) > TTL_MS) {
-        console.warn('[WorkerLeakDetector] terminating zombie worker: ' + meta.name +
-          ' (idle ' + Math.round((now - meta.lastPulse) / 1000) + 's)');
-        try { worker.terminate(); } catch (_) {}
-        meta.terminated = true;
-        terminated++;
-        if (window.StabilityMetrics) {
-          try { window.StabilityMetrics.recordEvent('zombie-worker-terminated:' + meta.name); } catch (_) {}
-        }
-      }
+    // Observer-only: WorkerPool/WorkerLifecycle own actual termination.
+    // This compatibility API now reports suspects without touching live workers.
+    var now = Date.now();
+    var suspects = 0;
+    _tracked.forEach(function (meta) {
+      if (!meta.terminated && (now - meta.lastPulse) > TTL_MS) suspects++;
     });
-    return terminated;
+    if (suspects && window.StabilityMetrics) {
+      try { window.StabilityMetrics.recordEvent('zombie-workers-reported:' + suspects); } catch (_) {}
+    }
+    return suspects;
   }
 
   function _scan() {
