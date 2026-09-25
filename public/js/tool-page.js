@@ -1546,16 +1546,6 @@ async function handleFiles(fileList) {
 
   const incoming = Array.from(fileList);
 
-  // 100MB client-side check → show Sign Up Required modal
-  for (const f of incoming) {
-    if (f.size > MAX_FILE_BYTES) {
-      showSignupModal(f);
-      const inputEl = document.getElementById('file-input');
-      if (inputEl) inputEl.value = '';
-      return;
-    }
-  }
-
   const wrapped = incoming.map(f => ({ file: f, rotation: 0, id: cryptoId() }));
 
   if (currentTool.multipleFiles) {
@@ -1929,11 +1919,6 @@ async function processFile() {
         inputValidation.message || _tp('status.invalid_input_msg', 'Please check the selected files and try again.'));
       return;
     }
-  }
-
-  // Re-check 100MB limit defensively
-  for (const e of selectedFiles) {
-    if (e.file.size > MAX_FILE_BYTES) { showSignupModal(e.file); return; }
   }
 
   // Past all synchronous validation — commit to processing.
