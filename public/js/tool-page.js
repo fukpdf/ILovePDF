@@ -1982,7 +1982,6 @@ async function processFile() {
         }
         showProcessing(_tp('steps.processing_file', 'Processing your file…'), 'Just a moment.');
         const { file: editedFile } = await pageOrganizer.getEditedPdf();
-        if (editedFile.size > MAX_FILE_BYTES) { hideProcessing(); showSignupModal(editedFile); return; }
         selectedFiles[0] = { ...selectedFiles[0], file: editedFile, rotation: 0 };
         // Rotate tool safety net: PageOrganizer has already baked every rotation
         // into editedFile. Ensure the degrees dropdown reads '0' so the rotate()
