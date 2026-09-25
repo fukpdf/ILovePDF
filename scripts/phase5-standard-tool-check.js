@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Phase 5 Unit 1 — Crop PDF standard-tool migration gate.
+// Phase 5 standard-tool migration gates — Crop reference + Rotate + Merge.
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -49,6 +49,39 @@ if (!/OutputValidator\.check/.test(toolPage)) fail('Shared output validation bou
 
 const toolHtml = read('public/tool.html');
 if (!/src="\/js\/crop-pdf-app\.js" defer/.test(toolHtml)) fail('Crop app is not loaded by the standard tool shell.');
+
+
+// ── Phase 5 Unit 3 — Merge canonical-tool gate ─────────────────────────────
+const merge = (registry.tools || []).find(t => t.id === 'merge');
+if (!merge) fail('Merge is missing from the canonical tool registry.');
+else {
+  if (merge.slug !== 'merge-pdf') fail('Merge slug is not merge-pdf.');
+  if (merge.module !== 'pdf-module') fail('Merge module owner is not pdf-module.');
+  if (merge.execution !== 'browser-worker') fail('Merge execution is not browser-worker.');
+  if (!merge.capabilities || merge.capabilities.lazyLoad !== true) fail('Merge lazyLoad contract is missing.');
+  if (merge.capabilities.workerPool !== true) fail('Merge workerPool contract is missing.');
+  if (merge.capabilities.streaming !== 'adaptive-worker') fail('Merge adaptive-worker streaming contract is missing.');
+  if (merge.capabilities.fileSizePolicy !== 'unlimited') fail('Merge file-size policy is not unlimited.');
+}
+
+const mergeApp = read('public/js/merge-pdf-app.js');
+if (!/return _runtime\(\)\.execute\(list, opts \|\| \{\}\)/.test(mergeApp)) fail('Merge app does not dispatch to canonical MergeRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(mergeApp)) fail('Merge ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge destroy cancellation is missing.');
+
+const mergeRuntime = read('public/js/merge-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(mergeRuntime)) fail('MergeRuntime does not use RuntimeScheduler.');
+if (!/__mergeRunToken/.test(mergeRuntime)) fail('Merge runtime error ownership token is missing.');
+if (/runMergeLegacy|runtime-fallback|falling back|legacy path/i.test(mergeRuntime)) fail('MergeRuntime contains a legacy/fallback processing path.');
+if (!/timeoutMs:\s*0/.test(mergeRuntime)) fail('Merge runtime does not use unlimited execution timeout.');
+
+const mergeAdapter = read('public/js/merge-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(mergeAdapter)) fail('Merge adapter does not use RuntimeWorkers.dispatch.');
+if (/WorkerPool\.run\(/.test(mergeAdapter)) fail('Merge adapter retains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(mergeAdapter)) fail('Merge adapter has an artificial execution timeout.');
+if (!/_dedupeKey\(files\)/.test(mergeAdapter)) fail('Merge adapter dedupe key is missing.');
 
 const rotate = (registry.tools || []).find(t => t.id === 'rotate');
 if (!rotate) fail('Rotate is missing from the canonical tool registry.');
