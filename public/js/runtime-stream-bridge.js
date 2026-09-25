@@ -136,10 +136,15 @@
     var entry = _activeStreams.get(streamId);
     if (!entry) return;
     entry.cancelled = true;
+    // Cancellation is terminal at the bridge boundary. Notify the worker
+    // first so cooperative workers can discard partial state, then terminate
+    // immediately so an uncooperative worker cannot continue consuming CPU or
+    // holding transferred stream/chunk resources after the Promise is settled.
     if (entry.worker) {
       try {
         entry.worker.postMessage({ type: 'stream-cancel', streamId: streamId });
       } catch (_) {}
+      try { entry.worker.terminate(); } catch (_) {}
     }
     if (entry.abortController) {
       try { entry.abortController.abort(); } catch (_) {}
