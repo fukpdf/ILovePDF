@@ -205,6 +205,28 @@ if (!/buffers\[0\]\s*=\s*null/.test(pageNumbersBlock)) fail('Page Numbers worker
 if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
 if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
 
+// ── Redact PDF canonical tool ─────────────────────────────────────────────
+requirePdfWorkerContract('redact', 'Redact PDF');
+const redactApp = read('public/js/redact-pdf-app.js');
+if (!/execute\(f\[0\],o\|\|\{\}\)/.test(redactApp)) fail('Redact app does not dispatch to RedactRuntime.');
+if (!/ToolAppManager\.registerTool\(ID,function\(\)/.test(redactApp)) fail('Redact ToolApp boundary is not registered.');
+if (!/function unmount\(\)\{cancel\(\)\}/.test(redactApp) || !/function reset\(\)\{cancel\(\)\}/.test(redactApp) || !/function destroy\(\)\{cancel\(\)\}/.test(redactApp)) fail('Redact lifecycle cancellation is incomplete.');
+const redactRuntime = read('public/js/redact-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(redactRuntime)) fail('Redact runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|fallback/i.test(redactRuntime)) fail('Redact runtime retains legacy/fallback architecture.');
+if (!/timeoutMs:0/.test(redactRuntime)) fail('Redact runtime has an artificial timeout.');
+if (!/__redactRunToken/.test(redactRuntime)) fail('Redact run ownership token is missing.');
+const redactAdapter = read('public/js/redact-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(redactAdapter)) fail('Redact adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(redactAdapter)) fail('Redact adapter contains a direct WorkerPool fallback.');
+if (!/T=0/.test(redactAdapter)) fail('Redact adapter timeout contract is missing.');
+if (!/dedupeKey:key\(f,o\)/.test(redactAdapter)) fail('Redact dedupe key is missing.');
+const redactWorker = read('public/workers/redact-worker.js');
+if (!/d\.tool !== 'redact'|d\.tool === 'redact'/.test(redactWorker) || !/d\.opts = d\.opts \|\| d\.options/.test(redactWorker)) fail('Redact worker canonical protocol is missing.');
+if (!/pdfjs-dist/.test(redactWorker) || !/renderRedactedPage/.test(redactWorker) || !/embedPng/.test(redactWorker)) fail('Redact true-flattening security path is missing.');
+if (!/copyPages/.test(redactWorker)) fail('Redact non-target page preservation is missing.');
+if (!/redact-worker-adapter\.js/.test(toolHtml)) fail('Redact adapter is not loaded by the standard tool shell.');
+
 // ── Sign PDF canonical tool ───────────────────────────────────────────────
 requirePdfWorkerContract('sign', 'Sign PDF');
 const signApp = read('public/js/sign-pdf-app.js');
