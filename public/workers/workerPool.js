@@ -483,14 +483,18 @@
   }
 
   function prewarm(workerUrl) {
+    if (!workerUrl) return false;
     var pool = getPool(workerUrl);
-    if (pool.slots.length === 0) {
-      var slot = makeSlot(pool);
-      if (slot) {
-        pool.slots.push(slot);
-        _startIdleTimer(pool, slot);
-      }
+    // Idempotent per URL: an existing healthy idle/busy slot is already warm.
+    // Never create a second slot just because another prewarm caller fired.
+    if (pool.slots.length > 0) return true;
+    var slot = makeSlot(pool);
+    if (slot) {
+      pool.slots.push(slot);
+      _startIdleTimer(pool, slot);
+      return true;
     }
+    return false;
   }
 
   function terminatePool(workerUrl) {
