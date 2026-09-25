@@ -4775,7 +4775,7 @@
         throw new Error('worker_processing_unavailable');
       }
       const fileName = files[0].name;
-      const workerUrl = '/workers/pdf-worker.js';
+      const workerUrl = toolId === 'redact' ? '/workers/redact-worker.js' : '/workers/pdf-worker.js';
       const bridge = getStreamBridge();
       const callerOptions = options || {};
       // CancelToken objects are intentionally kept out of the structured-clone
