@@ -207,3 +207,18 @@ Migration:
 6. The legacy dedicated app worker and fixed timers are removed.
 
 Verification: `scripts/phase5-protect-check.js` — 17/17 checks passed.
+
+
+## Unit 14 — Unlock PDF
+
+Audit found Unlock was still an isolated dedicated `pdf-lib-worker.js` implementation with fixed 75s/90s timers and a full main-thread `arrayBuffer()` read before worker dispatch.
+
+Migration:
+1. Unlock is registered with the shared WorkerPool.
+2. Large inputs use RuntimeStreamBridge adaptive streaming.
+3. Normal inputs use WorkerPool transfer.
+4. The app is a thin BrowserTools adapter with shared cancellation/lifecycle cleanup.
+5. No artificial file-size/page-count/processing-time rejection limit is introduced.
+6. Existing `OPS.unlock` semantics are preserved; this migration does not claim to bypass unknown/strong PDF encryption when the underlying pdf-lib loader cannot open the document.
+
+Verification: `scripts/phase5-unlock-check.js` — 18/18 checks passed.
