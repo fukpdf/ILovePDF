@@ -557,8 +557,8 @@
          page-numbers-app — intercepts 'page-numbers' → pdf-lib-worker.js (dedicated)
        Batch 2: shared-WorkerPool runtime upgrade (was: PdfWorkerRuntimeFactory → shared pdf-worker.js)
          organize-app     — intercepts 'organize'     → pdf-lib-worker.js (dedicated, beats organize-runtime.js)
-         sign-app         — intercepts 'sign'         → pdf-lib-worker.js (dedicated, beats sign-runtime.js)
-         edit-pdf-app     — intercepts 'edit'         → pdf-lib-worker.js (dedicated, beats edit-runtime.js)
+         sign-app         — intercepts 'sign'         → shared BrowserTools WorkerPool/runtime
+         edit-pdf-app     — intercepts 'edit'         → shared BrowserTools WorkerPool/runtime
          redact-pdf-app   — intercepts 'redact'       → pdf-lib-worker.js (dedicated, beats redact-runtime.js)
        Batch 3: image tools — OffscreenCanvas in worker (was: main thread canvas)
          crop-image-app   — intercepts 'crop-image'   → image-tools-worker.js (dedicated)
