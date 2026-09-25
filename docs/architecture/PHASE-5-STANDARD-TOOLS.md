@@ -251,3 +251,22 @@ The next PDF→Word sub-stage is now isolated: PDF.js native text extraction run
 - OCR fallback remains a separate browser-dependent stage because it currently uses Tesseract plus canvas rendering; it is not falsely marked as worker-safe yet.
 
 Verification: `scripts/phase5-pdf-to-word-extract-check.js` — 13/13 checks passed.
+
+
+## Unit 17 — PDF to Word OCR rasterisation
+
+Unit 17 isolates the browser canvas portion of the OCR fallback without falsely claiming that the complete OCR engine is worker-safe.
+
+Implementation:
+1. Added `public/workers/pdf-word-render-worker.js` as an isolated PDF.js + OffscreenCanvas rasteriser.
+2. OCR page rendering now runs through the shared WorkerPool, with the PDF ArrayBuffer transferred to the render worker.
+3. Rendered PNG bytes are transferred back to the page and supplied to the existing Tesseract.js recogniser as a Blob.
+4. Existing multilingual language selection, OCR text normalisation, RTL-aware DOCX packaging, and OCR page semantics are preserved.
+5. Shared CancelToken propagation is retained for every render task.
+6. Main-thread `document.createElement('canvas')`, PDF.js page rendering, and `toDataURL()` were removed from the OCR loop.
+7. Tesseract.js itself remains page-context and is deliberately not advertised as worker-safe until its nested-worker/runtime contract is independently audited.
+8. No artificial file-size, page-count, or processing-time rejection limit is introduced.
+
+This is a **sub-migration**. PDF→Word is not yet declared fully worker-safe because OCR recognition and other high-fidelity browser-dependent stages still require independent validation.
+
+Verification: `scripts/phase5-pdf-to-word-ocr-render-check.js`.
