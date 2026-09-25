@@ -270,9 +270,6 @@
   window.addEventListener('pagehide', function () {
     _inflight.clear();
     _cooldowns.clear();
-    if (window.WorkerLeakDetector && window.WorkerLeakDetector.terminateZombies) {
-      try { window.WorkerLeakDetector.terminateZombies(); } catch (_) {}
-    }
   }, { passive: true });
 
   // ── Update P1.dispatchWorker to route through RuntimeWorkers ─────────────
