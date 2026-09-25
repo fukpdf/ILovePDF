@@ -59,6 +59,7 @@
     );
     if (!result || result.__error) throw new Error(result && result.__error || 'OCR worker failed');
     if (typeof result.text !== 'string') throw new Error('OCR worker returned invalid text');
+    if (!Array.isArray(result.paragraphs)) throw new Error('OCR worker returned invalid paragraphs');
     return result;
   }
 
@@ -94,30 +95,6 @@
     return 'eng';
   }
 
-  // ── SYMBOL NORMALISATION (mirrors advanced-worker.js) ─────────────────────
-  function _normSym(t) {
-    return (t || '')
-      .replace(/[☑✓✔☒✗✘]/g, '[x]').replace(/[☐□\u2610]/g, '[ ]')
-      .replace(/[\u2611\u2612]/g, '[x]');
-  }
-  function _isSignLine(t) {
-    var s = (t || '').trim();
-    return /^[_]{6,}$/.test(s) || /^[-]{8,}$/.test(s) || /^[=]{8,}$/.test(s) ||
-           /^\.{8,}$/.test(s)  ||
-           /^_{3,}\s*(Date|Sign|Name|Title|Signature|Witness)[:\s]*_{0,}$/i.test(s);
-  }
-  function _isFormLine(t) {
-    return /^[A-Za-z\u0600-\u06FF\s]{2,40}:\s*\S/.test(t) ||
-           /^[A-Za-z\u0600-\u06FF\s]{2,40}[.]{5,}\s*\S/.test(t);
-  }
-  var _LIST_RE     = /^\s*[-\u2022\u2023\u25aa\u25b8\u25ba\u2192\u2713\u2714\u25cf\u25cb]\s/;
-  var _NUMLIST_RE  = /^\s*(?:\d+|[a-zA-Z])[.)]\s+\S/;
-  var _SECTION_RE  = /^(CHAPTER|SECTION|PART|ARTICLE|APPENDIX)\s+[\d\w]/i;
-
-  // ── TEXT EXTRACTION FROM PDF.JS CONTENT ITEMS ─────────────────────────────
-  // Implements the core of AE's _buildParaLines logic.
-    // Text structuring now runs inside pdf-word-extract-worker.js to keep
-  // PDF.js output processing off the page context.
   // ── OCR FALLBACK ──────────────────────────────────────────────────────────
   // Native PDF.js extraction has already completed in Phase 1 through
   // _extractWithSharedWorker(). This stage must not reopen the PDF in page
@@ -143,7 +120,7 @@
       var rendered = await _renderOcrPageWithSharedWorker(file, oi, renderScale, cancelToken, jobId);
       var imageBlob = new Blob([rendered.buffer], {type: rendered.mimeType || 'image/png'});
       var recog = await _recognizeOcrWithSharedWorker(imageBlob, lang, cancelToken, jobId);
-      ocrPages.push({ pageNum: oi, text: recog.text || '', source: 'ocr' });
+      ocrPages.push({ pageNum: oi, text: recog.text || '', paragraphs: recog.paragraphs || [], source: 'ocr' });
 
       onStep(1, 'active',
         35 + Math.round((oi / total) * 18),
@@ -152,24 +129,6 @@
     }
 
     return ocrPages;
-  }
-
-  // ── OCR RESULTS → STRUCTURED PAGES ───────────────────────────────────────
-  function _ocrToPages(ocrPages) {
-    return ocrPages.map(function (ocrP) {
-      var lines = (ocrP.text || '').split(/\r?\n/).filter(function (l) { return l.trim(); });
-      var paras = lines.map(function (line) {
-        var t = _normSym(line.trim());
-        if (!t) return null;
-        var isList    = _LIST_RE.test(t);
-        var isNumList = _NUMLIST_RE.test(t);
-        var isHeading = !isList && t.length >= 2 && t.length < 90 &&
-                        t === t.toUpperCase() && /[A-Z]/.test(t);
-        return { text: t, isHeading: isHeading, isList: isList, isNumList: isNumList, level: isHeading ? 1 : 0 };
-      }).filter(Boolean);
-      if (!paras.length) paras = [{ text: '(no content)', isHeading: false }];
-      return { pageNum: ocrP.pageNum, paragraphs: paras };
-    });
   }
 
   // ── DOCX BUILD VIA DEDICATED WORKER ──────────────────────────────────────
@@ -259,7 +218,9 @@
         if (ocrLen < 10) {
           throw new Error('No readable text found. This may be a scanned document with unclear content.');
         }
-        pages = _ocrToPages(ocrRaw);
+        pages = ocrRaw.map(function (p) {
+          return { pageNum: p.pageNum, paragraphs: p.paragraphs || [] };
+        }).filter(function (p) { return p.paragraphs.length > 0; });
       }
 
       if (!pages.length) {
