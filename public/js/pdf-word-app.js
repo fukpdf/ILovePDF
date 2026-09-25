@@ -246,45 +246,16 @@
   }
 
   // ── OCR FALLBACK ──────────────────────────────────────────────────────────
-  // Tesseract recognition remains page-context; PDF page rasterisation is delegated
-  // to the isolated shared WorkerPool render worker below. The Tesseract instance
-  // is still tracked in _tessWorker → guaranteed termination in _cleanup().
+  // Native PDF.js extraction has already completed in Phase 1 through
+  // _extractWithSharedWorker(). This stage must not reopen the PDF in page
+  // context just to perform a duplicate text pre-pass; totalPages is the
+  // authoritative page count from that shared extraction result.
+  // Tesseract recognition and rasterisation are both isolated behind WorkerPool.
   async function _runOcr(file, lang, onStep, cancelToken, jobId, totalPages) {
-    // Lazy-load Tesseract.js
-    if (!G.Tesseract) {
-      await new Promise(function (resolve, reject) {
-        var s     = document.createElement('script');
-        s.src     = TESS_CDN;
-        s.onload  = resolve;
-        s.onerror = function () { reject(new Error('Tesseract.js failed to load')); };
-        document.head.appendChild(s);
-      });
-    }
-    if (!G.Tesseract) throw new Error('OCR engine unavailable');
-
-    // Fast native pre-pass: skip OCR if all pages have good text
-    var pdfjsLib = await _loadPdfJs();
-    var buf0 = await file.arrayBuffer();
-    var pdfN = await pdfjsLib.getDocument({ data: buf0, isEvalSupported: false }).promise;
-    var nativeTexts = {};
-    try {
-      for (var ni = 1; ni <= pdfN.numPages; ni++) {
-        var np = await pdfN.getPage(ni);
-        var nc = await np.getTextContent();
-        var nt = nc.items.map(function (it) { return it.str; }).join(' ').trim();
-        nativeTexts[ni] = { text: nt, chars: nt.replace(/\s/g, '').length };
-        np.cleanup();
-      }
-    } finally {
-      try { await pdfN.destroy(); } catch (_) {}
-      buf0 = null;
-    }
-    var nKeys    = Object.keys(nativeTexts);
-    var allGood  = nKeys.length > 0 && nKeys.every(function (k) { return nativeTexts[k].chars >= 30; });
-    if (allGood) {
-      return nKeys.sort(function (a, b) { return +a - +b; }).map(function (k) {
-        return { pageNum: +k, text: nativeTexts[k].text, source: 'native' };
-      });
+    // The OCR engine itself is loaded inside pdf-word-ocr-worker.js.
+    // Keep this page-side compatibility reference out of the processing path.
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') {
+      throw new Error('Shared WorkerPool runtime unavailable');
     }
 
     // Tesseract recognition is isolated behind the shared WorkerPool.
