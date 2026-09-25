@@ -354,6 +354,15 @@ Verification: `scripts/phase5-worker-pool-check.js`.
 Audit found that cancelling an active WorkerPool task previously settled its Promise but left the same Worker alive. The slot could then be reused for another queued task while the cancelled worker computation continued. Unit 25 retires the active worker on cancellation, spawns a replacement, and only then settles the cancelled task so the slot cannot overlap cancelled work with a new job.
 
 Verification: `scripts/phase5-worker-cancel-check.js`.
+## Phase 5 Unit 27 — RuntimeStreamBridge cancellation isolation
+- Branch: `phase-5-unit-27-stream-cancellation-isolation-reference`
+- Audit found that bridge cancellation notified the stream worker and removed it from the active registry, but did not immediately terminate the worker.
+- Implemented terminal cancellation: notify the worker, terminate it immediately, abort any controller, then remove the active registry entry.
+- This prevents an uncooperative stream worker from continuing CPU/resource use after cancellation.
+- Preserved cooperative `stream-cancel` signaling and existing adaptive chunk/transferable-stream behavior.
+- Validation gate: `npm run audit:phase5:stream-cancel`.
+- PR status: open/not merged after creation; CI is reported only if an actual workflow run is observed.
+
 ## Phase 5 Unit 26 — Worker lifecycle isolation
 - Branch: `phase-5-unit-26-worker-lifecycle-isolation-reference`
 - Focus: stale worker event isolation, replacement-before-settle ordering, and replacement failure retirement.
