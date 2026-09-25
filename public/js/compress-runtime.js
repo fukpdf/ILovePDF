@@ -1,95 +1,100 @@
-// Compress Runtime v1.0 — Phase 3 Bulk Migration
-// Factory-generated via PdfWorkerRuntimeFactory.createPdfToolRuntime().
-//
-// Adapter mode: 'worker'
-//   compress IS in WORKER_TOOLS and pdf-worker.js OPS table (OPS.compress).
-//   Dispatches to pdf-worker.js via RuntimeWorkers.dispatch() with WorkerPool fallback.
-//   Multi-pass strategy in OPS.compress: object-stream rebuild + second defrag pass.
-//   Memory multiplier is 4× because OPS.compress loads the doc, runs two save passes,
-//   and holds both result buffers simultaneously to pick the smallest.
-//
-// Feature flag: window.RUNTIME_COMPRESS_ENABLED = true (default)
-//   Set to false in DevTools to force legacy path.
-//
-// DedupeKey: file identity only — compress has no user options that alter output.
-//   Two concurrent compress requests for the same file are identical; dedup wins.
-//
-// [FUTURE: StreamEngine] Replace file.arrayBuffer() with OPFS byte-range reader
-//   so large PDFs don't spike JS heap before dispatch.
-//
-// [FUTURE: OPFSRuntime] Write compressed output to OPFS before Blob creation
-//   to avoid the brief buffer+Blob double-hold on large files.
-//
-// Exposed as: window.CompressRuntime
+// Compress Runtime v2.0 — canonical RuntimeScheduler + RuntimeWorkers
 (function () {
   'use strict';
-
   if (window.CompressRuntime) return;
 
-  if (!window.PdfWorkerRuntimeFactory) {
-    console.warn('[CRT] PdfWorkerRuntimeFactory not loaded — CompressRuntime skipped');
-    return;
+  var currentToken = null;
+
+  function cleanup(owner, label) {
+    if (owner && currentToken && owner !== currentToken) return;
+    if (label && window.RuntimeCleanup) {
+      try { window.RuntimeCleanup.run(label); } catch (_) {}
+    }
+    if (!owner || owner === currentToken) currentToken = null;
   }
 
-  window.PdfWorkerRuntimeFactory.createPdfToolRuntime({
-    toolId:      'compress',
-    namespace:   'CompressRuntime',
-    flagName:    'RUNTIME_COMPRESS_ENABLED',
-    LOG:         '[CRT]',
+  async function execute(file, opts) {
+    opts = opts || {};
+    if (!file) throw new Error('No file provided');
+    if (!window.RuntimeScheduler || typeof window.RuntimeScheduler.run !== 'function') {
+      throw new Error('RuntimeScheduler is unavailable — canonical Compress runtime cannot execute');
+    }
+    if (!window.CompressWorkerAdapter || typeof window.CompressWorkerAdapter.dispatch !== 'function') {
+      throw new Error('CompressWorkerAdapter is unavailable — canonical worker runtime cannot execute');
+    }
 
-    // ── Adapter ─────────────────────────────────────────────────────────────
-    // OPS.compress runs two pdf-lib save passes — safe in worker, no canvas needed.
-    adapterMode:   'worker',
-    timeoutMs: 0,   // 2 min — compression can be slow on large scanned PDFs
-    workerTimeout: 0,
-    timerOwner:    'crt-tick',
+    var token = new (window.WorkerPool && window.WorkerPool.CancelToken
+      ? window.WorkerPool.CancelToken
+      : function () {
+          this.cancelled = false;
+          this.cancel = function () { this.cancelled = true; };
+        })();
+    currentToken = token;
 
-    // DedupeKey: compress has no user-facing options, so file identity is sufficient.
-    buildDedupeKey: function (files) {
-      return 'compress:' + files[0].name + ':' + files[0].size;
-    },
+    try {
+      var result = await window.RuntimeScheduler.run(
+        'compress',
+        async function (taskToken, onProgress) {
+          if (taskToken && taskToken.cancelled) throw new Error('cancelled-before-dispatch');
+          return window.CompressWorkerAdapter.dispatch(
+            file,
+            opts,
+            onProgress,
+            taskToken || token
+          );
+        },
+        { token: token, timeoutMs: 0, label: 'compress' }
+      );
 
-    workerProgressMessages: [
-      'Compressing PDF…',
-      'Rebuilding document structure…',
-      'Applying object streams…',
-      'Running second optimisation pass…',
-      'Finalising compressed output…',
-    ],
+      if (!result || !result.buffer || !result.buffer.byteLength) {
+        throw new Error('Compress produced empty output');
+      }
 
-    // ── Progress UI ──────────────────────────────────────────────────────────
-    buildProgressTitle: function () {
-      return 'Compressing PDF…';
-    },
-    buildProgressSubtitle: function (files) {
-      var mb = (files[0] && files[0].size) ? (files[0].size / (1024 * 1024)).toFixed(1) : '?';
-      return 'Input: ' + mb + ' MB — optimising…';
-    },
-
-    // ── Telemetry ─────────────────────────────────────────────────────────────
-    // Memory estimate: 4× because OPS.compress holds original + 2 save passes.
-    buildSpanAttrs: function (files) {
-      return {
-        name:          files[0] && files[0].name,
-        size:          files[0] && files[0].size,
-        memEstimate4x: files[0] ? files[0].size * 4 : 0,
-      };
-    },
-    buildSuccessAttrs: function (files, blob) {
-      var inputBytes  = files[0] && files[0].size;
-      var outputBytes = blob.size;
-      return {
-        inputBytes:    inputBytes,
-        savedBytes:    Math.max(0, inputBytes - outputBytes),
-        reductionPct:  inputBytes ? Math.round((1 - outputBytes / inputBytes) * 100) : 0,
-      };
-    },
-
-    // ── Filename ──────────────────────────────────────────────────────────────
-    buildFilename: function (files) {
-      return window.BrowserTools && window.BrowserTools.brandedFilename
-        ? window.BrowserTools.brandedFilename(files[0].name, '.pdf')
+      var blob = new Blob([result.buffer], { type: 'application/pdf' });
+      var alreadyOptimized = blob.size >= file.size;
+      var filename = window.BrowserTools && window.BrowserTools.brandedFilename
+        ? window.BrowserTools.brandedFilename(file.name, '.pdf')
         : 'ILovePDF-compressed.pdf';
-    },
-  });
+
+      cleanup(token, 'compress-success');
+      return {
+        blob: blob,
+        filename: filename,
+        alreadyOptimized: alreadyOptimized
+      };
+    } catch (err) {
+      cleanup(token, 'compress-error');
+      try {
+        Object.defineProperty(err, '__compressRunToken', {
+          value: token,
+          configurable: true
+        });
+      } catch (_) {}
+      throw err;
+    }
+  }
+
+  function cancelActive(reason) {
+    var token = currentToken;
+    if (token && typeof token.cancel === 'function') {
+      try { token.cancel(reason || 'cancelled'); } catch (_) {}
+    }
+    cleanup(token, 'compress-cancel-' + (reason || 'manual'));
+  }
+
+  function getDiagnostics() {
+    return {
+      active: !!currentToken,
+      hasAdapter: !!(
+        window.CompressWorkerAdapter &&
+        typeof window.CompressWorkerAdapter.dispatch === 'function'
+      )
+    };
+  }
+
+  window.CompressRuntime = {
+    execute: execute,
+    cancelActive: cancelActive,
+    getDiagnostics: getDiagnostics
+  };
 }());
