@@ -392,3 +392,12 @@ Unit 28 now:
 No artificial file-size, page-count, task-count, or processing-time limit was introduced.
 
 Verification: npm run audit:phase5:stream-terminal-state.
+
+
+## Phase 5 Unit 29 — Multi-file stream lifecycle isolation
+
+Audited the sequential multi-file RuntimeStreamBridge path after Unit 28. The path had terminal cancellation protection but did not participate in the bridge's RuntimeTelemetry span lifecycle, leaving multi-file streams inconsistent with single-file transferable/chunk-ack streams.
+
+Unit 29 adds a dedicated multi-file telemetry span, started/done stream telemetry, idempotent success/error span closure, and preserves the existing terminal/cancellation isolation. No artificial file-size, page-count, task-count, or processing-time limit was introduced.
+
+Verification: npm run audit:phase5:multifile-stream-lifecycle.
