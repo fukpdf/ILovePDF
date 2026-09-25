@@ -18,7 +18,7 @@
 //   It runs a fully isolated pipeline where:
 //   — ALL async operations are wrapped in try/finally with guaranteed worker cleanup
 //   — Cancellation calls _cleanup() explicitly (terminates workers before rejecting)
-//   — A dedicated terminate-after-job Worker handles DOCX packaging (no shared WorkerPool)
+//   — DOCX packaging is scheduled through the shared WorkerPool.
 //   — Tesseract.createWorker() instances are tracked and terminated in _cleanup()
 //   — _inFlight flag prevents re-entry; always reset in finally
 //
@@ -318,8 +318,8 @@
   }
 
   // ── DOCX BUILD VIA DEDICATED WORKER ──────────────────────────────────────
-  // Spawns a FRESH pdf-word-docx-worker.js per job — no shared WorkerPool slot.
-  // Worker tracked in _docxWorker → guaranteed termination in _cleanup().
+  // DOCX packaging is scheduled through the shared WorkerPool; the worker URL
+  // remains isolated because its protocol is richer than pdf-worker.js.
   function _buildDocx(pages, jobId, cancelToken) {
     if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') {
       return Promise.reject(new Error('Shared WorkerPool runtime unavailable'));
