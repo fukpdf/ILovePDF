@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Phase 5 standard-tool migration gates — Crop reference + Rotate + Merge.
+// Phase 5 standard-tool migration gates.
+// Crop is the approved reference; Rotate and Merge must satisfy the same
+// canonical browser-worker architecture without hidden legacy fallbacks.
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,93 +13,65 @@ const published = read('public/config/tool-registry.json');
 const failures = [];
 const fail = msg => failures.push(msg);
 
-const crop = (registry.tools || []).find(t => t.id === 'crop');
-if (!crop) fail('Crop is missing from the canonical tool registry.');
-else {
-  if (crop.slug !== 'crop-pdf') fail('Crop slug is not crop-pdf.');
-  if (crop.module !== 'pdf-module') fail('Crop module owner is not pdf-module.');
-  if (crop.execution !== 'browser-worker') fail('Crop execution is not browser-worker.');
-  if (!crop.capabilities || crop.capabilities.lazyLoad !== true) fail('Crop lazyLoad contract is missing.');
-  if (crop.capabilities.workerPool !== true) fail('Crop workerPool contract is missing.');
-  if (crop.capabilities.streaming !== 'adaptive-worker') fail('Crop adaptive-worker streaming contract is missing.');
-  if (crop.capabilities.fileSizePolicy !== 'unlimited') fail('Crop file-size policy is not unlimited.');
+function requirePdfWorkerContract(id, label) {
+  const tool = (registry.tools || []).find(t => t.id === id);
+  if (!tool) {
+    fail(label + ' is missing from the canonical tool registry.');
+    return null;
+  }
+  if (tool.slug !== id + '-pdf' && !(id === 'page-numbers' && tool.slug === 'add-page-numbers')) {
+    fail(label + ' slug is incorrect.');
+  }
+  if (tool.module !== 'pdf-module') fail(label + ' module owner is not pdf-module.');
+  if (tool.execution !== 'browser-worker') fail(label + ' execution is not browser-worker.');
+  if (!tool.capabilities || tool.capabilities.lazyLoad !== true) fail(label + ' lazyLoad contract is missing.');
+  if (!tool.capabilities || tool.capabilities.workerPool !== true) fail(label + ' workerPool contract is missing.');
+  if (!tool.capabilities || tool.capabilities.streaming !== 'adaptive-worker') fail(label + ' adaptive-worker streaming contract is missing.');
+  if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
+  return tool;
 }
 
-if (published !== read('config/tool-registry.json')) fail('Published registry is out of sync with canonical registry.');
+if (published !== read('config/tool-registry.json')) {
+  fail('Published registry is out of sync with canonical registry.');
+}
 
 const browserTools = read('public/js/browser-tools.js');
-if (!/['"]crop['"]/.test(browserTools.match(/const WORKER_TOOLS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '')) fail('Crop is not in BrowserTools WORKER_TOOLS.');
-if (!/toolId === 'crop'/.test(browserTools) && !/toolId === "crop"/.test(browserTools)) {
-  fail('Crop prewarm hook is missing.');
-}
+const workerSet = browserTools.match(/const WORKER_TOOLS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+if (!/['"]crop['"]/.test(workerSet)) fail('Crop is not in BrowserTools WORKER_TOOLS.');
+if (!/['"]rotate['"]/.test(workerSet)) fail('Rotate is not in BrowserTools WORKER_TOOLS.');
+if (!/['"]merge['"]/.test(workerSet)) fail('Merge is not in BrowserTools WORKER_TOOLS.');
+if (!/silentWorkerFallback:\s*false/.test(browserTools)) fail('BrowserTools execution manifest permits silent worker fallback.');
 
 const worker = read('public/workers/pdf-worker.js');
 if (!/OPS\.crop\s*=\s*async function/.test(worker)) fail('Shared PDF worker has no Crop operation.');
-
-const app = read('public/js/crop-pdf-app.js');
-if (!/WorkerPool\.run/.test(app)) fail('Crop app does not use shared WorkerPool execution.');
-if (!/RuntimeStreamBridge/.test(app) || !/pipelineStreamToWorker/.test(app)) fail('Crop app does not use adaptive streaming for large files.');
-if (/HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(app)) fail('Crop app retains an artificial processing timeout.');
-if (/MAX_FILE_BYTES|100\s*\*\s*1024\s*1024/.test(app)) fail('Crop app contains an artificial file-size limit.');
-if (!/WorkerPool\.CancelToken/.test(app)) fail('Crop app has no cancellation token.');
-if (!/function unmount\(\)/.test(app) || !/_cancel\(\)/.test(app)) fail('Crop app lifecycle cleanup is incomplete.');
+if (!/OPS\.rotate\s*=\s*async function/.test(worker)) fail('Shared PDF worker has no Rotate operation.');
+if (!/OPS\.merge\s*=\s*async function/.test(worker)) fail('Shared PDF worker has no Merge operation.');
 
 const toolPage = read('public/js/tool-page.js');
 if (/MAX_FILE_BYTES/.test(toolPage)) fail('Shared tool page still contains the legacy MAX_FILE_BYTES rejection.');
 if (!/BrowserTools\.validateInputFiles/.test(toolPage)) fail('Shared input validation boundary is missing from tool-page.');
 if (!/OutputValidator\.check/.test(toolPage)) fail('Shared output validation boundary is missing from tool-page.');
+if (!/window\.BrowserTools\.process\(toolId, files, opts\)/.test(toolPage)) fail('Shared tool page does not dispatch browser tools through the canonical process boundary.');
+if (!/No verified browser processor exists for this tool/.test(toolPage)) fail('Shared tool page fallback policy is not explicit.');
 
 const toolHtml = read('public/tool.html');
 if (!/src="\/js\/crop-pdf-app\.js" defer/.test(toolHtml)) fail('Crop app is not loaded by the standard tool shell.');
 
+// ── Crop reference ─────────────────────────────────────────────────────────
+requirePdfWorkerContract('crop', 'Crop');
+const cropApp = read('public/js/crop-pdf-app.js');
+if (!/WorkerPool\.run/.test(cropApp)) fail('Crop app does not use shared WorkerPool execution.');
+if (!/RuntimeStreamBridge/.test(cropApp) || !/pipelineStreamToWorker/.test(cropApp)) fail('Crop app does not use adaptive streaming for large files.');
+if (/HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(cropApp)) fail('Crop app retains an artificial processing timeout.');
+if (/MAX_FILE_BYTES|100\s*\*\s*1024\s*1024/.test(cropApp)) fail('Crop app contains an artificial file-size limit.');
+if (!/WorkerPool\.CancelToken/.test(cropApp)) fail('Crop app has no cancellation token.');
+if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(cropApp)) fail('Crop app lifecycle cleanup is incomplete.');
 
-// ── Phase 5 Unit 3 — Merge canonical-tool gate ─────────────────────────────
-const merge = (registry.tools || []).find(t => t.id === 'merge');
-if (!merge) fail('Merge is missing from the canonical tool registry.');
-else {
-  if (merge.slug !== 'merge-pdf') fail('Merge slug is not merge-pdf.');
-  if (merge.module !== 'pdf-module') fail('Merge module owner is not pdf-module.');
-  if (merge.execution !== 'browser-worker') fail('Merge execution is not browser-worker.');
-  if (!merge.capabilities || merge.capabilities.lazyLoad !== true) fail('Merge lazyLoad contract is missing.');
-  if (merge.capabilities.workerPool !== true) fail('Merge workerPool contract is missing.');
-  if (merge.capabilities.streaming !== 'adaptive-worker') fail('Merge adaptive-worker streaming contract is missing.');
-  if (merge.capabilities.fileSizePolicy !== 'unlimited') fail('Merge file-size policy is not unlimited.');
-}
-
-const mergeApp = read('public/js/merge-pdf-app.js');
-if (!/return _runtime\(\)\.execute\(list, opts \|\| \{\}\)/.test(mergeApp)) fail('Merge app does not dispatch to canonical MergeRuntime.');
-if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(mergeApp)) fail('Merge ToolApp boundary is not registered.');
-if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge unmount cancellation is missing.');
-if (!/function reset\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge reset cancellation is missing.');
-if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge destroy cancellation is missing.');
-
-const mergeRuntime = read('public/js/merge-runtime.js');
-if (!/RuntimeScheduler\.run\(/.test(mergeRuntime)) fail('MergeRuntime does not use RuntimeScheduler.');
-if (!/__mergeRunToken/.test(mergeRuntime)) fail('Merge runtime error ownership token is missing.');
-if (/runMergeLegacy|runtime-fallback|falling back|legacy path/i.test(mergeRuntime)) fail('MergeRuntime contains a legacy/fallback processing path.');
-if (!/timeoutMs:\s*0/.test(mergeRuntime)) fail('Merge runtime does not use unlimited execution timeout.');
-
-const mergeAdapter = read('public/js/merge-worker-adapter.js');
-if (!/RuntimeWorkers\.dispatch\(/.test(mergeAdapter)) fail('Merge adapter does not use RuntimeWorkers.dispatch.');
-if (/WorkerPool\.run\(/.test(mergeAdapter)) fail('Merge adapter retains a direct WorkerPool fallback.');
-if (!/TIMEOUT_MS\s*=\s*0/.test(mergeAdapter)) fail('Merge adapter has an artificial execution timeout.');
-if (!/_dedupeKey\(files\)/.test(mergeAdapter)) fail('Merge adapter dedupe key is missing.');
-
-const rotate = (registry.tools || []).find(t => t.id === 'rotate');
-if (!rotate) fail('Rotate is missing from the canonical tool registry.');
-else {
-  if (rotate.slug !== 'rotate-pdf') fail('Rotate slug is not rotate-pdf.');
-  if (rotate.module !== 'pdf-module') fail('Rotate module owner is not pdf-module.');
-  if (rotate.execution !== 'browser-worker') fail('Rotate execution is not browser-worker.');
-  if (!rotate.capabilities || rotate.capabilities.lazyLoad !== true) fail('Rotate lazyLoad contract is missing.');
-  if (rotate.capabilities.workerPool !== true) fail('Rotate workerPool contract is missing.');
-  if (rotate.capabilities.streaming !== 'adaptive-worker') fail('Rotate adaptive-worker streaming contract is missing.');
-  if (rotate.capabilities.fileSizePolicy !== 'unlimited') fail('Rotate file-size policy is not unlimited.');
-}
-
+// ── Rotate canonical tool ──────────────────────────────────────────────────
+requirePdfWorkerContract('rotate', 'Rotate');
 const rotateApp = read('public/js/rotate-pdf-app.js');
 if (!/return _runtime\(\)\.execute\(file, options\)/.test(rotateApp)) fail('Rotate app does not dispatch to canonical RotateRuntime.');
-if (!/G\.ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
 if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate unmount cancellation is missing.');
 if (!/function reset\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate reset cancellation is missing.');
 if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(rotateApp)) fail('Rotate destroy cancellation is missing.');
@@ -110,12 +84,11 @@ if (!/timeoutMs\s*:\s*0/.test(rotateRuntime)) fail('RotateRuntime scoped cancell
 
 const rotateAdapter = read('public/js/rotate-worker-adapter.js');
 if (!/RuntimeWorkers\.dispatch\(/.test(rotateAdapter)) fail('Rotate adapter does not use RuntimeWorkers.dispatch.');
-if (/WorkerPool\.run\(/.test(rotateAdapter)) fail('Rotate adapter retains a secondary direct WorkerPool fallback.');
+if (/WorkerPool\.run\(/.test(rotateAdapter)) fail('Rotate adapter retains a direct WorkerPool fallback.');
 if (!/TIMEOUT_MS\s*=\s*0/.test(rotateAdapter)) fail('Rotate adapter has an artificial execution timeout.');
 if (!/JSON\.stringify\(opts\.pagePlan\)/.test(rotateAdapter)) fail('Rotate dedupe key does not include the complete page plan.');
 
-const rotateWorker = read('public/workers/pdf-worker.js');
-const rotateBlock = rotateWorker.match(/OPS\.rotate\s*=\s*async function[\s\S]*?(?=\nOPS\.[A-Za-z'\[]|\n\/\/ ──)/)?.[0] || '';
+const rotateBlock = worker.match(/OPS\.rotate\s*=\s*async function[\s\S]*?(?=\nOPS\.[A-Za-z'\[]|\n\/\/ ──)/)?.[0] || '';
 const rotateExecutableBlock = rotateBlock.replace(/\/\/.*$/gm, '');
 if (!rotateBlock) fail('Shared PDF worker Rotate operation could not be isolated.');
 if (!/Array\.isArray\(opts\.pagePlan\)/.test(rotateExecutableBlock)) fail('Rotate worker does not consume pagePlan.');
@@ -129,28 +102,55 @@ if (!/allowStructuralEdits\s*=\s*opts\.allowStructuralEdits\s*!==\s*false/.test(
 if (!/function getRotationPlan\(\)/.test(rotateOrganizer)) fail('PageOrganizer does not expose a Rotate page plan.');
 if (!/page:\s*p\.originalIndex\s*\+\s*1/.test(rotateOrganizer)) fail('Rotate page plan does not use original page numbers.');
 
-const rotateToolPage = read('public/js/tool-page.js');
-if (!/allowStructuralEdits:\s*!\(currentTool\s*&&\s*currentTool\.id\s*===\s*['"]rotate['"]\)/.test(rotateToolPage)) fail('Rotate page organizer is not configured as rotation-only.');
-if (!/opts\.pagePlan\s*=\s*rotatePagePlan/.test(rotateToolPage)) fail('Rotate page plan is not passed to the browser worker options.');
+if (!/allowStructuralEdits:\s*!\(currentTool\s*&&\s*currentTool\.id\s*===\s*['"]rotate['"]\)/.test(toolPage)) fail('Rotate page organizer is not configured as rotation-only.');
+if (!/opts\.pagePlan\s*=\s*rotatePagePlan/.test(toolPage)) fail('Rotate page plan is not passed to the browser worker options.');
 
 const rotatePreview = read('public/js/pdf-preview.js');
-if (!/Number\(page\.rotate\s*\|\|\s*0\)/.test(rotatePreview) || !/basePageRotation\s*\+\s*rotation/.test(rotatePreview)) fail('Rotate preview does not combine intrinsic and requested rotation.');
+if (!/Number\(page\.rotate\s*\|\|\s*0\)/.test(rotatePreview) || !/basePageRotation\s*\+\s*rotation/.test(rotatePreview)) {
+  fail('Rotate preview does not combine intrinsic and requested rotation.');
+}
+
+// ── Merge canonical tool ───────────────────────────────────────────────────
+requirePdfWorkerContract('merge', 'Merge');
+const mergeApp = read('public/js/merge-pdf-app.js');
+if (!/return _runtime\(\)\.execute\(list, opts \|\| \{\}\)/.test(mergeApp)) fail('Merge app does not dispatch to canonical MergeRuntime.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(mergeApp)) fail('Merge ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?_cancel\(/.test(mergeApp)) fail('Merge destroy cancellation is missing.');
+
+const mergeRuntime = read('public/js/merge-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(mergeRuntime)) fail('MergeRuntime does not use RuntimeScheduler.');
+if (!/RuntimeScheduler is unavailable/.test(mergeRuntime)) fail('MergeRuntime does not fail closed when the canonical scheduler is unavailable.');
+if (!/__mergeRunToken/.test(mergeRuntime)) fail('Merge runtime error ownership token is missing.');
+if (/runMergeLegacy|runtime-fallback|falling back|legacy path/i.test(mergeRuntime)) fail('MergeRuntime contains a legacy/fallback processing path.');
+if (!/timeoutMs\s*:\s*0/.test(mergeRuntime)) fail('Merge runtime does not use unlimited execution timeout.');
+
+const mergeAdapter = read('public/js/merge-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(mergeAdapter)) fail('Merge adapter does not use RuntimeWorkers.dispatch.');
+if (/WorkerPool\.run\(/.test(mergeAdapter)) fail('Merge adapter retains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(mergeAdapter)) fail('Merge adapter has an artificial execution timeout.');
+if (!/_dedupeKey\(files\)/.test(mergeAdapter)) fail('Merge dedupe key is missing.');
+if (!/file\.arrayBuffer\(\)/.test(mergeAdapter)) fail('Merge adapter does not read browser File inputs.');
+if (!/buffers\.push\(await file\.arrayBuffer\(\)\)/.test(mergeAdapter)) fail('Merge adapter input ordering is not explicit.');
+
+if (!/throw new Error\('Merge requires at least one PDF'\)/.test(worker)) fail('Merge worker does not reject an empty input set.');
+if (!/Unable to read Merge input/.test(worker)) fail('Merge worker silently skips unreadable Merge inputs.');
+if (!/totalPages === 0/.test(worker)) fail('Merge worker does not reject an empty merged document.');
+if (!/buffers\[i\] = null/.test(worker)) fail('Merge worker does not release each source buffer after copying.');
+if (/MAX_FILE_BYTES|HARD_LIMIT_MS|WORKER_LIMIT_MS/.test(worker)) fail('Shared PDF worker contains an artificial Merge processing limit.');
+
+const mergeTool = (registry.tools || []).find(t => t.id === 'merge');
+if (!mergeTool || mergeTool.multipleFiles !== true) fail('Merge registry does not declare multi-file input.');
+if (!mergeTool || mergeTool.clientSide !== true) fail('Merge registry does not declare browser-side processing.');
 
 if (failures.length) {
-  console.error('[FAIL] Phase 5 Crop reference gate (' + failures.length + ' issue(s))');
+  console.error('[FAIL] Phase 5 standard-tool gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
   process.exitCode = 1;
 } else {
-  console.log('[PASS] Crop registry execution + capability contract');
-  console.log('[PASS] canonical/published registry parity');
-  console.log('[PASS] Crop BrowserTools worker capability');
-  console.log('[PASS] shared PDF worker Crop operation');
-  console.log('[PASS] Crop ToolApp WorkerPool execution');
-  console.log('[PASS] Crop adaptive streaming path');
-  console.log('[PASS] Crop cancellation + lifecycle cleanup');
-  console.log('[PASS] Crop unlimited file-size / no artificial timeout policy');
-  console.log('[PASS] shared input/output validation boundaries');
-  console.log('[PASS] standard tool shell integration');
-  console.log('\nPhase 5 Unit 1 Crop reference gate: PASS');
-  console.log('[PASS] Phase 5 Unit 2 Rotate canonical-tool gate');
+  console.log('[PASS] Crop reference contract');
+  console.log('[PASS] Rotate canonical-tool contract');
+  console.log('[PASS] Merge canonical-tool contract');
+  console.log('Phase 5 standard-tool gate: PASS');
 }
