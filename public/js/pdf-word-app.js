@@ -1,17 +1,15 @@
 // PdfToWordApp v1.0 — Isolated PDF→Word Tool App (Phase 2 Microfrontend Migration)
 //
 // Worker-safe packaging migration for the high-fidelity PDF→Word pipeline.
-// PDF.js extraction and OCR rendering are progressively isolated; DOCX packaging
-// is owned by the shared WorkerPool. Tesseract recognition remains page-context
-// because its browser/runtime contract has not yet been proven safe to relocate.
+// PDF.js extraction, OCR rasterisation, Tesseract recognition, and DOCX
+// packaging are progressively isolated behind shared WorkerPool boundaries.
 //
 // SOLUTION:
 //   PdfToWordApp installs a BrowserTools.process interceptor for 'pdf-to-word' ONLY.
 //   It runs a fully isolated pipeline where:
-//   — ALL async operations are wrapped in try/finally with guaranteed worker cleanup
-//   — Cancellation calls _cleanup() explicitly (terminates workers before rejecting)
-//   — DOCX packaging is scheduled through the shared WorkerPool.
-//   — Tesseract.createWorker() instances are tracked and terminated in _cleanup()
+//   — ALL async operations are wrapped in try/finally with guaranteed cleanup
+//   — Cancellation propagates through WorkerPool.CancelToken
+//   — PDF.js extraction/rendering, OCR, and DOCX packaging use WorkerPool jobs
 //   — _inFlight flag prevents re-entry; always reset in finally
 //
 // ADDITIVE ONLY: zero changes to advanced-engine.js, browser-tools.js,
@@ -30,8 +28,6 @@
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
   var _inFlight     = false;    // re-entry guard
   var _jobId        = 0;        // monotonic job counter
-  var _tessWorker   = null;     // current Tesseract worker (from createWorker)
-  var _pdfInst      = null;     // current pdfjsLib pdf instance
 
   // ── LOG ───────────────────────────────────────────────────────────────────
   function _log(msg, d)  { console.debug('[PdfToWordApp]', msg, d !== undefined ? d : ''); }
@@ -42,33 +38,7 @@
   // Never throws.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_tessWorker)   { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
-    if (_pdfInst)      { try { _pdfInst.destroy();    } catch (_) {} _pdfInst    = null; }
     _inFlight = false;
-  }
-
-  // ── PDF.JS LOADER ─────────────────────────────────────────────────────────
-  // Reuses the shared promise already set by advanced-engine.js (cache-safe).
-  function _loadPdfJs() {
-    if (G.pdfjsLib) return Promise.resolve(G.pdfjsLib);
-    if (G.__pdfjsLibPromise) return G.__pdfjsLibPromise;
-    var p = import(PDFJS_URL).then(function (mod) {
-      var lib = (mod && (mod.default || mod));
-      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-      G.pdfjsLib = lib;
-      return lib;
-    });
-    G.__pdfjsLibPromise = p;
-    return p;
-  }
-
-  // ── TIMEOUT RACE (NON-ABANDONING) ─────────────────────────────────────────
-  // Unlike runTool's withTimeout(), this does NOT abandon the inner promise.
-  // It rejects the outer awaiter but the inner async stack will still reach
-  // its own finally — the key property that prevents the worker leak.
-  function _race(promise) {
-    // Compatibility wrapper retained for existing callers; no artificial timeout.
-    return Promise.resolve(promise);
   }
 
   async function _extractWithSharedWorker(file, cancelToken, onStep, jobId) {
@@ -446,9 +416,8 @@
   function destroy() { _cleanup('destroy'); }
   function getState() {
     return {
-      inFlight:    _inFlight,
-      jobId:       _jobId,
-      hasTessWorker: !!_tessWorker,
+      inFlight: _inFlight,
+      jobId: _jobId,
     };
   }
 
