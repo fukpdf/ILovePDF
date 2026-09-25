@@ -192,3 +192,18 @@ The migration keeps the security-isolated worker family, but moves ownership int
 7. The insecure shared `OPS.redact` path is not used for authoritative Redact processing.
 
 Verification: `scripts/phase5-redact-check.js`.
+
+
+## Unit 13 — Protect PDF
+
+Audit found Protect still used a dedicated `pdf-lib-worker.js` and fixed 75s/90s processing timers. The existing Protect operation is retained unchanged for semantic compatibility: it applies the project's current protection/overlay behavior in the shared PDF worker; this migration does **not** claim that pdf-lib 1.17.1 provides native PDF encryption.
+
+Migration:
+1. Protect is now registered in the shared WorkerPool tool set.
+2. Large inputs use RuntimeStreamBridge with the shared PDF worker.
+3. Normal inputs use WorkerPool.
+4. The app is a thin BrowserTools adapter with shared cancellation/lifecycle cleanup.
+5. No artificial file-size/page-count/processing-time rejection limit is introduced.
+6. The legacy dedicated app worker and fixed timers are removed.
+
+Verification: `scripts/phase5-protect-check.js` — 17/17 checks passed.
