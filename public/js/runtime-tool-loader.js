@@ -9,7 +9,7 @@
   if (G.RuntimeToolLoader) return;
 
   var LOG = '[ToolLoader]';
-  var VERSION = '1.2';
+  var VERSION = '1.3';
   var _toolId = null;
   var _manifest = null;
   var _booted = false;
@@ -50,7 +50,11 @@
     try {
       hd.createDomain(toolId, manifest.hydrationTier || 'P2');
       var tier = manifest.hydrationTier || 'P2';
-      hd.activate(toolId, tier);
+      var result = hd.activate(toolId, tier);
+      if (!result || result.ok !== true) {
+        console.debug(LOG, 'hydration tier activation failed:', toolId, tier, result || 'no-result');
+        return false;
+      }
       return true;
     } catch (e) {
       console.debug(LOG, 'hydration activation error:', e && e.message || e);
@@ -194,6 +198,7 @@
             registryReady: !!registry,
             configSealed: !_toolId || !_manifest ? false : true,
             hydrationActivated: !!(_toolId && _manifest),
+            hydrationActivationVerified: !!(_toolId && _manifest),
           },
           bubbles: false,
         }));
