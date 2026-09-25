@@ -1,234 +1,154 @@
-// Merge Worker Adapter v1.0 — Phase 3 (Task Group B)
-// Runtime-aware wrapper around the pdf-worker.js merge dispatch.
-// Adds: dedupeKey, timeout, retry integration, cooldown support,
-// worker leak detection, auto-release, emergency cancellation.
-//
-// DESIGN: Wraps WorkerPool.run('/workers/pdf-worker.js') through
-// RuntimeWorkers.dispatch() when available, with direct WorkerPool.run()
-// fallback so existing behavior is fully preserved when Phase 2 is absent.
-//
-// Progress is reported per-file (read phase) + simulated tick (worker phase).
-//
-// [FUTURE: StreamEngine] Replace f.arrayBuffer() per-file with OPFS byte-range
-// reader so giant PDFs do not spike the JS heap before dispatch.
-//
-// [FUTURE: CrossTabWorkers] RuntimeWorkers.dispatch() will check a sibling
-// tab for an idle pdf-worker before spawning a new one locally.
-//
-// Exposed as: window.MergeWorkerAdapter
+// Merge Worker Adapter v1.1 — canonical RuntimeWorkers bridge
+// Multi-file Merge uses the shared PDF worker and RuntimeWorkers only.
+// There is no direct WorkerPool fallback and no artificial processing timeout.
 (function () {
   'use strict';
 
   if (window.MergeWorkerAdapter) return;
 
-  var LOG        = '[MWA]';
   var WORKER_URL = '/workers/pdf-worker.js';
-  var TIMEOUT_MS = 0; // 0 = no artificial execution-time cap; user cancellation remains available
+  var TIMEOUT_MS = 0;
 
-  // ── DedupeKey: hash of file count + sizes + names ─────────────────────────
-  // Prevents launching two identical merges concurrently (e.g., rapid double-click
-  // that escapes the _processingInFlight guard at tool-page.js level).
   function _dedupeKey(files) {
     var parts = [String(files.length)];
-    files.forEach(function (f) { parts.push(f.name + ':' + f.size); });
+    files.forEach(function (file) {
+      parts.push(String(file.name || '') + ':' + String(file.size || 0) + ':' + String(file.lastModified || 0));
+    });
     return 'merge:' + parts.join('|');
   }
 
-  // ── File-read progress helper ─────────────────────────────────────────────
-  // Reads each file's ArrayBuffer sequentially, reporting progress as each
-  // file completes (0–50% of total progress budget).
-  // Returns Array<ArrayBuffer>.
   async function _readFiles(files, onProgress, token) {
-    // [FUTURE: StreamEngine] Replace arrayBuffer() with OPFS byte-range reader
-    window.RuntimeStreaming && window.RuntimeStreaming.markFullLoad(
-      'merge:read-files', { count: files.length, totalBytes: files.reduce(function (s, f) { return s + f.size; }, 0) }
-    );
+    var totalBytes = files.reduce(function (sum, file) { return sum + (file.size || 0); }, 0);
+    var readBytes = 0;
     var buffers = [];
-    var totalSize = files.reduce(function (s, f) { return s + f.size; }, 0);
-    var readSoFar = 0;
+
+    if (window.RuntimeStreaming) {
+      window.RuntimeStreaming.markFullLoad('merge:read-files', {
+        count: files.length,
+        totalBytes: totalBytes
+      });
+    }
 
     for (var i = 0; i < files.length; i++) {
       if (token && token.cancelled) throw new Error('cancelled-during-read');
 
-      var spanId = null;
+      var file = files[i];
+      var span = null;
       if (window.RuntimeTelemetry) {
-        spanId = window.RuntimeTelemetry.startSpan('merge:read-file-' + i, { name: files[i].name, size: files[i].size });
+        span = window.RuntimeTelemetry.startSpan('merge:file-read-' + i, {
+          name: file.name,
+          size: file.size
+        });
       }
 
-      // [FUTURE: StreamEngine] files[i].arrayBuffer() → OPFS chunk reader
-      var buf = await files[i].arrayBuffer();
-      buffers.push(buf);
-      readSoFar += files[i].size;
-
-      if (spanId !== null && window.RuntimeTelemetry) {
-        window.RuntimeTelemetry.endSpan(spanId, 'ok');
+      try {
+        onProgress(5, 'Reading ' + (i + 1) + ' of ' + files.length + ' files…');
+        buffers.push(await file.arrayBuffer());
+        readBytes += file.size || 0;
+        var pct = totalBytes > 0
+          ? 5 + Math.round((readBytes / totalBytes) * 45)
+          : 5 + Math.round(((i + 1) / files.length) * 45);
+        onProgress(Math.min(50, pct), 'File ' + (i + 1) + ' of ' + files.length + ' ready');
+        if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, 'ok');
+      } catch (err) {
+        if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, 'error');
+        throw err;
       }
-
-      // Progress: 0→50% maps to file read completion
-      var readPct = totalSize > 0 ? Math.round((readSoFar / totalSize) * 50) : Math.round(((i + 1) / files.length) * 50);
-      onProgress(readPct, 'Reading ' + (i + 1) + ' of ' + files.length + ' files…');
     }
     return buffers;
   }
 
-  // ── Worker-phase progress ticker ───────────────────────────────────────────
-  // Advances from 50% to 85% while the worker is processing.
-  // Stops when the worker promise settles. Does not hold up the result.
-  function _startProgressTicker(files, onProgress) {
+  function _startProgressTicker(onProgress) {
     var pct = 50;
-    var messages = [
-      'Merging documents…',
-      'Merging pages…',
-      'Building merged PDF…',
-      'Finalising pages…',
-    ];
-    var msgIdx = 0;
-
-    var intervalId = setInterval(function () {
-      if (pct >= 85) { clearInterval(intervalId); return; }
-      // Asymptotic advance: large jumps early, tiny later → realistic feel
-      var step = Math.max(1, Math.round((85 - pct) * 0.12));
-      pct = Math.min(85, pct + step);
-      msgIdx = Math.min(messages.length - 1, Math.floor((pct - 50) / 9));
-      onProgress(pct, messages[msgIdx]);
+    var messages = ['Merging documents…', 'Merging pages…', 'Building merged PDF…', 'Finalising pages…'];
+    var timer = setInterval(function () {
+      if (pct >= 85) {
+        clearInterval(timer);
+        return;
+      }
+      pct = Math.min(85, pct + Math.max(1, Math.round((85 - pct) * 0.12)));
+      var index = Math.min(messages.length - 1, Math.floor((pct - 50) / 9));
+      onProgress(pct, messages[index]);
     }, 800);
-
-    if (window.TimerRegistry) window.TimerRegistry.registerInterval('mwa-tick', intervalId);
-
-    return function stopTicker() {
-      clearInterval(intervalId);
-      if (window.TimerRegistry) window.TimerRegistry.clearOwner('mwa-tick');
+    if (window.TimerRegistry) window.TimerRegistry.registerInterval('merge-runtime-progress', timer);
+    return function () {
+      clearInterval(timer);
+      if (window.TimerRegistry) window.TimerRegistry.clearOwner('merge-runtime-progress');
     };
   }
 
-  // ── Core dispatch ──────────────────────────────────────────────────────────
-  // dispatch(files, opts, onProgress, token?) → Promise<{ blob, filename }>
-  //
-  // opts: standard tool options (none used by merge currently)
-  // onProgress(pct, msg): progress callback 0–100
-  // token: RuntimeCancellation token (optional)
   async function dispatch(files, opts, onProgress, token) {
-    opts        = opts || {};
-    onProgress  = typeof onProgress === 'function' ? onProgress : function () {};
+    opts = opts || {};
+    onProgress = typeof onProgress === 'function' ? onProgress : function () {};
 
-    // ── Cancellation check ───────────────────────────────────────────────────
+    if (!files || !files.length) throw new Error('No files provided');
     if (token && token.cancelled) throw new Error('cancelled-before-read');
 
-    // ── Memory guard ─────────────────────────────────────────────────────────
-    // Memory state is advisory only. Do not reject a valid merge because a
-    // device is currently under pressure; downstream chunking/cleanup and the
-    // worker scheduler can adapt concurrency while the user keeps control.
-    var totalBytes = files.reduce(function (s, f) { return s + f.size; }, 0);
+    var totalBytes = files.reduce(function (sum, file) { return sum + (file.size || 0); }, 0);
     if (window.RuntimeMemory && window.RuntimeMemory.isEmergency() && window.RuntimeTelemetry) {
       window.RuntimeTelemetry.record('merge:memory-advisory', { totalBytes: totalBytes, state: 'emergency' });
     }
-    if (window.MemPressure && window.MemPressure.wouldExceedLimit &&
-        window.MemPressure.wouldExceedLimit(totalBytes * 2, 1.5) && window.RuntimeTelemetry) {
-      window.RuntimeTelemetry.record('merge:memory-advisory', { totalBytes: totalBytes, state: 'estimated-pressure' });
-    }
 
-    // ── Telemetry span ───────────────────────────────────────────────────────
-    var spanId = null;
+    var span = null;
     if (window.RuntimeTelemetry) {
-      spanId = window.RuntimeTelemetry.startSpan('merge:worker-dispatch', {
+      span = window.RuntimeTelemetry.startSpan('merge:worker-dispatch', {
         fileCount: files.length,
-        totalBytes: totalBytes,
+        totalBytes: totalBytes
       });
     }
 
-    onProgress(5, 'Preparing files…');
-
-    // ── Phase 1: read file bytes ─────────────────────────────────────────────
     var buffers;
     try {
       buffers = await _readFiles(files, onProgress, token);
-    } catch (readErr) {
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'read-error');
-      throw readErr;
-    }
+      if (token && token.cancelled) throw new Error('cancelled-after-read');
 
-    if (token && token.cancelled) {
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
-      throw new Error('cancelled-after-read');
-    }
+      onProgress(50, 'Merging documents…');
+      var stopTicker = _startProgressTicker(onProgress);
+      var workerResult;
 
-    onProgress(50, 'Merging documents…');
+      try {
+        if (!window.RuntimeWorkers || typeof window.RuntimeWorkers.dispatch !== 'function') {
+          throw new Error('RuntimeWorkers is unavailable — canonical Merge worker runtime cannot dispatch');
+        }
 
-    // ── Phase 2: dispatch to worker ──────────────────────────────────────────
-    var stopTicker = _startProgressTicker(files, onProgress);
-    var dedupeKey  = _dedupeKey(files);
-
-    // [FUTURE: StreamEngine] Chunk routing: instead of sending full buffers,
-    // send OPFS file handles and stream page-by-page within the worker.
-    var workerMsg = {
-      tool:    'merge',
-      buffers: buffers,
-      options: opts,
-    };
-
-    var workerResult;
-    try {
-      if (window.RuntimeWorkers && window.RuntimeWorkers.dispatch) {
-        // Phase 2 path: full orchestration (cooldown, dedup, timeout, telemetry)
         workerResult = await window.RuntimeWorkers.dispatch(
           WORKER_URL,
-          workerMsg,
-          buffers,   // transferables: ownership moves to worker (zero-copy)
+          { tool: 'merge', buffers: buffers, options: opts },
+          buffers,
           {
-            priority:   'normal',
-            label:      'merge-worker',
-            dedupeKey:  dedupeKey,
-            timeoutMs:  TIMEOUT_MS,
-            token:      token,
+            priority: 'normal',
+            label: 'merge-worker',
+            dedupeKey: _dedupeKey(files),
+            timeoutMs: TIMEOUT_MS,
+            token: token
           }
         );
-      } else if (window.WorkerPool && window.WorkerPool.run) {
-        // Fallback: direct WorkerPool.run (legacy Phase 1 path)
-        var wpToken = null;
-        if (window.WorkerPool.CancelToken) wpToken = window.WorkerPool.CancelToken();
-        if (token && wpToken) {
-          token.onCancel(function () { try { wpToken.cancel(); } catch (_) {} });
-        }
-        var wpOpts = {};
-        if (wpToken) wpOpts.token = wpToken;
-        workerResult = await window.WorkerPool.run(WORKER_URL, workerMsg, buffers, wpOpts);
-      } else {
-        // No worker support: signal caller to use main-thread fallback
-        throw new Error('no-worker-runtime');
+      } finally {
+        stopTicker();
+        buffers = null;
       }
-    } finally {
-      stopTicker();
-      buffers = null; // release buffer references
+
+      if (!workerResult || !workerResult.buffer) throw new Error('Worker produced empty output');
+
+      var blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+      if (!blob.size) throw new Error('Worker produced empty output');
+
+      if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, 'ok');
+      onProgress(100, 'Done!');
+
+      return { buffer: workerResult.buffer, blobSize: blob.size };
+    } catch (err) {
+      if (span !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(span, 'error');
+      buffers = null;
+      throw err;
     }
-
-    // ── Phase 3: build output blob ───────────────────────────────────────────
-    onProgress(95, 'Saving merged PDF…');
-    // [FUTURE: StreamEngine] workerResult.buffer → OPFS write + stream URL
-
-    if (!workerResult || !workerResult.buffer) {
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'empty-result');
-      throw new Error('Worker produced empty output — falling back');
-    }
-
-    var blob = new Blob([workerResult.buffer], { type: 'application/pdf' });
-    if (blob.size === 0) {
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'zero-size');
-      throw new Error('Worker produced empty output — falling back');
-    }
-
-    if (spanId !== null && window.RuntimeTelemetry) {
-      window.RuntimeTelemetry.endSpan(spanId, 'ok');
-    }
-
-    onProgress(100, 'Done!');
-    return { buffer: workerResult.buffer, blobSize: blob.size };
   }
 
   window.MergeWorkerAdapter = {
-    dispatch:    dispatch,
-    WORKER_URL:  WORKER_URL,
-    TIMEOUT_MS:  TIMEOUT_MS,
+    dispatch: dispatch,
+    WORKER_URL: WORKER_URL,
+    TIMEOUT_MS: TIMEOUT_MS
   };
 
-  console.debug('[MergeWorkerAdapter] ready — Phase 3 worker adapter active');
+  console.debug('[MergeWorkerAdapter] ready — canonical RuntimeWorkers bridge');
 }());
