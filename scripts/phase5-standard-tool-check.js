@@ -305,6 +305,27 @@ if (!editBlock) fail('Shared PDF worker has no Edit operation.');
 if (!/PDFDocument\.load/.test(editBlock) || !/doc\.drawText|page\.drawText/.test(editBlock)) fail('Edit worker text operation contract is incomplete.');
 if (!/fontSize/.test(editBlock) || !/opts\.page/.test(editBlock)) fail('Edit worker page/font options contract is incomplete.');
 
+// ── Workflow Builder canonical tool ─────────────────────────────────────────
+requirePdfWorkerContract('workflow', 'Workflow Builder');
+const workflowRuntime = read('public/js/workflow-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(workflowRuntime)) fail('Workflow runtime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|falling back|fallback|RUNTIME_WORKFLOW_ENABLED/i.test(workflowRuntime)) fail('Workflow runtime retains legacy/fallback architecture.');
+if (!/__workflowRunToken/.test(workflowRuntime)) fail('Workflow run ownership token is missing.');
+if (!/timeoutMs:0/.test(workflowRuntime)) fail('Workflow runtime does not use an unlimited execution timeout.');
+
+const workflowAdapter = read('public/js/workflow-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(workflowAdapter)) fail('Workflow adapter does not use RuntimeWorkers.');
+if (/WorkerPool\.run\(/.test(workflowAdapter)) fail('Workflow adapter contains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS = 0/.test(workflowAdapter)) fail('Workflow adapter has an artificial execution timeout.');
+if (!/dedupeKey: key\(file, opts\)/.test(workflowAdapter)) fail('Workflow dedupe key is missing.');
+if (!/buffers: \[buffer\]/.test(workflowAdapter)) fail('Workflow adapter input transfer is incomplete.');
+
+const workflowWorker = read('public/workers/pdf-worker.js');
+const workflowBlock = workflowWorker.match(/OPS\.workflow\s*=\s*async function[\s\S]*?(?=\nOPS\.|$)/)?.[0] || '';
+if (!workflowBlock) fail('Shared PDF worker has no Workflow operation.');
+if (!/opts\.step1/.test(workflowBlock) || !/opts\.step2/.test(workflowBlock) || !/opts\.step3/.test(workflowBlock)) fail('Workflow worker step contract is incomplete.');
+if (!/Please select at least one operation/.test(workflowBlock)) fail('Workflow worker validation contract is incomplete.');
+
 // ── Watermark canonical tool ──────────────────────────────────────────────
 requirePdfWorkerContract('watermark', 'Watermark');
 const watermarkApp = read('public/js/watermark-pdf-app.js');
@@ -386,6 +407,7 @@ if (failures.length) {
 } else {
   console.log('[PASS] Compress PDF canonical-tool contract');
   console.log('[PASS] Edit PDF canonical-tool contract');
+  console.log('[PASS] Workflow Builder canonical-tool contract');
   console.log('[PASS] Crop reference contract');
   console.log('[PASS] Rotate canonical-tool contract');
   console.log('[PASS] Page Numbers canonical-tool contract');
