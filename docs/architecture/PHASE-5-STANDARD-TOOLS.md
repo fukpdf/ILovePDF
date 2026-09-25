@@ -70,3 +70,45 @@ Repair now uses the authoritative shared BrowserTools execution boundary:
 - The worker verifies that the generated PDF can be loaded and contains at least one page before returning it.
 - `repair-pdf-app.js` is now only a lifecycle adapter; it no longer owns a dedicated worker, CDN dependency, fixed timeout, or alternate processing path.
 - Both registries declare browser-worker, adaptive-worker streaming, WorkerPool, lazy loading, and unlimited file-size policy.
+
+
+## Unit 8 — Edit PDF
+
+Branch: `phase-5-unit-8-edit-reference`
+
+### Audit findings
+
+Before this unit:
+- the registry already advertised Edit as browser-worker/WorkerPool, but the actual `edit-pdf-app.js` still spawned a dedicated `pdf-lib-worker.js`;
+- that adapter imposed 75s worker and 90s hard processing timers;
+- Edit PDF PRO performed its final PDF export on the main thread with pdf-lib, despite the shared worker operation `OPS.edit` already existing;
+- the shared worker operation only covered the lightweight text-placement contract and did not represent the full interactive editor state.
+
+### Unit 8 implementation
+
+Edit now:
+1. keeps the existing interactive EditPdfPro UI and preview behavior;
+2. serializes page order, deleted pages, per-page rotations, annotations, styles, embedded PNG/JPEG data, and renderer scale into a worker-safe editor-state contract;
+3. performs final PDF reconstruction/export inside the shared persistent `pdf-worker.js`;
+4. preserves the lightweight text-only Edit contract for legacy/runtime callers;
+5. routes both the ToolAppManager adapter and EditPdfPro export through `BrowserTools.process('edit', ...)`;
+6. uses the shared WorkerPool for normal jobs and RuntimeStreamBridge for large single-file jobs;
+7. adds cancellation-token propagation without sending non-cloneable token objects into the worker;
+8. removes the dedicated Edit worker and fixed processing timers;
+9. verifies the generated PDF in the worker before returning it;
+10. preserves the existing registry contract: browser-worker, lazy load, WorkerPool, adaptive-worker streaming, and unlimited file-size policy.
+
+### No artificial processing limits
+
+Edit does not introduce:
+- file-size rejection thresholds;
+- page-count rejection thresholds;
+- fixed processing-time rejection timers.
+
+Device/memory pressure remains adaptive through the shared worker/runtime layers.
+
+### Verification
+
+`scripts/phase5-edit-check.js` is the Unit 8 migration gate. It checks registry parity, WorkerPool/stream routing, cancellation propagation, shared worker Edit support, rich editor-state export, output verification, the ToolApp adapter, the Edit PRO export path, lifecycle cleanup, and the no-artificial-timeout policy.
+
+Production deployment remains gated by the Phase 5 validation chain.
