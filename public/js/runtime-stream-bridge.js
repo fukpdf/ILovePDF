@@ -616,13 +616,21 @@
       try { w = new Worker(workerUrl); } catch (e) {
         reject(new Error('worker-spawn-failed: ' + e.message)); return;
       }
-      var entry = { worker: w, cancelled: false };
+      var spanId = null;
+      if (global.RuntimeTelemetry) {
+        spanId = global.RuntimeTelemetry.startSpan('stream-bridge:multi-file', {
+          streamId: streamId, size: totalBytes, tool: message && message.tool,
+        });
+      }
+      _telStream('started', { streamId: streamId, tool: message && message.tool, totalBytes: totalBytes });
+      var entry = { worker: w, cancelled: false, terminal: false, telemetryEnded: false, spanId: spanId };
       _activeStreams.set(streamId, entry);
 
       function finishError(err) {
         if (done || entry.terminal) return;
         done = true; entry.terminal = true; _activeStreams.delete(streamId);
         try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'error');
         reject(err instanceof Error ? err : new Error(String(err)));
       }
 
@@ -678,6 +686,8 @@
         } else if (d.type === 'stream-done') {
           done=true; entry.terminal=true; _activeStreams.delete(streamId);
           try { w.terminate(); } catch (_) {}
+          _endStreamTelemetry(entry, 'ok');
+          _telStream('done', { streamId: streamId });
           resolve(d);
         } else if (d.type === 'stream-error') {
           finishError(new Error(d.__error || 'stream-worker-error'));
