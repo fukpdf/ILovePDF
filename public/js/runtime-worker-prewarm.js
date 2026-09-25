@@ -113,10 +113,9 @@
     setTimeout(_attachDropListeners, 0);
   }
 
-  // Start idle prewarm 6 s after page load (generous delay to avoid
-  // contending with the main-thread during initial render).
-  setTimeout(_idlePrewarm, 6000);
-
+  // Do not prewarm unrelated workers on page load.
+  // Prewarming starts only after the user begins a file interaction/drop,
+  // keeping tool execution lazy while still hiding worker boot latency.
   G.RuntimeWorkerPrewarm = Object.freeze({
     onFileDrop:     onFileDrop,
     prewarmForTool: prewarmForTool,
