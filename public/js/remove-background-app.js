@@ -18,8 +18,6 @@
   'use strict';
 
   var REMOVE_BG_WORKER = '/workers/remove-bg-worker.js';
-  var HARD_LIMIT_MS    = 90000;   // 90 s
-  var WORKER_LIMIT_MS  = 75000;   // 75 s worker
 
   var _inFlight       = false;
   var _jobId          = 0;
@@ -63,7 +61,6 @@
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)       { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
     if (_removeBgWorker)  { try { _removeBgWorker.terminate(); } catch (_) {} _removeBgWorker = null; }
     _freeCanvas(_canvas);       _canvas       = null;
     _freeCanvas(_outputCanvas); _outputCanvas = null;
@@ -188,15 +185,6 @@
     var onStep  = _makeStepper();
     var bgColor = (opts && opts.bgColor) || 'transparent';
 
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Background removal timed out. Please try with a smaller image.'));
-      }, HARD_LIMIT_MS);
-    });
-
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Loading your image\u2026');
 
@@ -242,7 +230,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       BgRemoveScheduler.onFailure();
       BgRemoveRecoveryManager.onError(err);
