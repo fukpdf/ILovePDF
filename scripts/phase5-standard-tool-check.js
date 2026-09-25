@@ -128,7 +128,7 @@ const splitAdapter = read('public/js/split-worker-adapter.js');
 if (!/RuntimeWorkers\.dispatch\(/.test(splitAdapter)) fail('Split adapter does not use RuntimeWorkers.');
 if (/WorkerPool\.run\(/.test(splitAdapter)) fail('Split adapter contains a direct WorkerPool fallback.');
 if (!/TIMEOUT_MS=0/.test(splitAdapter)) fail('Split adapter has an artificial timeout.');
-if (!/pipelineStreamToWorkerReadable/.test(splitAdapter)) fail('Split adapter does not use adaptive streaming.');
+if (!/pipelineStreamToWorker/.test(splitAdapter)) fail('Split adapter does not use adaptive streaming.');
 if (!/STREAM_THRESHOLD=10\*1024\*1024/.test(splitAdapter)) fail('Split adaptive threshold is missing.');
 if (!/dedupeKey:key\(file,opts\)/.test(splitAdapter)) fail('Split dedupe key is missing.');
 
