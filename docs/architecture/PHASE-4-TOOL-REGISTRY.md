@@ -174,3 +174,15 @@ Implemented on `phase-4-unit-14-hydration-integrity`.
 - This closes the Unit 13 gap where a caught hydration-module exception could otherwise be treated as successful activation.
 - Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
 - `npm run audit:phase4` enforces the Unit 14 hydration-integrity contract.
+
+
+## Unit 15 — Authoritative registry readiness gate
+
+Implemented on `phase-4-unit-15-registry-readiness-gate`.
+
+- `RuntimeToolLoader` now treats `ToolRegistryReady` as a hard prerequisite for tool runtime activation.
+- A missing, rejected, or non-ready registry cannot be bypassed by the runtime manifest layer.
+- Tool activation verifies that the requested tool ID exists in the canonical registry before resolving its runtime manifest.
+- Registry delivery/identity failures therefore block `tool:runtime-ready` instead of silently booting from secondary metadata.
+- The Phase 4 audit enforces the readiness barrier and canonical identity check.
+- Browser-first processing, adaptive worker streaming, unlimited file/page policy, and no Laba AI dependency remain unchanged.
