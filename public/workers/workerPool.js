@@ -368,7 +368,7 @@
     var token    = opts.token    || null;
 
     // Phase 24: validate priority — unknown tiers fall back to 'normal'
-    if (!pool_proto_queues[priority]) priority = 'normal';
+    if (TIER_ORDER.indexOf(priority) === -1) priority = 'normal';
 
     var pool = getPool(workerUrl);
 
