@@ -171,6 +171,10 @@
     var runProgressTask = null;
     var runCleanupIds = { blobs: [], generic: [] };
 
+    try {
+      // Keep the run token attached to terminal errors so execute() never
+      // mistakes another overlapping Rotate run for the failed run owner.
+
     // ── Pre-flight memory guard ──────────────────────────────────────────────
     _memoryGuard('pre-start', file);
 
@@ -194,6 +198,7 @@
         pages:    (opts && opts.pages)   || 'all',
         safeMode: _shouldUseSafeMode(file),
       });
+      _currentSpan = runSpan;
       window.RuntimeTelemetry.record('rotate:start', {
         sizeMB:  Math.round(file.size / 1024 / 1024),
         degrees: (opts && opts.degrees) || '0',
@@ -278,6 +283,12 @@
     _runPostRotateCleanup('success', runToken, runSpan, runCleanupIds);
 
     return { blob: blob, filename: filename };
+    } catch (runErr) {
+      if (runToken && runErr) {
+        try { Object.defineProperty(runErr, '__rotateRunToken', { value: runToken, configurable: true }); } catch (_) {}
+      }
+      throw runErr;
+    }
   }
 
   // ── Worker dispatch bridge ─────────────────────────────────────────────────
@@ -304,7 +315,9 @@
       var result = await runRotateRuntime(file, opts);
       return result;
     } catch (runtimeErr) {
-      executionToken = _currentToken;
+      executionToken = runtimeErr && runtimeErr.__rotateRunToken
+        ? runtimeErr.__rotateRunToken
+        : null;
       var failReason = (runtimeErr && runtimeErr.message) || 'unknown';
 
       // [Task Group R012] Runtime errors are terminal; do not switch pipelines.
