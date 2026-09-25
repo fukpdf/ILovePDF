@@ -46,7 +46,8 @@
     "audit:phase5:all-stream-listener-cleanup": "node scripts/phase5-all-stream-listener-cleanup-check.js",
     "audit:phase5:central-stream-listener-finalization": "node scripts/phase5-central-stream-listener-finalization-check.js",
     "audit:phase5:stream-fallback-finalization": "node scripts/phase5-stream-fallback-finalization-check.js",
-    "audit:phase5:chunk-stream-terminal-finalization": "node scripts/phase5-chunk-stream-terminal-finalization-check.js"
+    "audit:phase5:chunk-stream-terminal-finalization": "node scripts/phase5-chunk-stream-terminal-finalization-check.js",
+    "audit:phase5:chunk-stream-error-finalization": "node scripts/phase5-chunk-stream-error-finalization-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
