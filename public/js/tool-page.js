@@ -1865,6 +1865,14 @@ async function tryWithRetry(toolId, files, opts) {
         showProcessing(_tp('processing.retrying', 'Retrying processing…'), _tp('processing.retrying_msg', 'The browser worker is retrying the operation.'));
         await new Promise(r => setTimeout(r, 700));
       }
+      const registryTool = (window.ToolRegistry && typeof window.ToolRegistry.get === 'function')
+        ? window.ToolRegistry.get(toolId) : null;
+      if (registryTool && registryTool.execution === 'browser') {
+        if (!window.BrowserToolRuntime || typeof window.BrowserToolRuntime.execute !== 'function') {
+          throw new Error('BrowserToolRuntime is unavailable — canonical browser execution cannot continue');
+        }
+        return await window.BrowserToolRuntime.execute(toolId, files, opts);
+      }
       return await window.BrowserTools.process(toolId, files, opts);
     } catch (err) {
       lastErr = err;
