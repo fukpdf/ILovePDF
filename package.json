@@ -56,7 +56,8 @@
     "audit:phase5:multifile-cancel-race": "node scripts/phase5-multifile-cancel-race-check.js",
     "audit:phase5:stream-cancel-settlement": "node scripts/phase5-stream-cancel-settlement-check.js",
     "audit:phase5:stream-terminal-settlement": "node scripts/phase5-stream-terminal-settlement-check.js",
-    "audit:phase5:stream-startup-failure": "node scripts/phase5-stream-startup-failure-check.js"
+    "audit:phase5:stream-startup-failure": "node scripts/phase5-stream-startup-failure-check.js",
+    "audit:phase5:stream-abort-controller": "node scripts/phase5-stream-abort-controller-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
