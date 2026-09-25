@@ -281,3 +281,14 @@ The raster image produced by Unit 17 is transferred into the OCR worker. OCR tex
 This remains a sub-migration until browser compatibility is exercised across supported devices; no claim of full PDF→Word worker migration is made yet.
 
 Verification: scripts/phase5-pdf-to-word-ocr-check.js.
+
+
+## Unit 19 — PDF to Word OCR native-prepass removal
+
+Unit 19 removes the remaining page-context PDF.js native-text prepass from the OCR fallback. Phase 1 already extracts native PDF text and returns the authoritative page count through `_extractWithSharedWorker()`; reopening the same PDF in `_runOcr()` was duplicate work and could undermine the worker-isolation boundary.
+
+The OCR stage now consumes `totalPages` from the shared extraction result and proceeds directly to the existing WorkerPool render → WorkerPool Tesseract recognition path when the Phase 1 quality check decides OCR is required. The previous native prepass could also return native text during a forced-OCR request, so removing it keeps the `_forceOcr` contract consistent.
+
+Obsolete page-side PDF.js/Tesseract loader state was removed from `pdf-word-app.js`. No artificial timeout or file/page limit was introduced.
+
+Verification: `scripts/phase5-pdf-to-word-ocr-check.js`.
