@@ -433,3 +433,30 @@ if (failures.length) {
   console.log('[PASS] Merge canonical-tool contract');
   console.log('Phase 5 standard-tool gate: PASS');
 }
+
+
+// ── Protect canonical tool ────────────────────────────────────────────────
+requirePdfWorkerContract('protect', 'Protect');
+const protectApp = read('public/js/protect-pdf-app.js');
+if (!/return result=await G\.ProtectRuntime\.execute/.test(protectApp) && !/G\.ProtectRuntime\.execute/.test(protectApp)) fail('Protect app does not dispatch to canonical ProtectRuntime.');
+if (!/ToolAppManager\.registerTool\('protect'/.test(protectApp)) fail('Protect ToolApp boundary is not registered.');
+if (!/function unmount\(\)[\s\S]*?cancelActive/.test(protectApp)) fail('Protect unmount cancellation is missing.');
+if (!/function reset\(\)[\s\S]*?cancelActive/.test(protectApp)) fail('Protect reset cancellation is missing.');
+if (!/function destroy\(\)[\s\S]*?cancelActive/.test(protectApp)) fail('Protect destroy cancellation is missing.');
+
+const protectRuntime = read('public/js/protect-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(protectRuntime)) fail('ProtectRuntime does not use RuntimeScheduler.');
+if (/PdfWorkerRuntimeFactory|legacy path|fallback/i.test(protectRuntime)) fail('ProtectRuntime retains legacy factory/fallback architecture.');
+if (!/timeoutMs\s*:\s*0/.test(protectRuntime)) fail('ProtectRuntime does not use an unlimited execution timeout.');
+if (!/cancelActive/.test(protectRuntime)) fail('ProtectRuntime cancellation is missing.');
+
+const protectAdapter = read('public/js/protect-worker-adapter.js');
+if (!/RuntimeWorkers\.dispatch\(/.test(protectAdapter)) fail('Protect adapter does not use RuntimeWorkers.dispatch.');
+if (/WorkerPool\.run\(/.test(protectAdapter)) fail('Protect adapter retains a direct WorkerPool fallback.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(protectAdapter)) fail('Protect adapter has an artificial execution timeout.');
+if (!/dedupeKey:key\(file,options\)/.test(protectAdapter)) fail('Protect adapter does not provide a password-aware dedupe key.');
+if (!/\[buffer\]/.test(protectAdapter)) fail('Protect adapter does not transfer the input ArrayBuffer.');
+
+const protectWorker = read('public/workers/pdf-worker.js');
+if (!/OPS\.protect\s*=\s*async function/.test(protectWorker)) fail('Shared PDF worker has no Protect operation.');
+if (!/Please enter a password to protect the PDF/.test(protectWorker)) fail('Protect worker password validation is missing.');
