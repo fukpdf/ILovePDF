@@ -269,6 +269,7 @@ OPS.watermark = async function (buffers, opts) {
     page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.5, 0.5, 0.5), opacity, rotate: rot });
   }
   const out = await doc.save();
+  buffers[0] = null;
   return toArrayBuffer(out);
 };
 
