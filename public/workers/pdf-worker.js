@@ -301,26 +301,188 @@ OPS.redact = async function (buffers, opts) {
 };
 
 OPS.edit = async function (buffers, opts) {
-  const doc  = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  opts = opts || {};
   const text = String(opts.text || '');
-  if (!text) throw new Error('No text provided');
-  const font     = await doc.embedFont(StandardFonts.Helvetica);
-  const allPages = doc.getPages();
-  const fontSize = Math.max(6, Math.min(96, parseFloat(opts.fontSize || '14')));
-  const xPct     = Math.max(0, Math.min(100, parseFloat(opts.x || '50'))) / 100;
-  const yPct     = Math.max(0, Math.min(100, parseFloat(opts.y || '50'))) / 100;
-  const pagePrm  = String(opts.page || '1').trim().toLowerCase();
-  const targets  = pagePrm === 'all'
-    ? allPages
-    : [allPages[Math.max(0, parseInt(pagePrm, 10) - 1)]].filter(Boolean);
-  for (const page of targets) {
-    const { width, height } = page.getSize();
-    page.drawText(text, { x: width * xPct, y: height * (1 - yPct), size: fontSize, font, color: rgb(0, 0, 0) });
+
+  // Rich editor export contract used by EditPdfPro. The simple text-only
+  // contract remains supported for the lightweight EditPdfApp/runtime.
+  const editorState = opts.editorState;
+  if (!editorState) {
+    if (!text) throw new Error('No text provided');
+    const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const allPages = doc.getPages();
+    const fontSize = Math.max(6, Math.min(96, parseFloat(opts.fontSize || '14')));
+    const xPct = Math.max(0, Math.min(100, parseFloat(opts.x || '50'))) / 100;
+    const yPct = Math.max(0, Math.min(100, parseFloat(opts.y || '50'))) / 100;
+    const pagePrm = String(opts.page || '1').trim().toLowerCase();
+    const targets = pagePrm === 'all'
+      ? allPages
+      : [allPages[Math.max(0, parseInt(pagePrm, 10) - 1)]].filter(Boolean);
+    for (const page of targets) {
+      const { width, height } = page.getSize();
+      page.drawText(text, { x: width * xPct, y: height * (1 - yPct), size: fontSize, font, color: rgb(0, 0, 0) });
+    }
+    return toArrayBuffer(await doc.save({ useObjectStreams: true }));
   }
-  const out = await doc.save();
+
+  const state = editorState;
+  const srcDoc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const outDoc = await PDFDocument.create();
+  const pageOrder = Array.isArray(state.pageOrder) ? state.pageOrder : [];
+  const deleted = new Set(Array.isArray(state.deletedPages) ? state.deletedPages.map(Number) : []);
+  const rotations = state.pageRotations || {};
+  const annotations = Array.isArray(state.annotations) ? state.annotations : [];
+  const renderScale = Math.max(0.1, Number(state.renderScale || 1.5));
+
+  const visiblePages = pageOrder.length
+    ? pageOrder.filter(p => Number(p) === -1 || !deleted.has(Number(p)))
+    : srcDoc.getPages().map((_, i) => i + 1);
+
+  if (!visiblePages.length) throw new Error('No pages remaining. Please keep at least one page.');
+
+  for (const origP of visiblePages) {
+    if (Number(origP) === -1) {
+      outDoc.addPage([595, 842]);
+      continue;
+    }
+    const pageIndex = Number(origP) - 1;
+    if (pageIndex < 0 || pageIndex >= srcDoc.getPageCount()) {
+      throw new Error('Invalid page order in editor state.');
+    }
+    const [copied] = await outDoc.copyPages(srcDoc, [pageIndex]);
+    const extraRot = Number(rotations[origP] || 0);
+    if (extraRot) {
+      copied.setRotation(degrees((copied.getRotation().angle + extraRot) % 360));
+    }
+    outDoc.addPage(copied);
+  }
+
+  const fontRegular = await outDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await outDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await outDoc.embedFont(StandardFonts.HelveticaOblique);
+  const fontBoldItalic = await outDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+
+  function hexColor(hex, fallback) {
+    if (typeof hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(hex)) return fallback;
+    return rgb(
+      parseInt(hex.slice(1, 3), 16) / 255,
+      parseInt(hex.slice(3, 5), 16) / 255,
+      parseInt(hex.slice(5, 7), 16) / 255
+    );
+  }
+
+  function dataUrlBytes(dataUrl) {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+      throw new Error('Invalid embedded image data.');
+    }
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) throw new Error('Invalid embedded image data.');
+    const meta = dataUrl.slice(5, comma).toLowerCase();
+    if (meta.includes(';base64')) {
+      const bin = atob(dataUrl.slice(comma + 1));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return { bytes, mime: meta.split(';')[0] };
+    }
+    const decoded = decodeURIComponent(dataUrl.slice(comma + 1));
+    return { bytes: new TextEncoder().encode(decoded), mime: meta.split(';')[0] };
+  }
+
+  function pdfCoords(page, a) {
+    // EditPdfPro stores annotation coordinates in unzoomed CSS pixels.
+    // Its current renderer uses renderScale=1.5 by default, so the zoom factor
+    // cancels during export. Keep the renderScale in the serialized contract
+    // so future renderer scale changes remain explicit rather than guessed.
+    const { width, height } = page.getSize();
+    const x = Number(a.x || 0) / renderScale;
+    const y = height - (Number(a.y || 0) + Number(a.h || 0)) / renderScale;
+    const w = Math.max(0, Number(a.w || 0) / renderScale);
+    const h = Math.max(0, Number(a.h || 0) / renderScale);
+    return { x, y, w, h, width, height };
+  }
+
+  for (let vi = 1; vi <= visiblePages.length; vi++) {
+    const page = outDoc.getPages()[vi - 1];
+    const annots = annotations.filter(a => Number(a.page) === vi);
+    if (!page || !annots.length) continue;
+
+    for (const a of annots) {
+      const c = pdfCoords(page, a);
+      const style = a.style || {};
+      const opacity = Number.isFinite(Number(style.opacity)) ? Number(style.opacity) : 1;
+
+      if (a.type === 'text') {
+        const fs = Math.max(6, Math.min(96, Number(style.fontSize || 14)));
+        const useFont = style.bold
+          ? (style.italic ? fontBoldItalic : fontBold)
+          : (style.italic ? fontItalic : fontRegular);
+        const color = hexColor(style.color, rgb(0, 0, 0));
+
+        if (style.bgColor && style.bgColor !== 'transparent' && /^#[0-9a-fA-F]{6}$/.test(style.bgColor)) {
+          page.drawRectangle({ x: c.x, y: c.y, width: c.w, height: c.h, color: hexColor(style.bgColor, rgb(1, 1, 1)), opacity });
+        }
+
+        const lines = String(a.content || '').split('\n');
+        const lineH = fs * 1.4;
+        lines.forEach((line, li) => {
+          const safeLine = line || ' ';
+          const tw = useFont.widthOfTextAtSize(safeLine, fs);
+          let tx = c.x + 2;
+          const align = String(style.align || 'left').toLowerCase();
+          if (align === 'center') tx = c.x + Math.max(0, (c.w - tw) / 2);
+          else if (align === 'right') tx = c.x + Math.max(0, c.w - tw - 2);
+          const ty = c.y + c.h - fs - li * lineH;
+          if (ty < 0) return;
+          page.drawText(safeLine, { x: tx, y: ty, size: fs, font: useFont, color, opacity, maxWidth: Math.max(fs, c.w) });
+          if (style.underline) {
+            page.drawLine({
+              start: { x: tx, y: ty - 2 },
+              end: { x: Math.min(c.x + c.w, tx + tw), y: ty - 2 },
+              thickness: Math.max(0.5, fs / 16),
+              color,
+              opacity,
+            });
+          }
+        });
+        continue;
+      }
+
+      if (a.type === 'highlight') {
+        page.drawRectangle({
+          x: c.x, y: c.y, width: c.w, height: c.h,
+          color: hexColor(style.color || '#ffff00', rgb(1, 1, 0)),
+          opacity: Number(style.opacity || 0.45),
+        });
+        continue;
+      }
+
+      if (a.type === 'whiteout') {
+        page.drawRectangle({ x: c.x, y: c.y, width: c.w, height: c.h, color: rgb(1, 1, 1), opacity: 1 });
+        continue;
+      }
+
+      if (a.type === 'image' || a.type === 'signature' || a.type === 'draw-img') {
+        const img = dataUrlBytes(a.content);
+        let embedded;
+        if (img.mime === 'image/png') embedded = await outDoc.embedPng(img.bytes);
+        else if (img.mime === 'image/jpeg' || img.mime === 'image/jpg') embedded = await outDoc.embedJpg(img.bytes);
+        else throw new Error('Unsupported embedded image format: ' + img.mime);
+        page.drawImage(embedded, {
+          x: c.x, y: c.y, width: c.w, height: Math.abs(c.h), opacity,
+        });
+      }
+    }
+  }
+
+  const out = await outDoc.save({ useObjectStreams: true });
+  // Verify the worker-produced PDF before it leaves the shared runtime.
+  const verify = await PDFDocument.load(out, { ignoreEncryption: true });
+  if (verify.getPageCount() !== visiblePages.length) {
+    throw new Error('Edit output verification failed: page count mismatch.');
+  }
   return toArrayBuffer(out);
 };
-
 OPS.workflow = async function (buffers, opts) {
   const steps = [
     { op: opts.step1, value: opts.step1_value || '' },
