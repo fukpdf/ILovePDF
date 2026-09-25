@@ -331,6 +331,16 @@
       var sentInit     = false;
       var done         = false;
 
+      function finishRuntimeError(err) {
+        if (entry.terminal) return;
+        done = true;
+        entry.terminal = true;
+        _activeStreams.delete(streamId);
+        try { w.terminate(); } catch (_) {}
+        _endStreamTelemetry(entry, 'error');
+        reject(err instanceof Error ? err : new Error(String(err || 'stream-runtime-error')));
+      }
+
       // Wait for ack before sending next chunk — real backpressure
       var _pendingAck  = false;
 
@@ -394,9 +404,7 @@
           setTimeout(function () {
             if (!entry.cancelled && !done) {
               _sendNextChunk().catch(function (err) {
-                _activeStreams.delete(streamId);
-                try { w.terminate(); } catch (_) {}
-                reject(err);
+                finishRuntimeError(err);
               });
             }
           }, 500);
@@ -497,9 +505,7 @@
           _pendingAck = false;
           // Send next chunk now that worker acknowledged the previous one
           _sendNextChunk().catch(function (err) {
-            _activeStreams.delete(streamId);
-            try { w.terminate(); } catch (_) {}
-            reject(err);
+            finishRuntimeError(err);
           });
 
         } else if (d.type === 'stream-done') {
@@ -535,9 +541,7 @@
 
       // Kick off the first chunk
       _sendNextChunk().catch(function (err) {
-        _activeStreams.delete(streamId);
-        try { w.terminate(); } catch (_) {}
-        reject(err);
+        finishRuntimeError(err);
       });
     });
   }
