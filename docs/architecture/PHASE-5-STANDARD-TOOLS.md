@@ -222,3 +222,18 @@ Migration:
 6. Existing `OPS.unlock` semantics are preserved; this migration does not claim to bypass unknown/strong PDF encryption when the underlying pdf-lib loader cannot open the document.
 
 Verification: `scripts/phase5-unlock-check.js` — 18/18 checks passed.
+
+
+## Unit 15 — PDF to Word (DOCX packaging sub-migration)
+
+Audit found the authoritative PDF→Word app still performed PDF.js extraction/OCR in the page context and spawned `pdf-word-docx-worker.js` directly for DOCX packaging. Because the full high-fidelity conversion engine uses browser APIs (PDF.js rendering, canvas/OCR, and PDFPipeline modules), the entire processor is not yet safe to advertise as a generic pdf-worker operation.
+
+Implemented in this unit:
+1. The DOCX packaging stage now uses the shared WorkerPool.
+2. Shared `WorkerPool.CancelToken` is passed into the packaging task.
+3. The existing dedicated DOCX worker protocol and high-fidelity document builder are preserved.
+4. Direct `new Worker(DOCX_WORKER)` ownership was removed from the app.
+5. Lifecycle cleanup no longer terminates an app-owned DOCX worker.
+6. No artificial processing timeout was introduced.
+
+This is intentionally a **sub-migration**, not a claim that the entire PDF→Word pipeline is now worker-safe. PDF.js extraction/OCR and browser-dependent fidelity modules remain to be isolated before the registry can truthfully advertise full shared-worker execution.
