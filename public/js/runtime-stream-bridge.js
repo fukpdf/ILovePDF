@@ -719,7 +719,7 @@
           }
         }
 
-        while (fileIndex < files.length && offset >= files[fileIndex].size) {
+        // Preserve empty files as explicit source boundaries; otherwise an all-empty batch\n        // can advance past every file without ever sending a terminal chunk.\n        while (fileIndex < files.length && files[fileIndex].size > 0 && offset >= files[fileIndex].size) {
           fileIndex++; offset = 0; chunkIndex = 0;
         }
         if (fileIndex >= files.length) return;
