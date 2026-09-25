@@ -1,8 +1,9 @@
 // PdfToWordApp v1.0 — Isolated PDF→Word Tool App (Phase 2 Microfrontend Migration)
 //
 // Worker-safe packaging migration for the high-fidelity PDF→Word pipeline.
-// PDF.js extraction/OCR remains page-context code until its browser-dependent
-// stages are isolated; DOCX packaging is now owned by the shared WorkerPool.
+// PDF.js extraction and OCR rendering are progressively isolated; DOCX packaging
+// is owned by the shared WorkerPool. Tesseract recognition remains page-context
+// because its browser/runtime contract has not yet been proven safe to relocate.
 //
 // SOLUTION:
 //   PdfToWordApp installs a BrowserTools.process interceptor for 'pdf-to-word' ONLY.
@@ -22,6 +23,7 @@
   var PDFJS_WORKER   = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
   var DOCX_WORKER    = '/workers/pdf-word-docx-worker.js';
   var EXTRACT_WORKER = '/workers/pdf-word-extract-worker.js';
+  var RENDER_WORKER  = '/workers/pdf-word-render-worker.js';
   var TESS_CDN       = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
   // No artificial job timeout; cancellation and worker lifecycle cleanup remain active.\n
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
@@ -76,6 +78,20 @@
     if (!result || result.__error) throw new Error(result && result.__error || 'PDF extraction worker failed');
     if (!Array.isArray(result.pages)) throw new Error('PDF extraction worker returned invalid pages');
     return result.pages;
+  }
+
+  async function _renderOcrPageWithSharedWorker(file, pageNum, scale, cancelToken, jobId) {
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') throw new Error('Shared WorkerPool runtime unavailable');
+    var buf = await file.arrayBuffer();
+    var result = await G.WorkerPool.run(
+      RENDER_WORKER,
+      {op:'render-page', buffer:buf, pageNum:pageNum, scale:scale, jobId:String(jobId)},
+      [buf],
+      {priority:'normal',token:cancelToken}
+    );
+    if (!result || result.__error) throw new Error(result && result.__error || 'PDF render worker failed');
+    if (!result.buffer) throw new Error('PDF render worker returned no image buffer');
+    return result;
   }
 
   // ── LANGUAGE DETECTION ────────────────────────────────────────────────────
@@ -215,9 +231,10 @@
   }
 
   // ── OCR FALLBACK ──────────────────────────────────────────────────────────
-  // Creates an ISOLATED Tesseract.createWorker() instance per job.
-  // Tracked in _tessWorker → guaranteed termination in _cleanup().
-  async function _runOcr(file, lang, onStep) {
+  // Tesseract recognition remains page-context; PDF page rasterisation is delegated
+  // to the isolated shared WorkerPool render worker below. The Tesseract instance
+  // is still tracked in _tessWorker → guaranteed termination in _cleanup().
+  async function _runOcr(file, lang, onStep, cancelToken, jobId) {
     // Lazy-load Tesseract.js
     if (!G.Tesseract) {
       await new Promise(function (resolve, reject) {
@@ -263,35 +280,25 @@
     );
     _tessWorker = tw;   // register for cleanup
 
-    var buf1 = await file.arrayBuffer();
-    var pdf1 = await pdfjsLib.getDocument({ data: buf1, isEvalSupported: false }).promise;
+    var pdfMeta = await _loadPdfJs();
+    var metaBuf = await file.arrayBuffer();
+    var pdfMetaDoc = await pdfMeta.getDocument({ data: metaBuf, isEvalSupported: false }).promise;
+    var total = pdfMetaDoc.numPages;
+    try { await pdfMetaDoc.destroy(); } catch (_) {}
+    metaBuf = null;
+
     var ocrPages = [];
-    var total    = pdf1.numPages;
+    var renderScale = 1.5;
+    for (var oi = 1; oi <= total; oi++) {
+      var rendered = await _renderOcrPageWithSharedWorker(file, oi, renderScale, cancelToken, jobId);
+      var imageBlob = new Blob([rendered.buffer], {type: rendered.mimeType || 'image/png'});
+      var recog = await _race(tw.recognize(imageBlob));
+      ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
 
-    try {
-      for (var oi = 1; oi <= total; oi++) {
-        var oPage  = await pdf1.getPage(oi);
-        var vp     = oPage.getViewport({ scale: 1.5 });
-        var cvs    = document.createElement('canvas');
-        cvs.width  = vp.width;
-        cvs.height = vp.height;
-        var ctx    = cvs.getContext('2d');
-        await oPage.render({ canvasContext: ctx, viewport: vp }).promise;
-        var dataUrl = cvs.toDataURL('image/png');
-        oPage.cleanup();
-        cvs.width = 0; cvs.height = 0; // release canvas memory
-
-        var recog = await _race(tw.recognize(dataUrl));
-        ocrPages.push({ pageNum: oi, text: recog.data.text || '', source: 'ocr' });
-
-        onStep(1, 'active',
-          35 + Math.round((oi / total) * 18),
-          'OCR: page ' + oi + ' of ' + total
-        );
-      }
-    } finally {
-      try { await pdf1.destroy(); } catch (_) {}
-      buf1 = null;
+      onStep(1, 'active',
+        35 + Math.round((oi / total) * 18),
+        'OCR: page ' + oi + ' of ' + total
+      );
     }
 
     // Terminate Tesseract worker immediately after use
@@ -401,7 +408,7 @@
 
       if (needsOcr) {
         _log('OCR trigger', { avgCharsPerPage: avgCharsPerPage, forceOcr: forceOcr });
-        var ocrRaw  = await _runOcr(file, ocrLang, onStep);
+        var ocrRaw  = await _runOcr(file, ocrLang, onStep, cancelToken, jobId);
         var ocrLen  = ocrRaw.reduce(function (s, p) { return s + (p.text || '').length; }, 0);
         if (ocrLen < 10) {
           throw new Error('No readable text found. This may be a scanned document with unclear content.');
