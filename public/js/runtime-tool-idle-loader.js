@@ -13,7 +13,7 @@
  * TARGET SYSTEMS (all purely additive, use _s() / window.X guards):
  *   1.  runtime-diagnostics-center.js  — enterprise diagnostics (Phase 27)
  *   2.  runtime-prefetch.js            — predictive route prefetch (Phase 28)
- *   3.  runtime-worker-warmup.js       — idle worker pool warmup
+ *   3.  (removed legacy worker warmup)       — idle worker pool warmup
  *   4.  runtime-processing-concurrency.js — browser-side processing semaphore
  *   5.  runtime-compression-presets.js — adaptive compression preset selector
  *   6.  runtime-session-intel.js       — session funnel + rage-click + heatmap
