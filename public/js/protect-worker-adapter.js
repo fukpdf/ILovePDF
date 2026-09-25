@@ -3,7 +3,7 @@
 'use strict';
 if(window.ProtectWorkerAdapter)return;
 var WORKER_URL='/workers/pdf-worker.js',TIMEOUT_MS=0;
-function key(file,opts){var password=String(opts&&opts.password||'');return 'protect:'+String(file&&file.name||'')+':'+String(file&&file.size||0)+':'+String(file&&file.lastModified||0)+':'+password.length+':'+password.slice(0,3);}
+function key(file,opts){var password=String(opts&&opts.password||''),h=2166136261;for(var i=0;i<password.length;i++){h^=password.charCodeAt(i);h=Math.imul(h,16777619);}return 'protect:'+String(file&&file.name||'')+':'+String(file&&file.size||0)+':'+String(file&&file.lastModified||0)+':'+(h>>>0).toString(16);}
 async function dispatch(file,opts,onProgress,token){
  if(!file)throw new Error('No file provided');
  if(!window.RuntimeWorkers||typeof window.RuntimeWorkers.dispatch!=='function')throw new Error('RuntimeWorkers is unavailable — canonical Protect worker runtime cannot dispatch');
