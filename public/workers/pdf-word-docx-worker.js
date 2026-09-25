@@ -489,7 +489,7 @@ async function buildDocx(pages) {
 
   body = null; docXml = null; stylesXml = null; numberingXml = null;
   pages = null;
-  return ab;
+  return { buffer: ab, stats: stats };
 }
 
 // ── MESSAGE HANDLER ───────────────────────────────────────────────────────────
@@ -499,8 +499,8 @@ self.onmessage = async function (e) {
   try {
     if (data.op !== 'build-docx') throw new Error('Unknown op: ' + data.op);
     if (!data.pages || !data.pages.length) throw new Error('No pages provided');
-    var buf = await buildDocx(data.pages);
-    self.postMessage({ buffer: buf, stats: stats, jobId: jobId }, [buf]);
+    var result = await buildDocx(data.pages);
+    self.postMessage({ buffer: result.buffer, stats: result.stats, jobId: jobId }, [result.buffer]);
   } catch (err) {
     self.postMessage({ __error: (err && err.message) || 'DOCX build error', jobId: jobId });
   }
