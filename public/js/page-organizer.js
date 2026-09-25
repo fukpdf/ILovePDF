@@ -114,6 +114,10 @@
   async function open(containerEl, file, opts) {
     opts = opts || {};
     const onChange = typeof opts.onChange === 'function' ? opts.onChange : () => {};
+    // Rotate PDF uses a rotation-only export path. Keep structural editing (reorder/delete)
+    // disabled there because the canonical rotate worker preserves the original document
+    // structure and applies only per-page rotation deltas.
+    const allowStructuralEdits = opts.allowStructuralEdits !== false;
 
     containerEl.innerHTML = `
       <div class="po-loading">
@@ -157,11 +161,10 @@
           </button>
         </div>
       </div>
-      <div class="po-grid" role="list" aria-label="PDF pages — drag to reorder"></div>
+      <div class="po-grid" role="list" aria-label="PDF page previews"></div>
       <div class="po-hint">
         <i data-lucide="info"></i>
-        Drag thumbnails to reorder. Use the per-page buttons to rotate or delete.
-        Your final file follows this exact order.
+        ${allowStructuralEdits ? 'Drag thumbnails to reorder. Use the per-page buttons to rotate or delete.' : 'Use the page controls to rotate pages. Page order and page count are preserved.'}
       </div>`;
     if (window.lucide) lucide.createIcons();
     const grid = containerEl.querySelector('.po-grid');
@@ -328,8 +331,7 @@
 
       grid.innerHTML = pages.map((p, i) => `
         <div class="po-tile" role="listitem" tabindex="0"
-             draggable="true"
-             data-id="${p.id}" data-pos="${i}" data-render-state="${STATE.IDLE}"
+             data-id="${p.id}" data-pos="${i}" data-render-state="${STATE.IDLE}"${allowStructuralEdits ? ' draggable="true"' : ''}
              aria-label="Page ${i + 1}, originally page ${p.originalIndex + 1}">
           <div class="po-tile-pos">${i + 1}</div>
           <div class="po-tile-canvas">
@@ -343,9 +345,7 @@
             <button type="button" class="po-tile-act" data-tact="rotate" title="Rotate 90° clockwise" aria-label="Rotate page">
               <i data-lucide="rotate-cw"></i>
             </button>
-            <button type="button" class="po-tile-act po-tile-act-del" data-tact="delete" title="Remove this page" aria-label="Delete page">
-              <i data-lucide="trash-2"></i>
-            </button>
+            ${allowStructuralEdits ? '<button type="button" class="po-tile-act po-tile-act-del" data-tact="delete" title="Remove this page" aria-label="Delete page"><i data-lucide="trash-2"></i></button>' : ''}
           </div>
         </div>
       `).join('');
@@ -417,17 +417,17 @@
           if (e.key === 'r' || e.key === 'R') {
             pages[idx].rotation = (pages[idx].rotation + 90) % 360;
             renderGrid(); e.preventDefault();
-          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          } else if (allowStructuralEdits && (e.key === 'Delete' || e.key === 'Backspace')) {
             if (pages.length > 1) { pages.splice(idx, 1); renderGrid(); }
             e.preventDefault();
-          } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          } else if (allowStructuralEdits && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
             if (idx < pages.length - 1) {
               [pages[idx], pages[idx + 1]] = [pages[idx + 1], pages[idx]];
               renderGrid();
               setTimeout(() => grid.querySelector(`[data-id="${id}"]`)?.focus(), 0);
             }
             e.preventDefault();
-          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          } else if (allowStructuralEdits && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
             if (idx > 0) {
               [pages[idx], pages[idx - 1]] = [pages[idx - 1], pages[idx]];
               renderGrid();
@@ -437,7 +437,7 @@
           }
         });
       });
-      bindDragAndDrop();
+      if (allowStructuralEdits) bindDragAndDrop();
     }
 
     // ── Drag and drop ─────────────────────────────────────────────────────
