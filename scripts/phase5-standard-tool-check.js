@@ -35,6 +35,39 @@ if (published !== read('config/tool-registry.json')) {
   fail('Published registry is out of sync with canonical registry.');
 }
 
+function requireBrowserRuntimeContract(id, label) {
+  const tool = (registry.tools || []).find(t => t.id === id);
+  if (!tool) {
+    fail(label + ' is missing from the canonical tool registry.');
+    return;
+  }
+  if (tool.execution !== 'browser') fail(label + ' execution must remain browser (non-worker engine).');
+  if (!tool.capabilities || tool.capabilities.lazyLoad !== true) fail(label + ' lazyLoad contract is missing.');
+  if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
+}
+
+const browserRuntime = read('public/js/browser-tool-runtime.js');
+if (!/RuntimeScheduler\.run\(/.test(browserRuntime)) fail('BrowserToolRuntime does not use RuntimeScheduler.');
+if (!/BrowserTools\.process\(toolId, files, opts/.test(browserRuntime)) fail('BrowserToolRuntime does not dispatch to the existing browser processor.');
+if (!/TIMEOUT_MS\s*=\s*0/.test(browserRuntime)) fail('BrowserToolRuntime contains an artificial execution timeout.');
+if (!/dedupeKey\(toolId, files, opts\)/.test(browserRuntime) || !/dedupeKey: dedupeKey/.test(browserRuntime)) fail('BrowserToolRuntime dedupe contract is missing.');
+if (!/cancelAll\(reason\)/.test(browserRuntime) || !/pagehide/.test(browserRuntime)) fail('BrowserToolRuntime lifecycle cancellation is incomplete.');
+
+const browserRuntimeIds = [
+  ['pdf-to-word', 'PDF to Word'], ['pdf-to-powerpoint', 'PDF to PowerPoint'],
+  ['pdf-to-excel', 'PDF to Excel'], ['pdf-to-jpg', 'PDF to JPG'],
+  ['word-to-pdf', 'Word to PDF'], ['powerpoint-to-pdf', 'PowerPoint to PDF'],
+  ['excel-to-pdf', 'Excel to PDF'], ['word-to-excel', 'Word to Excel'],
+  ['jpg-to-pdf', 'JPG to PDF'], ['html-to-pdf', 'HTML to PDF'],
+  ['scan-to-pdf', 'Scan'], ['ocr', 'OCR'], ['ai-summarize', 'AI Summarizer'],
+  ['background-remover', 'Background Remover'], ['crop-image', 'Crop Image'],
+  ['resize-image', 'Image Resize'], ['image-filters', 'Image Filters'],
+];
+browserRuntimeIds.forEach(function (pair) { requireBrowserRuntimeContract(pair[0], pair[1]); });
+
+if (!/browser-tool-runtime\.js/.test(read('public/tool.html'))) fail('Canonical browser runtime adapter is not loaded by the standard tool shell.');
+if (!/registryTool\.execution === 'browser'/.test(read('public/js/tool-page.js'))) fail('Tool page does not route registry browser tools through BrowserToolRuntime.');
+
 const browserTools = read('public/js/browser-tools.js');
 const workerSet = browserTools.match(/const WORKER_TOOLS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
 if (!/['"]crop['"]/.test(workerSet)) fail('Crop is not in BrowserTools WORKER_TOOLS.');
