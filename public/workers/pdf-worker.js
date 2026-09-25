@@ -100,19 +100,40 @@ OPS.repair = async function (buffers) {
 };
 
 OPS.merge = async function (buffers) {
+  if (!Array.isArray(buffers) || buffers.length === 0) {
+    throw new Error('Merge requires at least one PDF');
+  }
+
   const merged = await PDFDocument.create();
+  let totalPages = 0;
+
   for (let i = 0; i < buffers.length; i++) {
     const buf = buffers[i];
+    if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) {
+      throw new Error('Merge input ' + (i + 1) + ' is empty or invalid');
+    }
+
+    let src;
     try {
-      const src     = await PDFDocument.load(buf, { ignoreEncryption: true });
-      const indices = src.getPageIndices();
-      const copied  = await merged.copyPages(src, indices);
-      copied.forEach(p => merged.addPage(p));
-    } catch (_) { /* skip unreadable */ }
-    // Release the source ArrayBuffer reference as soon as its pages are copied.
+      src = await PDFDocument.load(buf, { ignoreEncryption: true });
+    } catch (err) {
+      throw new Error('Unable to read Merge input ' + (i + 1) + ': ' + (err && err.message || 'invalid PDF'));
+    }
+
+    const indices = src.getPageIndices();
+    const copied = await merged.copyPages(src, indices);
+    copied.forEach(p => merged.addPage(p));
+    totalPages += copied.length;
+
+    // Release the source ArrayBuffer reference after its pages are copied.
     // This does not impose a size/page limit; it reduces peak live memory.
     buffers[i] = null;
   }
+
+  if (totalPages === 0) {
+    throw new Error('Merge produced no pages');
+  }
+
   const out = await merged.save({ useObjectStreams: true });
   return toArrayBuffer(out);
 };
