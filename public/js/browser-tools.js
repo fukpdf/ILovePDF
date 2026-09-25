@@ -4581,7 +4581,7 @@
   // can safely run inside a Web Worker via WorkerPool.
   const WORKER_TOOLS = new Set([
     'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
-    'page-numbers', 'watermark', 'sign', 'redact', 'edit', 'protect',
+    'page-numbers', 'watermark', 'sign', 'redact', 'edit', 'protect', 'unlock',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
