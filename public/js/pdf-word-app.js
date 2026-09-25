@@ -1,24 +1,15 @@
 // PdfToWordApp v1.0 — Isolated PDF→Word Tool App (Phase 2 Microfrontend Migration)
 //
-// PROBLEM SOLVED:
-//   "First run fails, second run hangs forever."
-//
-//   Root cause: window.BrowserTools.process calls advanced-engine.js processors['pdf-to-word'],
-//   which is wrapped by runTool() using `withTimeout(proc(), TOOL_TIMEOUT_MS)`.
-//   withTimeout() races two promises — when the timeout fires it rejects the outer promise
-//   but the inner proc() continues running UNOBSERVED.  The proc() may have already spawned:
-//     (a) a Tesseract.createWorker() whose finally-block never runs (nobody awaiting the proc)
-//     (b) a pdf.destroy() / pdfSource.cleanup() call that is skipped
-//   On the next run, the leaked Tesseract worker from (a) is still loading traineddata from
-//   CDN/OPFS.  A second createWorker() call on the same language blocks on the same OPFS
-//   write-lock → hangs forever.
+// Worker-safe packaging migration for the high-fidelity PDF→Word pipeline.
+// PDF.js extraction/OCR remains page-context code until its browser-dependent
+// stages are isolated; DOCX packaging is now owned by the shared WorkerPool.
 //
 // SOLUTION:
 //   PdfToWordApp installs a BrowserTools.process interceptor for 'pdf-to-word' ONLY.
 //   It runs a fully isolated pipeline where:
 //   — ALL async operations are wrapped in try/finally with guaranteed worker cleanup
 //   — Cancellation calls _cleanup() explicitly (terminates workers before rejecting)
-//   — A dedicated terminate-after-job Worker handles DOCX packaging (no shared WorkerPool)
+//   — DOCX packaging is scheduled through the shared WorkerPool.
 //   — Tesseract.createWorker() instances are tracked and terminated in _cleanup()
 //   — _inFlight flag prevents re-entry; always reset in finally
 //
@@ -35,7 +26,6 @@
   // ── ISOLATED STATE ─────────────────────────────────────────────────────────
   var _inFlight     = false;    // re-entry guard
   var _jobId        = 0;        // monotonic job counter
-  var _docxWorker   = null;     // current DOCX packaging Worker
   var _tessWorker   = null;     // current Tesseract worker (from createWorker)
   var _pdfInst      = null;     // current pdfjsLib pdf instance
 
@@ -48,7 +38,6 @@
   // Never throws.
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_docxWorker)   { try { _docxWorker.terminate(); } catch (_) {} _docxWorker = null; }
     if (_tessWorker)   { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     if (_pdfInst)      { try { _pdfInst.destroy();    } catch (_) {} _pdfInst    = null; }
     _inFlight = false;
@@ -320,35 +309,23 @@
   }
 
   // ── DOCX BUILD VIA DEDICATED WORKER ──────────────────────────────────────
-  // Spawns a FRESH pdf-word-docx-worker.js per job — no shared WorkerPool slot.
-  // Worker tracked in _docxWorker → guaranteed termination in _cleanup().
-  function _buildDocx(pages, jobId) {
-    return new Promise(function (resolve, reject) {
-      var w;
-      try {
-        w = new Worker(DOCX_WORKER);
-      } catch (e) {
-        return reject(new Error('DOCX worker spawn failed: ' + (e.message || e)));
-      }
-      _docxWorker = w;
-
-      w.onmessage = function (ev) {
-        try { w.terminate(); } catch (_) {}
-        _docxWorker = null;
-        var d = ev.data || {};
-        if (d.__error) { reject(new Error(d.__error)); return; }
-        if (d.buffer)  { resolve(d.buffer); return; }
-        reject(new Error('DOCX worker: unexpected response'));
-      };
-      w.onerror = function (ev) {
-        try { w.terminate(); } catch (_) {}
-        _docxWorker = null;
-        reject(new Error('DOCX worker error: ' + (ev && ev.message || 'unknown')));
-      };
-
-      w.postMessage({ op: 'build-docx', pages: pages, jobId: String(jobId) });
+  // DOCX packaging is scheduled through the shared WorkerPool; the worker URL
+  // remains isolated because its protocol is richer than pdf-worker.js.
+  function _buildDocx(pages, jobId, cancelToken) {
+    if (!G.WorkerPool || typeof G.WorkerPool.run !== 'function') {
+      return Promise.reject(new Error('Shared WorkerPool runtime unavailable'));
+    }
+    var message = { op: 'build-docx', pages: pages, jobId: String(jobId) };
+    return G.WorkerPool.run(DOCX_WORKER, message, [], {
+      priority: 'normal',
+      token: cancelToken || null,
+    }).then(function (d) {
+      if (!d || d.__error) throw new Error((d && d.__error) || 'DOCX worker: unexpected response');
+      if (!d.buffer) throw new Error('DOCX worker returned no document buffer');
+      return d.buffer;
     });
   }
+
 
   // ── BRANDED FILENAME ─────────────────────────────────────────────────────
   function _filename(orig) {
@@ -383,6 +360,7 @@
     var forceOcr = !!(opts && (opts._forceOcr || opts._retryForceOcr));
     var ocrLang  = _detectLang(file.name);
     var onStep   = _makeStepper();
+    var cancelToken = (G.WorkerPool && G.WorkerPool.CancelToken) ? new G.WorkerPool.CancelToken() : null;
 
     _log('start', { job: jobId, file: file.name, size: file.size, forceOcr: forceOcr });
 
@@ -449,7 +427,7 @@
       onStep(2, 'active', 57, 'Building document\u2026');
 
       // ── Phase 3: DOCX build via dedicated isolated worker ─────────────────
-      var docxBuf = await _buildDocx(pages, jobId);
+      var docxBuf = await _buildDocx(pages, jobId, cancelToken);
       // Worker already terminated inside _buildDocx on success/error.
 
       onStep(2, 'done', 90);
@@ -482,6 +460,7 @@
       _log('error', { job: jobId, err: err && err.message });
       throw err;
     } finally {
+      if (cancelToken && cancelToken.cancelled === false) { try { cancelToken.cancel(); } catch (_) {} }
       // This finally block is the CRITICAL guarantee:
       // Whether the job succeeded, errored, or was hard-timed-out,
       // all workers are terminated and the in-flight flag is reset.
@@ -499,7 +478,6 @@
     return {
       inFlight:    _inFlight,
       jobId:       _jobId,
-      hasDocxWorker: !!_docxWorker,
       hasTessWorker: !!_tessWorker,
     };
   }
