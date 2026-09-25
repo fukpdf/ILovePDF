@@ -796,7 +796,7 @@
       "working": true,
       "specialRoute": null,
       "module": "pdf-module",
-      "execution": "browser",
+      "execution": "browser-worker",
       "version": 1,
       "dependencies": [],
       "authRequired": false,
@@ -807,8 +807,8 @@
       "validation": "shared-output-validator",
       "capabilities": {
         "lazyLoad": true,
-        "streaming": "not-applicable",
-        "workerPool": false,
+        "streaming": "adaptive-worker",
+        "workerPool": true,
         "fileSizePolicy": "unlimited"
       }
     },
