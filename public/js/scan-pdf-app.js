@@ -20,7 +20,6 @@
 
   var PDFLIB_CDN    = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
   var TESS_CDN      = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var HARD_LIMIT_MS = 300000; // 5 min (multi-page OCR can be slow)
   var OCR_INIT_MS   = 45000;
   var OCR_PAGE_MS   = 60000;
 
@@ -62,7 +61,6 @@
 
   function _cleanup(label) {
     if (label) _log('cleanup', label);
-    if (_hardTimer)  { clearTimeout(_hardTimer); _hardTimer = null; _hardReject = null; }
     if (_tessWorker) { try { _tessWorker.terminate(); } catch (_) {} _tessWorker = null; }
     _pageCanvases.forEach(_freeCanvas);
     _pageCanvases = [];
@@ -151,15 +149,6 @@
     var onStep    = _makeStepper();
     var outputFmt = (opts && opts.outputFormat) || 'pdf';
     var lang      = (opts && opts.language)     || 'eng';
-
-    var hardPromise = new Promise(function (_, reject) {
-      _hardReject = reject;
-      _hardTimer  = setTimeout(function () {
-        _log('HARD TIMEOUT', jobId);
-        _cleanup('hard-timeout');
-        reject(new Error('Scan-to-PDF timed out. Please try with fewer or smaller images.'));
-      }, HARD_LIMIT_MS);
-    });
 
     var jobPromise = (async function () {
       onStep(0, 'active', 5, 'Preparing your images\u2026');
@@ -324,7 +313,7 @@
     })();
 
     try {
-      return await Promise.race([jobPromise, hardPromise]);
+      return await jobPromise;
     } catch (err) {
       ScanScheduler.onFailure();
       ScanRecoveryManager.onError(err);
