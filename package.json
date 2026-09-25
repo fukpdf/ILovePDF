@@ -50,7 +50,8 @@
     "audit:phase5:chunk-stream-error-finalization": "node scripts/phase5-chunk-stream-error-finalization-check.js",
     "audit:phase5:chunk-cancel-cleanup": "node scripts/phase5-chunk-cancel-cleanup-check.js",
     "audit:phase5:transferable-error-finalization": "node scripts/phase5-transferable-error-finalization-check.js",
-    "audit:phase5:multifile-stream-transport": "node scripts/phase5-multifile-stream-transport-check.js"
+    "audit:phase5:multifile-stream-transport": "node scripts/phase5-multifile-stream-transport-check.js",
+    "audit:phase5:stream-messageerror-finalization": "node scripts/phase5-stream-messageerror-finalization-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
