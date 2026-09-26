@@ -1,82 +1,3 @@
-// Runtime Task Scheduler v1.0 — Phase 2 (T021)
-// Centralized scheduling layer. Extends the existing TaskScheduler with:
-// priority queues, UI-protection slots, concurrency control per memory tier,
-// mobile-aware scheduling, foreground/background/OCR/large-file task types,
-// starvation prevention, and task-level telemetry.
-//
-// DESIGN: Wraps TaskScheduler.schedule() — does NOT replace it.
-// Existing calls to TaskScheduler continue to work unchanged.
-// New code uses RuntimeScheduler.run() for full lifecycle management.
-//
-// Integrates: TaskScheduler, RuntimeMemory, RuntimeTelemetry, RuntimeCancellation,
-//             RuntimeProgress, RuntimeEventBus, RuntimeState
-//
-// [FUTURE: WorkerOrchestrator] RuntimeScheduler.run() will also route tasks
-// to the RuntimeWorkerOrchestrator when a worker URL is provided, so tasks
-// can transparently move between main-thread and worker execution.
-//
-// Exposed as: window.RuntimeScheduler
-(function () {
-  'use strict';
-
-  if (window.RuntimeScheduler) return;
-
-  var _FROZEN = Object.freeze({ v: 1 });
-
-  var LOG = '[RTS]';
-
-  // ── Task types → TaskScheduler tiers ──────────────────────────────────────
-  var TYPE_TIER = {
-    ui:         'RENDER',    // thumbnail generation, previews
-    render:     'RENDER',    // PDF rendering
-    ocr:        'AI',        // OCR (heavy)
-    ai:         'AI',        // ONNX inference, bg remove
-    compress:   'RENDER',    // compression (medium)
-    convert:    'RENDER',    // PDF conversion
-    merge:      'RENDER',    // multi-file merge
-    background: 'BACKGROUND',// cache warm, indexing
-    cleanup:    'BACKGROUND',
-    largefile:  'RENDER',    // giant PDFs (gets extra delay on low-end)
-  };
-
-  // ── Priority ordering (lower = runs first) ────────────────────────────────
-  var PRIORITY = { critical: 0, high: 1, normal: 2, low: 3, background: 4 };
-
-  // ── Per-type concurrency caps (applied on top of tier limits) ─────────────
-  // Max simultaneous tasks of the same type regardless of tier slots.
-  var TYPE_CAP = {
-    ocr:       1,   // OCR is RAM-heavy — only one at a time
-    ai:        1,   // ONNX inference similarly
-    largefile: 1,   // Serialise giant-file processing
-    render:    2,
-    compress:  2,
-    background:2,
-  };
-
-  var _typeCounts = {}; // type → running count
-
-  // ── Task queue (priority-sorted waiting tasks) ────────────────────────────
-  // Tasks that cannot start immediately go here sorted by priority.
-  var _waitQueue = []; // [{ resolve, reject, type, priority, label, ts }]
-
-  // ── Mobile / low-end adjustments ─────────────────────────────────────────
-  var _ua = navigator.userAgent || '';
-  var IS_MOBILE = /Mobile|Tablet|Android|iPhone|iPad/i.test(_ua);
-  var IS_LOW_END = IS_MOBILE && (navigator.hardwareConcurrency || 4) <= 4;
-
-  if (IS_LOW_END) {
-    TYPE_CAP.render   = 1;
-    TYPE_CAP.compress = 1;
-    TYPE_CAP.background = 1;
-  }
-
-  // ── Effective concurrency cap ─────────────────────────────────────────────
-  function _typeCap(type) {
-    var base = TYPE_CAP[type] || 2;
-    // Shrink under memory pressure
-    if (window.RuntimeMemory && window.RuntimeMemory.isCritical()) return 1;
-    if (window.RuntimeMemory && window.RuntimeMemory.isWarning()) return Math.max(1, Math.floor(base / 2));
-    return base;
   }
 
   function _canStart(type) {
@@ -130,6 +51,13 @@
       }
     }
 
+    // Acquire the global tier slot with cancellation wired from the start.
+    // This prevents cancelled tasks from remaining stuck in TaskScheduler.queue.
+    var tsPromise = window.TaskScheduler
+      ? window.TaskScheduler.acquireSlot(tier, token)
+      : Promise.resolve();
+    await tsPromise;
+
     // Telemetry span
     var spanId = null;
     if (window.RuntimeTelemetry) {
@@ -142,13 +70,8 @@
       progressTask = window.RuntimeProgress.createSimpleTask(label, token);
     }
 
-    // Acquire concurrency slot from TaskScheduler
-    var tsPromise = window.TaskScheduler
-      ? window.TaskScheduler.acquireSlot(tier)
-      : Promise.resolve();
-
-    // Wait for both: TaskScheduler slot AND type-specific cap
-    await tsPromise;
+    // Wait for the type-specific cap after the global tier slot is held.
+    // The slot is released if this task is cancelled while waiting here.
 
     // If type cap is also at limit, wait in our priority queue
     if (!_canStart(type)) {
@@ -258,32 +181,3 @@
   // ── Stats ─────────────────────────────────────────────────────────────────
   function getStats() {
     var ts = window.TaskScheduler ? window.TaskScheduler.stats() : {};
-    return {
-      waitQueueSize: _waitQueue.length,
-      typeCounts:    Object.assign({}, _typeCounts),
-      isMobile:      IS_MOBILE,
-      isLowEnd:      IS_LOW_END,
-      taskScheduler: ts,
-    };
-  }
-
-  // ── Pagehide ──────────────────────────────────────────────────────────────
-  window.addEventListener('pagehide', function () {
-    cancelAll('pagehide');
-  }, { passive: true });
-
-  window.RuntimeScheduler = {
-    run:               run,
-    scheduleRender:    scheduleRender,
-    scheduleOcr:       scheduleOcr,
-    scheduleAi:        scheduleAi,
-    scheduleBackground:scheduleBackground,
-    scheduleLargeFile: scheduleLargeFile,
-    cancelType:        cancelType,
-    cancelAll:         cancelAll,
-    getStats:          getStats,
-    TYPE_TIER:         TYPE_TIER,
-  };
-
-  console.debug('[RuntimeScheduler] ready — T021 task scheduler active');
-}());
