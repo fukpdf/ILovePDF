@@ -134,7 +134,9 @@ if (!/slot\.queue\.indexOf\(entry\)/.test(taskScheduler)) fail('TaskScheduler ca
 if (!/entry\.resolve\(\)/.test(taskScheduler)) fail('TaskScheduler queue entries do not resolve through their scheduler contract.');
 if (!/acquireSlot\(tier, token\)/.test(runtimeScheduler)) fail('RuntimeScheduler does not pass cancellation into TaskScheduler.');
 if (runtimeScheduler.indexOf('if (!_canStart(type))') === -1 || runtimeScheduler.indexOf('token.onCancel(function (reason)') === -1 || runtimeScheduler.indexOf('releaseTierSlotOnce()') === -1) fail('RuntimeScheduler type-cap queue does not release its held tier slot on cancellation.');
-if (!/Only create telemetry\/progress resources once both queue layers can start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
+if (!/Resource creation is intentionally delayed until queue layers can start/.test(runtimeScheduler) || !/Start telemetry\/progress only after all queue layers can actually start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
+if (!/item\.settled = true;[\s\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach queued cancellation listeners on handoff.');
+if (!/item\.releaseTierSlot\(\)/.test(runtimeScheduler)) fail('RuntimeScheduler bulk queue cancellation does not release held tier slots.');
 
 const browserRuntime = read('public/js/browser-tool-runtime.js');
 if (!/RuntimeScheduler\.run\(/.test(browserRuntime)) fail('BrowserToolRuntime does not use RuntimeScheduler.');
