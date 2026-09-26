@@ -31,3 +31,12 @@ for(const [name,rel] of PAGES){const candidates=collect(fs.readFileSync(path.joi
 console.log('');
 console.log('TOTAL: candidates='+total+' mapped='+mapped+' translated-all-locales='+translatedCount+' english-fallback='+fallback+' unmapped='+unmapped);
 console.log('English-fallback means a semantic key exists but at least one non-English locale has no explicit override. This is not counted as translated.');
+if (process.env.SPECIAL_I18N_VERBOSE === '1') {
+  for (const [name, rel] of PAGES) {
+    const candidates=collect(fs.readFileSync(path.join(ROOT,rel),'utf8'));
+    const unmapped=candidates.filter(t=>!mapping.has(t));
+    const fallback=candidates.filter(t=>mapping.has(t)&&!translated(mapping.get(t)));
+    console.log('\\n['+name+'] unmapped:'); unmapped.forEach(t=>console.log('- '+t));
+    console.log('['+name+'] english-fallback:'); fallback.forEach(t=>console.log('- '+t+' => '+mapping.get(t)));
+  }
+}
