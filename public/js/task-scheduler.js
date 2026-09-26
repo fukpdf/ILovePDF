@@ -130,8 +130,8 @@
   }
 
   // Cancel all queued (waiting) tasks for a tier. Running tasks are unaffected.
-  // Queued resolve() calls fire immediately so callers can unblock and check
-  // their own cancellation flags.
+  // Queued callers must reject: resolving here would allow schedule() callers
+  // to enter fn() after a global cancellation/shutdown.
   //
   // RCA-3 FIX: Do NOT decrement slot.active for queued waiters — they never
   // held a slot. The old code did `slot.active -= count` which drove active
@@ -145,7 +145,7 @@
       if (entry.settled) return;
       entry.settled = true;
       if (entry.detach) entry.detach();
-      try { entry.resolve(); } catch (_) {}
+      try { entry.reject(new Error('cancelled:queue-cleared')); } catch (_) {}
     });
     slot.queue = [];
     // slot.active is NOT modified — queued tasks never incremented it.
