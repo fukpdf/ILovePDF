@@ -99,6 +99,7 @@
       if (_canStart(item.type)) {
         _waitQueue.splice(i, 1);
         item.settled = true;
+        if (item.detachCancel) item.detachCancel();
         item.resolve();
         // Don't increment here — run() increments after resolve
         return; // one at a time through drain to maintain ordering
@@ -147,12 +148,21 @@
       tierSlotHeld = true;
     }
 
+    function releaseTierSlotOnce() {
+      if (tierSlotHeld && window.TaskScheduler) {
+        tierSlotHeld = false;
+        window.TaskScheduler.releaseSlot(tier);
+      }
+    }
+
     // If the type cap is at its limit, wait in the priority queue.
     if (!_canStart(type)) {
       await new Promise(function (resolve, reject) {
         var entry = {
           resolve: resolve, reject: reject, type: type, priority: priority,
-          label: label, ts: Date.now(), settled: false
+          label: label, ts: Date.now(), settled: false,
+          releaseTierSlot: releaseTierSlotOnce,
+          detachCancel: null
         };
         _waitQueue.push(entry);
 
@@ -163,23 +173,15 @@
             if (idx !== -1) _waitQueue.splice(idx, 1);
             entry.settled = true;
             typeWaitCancelled = true;
-            if (tierSlotHeld && window.TaskScheduler) {
-              tierSlotHeld = false;
-              window.TaskScheduler.releaseSlot(tier);
-            }
+            entry.releaseTierSlot();
+            if (entry.detachCancel) entry.detachCancel();
             reject(new Error('cancelled:' + (reason || 'cancelled')));
           });
         }
+        entry.detachCancel = typeWaitDetach;
       });
     }
     if (typeWaitDetach) typeWaitDetach();
-
-    function releaseTierSlotOnce() {
-      if (tierSlotHeld && window.TaskScheduler) {
-        tierSlotHeld = false;
-        window.TaskScheduler.releaseSlot(tier);
-      }
-    }
 
     // Check cancellation again after waiting
     if (typeWaitCancelled || (token && token.cancelled)) {
@@ -250,6 +252,10 @@
     var removed = 0;
     _waitQueue = _waitQueue.filter(function (item) {
       if (item.type === type) {
+        if (item.settled) return false;
+        item.settled = true;
+        if (item.detachCancel) item.detachCancel();
+        item.releaseTierSlot();
         item.reject(new Error(reason || 'cancelled:' + type));
         removed++;
         return false;
@@ -263,7 +269,13 @@
   // ── Cancel all queued tasks ────────────────────────────────────────────────
   function cancelAll(reason) {
     var count = _waitQueue.length;
-    _waitQueue.forEach(function (item) { item.reject(new Error(reason || 'shutdown')); });
+    _waitQueue.forEach(function (item) {
+      if (item.settled) return;
+      item.settled = true;
+      if (item.detachCancel) item.detachCancel();
+      item.releaseTierSlot();
+      item.reject(new Error(reason || 'shutdown'));
+    });
     _waitQueue = [];
     _typeCounts = {};
     return count;
