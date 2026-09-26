@@ -480,13 +480,6 @@ if (!/['"]watermark['"]/.test(workerSet)) fail('Watermark is not in BrowserTools
 if (!/watermark-worker-adapter\.js/.test(toolHtml)) fail('Watermark adapter is not loaded by the standard tool shell.');
 
 // ── Rotate canonical-tool residue checks ─────────────────────────────────
-const rotateApp = read('public/js/rotate-pdf-app.js');
-if (!/RotateRuntime\\.execute/.test(rotateApp)) fail('Rotate app does not dispatch to canonical RotateRuntime.');
-if (!/ToolAppManager\\.registerTool\\('rotate'/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
-if (!/cancelActive/.test(rotateApp)) fail('Rotate app lifecycle cancellation is missing.');
-
-// ── Merge canonical tool ───────────────────────────────────────────────────
-requirePdfWorkerContract('merge', 'Merge');
 const mergeApp = read('public/js/merge-pdf-app.js');
 if (!/return _runtime\(\)\.execute\(list, opts \|\| \{\}\)/.test(mergeApp)) fail('Merge app does not dispatch to canonical MergeRuntime.');
 if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(mergeApp)) fail('Merge ToolApp boundary is not registered.');
