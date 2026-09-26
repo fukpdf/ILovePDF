@@ -144,10 +144,11 @@
 
     // Build WorkerPool cancel token from RuntimeCancellation token
     var wpToken = null;
+    var detachWorkerCancel = null;
     if (window.WorkerPool && window.WorkerPool.CancelToken) {
       wpToken = window.WorkerPool.CancelToken();
       if (token) {
-        token.onCancel(function () {
+        detachWorkerCancel = token.onCancel(function () {
           try { wpToken.cancel(); } catch (_) {}
         });
       }
@@ -166,6 +167,7 @@
     }
 
     // Timeout wrapper
+    // Cancellation listeners are detached when this dispatch settles.
     var p = _runWithTimeout(workerUrl, message, transferables, priority, wpToken, timeoutMs)
       .then(function (result) {
         _clearCooldown(workerUrl);
@@ -189,7 +191,8 @@
         }
         throw err;
       })
-      .finally(function () {
+       .finally(function () {
+        if (typeof detachWorkerCancel === 'function') detachWorkerCancel();
         if (dedupeKey) _inflight.delete(dedupeKey);
       });
 
