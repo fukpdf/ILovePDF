@@ -731,6 +731,22 @@ if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime do
 if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
 if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
 
+// Special upload-tool contract: these browser-local upload pages keep their
+// processing engines isolated, but share the canonical preparation experience.
+const specialUploadFlow = read('public/js/special-upload-flow.js');
+if (!/SharedSpecialUpload=Object.freeze/.test(specialUploadFlow) || !/function prepare(files,done)/.test(specialUploadFlow)) fail('Shared special upload preparation contract is missing.');
+[
+  ['image-compressor','public/image-compressor.html','ic-dropzone','ic-file-input'],
+  ['image-converter','public/image-converter.html','iconv-dropzone','iconv-file-input'],
+  ['zip-builder','public/zip-builder.html','zip-dropzone','zip-file-input']
+].forEach(function (item) {
+  const specialHtml = read(item[1]);
+  if (!/\/js\/special-upload-flow\.js/.test(specialHtml)) fail(item[0] + ' does not load the shared special upload preparation runtime.');
+  if (!new RegExp('class="[^"]*ilpdf-special-dropzone').test(specialHtml)) fail(item[0] + ' does not use the shared special upload dropzone contract.');
+  if (!/SharedSpecialUploads*?s*SharedSpecialUpload.prepare|SharedSpecialUploads*?s*window.SharedSpecialUpload.prepare/.test(specialHtml)) fail(item[0] + ' does not route selected files through shared preparation.');
+  if (!new RegExp('id="' + item[2] + '"').test(specialHtml) || !new RegExp('id="' + item[3] + '"').test(specialHtml)) fail(item[0] + ' lost its isolated processing input boundary.');
+});
+
 if (failures.length) {
   console.error('[FAIL] Phase 5 standard-tool gate (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
