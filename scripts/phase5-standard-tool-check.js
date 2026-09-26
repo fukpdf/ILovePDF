@@ -19,7 +19,7 @@ function requirePdfWorkerContract(id, label) {
     fail(label + ' is missing from the canonical tool registry.');
     return null;
   }
-  if (tool.slug !== id + '-pdf' && !(id === 'page-numbers' && tool.slug === 'add-page-numbers')) {
+  if (tool.slug !== id + '-pdf' && !(id === 'page-numbers' && tool.slug === 'add-page-numbers') && !(id === 'workflow' && tool.slug === 'workflow-builder')) {
     fail(label + ' slug is incorrect.');
   }
   if (tool.module !== 'pdf-module') fail(label + ' module owner is not pdf-module.');
