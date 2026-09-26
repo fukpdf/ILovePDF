@@ -57,7 +57,7 @@
 
   // ── Task queue (priority-sorted waiting tasks) ────────────────────────────
   // Tasks that cannot start immediately go here sorted by priority.
-  var _waitQueue = []; // [{ resolve, reject, type, priority, label, ts, settled }]
+  var _waitQueue = []; // [{ resolve, reject, type, priority, label, ts }]
 
   // ── Mobile / low-end adjustments ─────────────────────────────────────────
   var _ua = navigator.userAgent || '';
@@ -98,7 +98,6 @@
       var item = _waitQueue[i];
       if (_canStart(item.type)) {
         _waitQueue.splice(i, 1);
-        item.settled = true;
         item.resolve();
         // Don't increment here — run() increments after resolve
         return; // one at a time through drain to maintain ordering
@@ -131,62 +130,43 @@
       }
     }
 
-    // Check cancellation again after waiting
-    if (token && token.cancelled) {
-      releaseTierSlotOnce();
-      if (progressTask) progressTask.fail('cancelled');
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
-      throw new Error('cancelled');
-    }
-
-    // Only create telemetry/progress resources once both queue layers can start.\n    // Telemetry span
+    // Resource creation is intentionally delayed until queue layers can start,
+    // so cancellation while queued cannot leak telemetry/progress resources.
     var spanId = null;
-    if (window.RuntimeTelemetry) {
-      spanId = window.RuntimeTelemetry.startSpan(label, { type: type, priority: priority });
-    }
-
-    // Progress task
     var progressTask = null;
-    if (window.RuntimeProgress && opts.label) {
-      progressTask = window.RuntimeProgress.createSimpleTask(label, token);
+
+    // Acquire concurrency slot from TaskScheduler
+    var tierSlotHeld = false;
+    var typeWaitDetach = null;
+    var typeWaitCancelled = false;
+
+    // Acquire the tier slot first. It remains held while waiting on the type cap.
+    if (window.TaskScheduler) {
+      await window.TaskScheduler.acquireSlot(tier, token);
+      tierSlotHeld = true;
     }
 
-    // Acquire concurrency slot from TaskScheduler with cancellation wired from the start.
-    var tsPromise = window.TaskScheduler
-      ? window.TaskScheduler.acquireSlot(tier, token)
-      : Promise.resolve();
-
-    await tsPromise;
-
-    // If type cap is also at limit, the tier slot is held while queued.
-    // Cancellation must release that held tier slot exactly once.
-    var tierSlotHeld = true;
-    var typeWaitDetach = null;
+    // If the type cap is at its limit, wait in the priority queue.
     if (!_canStart(type)) {
       await new Promise(function (resolve, reject) {
         var entry = {
-          resolve: resolve,
-          reject: reject,
-          type: type,
-          priority: priority,
-          label: label,
-          ts: Date.now(),
-          settled: false
+          resolve: resolve, reject: reject, type: type, priority: priority,
+          label: label, ts: Date.now(), settled: false
         };
         _waitQueue.push(entry);
 
-        if (token && typeof token.onCancel === 'function') {
+        if (token) {
           typeWaitDetach = token.onCancel(function (reason) {
+            if (entry.settled) return;
             var idx = _waitQueue.indexOf(entry);
             if (idx !== -1) _waitQueue.splice(idx, 1);
-            if (!entry.settled) {
-              entry.settled = true;
-              if (window.TaskScheduler && tierSlotHeld) {
-                tierSlotHeld = false;
-                window.TaskScheduler.releaseSlot(tier);
-              }
-              reject(new Error('cancelled:' + (reason || 'cancelled')));
+            entry.settled = true;
+            typeWaitCancelled = true;
+            if (tierSlotHeld && window.TaskScheduler) {
+              tierSlotHeld = false;
+              window.TaskScheduler.releaseSlot(tier);
             }
+            reject(new Error('cancelled:' + (reason || 'cancelled')));
           });
         }
       });
@@ -198,6 +178,22 @@
         tierSlotHeld = false;
         window.TaskScheduler.releaseSlot(tier);
       }
+    }
+
+    // Check cancellation again after waiting
+    if (typeWaitCancelled || (token && token.cancelled)) {
+      releaseTierSlotOnce();
+      if (progressTask) progressTask.fail('cancelled');
+      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
+      throw new Error('cancelled');
+    }
+
+    // Start telemetry/progress only after all queue layers can actually start.
+    if (window.RuntimeTelemetry) {
+      spanId = window.RuntimeTelemetry.startSpan(label, { type: type, priority: priority });
+    }
+    if (window.RuntimeProgress && opts.label) {
+      progressTask = window.RuntimeProgress.createSimpleTask(label, token);
     }
 
     // Increment type counter
@@ -258,3 +254,56 @@
         return false;
       }
       return true;
+    });
+    if (window.TaskScheduler) window.TaskScheduler.cancelQueued(TYPE_TIER[type] || 'RENDER');
+    return removed;
+  }
+
+  // ── Cancel all queued tasks ────────────────────────────────────────────────
+  function cancelAll(reason) {
+    var count = _waitQueue.length;
+    _waitQueue.forEach(function (item) { item.reject(new Error(reason || 'shutdown')); });
+    _waitQueue = [];
+    _typeCounts = {};
+    return count;
+  }
+
+  // ── Convenience wrappers for common task types ────────────────────────────
+  function scheduleRender(fn, opts) { return run(fn, Object.assign({ type: 'render' }, opts)); }
+  function scheduleOcr(fn, opts)    { return run(fn, Object.assign({ type: 'ocr' }, opts)); }
+  function scheduleAi(fn, opts)     { return run(fn, Object.assign({ type: 'ai' }, opts)); }
+  function scheduleBackground(fn, opts){ return run(fn, Object.assign({ type: 'background', priority: 'low' }, opts)); }
+  function scheduleLargeFile(fn, opts){ return run(fn, Object.assign({ type: 'largefile' }, opts)); }
+
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  function getStats() {
+    var ts = window.TaskScheduler ? window.TaskScheduler.stats() : {};
+    return {
+      waitQueueSize: _waitQueue.length,
+      typeCounts:    Object.assign({}, _typeCounts),
+      isMobile:      IS_MOBILE,
+      isLowEnd:      IS_LOW_END,
+      taskScheduler: ts,
+    };
+  }
+
+  // ── Pagehide ──────────────────────────────────────────────────────────────
+  window.addEventListener('pagehide', function () {
+    cancelAll('pagehide');
+  }, { passive: true });
+
+  window.RuntimeScheduler = {
+    run:               run,
+    scheduleRender:    scheduleRender,
+    scheduleOcr:       scheduleOcr,
+    scheduleAi:        scheduleAi,
+    scheduleBackground:scheduleBackground,
+    scheduleLargeFile: scheduleLargeFile,
+    cancelType:        cancelType,
+    cancelAll:         cancelAll,
+    getStats:          getStats,
+    TYPE_TIER:         TYPE_TIER,
+  };
+
+  console.debug('[RuntimeScheduler] ready — T021 task scheduler active');
+}());
