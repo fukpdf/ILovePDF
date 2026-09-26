@@ -134,7 +134,7 @@
     var slot = _slots[tier];
     if (!slot) return 0;
     var count = slot.queue.length;
-    slot.queue.forEach(function (res) { try { res(); } catch (_) {} });
+    slot.queue.forEach(function (entry) { try { entry.resolve(); } catch (_) {} });
     slot.queue = [];
     // slot.active is NOT modified — queued tasks never incremented it.
     return count;
