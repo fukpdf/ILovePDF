@@ -756,7 +756,8 @@ if (chromeRuntime.indexOf('function ensureI18nAssets()') === -1 ||
 // The bridge is deliberately separate from each page's processing engine.
 const specialI18nBridge = read('public/js/special-page-i18n.js');
 if (specialI18nBridge.indexOf('SpecialPageI18n=Object.freeze') === -1 ||
-    specialI18nBridge.indexOf("G.addEventListener('i18n:change', patch)") === -1) {
+    specialI18nBridge.indexOf("G.addEventListener('i18n:change'") === -1 ||
+    specialI18nBridge.indexOf('hook();') === -1) {
   fail('Shared special-page i18n bridge implementation is incomplete.');
 }
 
