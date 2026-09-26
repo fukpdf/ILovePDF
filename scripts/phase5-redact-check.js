@@ -9,8 +9,9 @@ if(!t)fail.push('registry missing'); else {
 }
 if(JSON.stringify(t)!==JSON.stringify(p))fail.push('registry parity');
 const b=read('public/js/browser-tools.js'),w=read('public/workers/redact-worker.js'),a=read('public/js/redact-pdf-app.js');
-if(!/['"]redact['"]/.test(b.match(/WORKER_TOOLS = new Set\(([\s\S]*?)\);/)?.[1]||''))fail.push('WORKER_TOOLS');
-if(!/toolId === 'redact' \? '/workers/redact-worker\.js'/.test(b))fail.push('isolated worker routing');
+const workerTools=b.match(/WORKER_TOOLS = new Set\(([\s\S]*?)\);/)?.[1]||'';
+if(!workerTools.includes("'redact'")&&!workerTools.includes('"redact"'))fail.push('WORKER_TOOLS');
+if(!b.includes("toolId === 'redact'")||!b.includes("'/workers/redact-worker.js'"))fail.push('isolated worker routing');
 if(!/pipelineStreamToWorker/.test(b)||!/pool\.run\(/.test(b)||!/cancelToken/.test(b))fail.push('shared streaming/pool/cancellation route');
 if(!/async function processRedactBuffer/.test(w)||!/type === 'stream-pipe'/.test(w)||!/type === 'stream-init'/.test(w)||!/type === 'stream-chunk'/.test(w)||!/type === 'stream-cancel'/.test(w))fail.push('stream worker protocol');
 if(!/pdfjs-dist/.test(w)||!/renderRedactedPage/.test(w)||!/embedPng/.test(w))fail.push('true redaction raster path lost');
