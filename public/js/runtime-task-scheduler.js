@@ -200,7 +200,7 @@
       }
     }
 
-\n    // Increment type counter
+    // Increment type counter
     _typeCounts[type] = (_typeCounts[type] || 0) + 1;
 
     if (window.RuntimeTelemetry) {
@@ -258,56 +258,3 @@
         return false;
       }
       return true;
-    });
-    if (window.TaskScheduler) window.TaskScheduler.cancelQueued(TYPE_TIER[type] || 'RENDER');
-    return removed;
-  }
-
-  // ── Cancel all queued tasks ────────────────────────────────────────────────
-  function cancelAll(reason) {
-    var count = _waitQueue.length;
-    _waitQueue.forEach(function (item) { item.reject(new Error(reason || 'shutdown')); });
-    _waitQueue = [];
-    _typeCounts = {};
-    return count;
-  }
-
-  // ── Convenience wrappers for common task types ────────────────────────────
-  function scheduleRender(fn, opts) { return run(fn, Object.assign({ type: 'render' }, opts)); }
-  function scheduleOcr(fn, opts)    { return run(fn, Object.assign({ type: 'ocr' }, opts)); }
-  function scheduleAi(fn, opts)     { return run(fn, Object.assign({ type: 'ai' }, opts)); }
-  function scheduleBackground(fn, opts){ return run(fn, Object.assign({ type: 'background', priority: 'low' }, opts)); }
-  function scheduleLargeFile(fn, opts){ return run(fn, Object.assign({ type: 'largefile' }, opts)); }
-
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  function getStats() {
-    var ts = window.TaskScheduler ? window.TaskScheduler.stats() : {};
-    return {
-      waitQueueSize: _waitQueue.length,
-      typeCounts:    Object.assign({}, _typeCounts),
-      isMobile:      IS_MOBILE,
-      isLowEnd:      IS_LOW_END,
-      taskScheduler: ts,
-    };
-  }
-
-  // ── Pagehide ──────────────────────────────────────────────────────────────
-  window.addEventListener('pagehide', function () {
-    cancelAll('pagehide');
-  }, { passive: true });
-
-  window.RuntimeScheduler = {
-    run:               run,
-    scheduleRender:    scheduleRender,
-    scheduleOcr:       scheduleOcr,
-    scheduleAi:        scheduleAi,
-    scheduleBackground:scheduleBackground,
-    scheduleLargeFile: scheduleLargeFile,
-    cancelType:        cancelType,
-    cancelAll:         cancelAll,
-    getStats:          getStats,
-    TYPE_TIER:         TYPE_TIER,
-  };
-
-  console.debug('[RuntimeScheduler] ready — T021 task scheduler active');
-}());
