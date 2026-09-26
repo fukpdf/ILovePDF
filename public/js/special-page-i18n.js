@@ -446,6 +446,27 @@
   Object.keys(LONG_TEXT).forEach(function(text){ LONG_EN[LONG_TEXT[text]]=text; });
   Object.keys(LONG_EN).forEach(function(key){ EXT.en[key]=LONG_EN[key]; });
 
+  var INSTRUCTION_TEXT = {
+    'How to convert currencies':'special.currency_how',
+    'Why use our Currency Converter?':'special.currency_why',
+    'Popular conversions':'special.currency_popular',
+    'How to generate a QR code':'special.qr_how',
+    'QR code use cases':'special.qr_use_cases',
+    'How to generate a barcode':'special.barcode_how',
+    'Barcode formats explained':'special.barcode_formats',
+    'How to compress an image':'special.image_compressor_how',
+    'Why compress images?':'special.image_compressor_why',
+    'How to convert images':'special.image_converter_how',
+    'Which format should I use?':'special.format_guide',
+    'How to build a ZIP archive':'special.zip_how',
+    'Why use ZIP Builder?':'special.zip_why',
+    'Frequently asked questions':'special.faq',
+    'Related tools':'special.related'
+  };
+  var INSTRUCTION_EN = {};
+  Object.keys(INSTRUCTION_TEXT).forEach(function(text){ INSTRUCTION_EN[INSTRUCTION_TEXT[text]]=text; });
+  Object.keys(INSTRUCTION_EN).forEach(function(key){ EXT.en[key]=INSTRUCTION_EN[key]; });
+
   var SECONDARY_EN = {};
   Object.keys(SECONDARY_TEXT).forEach(function(text){ SECONDARY_EN[SECONDARY_TEXT[text]]=text; });
   Object.keys(SECONDARY_EN).forEach(function(key){ EXT.en[key]=SECONDARY_EN[key]; });
@@ -464,6 +485,7 @@
     markByText('h2,h3,h4,p,summary,button,label,span',FAQ_TEXT);
     markByText('h1,h2,h3,h4,p,button,label,span',BODY_TEXT);
     markByText('h2,h3,h4,p,a,button,span',LONG_TEXT);
+    markByText('h2,h3,h4,p,summary,button,span',INSTRUCTION_TEXT);
 
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
