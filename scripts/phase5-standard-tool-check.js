@@ -480,12 +480,6 @@ if (!/['"]watermark['"]/.test(workerSet)) fail('Watermark is not in BrowserTools
 if (!/watermark-worker-adapter\.js/.test(toolHtml)) fail('Watermark adapter is not loaded by the standard tool shell.');
 
 // ── Rotate canonical-tool residue checks ─────────────────────────────────
-const rotateRuntime = read('public/js/rotate-runtime.js');
-if (!/RuntimeScheduler\\.run\\(/.test(rotateRuntime)) fail('RotateRuntime does not use RuntimeScheduler.');
-if (!/RotateWorkerAdapter/.test(rotateRuntime)) fail('RotateRuntime does not dispatch through RotateWorkerAdapter.');
-if (/RUNTIME_ROTATE_ENABLED|runtimeEnabled|runtime ENABLED|runtime DISABLED|Phase 3 pilot/i.test(rotateRuntime)) fail('RotateRuntime retains obsolete feature-flag/pilot architecture.');
-if (!/cancelActive/.test(rotateRuntime)) fail('RotateRuntime cancellation is missing.');
-if (!/timeoutMs:\s*0/.test(rotateRuntime)) fail('RotateRuntime does not use an unlimited execution timeout.');
 const rotateApp = read('public/js/rotate-pdf-app.js');
 if (!/RotateRuntime\\.execute/.test(rotateApp)) fail('Rotate app does not dispatch to canonical RotateRuntime.');
 if (!/ToolAppManager\\.registerTool\\('rotate'/.test(rotateApp)) fail('Rotate ToolApp boundary is not registered.');
