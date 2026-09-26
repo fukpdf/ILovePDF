@@ -89,3 +89,6 @@ jobs:
 
       - name: Phase 5 standard tool audit
         run: npm run audit:phase5
+
+      - name: Special-page i18n coverage audit
+        run: node scripts/audit-special-i18n.js
