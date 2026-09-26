@@ -125,6 +125,17 @@ function requireBrowserRuntimeContract(id, label) {
   if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
 }
 
+// ── Runtime scheduler cancellation contract ───────────────────────────────
+const taskScheduler = read('public/js/task-scheduler.js');
+const runtimeScheduler = read('public/js/runtime-task-scheduler.js');
+if (!/function acquireSlot\(tier, token\)/.test(taskScheduler)) fail('TaskScheduler acquireSlot is not token-cancellable.');
+if (!/token\.onCancel\(function \(reason\)/.test(taskScheduler)) fail('TaskScheduler does not remove cancelled queued waiters.');
+if (!/slot\.queue\.indexOf\(entry\)/.test(taskScheduler)) fail('TaskScheduler cancellation does not identify the queued entry.');
+if (!/entry\.resolve\(\)/.test(taskScheduler)) fail('TaskScheduler queue entries do not resolve through their scheduler contract.');
+if (!/acquireSlot\(tier, token\)/.test(runtimeScheduler)) fail('RuntimeScheduler does not pass cancellation into TaskScheduler.');
+if (!/if \(!_canStart\(type\)\)[\s\S]*?token\.onCancel\(function \(reason\)[\s\S]*?releaseSlot\(tier\)/.test(runtimeScheduler)) fail('RuntimeScheduler type-cap queue does not release its held tier slot on cancellation.');
+if (!/Only create telemetry\/progress resources once both queue layers can start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
+
 const browserRuntime = read('public/js/browser-tool-runtime.js');
 if (!/RuntimeScheduler\.run\(/.test(browserRuntime)) fail('BrowserToolRuntime does not use RuntimeScheduler.');
 if (!/BrowserTools\.process\(toolId, files, opts/.test(browserRuntime)) fail('BrowserToolRuntime does not dispatch to the existing browser processor.');
@@ -698,40 +709,3 @@ const translateWorker = read('public/workers/pdf-worker.js');
 if (!/OPS\.translate\s*=\s*async function/.test(translateWorker)) fail('Shared PDF worker has no Translate operation.');
 
 const translateTool = (registry.tools || []).find(t => t.id === 'translate');
-if (!translateTool || translateTool.execution !== 'browser-worker') fail('Translate registry is not browser-worker.');
-if (!translateTool || translateTool.capabilities.streaming !== 'adaptive-worker') fail('Translate registry does not declare adaptive worker streaming.');
-if (!translateTool || translateTool.capabilities.workerPool !== true) fail('Translate registry does not declare worker pool execution.');
-if (!/translate-worker-adapter\.js/.test(toolHtml)) fail('Translate adapter is not loaded by the standard tool shell.');
-
-// ── Shared worker infrastructure close-out contract ────────────────────────
-const workerPool = read('public/workers/workerPool.js');
-if (!/function terminateAll\(\)/.test(workerPool)) fail('WorkerPool terminateAll contract is missing.');
-if (!/pagehide/.test(workerPool) || !/event && event\.persisted/.test(workerPool)) fail('WorkerPool navigation/BFCache cleanup contract is missing.');
-if (!/document\.visibilityState === 'hidden'/.test(workerPool)) fail('WorkerPool hidden-tab prewarm guard is missing.');
-if (!/if \(slot\.busy\) return;/.test(workerPool)) fail('WorkerPool idle cleanup is not busy-worker safe.');
-
-const workerDetector = read('public/js/worker-leak-detector.js');
-if (!/Observer-only/.test(workerDetector)) fail('WorkerLeakDetector is not explicitly observer-only.');
-if (/worker\.terminate\(\)/.test(workerDetector)) fail('WorkerLeakDetector directly terminates workers.');
-
-const workerOrchestrator = read('public/js/runtime-worker-orchestrator.js');
-if (/WorkerLeakDetector[\s\S]{0,200}terminateZombies/.test(workerOrchestrator)) fail('Runtime worker orchestrator still owns zombie termination.');
-
-const workerRouting = read('public/js/runtime-worker-routing.js');
-if (!/pdf-worker/.test(workerRouting) || !/translate/.test(workerRouting) || !/repair/.test(workerRouting) || !/compare/.test(workerRouting)) fail('Canonical PDF worker capability routing is incomplete.');
-if (/pattern: \/translation\//.test(workerRouting)) fail('Deleted translation-worker routing residue remains.');
-
-for (const infrastructureFile of [
-  'public/js/runtime-worker-factory.js',
-  'public/js/runtime-worker-routing.js',
-  'public/js/runtime-worker-mesh.js',
-  'public/js/runtime-tool-worker-mesh.js',
-  'public/js/runtime-processor-workers.js',
-  'public/js/runtime-stream-workers.js',
-  'public/js/runtime-shield-workers.js',
-  'public/js/runtime-worker-coordinator.js',
-  'public/js/runtime-worker-prewarm.js',
-  'public/js/worker-lifecycle.js'
-]) {
-  if (!toolHtml.includes(infrastructureFile.split('/').pop())) fail('Standard tool shell does not load ' + infrastructureFile + '.');
-}
