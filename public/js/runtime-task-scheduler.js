@@ -277,7 +277,7 @@
       item.reject(new Error(reason || 'shutdown'));
     });
     _waitQueue = [];
-    _typeCounts = {};
+    // Active tasks remain counted until their own finally block releases them.
     return count;
   }
 
