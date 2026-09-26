@@ -85,6 +85,14 @@ if (!/tool\.id === 'edit'[\s\S]*?renderProPreviewStep\(tool\)/.test(toolPageFlow
 if (/currentTool\.id === 'crop'|currentTool\.id === "crop"/.test(toolPageFlow)) fail('Shared tool page still contains a Crop-only runtime/UI branch.');
 
 
+// ── Runtime scheduler cross-tool cancellation isolation ────────────────────
+const runtimeSchedulerCancellation = read('public/js/runtime-task-scheduler.js');
+const cancelTypeBlock = runtimeSchedulerCancellation.match(/function cancelType\(type, reason\)[\\s\\S]*?return removed;/)?.[0] || '';
+if (!cancelTypeBlock) fail('RuntimeScheduler cancelType implementation is missing.');
+if (/TaskScheduler\\.cancelQueued\\(/.test(cancelTypeBlock)) fail('RuntimeScheduler cancelType clears an entire TaskScheduler tier and can cancel unrelated tool types.');
+if (!/item\\.releaseTierSlot\(\)/.test(cancelTypeBlock)) fail('RuntimeScheduler cancelType does not release the specifically held tier slot for cancelled entries.');
+if (!/item\\.settled = true;/.test(cancelTypeBlock)) fail('RuntimeScheduler cancelType does not settle cancelled queue entries before rejection.');
+
 // ── Runtime worker orchestrator lifecycle contract ─────────────────────────
 const workerOrchestrator = read('public/js/runtime-worker-orchestrator.js');
 if (!/var detachWorkerCancel = null;/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not retain a detachable cancellation listener handle.');
