@@ -81,6 +81,29 @@
     nl:{n2w:'Getallen naar woorden converter',cur:'Live valutaomrekenaar',qr:'QR-codegenerator',bar:'Barcodegenerator',ic:'Afbeeldingscompressor',iv:'Afbeeldingsconverter',zip:'ZIP-maker'},
     pl:{n2w:'Konwerter liczb na słowa',cur:'Przelicznik walut na żywo',qr:'Generator kodów QR',bar:'Generator kodów kreskowych',ic:'Kompresor obrazów',iv:'Konwerter obrazów',zip:'Kreator ZIP'}
   };
+  /* High-value control/section labels. These are short UI strings only;
+     long SEO prose continues to use the reviewed English fallback. */
+  var UI_TEXT = {
+    'Enter a number':'special.enter_number','Conversion type':'special.conversion_type','Words':'special.words',
+    'Currency':'special.currency','Check Writing':'special.check_writing','Suffix':'special.suffix','Letter Case':'special.letter_case',
+    'Clear':'special.clear_short','Result':'special.result','Copy':'special.copy',
+    'Mid-market rates · 160+ currencies':'special.currency_rates','Amount':'special.amount','From':'special.from','Convert':'special.convert',
+    'Content type':'special.content_type','URL':'special.url','Text':'special.text','Email':'special.email','Phone':'special.phone',
+    'Wi-Fi':'special.wifi','Subject':'special.subject','Body (optional)':'special.body_optional','Network Name (SSID)':'special.network_name',
+    'Security':'special.security','Password':'special.password','Hidden':'special.hidden','Size (px)':'special.size_px',
+    'Error Correction':'special.error_correction','Foreground':'special.foreground','Background':'special.background','Generate QR Code':'special.generate_qr',
+    'Barcode data':'special.barcode_data','Format':'special.format','Line width':'special.line_width','Height (px)':'special.height_px',
+    'Font size':'special.font_size','Margin':'special.margin','Show text':'special.show_text','Bar color':'special.bar_color','Generate Barcode':'special.generate_barcode',
+    'Quality: 80':'special.quality_80','Output format':'special.output_format','Browse image':'special.browse_image',
+    'Convert to':'special.convert_to','Quality (JPEG / WebP): 85':'special.quality_85','Browse images':'special.browse_images',
+    'Clear all':'special.clear','Archive name':'special.archive_name','Compression':'special.compression',
+    'Optimal (max)':'special.optimal','Balanced':'special.balanced','Fast (min)':'special.fast','None (no compression)':'special.none_compression',
+    'Browse files':'special.browse'
+  };
+  var UI_EN = {};
+  Object.keys(UI_TEXT).forEach(function(text){ UI_EN[UI_TEXT[text]]=text; });
+  Object.keys(UI_EN).forEach(function(key){ EXT.en[key]=UI_EN[key]; });
+
   Object.keys(PAGE_TITLES).forEach(function(lang){
     if(!EXT[lang]) EXT[lang]={};
     EXT[lang]['special.n2w_title']=PAGE_TITLES[lang].n2w;
