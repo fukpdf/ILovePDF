@@ -559,21 +559,6 @@ const mergeTool = (registry.tools || []).find(t => t.id === 'merge');
 if (!mergeTool || mergeTool.multipleFiles !== true) fail('Merge registry does not declare multi-file input.');
 if (!mergeTool || mergeTool.clientSide !== true) fail('Merge registry does not declare browser-side processing.');
 
-if (failures.length) {
-  console.error('[FAIL] Phase 5 standard-tool gate (' + failures.length + ' issue(s))');
-  failures.forEach(x => console.error(' - ' + x));
-  process.exitCode = 1;
-} else {
-  console.log('[PASS] Compress PDF canonical-tool contract');
-  console.log('[PASS] Edit PDF canonical-tool contract');
-  console.log('[PASS] Workflow Builder canonical-tool contract');
-  console.log('[PASS] Crop reference contract');
-  console.log('[PASS] Rotate canonical-tool contract');
-  console.log('[PASS] Page Numbers canonical-tool contract');
-  console.log('[PASS] Merge canonical-tool contract');
-  console.log('Phase 5 standard-tool gate: PASS');
-}
-
 
 // ── Protect canonical tool ────────────────────────────────────────────────
 requirePdfWorkerContract('protect', 'Protect');
@@ -700,3 +685,18 @@ const translateRuntime = read('public/js/translate-runtime.js');
 if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime does not use RuntimeScheduler.');
 if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
 if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
+
+if (failures.length) {
+  console.error('[FAIL] Phase 5 standard-tool gate (' + failures.length + ' issue(s))');
+  failures.forEach(x => console.error(' - ' + x));
+  process.exitCode = 1;
+} else {
+  console.log('[PASS] Compress PDF canonical-tool contract');
+  console.log('[PASS] Edit PDF canonical-tool contract');
+  console.log('[PASS] Workflow Builder canonical-tool contract');
+  console.log('[PASS] Crop reference contract');
+  console.log('[PASS] Rotate canonical-tool contract');
+  console.log('[PASS] Page Numbers canonical-tool contract');
+  console.log('[PASS] Merge canonical-tool contract');
+  console.log('Phase 5 standard-tool gate: PASS');
+}
