@@ -137,6 +137,11 @@ if (runtimeScheduler.indexOf('if (!_canStart(type))') === -1 || runtimeScheduler
 if (!/Resource creation is intentionally delayed until queue layers can start/.test(runtimeScheduler) || !/Start telemetry\/progress only after all queue layers can actually start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
 if (!/item\.settled = true;[\s\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach queued cancellation listeners on handoff.');
 if (!/item\.releaseTierSlot\(\)/.test(runtimeScheduler)) fail('RuntimeScheduler bulk queue cancellation does not release held tier slots.');
+if (!/function cancelQueued\(tier\)[\\s\\S]*?entry\.reject\(new Error\('cancelled:queue-cleared'\)\)/.test(taskScheduler)) fail('TaskScheduler queue cancellation does not fail closed for queued callers.');
+if (!/function cancelQueued\(tier\)[\\s\\S]*?slot\.active is NOT modified/.test(taskScheduler)) fail('TaskScheduler queue cancellation corrupts active slot accounting.');
+if (!/item\.settled = true;[\\s\\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach cancellation listeners before bulk queue removal.');
+if (!/cancelAll\(reason\)[\\s\\S]*?_waitQueue = \[\];[\\s\\S]*?Active tasks remain counted/.test(runtimeScheduler)) fail('RuntimeScheduler cancelAll must not erase active type counts.');
+
 
 const browserRuntime = read('public/js/browser-tool-runtime.js');
 if (!/RuntimeScheduler\.run\(/.test(browserRuntime)) fail('BrowserToolRuntime does not use RuntimeScheduler.');
