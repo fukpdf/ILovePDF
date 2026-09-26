@@ -86,11 +86,11 @@
           </div>
           <div class="calc-body">
             <!-- Drop zone -->
-            <div id="zip-dropzone" style="border:2px dashed #d1d5db;border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa">
+            <div id="zip-dropzone" class="ilpdf-special-dropzone">
               <i data-lucide="upload-cloud" style="width:36px;height:36px;color:#9ca3af;margin-bottom:12px"></i>
               <p style="margin:0 0 8px;font-weight:600;color:#374151">Drop files here</p>
               <p style="margin:0 0 14px;font-size:.85rem;color:#9ca3af">or click to browse — any file type, any number of files</p>
-              <button type="button" id="zip-browse-btn" class="calc-btn" style="background:#6366f1;margin:0">Browse files</button>
+              <button type="button" id="zip-browse-btn" class="calc-btn ilpdf-special-select" style="margin:0">Browse files</button>
               <input id="zip-file-input" type="file" multiple style="display:none">
             </div>
 
@@ -194,6 +194,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="/js/tools-config.js" type="module"></script>
   <script src="/js/chrome.js"></script>
+  <script src="/js/special-upload-flow.js"></script>
   <script>
   (function(){
     var files = [];
