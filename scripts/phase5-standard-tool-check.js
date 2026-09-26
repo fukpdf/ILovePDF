@@ -85,29 +85,6 @@ function requireSpecialPageContract(id, label, page, requiredSrc) {
   }
 }
 
-function requireBrowserRuntimeContract(id, label) {')')).test(source)) {
-    fail(label + ' required runtime dependency is missing: ' + requiredSrc);
-  }
-  if (/new\s+Worker\s*\(/.test(source)) fail(label + ' directly spawns a Worker outside the approved runtime boundary.');
-  if (/RuntimeScheduler/.test(source)) fail(label + ' unexpectedly embeds the standard tool runtime.');
-  if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|MAX_FILE_BYTES|MAX_FILE_SIZE|MAX_INPUT_BYTES|totalMB\\s*>\\s*400/.test(source)) {
-    fail(label + ' retains an artificial processing/input limit.');
-  }
-}
-
-const specialPageContracts = [
-  ['numbers-to-words', 'Numbers to Words', 'public/n2w.html', '/js/n2w-app.js'],
-  ['currency-converter', 'Currency Converter', 'public/currency-converter.html', '/js/chrome.js'],
-  ['image-compressor', 'Image Compressor', 'public/image-compressor.html', '/js/chrome.js'],
-  ['image-converter', 'Image Converter', 'public/image-converter.html', '/js/chrome.js'],
-  ['qr-code-generator', 'QR Code Generator', 'public/qr-code-generator.html', 'qrcodejs@1.0.0'],
-  ['barcode-generator', 'Barcode Generator', 'public/barcode-generator.html', 'JsBarcode.all.min.js'],
-  ['zip-builder', 'ZIP Builder', 'public/zip-builder.html', 'jszip/3.10.1'],
-];
-specialPageContracts.forEach(function (item) {
-  requireSpecialPageContract(item[0], item[1], item[2], item[3]);
-});
-
 function requireBrowserRuntimeContract(id, label) {
   const tool = (registry.tools || []).find(t => t.id === id);
   if (!tool) {
