@@ -262,7 +262,8 @@
       }
       return true;
     });
-    if (window.TaskScheduler) window.TaskScheduler.cancelQueued(TYPE_TIER[type] || 'RENDER');
+    // Do not clear the entire TaskScheduler tier here: unrelated tool types may be queued in the same tier.
+    // Matching entries already release their specifically held tier slot above, allowing normal queue drain.
     return removed;
   }
 
