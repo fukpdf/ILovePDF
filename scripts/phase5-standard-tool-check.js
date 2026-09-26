@@ -382,7 +382,7 @@ if (!/result\.byteLength < original\.byteLength/.test(compressBlock)) fail('Comp
 requirePdfWorkerContract('edit', 'Edit PDF');
 const editApp = read('public/js/edit-pdf-app.js');
 if (!/__canonical/.test(editApp) || !/runtime\(\)\.execute\(files\[0\],opts\|\|\{\}\)/.test(editApp)) fail('Edit app does not dispatch to canonical EditRuntime.');
-if (!/ToolAppManager\.registerTool\(TOOL_ID, function \(\)/.test(editApp)) fail('Edit ToolApp boundary is not registered.');
+if (!/ToolAppManager\.registerTool\(TOOL_ID,\s*function\s*\(\)/.test(editApp)) fail('Edit ToolApp boundary is not registered.');
 if (!/function unmount\(\)\{cancel\(\);\}/.test(editApp) || !/function reset\(\)\{cancel\(\);\}/.test(editApp) || !/function destroy\(\)\{cancel\(\);\}/.test(editApp)) fail('Edit lifecycle cancellation is incomplete.');
 
 const editRuntime = read('public/js/edit-runtime.js');
