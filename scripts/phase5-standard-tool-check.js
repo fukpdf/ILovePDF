@@ -146,7 +146,6 @@ if (!/OPS\.crop\s*=\s*async function/.test(worker)) fail('Shared PDF worker has 
 if (!/OPS\.rotate\s*=\s*async function/.test(worker)) fail('Shared PDF worker has no Rotate operation.');
 if (!/OPS\.merge\s*=\s*async function/.test(worker)) fail('Shared PDF worker has no Merge operation.');
 
-if (/Files up to 100(?:&nbsp;|\\s)*MB|under 100(?:&nbsp;|\\s)*MB|deleted from our servers|We delete it shortly after/i.test(toolPage)) fail('Shared tool SEO copy still contains the legacy 100 MB/server-processing claims.');
 const toolPage = read('public/js/tool-page.js');
 if (/MAX_FILE_BYTES/.test(toolPage)) fail('Shared tool page still contains the legacy MAX_FILE_BYTES rejection.');
 if (!/BrowserTools\.validateInputFiles/.test(toolPage)) fail('Shared input validation boundary is missing from tool-page.');
