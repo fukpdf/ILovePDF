@@ -86,11 +86,11 @@
           </div>
           <div class="calc-body">
             <!-- Drop zone -->
-            <div id="ic-dropzone" style="border:2px dashed #d1d5db;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa">
+            <div id="ic-dropzone" class="ilpdf-special-dropzone">
               <i data-lucide="image" style="width:40px;height:40px;color:#9ca3af;margin-bottom:12px"></i>
               <p style="margin:0 0 8px;font-weight:600;color:#374151">Drop an image here</p>
               <p style="margin:0 0 14px;font-size:.85rem;color:#9ca3af">Supports JPG, PNG, WebP — up to your browser's memory limit</p>
-              <button type="button" id="ic-browse-btn" class="calc-btn" style="background:#6366f1;margin:0">Browse image</button>
+              <button type="button" id="ic-browse-btn" class="calc-btn ilpdf-special-select" style="margin:0">Browse image</button>
               <input id="ic-file-input" type="file" accept="image/jpeg,image/png,image/webp" style="display:none">
             </div>
 
@@ -202,6 +202,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="/js/tools-config.js" type="module"></script>
   <script src="/js/chrome.js"></script>
+  <script src="/js/special-upload-flow.js"></script>
   <script>
   (function(){
     var originalFile = null;
@@ -294,10 +295,10 @@
     var dz = document.getElementById('ic-dropzone');
     dz.addEventListener('click', function(e){ if (e.target.id !== 'ic-browse-btn') document.getElementById('ic-file-input').click(); });
     document.getElementById('ic-browse-btn').addEventListener('click', function(){ document.getElementById('ic-file-input').click(); });
-    document.getElementById('ic-file-input').addEventListener('change', function(e){ if (e.target.files[0]) { loadFile(e.target.files[0]); e.target.value=''; } });
+    document.getElementById('ic-file-input').addEventListener('change', function(e){ if (e.target.files[0]) { var f=e.target.files[0]; window.SharedSpecialUpload ? window.SharedSpecialUpload.prepare([f], function(){ loadFile(f); }) : loadFile(f); e.target.value=''; } });
     dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='#4f46e5'; dz.style.background='#f0f0ff'; });
     dz.addEventListener('dragleave', function(){ dz.style.borderColor='#d1d5db'; dz.style.background='#fafafa'; });
-    dz.addEventListener('drop', function(e){ e.preventDefault(); dz.style.borderColor='#d1d5db'; dz.style.background='#fafafa'; if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+    dz.addEventListener('drop', function(e){ e.preventDefault(); dz.style.borderColor='#d1d5db'; dz.style.background='#fafafa'; if (e.dataTransfer.files[0]) { var f=e.dataTransfer.files[0]; window.SharedSpecialUpload ? window.SharedSpecialUpload.prepare([f], function(){ loadFile(f); }) : loadFile(f); } });
   })();
   </script>
   <style>
