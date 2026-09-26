@@ -54,20 +54,36 @@
     var limit = _effectiveLimit(tier);
     while (slot.active < limit && slot.queue.length > 0) {
       slot.active++;
-      slot.queue.shift()();
+      var entry = slot.queue.shift();
+      try { entry.resolve(); } catch (_) { slot.active = Math.max(0, slot.active - 1); }
     }
   }
 
   // Acquire a concurrency slot. Resolves immediately if a slot is free,
   // otherwise waits in the FIFO queue until one is released.
-  function acquireSlot(tier) {
+  function acquireSlot(tier, token) {
     var slot = _slots[tier];
     if (!slot) return Promise.resolve();
+    if (token && token.cancelled) {
+      return Promise.reject(new Error('cancelled:' + (token.reason || 'cancelled')));
+    }
     if (!_paused && slot.active < _effectiveLimit(tier)) {
       slot.active++;
       return Promise.resolve();
     }
-    return new Promise(function (resolve) { slot.queue.push(resolve); });
+    return new Promise(function (resolve, reject) {
+      var entry = { resolve: resolve, reject: reject };
+      slot.queue.push(entry);
+      var detach = null;
+      if (token && typeof token.onCancel === 'function') {
+        detach = token.onCancel(function (reason) {
+          var idx = slot.queue.indexOf(entry);
+          if (idx !== -1) slot.queue.splice(idx, 1);
+          if (detach) detach();
+          reject(new Error('cancelled:' + (reason || 'cancelled')));
+        });
+      }
+    });
   }
 
   // Release a previously acquired slot and dispatch the next waiter if any.
@@ -76,7 +92,8 @@
     if (!slot) return;
     if (slot.queue.length > 0 && !_paused) {
       // Hand the slot directly to the next waiter (active count unchanged)
-      slot.queue.shift()();
+      var entry = slot.queue.shift();
+      try { entry.resolve(); } catch (_) { slot.active = Math.max(0, slot.active - 1); }
     } else {
       slot.active = Math.max(0, slot.active - 1);
       _drain(tier);
