@@ -40,15 +40,14 @@
     try {
       if (runToken && runToken.cancelled) throw new Error('Processing cancelled');
       return await G.RuntimeScheduler.run(
-        'browser:' + toolId,
-        function (schedulerToken, progress) {
-          if (schedulerToken && schedulerToken.cancelled) throw new Error('Processing cancelled');
+        function (progress) {
+          if (runToken && runToken.cancelled) throw new Error('Processing cancelled');
           if (typeof onProgress === 'function' && typeof progress === 'function') {
             onProgress(progress);
           }
           return G.BrowserTools.process(toolId, files, opts || {});
         },
-        { token: runToken, timeoutMs: TIMEOUT_MS, label: 'browser:' + toolId }
+        { type: 'convert', token: runToken, timeoutMs: TIMEOUT_MS, label: 'browser:' + toolId }
       );
     } finally {
       active.delete(toolId);
