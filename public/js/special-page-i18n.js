@@ -514,7 +514,35 @@
     EXT[lang]['special.faq']=EXT[lang]['special.faq']||EXT.en['special.faq'];
   });
 
+  /* Generic semantic coverage for static copy not yet assigned a reviewed key.
+     This is deliberately fallback-first: it records the original English source text,
+     gives it a deterministic key, and lets RuntimeI18n keep English until a reviewed
+     locale override exists. It prevents untranslated text from being invisible to the
+     localization system while page-specific engines remain untouched. */
+  function autoKey(text){
+    var s=String(text||'').trim();
+    var h=2166136261;
+    for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+    return 'special.auto_'+(h>>>0).toString(36);
+  }
+  function autoSemanticCoverage(){
+    var nodes=document.querySelectorAll('h1,h2,h3,h4,h5,h6,label,legend,p,button,summary,option,figcaption,a');
+    for(var i=0;i<nodes.length;i++){
+      var el=nodes[i];
+      if(el.closest && el.closest('header,footer,nav,.site-header,.footer')) continue;
+      if(el.hasAttribute('data-i18n')) continue;
+      var source=el.getAttribute('data-special-source')||el.textContent||'';
+      source=source.replace(/\\s+/g,' ').trim();
+      if(!source || source.length<2 || /^[\\d\\s.,:%+\\-–—/()]+$/.test(source)) continue;
+      var key=autoKey(source);
+      el.setAttribute('data-special-source',source);
+      el.setAttribute('data-i18n',key);
+      EXT.en[key]=source;
+    }
+  }
+
   function hook(){
+    autoSemanticCoverage();
     extend();
     markByText('h1,h3,h4,label,legend,p,span,summary,option,button',PAGE_TEXT);
     markByText('h2,h4,p,summary,button,label,span',SECONDARY_TEXT);
