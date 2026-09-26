@@ -675,7 +675,7 @@ function popularToolsHtml(currentToolId) {
     return fallback;
   };
   return `
-    <section class="popular-tools${currentToolId === 'crop' ? ' popular-tools--crop' : ''}" aria-label="Popular tools">
+    <section class="popular-tools" aria-label="Popular tools">
       <h2 class="popular-title">Popular tools</h2>
       <div class="popular-grid">
         ${list.map(t => `
@@ -1557,8 +1557,8 @@ async function handleFiles(fileList) {
   // Persist immediately so a refresh on /preview keeps the file blobs.
   persistFlowState();
 
-  // Crop PDF gets a real local-read + dependency-prewarm journey before
-  // the existing preview navigation. All other tools keep the exact old path.
+  // All file-upload tools use the same Crop-PDF reference preparation journey;
+  // tool-specific processing and preview controls remain isolated.
   if (Flow.step === 'upload') {
     // All standard tools now share the same upload → preparation → preview
     // transition. The preparation panel is not an upload-speed indicator.
