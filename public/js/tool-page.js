@@ -2763,20 +2763,20 @@ function renderSeoContent(tool) {
     <div class="seo-content">
       <h2>${tool.name} Online — Free, Fast &amp; Secure</h2>
       <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, instantly. No software to download, no account to create, no hidden fees.</p>
-      <p>Drag and drop your ${fileType} onto the upload area or click to browse. Files up to 100&nbsp;MB are supported. Once processing is complete, the file is deleted from our servers automatically — usually within seconds.</p>
+      <p>Drag and drop your ${fileType} onto the upload area or click to browse. Processing runs in your browser, so there is no artificial file-size cap imposed by the shared tool flow. Very large files may take longer on lower-capability devices.</p>
       <h3>How ${tool.name} works</h3>
       <ol class="seo-steps">
         <li><strong>Upload your file</strong> — drag &amp; drop or click the upload area.</li>
         <li><strong>Preview &amp; configure</strong> — review your file and adjust any options.</li>
-        <li><strong>Process</strong> — click the Process button and wait a few seconds.</li>
-        <li><strong>Download</strong> — your file is ready instantly. We delete it shortly after.</li>
+        <li><strong>Process</strong> — click the Process button and let your device complete the task.</li>
+        <li><strong>Download</strong> — download the processed result directly from your browser.</li>
       </ol>
       ${benefitsBlock}
       ${useCasesBlock}
       <h3>Why choose ILovePDF?</h3>
       <ul class="seo-why">
         <li><strong>Fast.</strong> Most files are processed in seconds.</li>
-        <li><strong>Free.</strong> No watermark, no daily cap, no signup needed for files under 100&nbsp;MB.</li>
+        <li><strong>Free.</strong> No watermark, no daily cap, and no artificial file-size cap in the shared browser flow.</li>
         <li><strong>Secure.</strong> Processing follows the tool's configured processing path; see the site's privacy information for data handling details.</li>
         <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
       </ul>
