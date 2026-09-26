@@ -55,6 +55,35 @@ standardFlowIds.forEach(function (id) {
   const t = (registry.tools || []).find(x => x.id === id);
   if (!t || t.specialRoute) fail(id + ' is a standard tool but still declares a special route.');
 });
+if (!/function renderStep\(\)[\s\S]*?return renderUploadStep\(currentTool\)/.test(toolPageFlow)) {
+  fail('Shared flow orchestrator does not route the canonical upload step through renderUploadStep.');
+}
+if (!/function renderStep\(\)[\s\S]*?Flow\.step === 'preview'[\s\S]*?renderPreviewStep\(currentTool\)/.test(toolPageFlow)) {
+  fail('Shared flow orchestrator does not route preview through renderPreviewStep.');
+}
+if (!/function renderStep\(\)[\s\S]*?Flow\.step === 'download'[\s\S]*?renderDownloadStep\(currentTool\)/.test(toolPageFlow)) {
+  fail('Shared flow orchestrator does not route download through renderDownloadStep.');
+}
+if (!/function renderPreviewStep\(tool\)[\s\S]*?renderToolPreviewPreparation\(tool\)/.test(toolPageFlow)) {
+  fail('Shared preview entry does not use the common preparation stage.');
+}
+if (!/async function handleFiles\(fileList\)[\s\S]*?Flow\.step === 'upload'[\s\S]*?Flow\.navTo\('preview'\)/.test(toolPageFlow)) {
+  fail('Shared file-selection boundary does not transition upload → preview through Flow.');
+}
+if (!/function renderUploadStep\(tool\)[\s\S]*?renderBrandedUploadStep\(tool, getBrandedUploadConfig\(tool\)\)/.test(toolPageFlow)) {
+  fail('Shared upload step does not use the canonical branded upload renderer.');
+}
+// These are deliberate UI/engine exceptions, not alternate upload flows.
+const previewExceptionIds = ['rotate', 'edit', 'background-remover'];
+previewExceptionIds.forEach(function (id) {
+  const t = (registry.tools || []).find(x => x.id === id);
+  if (!t || !standardFlowIds.includes(id)) fail(id + ' preview exception is not part of the standard registry flow.');
+});
+if (!/tool\.id === 'rotate'[\s\S]*?renderRotatePreviewStep\(tool\)/.test(toolPageFlow)) fail('Rotate preview exception is not isolated behind the shared preview boundary.');
+if (!/tool\.id === 'background-remover'[\s\S]*?renderProPreviewStep\(tool\)/.test(toolPageFlow)) fail('Background Remover preview exception is not isolated behind the shared preview boundary.');
+if (!/tool\.id === 'edit'[\s\S]*?renderProPreviewStep\(tool\)/.test(toolPageFlow)) fail('Edit PDF preview exception is not isolated behind the shared preview boundary.');
+if (/currentTool\.id === 'crop'|currentTool\.id === "crop"/.test(toolPageFlow)) fail('Shared tool page still contains a Crop-only runtime/UI branch.');
+
 
 // ── Special-page canonical boundary ────────────────────────────────────────
 // These tools intentionally remain standalone pages because their UI/engine
