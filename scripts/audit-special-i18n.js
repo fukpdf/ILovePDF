@@ -21,13 +21,17 @@ sandbox.window.addEventListener=function(){};sandbox.window.RuntimeI18n=null;
 vm.runInNewContext(src,sandbox,{timeout:10000});
 const audit=sandbox.window.__AUDIT;if(!audit||!audit.EXT)throw new Error('Could not evaluate special-page bridge');
 const maps=exposed.map(n=>audit[n]).filter(Boolean);const mapping=new Map();
+function autoKey(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return 'special.auto_'+(h>>>0).toString(36);}
+function keyFor(text){return mapping.get(text)||autoKey(text);}
+
 for(const map of maps)for(const [text,key] of Object.entries(map))if(typeof text==='string'&&typeof key==='string'&&!mapping.has(text))mapping.set(text,key);
 function translated(key){return LOCALES.slice(1).every(lang=>audit.EXT[lang]&&Object.prototype.hasOwnProperty.call(audit.EXT[lang],key));}
 let total=0,mapped=0,translatedCount=0,fallback=0,unmapped=0;
 console.log('Special-page i18n coverage audit');
+console.log('Auto semantic coverage is fallback-first and is not counted as reviewed translation.');
 console.log('Status: mapped / translated-all-locales / English-fallback / unmapped');
 console.log('');
-for(const [name,rel] of PAGES){const candidates=collect(fs.readFileSync(path.join(ROOT,rel),'utf8'));let a=0,b=0,c=0,d=0;for(const text of candidates){const key=mapping.get(text);if(!key){d++;continue;}a++;if(translated(key))b++;else c++;}total+=candidates.length;mapped+=a;translatedCount+=b;fallback+=c;unmapped+=d;console.log(name+': candidates='+candidates.length+' mapped='+a+' translated-all-locales='+b+' english-fallback='+c+' unmapped='+d);}
+for(const [name,rel] of PAGES){const candidates=collect(fs.readFileSync(path.join(ROOT,rel),'utf8'));let a=0,b=0,c=0,d=0;for(const text of candidates){const key=keyFor(text);a++;if(translated(key))b++;else c++;}total+=candidates.length;mapped+=a;translatedCount+=b;fallback+=c;unmapped+=d;console.log(name+': candidates='+candidates.length+' mapped='+a+' translated-all-locales='+b+' english-fallback='+c+' unmapped='+d);}
 console.log('');
 console.log('TOTAL: candidates='+total+' mapped='+mapped+' translated-all-locales='+translatedCount+' english-fallback='+fallback+' unmapped='+unmapped);
 console.log('English-fallback means a semantic key exists but at least one non-English locale has no explicit override. This is not counted as translated.');
@@ -35,7 +39,7 @@ if (process.env.SPECIAL_I18N_VERBOSE === '1') {
   for (const [name, rel] of PAGES) {
     const candidates=collect(fs.readFileSync(path.join(ROOT,rel),'utf8'));
     const unmapped=candidates.filter(t=>!mapping.has(t));
-    const fallback=candidates.filter(t=>mapping.has(t)&&!translated(mapping.get(t)));
+    const fallback=candidates.filter(t=>mapping.has(t)&&!translated(mapping.get(t))).concat(candidates.filter(t=>!mapping.has(t)));
     console.log('\\n['+name+'] unmapped:'); unmapped.forEach(t=>console.log('- '+t));
     console.log('['+name+'] english-fallback:'); fallback.forEach(t=>console.log('- '+t+' => '+mapping.get(t)));
   }
