@@ -427,6 +427,25 @@
   Object.keys(BODY_TEXT).forEach(function(text){ BODY_EN[BODY_TEXT[text]]=text; });
   Object.keys(BODY_EN).forEach(function(key){ EXT.en[key]=BODY_EN[key]; });
 
+  var LONG_TEXT = {
+    'Free PDF &amp; Image tools online. Files are deleted automatically after processing — your privacy comes first.':'special.related_desc',
+    'Create Code128, EAN, UPC barcodes':'special.related_barcode',
+    'Convert numbers to readable text':'special.related_n2w',
+    'Live exchange rates for 160+ currencies':'special.related_currency',
+    'Bundle files into a ZIP archive':'special.related_zip',
+    'Convert between JPG, PNG, WebP':'special.related_image_convert',
+    'Reduce image file size':'special.related_image_compress',
+    'Erase image backgrounds':'special.related_background',
+    'Trim images precisely':'special.related_crop',
+    'Change image dimensions':'special.related_resize',
+    'Apply photo filters':'special.related_filters',
+    'Create QR codes for URLs and text':'special.related_qr',
+    'Erase image backgrounds':'special.related_background'
+  };
+  var LONG_EN = {};
+  Object.keys(LONG_TEXT).forEach(function(text){ LONG_EN[LONG_TEXT[text]]=text; });
+  Object.keys(LONG_EN).forEach(function(key){ EXT.en[key]=LONG_EN[key]; });
+
   var SECONDARY_EN = {};
   Object.keys(SECONDARY_TEXT).forEach(function(text){ SECONDARY_EN[SECONDARY_TEXT[text]]=text; });
   Object.keys(SECONDARY_EN).forEach(function(key){ EXT.en[key]=SECONDARY_EN[key]; });
@@ -444,6 +463,7 @@
     markByText('h2,h4,p,summary,button,label,span',SECONDARY_TEXT);
     markByText('h2,h3,h4,p,summary,button,label,span',FAQ_TEXT);
     markByText('h1,h2,h3,h4,p,button,label,span',BODY_TEXT);
+    markByText('h2,h3,h4,p,a,button,span',LONG_TEXT);
 
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
