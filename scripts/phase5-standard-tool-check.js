@@ -113,11 +113,11 @@ if (!/\.finally\(function \(\) \{[\s\S]*?if \(typeof detachWorkerCancel === 'fun
 if (!/timeoutMs <= 0/.test(workerOrchestrator) || !/return taskP\.then\(/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not preserve unlimited execution when timeoutMs is zero.');
 if (!/WorkerPool\.run\(url, message, transferables \|\| \[\], workerOpts\)/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not dispatch through the canonical WorkerPool.');
 const workerPool = read('public/workers/workerPool.js');
-if (!/function CancelToken\(\)[\\s\\S]*?onCancel: function \(fn\)/.test(workerPool)) fail('WorkerPool cancellation token contract is missing.');
-if (!/function dispatch\(pool, slot, task\)[\\s\\S]*?task\.token\.onCancel\(function \(\)/.test(workerPool)) fail('WorkerPool does not observe cancellation for active worker tasks.');
+if (!/function CancelToken\(\)[\s\S]*?onCancel: function \(fn\)/.test(workerPool)) fail('WorkerPool cancellation token contract is missing.');
+if (!/function dispatch\(pool, slot, task\)[\s\S]*?task\.token\.onCancel\(function \(\)/.test(workerPool)) fail('WorkerPool does not observe cancellation for active worker tasks.');
 if (!/slot\.worker\.terminate\(\)/.test(workerPool)) fail('WorkerPool cancellation does not retire the active worker before reuse.');
 if (!/drainAll\(pool\)/.test(workerPool)) fail('WorkerPool cancellation does not resume queued work after retiring a cancelled worker.');
-if (!/q\.splice\(idx, 1\)[\\s\\S]*?task_cancelled/.test(workerPool)) fail('WorkerPool queued cancellation does not remove and reject the matching task.');
+if (!/q\.splice\(idx, 1\)[\s\S]*?task_cancelled/.test(workerPool)) fail('WorkerPool queued cancellation does not remove and reject the matching task.');
 
 
 // ── Special-page canonical boundary ────────────────────────────────────────
