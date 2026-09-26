@@ -731,7 +731,25 @@ if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime do
 if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
 if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
 
-// Special upload-tool contract: these browser-local upload pages keep their
+// All special-page tools must enter the same shared chrome/i18n shell.
+// Their page-specific engines remain isolated; chrome.js owns the canonical
+// header/footer and lazy-loads RuntimeI18n + shared accessibility assets.
+[
+  'public/n2w.html',
+  'public/currency-converter.html',
+  'public/image-compressor.html',
+  'public/image-converter.html',
+  'public/qr-code-generator.html',
+  'public/barcode-generator.html',
+  'public/zip-builder.html'
+].forEach(function (specialPath) {
+  const specialPage = read(specialPath);
+  if (specialPage.indexOf('/js/chrome.js') === -1) {
+    fail(specialPath + ' does not load the canonical shared chrome runtime.');
+  }
+});
+
+// // Special upload-tool contract: these browser-local upload pages keep their
 // processing engines isolated, but share the canonical preparation experience.
 const specialUploadFlow = read('public/js/special-upload-flow.js');
 if (specialUploadFlow.indexOf('SharedSpecialUpload=Object.freeze') === -1 ||
