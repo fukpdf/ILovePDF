@@ -78,7 +78,7 @@
   function hook(){
     extend();
 
-    /* Breadcrumb home and major section headings. */
+    markByText('h1,h3,label,legend,p,span,summary,option,button',PAGE_TEXT);\n\n    /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
     markByText('h2',{'How it works':'special.how','Frequently asked questions':'special.faq','Related tools':'special.related'});
 
