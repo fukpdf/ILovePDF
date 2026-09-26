@@ -177,6 +177,11 @@ if (!/BrowserTools\.process\(toolId, files, opts/.test(browserRuntime)) fail('Br
 if (!/TIMEOUT_MS\s*=\s*0/.test(browserRuntime)) fail('BrowserToolRuntime contains an artificial execution timeout.');
 if (!/dedupeKey\(toolId, files, opts\)/.test(browserRuntime) || !/dedupeKey: dedupeKey/.test(browserRuntime)) fail('BrowserToolRuntime dedupe contract is missing.');
 if (!/cancelAll\(reason\)/.test(browserRuntime) || !/pagehide/.test(browserRuntime)) fail('BrowserToolRuntime lifecycle cancellation is incomplete.');
+if (!/active\.set\(toolId, \{ key: key, token: runToken \}\)/.test(browserRuntime)) fail('BrowserToolRuntime does not bind each active tool execution to its cancellation token.');
+if (!/if \(runToken && runToken\.cancelled\) throw new Error\('Processing cancelled'\)/.test(browserRuntime)) fail('BrowserToolRuntime does not fail closed when an active token is already cancelled.');
+if (!/finally \{[\\s\\S]*?active\.delete\(toolId\);/.test(browserRuntime)) fail('BrowserToolRuntime does not remove active tool state after completion or cancellation.');
+if (!/function cancel\(toolId, reason\)[\\s\\S]*?item\.token\.cancel\(reason \|\| 'cancelled'\)/.test(browserRuntime)) fail('BrowserToolRuntime cancel() is not scoped to the requested tool token.');
+
 
 const browserRuntimeIds = [
   ['pdf-to-word', 'PDF to Word'], ['pdf-to-powerpoint', 'PDF to PowerPoint'],
