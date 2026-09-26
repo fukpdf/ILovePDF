@@ -100,6 +100,226 @@
     'Optimal (max)':'special.optimal','Balanced':'special.balanced','Fast (min)':'special.fast','None (no compression)':'special.none_compression',
     'Browse files':'special.browse'
   };
+  var UI_LOCALE = {
+  'ur': {
+    'special.enter_number': "نمبر درج کریں",
+    'special.conversion_type': "تبدیلی کی قسم",
+    'special.amount': "رقم",
+    'special.from': "سے",
+    'special.convert': "تبدیل کریں",
+    'special.content_type': "مواد کی قسم",
+    'special.format': "فارمیٹ",
+    'special.output_format': "آؤٹ پٹ فارمیٹ",
+    'special.archive_name': "آرکائیو کا نام",
+    'special.compression': "کمپریشن"
+  },
+  'hi': {
+    'special.enter_number': "संख्या दर्ज करें",
+    'special.conversion_type': "रूपांतरण प्रकार",
+    'special.amount': "राशि",
+    'special.from': "से",
+    'special.convert': "कन्वर्ट करें",
+    'special.content_type': "सामग्री प्रकार",
+    'special.format': "फ़ॉर्मेट",
+    'special.output_format': "आउटपुट फ़ॉर्मेट",
+    'special.archive_name': "आर्काइव नाम",
+    'special.compression': "कंप्रेशन"
+  },
+  'ar': {
+    'special.enter_number': "أدخل رقمًا",
+    'special.conversion_type': "نوع التحويل",
+    'special.amount': "المبلغ",
+    'special.from': "من",
+    'special.convert': "تحويل",
+    'special.content_type': "نوع المحتوى",
+    'special.format': "التنسيق",
+    'special.output_format': "تنسيق الإخراج",
+    'special.archive_name': "اسم الأرشيف",
+    'special.compression': "الضغط"
+  },
+  'fa': {
+    'special.enter_number': "یک عدد وارد کنید",
+    'special.conversion_type': "نوع تبدیل",
+    'special.amount': "مبلغ",
+    'special.from': "از",
+    'special.convert': "تبدیل",
+    'special.content_type': "نوع محتوا",
+    'special.format': "قالب",
+    'special.output_format': "قالب خروجی",
+    'special.archive_name': "نام آرشیو",
+    'special.compression': "فشرده‌سازی"
+  },
+  'fr': {
+    'special.enter_number': "Saisissez un nombre",
+    'special.conversion_type': "Type de conversion",
+    'special.amount': "Montant",
+    'special.from': "De",
+    'special.convert': "Convertir",
+    'special.content_type': "Type de contenu",
+    'special.format': "Format",
+    'special.output_format': "Format de sortie",
+    'special.archive_name': "Nom de l’archive",
+    'special.compression': "Compression"
+  },
+  'de': {
+    'special.enter_number': "Zahl eingeben",
+    'special.conversion_type': "Konvertierungsart",
+    'special.amount': "Betrag",
+    'special.from': "Von",
+    'special.convert': "Konvertieren",
+    'special.content_type': "Inhaltstyp",
+    'special.format': "Format",
+    'special.output_format': "Ausgabeformat",
+    'special.archive_name': "Archivname",
+    'special.compression': "Komprimierung"
+  },
+  'es': {
+    'special.enter_number': "Introduce un número",
+    'special.conversion_type': "Tipo de conversión",
+    'special.amount': "Importe",
+    'special.from': "De",
+    'special.convert': "Convertir",
+    'special.content_type': "Tipo de contenido",
+    'special.format': "Formato",
+    'special.output_format': "Formato de salida",
+    'special.archive_name': "Nombre del archivo",
+    'special.compression': "Compresión"
+  },
+  'pt': {
+    'special.enter_number': "Digite um número",
+    'special.conversion_type': "Tipo de conversão",
+    'special.amount': "Valor",
+    'special.from': "De",
+    'special.convert': "Converter",
+    'special.content_type': "Tipo de conteúdo",
+    'special.format': "Formato",
+    'special.output_format': "Formato de saída",
+    'special.archive_name': "Nome do arquivo",
+    'special.compression': "Compressão"
+  },
+  'it': {
+    'special.enter_number': "Inserisci un numero",
+    'special.conversion_type': "Tipo di conversione",
+    'special.amount': "Importo",
+    'special.from': "Da",
+    'special.convert': "Converti",
+    'special.content_type': "Tipo di contenuto",
+    'special.format': "Formato",
+    'special.output_format': "Formato di output",
+    'special.archive_name': "Nome archivio",
+    'special.compression': "Compressione"
+  },
+  'nl': {
+    'special.enter_number': "Voer een getal in",
+    'special.conversion_type': "Conversietype",
+    'special.amount': "Bedrag",
+    'special.from': "Van",
+    'special.convert': "Converteren",
+    'special.content_type': "Inhoudstype",
+    'special.format': "Indeling",
+    'special.output_format': "Uitvoerindeling",
+    'special.archive_name': "Archiefnaam",
+    'special.compression': "Compressie"
+  },
+  'tr': {
+    'special.enter_number': "Bir sayı girin",
+    'special.conversion_type': "Dönüştürme türü",
+    'special.amount': "Tutar",
+    'special.from': "Kaynak",
+    'special.convert': "Dönüştür",
+    'special.content_type': "İçerik türü",
+    'special.format': "Biçim",
+    'special.output_format': "Çıktı biçimi",
+    'special.archive_name': "Arşiv adı",
+    'special.compression': "Sıkıştırma"
+  },
+  'ru': {
+    'special.enter_number': "Введите число",
+    'special.conversion_type': "Тип преобразования",
+    'special.amount': "Сумма",
+    'special.from': "Из",
+    'special.convert': "Конвертировать",
+    'special.content_type': "Тип содержимого",
+    'special.format': "Формат",
+    'special.output_format': "Формат вывода",
+    'special.archive_name': "Имя архива",
+    'special.compression': "Сжатие"
+  },
+  'ja': {
+    'special.enter_number': "数値を入力",
+    'special.conversion_type': "変換タイプ",
+    'special.amount': "金額",
+    'special.from': "変換元",
+    'special.convert': "変換",
+    'special.content_type': "コンテンツの種類",
+    'special.format': "形式",
+    'special.output_format': "出力形式",
+    'special.archive_name': "アーカイブ名",
+    'special.compression': "圧縮"
+  },
+  'ko': {
+    'special.enter_number': "숫자 입력",
+    'special.conversion_type': "변환 유형",
+    'special.amount': "금액",
+    'special.from': "변환 전",
+    'special.convert': "변환",
+    'special.content_type': "콘텐츠 유형",
+    'special.format': "형식",
+    'special.output_format': "출력 형식",
+    'special.archive_name': "아카이브 이름",
+    'special.compression': "압축"
+  },
+  'zh': {
+    'special.enter_number': "输入数字",
+    'special.conversion_type': "转换类型",
+    'special.amount': "金额",
+    'special.from': "来源",
+    'special.convert': "转换",
+    'special.content_type': "内容类型",
+    'special.format': "格式",
+    'special.output_format': "输出格式",
+    'special.archive_name': "压缩包名称",
+    'special.compression': "压缩"
+  },
+  'id': {
+    'special.enter_number': "Masukkan angka",
+    'special.conversion_type': "Jenis konversi",
+    'special.amount': "Jumlah",
+    'special.from': "Dari",
+    'special.convert': "Konversi",
+    'special.content_type': "Jenis konten",
+    'special.format': "Format",
+    'special.output_format': "Format keluaran",
+    'special.archive_name': "Nama arsip",
+    'special.compression': "Kompresi"
+  },
+  'pl': {
+    'special.enter_number': "Wpisz liczbę",
+    'special.conversion_type': "Typ konwersji",
+    'special.amount': "Kwota",
+    'special.from': "Z",
+    'special.convert': "Konwertuj",
+    'special.content_type': "Typ treści",
+    'special.format': "Format",
+    'special.output_format': "Format wyjściowy",
+    'special.archive_name': "Nazwa archiwum",
+    'special.compression': "Kompresja"
+  },
+  'bn': {
+    'special.enter_number': "একটি সংখ্যা লিখুন",
+    'special.conversion_type': "রূপান্তরের ধরন",
+    'special.amount': "পরিমাণ",
+    'special.from': "থেকে",
+    'special.convert': "রূপান্তর করুন",
+    'special.content_type': "কনটেন্টের ধরন",
+    'special.format': "ফরম্যাট",
+    'special.output_format': "আউটপুট ফরম্যাট",
+    'special.archive_name': "আর্কাইভের নাম",
+    'special.compression': "কমপ্রেশন"
+  }
+};
+  Object.keys(UI_LOCALE).forEach(function(lang){ if(!EXT[lang]) EXT[lang]={}; Object.keys(UI_LOCALE[lang]).forEach(function(key){ EXT[lang][key]=UI_LOCALE[lang][key]; }); });
+
   var UI_EN = {};
   Object.keys(UI_TEXT).forEach(function(text){ UI_EN[UI_TEXT[text]]=text; });
   Object.keys(UI_EN).forEach(function(key){ EXT.en[key]=UI_EN[key]; });
