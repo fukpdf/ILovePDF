@@ -467,6 +467,42 @@
   Object.keys(INSTRUCTION_TEXT).forEach(function(text){ INSTRUCTION_EN[INSTRUCTION_TEXT[text]]=text; });
   Object.keys(INSTRUCTION_EN).forEach(function(key){ EXT.en[key]=INSTRUCTION_EN[key]; });
 
+  var PARAGRAPH_TEXT = {
+    'Convert large numbers, scientific notation, currency or check-writing format into words.':'special.n2w_desc',
+    'Supports up to 300+ digit integers, decimals and scientific notation.':'special.n2w_support',
+    'Convert any amount between 160+ world currencies in real time. Rates are pulled from public mid-market sources and refreshed several times a day, so what you see is the same number used by banks and financial apps before they add a margin. No signup, no rate limits, no popups.':'special.currency_desc',
+    'We use mid-market rates pulled from public providers, refreshed several times per day. They match what financial apps quote before adding a margin or fee. Real bank or card rates may differ slightly because of those fees.':'special.currency_rates',
+    '160+ — every major fiat (USD, EUR, GBP, INR, JPY, CNY, AUD, CAD…) plus regional currencies across Africa, Asia, Latin America and the Middle East. A few precious metals and major cryptocurrencies are also included.':'special.currency_coverage',
+    'Create QR codes instantly for any content — URLs, plain text, email addresses, phone numbers, Wi-Fi passwords, and more. Choose your size, colors, and error correction level, then download as PNG or SVG with one click. Runs entirely in your browser with no uploads and no signup.':'special.qr_desc',
+    'Create professional barcodes for retail products, books, inventory management, and shipping labels. Supports 12+ formats including Code128, EAN-13, UPC-A, Code39, and ITF-14. Fully customizable — adjust line width, height, font size, and label. Download as SVG or PNG for print or digital use.':'special.barcode_desc',
+    'Reduce the file size of your JPG, PNG, and WebP images without visible quality loss. Use the quality slider to find the perfect balance between file size and visual fidelity, then see the before and after sizes side by side before downloading. Everything runs in your browser — your images are never uploaded anywhere.':'special.image_compressor_desc',
+    'Convert images between JPG, PNG, and WebP format instantly in your browser. Add multiple images and convert them all at once. WebP typically produces images 25–35% smaller than JPEG at equivalent quality — ideal for web use. PNG preserves transparency. All processing is done locally: your images are never uploaded anywhere.':'special.image_converter_desc',
+    'Combine any number of files into a single ZIP archive right in your browser — no uploads, no servers, complete privacy. Drag and drop files, choose a compression level, name your archive, then download it in seconds. Powered by JSZip, a proven open-source library used by millions.':'special.zip_desc',
+    'Select URL, Text, Email, Phone, or Wi-Fi from the tabs above.':'special.qr_step_select',
+    'Type or paste the information you want to encode into the QR code.':'special.qr_step_type',
+    'Choose size, error correction level, and colors to match your brand.':'special.qr_step_options',
+    'Click Generate, then download as PNG for photos or SVG for infinite scaling.':'special.qr_step_generate',
+    'Select the barcode standard that matches your use case — Code128 for general use, EAN-13 for retail.':'special.barcode_step_select',
+    'Type the value you want to encode. EAN and UPC formats have strict digit requirements.':'special.barcode_step_type',
+    'Adjust line width, height, font size, colors, and margin to suit your label design.':'special.barcode_step_options',
+    'Download SVG for scalable print use, or PNG for digital environments and quick testing.':'special.barcode_step_download',
+    'Drop a JPG, PNG, or WebP image onto the tool, or click Browse to select one from your device.':'special.image_compressor_step_select',
+    'Use the quality slider — 80 is a great starting point. Lower values = smaller files, less quality.':'special.image_compressor_step_quality',
+    'Click Compress to see the before and after side by side with file sizes and savings percentage.':'special.image_compressor_step_compress',
+    'Happy with the result? Click Download to save the compressed image to your device.':'special.image_compressor_step_download',
+    'Drop one or more JPG, PNG, or WebP images onto the tool, or click Browse to select them.':'special.image_converter_step_select',
+    'Select your target format: JPEG for photos, PNG for graphics with transparency, WebP for web.':'special.image_converter_step_format',
+    'For JPEG and WebP, quality 80–90 gives excellent results. For PNG, quality has no effect (lossless).':'special.image_converter_step_quality',
+    'Click Convert — each image is downloaded individually in the new format, ready to use.':'special.image_converter_step_convert',
+    'Drag and drop any files onto the drop zone, or click Browse to select them from your device.':'special.zip_step_select',
+    'Give your ZIP file a meaningful name. The .zip extension is added automatically.':'special.zip_step_name',
+    'Optimal compresses most, Fast is quicker. None just packages files without shrinking them.':'special.zip_step_compression',
+    'Click Build ZIP. The archive is created in your browser and downloaded automatically.':'special.zip_step_build'
+  };
+  var PARAGRAPH_EN = {};
+  Object.keys(PARAGRAPH_TEXT).forEach(function(text){ PARAGRAPH_EN[PARAGRAPH_TEXT[text]]=text; });
+  Object.keys(PARAGRAPH_EN).forEach(function(key){ EXT.en[key]=PARAGRAPH_EN[key]; });
+
   var SECONDARY_EN = {};
   Object.keys(SECONDARY_TEXT).forEach(function(text){ SECONDARY_EN[SECONDARY_TEXT[text]]=text; });
   Object.keys(SECONDARY_EN).forEach(function(key){ EXT.en[key]=SECONDARY_EN[key]; });
@@ -486,6 +522,7 @@
     markByText('h1,h2,h3,h4,p,button,label,span',BODY_TEXT);
     markByText('h2,h3,h4,p,a,button,span',LONG_TEXT);
     markByText('h2,h3,h4,p,summary,button,span',INSTRUCTION_TEXT);
+    markByText('p,h2,h3,h4,li',PARAGRAPH_TEXT);
 
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
