@@ -752,6 +752,26 @@ if (chromeRuntime.indexOf('function ensureI18nAssets()') === -1 ||
   fail('Canonical shared chrome does not load the global i18n runtime.');
 }
 
+// // Special-page i18n coverage: static UI text must be addressable by the
+// RuntimeI18n DOM engine; page-specific engines remain independent.
+[
+  ['image-compressor','public/image-compressor.html'],
+  ['image-converter','public/image-converter.html'],
+  ['zip-builder','public/zip-builder.html'],
+  ['n2w','public/n2w.html'],
+  ['currency-converter','public/currency-converter.html'],
+  ['qr-code-generator','public/qr-code-generator.html'],
+  ['barcode-generator','public/barcode-generator.html']
+].forEach(function (item) {
+  const specialPage = read(item[1]);
+  if (specialPage.indexOf('/js/chrome.js') === -1) return;
+  if (specialPage.indexOf('data-i18n=') === -1 &&
+      specialPage.indexOf('data-i18n-key=') === -1 &&
+      specialPage.indexOf('RuntimeI18n') === -1) {
+    fail(item[1] + ' has no page-level i18n binding; static UI cannot follow the global language selection.');
+  }
+});
+
 // // All special-page tools must enter the same shared chrome/i18n shell.
 // Their page-specific engines remain isolated; chrome.js owns the canonical
 // header/footer and lazy-loads RuntimeI18n + shared accessibility assets.
