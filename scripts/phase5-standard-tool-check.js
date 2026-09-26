@@ -35,6 +35,48 @@ if (published !== read('config/tool-registry.json')) {
   fail('Published registry is out of sync with canonical registry.');
 }
 
+// ── Special-page canonical boundary ────────────────────────────────────────
+// These tools intentionally remain standalone pages because their UI/engine
+// contracts are not the shared PDF tool-shell contract. The gate prevents them
+// from silently drifting into the wrong execution path or regressing to hard
+// processing limits.
+function requireSpecialPageContract(id, label, page, requiredSrc) {
+  const tool = (registry.tools || []).find(t => t.id === id);
+  if (!tool) {
+    fail(label + ' is missing from the canonical tool registry.');
+    return;
+  }
+  if (tool.execution !== 'special-page') fail(label + ' execution must remain special-page.');
+  if (!tool.specialRoute || tool.specialRoute !== page.replace(/^public/, '')) {
+    fail(label + ' specialRoute does not match its standalone page.');
+  }
+  if (!tool.capabilities || tool.capabilities.lazyLoad !== true) fail(label + ' lazyLoad contract is missing.');
+  if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
+  const source = read(page);
+  if (!/\/js\/chrome\.js/.test(source)) fail(label + ' does not load the shared chrome layer.');
+  if (requiredSrc && !new RegExp(requiredSrc.replace(/[.*+?^$()|[\]\\]/g, '\\function requireBrowserRuntimeContract(id, label) {')).test(source)) {
+    fail(label + ' required runtime dependency is missing: ' + requiredSrc);
+  }
+  if (/new\\s+Worker\\s*\\(/.test(source)) fail(label + ' directly spawns a Worker outside the approved runtime boundary.');
+  if (/RuntimeScheduler/.test(source)) fail(label + ' unexpectedly embeds the standard tool runtime.');
+  if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|MAX_FILE_BYTES|MAX_FILE_SIZE|MAX_INPUT_BYTES|totalMB\\s*>\\s*400/.test(source)) {
+    fail(label + ' retains an artificial processing/input limit.');
+  }
+}
+
+const specialPageContracts = [
+  ['numbers-to-words', 'Numbers to Words', 'public/n2w.html', '/js/n2w-app.js'],
+  ['currency-converter', 'Currency Converter', 'public/currency-converter.html', '/js/chrome.js'],
+  ['image-compressor', 'Image Compressor', 'public/image-compressor.html', '/js/chrome.js'],
+  ['image-converter', 'Image Converter', 'public/image-converter.html', '/js/chrome.js'],
+  ['qr-code-generator', 'QR Code Generator', 'public/qr-code-generator.html', 'qrcodejs@1.0.0'],
+  ['barcode-generator', 'Barcode Generator', 'public/barcode-generator.html', 'JsBarcode.all.min.js'],
+  ['zip-builder', 'ZIP Builder', 'public/zip-builder.html', 'jszip/3.10.1'],
+];
+specialPageContracts.forEach(function (item) {
+  requireSpecialPageContract(item[0], item[1], item[2], item[3]);
+});
+
 function requireBrowserRuntimeContract(id, label) {
   const tool = (registry.tools || []).find(t => t.id === id);
   if (!tool) {
