@@ -35,6 +35,27 @@ if (published !== read('config/tool-registry.json')) {
   fail('Published registry is out of sync with canonical registry.');
 }
 
+// ── Shared 3-step tool-flow contract ──────────────────────────────────────
+const standardFlowIds = (registry.tools || [])
+  .filter(t => t.execution !== 'special-page')
+  .map(t => t.id);
+const toolPageFlow = read('public/js/tool-page.js');
+if (!/function renderBrandedUploadStep\(tool, config\)/.test(toolPageFlow)) fail('Shared branded upload renderer is missing.');
+if (!/function renderToolPreviewPreparation\(tool\)/.test(toolPageFlow)) fail('Shared preview preparation stage is missing.');
+if (!/function runToolPreviewPreparation\(tool, runId, startedAt, minimumMs\)/.test(toolPageFlow)) fail('Shared preview preparation runner is missing.');
+if (!/function renderStandardPreviewStep\(tool\)/.test(toolPageFlow)) fail('Shared standard preview renderer is missing.');
+if (!/async function processFile\(\)/.test(toolPageFlow)) fail('Shared process boundary is missing.');
+if (!/Flow\.commitResult\(\)/.test(toolPageFlow)) fail('Shared result/download flow commit is missing.');
+if (!/BrowserTools\.validateInputFiles/.test(toolPageFlow)) fail('Shared input validation boundary is missing.');
+if (!/OutputValidator\.check/.test(toolPageFlow)) fail('Shared output validation boundary is missing.');
+if (!/No verified browser processor exists for this tool/.test(toolPageFlow)) fail('Shared browser execution fail-closed boundary is missing.');
+if (!/cloudButtons:\s*false/.test(toolPageFlow)) fail('Shared upload cloud-provider state changed without a verified CloudUpload integration.');
+if (standardFlowIds.length !== 34) fail('Expected 34 non-special standard tools; registry composition changed.');
+standardFlowIds.forEach(function (id) {
+  const t = (registry.tools || []).find(x => x.id === id);
+  if (!t || t.specialRoute) fail(id + ' is a standard tool but still declares a special route.');
+});
+
 // ── Special-page canonical boundary ────────────────────────────────────────
 // These tools intentionally remain standalone pages because their UI/engine
 // contracts are not the shared PDF tool-shell contract. The gate prevents them
