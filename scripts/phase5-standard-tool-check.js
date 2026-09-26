@@ -85,6 +85,14 @@ if (!/tool\.id === 'edit'[\s\S]*?renderProPreviewStep\(tool\)/.test(toolPageFlow
 if (/currentTool\.id === 'crop'|currentTool\.id === "crop"/.test(toolPageFlow)) fail('Shared tool page still contains a Crop-only runtime/UI branch.');
 
 
+// ── Runtime worker orchestrator lifecycle contract ─────────────────────────
+const workerOrchestrator = read('public/js/runtime-worker-orchestrator.js');
+if (!/var detachWorkerCancel = null;/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not retain a detachable cancellation listener handle.');
+if (!/detachWorkerCancel = token\.onCancel\(function \(\)/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not bridge RuntimeCancellation into WorkerPool cancellation.');
+if (!/\.finally\(function \(\) \{[\\s\\S]*?if \(typeof detachWorkerCancel === 'function'\) detachWorkerCancel\(\);/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not detach its cancellation listener when dispatch settles.');
+if (!/timeoutMs <= 0/.test(workerOrchestrator) || !/return taskP\.then\(/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not preserve unlimited execution when timeoutMs is zero.');
+if (!/WorkerPool\.run\(url, message, transferables \|\| \[\], workerOpts\)/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not dispatch through the canonical WorkerPool.');
+
 // ── Special-page canonical boundary ────────────────────────────────────────
 // These tools intentionally remain standalone pages because their UI/engine
 // contracts are not the shared PDF tool-shell contract. The gate prevents them
