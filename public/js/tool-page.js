@@ -801,7 +801,10 @@ function getBrandedUploadConfig(tool) {
     title: tool.name,
     subtitle: tool.description,
     fileLabel: `Select ${noun}`,
-    cloudButtons: false,
+    // Google Drive + Dropbox are part of the shared upload shell for every
+    // standard file-upload tool. The provider adapter remains optional, so
+    // a missing provider never breaks the local file picker.
+    cloudButtons: true,
     benefitsLabel: `How ${operation} works`,
     benefits: [
       { sticker: 'ilpdf-branded-sticker-upload', icon: 'upload-cloud', title: `Upload your ${fileType}`, text: tool.multipleFiles ? `Choose your ${fileType.toLowerCase()} files or drag them into the upload area.` : `Choose a ${fileType.toLowerCase()} file or drag it into the upload area.` },
