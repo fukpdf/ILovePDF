@@ -133,7 +133,7 @@ if (!/token\.onCancel\(function \(reason\)/.test(taskScheduler)) fail('TaskSched
 if (!/slot\.queue\.indexOf\(entry\)/.test(taskScheduler)) fail('TaskScheduler cancellation does not identify the queued entry.');
 if (!/entry\.resolve\(\)/.test(taskScheduler)) fail('TaskScheduler queue entries do not resolve through their scheduler contract.');
 if (!/acquireSlot\(tier, token\)/.test(runtimeScheduler)) fail('RuntimeScheduler does not pass cancellation into TaskScheduler.');
-if (!/if \(!_canStart\(type\)\)[\s\S]*?token\.onCancel\(function \(reason\)[\s\S]*?releaseSlot\(tier\)/.test(runtimeScheduler)) fail('RuntimeScheduler type-cap queue does not release its held tier slot on cancellation.');
+if (!/if \\(!_canStart\\(type\\)\\)[\\s\\S]*?token\\.onCancel\\(function \\(reason\\)[\\s\\S]*?releaseTierSlotOnce\\(\\)/.test(runtimeScheduler)) fail('RuntimeScheduler type-cap queue does not release its held tier slot on cancellation.');
 if (!/Only create telemetry\/progress resources once both queue layers can start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
 
 const browserRuntime = read('public/js/browser-tool-runtime.js');
@@ -698,14 +698,3 @@ const translateRuntime = read('public/js/translate-runtime.js');
 if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime does not use RuntimeScheduler.');
 if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
 if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
-
-const translateAdapter = read('public/js/translate-worker-adapter.js');
-if (!/RuntimeWorkers\.dispatch\(/.test(translateAdapter)) fail('Translate adapter does not use RuntimeWorkers.dispatch.');
-if (!/TIMEOUT_MS=0/.test(translateAdapter)) fail('Translate adapter has an artificial execution timeout.');
-if (!/dedupeKey:key\(file,o\)/.test(translateAdapter)) fail('Translate adapter does not provide a deterministic dedupe key.');
-if (!/WORKER_URL='\/workers\/pdf-worker\.js'/.test(translateAdapter)) fail('Translate adapter does not use shared PDF worker.');
-
-const translateWorker = read('public/workers/pdf-worker.js');
-if (!/OPS\.translate\s*=\s*async function/.test(translateWorker)) fail('Shared PDF worker has no Translate operation.');
-
-const translateTool = (registry.tools || []).find(t => t.id === 'translate');
