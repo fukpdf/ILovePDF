@@ -537,7 +537,8 @@
     run:           run,
     getStats:      getStats,
     prewarm:       prewarm,
-    terminatePool: terminatePool,\n    terminateAll:  terminateAll,
+    terminatePool: terminatePool,
+    terminateAll:  terminateAll,
     CancelToken:   CancelToken,   // v4.0
     MAX_WORKERS:   MAX_PER_URL,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
     // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
