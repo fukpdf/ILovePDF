@@ -75,10 +75,29 @@
     });
   }
 
+    var PAGE_TEXT = {
+      'Numbers to Words Converter':'special.n2w_title',
+      'Convert large numbers, scientific notation, currency or check-writing format into words.':'special.n2w_desc',
+      'Enter a number':'special.enter_number','Supports up to 300+ digit integers, decimals and scientific notation.':'special.n2w_support',
+      'Conversion type':'special.conversion_type','Words':'special.words','Currency':'special.currency','Check Writing':'special.check_writing',
+      'Suffix':'special.suffix','Letter Case':'special.letter_case','Clear':'special.clear_short','Result':'special.result','Copy':'special.copy',
+      'Live Currency Converter':'special.currency_title','Mid-market rates · 160+ currencies':'special.currency_rates','Amount':'special.amount','From':'special.from',
+      'How to convert currencies':'special.currency_how','Why use our Currency Converter?':'special.currency_why','Popular conversions':'special.currency_popular',
+      'QR Code Generator':'special.qr_title','Enter your content below and click Generate':'special.qr_intro','Content type':'special.content_type','URL':'special.url','Text':'special.text','Email':'special.email','Phone':'special.phone','Wi-Fi':'special.wifi','Subject':'special.subject','Body (optional)':'special.body_optional','Network Name (SSID)':'special.network_name','Security':'special.security','Password':'special.password','Hidden':'special.hidden','Size (px)':'special.size_px','Error Correction':'special.error_correction','Foreground':'special.foreground','Background':'special.background','Generate QR Code':'special.generate_qr','How to generate a QR code':'special.qr_how','QR code use cases':'special.qr_use_cases',
+      'Barcode Generator':'special.barcode_title','Generate professional barcodes instantly':'special.barcode_intro','Barcode data':'special.barcode_data','Format':'special.format','Line width':'special.line_width','Height (px)':'special.height_px','Font size':'special.font_size','Margin':'special.margin','Show text':'special.show_text','Bar color':'special.bar_color','Generate Barcode':'special.generate_barcode','How to generate a barcode':'special.barcode_how','Barcode formats explained':'special.barcode_formats',
+      'Image Compressor':'special.image_compressor_title','Drop an image to start compressing':'special.image_compressor_intro','Quality: 80':'special.quality_80','Output format':'special.output_format','How to compress an image':'special.image_compressor_how','Why compress images?':'special.image_compressor_why',
+      'Image Converter':'special.image_converter_title','Drop images to convert — supports batch processing':'special.image_converter_intro','Convert to':'special.convert_to','Quality (JPEG / WebP): 85':'special.quality_85','How to convert images':'special.image_converter_how','Which format should I use?':'special.format_guide',
+      'ZIP Builder':'special.zip_title','Add files, then click Build ZIP to download your archive':'special.zip_intro','Archive name':'special.archive_name','Compression':'special.compression','Optimal (max)':'special.optimal','Balanced':'special.balanced','Fast (min)':'special.fast','None (no compression)':'special.none_compression','How to build a ZIP archive':'special.zip_how','Why use ZIP Builder?':'special.zip_why'
+    };
+    var PAGE_EN = {};
+    Object.keys(PAGE_TEXT).forEach(function(text){ PAGE_EN[PAGE_TEXT[text]]=text; });
+    Object.keys(PAGE_EN).forEach(function(key){ EXT.en[key]=PAGE_EN[key]; });
+
   function hook(){
     extend();
+    markByText('h1,h3,label,legend,p,span,summary,option,button',PAGE_TEXT);
 
-    markByText('h1,h3,label,legend,p,span,summary,option,button',PAGE_TEXT);\n\n    /* Breadcrumb home and major section headings. */
+    /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
     markByText('h2',{'How it works':'special.how','Frequently asked questions':'special.faq','Related tools':'special.related'});
 
