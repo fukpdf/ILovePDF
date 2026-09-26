@@ -86,3 +86,6 @@ jobs:
 
       - name: Runtime consistency audit
         run: npm run audit:runtime
+
+      - name: Phase 5 standard tool audit
+        run: npm run audit:phase5
