@@ -752,6 +752,14 @@ if (chromeRuntime.indexOf('function ensureI18nAssets()') === -1 ||
   fail('Canonical shared chrome does not load the global i18n runtime.');
 }
 
+// // Every special-page HTML must actually load the shared i18n bridge.
+// The bridge is deliberately separate from each page's processing engine.
+const specialI18nBridge = read('public/js/special-page-i18n.js');
+if (specialI18nBridge.indexOf('SpecialPageI18n=Object.freeze') === -1 ||
+    specialI18nBridge.indexOf("G.addEventListener('i18n:change', patch)") === -1) {
+  fail('Shared special-page i18n bridge implementation is incomplete.');
+}
+
 // // Special-page i18n coverage: static UI text must be addressable by the
 // RuntimeI18n DOM engine; page-specific engines remain independent.
 [
