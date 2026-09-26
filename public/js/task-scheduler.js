@@ -55,6 +55,8 @@
     while (slot.active < limit && slot.queue.length > 0) {
       slot.active++;
       var entry = slot.queue.shift();
+      entry.settled = true;
+      if (entry.detach) entry.detach();
       try { entry.resolve(); } catch (_) { slot.active = Math.max(0, slot.active - 1); }
     }
   }
@@ -72,16 +74,19 @@
       return Promise.resolve();
     }
     return new Promise(function (resolve, reject) {
-      var entry = { resolve: resolve, reject: reject };
+      var entry = { resolve: resolve, reject: reject, settled: false, detach: null };
       slot.queue.push(entry);
       var detach = null;
       if (token && typeof token.onCancel === 'function') {
         detach = token.onCancel(function (reason) {
+          if (entry.settled) return;
           var idx = slot.queue.indexOf(entry);
           if (idx !== -1) slot.queue.splice(idx, 1);
+          entry.settled = true;
           if (detach) detach();
           reject(new Error('cancelled:' + (reason || 'cancelled')));
         });
+        entry.detach = detach;
       }
     });
   }
@@ -93,6 +98,8 @@
     if (slot.queue.length > 0 && !_paused) {
       // Hand the slot directly to the next waiter (active count unchanged)
       var entry = slot.queue.shift();
+      entry.settled = true;
+      if (entry.detach) entry.detach();
       try { entry.resolve(); } catch (_) { slot.active = Math.max(0, slot.active - 1); }
     } else {
       slot.active = Math.max(0, slot.active - 1);
@@ -134,7 +141,12 @@
     var slot = _slots[tier];
     if (!slot) return 0;
     var count = slot.queue.length;
-    slot.queue.forEach(function (entry) { try { entry.resolve(); } catch (_) {} });
+    slot.queue.forEach(function (entry) {
+      if (entry.settled) return;
+      entry.settled = true;
+      if (entry.detach) entry.detach();
+      try { entry.resolve(); } catch (_) {}
+    });
     slot.queue = [];
     // slot.active is NOT modified — queued tasks never incremented it.
     return count;
