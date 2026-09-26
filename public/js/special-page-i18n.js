@@ -384,6 +384,37 @@
     'Convert to':'special.convert_to','Output format':'special.output_format',
     'Archive name':'special.archive_name','Compression':'special.compression'
   };
+  var FAQ_TEXT = {
+    'Can I use this for travel or shopping?':'special.currency_faq_travel',
+    'What can I encode in a QR code?':'special.qr_faq_encode',
+    'What error correction level should I use?':'special.qr_faq_error',
+    'What is the difference between PNG and SVG output?':'special.qr_faq_png_svg',
+    'Can I use a custom color?':'special.qr_faq_color',
+    'Is the QR code generator free?':'special.qr_faq_free',
+    'Which format should I use for retail products?':'special.barcode_faq_retail',
+    'Can I encode letters in a barcode?':'special.barcode_faq_letters',
+    'Why is my EAN-13 showing an error?':'special.barcode_faq_ean',
+    'What is the best download format for printing?':'special.barcode_faq_print',
+    'Is the barcode generator free?':'special.barcode_faq_free',
+    'Which formats can I compress?':'special.image_compressor_faq_formats',
+    'What quality level should I use?':'special.image_compressor_faq_quality',
+    'Are my images uploaded anywhere?':'special.image_faq_uploaded',
+    'Can I convert format while compressing?':'special.image_compressor_faq_convert',
+    'Is it free?':'special.free_faq',
+    'Can I convert multiple images at once?':'special.image_converter_faq_multiple',
+    'Will converting PNG to JPEG lose transparency?':'special.image_converter_faq_transparency',
+    'What does quality do for PNG?':'special.image_converter_faq_quality',
+    'Does ZIP Builder upload my files?':'special.zip_faq_upload',
+    'How large can the ZIP archive be?':'special.zip_faq_size',
+    'What is the difference between compression levels?':'special.zip_faq_levels',
+    'Can I add folders to the ZIP?':'special.zip_faq_folders',
+    'Is ZIP Builder free?':'special.zip_faq_free'
+  };
+  var FAQ_EN = {};
+  Object.keys(FAQ_TEXT).forEach(function(text){ FAQ_EN[FAQ_TEXT[text]]=text; });
+  Object.keys(FAQ_EN).forEach(function(key){ EXT.en[key]=FAQ_EN[key]; });
+  markByText('h2,h3,h4,p,summary,button,label,span',FAQ_TEXT);
+
   var SECONDARY_EN = {};
   Object.keys(SECONDARY_TEXT).forEach(function(text){ SECONDARY_EN[SECONDARY_TEXT[text]]=text; });
   Object.keys(SECONDARY_EN).forEach(function(key){ EXT.en[key]=SECONDARY_EN[key]; });
