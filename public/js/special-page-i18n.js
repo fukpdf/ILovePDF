@@ -58,6 +58,40 @@
     }
   };
 
+  /* Core page titles are translated in every supported locale. Longer SEO prose
+     deliberately remains fallback English until a reviewed translation exists. */
+  var PAGE_TITLES = {
+    en:{n2w:'Numbers to Words Converter',cur:'Live Currency Converter',qr:'QR Code Generator',bar:'Barcode Generator',ic:'Image Compressor',iv:'Image Converter',zip:'ZIP Builder'},
+    ur:{n2w:'نمبروں کو الفاظ میں تبدیل کرنے والا',cur:'لائیو کرنسی کنورٹر',qr:'کیو آر کوڈ جنریٹر',bar:'بارکوڈ جنریٹر',ic:'امیج کمپریسر',iv:'امیج کنورٹر',zip:'ZIP بلڈر'},
+    ar:{n2w:'محول الأرقام إلى كلمات',cur:'محول العملات المباشر',qr:'مولد رمز QR',bar:'مولد الباركود',ic:'ضاغط الصور',iv:'محول الصور',zip:'منشئ ZIP'},
+    fa:{n2w:'تبدیل اعداد به حروف',cur:'مبدل ارز زنده',qr:'مولد کد QR',bar:'مولد بارکد',ic:'فشرده‌ساز تصویر',iv:'مبدل تصویر',zip:'سازنده ZIP'},
+    hi:{n2w:'संख्याओं को शब्दों में बदलें',cur:'लाइव मुद्रा कन्वर्टर',qr:'QR कोड जनरेटर',bar:'बारकोड जनरेटर',ic:'इमेज कंप्रेसर',iv:'इमेज कन्वर्टर',zip:'ZIP बिल्डर'},
+    bn:{n2w:'সংখ্যা থেকে শব্দ রূপান্তরকারী',cur:'লাইভ কারেন্সি কনভার্টার',qr:'QR কোড জেনারেটর',bar:'বারকোড জেনারেটর',ic:'ইমেজ কমপ্রেসর',iv:'ইমেজ কনভার্টার',zip:'ZIP বিল্ডার'},
+    zh:{n2w:'数字转文字转换器',cur:'实时货币转换器',qr:'二维码生成器',bar:'条码生成器',ic:'图片压缩器',iv:'图片转换器',zip:'ZIP 创建器'},
+    ja:{n2w:'数字を文字に変換',cur:'リアルタイム通貨コンバーター',qr:'QRコードジェネレーター',bar:'バーコードジェネレーター',ic:'画像圧縮ツール',iv:'画像変換ツール',zip:'ZIPビルダー'},
+    ko:{n2w:'숫자를 단어로 변환',cur:'실시간 통화 변환기',qr:'QR 코드 생성기',bar:'바코드 생성기',ic:'이미지 압축기',iv:'이미지 변환기',zip:'ZIP 빌더'},
+    tr:{n2w:'Sayıdan Kelimeye Dönüştürücü',cur:'Canlı Para Birimi Dönüştürücü',qr:'QR Kod Oluşturucu',bar:'Barkod Oluşturucu',ic:'Görsel Sıkıştırıcı',iv:'Görsel Dönüştürücü',zip:'ZIP Oluşturucu'},
+    id:{n2w:'Konverter Angka ke Kata',cur:'Konverter Mata Uang Langsung',qr:'Generator Kode QR',bar:'Generator Barcode',ic:'Kompresor Gambar',iv:'Konverter Gambar',zip:'Pembuat ZIP'},
+    ru:{n2w:'Конвертер чисел в слова',cur:'Конвертер валют в реальном времени',qr:'Генератор QR-кодов',bar:'Генератор штрихкодов',ic:'Сжатие изображений',iv:'Конвертер изображений',zip:'Создатель ZIP'},
+    fr:{n2w:'Convertisseur de nombres en lettres',cur:'Convertisseur de devises en direct',qr:'Générateur de QR codes',bar:'Générateur de codes-barres',ic:'Compresseur d’images',iv:'Convertisseur d’images',zip:'Créateur de ZIP'},
+    de:{n2w:'Zahlen-in-Wörter-Konverter',cur:'Live-Währungsrechner',qr:'QR-Code-Generator',bar:'Barcode-Generator',ic:'Bildkomprimierer',iv:'Bildkonverter',zip:'ZIP-Ersteller'},
+    es:{n2w:'Convertidor de números a palabras',cur:'Conversor de divisas en tiempo real',qr:'Generador de códigos QR',bar:'Generador de códigos de barras',ic:'Compresor de imágenes',iv:'Convertidor de imágenes',zip:'Creador de ZIP'},
+    pt:{n2w:'Conversor de números para palavras',cur:'Conversor de moedas em tempo real',qr:'Gerador de códigos QR',bar:'Gerador de códigos de barras',ic:'Compressor de imagens',iv:'Conversor de imagens',zip:'Criador de ZIP'},
+    it:{n2w:'Convertitore da numeri a parole',cur:'Convertitore di valute in tempo reale',qr:'Generatore di codici QR',bar:'Generatore di codici a barre',ic:'Compressore di immagini',iv:'Convertitore di immagini',zip:'Creatore di ZIP'},
+    nl:{n2w:'Getallen naar woorden converter',cur:'Live valutaomrekenaar',qr:'QR-codegenerator',bar:'Barcodegenerator',ic:'Afbeeldingscompressor',iv:'Afbeeldingsconverter',zip:'ZIP-maker'},
+    pl:{n2w:'Konwerter liczb na słowa',cur:'Przelicznik walut na żywo',qr:'Generator kodów QR',bar:'Generator kodów kreskowych',ic:'Kompresor obrazów',iv:'Konwerter obrazów',zip:'Kreator ZIP'}
+  };
+  Object.keys(PAGE_TITLES).forEach(function(lang){
+    if(!EXT[lang]) EXT[lang]={};
+    EXT[lang]['special.n2w_title']=PAGE_TITLES[lang].n2w;
+    EXT[lang]['special.currency_title']=PAGE_TITLES[lang].cur;
+    EXT[lang]['special.qr_title']=PAGE_TITLES[lang].qr;
+    EXT[lang]['special.barcode_title']=PAGE_TITLES[lang].bar;
+    EXT[lang]['special.image_compressor_title']=PAGE_TITLES[lang].ic;
+    EXT[lang]['special.image_converter_title']=PAGE_TITLES[lang].iv;
+    EXT[lang]['special.zip_title']=PAGE_TITLES[lang].zip;
+  });
+
   function extend(){
     if(!G.RuntimeI18n || typeof G.RuntimeI18n.extend!=='function') return;
     Object.keys(EXT).forEach(function(lang){ G.RuntimeI18n.extend(lang,EXT[lang]); });
