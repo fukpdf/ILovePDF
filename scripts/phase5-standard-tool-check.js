@@ -731,7 +731,28 @@ if (!/RuntimeScheduler\.run\(/.test(translateRuntime)) fail('TranslateRuntime do
 if (/PdfWorkerRuntimeFactory|RUNTIME_TRANSLATE_ENABLED|fallback/i.test(translateRuntime)) fail('TranslateRuntime retains legacy/factory/fallback architecture.');
 if (!/timeoutMs:0/.test(translateRuntime)) fail('TranslateRuntime does not use unlimited execution timeout.');
 
-// All special-page tools must enter the same shared chrome/i18n shell.
+// Canonical shared chrome implementation must own header/footer replacement,
+// styling injection, and footer language selection on every special page.
+const chromeRuntime = read('public/js/chrome.js');
+if (chromeRuntime.indexOf('function ensureSharedShell()') === -1 ||
+    chromeRuntime.indexOf("home-header-v2.css?v=20260924") === -1 ||
+    chromeRuntime.indexOf("home-footer-v2.css?v=20260924") === -1 ||
+    chromeRuntime.indexOf('const SHARED_HEADER_HTML') === -1 ||
+    chromeRuntime.indexOf('const SHARED_FOOTER_HTML') === -1 ||
+    chromeRuntime.indexOf('current.replaceWith(canonicalHeader)') === -1 ||
+    chromeRuntime.indexOf('currentFooter.replaceWith(canonicalFooter)') === -1) {
+  fail('Canonical shared chrome shell does not own header/footer replacement and stylesheet injection.');
+}
+if (chromeRuntime.indexOf('function wireFooterLangSelector()') === -1 ||
+    chromeRuntime.indexOf('RuntimeI18n.setLanguage(lang)') === -1) {
+  fail('Canonical footer language selector is not wired to RuntimeI18n.');
+}
+if (chromeRuntime.indexOf('function ensureI18nAssets()') === -1 ||
+    chromeRuntime.indexOf('/js/i18n.js?v=shared-shell') === -1) {
+  fail('Canonical shared chrome does not load the global i18n runtime.');
+}
+
+// // All special-page tools must enter the same shared chrome/i18n shell.
 // Their page-specific engines remain isolated; chrome.js owns the canonical
 // header/footer and lazy-loads RuntimeI18n + shared accessibility assets.
 [
