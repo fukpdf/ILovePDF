@@ -75,7 +75,17 @@ function requireSpecialPageContract(id, label, page, requiredSrc) {
   if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
   const source = read(page);
   if (!/\/js\/chrome\.js/.test(source)) fail(label + ' does not load the shared chrome layer.');
-  if (requiredSrc && !new RegExp(requiredSrc.replace(/[.*+?^${}()|[\]\\]/g, '\\requiredSrc.replace(/[.*+?^$()|[\]\\]/g, '\\function requireBrowserRuntimeContract(id, label) {')')).test(source)) {
+  if (requiredSrc && !source.includes(requiredSrc)) {
+    fail(label + ' required runtime dependency is missing: ' + requiredSrc);
+  }
+  if (/new\s+Worker\s*\(/.test(source)) fail(label + ' directly spawns a Worker outside the approved runtime boundary.');
+  if (/RuntimeScheduler/.test(source)) fail(label + ' unexpectedly embeds the standard tool runtime.');
+  if (/HARD_LIMIT_MS|WORKER_LIMIT_MS|MAX_FILE_BYTES|MAX_FILE_SIZE|MAX_INPUT_BYTES|totalMB\s*>\s*400/.test(source)) {
+    fail(label + ' retains an artificial processing/input limit.');
+  }
+}
+
+function requireBrowserRuntimeContract(id, label) {')')).test(source)) {
     fail(label + ' required runtime dependency is missing: ' + requiredSrc);
   }
   if (/new\s+Worker\s*\(/.test(source)) fail(label + ' directly spawns a Worker outside the approved runtime boundary.');
