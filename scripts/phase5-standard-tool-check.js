@@ -85,6 +85,18 @@ if (!/tool\.id === 'edit'[\s\S]*?renderProPreviewStep\(tool\)/.test(toolPageFlow
 if (/currentTool\.id === 'crop'|currentTool\.id === "crop"/.test(toolPageFlow)) fail('Shared tool page still contains a Crop-only runtime/UI branch.');
 
 
+// ── Runtime scheduler queue-handoff race contract ─────────────────────────
+const runtimeSchedulerHandoff = read('public/js/runtime-task-scheduler.js');
+const drainBlock = runtimeSchedulerHandoff.match(/function _drain\(\)[\\s\\S]*?\/\/ ── Core run/)?.[0] || '';
+if (!drainBlock) fail('RuntimeScheduler queue drain implementation is missing.');
+if (!/item\\.settled = true;/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not settle an entry before resolving it.');
+if (!/item\\.detachCancel\\(\);/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not detach the cancellation listener.');
+if (!/item\\.resolve\(\);/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not resume the queued task.');
+const runtimeRunBlock = runtimeSchedulerHandoff.match(/async function run\(fn, opts\)[\\s\\S]*?\/\/ ── Cancel all queued tasks/)?.[0] || '';
+if (!/typeWaitCancelled \|\| \(token && token\.cancelled\)/.test(runtimeRunBlock)) fail('RuntimeScheduler does not re-check cancellation after queue handoff.');
+if (!/releaseTierSlotOnce\(\)/.test(runtimeRunBlock)) fail('RuntimeScheduler does not release its held tier slot after post-wait cancellation.');
+if (!/finally \{[\\s\\S]*?_typeCounts\[type\][\\s\\S]*?releaseTierSlotOnce\(\)[\\s\\S]*?_drain\(\);/.test(runtimeRunBlock)) fail('RuntimeScheduler active-task finally block does not release type and tier resources and drain the queue.');
+
 // ── Runtime scheduler cross-tool cancellation isolation ────────────────────
 const runtimeSchedulerCancellation = read('public/js/runtime-task-scheduler.js');
 const cancelTypeBlock = runtimeSchedulerCancellation.match(/function cancelType\(type, reason\)[\\s\\S]*?return removed;/)?.[0] || '';
