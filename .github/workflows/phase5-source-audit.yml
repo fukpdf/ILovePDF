@@ -1,0 +1,30 @@
+name: Phase 5 Source Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "config/**"
+      - "public/**"
+      - "package.json"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run Phase 5 Redact audit
+        run: node scripts/phase5-redact-check.js
+      - name: Run Phase 5 standard audit
+        run: npm run audit:phase5
