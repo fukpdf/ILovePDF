@@ -98,6 +98,7 @@
       var item = _waitQueue[i];
       if (_canStart(item.type)) {
         _waitQueue.splice(i, 1);
+        item.settled = true;
         item.resolve();
         // Don't increment here — run() increments after resolve
         return; // one at a time through drain to maintain ordering
