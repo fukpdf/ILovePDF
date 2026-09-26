@@ -397,7 +397,8 @@
 
   function hook(){
     extend();
-    markByText('h1,h3,h4,label,legend,p,span,summary,option,button',PAGE_TEXT);\n    markByText('h2,h4,p,summary,button,label,span',SECONDARY_TEXT);
+    markByText('h1,h3,h4,label,legend,p,span,summary,option,button',PAGE_TEXT);
+    markByText('h2,h4,p,summary,button,label,span',SECONDARY_TEXT);
 
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
