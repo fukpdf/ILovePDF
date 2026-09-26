@@ -242,13 +242,13 @@
       document.getElementById('zip-file-input').click();
     });
     document.getElementById('zip-file-input').addEventListener('change', function(e){
-      addFiles(e.target.files); e.target.value='';
+      var picked=Array.from(e.target.files || []); if (picked.length) { window.SharedSpecialUpload ? window.SharedSpecialUpload.prepare(picked, function(){ addFiles(picked); }) : addFiles(picked); } e.target.value='';
     });
     dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='#4f46e5'; dz.style.background='#f0f0ff'; });
     dz.addEventListener('dragleave', function(){ dz.style.borderColor='#d1d5db'; dz.style.background='#fafafa'; });
     dz.addEventListener('drop', function(e){
       e.preventDefault(); dz.style.borderColor='#d1d5db'; dz.style.background='#fafafa';
-      addFiles(e.dataTransfer.files);
+      var picked=Array.from(e.dataTransfer.files || []); if (picked.length) { window.SharedSpecialUpload ? window.SharedSpecialUpload.prepare(picked, function(){ addFiles(picked); }) : addFiles(picked); }
     });
 
     document.getElementById('zip-clear-btn').addEventListener('click', function(){ files=[]; renderList(); });
