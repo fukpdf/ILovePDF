@@ -87,19 +87,19 @@ if (/currentTool\.id === 'crop'|currentTool\.id === "crop"/.test(toolPageFlow)) 
 
 // ── Runtime scheduler queue-handoff race contract ─────────────────────────
 const runtimeSchedulerHandoff = read('public/js/runtime-task-scheduler.js');
-const drainBlock = runtimeSchedulerHandoff.match(/function _drain\(\)[\\s\\S]*?\/\/ ── Core run/)?.[0] || '';
+const drainBlock = runtimeSchedulerHandoff.match(/function _drain\(\)[\s\S]*?\/\/ ── Core run/)?.[0] || '';
 if (!drainBlock) fail('RuntimeScheduler queue drain implementation is missing.');
 if (!/item\\.settled = true;/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not settle an entry before resolving it.');
 if (!/item\\.detachCancel\\(\);/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not detach the cancellation listener.');
 if (!/item\\.resolve\(\);/.test(drainBlock)) fail('RuntimeScheduler queue handoff does not resume the queued task.');
-const runtimeRunBlock = runtimeSchedulerHandoff.match(/async function run\(fn, opts\)[\\s\\S]*?\/\/ ── Cancel all queued tasks/)?.[0] || '';
+const runtimeRunBlock = runtimeSchedulerHandoff.match(/async function run\(fn, opts\)[\s\S]*?\/\/ ── Cancel all queued tasks/)?.[0] || '';
 if (!/typeWaitCancelled \|\| \(token && token\.cancelled\)/.test(runtimeRunBlock)) fail('RuntimeScheduler does not re-check cancellation after queue handoff.');
 if (!/releaseTierSlotOnce\(\)/.test(runtimeRunBlock)) fail('RuntimeScheduler does not release its held tier slot after post-wait cancellation.');
-if (!/finally \{[\\s\\S]*?_typeCounts\[type\][\\s\\S]*?releaseTierSlotOnce\(\)[\\s\\S]*?_drain\(\);/.test(runtimeRunBlock)) fail('RuntimeScheduler active-task finally block does not release type and tier resources and drain the queue.');
+if (!/finally \{[\s\S]*?_typeCounts\[type\][\s\S]*?releaseTierSlotOnce\(\)[\s\S]*?_drain\(\);/.test(runtimeRunBlock)) fail('RuntimeScheduler active-task finally block does not release type and tier resources and drain the queue.');
 
 // ── Runtime scheduler cross-tool cancellation isolation ────────────────────
 const runtimeSchedulerCancellation = read('public/js/runtime-task-scheduler.js');
-const cancelTypeBlock = runtimeSchedulerCancellation.match(/function cancelType\(type, reason\)[\\s\\S]*?return removed;/)?.[0] || '';
+const cancelTypeBlock = runtimeSchedulerCancellation.match(/function cancelType\(type, reason\)[\s\S]*?return removed;/)?.[0] || '';
 if (!cancelTypeBlock) fail('RuntimeScheduler cancelType implementation is missing.');
 if (/TaskScheduler\\.cancelQueued\\(/.test(cancelTypeBlock)) fail('RuntimeScheduler cancelType clears an entire TaskScheduler tier and can cancel unrelated tool types.');
 if (!/item\\.releaseTierSlot\(\)/.test(cancelTypeBlock)) fail('RuntimeScheduler cancelType does not release the specifically held tier slot for cancelled entries.');
@@ -109,7 +109,7 @@ if (!/item\\.settled = true;/.test(cancelTypeBlock)) fail('RuntimeScheduler canc
 const workerOrchestrator = read('public/js/runtime-worker-orchestrator.js');
 if (!/var detachWorkerCancel = null;/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not retain a detachable cancellation listener handle.');
 if (!/detachWorkerCancel = token\.onCancel\(function \(\)/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not bridge RuntimeCancellation into WorkerPool cancellation.');
-if (!/\.finally\(function \(\) \{[\\s\\S]*?if \(typeof detachWorkerCancel === 'function'\) detachWorkerCancel\(\);/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not detach its cancellation listener when dispatch settles.');
+if (!/\.finally\(function \(\) \{[\s\S]*?if \(typeof detachWorkerCancel === 'function'\) detachWorkerCancel\(\);/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not detach its cancellation listener when dispatch settles.');
 if (!/timeoutMs <= 0/.test(workerOrchestrator) || !/return taskP\.then\(/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not preserve unlimited execution when timeoutMs is zero.');
 if (!/WorkerPool\.run\(url, message, transferables \|\| \[\], workerOpts\)/.test(workerOrchestrator)) fail('Runtime worker orchestrator does not dispatch through the canonical WorkerPool.');
 
@@ -165,10 +165,10 @@ if (runtimeScheduler.indexOf('if (!_canStart(type))') === -1 || runtimeScheduler
 if (!/Resource creation is intentionally delayed until queue layers can start/.test(runtimeScheduler) || !/Start telemetry\/progress only after all queue layers can actually start/.test(runtimeScheduler)) fail('RuntimeScheduler may allocate telemetry/progress before queued cancellation is settled.');
 if (!/item\.settled = true;[\s\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach queued cancellation listeners on handoff.');
 if (!/item\.releaseTierSlot\(\)/.test(runtimeScheduler)) fail('RuntimeScheduler bulk queue cancellation does not release held tier slots.');
-if (!/function cancelQueued\(tier\)[\\s\\S]*?entry\.reject\(new Error\('cancelled:queue-cleared'\)\)/.test(taskScheduler)) fail('TaskScheduler queue cancellation does not fail closed for queued callers.');
-if (!/function cancelQueued\(tier\)[\\s\\S]*?slot\.active is NOT modified/.test(taskScheduler)) fail('TaskScheduler queue cancellation corrupts active slot accounting.');
-if (!/item\.settled = true;[\\s\\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach cancellation listeners before bulk queue removal.');
-if (!/cancelAll\(reason\)[\\s\\S]*?_waitQueue = \[\];[\\s\\S]*?Active tasks remain counted/.test(runtimeScheduler)) fail('RuntimeScheduler cancelAll must not erase active type counts.');
+if (!/function cancelQueued\(tier\)[\s\S]*?entry\.reject\(new Error\('cancelled:queue-cleared'\)\)/.test(taskScheduler)) fail('TaskScheduler queue cancellation does not fail closed for queued callers.');
+if (!/function cancelQueued\(tier\)[\s\S]*?slot\.active is NOT modified/.test(taskScheduler)) fail('TaskScheduler queue cancellation corrupts active slot accounting.');
+if (!/item\.settled = true;[\s\S]*?item\.detachCancel/.test(runtimeScheduler)) fail('RuntimeScheduler does not settle and detach cancellation listeners before bulk queue removal.');
+if (!/cancelAll\(reason\)[\s\S]*?_waitQueue = \[\];[\s\S]*?Active tasks remain counted/.test(runtimeScheduler)) fail('RuntimeScheduler cancelAll must not erase active type counts.');
 
 
 const browserRuntime = read('public/js/browser-tool-runtime.js');
@@ -179,8 +179,8 @@ if (!/dedupeKey\(toolId, files, opts\)/.test(browserRuntime) || !/dedupeKey: ded
 if (!/cancelAll\(reason\)/.test(browserRuntime) || !/pagehide/.test(browserRuntime)) fail('BrowserToolRuntime lifecycle cancellation is incomplete.');
 if (!/active\.set\(toolId, \{ key: key, token: runToken \}\)/.test(browserRuntime)) fail('BrowserToolRuntime does not bind each active tool execution to its cancellation token.');
 if (!/if \(runToken && runToken\.cancelled\) throw new Error\('Processing cancelled'\)/.test(browserRuntime)) fail('BrowserToolRuntime does not fail closed when an active token is already cancelled.');
-if (!/finally \{[\\s\\S]*?active\.delete\(toolId\);/.test(browserRuntime)) fail('BrowserToolRuntime does not remove active tool state after completion or cancellation.');
-if (!/function cancel\(toolId, reason\)[\\s\\S]*?item\.token\.cancel\(reason \|\| 'cancelled'\)/.test(browserRuntime)) fail('BrowserToolRuntime cancel() is not scoped to the requested tool token.');
+if (!/finally \{[\s\S]*?active\.delete\(toolId\);/.test(browserRuntime)) fail('BrowserToolRuntime does not remove active tool state after completion or cancellation.');
+if (!/function cancel\(toolId, reason\)[\s\S]*?item\.token\.cancel\(reason \|\| 'cancelled'\)/.test(browserRuntime)) fail('BrowserToolRuntime cancel() is not scoped to the requested tool token.');
 
 
 const browserRuntimeIds = [
