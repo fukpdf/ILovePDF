@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 'use strict';
-const fs=require('fs'),path=require('path'),vm=require('vm');
+import fs from 'fs';
+import path from 'path';
+import vm from 'vm';
+import { fileURLToPath } from 'url';
+const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const ROOT=path.resolve(__dirname,'..');
 const BRIDGE=fs.readFileSync(path.join(ROOT,'public/js/special-page-i18n.js'),'utf8');
 const LOCALES=['en','ar','ur','fa','hi','bn','zh','ja','ko','tr','id','ru','fr','de','es','pt','it','nl','pl'];
