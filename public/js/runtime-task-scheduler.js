@@ -98,6 +98,7 @@
       var item = _waitQueue[i];
       if (_canStart(item.type)) {
         _waitQueue.splice(i, 1);
+        item.settled = true;
         item.resolve();
         // Don't increment here — run() increments after resolve
         return; // one at a time through drain to maintain ordering
@@ -130,7 +131,15 @@
       }
     }
 
-    // Telemetry span
+    // Check cancellation again after waiting
+    if (token && token.cancelled) {
+      releaseTierSlotOnce();
+      if (progressTask) progressTask.fail('cancelled');
+      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
+      throw new Error('cancelled');
+    }
+
+    // Only create telemetry/progress resources once both queue layers can start.\n    // Telemetry span
     var spanId = null;
     if (window.RuntimeTelemetry) {
       spanId = window.RuntimeTelemetry.startSpan(label, { type: type, priority: priority });
@@ -191,15 +200,7 @@
       }
     }
 
-    // Check cancellation again after waiting
-    if (token && token.cancelled) {
-      releaseTierSlotOnce();
-      if (progressTask) progressTask.fail('cancelled');
-      if (spanId !== null && window.RuntimeTelemetry) window.RuntimeTelemetry.endSpan(spanId, 'cancelled');
-      throw new Error('cancelled');
-    }
-
-    // Increment type counter
+\n    // Increment type counter
     _typeCounts[type] = (_typeCounts[type] || 0) + 1;
 
     if (window.RuntimeTelemetry) {
