@@ -370,9 +370,34 @@
     Object.keys(PAGE_TEXT).forEach(function(text){ PAGE_EN[PAGE_TEXT[text]]=text; });
     Object.keys(PAGE_EN).forEach(function(key){ EXT.en[key]=PAGE_EN[key]; });
 
+  /* Secondary visible labels shared across the special pages. */
+  var SECONDARY_TEXT = {
+    'How to convert currencies':'special.currency_how','Why use our Currency Converter?':'special.currency_why','Popular conversions':'special.currency_popular',
+    'How to generate a QR code':'special.qr_how','QR code use cases':'special.qr_use_cases',
+    'How to generate a barcode':'special.barcode_how','Barcode formats explained':'special.barcode_formats',
+    'How to compress an image':'special.image_compressor_how','Why compress images?':'special.image_compressor_why',
+    'How to convert images':'special.image_converter_how','Which format should I use?':'special.format_guide',
+    'How to build a ZIP archive':'special.zip_how','Why use ZIP Builder?':'special.zip_why',
+    'Related tools':'special.related','Frequently asked questions':'special.faq',
+    'Generate QR Code':'special.generate_qr','Generate Barcode':'special.generate_barcode',
+    'Quality: 80':'special.quality_80','Quality (JPEG / WebP): 85':'special.quality_85',
+    'Convert to':'special.convert_to','Output format':'special.output_format',
+    'Archive name':'special.archive_name','Compression':'special.compression'
+  };
+  var SECONDARY_EN = {};
+  Object.keys(SECONDARY_TEXT).forEach(function(text){ SECONDARY_EN[SECONDARY_TEXT[text]]=text; });
+  Object.keys(SECONDARY_EN).forEach(function(key){ EXT.en[key]=SECONDARY_EN[key]; });
+  Object.keys(EXT).forEach(function(lang){
+    if(lang==='en') return;
+    if(!EXT[lang]) EXT[lang]={};
+    /* Reuse already-reviewed generic section labels where applicable. */
+    EXT[lang]['special.related']=EXT[lang]['special.related']||EXT.en['special.related'];
+    EXT[lang]['special.faq']=EXT[lang]['special.faq']||EXT.en['special.faq'];
+  });
+
   function hook(){
     extend();
-    markByText('h1,h3,label,legend,p,span,summary,option,button',PAGE_TEXT);
+    markByText('h1,h3,h4,label,legend,p,span,summary,option,button',PAGE_TEXT);\n    markByText('h2,h4,p,summary,button,label,span',SECONDARY_TEXT);
 
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
