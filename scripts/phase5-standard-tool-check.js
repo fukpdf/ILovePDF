@@ -765,10 +765,8 @@ if (chromeRuntime.indexOf('function ensureI18nAssets()') === -1 ||
 ].forEach(function (item) {
   const specialPage = read(item[1]);
   if (specialPage.indexOf('/js/chrome.js') === -1) return;
-  if (specialPage.indexOf('data-i18n=') === -1 &&
-      specialPage.indexOf('data-i18n-key=') === -1 &&
-      specialPage.indexOf('RuntimeI18n') === -1) {
-    fail(item[1] + ' has no page-level i18n binding; static UI cannot follow the global language selection.');
+  if (specialPage.indexOf('/js/special-page-i18n.js') === -1) {
+    fail(item[1] + ' does not load the shared special-page i18n bridge.');
   }
 });
 
