@@ -34,6 +34,20 @@
     {"@type":"Question","name":"Is ZIP Builder free?","acceptedAnswer":{"@type":"Answer","text":"Yes — completely free with no file limits, no account required, and no data sent to any server."}}
   ]}
   </script>
+<style>
+.ilpdf-special-upload-card{overflow:hidden}
+.ilpdf-special-dropzone{border:2px dashed #c7cbd4;border-radius:16px;padding:48px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s,transform .2s;background:#fff;position:relative}
+.ilpdf-special-dropzone:hover,.ilpdf-special-dropzone:focus-within{border-color:#4f46e5;background:#fafaff}
+.ilpdf-special-dropzone .ilpdf-special-select{min-height:48px;padding:12px 24px;font-size:1rem}
+.ilpdf-special-prep{position:absolute;inset:0;background:rgba(255,255,255,.97);display:flex;align-items:center;justify-content:center;z-index:5;border-radius:14px}
+.ilpdf-special-prep-inner{width:min(520px,90%);text-align:center}
+.ilpdf-special-prep-icon{font-size:2rem;margin-bottom:10px}
+.ilpdf-special-prep-title{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.ilpdf-special-prep-meta{font-size:.9rem;color:#6b7280;margin-bottom:14px}
+.ilpdf-special-prep-track{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+.ilpdf-special-prep-bar{height:100%;width:0;background:#4f46e5;border-radius:999px;transition:width .12s linear}
+.ilpdf-special-prep-percent{font-weight:700;margin-top:9px}
+</style>
 </head>
 <body>
   <header class="site-header">
@@ -62,7 +76,7 @@
         <h1 class="seo-h1">ZIP Builder — free online file archiver</h1>
         <p>Combine any number of files into a single <strong>ZIP archive</strong> right in your browser — no uploads, no servers, complete privacy. Drag and drop files, choose a compression level, name your archive, then download it in seconds. Powered by JSZip, a proven open-source library used by millions.</p>
 
-        <div class="calc-card" style="max-width:720px">
+        <div class="calc-card ilpdf-special-upload-card" style="max-width:720px">
           <div class="calc-head">
             <span class="ico"><i data-lucide="package"></i></span>
             <div>
