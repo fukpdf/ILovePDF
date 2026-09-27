@@ -18,7 +18,7 @@ const LOCALES=['en','ar','ur','fa','hi','bn','zh','ja','ko','tr','id','ru','fr',
 const TAG_RE=/<(h1|h2|h3|h4|h5|h6|label|legend|p|button|summary|option|figcaption|a)\b[^>]*>([\s\S]*?)<\\/\1>/gi;
 const ATTR_RE=/<(?:input|textarea|select|button|summary|a)\b[^>]*(?:aria-label|title|placeholder)=(['"])(.*?)\1[^>]*>/gi;
 function clean(raw){return raw.replace(/<!--[\s\S]*?-->/g,' ').replace(/<[^>]+>/g,' ').replace(/&(?:nbsp|amp|lt|gt|quot|apos);/gi,m=>({'&nbsp;':' ','&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"}[m.toLowerCase()]||' ')).replace(/\s+/g,' ').trim();}
-function likelyVisible(t){return t&&t.length>=2&&!/^[\\d\s.,:%+\\-–—/()]+$/.test(t)&&!/^(JPG|PNG|WebP|JPEG|SVG|URL|SSID|ZIP|PDF)$/i.test(t)&&/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(t);}
+function likelyVisible(t){return t&&t.length>=2&&!/^[\d\s.,:%+\\-–—/()]+$/.test(t)&&!/^(JPG|PNG|WebP|JPEG|SVG|URL|SSID|ZIP|PDF)$/i.test(t)&&/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(t);}
 function collect(html){
   const out=new Set(); let m;
   TAG_RE.lastIndex=0; while((m=TAG_RE.exec(html))){const t=clean(m[2]);if(likelyVisible(t))out.add(t);}
