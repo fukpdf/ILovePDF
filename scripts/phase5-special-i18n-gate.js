@@ -58,6 +58,15 @@ if(audit&&audit.EXT){
     console.log(name+': candidates='+candidates.length+' reviewed-mapped='+pageReviewed+' auto-mapped='+pageAuto+' translated-all-locales='+pageTranslated);
   }
   console.log('TOTAL: candidates='+total+' reviewed-mapped='+reviewed+' auto-mapped='+auto+' translated-all-locales='+translated);
+  const reviewedKeys=new Set();
+  for(const map of maps) for(const key of Object.values(map)) if(typeof key==='string') reviewedKeys.add(key);
+  for(const locale of LOCALES.slice(1)){
+    const table=audit.EXT[locale]||{};
+    const missing=[...reviewedKeys].filter(key=>!Object.prototype.hasOwnProperty.call(table,key));
+    console.log('LOCALE '+locale+': reviewed-key-missing='+missing.length+'/'+reviewedKeys.size);
+    if(missing.length && process.env.PHASE5_SPECIAL_I18N_STRICT==='1')
+      failures.push(locale+' is missing '+missing.length+' reviewed special-page translation key(s).');
+  }
   if(total===0) failures.push('No special-page i18n candidates were discovered.');
   if(auto===0) console.log('Reviewed mapping covers every discovered candidate.');
   else console.log('Auto semantic fallback remains for '+auto+' candidate(s); these are NOT counted as reviewed translations.');
