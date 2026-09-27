@@ -36,14 +36,14 @@ sandbox.window.addEventListener=function(){};
 sandbox.window.RuntimeI18n=null;
 let audit;
 try{
-  const exposed=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','UI_TEXT','PAGE_TITLES'];
+  const exposed=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','UI_TEXT','PAGE_TITLES','COMMON_TEXT'];
   const src=bridge.replace(/\}\)\(\);\s*$/,'G.__AUDIT={EXT:EXT,'+exposed.map(n=>n+':(typeof '+n+'!=="undefined"?'+n+':null)').join(',')+'};})();');
   vm.runInNewContext(src,sandbox,{timeout:10000});
   audit=sandbox.window.__AUDIT;
 }catch(e){failures.push('special-page-i18n bridge could not be evaluated: '+e.message);}
 
 if(audit&&audit.EXT){
-  const maps=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT'].map(n=>audit[n]).filter(Boolean);
+  const maps=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','COMMON_TEXT'].map(n=>audit[n]).filter(Boolean);
   const mapping=new Map();
   for(const map of maps)for(const [text,key] of Object.entries(map))if(typeof text==='string'&&typeof key==='string'&&!mapping.has(text))mapping.set(text,key);
   let total=0,reviewed=0,auto=0,translated=0;
