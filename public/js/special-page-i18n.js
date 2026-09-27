@@ -464,6 +464,20 @@
   Object.keys(STRUCTURED_FAQ_TEXT).forEach(function(text){ STRUCTURED_FAQ_EN[STRUCTURED_FAQ_TEXT[text]]=text; });
   Object.keys(STRUCTURED_FAQ_EN).forEach(function(key){ EXT.en[key]=STRUCTURED_FAQ_EN[key]; });
 
+  /* FAQ wording aliases used by the rendered pages/JSON-LD. Keep these
+     mapped to the same semantic keys so wording variants cannot escape review. */
+  FAQ_TEXT['Can I use this for travel and shopping?']='special.currency_faq_travel';
+  FAQ_TEXT['Can I customize QR code colors?']='special.qr_faq_color';
+  FAQ_TEXT['Which barcode formats are supported?']='special.barcode_faq_formats';
+  FAQ_TEXT['What is EAN-13 used for?']='special.barcode_faq_ean_use';
+  FAQ_TEXT['Can I download the barcode as PNG?']='special.barcode_faq_png';
+  FAQ_TEXT['Which image formats can I compress?']='special.image_compressor_faq_formats';
+  FAQ_TEXT['Are my images uploaded to a server?']='special.image_faq_uploaded_server';
+  FAQ_TEXT['Is Image Compressor free?']='special.image_compressor_faq_free';
+  FAQ_TEXT['Which image formats are supported?']='special.image_converter_faq_formats';
+  FAQ_TEXT['What quality setting should I use for JPEG and WebP?']='special.image_converter_faq_quality_jpeg';
+  FAQ_TEXT['How large can the files be?']='special.zip_faq_size';
+  FAQ_TEXT['What compression level should I choose?']='special.zip_faq_levels_choose';
   var FAQ_EN = {};
   Object.keys(FAQ_TEXT).forEach(function(text){ FAQ_EN[FAQ_TEXT[text]]=text; });
   Object.keys(FAQ_EN).forEach(function(key){ EXT.en[key]=FAQ_EN[key]; });
