@@ -15,10 +15,10 @@ const PAGES=[
   ['zip-builder','public/zip-builder.html']
 ];
 const LOCALES=['en','ar','ur','fa','hi','bn','zh','ja','ko','tr','id','ru','fr','de','es','pt','it','nl','pl'];
-const TAG_RE=/<(h1|h2|h3|h4|h5|h6|label|legend|p|button|summary|option|figcaption|a)\\b[^>]*>([\\s\\S]*?)<\\/\\1>/gi;
-const ATTR_RE=/<(?:input|textarea|select|button|summary|a)\\b[^>]*(?:aria-label|title|placeholder)=(['"])(.*?)\\1[^>]*>/gi;
-function clean(raw){return raw.replace(/<!--[\\s\\S]*?-->/g,' ').replace(/<[^>]+>/g,' ').replace(/&(?:nbsp|amp|lt|gt|quot|apos);/gi,m=>({'&nbsp;':' ','&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"}[m.toLowerCase()]||' ')).replace(/\\s+/g,' ').trim();}
-function likelyVisible(t){return t&&t.length>=2&&!/^[\\d\\s.,:%+\\-–—/()]+$/.test(t)&&!/^(JPG|PNG|WebP|JPEG|SVG|URL|SSID|ZIP|PDF)$/i.test(t)&&/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(t);}
+const TAG_RE=/<(h1|h2|h3|h4|h5|h6|label|legend|p|button|summary|option|figcaption|a)\b[^>]*>([\s\S]*?)<\\/\1>/gi;
+const ATTR_RE=/<(?:input|textarea|select|button|summary|a)\b[^>]*(?:aria-label|title|placeholder)=(['"])(.*?)\1[^>]*>/gi;
+function clean(raw){return raw.replace(/<!--[\s\S]*?-->/g,' ').replace(/<[^>]+>/g,' ').replace(/&(?:nbsp|amp|lt|gt|quot|apos);/gi,m=>({'&nbsp;':' ','&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"}[m.toLowerCase()]||' ')).replace(/\s+/g,' ').trim();}
+function likelyVisible(t){return t&&t.length>=2&&!/^[\\d\s.,:%+\\-–—/()]+$/.test(t)&&!/^(JPG|PNG|WebP|JPEG|SVG|URL|SSID|ZIP|PDF)$/i.test(t)&&/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(t);}
 function collect(html){
   const out=new Set(); let m;
   TAG_RE.lastIndex=0; while((m=TAG_RE.exec(html))){const t=clean(m[2]);if(likelyVisible(t))out.add(t);}
@@ -37,7 +37,7 @@ sandbox.window.RuntimeI18n=null;
 let audit;
 try{
   const exposed=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','UI_TEXT','PAGE_TITLES'];
-  const src=bridge.replace(/\\}\)\\(\\);\\s*$/,'G.__AUDIT={EXT:EXT,'+exposed.map(n=>n+':(typeof '+n+'!=="undefined"?'+n+':null)').join(',')+'};})();');
+  const src=bridge.replace(/\}\)\(\);\s*$/,'G.__AUDIT={EXT:EXT,'+exposed.map(n=>n+':(typeof '+n+'!=="undefined"?'+n+':null)').join(',')+'};})();');
   vm.runInNewContext(src,sandbox,{timeout:10000});
   audit=sandbox.window.__AUDIT;
 }catch(e){failures.push('special-page-i18n bridge could not be evaluated: '+e.message);}
