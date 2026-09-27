@@ -442,6 +442,28 @@
     'Can I add folders to the ZIP?':'special.zip_faq_folders',
     'Is ZIP Builder free?':'special.zip_faq_free'
   };
+  /* Structured FAQ question coverage: these strings are also present in JSON-LD. */
+  var STRUCTURED_FAQ_TEXT = {
+    'How accurate is the Currency Converter?':'special.currency_faq_accuracy',
+    'Which currencies are supported?':'special.currency_faq_currencies',
+    'Is the Currency Converter free?':'special.currency_faq_free',
+    'Can I use this for travel and shopping?':'special.currency_faq_travel',
+    'Can I customize QR code colors?':'special.qr_faq_color',
+    'Which barcode formats are supported?':'special.barcode_faq_formats',
+    'What is EAN-13 used for?':'special.barcode_faq_ean_use',
+    'Can I download the barcode as PNG?':'special.barcode_faq_png',
+    'Which image formats can I compress?':'special.image_compressor_faq_formats',
+    'Are my images uploaded to a server?':'special.image_faq_uploaded_server',
+    'Is Image Compressor free?':'special.image_compressor_faq_free',
+    'Which image formats are supported?':'special.image_converter_faq_formats',
+    'What quality setting should I use for JPEG and WebP?':'special.image_converter_faq_quality_jpeg',
+    'How large can the files be?':'special.zip_faq_size',
+    'What compression level should I choose?':'special.zip_faq_levels_choose'
+  };
+  var STRUCTURED_FAQ_EN = {};
+  Object.keys(STRUCTURED_FAQ_TEXT).forEach(function(text){ STRUCTURED_FAQ_EN[STRUCTURED_FAQ_TEXT[text]]=text; });
+  Object.keys(STRUCTURED_FAQ_EN).forEach(function(key){ EXT.en[key]=STRUCTURED_FAQ_EN[key]; });
+
   var FAQ_EN = {};
   Object.keys(FAQ_TEXT).forEach(function(text){ FAQ_EN[FAQ_TEXT[text]]=text; });
   Object.keys(FAQ_EN).forEach(function(key){ EXT.en[key]=FAQ_EN[key]; });
