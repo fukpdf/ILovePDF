@@ -1,0 +1,32 @@
+name: Phase 5 Special i18n Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/phase5-special-i18n-gate.js'
+      - 'public/js/special-page-i18n.js'
+      - 'public/n2w.html'
+      - 'public/currency-converter.html'
+      - 'public/qr-code-generator.html'
+      - 'public/barcode-generator.html'
+      - 'public/image-compressor.html'
+      - 'public/image-converter.html'
+      - 'public/zip-builder.html'
+      - 'package.json'
+      - '.github/workflows/phase5-special-i18n.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run special-page i18n audit
+        run: npm run audit:i18n:special
