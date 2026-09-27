@@ -587,6 +587,7 @@
     /* Breadcrumb home and major section headings. */
     markByText('.bc-link',{'Home':'special.home'});
     markByText('h2',{'How it works':'special.how','Frequently asked questions':'special.faq','Related tools':'special.related'});
+    markByText('h1,h2,h3,h4,h5,h6,label,legend,p,button,summary,option,span',COMMON_TEXT);
 
     /* Buttons/controls common to the special upload tools. */
     markByText('button',{
