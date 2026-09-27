@@ -36,7 +36,7 @@ sandbox.window.addEventListener=function(){};
 sandbox.window.RuntimeI18n=null;
 let audit;
 try{
-  const exposed=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','UI_TEXT','PAGE_TITLES','COMMON_TEXT'];
+  const exposed=['PAGE_TEXT','SECONDARY_TEXT','FAQ_TEXT','BODY_TEXT','LONG_TEXT','INSTRUCTION_TEXT','PARAGRAPH_TEXT','UI_TEXT','PAGE_TITLES','COMMON_TEXT','STRUCTURED_FAQ_TEXT'];
   const src=bridge.replace(/\}\)\(\);\s*$/,'G.__AUDIT={EXT:EXT,'+exposed.map(n=>n+':(typeof '+n+'!=="undefined"?'+n+':null)').join(',')+'};})();');
   vm.runInNewContext(src,sandbox,{timeout:10000});
   audit=sandbox.window.__AUDIT;
