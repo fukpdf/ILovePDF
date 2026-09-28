@@ -26,7 +26,7 @@
 
   var VERSION    = '1.0';
   var LOG        = '[WorkerAuth]';
-  var TOKEN_TTL  = 8 * 60_000;  // 8 minutes
+  var TOKEN_TTL  = 120_000;  // 2 minutes — aligned with RuntimeSecureSession
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
 
@@ -70,6 +70,7 @@
     if (!_tokens) return null;
 
     var sessionId = _getSessionId();
+    if (sessionId === 'anon' && _tier !== 'LOW') return null;
     var spawnTs   = Date.now();
     var exp       = spawnTs + TOKEN_TTL;
     var nonce     = Math.random().toString(36).slice(2, 10);
@@ -97,6 +98,9 @@
 
     // Expiry check
     if (token.exp < Date.now()) return false;
+
+    // Session binding — a token from a rotated session must never validate.
+    if (token.sessionId !== _getSessionId()) return false;
 
     // Revocation check
     if (_revoked.indexOf(token.nonce) !== -1) return false;
