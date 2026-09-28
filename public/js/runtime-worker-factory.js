@@ -33,9 +33,9 @@
 (function (G) {
   'use strict';
 
-  if (G.RuntimeWorkerFactory && G.RuntimeWorkerFactory.VERSION === '2.0') return;
+  if (G.RuntimeWorkerFactory && G.RuntimeWorkerFactory.VERSION === '2.1') return;
 
-  const VERSION = '2.0';
+  const VERSION = '2.1';
   const LOG     = '[WorkerFactory2]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
@@ -200,6 +200,29 @@
   // ── Original Worker reference ─────────────────────────────────────────────
   const _OrigWorker = G.Worker;
 
+  // ── Secure-session authorization ──────────────────────────────────────────
+  // LOW tier intentionally preserves the documented passthrough. MEDIUM/HIGH
+  // tiers require RuntimeSecureSession before any real worker is constructed.
+  function _authorize(urlStr) {
+    if (_lite) return { ok: true, token: null, reason: 'low-tier-passthrough' };
+    const ss = G.RuntimeSecureSession;
+    if (!ss || typeof ss.authorizeWorker !== 'function') {
+      return { ok: false, token: null, reason: 'secure-session-unavailable' };
+    }
+    const token = _s(function () { return ss.authorizeWorker(urlStr); }, null);
+    if (!token || !token.token || !token.sessionId || !token.exp) {
+      return { ok: false, token: null, reason: 'secure-session-authorization-denied' };
+    }
+    return { ok: true, token, reason: 'secure-session-authorized' };
+  }
+
+  function _recordSecurityBlock(urlStr, reason) {
+    _audit(urlStr, false, true, reason);
+    _s(function () {
+      if (G.RuntimeEventBus) G.RuntimeEventBus.emit('worker:blocked', { url: urlStr, reason: reason });
+    });
+  }
+
   // ── Spawn (public API) ────────────────────────────────────────────────────
   function _spawn(url, options) {
     const urlStr = String(url);
@@ -214,6 +237,13 @@
     if (result.block) {
       console.error(LOG, 'BLOCKED worker spawn:', urlStr, '| reason:', result.reason);
       return new _MockBlockedWorker(urlStr, result.reason);
+    }
+
+    const auth = _authorize(urlStr);
+    if (!auth.ok) {
+      _recordSecurityBlock(urlStr, auth.reason);
+      console.error(LOG, 'BLOCKED worker spawn:', urlStr, '| reason:', auth.reason);
+      return new _MockBlockedWorker(urlStr, auth.reason);
     }
 
     return new _OrigWorker(url, options);
@@ -232,6 +262,13 @@
         if (result.block) {
           console.error(LOG, 'BLOCKED:', urlStr, '|', result.reason);
           return new _MockBlockedWorker(urlStr, result.reason);
+        }
+
+        const auth = _authorize(urlStr);
+        if (!auth.ok) {
+          _recordSecurityBlock(urlStr, auth.reason);
+          console.error(LOG, 'BLOCKED:', urlStr, '|', auth.reason);
+          return new _MockBlockedWorker(urlStr, auth.reason);
         }
         return new _OrigWorker(url, options);
       }
