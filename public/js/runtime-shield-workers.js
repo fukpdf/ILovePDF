@@ -24,7 +24,7 @@
 
   var _FROZEN = Object.freeze({ v: 1 });
 
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var LOG     = '[ShieldWrk]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
@@ -107,10 +107,9 @@
     var nonce = _generateNonce();
     var ts    = Date.now();
 
-    // Register nonce in pool so we can detect replay
-    if (_noncePool) {
-      _noncePool.set(nonce, ts + NONCE_POOL_TTL_MS);
-    }
+    // Do not register outbound nonces yet. The receiving validation step
+    // registers the nonce after accepting it; pre-registering here would make
+    // the first legitimate inbound verification look like a replay.
     _stats.stamped++;
 
     // Return shallow copy with stamp fields — doesn't mutate original
