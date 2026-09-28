@@ -21,7 +21,7 @@ The runtime architecture is a layered enterprise system built across Phases 6–
 | Adaptive Runtime | Device profiling (cores, heap) → `full`/`limited`/`minimal` profile |
 | Adaptive Degradation | Auto-degrades quality/workers under memory pressure |
 | Worker Pool | Manages Web Worker lifecycle, reuse, and load balancing |
-| RuntimeStreaming (RSE v2.0) | OPFS-based chunked streaming for files > 200 MB |
+| RuntimeStreaming (RSE v2.0) | Adaptive OPFS/runtime streaming for large files (10 MB+ routing threshold) |
 | Memory Telemetry | Heap monitoring, GC pressure detection |
 
 **Key global**: `window.AdaptiveRuntime.profile` → `'full' | 'limited' | 'minimal'`
@@ -56,7 +56,7 @@ Hardens the runtime against edge-case failures:
 - Crash recovery UI (graceful error screens)
 - Deadlock monitor
 
-**Key route**: `POST /api/security-telemetry` receives client-side anomaly reports
+**Key route**: `POST /api/security-telemetry` receives client-side anomaly reports; this is telemetry only, not document processing.
 
 ---
 
@@ -155,7 +155,7 @@ Decomposes the monolithic Advanced Engine into specialized subsystems:
 **Bundle**: `runtime-arc7.bundle.js`
 
 Performance optimization layer:
-- Giant file routing (`window.GiantFileRouting`) — files > 400 MB routed to OPFS streaming
+- Giant file routing (`window.GiantFileRouting`) — large files use adaptive runtime streaming; current BrowserTools worker threshold is 10 MB when the streaming bridge is available
 - Giant file telemetry — performance metrics for large file operations
 - GPU fallback validator — detects WebGPU availability and capabilities
 - Canvas pool — reuses `<canvas>` elements to reduce GC pressure
@@ -234,7 +234,7 @@ Distributed mesh capabilities:
 - Persistent diagnostics: Saves runtime state to IDB for cross-session analysis
 - Runtime session recorder: Persistent event log with IDB backend
 - Cross-tab worker sharing: Workers spawned in one tab usable from another
-- Enterprise recovery v2: Multi-tier recovery with fallback chains
+- Enterprise recovery v2: Multi-tier recovery without cross-boundary server-processing fallback
 
 ---
 

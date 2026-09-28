@@ -15,11 +15,10 @@ All tools are defined in `public/js/tools-config.js` as the `TOOLS` array and `S
   category: 'Organize PDFs',      // display category
   group: 'pdf' | 'image',         // processing group
   badge: 'PDF' | 'NEW' | null,    // optional badge
-  apiEndpoint: '/api/rotate',     // server fallback endpoint
   acceptedFiles: '.pdf',          // file input accept attr
   multipleFiles: false,           // allow multiple file uploads
   working: true,                  // is tool enabled?
-  clientSide: true,               // can run in browser?
+  clientSide: true,               // browser execution capability
   options: [                      // tool-specific option controls
     {
       id: 'degrees',              // → creates #opt-degrees element
@@ -105,7 +104,7 @@ processFiles() in tool-page.js
         [intercepted by RuntimeAdapters / per-tool runtime e.g. RotateRuntime]
      → AdvancedEngine wraps with:
         - memory guard (checks available heap)
-        - OPFS streaming (if file > 200 MB)
+        - adaptive streaming bridge (10 MB+ jobs when available)
         - battery throttle
         - retry (up to 2 retries)
         - quality scoring
@@ -118,21 +117,11 @@ processFiles() in tool-page.js
     → creates blob: URL for download
 ```
 
-### Server Fallback Path
+### Execution Boundary
 
-When `clientSide: false` or browser processing throws:
+Browser processing is the authoritative execution path for supported tools. There is **no server fallback path**: if a browser-only worker or processor is unavailable, the operation fails closed with a user-visible error rather than silently uploading the file to a server.
 
-```
-[3] Build FormData (file + options)
-  ↓
-[4] POST to tool.apiEndpoint (e.g. /api/merge)
-  ↓
-[5] Server processes with native libs (qpdf, Ghostscript, Sharp, pdf-lib)
-  ↓
-[6] Response: PDF buffer → response body
-  ↓
-showStatus('success', ...) with server-returned blob URL
-```
+For worker-safe tools, `BrowserTools.process()` requires Web Worker support and never falls back to main-thread processing. Large jobs (10 MB and above when the streaming bridge is available) use the runtime streaming bridge; smaller jobs use the bounded worker-pool transfer path.
 
 ---
 
