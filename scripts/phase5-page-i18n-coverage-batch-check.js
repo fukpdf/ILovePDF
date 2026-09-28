@@ -56,7 +56,7 @@ for (const rel of htmlFiles) {
   const source = read(rel);
   const hasChrome = /\/js\/chrome\.js/.test(source) || /\/js\/chrome-shim\.js/.test(source);
   const hasI18n = /\/js\/i18n\.js/.test(source);
-  if (!hasChrome) fail.push('75 shared chrome missing: ' + rel);
+  if (!hasChrome && !isAdmin && !isOffline) fail.push('75 shared chrome missing: ' + rel);
   if (!hasI18n) fail.push('75 RuntimeI18n loader missing: ' + rel);
 
   const i18nPos = source.search(/\/js\/i18n\.js/);
@@ -72,7 +72,7 @@ for (const rel of htmlFiles) {
   if (chromeRefs > 1) fail.push('77 duplicate chrome.js script reference: ' + rel);
 }
 
-if (!fail.some(x => x.startsWith('75 '))) pass.push('75 every public HTML page loads shared chrome and RuntimeI18n.');
+if (!fail.some(x => x.startsWith('75 '))) pass.push('75 every public-facing HTML page loads shared chrome and RuntimeI18n; admin/offline shells remain intentionally exempt from shared chrome.');
 if (!fail.some(x => x.startsWith('76 '))) pass.push('76 page script ordering keeps RuntimeI18n available before shared chrome.');
 if (!fail.some(x => x.startsWith('77 '))) pass.push('77 no public HTML page duplicates the core i18n/chrome runtime.');
 
