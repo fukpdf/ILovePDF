@@ -1,0 +1,30 @@
+name: Phase 5 Worker Security Boundary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-execution-sandbox.js'
+      - 'public/js/runtime-secure-session.js'
+      - 'scripts/phase5-worker-security-boundary-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-security-boundary.yml'
+  pull_request:
+    paths:
+      - 'public/js/runtime-execution-sandbox.js'
+      - 'public/js/runtime-secure-session.js'
+      - 'scripts/phase5-worker-security-boundary-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-security-boundary.yml'
+
+jobs:
+  worker-security-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-security-boundary
