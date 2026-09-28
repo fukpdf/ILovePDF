@@ -15,6 +15,7 @@
     "audit:phase3": "node scripts/phase3-file-lifecycle-check.js",
     "audit:phase4": "node scripts/phase4-tool-registry-check.js",
     "audit:phase5": "node scripts/phase5-standard-tool-check.js",
+    "audit:phase5:toolapp-lifecycle": "node scripts/phase5-toolapp-lifecycle-check.js",
     "audit:i18n:special": "node scripts/phase5-special-i18n-gate.js",
     "audit:i18n:global": "node scripts/phase5-global-i18n-contract-check.js",
     "audit:i18n:locale-parity": "node scripts/phase5-locale-parity-check.js",
