@@ -1,0 +1,31 @@
+name: Phase 5 Worker Factory Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-factory.js'
+      - 'public/js/runtime-secure-session.js'
+      - 'public/js/runtime-execution-sandbox.js'
+      - 'scripts/phase5-worker-factory-security-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-factory-security.yml'
+  pull_request:
+    paths:
+      - 'public/js/runtime-worker-factory.js'
+      - 'public/js/runtime-secure-session.js'
+      - 'public/js/runtime-execution-sandbox.js'
+      - 'scripts/phase5-worker-factory-security-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-factory-security.yml'
+
+jobs:
+  worker-factory-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-factory-security
