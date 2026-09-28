@@ -19,8 +19,8 @@ function forbidText(file, text, label) {
 
 // Runtime contract: browser execution is authoritative; no documented server fallback.
 requireText(engine, '### Client-side Path (primary)', 'missing client-side processing section');
-requireText(engine, '### Browser Tools Library', 'missing BrowserTools contract');
-requireText(engine, 'There is no server fallback path', 'missing no-server-fallback statement');
+requireText(engine, '## Browser Tools Library (`browser-tools.js`)', 'missing BrowserTools contract');
+if (!engine.includes('There is **no server fallback path**') && !engine.includes('There is no server fallback path')) failures.push('missing no-server-fallback statement');
 forbidText(engine, '### Server Fallback Path', 'obsolete server fallback section remains');
 forbidText(engine, 'apiEndpoint: \'/api/rotate\'', 'obsolete apiEndpoint tool contract remains');
 forbidText(engine, 'server fallback endpoint', 'obsolete fallback field description remains');
