@@ -24,7 +24,8 @@
     "audit:i18n:page-coverage": "node scripts/phase5-page-i18n-coverage-batch-check.js",
     "audit:phase5:runtime-doc-contract": "node scripts/phase5-runtime-doc-contract-check.js",
     "audit:phase5:worker-security-boundary": "node scripts/phase5-worker-security-boundary-check.js",
-    "audit:phase5:worker-factory-security": "node scripts/phase5-worker-factory-security-check.js"
+    "audit:phase5:worker-factory-security": "node scripts/phase5-worker-factory-security-check.js",
+    "audit:phase5:worker-message-integrity": "node scripts/phase5-worker-message-integrity-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
