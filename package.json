@@ -17,7 +17,8 @@
     "audit:phase5": "node scripts/phase5-standard-tool-check.js",
     "audit:i18n:special": "node scripts/phase5-special-i18n-gate.js",
     "audit:i18n:global": "node scripts/phase5-global-i18n-contract-check.js",
-    "audit:i18n:locale-parity": "node scripts/phase5-locale-parity-check.js"
+    "audit:i18n:locale-parity": "node scripts/phase5-locale-parity-check.js",
+    "audit:i18n:effective-parity": "node scripts/phase5-effective-locale-parity-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
