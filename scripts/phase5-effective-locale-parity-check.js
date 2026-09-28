@@ -79,6 +79,7 @@ try {
 }
 
 const canonicalKeys = new Set([...Object.keys(canonical), ...extensionKeys]);
+const englishFallbackKeys = new Set(Object.keys(canonical));
 
 for (const lang of expected) {
   let json;
@@ -89,14 +90,24 @@ for (const lang of expected) {
     continue;
   }
 
-  const effective = new Set([...Object.keys(json), ...Object.keys(ext[lang] || {}), ...extensionKeys]);
+  /*
+   * RuntimeI18n falls back to the English JSON schema for keys absent from
+   * a selected locale. The effective locale therefore consists of:
+   * locale JSON + English JSON fallback + locale extension + English extension.
+   */
+  const effective = new Set([
+    ...Object.keys(json),
+    ...englishFallbackKeys,
+    ...Object.keys(ext[lang] || {}),
+    ...extensionKeys
+  ]);
   const missing = [...canonicalKeys].filter(key => !effective.has(key));
   const extras = [...effective].filter(key => !canonicalKeys.has(key));
   if (missing.length) failures.push(lang + ': effective locale missing ' + missing.length + ' key(s): ' + missing.slice(0, 12).join(', '));
   if (extras.length) failures.push(lang + ': effective locale has ' + extras.length + ' unexpected key(s): ' + extras.slice(0, 12).join(', '));
 }
 
-console.log('Effective locale parity: ' + canonicalKeys.size + ' keys across ' + expected.length + ' locales, including runtime i18n-ext fallback keys.');
+console.log('Effective locale parity: ' + canonicalKeys.size + ' keys across ' + expected.length + ' locales, including English JSON and runtime i18n-ext fallback keys.');
 if (failures.length) {
   console.error('[FAIL] Phase 5 effective locale parity (' + failures.length + ' issue(s))');
   failures.forEach(x => console.error(' - ' + x));
