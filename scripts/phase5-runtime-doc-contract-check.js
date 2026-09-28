@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 const arch = read('docs/09_RUNTIME_ARCHITECTURE.md');
 const engine = read('docs/10_TOOL_ENGINE.md');
