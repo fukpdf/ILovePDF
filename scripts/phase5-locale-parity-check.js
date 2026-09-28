@@ -15,6 +15,7 @@ const flatten = (v, p = '', out = {}) => {
   return out;
 };
 const load = lang => JSON.parse(fs.readFileSync(path.join(dir, lang + '.json'), 'utf8'));
+
 const extSource = fs.readFileSync(path.join(ROOT, 'public', 'js', 'i18n-ext.js'), 'utf8');
 function extractObject(source, marker) {
   const start = source.indexOf(marker);
@@ -49,18 +50,29 @@ try { base = flatten(load('en')); } catch (e) {
   process.exit(1);
 }
 
-const baseKeys = new Set(Object.keys(base));
+const englishExtension = extensions.en || {};
+const canonicalKeys = new Set([...Object.keys(base), ...Object.keys(englishExtension)]);
+const englishJsonKeys = new Set(Object.keys(base));
+
 for (const lang of expected) {
   let data;
   try { data = flatten(load(lang)); }
   catch (e) { fail.push(lang + ': invalid/missing JSON (' + e.message + ')'); continue; }
-  const keys = new Set(Object.keys(data));
-  const missing = [...baseKeys].filter(k => !keys.has(k));
-  const extra = [...keys].filter(k => !baseKeys.has(k));
-  if (missing.length) fail.push(lang + ': missing ' + missing.length + ' key(s): ' + missing.slice(0, 12).join(', '));
-  if (extra.length) fail.push(lang + ': extra ' + extra.length + ' key(s): ' + extra.slice(0, 12).join(', '));
+
+  const localeExtension = extensions[lang] || {};
+  const keys = new Set([
+    ...Object.keys(data),
+    ...englishJsonKeys,
+    ...Object.keys(localeExtension),
+    ...Object.keys(englishExtension)
+  ]);
+  const missing = [...canonicalKeys].filter(k => !keys.has(k));
+  const extra = [...keys].filter(k => !canonicalKeys.has(k));
+  if (missing.length) fail.push(lang + ': effective runtime missing ' + missing.length + ' key(s): ' + missing.slice(0, 12).join(', '));
+  if (extra.length) fail.push(lang + ': effective runtime has ' + extra.length + ' unexpected key(s): ' + extra.slice(0, 12).join(', '));
 }
-console.log('Locale parity: ' + baseKeys.size + ' canonical English keys across ' + expected.length + ' effective runtime locales (JSON + i18n-ext).');
+
+console.log('Locale parity: ' + canonicalKeys.size + ' canonical effective keys across ' + expected.length + ' runtime locales (locale JSON + English JSON fallback + i18n-ext).');
 if (fail.length) {
   console.error('[FAIL] Phase 5 locale parity (' + fail.length + ' issue(s))');
   fail.forEach(x => console.error(' - ' + x));
