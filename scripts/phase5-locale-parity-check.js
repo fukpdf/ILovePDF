@@ -15,6 +15,33 @@ const flatten = (v, p = '', out = {}) => {
   return out;
 };
 const load = lang => JSON.parse(fs.readFileSync(path.join(dir, lang + '.json'), 'utf8'));
+const extSource = fs.readFileSync(path.join(ROOT, 'public', 'js', 'i18n-ext.js'), 'utf8');
+function extractObject(source, marker) {
+  const start = source.indexOf(marker);
+  const open = source.indexOf('{', start);
+  if (start < 0 || open < 0) throw new Error('i18n extension registry is missing.');
+  let depth = 0, quote = null, escaped = false;
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === '\\\\') escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') { quote = ch; continue; }
+    if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) return source.slice(open, i + 1);
+  }
+  throw new Error('i18n extension registry is incomplete.');
+}
+let extensions;
+try {
+  extensions = Function('return (' + extractObject(extSource, 'var EXT =') + ')')();
+} catch (e) {
+  console.error('[FAIL] i18n extension pack cannot be parsed:', e.message);
+  process.exit(1);
+}
 
 let base;
 try { base = flatten(load('en')); } catch (e) {
@@ -33,7 +60,7 @@ for (const lang of expected) {
   if (missing.length) fail.push(lang + ': missing ' + missing.length + ' key(s): ' + missing.slice(0, 12).join(', '));
   if (extra.length) fail.push(lang + ': extra ' + extra.length + ' key(s): ' + extra.slice(0, 12).join(', '));
 }
-console.log('Locale parity: ' + baseKeys.size + ' canonical English keys across ' + expected.length + ' locales.');
+console.log('Locale parity: ' + baseKeys.size + ' canonical English keys across ' + expected.length + ' effective runtime locales (JSON + i18n-ext).');
 if (fail.length) {
   console.error('[FAIL] Phase 5 locale parity (' + fail.length + ' issue(s))');
   fail.forEach(x => console.error(' - ' + x));
