@@ -54,6 +54,8 @@ else pass.push('74 public HTML inventory is populated: ' + htmlFiles.length + ' 
 
 for (const rel of htmlFiles) {
   const source = read(rel);
+  const isAdmin = rel.startsWith('public/admin/');
+  const isOffline = rel === 'public/offline.html';
   const hasChrome = /\/js\/chrome\.js/.test(source) || /\/js\/chrome-shim\.js/.test(source);
   const hasI18n = /\/js\/i18n\.js/.test(source);
   if (!hasChrome && !isAdmin && !isOffline) fail.push('75 shared chrome missing: ' + rel);
@@ -81,7 +83,6 @@ for (const rel of expectedSpecial) {
 }
 
 const toolPage = read('public/tool.html');
-const toolsPage = read('public/tools.html');
 const home = read('public/index.html');
 
 if (!/tool-i18n-bridge\.js/.test(toolPage)) fail.push('79 tool.html is missing the tool i18n bridge.');
