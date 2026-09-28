@@ -15,10 +15,11 @@ const publicDir = path.join(ROOT, 'public');
 const localeDir = path.join(publicDir, 'locales');
 
 const expectedLocales = ['en','ar','ur','fa','hi','bn','zh','ja','ko','tr','id','ru','fr','de','es','pt','it','nl','pl'];
+const localePattern = lang => new RegExp('code\\s*:\\s*[\\x27\\x22]' + lang + '[\\x27\\x22]');
 
 if (!/var AVAILABLE = \[/.test(i18n)) fail('RuntimeI18n AVAILABLE registry is missing.');
 for (const lang of expectedLocales) {
-  if (!new RegExp("code\\s*:\\s*['"]" + lang + "['"]").test(i18n)) fail('RuntimeI18n does not declare locale: ' + lang);
+  if (!localePattern(lang).test(i18n)) fail('RuntimeI18n does not declare locale: ' + lang);
   const file = path.join(localeDir, lang + '.json');
   if (!fs.existsSync(file)) fail('Locale file is missing: locales/' + lang + '.json');
 }
