@@ -45,7 +45,8 @@ function walk(dir) {
   for (const name of fs.readdirSync(dir, {withFileTypes:true})) {
     const p = path.join(dir, name.name);
     if (name.isDirectory()) {
-      if (name.name !== 'node_modules') walk(p);
+      if (name.name === 'node_modules' || name.name === 'admin') continue;
+      walk(p);
     } else if (name.name.endsWith('.html')) htmlFiles.push(p);
   }
 }
@@ -78,9 +79,10 @@ for (const rel of specialPages) {
 
 console.log('Global i18n contract:');
 console.log('  locale registry=' + expectedLocales.length + ' expected');
-console.log('  HTML pages discovered=' + htmlFiles.length);
+console.log('  public shell pages discovered=' + htmlFiles.length);
 console.log('  pages loading chrome=' + chromePages);
 console.log('  pages loading i18n directly=' + directI18nPages);
+console.log('  admin pages excluded=' + path.join(publicDir, 'admin'));
 
 if (failures.length) {
   console.error('[FAIL] Phase 5 global i18n contract (' + failures.length + ' issue(s))');
