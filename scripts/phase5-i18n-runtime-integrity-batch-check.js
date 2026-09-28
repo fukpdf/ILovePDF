@@ -42,7 +42,8 @@ requireMatch(ext, /setLanguage/, '64 extension pack re-hooks language changes.')
 for (const code of expected) requireMatch(ext, new RegExp("EXT\\['" + code + "'\\]"), '64 extension entry exists: ' + code);
 
 requireMatch(i18n, /_loading\[lang\]/, '65 concurrent locale loads are deduplicated.');
-requireMatch(i18n, /fetch\(LOCALES_BASE \+ lang \+ '\\.json'/, '65 locale loading is lazy and path-based.');
+if (i18n.includes("fetch(LOCALES_BASE + lang + '.json'")) ok.push('65 locale loading is lazy and path-based.');
+else fail.push('65 locale loading is lazy and path-based.');
 requireMatch(i18n, /_fetched\[lang\] = true/, '65 successful locale loads are cached.');
 requireMatch(i18n, /loadLocale: function \(lang\)/, '65 public loadLocale API exists.');
 
