@@ -1,0 +1,23 @@
+name: Phase 5 Effective Locale Parity Audit
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/locales/**'
+      - 'public/js/i18n.js'
+      - 'public/js/i18n-ext.js'
+      - 'scripts/phase5-effective-locale-parity-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-effective-locale-parity.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run audit:i18n:effective-parity
