@@ -112,3 +112,7 @@ var needsOcr=!!d.forceOcr || !pages.length || avgCharsPerPage<8;
 var ocrDecision=d.forceOcr?'forced':(!pages.length?'no-native-text':(avgCharsPerPage<8?'low-text':'native-text'));
 var analysis={totalChars:totalChars,avgCharsPerPage:avgCharsPerPage};
 self.postMessage({op:'result',jobId:d.jobId,pages:pages,analysis:analysis,needsOcr:needsOcr,ocrDecision:ocrDecision});}catch(e){try{if(pdf)await pdf.destroy();}catch(_){}self.postMessage({op:'error',jobId:d.jobId,error:String(e&&e.message||e)});}};
+
+
+importScripts('/workers/p4-heartbeat-mixin.js');
+if (typeof _p4ApplyMixin === 'function') _p4ApplyMixin();
