@@ -1,4 +1,4 @@
-// Worker Pool v5.0 — Phase 24 upgrade from v4.0.
+// Worker Pool v5.2 — Phase 24 lifecycle hardening.
 // v4.x: priority queues (high/normal/low), CancelToken, heartbeat, slot rotation.
 // v5.0 NEW:
 //   — 4th queue tier: 'background' (AI batch jobs, prewarm, cleanup)
@@ -126,6 +126,34 @@
     }
   }
 
+  function _recoverWorkerAfterFault(pool, slot, err) {
+    // A worker fault must settle the current task BEFORE any queued task is
+    // dispatched, and the replacement must be installed before draining.
+    var wasBusy = slot.busy;
+    if (wasBusy) {
+      settle(pool, slot, err, null, false);
+    } else {
+      _clearIdleTimer(slot);
+    }
+
+    try { slot.worker.terminate(); } catch (_) {}
+
+    if (slot.crashes >= MAX_CRASHES) {
+      slot.worker = null;
+      return false;
+    }
+
+    var replacement = spawnWorker(pool.url);
+    if (!replacement) {
+      slot.worker = null;
+      return false;
+    }
+
+    slot.worker = replacement;
+    attachHandlers(pool, slot);
+    return true;
+  }
+
   function attachHandlers(pool, slot) {
     slot.worker.onmessage = function (e) {
       try {
@@ -138,15 +166,15 @@
     slot.worker.onerror   = function (e) {
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
-      settle(pool, slot, err, null);
-      if (slot.crashes < MAX_CRASHES) {
-        var w = spawnWorker(pool.url);
-        if (w) { slot.worker = w; attachHandlers(pool, slot); }
-      }
+      var replaced = _recoverWorkerAfterFault(pool, slot, err);
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
     };
     slot.worker.onmessageerror = function () {
       slot.crashes++;
-      settle(pool, slot, new Error('worker_message_error'), null);
+      var replaced = _recoverWorkerAfterFault(pool, slot, new Error('worker_message_error'));
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
     };
   }
 
@@ -183,7 +211,8 @@
     if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
   }
 
-  function settle(pool, slot, err, data) {
+  function settle(pool, slot, err, data, shouldDrain) {
+    if (shouldDrain === undefined) shouldDrain = true;
     if (!slot.busy) return;
     clearTimeout(slot.timer);
     var res = slot.resolve;
@@ -203,8 +232,10 @@
       res(data);
     }
 
-    _startIdleTimer(pool, slot);
-    drainOne(pool, slot);
+    if (shouldDrain) {
+      _startIdleTimer(pool, slot);
+      drainOne(pool, slot);
+    }
   }
 
   function dispatch(pool, slot, task) {
@@ -557,7 +588,7 @@
   }
 
   window.WorkerPool = {
-    VERSION:       '5.1',
+    VERSION:       '5.2',
     run:           run,
     getStats:      getStats,
     prewarm:       prewarm,
