@@ -102,7 +102,8 @@
   function _getFamily(workerUrl, opts) {
     // Try from opts.toolId first
     if (opts && opts.toolId) {
-      var f = TOOL_FAMILY[opts.toolId];
+      var id = typeof opts.toolId === 'string' ? opts.toolId.trim().toLowerCase() : null;
+      var f = id && Object.prototype.hasOwnProperty.call(TOOL_FAMILY, id) ? TOOL_FAMILY[id] : null;
       if (f) return f;
     }
     // Fall back to URL mapping
@@ -197,7 +198,7 @@
 
       // TTL release: don't hold forever. Preserve cancellation state and
       // account for the family concurrency cap on release.
-      var timer = setTimeout(function () {
+      setTimeout(function () {
         var q = _holdQueues[family];
         if (!q) return;
         var idx = q.indexOf(entry);
@@ -205,8 +206,6 @@
         q.splice(idx, 1);
         _dispatchHeld(family, entry);
       }, HOLD_TTL_MS);
-      if (!_holdTimers[family]) _holdTimers[family] = new Set();
-      _holdTimers[family].add(timer);
     });
   }
 
