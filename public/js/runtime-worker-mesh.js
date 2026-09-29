@@ -328,6 +328,7 @@
     register:         register,
     setTrust:         setTrust,
     quarantine:       quarantine,
+    unregister:        unregister,
     getTrustScore:    getTrustScore,
     getMeshHealth:    getMeshHealth,
     getWorkersInState: getWorkersInState,
