@@ -75,11 +75,11 @@
   var RECOVERY_ORDER = _topoSort(DEPENDENCY_GRAPH);
   var GRAPH_VALID = RECOVERY_ORDER.length === DEPENDENCY_GRAPH.length;
 
-  var _NODE_BY_ID = {};
+  var _NODE_BY_ID = Object.create(null);
   DEPENDENCY_GRAPH.forEach(function (node) { _NODE_BY_ID[node.id] = node; });
 
   function _expandRecoverySet(requested) {
-    var wanted = {};
+    var wanted = Object.create(null);
     var invalid = [];
     (requested || []).forEach(function (id) {
       if (_NODE_BY_ID[id]) wanted[id] = true; else invalid.push(id);
