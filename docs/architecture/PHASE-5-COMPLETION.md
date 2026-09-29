@@ -31,6 +31,12 @@ The new closure executes the complete Phase 5 audit inventory, including Units 2
 
 The CI additionally runs the complete project test, security audit, and runtime audit.
 
+## Repeat-validation findings and correction
+
+The first dedicated re-audit CI run intentionally failed closed at **77/78 checks**. The failure was the closure-inventory assertion itself: the new re-audit correctly detected that the older `phase5-final-closure-320-332-check.js` still omitted Units 229–241. The existing Units 229–241 audit nevertheless executed successfully in the new re-audit. The final-closure inventory was corrected to register that audit as well.
+
+The re-audit was then repeated from the corrected source; completion is not recorded until that repeated run reaches zero failures and zero pending checks.
+
 ## Validation policy
 
 No Phase 5 completion claim is valid from source inspection alone. The final closure must execute every registered audit successfully and finish with zero failed and zero pending required checks.
