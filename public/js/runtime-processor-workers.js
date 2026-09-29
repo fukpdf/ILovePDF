@@ -50,8 +50,8 @@
 
   // ── Register a processor's worker pool ────────────────────────────
   function registerPool(family, spec) {
-    if (!family || !spec) return;
-    if (_pools[family]) return; // idempotent
+    if (!family || typeof family !== 'string' || !spec || typeof spec !== 'object') return { ok: false, reason: 'invalid-pool-spec' };
+    if (_pools[family]) return { ok: true, existing: true }; // idempotent
 
     _pools[family] = {
       family:       family,
@@ -64,14 +64,17 @@
       thermalLimit: null,
       queue:        [],      // pending tasks while congested / isolated
     };
-    console.debug(LOG, 'pool registered:', family, '— maxWorkers:', spec.maxWorkers, '| aux:', (spec.auxWorkerUrls || []).length);
+    console.debug(LOG, 'pool registered:', family, '— maxWorkers:', _pools[family].maxWorkers, '| aux:', _pools[family].auxWorkerUrls.length);
+    return { ok: true, existing: false };
   }
 
   // ── Record a task start ───────────────────────────────────────────
   function taskStart(family) {
     var pool = _pools[family];
-    if (!pool) return;
-    pool.activeCount = Math.min(pool.activeCount + 1, pool.maxWorkers + 1);
+    if (!pool) return false;
+    if (!canAccept(family)) return false;
+    pool.activeCount++;
+    return true;
   }
 
   // ── Record a task end ─────────────────────────────────────────────
@@ -109,8 +112,8 @@
     });
     pool.crashCount  = 0;
     pool.isolated    = false;
-    pool.activeCount = 0;
-    console.debug(LOG, 'pool reset:', family);
+    console.debug(LOG, 'pool reset:', family, '— active tasks preserved:', pool.activeCount);
+    _drainQueue(family);
   }
 
   // ── Check if a family can accept a new task ───────────────────────
@@ -135,8 +138,9 @@
       return false;
     }
     pool.queue.push({ fn: taskFn, token: opts.token || null, onReject: opts.onReject || null, ts: Date.now() });
-    return true;
     console.debug(LOG, 'queued task for:', family, '— queue length:', pool.queue.length);
+    _drainQueue(family);
+    return true;
   }
 
   // ── Drain queue when capacity frees up ────────────────────────────
@@ -151,7 +155,10 @@
         try { if (typeof next.onReject === 'function') next.onReject(new Error('task_cancelled')); } catch (_) {}
         continue;
       }
-      taskStart(family);
+      if (!taskStart(family)) {
+        pool.queue.unshift(next);
+        break;
+      }
       try { next.fn(); } catch (_) { recordCrash(family); }
     }
   }
@@ -160,8 +167,16 @@
   // (called when processor-specific thermal event fires)
   function setThermalLimit(family, limit) {
     var pool = _pools[family];
-    if (!pool) return;
-    pool.thermalLimit = limit;
+    if (!pool) return { ok: false, reason: 'unknown-pool' };
+    if (limit == null) {
+      pool.thermalLimit = null;
+      _drainQueue(family);
+      return { ok: true, limit: null };
+    }
+    if (!Number.isFinite(Number(limit)) || Number(limit) < 1) return { ok: false, reason: 'invalid-thermal-limit' };
+    pool.thermalLimit = Math.floor(Number(limit));
+    _drainQueue(family);
+    return { ok: true, limit: pool.thermalLimit };
   }
 
   // ── Prewarm all registered aux workers for a family ───────────────
@@ -192,13 +207,16 @@
 
   G.addEventListener('tool-mesh:isolated', function (evt) {
     try {
-      var toolId = evt && evt.detail && evt.detail.toolId;
+      var detail = evt && evt.detail || {};
+      var toolId = detail.toolId;
+      var eventFamily = detail.family;
+      if (eventFamily && _pools[eventFamily]) {
+        recordCrash(eventFamily);
+        return;
+      }
       if (!toolId) return;
-      // Find which pool owns this tool and record a crash
       Object.keys(_pools).forEach(function (family) {
-        var pool = _pools[family];
-        // Rough match: toolId contains family name
-        if (pool && toolId) recordCrash(family);
+        if (toolId === family || toolId.indexOf(family + ':') === 0 || toolId.indexOf(family + '-') === 0) recordCrash(family);
       });
     } catch (_) {}
   });
