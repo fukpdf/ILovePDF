@@ -30,7 +30,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG     = '[WorkerDomReg]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
   // ── Family → worker URL mapping ───────────────────────────────────────────
   var FAMILY_WORKERS = {
@@ -65,7 +65,8 @@
 
   // ── Domain state ──────────────────────────────────────────────────────────
   // family → { workers[], activeCount, crashCount, pressured, pressuredAt }
-  var _domains = {};
+  var _domains = Object.create(null);
+  var _activeTools = Object.create(null);
 
   function _newDomain(family) {
     return {
@@ -78,7 +79,21 @@
     };
   }
 
+  function _normalizeFamily(family) {
+    if (typeof family !== 'string') return null;
+    var value = family.trim().toLowerCase();
+    return value && value.length <= 64 && Object.prototype.hasOwnProperty.call(FAMILY_WORKERS, value) ? value : null;
+  }
+
+  function _normalizeToolId(toolId) {
+    if (typeof toolId !== 'string') return null;
+    var value = toolId.trim().toLowerCase();
+    return value && value.length <= 128 ? value : null;
+  }
+
   function ensureDomain(family) {
+    family = _normalizeFamily(family);
+    if (!family) return null;
     if (!_domains[family]) {
       _domains[family] = _newDomain(family);
       console.debug(LOG, 'domain created:', family);
@@ -91,22 +106,27 @@
   var _activeFamily = null;
 
   function setActiveTool(toolId) {
-    _activeTool   = toolId;
-    _activeFamily = TOOL_FAMILY[toolId] || null;
+    var id = _normalizeToolId(toolId);
+    _activeTool   = id;
+    _activeFamily = id ? (TOOL_FAMILY[id] || null) : null;
     if (_activeFamily) ensureDomain(_activeFamily);
     console.debug(LOG, 'active tool:', toolId, '→ family:', _activeFamily);
   }
 
   // ── Domain pressure ───────────────────────────────────────────────────────
   function setPressure(family, pressured) {
-    var domain = ensureDomain(family);
-    domain.pressured   = pressured;
-    domain.pressuredAt = pressured ? Date.now() : 0;
-    console.debug(LOG, 'pressure:', family, pressured);
+    family = _normalizeFamily(family);
+    var domain = family ? ensureDomain(family) : null;
+    if (!domain) return false;
+    domain.pressured   = pressured === true;
+    domain.pressuredAt = domain.pressured ? Date.now() : 0;
+    console.debug(LOG, 'pressure:', family, domain.pressured);
+    return true;
   }
 
   function isPressured(family) {
-    var domain = _domains[family];
+    family = _normalizeFamily(family);
+    var domain = family ? _domains[family] : null;
     if (!domain) return false;
     // Auto-clear pressure after 60s
     if (domain.pressured && (Date.now() - domain.pressuredAt) > 60000) {
@@ -117,8 +137,9 @@
 
   // ── Domain crash tracking ─────────────────────────────────────────────────
   function recordCrash(toolId) {
-    var family = TOOL_FAMILY[toolId] || _activeFamily;
-    if (!family) return;
+    var id = _normalizeToolId(toolId);
+    var family = (id && TOOL_FAMILY[id]) || _activeFamily;
+    if (!family || !FAMILY_WORKERS.hasOwnProperty(family)) return;
     var domain = ensureDomain(family);
     domain.crashCount++;
     if (domain.crashCount >= 3) {
@@ -134,7 +155,8 @@
 
   // ── Stats for RuntimeHealthAnalytics ─────────────────────────────────────
   function getStats(family) {
-    var domain = _domains[family];
+    family = _normalizeFamily(family);
+    var domain = family ? _domains[family] : null;
     if (!domain) return null;
     return {
       family:      domain.family,
@@ -146,7 +168,7 @@
   }
 
   function getAllStats() {
-    var out = {};
+    var out = Object.create(null);
     Object.keys(_domains).forEach(function (f) { out[f] = getStats(f); });
     return out;
   }
@@ -165,7 +187,10 @@
     ensureDomain:  ensureDomain,
     setActiveTool: setActiveTool,
     getActiveTool: function () { return _activeTool; },
-    getFamily:     function (toolId) { return TOOL_FAMILY[toolId] || null; },
+    getFamily:     function (toolId) {
+      var id = _normalizeToolId(toolId);
+      return id && Object.prototype.hasOwnProperty.call(TOOL_FAMILY, id) ? TOOL_FAMILY[id] : null;
+    },
     isPressured:   isPressured,
     setPressure:   setPressure,
     recordCrash:   recordCrash,

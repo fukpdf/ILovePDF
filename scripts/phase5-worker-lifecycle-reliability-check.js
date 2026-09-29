@@ -20,7 +20,7 @@ const checks = [
   ['dynamic worker cap API', /function setMaxPerUrl\(cap\)/],
   ['default cap restore API', /function restoreMaxPerUrl\(\)/],
   ['public worker cap APIs', /setMaxPerUrl:\s*setMaxPerUrl,\s*restoreMaxPerUrl:\s*restoreMaxPerUrl/],
-  ['throttle version', /var VERSION\s*=\s*['"]1\.1['"]/],
+  ['throttle version', /var VERSION\s*=\s*['"]1\.2['"]/],
   ['held cancellation listener', /opts\.token\.onCancel\(function \(\)/],
   ['held cancellation removes entry', /q\.splice\(idx, 1\);\s*entry\.settled = true;\s*try \{ reject\(new Error\('task_cancelled'\)/s],
   ['held dispatch uses family accounting', /function _dispatchHeld\(family, entry\)[\s\S]*?_increment\(family\)[\s\S]*?_decrement\(family\)/],
