@@ -50,3 +50,18 @@ Each standard tool will be audited against the same lifecycle:
 register metadata → load on demand → validate input → prepare engine → process → validate output → expose result → cleanup.
 
 Processing internals remain tool-owned; the shared platform owns lifecycle, contracts, routing, resource management, and verification.
+
+
+## Units 16–23 — PDF-to-Word worker migration completed
+
+The PDF-to-Word pipeline now follows the same worker-first lifecycle boundary used by the standard family:
+
+- native PDF extraction and paragraph structuring run in `pdf-word-extract-worker.js` through WorkerPool;
+- OCR rasterisation runs in `pdf-word-render-worker.js` with OffscreenCanvas;
+- Tesseract recognition and OCR text structuring run in `pdf-word-ocr-worker.js` through WorkerPool;
+- the page context no longer performs a duplicate native OCR prepass;
+- conversion decisions and quality metrics are returned from worker stages;
+- DOCX generation remains isolated behind `pdf-word-docx-worker.js` and WorkerPool;
+- cancellation and unlimited-processing contracts remain explicit.
+
+Units 16–23 have dedicated executable audit scripts registered in `package.json` and are included in the Phase 5 Units 1–332 full audit.
