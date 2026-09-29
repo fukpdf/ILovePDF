@@ -40,7 +40,9 @@ Added:
 - `audit:phase4:tool-registry-module-boundary-closure`
 - this completion record
 
-The closure audit independently checks the registry, mirror parity, routing authority, capability contract, runtime manifest/config contracts, activation gate, hydration integrity, documented unit coverage, scope boundaries, and the existing Phase 4 regression audit.
+The first closure run exposed three audit-matcher/documentation-contract defects: the config-lock matcher expected a nonexistent diagnostic name, the hydration matcher expected a source-literal boolean instead of the actual computed `ok` contract, and the unit-count matcher assumed sequential numbering. Source inspection confirmed the underlying runtime contracts were implemented. The audit was corrected to match the actual source contracts and the documented implemented unit set (Units 1, 2, 4, and 6–16). No evidence was found for separate Phase 4 Unit 3 or Unit 5 implementation records, so they are not falsely represented as implemented.
+
+The corrected closure audit independently checks the registry, mirror parity, routing authority, capability contract, runtime manifest/config contracts, activation gate, hydration integrity, documented unit coverage, scope boundaries, and the existing Phase 4 regression audit.
 
 The dedicated CI also runs Phase 4, security, and runtime regression gates.
 
