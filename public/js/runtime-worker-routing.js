@@ -172,8 +172,8 @@
       eb.on('worker:spawned', function (data) {
         if (!data || !data.workerId) return;
         var caps = _inferCaps(data.url);
-        if (_workerUrls) _workerUrls.set(data.workerId, data.url || '');
         registerCapability(data.workerId, caps);
+        if (_workerUrls) _workerUrls.set(data.workerId, data.url || '');
         console.debug(LOG, 'worker registered:', data.workerId, '| caps:', caps.join(','));
       });
 
