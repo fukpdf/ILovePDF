@@ -83,6 +83,21 @@
   // Map<dedupeKey, Promise> — if the same idempotent task is already running,
   // return the existing promise rather than spawning a duplicate worker.
   var _inflight = new Map();
+  var _activeTokens = new Map();
+  function _trackToken(url, token) {
+    if (!token) return;
+    var set = _activeTokens.get(url);
+    if (!set) { set = new Set(); _activeTokens.set(url, set); }
+    set.add(token);
+  }
+  function _untrackToken(url, token) {
+    var set = _activeTokens.get(url); if (!set) return;
+    set.delete(token); if (!set.size) _activeTokens.delete(url);
+  }
+  function _cancelUrl(url, reason) {
+    var set = _activeTokens.get(url); if (!set) return;
+    set.forEach(function (token) { try { token.cancel(reason || 'worker-terminated'); } catch (_) {} });
+  }
 
   // ── Core dispatch ─────────────────────────────────────────────────────────
   // dispatch(workerUrl, message, transferables?, opts?) → Promise<result>
@@ -155,6 +170,7 @@
     }
 
     _bumpSpawn(workerUrl);
+    _trackToken(workerUrl, wpToken);
 
     // Telemetry span
     var spanId = null;
@@ -193,7 +209,8 @@
       })
        .finally(function () {
         if (typeof detachWorkerCancel === 'function') detachWorkerCancel();
-        if (dedupeKey) _inflight.delete(dedupeKey);
+        _untrackToken(workerUrl, wpToken);
+        if (dedupeKey && _inflight.get(dedupeKey) === p) _inflight.delete(dedupeKey);
       });
 
     if (dedupeKey) _inflight.set(dedupeKey, p);
@@ -245,6 +262,7 @@
 
   // ── Terminate all workers for a URL ───────────────────────────────────────
   function terminateUrl(workerUrl) {
+    _cancelUrl(workerUrl, 'worker-terminated');
     if (window.WorkerPool && window.WorkerPool.terminatePool) {
       try { window.WorkerPool.terminatePool(workerUrl); } catch (_) {}
     }
@@ -271,6 +289,8 @@
 
   // ── Pagehide ──────────────────────────────────────────────────────────────
   window.addEventListener('pagehide', function () {
+    _activeTokens.forEach(function (set) { set.forEach(function (token) { try { token.cancel('pagehide'); } catch (_) {} }); });
+    _activeTokens.clear();
     _inflight.clear();
     _cooldowns.clear();
   }, { passive: true });
