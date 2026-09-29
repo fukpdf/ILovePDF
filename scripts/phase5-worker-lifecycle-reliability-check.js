@@ -16,7 +16,7 @@ const checks = [
   ['fault settles before drain', /settle\(pool, slot, err, null, false\)/],
   ['replacement installed before drain', /slot\.worker = replacement;\s*attachHandlers\(pool, slot\);\s*return true;/s],
   ['worker error drains only after recovery', /var replaced = _recoverWorkerAfterFault\(pool, slot, err\);\s*if \(replaced\) drainAll\(pool\)/s],
-  ['message error also recovers', /worker_message_error.*_recoverWorkerAfterFault/s],
+  ['message error also recovers', /slot\.worker\.onmessageerror[\s\S]*?_recoverWorkerAfterFault\(pool, slot, new Error\('worker_message_error'\)/],
   ['dynamic worker cap API', /function setMaxPerUrl\(cap\)/],
   ['default cap restore API', /function restoreMaxPerUrl\(\)/],
   ['public worker cap APIs', /setMaxPerUrl:\s*setMaxPerUrl,\s*restoreMaxPerUrl:\s*restoreMaxPerUrl/],
