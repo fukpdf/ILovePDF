@@ -9,7 +9,7 @@ const checks = [
   ['prewarm function guards target', /if \(!target \|\| !target\.url \|\| _warmed\.has\(target\.url\)\) return;/],
   ['prewarm success gates warmed state', /if \(result === true\) \{\s*_warmed\.add\(target\.url\);/],
   ['failed prewarm is not marked warmed', /Do not mark failed prewarm attempts as warmed/],
-  ['fallback uses options object', /WorkerPool\.run\(target\.url, \{ __ping: true \}, \{ priority: 'background' \}\)/],
+  ['fallback uses options object', /WP\.run\(target\.url, \{ __ping: true \}, \{ priority: 'background' \}\)/],
   ['fallback marks warmed after success', /p\.then\(function \(\) \{\s*_warmed\.add\(target\.url\);/],
   ['fallback failure does not mark warmed', /\.catch\(function \(\) \{\}\)/],
 ];
