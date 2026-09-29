@@ -22,15 +22,28 @@
 
   // ── Single-slot prewarm via WorkerPool ────────────────────────────────────
   function _warmOne(target) {
-    if (_warmed.has(target.url)) return;
-    _warmed.add(target.url);
+    if (!target || !target.url || _warmed.has(target.url)) return;
     try {
       var WP = G.WorkerPool;
       if (WP && typeof WP.prewarm === 'function') {
-        WP.prewarm(target.url, 1).catch(function () {});
-      } else if (WP && typeof WP.run === 'function') {
-        // Fallback: send a no-op ping so the slot boots
-        WP.run(target.url, { __ping: true }, 'background').catch(function () {});
+        var result = WP.prewarm(target.url);
+        if (result === true) {
+          _warmed.add(target.url);
+          return;
+        }
+        // Do not mark failed prewarm attempts as warmed; a later user/tool
+        // interaction may retry after the runtime becomes available.
+        return;
+      }
+      if (WP && typeof WP.run === 'function') {
+        // Fallback: send a no-op ping with the documented WorkerPool options
+        // shape so background priority is preserved.
+        var p = WP.run(target.url, { __ping: true }, { priority: 'background' });
+        if (p && typeof p.then === 'function') {
+          p.then(function () {
+            _warmed.add(target.url);
+          }).catch(function () {});
+        }
       }
     } catch (_) {}
   }
