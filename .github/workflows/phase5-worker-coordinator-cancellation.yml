@@ -1,0 +1,31 @@
+name: Phase 5 Worker Coordinator Cancellation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-coordinator.js'
+      - 'public/workers/workerPool.js'
+      - 'scripts/phase5-worker-coordinator-cancellation-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-coordinator-cancellation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-coordinator.js'
+      - 'public/workers/workerPool.js'
+      - 'scripts/phase5-worker-coordinator-cancellation-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-coordinator-cancellation.yml'
+
+jobs:
+  worker-coordinator-cancellation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-coordinator-cancellation
