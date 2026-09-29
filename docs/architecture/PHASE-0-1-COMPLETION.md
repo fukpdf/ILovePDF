@@ -72,3 +72,29 @@ Enable the documented `main` branch rules through GitHub repository administrati
 - appropriate direct-push restriction
 
 Once enabled, re-query the branch/ruleset API and record the resulting ruleset/protection state.
+
+## Phase 0 completion closure — 2026-09-29
+
+Phase 0 was re-audited against the actual repository rather than relying on the historical completion text.
+
+### Deficiencies found during re-audit
+
+1. There was no dedicated Phase 0 executable closure audit.
+2. There was no Phase 0-specific CI workflow.
+3. The current-state inventory existed across several project documents but did not have one authoritative Phase 0 inventory record.
+4. GitHub `main` branch protection/ruleset enforcement is still an administrative control and is currently reported as disabled; source files cannot enable it.
+
+### Corrections implemented
+
+- Added `docs/architecture/PHASE-0-CURRENT-STATE-INVENTORY.md`.
+- Added `scripts/phase0-discovery-current-state-closure-check.js`.
+- Added `.github/workflows/phase0-discovery-current-state-closure.yml`.
+- Added `npm run audit:phase0:discovery-current-state-closure`.
+- The closure audit covers repository/dependency baseline, runtime/deployment paths, tool inventory, browser/server split, security/secrets, temporary/permanent storage, CI/test model, current UI/shared systems, and migration constraints.
+- The audit recomputes repository inventory counts instead of treating historical counts as permanent facts.
+
+### Final Phase 0 boundary
+
+Phase 0 source implementation/documentation and automated closure validation are complete. Browser/E2E remains a separate validation layer by design.
+
+GitHub administrative branch protection is **not falsely marked complete**. The current API state reports `main` unprotected; enabling the documented rules requires repository-owner/admin permission outside committed repository source.
