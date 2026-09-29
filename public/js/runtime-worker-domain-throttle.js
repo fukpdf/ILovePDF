@@ -66,28 +66,23 @@
 
   // ── Worker URL → family (reverse mapping) ─────────────────────────────────
   var URL_FAMILY = {
-    '/workers/pdf-lib-worker.js':       'organize',
-    '/workers/pdf-worker.js':           'organize',
-    '/workers/compress-worker.js':      'compress',
-    '/workers/pdf-word-docx-worker.js': 'convert-from',
-    '/workers/pdf-excel-xlsx-worker.js':'convert-from',
-    '/workers/pdf-ppt-pptx-worker.js':  'convert-from',
-    '/workers/advanced-worker.js':      'ai',
-    '/workers/summary-worker.js':       'ai',
-    '/workers/translation-worker.js':   'ai',
+    '/workers/compress-worker.js':        'compress',
+    '/workers/advanced-worker.js':        'ai',
+    '/workers/summary-worker.js':         'ai',
+    '/workers/translation-worker.js':     'ai',
     '/workers/ocr-preprocessor-worker.js':'ai',
-    '/workers/image-tools-worker.js':   'image',
-    '/workers/image-pipeline-worker.js':'image',
-    '/workers/remove-bg-worker.js':     'image',
-    '/workers/compare-worker.js':       'edit',
-    '/workers/repair-worker.js':        'edit',
-    '/workers/shared-cluster-worker.js':'organize',
+    '/workers/image-tools-worker.js':     'image',
+    '/workers/image-pipeline-worker.js':  'image',
+    '/workers/remove-bg-worker.js':       'image',
+    '/workers/compare-worker.js':         'edit',
+    '/workers/repair-worker.js':          'edit',
+    '/workers/shared-cluster-worker.js':  'organize',
   };
 
   // ── Per-family hold queues ─────────────────────────────────────────────────
   // family → [{ resolve, reject, workerUrl, payload, opts, queuedAt }]
-  var _holdQueues   = {};
-  var _activeCounts = {}; // family → current concurrent count
+  var _holdQueues   = Object.create(null);
+  var _activeCounts = Object.create(null); // family → current concurrent count
 
   function _normalizeFamily(family) {
     if (typeof family !== 'string') return null;
@@ -107,7 +102,7 @@
       if (f) return f;
     }
     // Fall back to URL mapping
-    return URL_FAMILY[workerUrl] || null;
+    return Object.prototype.hasOwnProperty.call(URL_FAMILY, workerUrl) ? URL_FAMILY[workerUrl] : null;
   }
 
   function _getCap(family) {
@@ -147,6 +142,12 @@
   // ── Hold queue management ─────────────────────────────────────────────────
   function _dispatchHeld(family, entry) {
     if (!entry || entry.settled) return;
+    var cap = _getCap(family);
+    if (_activeCount(family) >= cap) {
+      var queue = _holdQueues[family] || (_holdQueues[family] = []);
+      queue.push(entry);
+      return;
+    }
     if (entry.opts && entry.opts.token && entry.opts.token.cancelled) {
       entry.settled = true;
       try { entry.reject(new Error('task_cancelled')); } catch (_) {}
@@ -271,7 +272,7 @@
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
   function getStats() {
-    var out = {};
+    var out = Object.create(null);
     Object.keys(FAMILY_CAPS).forEach(function (f) {
       out[f] = {
         cap:       _getCap(f),

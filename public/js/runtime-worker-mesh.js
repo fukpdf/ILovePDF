@@ -289,9 +289,10 @@
       });
 
       eb.on('worker:terminated', function (data) {
-        if (data && data.workerId && _registry) {
-          _registry.delete(data.workerId);
-          _log(data.workerId, 'removed', null);
+        var id = data && _normalizeWorkerId(data.workerId);
+        if (id && _registry) {
+          _registry.delete(id);
+          _log(id, 'removed', null);
         }
       });
     });

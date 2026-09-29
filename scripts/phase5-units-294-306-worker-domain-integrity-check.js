@@ -88,7 +88,7 @@ const check = (ok, label) => { if (!ok) failures.push(label); };
   check(throttle.setFamilyCap('__proto__', 8) === false, 'throttle rejects prototype family');
   check(throttle.setFamilyCap('ai', 2.9) === true, 'throttle normalizes family cap');
   check(throttle.getStats().ai.cap === 2, 'throttle floors family cap');
-  const result = await throttle.run('/workers/pdf-lib-worker.js', { task: 'x' }, {});
+  const result = await throttle.run('/workers/pdf-lib-worker.js', { task: 'x' }, { toolId: 'merge' });
   check(result === 'ok' && calls === 1, 'throttle dispatches mapped worker');
   let rejected = false;
   try { await throttle.run('/workers/unknown-worker.js', {}, {}); } catch (e) { rejected = e.message === 'worker-family-unmapped'; }

@@ -1,0 +1,26 @@
+name: Phase 5 Worker Domain Cross-Boundary Integrity 307-319
+
+on:
+  push:
+    branches:
+      - phase-5-bulk-units-307-319-domain-cross-boundary-integrity
+      - main
+  pull_request:
+    paths:
+      - 'public/js/runtime-worker-mesh.js'
+      - 'public/js/runtime-worker-domain-registry.js'
+      - 'public/js/runtime-worker-domain-throttle.js'
+      - 'scripts/phase5-units-307-319-worker-domain-cross-boundary-check.js'
+      - '.github/workflows/phase5-worker-domain-cross-boundary-integrity-307-319.yml'
+      - 'package.json'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run audit:phase5:worker-domain-cross-boundary-307-319
