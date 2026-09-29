@@ -94,6 +94,30 @@ for (const file of htmlFiles) {
 if (duplicateHeaderRefs.length) fail('duplicate canonical header stylesheet references: ' + duplicateHeaderRefs.join(', '));
 else pass('no duplicate canonical header stylesheet references');
 
+
+// Re-audit the shared platform contract itself, not only file presence.
+const pkg = JSON.parse(read('package.json'));
+if (pkg.scripts?.['audit:phase2:shared-design-platform-closure']) pass('registered Phase 2 closure npm command');
+else fail('registered Phase 2 closure npm command');
+const workflow = read('.github/workflows/phase2-shared-design-platform-closure.yml');
+if (workflow.includes('scripts/phase2-shared-design-platform-closure-check.js') && workflow.includes('pull_request')) pass('dedicated Phase 2 closure CI invokes the executable audit');
+else fail('dedicated Phase 2 closure CI contract incomplete');
+if (chrome.includes('SHARED_HEADER_HTML') && chrome.includes('SHARED_FOOTER_HTML') && chrome.includes('replaceWith(canonicalHeader)') && chrome.includes('replaceWith(canonicalFooter)')) pass('canonical chrome replaces page chrome rather than creating parallel shells');
+else fail('canonical chrome replacement contract incomplete');
+if (chrome.includes('footer-lang-btn') && chrome.includes('footer-lang-panel') && chrome.includes('applyLanguage')) pass('language selector has runtime application path');
+else fail('language selector runtime application path incomplete');
+if (headerCss.includes('@media') && footerCss.includes('@media') && a11yCss.includes('font-size')) pass('responsive and readability CSS contracts present');
+else fail('responsive/readability CSS contract incomplete');
+const pageShellViolations=[];
+for (const file of publicShellPages) {
+  const html=fs.readFileSync(file,'utf8');
+  const rel=path.relative(ROOT,file).replaceAll(path.sep,'/');
+  if ((html.match(/home-footer-v2\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate footer css');
+  if ((html.match(/shared-a11y\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate a11y css');
+}
+if (pageShellViolations.length) fail('duplicate shared stylesheet references: '+pageShellViolations.join(', '));
+else pass('no duplicate shared footer/accessibility stylesheet references');
+
 if (process.exitCode) {
   console.error('Phase 2 Shared Design/Platform Closure: FAILED');
   process.exit(1);
