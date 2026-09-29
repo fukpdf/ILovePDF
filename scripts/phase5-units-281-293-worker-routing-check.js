@@ -26,7 +26,7 @@ function makeWindow(){
   return win;
 }
 const window=makeWindow();
-vm.runInNewContext(source,{window,console,setTimeout,Map,Set,Array,Object,Number,String,Date,Math,isFinite});
+vm.runInNewContext(source,{window,document:window.document,console,setTimeout,Map,Set,Array,Object,Number,String,Date,Math,isFinite});
 const r=window.RuntimeWorkerRouting;
 check('version exposed',r.VERSION==='1.1');
 check('valid registration',r.registerCapability('worker-a',['PDF','wasm','pdf', '']));
