@@ -119,7 +119,7 @@
     var domain = family ? ensureDomain(family) : null;
     if (!domain) return false;
     domain.pressured   = pressured === true;
-    domain.pressuredAt = pressured ? Date.now() : 0;
+    domain.pressuredAt = domain.pressured ? Date.now() : 0;
     console.debug(LOG, 'pressure:', family, domain.pressured);
     return true;
   }
@@ -189,7 +189,7 @@
     getActiveTool: function () { return _activeTool; },
     getFamily:     function (toolId) {
       var id = _normalizeToolId(toolId);
-      return id ? (TOOL_FAMILY[id] || null) : null;
+      return id && Object.prototype.hasOwnProperty.call(TOOL_FAMILY, id) ? TOOL_FAMILY[id] : null;
     },
     isPressured:   isPressured,
     setPressure:   setPressure,
