@@ -41,7 +41,8 @@
     "audit:phase2:shared-design-platform-closure": "node scripts/phase2-shared-design-platform-closure-check.js",
     "audit:phase0:discovery-current-state-closure": "node scripts/phase0-discovery-current-state-closure-check.js",
     "audit:phase1:architecture-foundation-closure": "node scripts/phase1-architecture-foundation-closure-check.js",
-    "audit:phase3:security-validation-file-lifecycle-closure": "node scripts/phase3-security-validation-file-lifecycle-closure-check.js"
+    "audit:phase3:security-validation-file-lifecycle-closure": "node scripts/phase3-security-validation-file-lifecycle-closure-check.js",
+    "audit:phase4:tool-registry-module-boundary-closure": "node scripts/phase4-tool-registry-closure-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
