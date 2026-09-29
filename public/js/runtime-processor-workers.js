@@ -116,19 +116,21 @@
     if (!pool) return true; // unknown family → defer to WorkerPool
     if (pool.isolated) return false;
     var thermalCap = _thermalMaxForTier(_thermalTier);
-    var effective  = thermalCap !== null ? Math.min(pool.maxWorkers, thermalCap) : pool.maxWorkers;
-    return pool.activeCount < effective;
+    var localCap = pool.thermalLimit != null ? pool.thermalLimit : pool.maxWorkers;
+    var effective  = thermalCap !== null ? Math.min(localCap, thermalCap) : localCap;
+    return pool.activeCount < Math.max(1, effective);
   }
 
   // ── Enqueue a pending task ────────────────────────────────────────
-  function enqueue(family, taskFn) {
+  function enqueue(family, taskFn, opts) {
+    opts = opts || {};
     var pool = _pools[family];
     if (!pool) { try { taskFn(); } catch (_) {} return; }
     if (pool.isolated) {
       console.debug(LOG, 'queue rejected — isolated:', family);
       return;
     }
-    pool.queue.push(taskFn);
+    pool.queue.push({ fn: taskFn, token: opts.token || null, ts: Date.now() });
     console.debug(LOG, 'queued task for:', family, '— queue length:', pool.queue.length);
   }
 
@@ -137,10 +139,11 @@
     var pool = _pools[family];
     if (!pool || !pool.queue.length) return;
     if (!canAccept(family)) return;
-    var next = pool.queue.shift();
-    if (typeof next === 'function') {
+    while (pool.queue.length && canAccept(family)) {
+      var next = pool.queue.shift();
+      if (!next || (next.token && next.token.cancelled)) continue;
       taskStart(family);
-      try { next(); } catch (_) { recordCrash(family); }
+      try { next.fn(); } catch (_) { recordCrash(family); }
     }
   }
 
