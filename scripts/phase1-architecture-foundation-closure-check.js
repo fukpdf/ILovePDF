@@ -46,7 +46,7 @@ const checks=[
 ['deployment isolation not falsely claimed current',arch.includes('current repository is a single Node/Express deployment')],
 ['Laba AI outside document registry documented',arch.includes('Laba AI remains a separate chatbot surface')],
 ['GitHub source-control-only boundary documented',policy.includes('GitHub is source control only')],
-['tool module isolation contract documented',contract.includes('must not:\n- modify another tool')&&contract.includes('must not:\n- modify another tool\'s processing state')&&contract.includes('must not:\n- modify another tool\'s processing state')&&contract.includes('must not:\n- modify another tool\'s processing state') || (contract.includes('must not:')&&contract.includes('modify another tool\'s processing state')&&contract.includes('import another tool\'s private engine'))],
+['tool module isolation contract documented',contract.includes('modify another tool\'s processing state')&&contract.includes('import another tool\'s private engine')],
 ['browser cache is not cleared wholesale',arch.includes('Do not clear the entire browser cache')&&policy.includes('must not clear the user\'s entire browser cache')],
 ['tool-specific output failure blocks success',toolPage.includes('showStatus(\'error\'')&&toolPage.includes('OutputValidator.check')],
 ['WorkerPool validates inbound worker messages',pool.includes('_validateInboundWorkerMessage')&&pool.includes('validateWorkerMessage')],
