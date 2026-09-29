@@ -26,7 +26,8 @@
     "audit:phase5:worker-security-boundary": "node scripts/phase5-worker-security-boundary-check.js",
     "audit:phase5:worker-factory-security": "node scripts/phase5-worker-factory-security-check.js",
     "audit:phase5:worker-message-integrity": "node scripts/phase5-worker-message-integrity-check.js",
-    "audit:phase5:workerpool-security": "node scripts/phase5-workerpool-security-check.js"
+    "audit:phase5:workerpool-security": "node scripts/phase5-workerpool-security-check.js",
+    "audit:phase5:worker-coordinator-cancellation": "node scripts/phase5-worker-coordinator-cancellation-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",

@@ -20,7 +20,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG     = '[WorkerCoord]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
   // ── Config ────────────────────────────────────────────────────────────────
   var AFFINITY_TTL   = 10 * 60 * 1000;  // affinity binding expires after 10 min
@@ -135,9 +135,43 @@
   }
 
   // ── Wrap WorkerPool.run with coordinator logic ─────────────────────────────
+  function _deferredRun(workerUrl, payload, opts, delayMs) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        try {
+          G.WorkerPool.run(workerUrl, payload, opts).then(resolve).catch(reject);
+        } catch (e) {
+          reject(e);
+        }
+      }, delayMs);
+
+      var token = opts && opts.token;
+      if (token && typeof token.onCancel === 'function') {
+        token.onCancel(function () {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          try { reject(new Error('task_cancelled')); } catch (_) {}
+        });
+      }
+      if (token && token.cancelled) {
+        clearTimeout(timer);
+        done = true;
+        reject(new Error('task_cancelled'));
+      }
+    });
+  }
+
   function coordinatedRun(workerUrl, payload, opts) {
     opts = opts || {};
     var toolId = opts.toolId || '';
+
+    // Record affinity before any deferred path so lifecycle-aware callers see
+    // the same tool/worker association regardless of throttling state.
+    if (toolId) _bindAffinity(toolId, workerUrl);
 
     // Thermal limit check
     if (_thermalLimit !== null) {
@@ -145,30 +179,15 @@
       var s  = wp && wp.getStats ? wp.getStats() : {};
       if ((s.busy || 0) >= _thermalLimit) {
         console.debug(LOG, 'thermal throttle — tier:', _thermalTier, '— limit:', _thermalLimit);
-        // Return a pending promise that resolves when a slot is free
-        // (simplified: just delay 2s and retry once)
-        return new Promise(function (res, rej) {
-          setTimeout(function () {
-            try { G.WorkerPool.run(workerUrl, payload, opts).then(res).catch(rej); }
-            catch (e) { rej(e); }
-          }, 2000);
-        });
+        return _deferredRun(workerUrl, payload, opts, 2000);
       }
     }
 
     // Congestion check
     if (_isCongested() && opts.priority !== 'high') {
       console.debug(LOG, 'cluster congested — deferring task for:', workerUrl.split('/').pop());
-      return new Promise(function (res, rej) {
-        setTimeout(function () {
-          try { G.WorkerPool.run(workerUrl, payload, opts).then(res).catch(rej); }
-          catch (e) { rej(e); }
-        }, 1000);
-      });
+      return _deferredRun(workerUrl, payload, opts, 1000);
     }
-
-    // Record affinity
-    if (toolId) _bindAffinity(toolId, workerUrl);
 
     return G.WorkerPool.run(workerUrl, payload, opts);
   }
