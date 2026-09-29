@@ -88,3 +88,21 @@ This record certifies source-level and CI-level Phase 2 closure. It does not sil
 **PHASE 2: COMPLETE FOR THE DEFINED ROADMAP SCOPE**
 
 No claim is made here that later phases are complete or that browser/E2E testing has been performed.
+
+
+## Re-audit and repeat-validation evidence — 2026-09-29
+
+A fresh Phase 2 implementation audit was performed against the current `main` tree. The existing closure audit was strengthened to validate the registered npm command, dedicated CI invocation, canonical shell replacement behavior, language-selector runtime application, responsive/readability CSS, and duplicate shared stylesheet protection.
+
+The strengthened audit initially failed on the language-selector matcher. Source inspection showed the runtime correctly uses `RuntimeI18n.setLanguage(lang)`; the audit matcher had incorrectly searched for an `applyLanguage` symbol. The matcher was corrected and the full dedicated closure gate was rerun.
+
+Final re-audit head: `16b7134fcd67e93513ca5d2dd4e192ff50fcecd6`
+
+Final re-audit check-runs:
+
+- 5/5 successful
+- 0 failed
+- 0 pending
+- dedicated `phase2-closure`: SUCCESS
+
+The initial failure was therefore treated as an audit-contract defect, corrected, and revalidated rather than counted as a pass.
