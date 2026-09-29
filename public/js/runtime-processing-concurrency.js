@@ -117,6 +117,7 @@
     var label     = opts.label     || 'task';
     var slots     = _maxSlots();
     var token     = opts.token || null;
+    if (token && token.cancelled) return Promise.reject(new Error('concurrency:cancelled:' + label));
 
     // Fast path: slot available right now
     if (_active < slots) {
