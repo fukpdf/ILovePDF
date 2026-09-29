@@ -31,7 +31,7 @@
   var _allocations = {};   // owner → { cpu, memory, workers, storage }
   var _pressureLog = [];   // last 500 pressure readings
   var MAX_LOG = 500;
-  var _metrics = { allocations: 0, releases: 0, pressureEvents: 0, overflows: 0 };
+  var _metrics = { allocations: 0, releases: 0, pressureEvents: 0, overflows: 0, invalidRequests: 0 };
 
   function _dispatch(name, detail) {
     try { G.dispatchEvent(new CustomEvent(name, { detail: detail })); } catch (_) {}
@@ -41,6 +41,10 @@
   function allocate(resource, amount, owner) {
     var b = BUDGETS[resource];
     if (!b) return { ok: false, reason: 'Unknown resource: ' + resource };
+    if (!owner || typeof owner !== 'string' || !isFinite(amount) || amount <= 0) {
+      _metrics.invalidRequests++;
+      return { ok: false, reason: 'Invalid allocation request' };
+    }
     if (b.allocated + amount > b.total) {
       _metrics.overflows++;
       return { ok: false, reason: resource + ' budget exceeded (' + (b.allocated + amount) + '/' + b.total + ')' };
@@ -56,11 +60,15 @@
   function release(resource, amount, owner) {
     var b = BUDGETS[resource];
     if (!b) return { ok: false, reason: 'Unknown resource: ' + resource };
-    var released = Math.min(amount, b.allocated);
-    b.allocated = Math.max(0, b.allocated - released);
-    if (_allocations[owner]) {
-      _allocations[owner][resource] = Math.max(0, (_allocations[owner][resource] || 0) - released);
+    if (!owner || typeof owner !== 'string' || !isFinite(amount) || amount <= 0) {
+      _metrics.invalidRequests++;
+      return { ok: false, reason: 'Invalid release request' };
     }
+    var ownerAlloc = _allocations[owner] && (_allocations[owner][resource] || 0);
+    if (ownerAlloc <= 0) return { ok: false, released: 0, reason: 'Owner has no allocation' };
+    var released = Math.min(amount, ownerAlloc);
+    b.allocated = Math.max(0, b.allocated - released);
+    _allocations[owner][resource] = ownerAlloc - released;
     _metrics.releases++;
     _dispatch('arc15:resource-released', { resource: resource, amount: released, owner: owner, ts: Date.now() });
     return { ok: true, released: released };
