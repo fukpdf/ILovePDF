@@ -103,9 +103,6 @@
   function resetPool(family) {
     var pool = _pools[family];
     if (!pool) return;
-    pool.crashCount  = 0;
-    pool.isolated    = false;
-    pool.activeCount = 0;
     var pending = pool.queue.splice(0);
     pending.forEach(function (entry) {
       try { if (entry && typeof entry.onReject === 'function') entry.onReject(new Error('processor-pool-reset')); } catch (_) {}
