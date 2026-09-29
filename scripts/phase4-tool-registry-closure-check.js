@@ -66,7 +66,7 @@ else fail('capability-contract','Capability contract enforcement is incomplete.'
 if(manifest.includes('validateAgainstToolRegistry')&&manifest.includes('registryContractStatus')&&manifest.includes('ToolRegistryReady')) pass('manifest-contract','Runtime manifest is bound to the canonical registry and diagnostics.');
 else fail('manifest-contract','Runtime manifest contract is incomplete.');
 
-if(lock.includes('RuntimeToolManifestRegistry')&&lock.includes('Object.freeze')&&lock.includes('registryContractStatus')) pass('config-lock','Runtime config lock enforces immutable manifest-backed configuration.');
+if(lock.includes('RuntimeToolManifestRegistry')&&lock.includes('Object.freeze')&&lock.includes('getContractStatus')) pass('config-lock','Runtime config lock enforces immutable manifest-backed configuration.');
 else fail('config-lock','Runtime config lock contract is incomplete.');
 
 if(seal.includes('RuntimeToolManifestRegistry')&&seal.includes('getContractStatus')&&seal.includes('Object.freeze')) pass('config-seal','Runtime config seal enforces immutable manifest-backed configuration.');
@@ -78,7 +78,7 @@ else fail('activation-gate','Runtime activation prerequisites are incomplete.');
 if(runtimeLoader.includes('hydrationTier')&&runtimeLoader.includes('activate')&&runtimeLoader.includes('hydrationActivated')) pass('hydration-activation','Manifest hydration tier is explicitly activated and exposed in readiness diagnostics.');
 else fail('hydration-activation','Hydration activation contract is incomplete.');
 
-if(hydration.includes('activationStatus')&&hydration.includes('errorCount')&&hydration.includes('hydration-domain:activation-failed')&&hydration.includes('ok: false')) pass('hydration-integrity','Hydration failures are observable and cannot be silently treated as successful.');
+if(hydration.includes('activationStatus')&&hydration.includes('errorCount')&&hydration.includes('hydration-domain:activation-failed')&&hydration.includes('var ok = errors.length === 0')) pass('hydration-integrity','Hydration failures are observable and cannot be silently treated as successful.');
 else fail('hydration-integrity','Hydration failure integrity boundary is incomplete.');
 
 const documentedUnits=[...doc.matchAll(/^## Unit (\d+)/gm)].map(m=>Number(m[1]));
