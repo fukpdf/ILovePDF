@@ -13,7 +13,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG     = '[RTR]';
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
 
   // ── Registry: id → { label, url, cleanup[], timer, ts, fired } ─────────────
   var _registry = new Map();
@@ -144,6 +144,9 @@
         entry.fired = true;
         clearTimeout(entry.timer);
         count++;
+        // cancelAll() is a lifecycle cancellation boundary: callers waiting
+        // on handle.promise must settle instead of remaining pending forever.
+        try { entry.reject(new Error('timeout-cancelled:' + (reason || 'manual'))); } catch (_) {}
       }
     });
     _registry.clear();
