@@ -38,7 +38,7 @@ const checks=[
 ['client-first policy documented',policy.includes('prefer local browser processing')],
 ['WorkerPool contract documented and implemented',policy.includes('shared WorkerPool')&&pool.includes('window.WorkerPool')],
 ['no silent worker-to-main-thread fallback documented',policy.includes('must not silently fall back to main-thread execution')],
-['streaming/chunking claims bounded by engine support',arch.includes('only where the underlying engine supports them')&&policy.includes('where the engine supports them')||policy.includes('where an underlying library requires the complete file')&&stream.includes('chunkIterator')],
+['streaming/chunking claims bounded by engine support',arch.includes('where the underlying engine supports them')&&stream.includes('chunkIterator')],
 ['temporary resource lifecycle documented',arch.includes('release temporary object URLs/workers/buffers')&&toolPage.includes('URL.revokeObjectURL')],
 ['input validation boundary implemented',contract.includes('input MIME/extension and size checks')&&toolPage.includes('validateInputFiles')],
 ['output validation boundary implemented',contract.includes('OUTPUT_VALIDATION_FAILED')&&toolPage.includes('OutputValidator')],
