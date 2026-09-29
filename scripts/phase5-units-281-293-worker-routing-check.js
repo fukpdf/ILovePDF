@@ -10,7 +10,7 @@ try{new vm.Script(source,{filename:file});check('routing syntax',true);}catch(e)
 
 function makeWindow(){
   const listeners={};
-  const eb={handlers:{},on(name,fn){(this.handlers[name]??=[]).push(fn);}};
+  const eb={handlers:Object.create(null),on(name,fn){this.handlers[name]=fn;}};
   const win={
     RuntimeDeviceLite:{score:()=>90},
     RuntimeEventBus:eb,
@@ -38,9 +38,9 @@ check('route selects capable worker',r.route('OCR')==='worker-a');
 const table=r.getRoutingTable();
 check('prototype-safe routing table',Object.getPrototypeOf(table)===null);
 check('routing table is snapshot',table.ocr.length===1 && table.ocr[0]==='worker-a');
-window.RuntimeEventBus.handlers['worker:spawned'][0]({workerId:'worker-c',url:'/workers/ocr-worker.js'});
+window.RuntimeEventBus.handlers['worker:spawned']({workerId:'worker-c',url:'/workers/ocr-worker.js'});
 check('spawn event registers worker',r.getCapableWorkers('ocr').includes('worker-c'));
-window.RuntimeEventBus.handlers['worker:terminated'][0]({workerId:'worker-c'});
+window.RuntimeEventBus.handlers['worker:terminated']({workerId:'worker-c'});
 check('termination unregisters worker',!r.getCapableWorkers('ocr').includes('worker-c'));
 window.RuntimeWorkerMesh={getTrustScore:(id)=>{if(id==='worker-a') throw new Error('mesh failure');return 50;}};
 check('trust lookup failure fails closed',r.route('ocr')===null);
