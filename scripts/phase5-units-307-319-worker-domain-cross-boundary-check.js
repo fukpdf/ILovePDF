@@ -28,7 +28,7 @@ function ctx(extra = {}) {
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
     dispatchEvent(evt) { (listeners[evt.type] || []).forEach(fn => fn(evt)); return true; },
     document: { readyState: 'complete', addEventListener() {} },
-    setTimeout(fn) { return 1; },
+    setTimeout(fn) { fn(); return 1; },
     clearTimeout() {},
     setInterval() { return 1; },
     ...extra,
