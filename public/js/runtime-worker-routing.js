@@ -110,8 +110,10 @@
     var id = _normalizeWorkerId(workerId);
     if (!id) return false;
     var normalized = _normalizeCapabilities(caps);
+    var previousUrl = _workerUrls && _workerUrls.has(id) ? _workerUrls.get(id) : null;
     if (_workerCaps.has(id)) _unregisterWorker(id);
     _workerCaps.set(id, normalized);
+    if (previousUrl != null && _workerUrls) _workerUrls.set(id, previousUrl);
     for (var i = 0; i < normalized.length; i++) {
       var cap = normalized[i];
       if (!_table.has(cap)) _table.set(cap, new Set());
