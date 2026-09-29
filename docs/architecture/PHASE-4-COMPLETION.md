@@ -53,3 +53,12 @@ The closure result is considered valid only when the dedicated closure job and a
 Browser/E2E and production deployment verification remain separate and are not claimed by this closure.
 
 GitHub branch protection/rulesets remain repository-administration controls and are not represented as enabled unless confirmed by GitHub.
+
+
+## Final repeat-validation evidence
+
+Final corrected validation head: `4c223789b9462114a83cf78a935918eba5a5b468`.
+
+GitHub CI result: **29/29 checks successful, 0 failed, 0 pending**; dedicated `phase4-closure`: **SUCCESS**.
+
+The final run passed the corrected config-lock, hydration-integrity, and implemented-unit-set contracts, plus the existing Phase 4, security, and runtime gates.
