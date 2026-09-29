@@ -44,7 +44,8 @@
     "audit:phase3:security-validation-file-lifecycle-closure": "node scripts/phase3-security-validation-file-lifecycle-closure-check.js",
     "audit:phase4:tool-registry-module-boundary-closure": "node scripts/phase4-tool-registry-closure-check.js",
     "audit:phase5:units-229-241": "node scripts/phase5-units-229-241-check.js",
-    "audit:phase5:complete-reaudit-closure": "node scripts/phase5-complete-reaudit-closure-check.js"
+    "audit:phase5:complete-reaudit-closure": "node scripts/phase5-complete-reaudit-closure-check.js",
+    "audit:phase5:units-1-332": "node scripts/phase5-units-1-332-full-audit-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
