@@ -20,6 +20,7 @@
   if (G.RuntimeResourceOrchestrator) return;
 
   var LOG = '[Arc15:ResourceOrchestrator]';
+  var VERSION = '1.1';
 
   var BUDGETS = {
     cpu:     { total: 100, allocated: 0, unit: 'units' },
@@ -75,12 +76,14 @@
   }
 
   function releaseAll(owner) {
+    if (!owner || typeof owner !== 'string') return { ok: false, reason: 'Invalid owner' };
     var alloc = _allocations[owner];
-    if (!alloc) return;
+    if (!alloc) return { ok: true, released: 0 };
     Object.keys(alloc).forEach(function (resource) {
       if (alloc[resource] > 0) release(resource, alloc[resource], owner);
     });
     delete _allocations[owner];
+    return { ok: true, released: 1 };
   }
 
   // ── Pressure scoring ──────────────────────────────────────────────────────
@@ -145,7 +148,10 @@
   }
 
   function getAllocations() { return JSON.parse(JSON.stringify(_allocations)); }
-  function getPressureLog(n) { return _pressureLog.slice(0, n || 20); }
+  function getPressureLog(n) {
+    var limit = Number.isFinite(Number(n)) && Number(n) > 0 ? Math.min(500, Math.floor(Number(n))) : 20;
+    return _pressureLog.slice(0, limit);
+  }
   function getMetrics()    { return Object.assign({}, _metrics); }
 
   // Periodic pressure snapshot (every 60 s)
@@ -162,5 +168,5 @@
     getMetrics:     getMetrics,
   });
 
-  console.debug(LOG, 'v1.0 ready — budgets:', Object.keys(BUDGETS).join(', '));
+  console.debug(LOG, 'v' + VERSION + ' ready — budgets:', Object.keys(BUDGETS).join(', '));
 }(window));
