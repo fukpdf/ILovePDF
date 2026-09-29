@@ -35,10 +35,23 @@
 
   if (G.RuntimeWorkerMesh) return;
 
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var LOG     = '[WorkerMesh]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
+  function _normalizeWorkerId(workerId) {
+    if (typeof workerId !== 'string') return null;
+    var id = workerId.trim();
+    return id && id.length <= 256 ? id : null;
+  }
+  function _normalizeUrl(url) {
+    if (typeof url !== 'string') return '';
+    var value = url.trim();
+    return value.length <= 2048 ? value : '';
+  }
+  function _finiteDelta(delta) {
+    return typeof delta === 'number' && Number.isFinite(delta) ? delta : 0;
+  }
 
   // ── Device tier ────────────────────────────────────────────────────────────
   var _score = _s(function () {
@@ -74,20 +87,28 @@
   // ── Register a worker in the mesh ──────────────────────────────────────────
   function register(workerId, worker, url) {
     if (!_registry) return null;
+    var id = _normalizeWorkerId(workerId);
+    if (!id || !worker || typeof worker.terminate !== 'function') return null;
+    var safeUrl = _normalizeUrl(url);
+    var previous = _registry.get(id);
+    if (previous && previous.worker && previous.worker !== worker &&
+        typeof previous.worker.terminate === 'function') {
+      _s(function () { previous.worker.terminate(); });
+    }
 
     var authToken = _s(function () {
       var ss = G.RuntimeSecureSession;
       if (ss && typeof ss.authorizeWorker === 'function') {
-        var auth = ss.authorizeWorker(url);
+        var auth = ss.authorizeWorker(safeUrl);
         return auth ? auth.token : null;
       }
       return null;
     }, null);
 
     var entry = {
-      workerId:   workerId,
+      workerId:   id,
       worker:     worker,
-      url:        url || '',
+      url:        safeUrl,
       trust:      TRUST_NEW_WORKER,
       state:      'NEW',          // NEW | TRUSTED | VERIFIED | QUARANTINED
       spawnTs:    Date.now(),
@@ -99,12 +120,12 @@
       messages:   0,
     };
 
-    _registry.set(workerId, entry);
-    _log(workerId, 'registered', { url: url, trust: TRUST_NEW_WORKER });
+    _registry.set(id, entry);
+    _log(id, previous ? 're-registered' : 'registered', { url: safeUrl, trust: TRUST_NEW_WORKER });
 
     _s(function () {
       if (G.RuntimeEventBus && typeof G.RuntimeEventBus.emit === 'function') {
-        G.RuntimeEventBus.emit('mesh:worker-joined', { workerId: workerId, url: url });
+        G.RuntimeEventBus.emit('mesh:worker-joined', { workerId: id, url: safeUrl });
       }
     });
 
@@ -113,14 +134,17 @@
 
   // ── Adjust trust score ──────────────────────────────────────────────────────
   function setTrust(workerId, delta, reason) {
-    if (!_registry || !_registry.has(workerId)) return 0;
-    var entry = _registry.get(workerId);
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return 0;
+    var entry = _registry.get(id);
+    delta = _finiteDelta(delta);
+    if (entry.state === 'QUARANTINED') return entry.trust;
     entry.trust = Math.max(0, Math.min(100, entry.trust + delta));
 
     // Update state
     if (entry.trust <= TRUST_QUARANTINE_THRESHOLD) {
       if (entry.state !== 'QUARANTINED') {
-        quarantine(workerId, 'trust-score-low:' + entry.trust);
+        quarantine(id, 'trust-score-low:' + entry.trust);
       }
     } else if (entry.trust >= TRUST_VERIFIED_THRESHOLD) {
       entry.state = 'VERIFIED';
@@ -128,20 +152,21 @@
       if (entry.state === 'NEW') entry.state = 'TRUSTED';
     }
 
-    _log(workerId, 'trust-change', { delta: delta, reason: reason, trust: entry.trust });
+    _log(id, 'trust-change', { delta: delta, reason: reason, trust: entry.trust });
     return entry.trust;
   }
 
   // ── Quarantine a worker ───────────────────────────────────────────────────
   function quarantine(workerId, reason) {
-    if (!_registry || !_registry.has(workerId)) return;
-    var entry = _registry.get(workerId);
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return false;
+    var entry = _registry.get(id);
 
     if (entry.state === 'QUARANTINED') return;
     entry.state = 'QUARANTINED';
 
-    console.warn(LOG, 'quarantined worker:', workerId, '| reason:', reason);
-    _log(workerId, 'quarantined', { reason: reason });
+    console.warn(LOG, 'quarantined worker:', id, '| reason:', reason);
+    _log(id, 'quarantined', { reason: reason });
 
     _s(function () {
       if (G.RuntimeEventBus && typeof G.RuntimeEventBus.emit === 'function') {
@@ -152,7 +177,7 @@
     _s(function () {
       if (G.SecurityTelemetry) {
         G.SecurityTelemetry.record('worker-restart', {
-          workerId: workerId,
+          workerId: id,
           reason:   'quarantine:' + reason,
         });
       }
@@ -165,23 +190,37 @@
         w.terminate();
       }
     });
+    return true;
+  }
+
+  function unregister(workerId) {
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return false;
+    var entry = _registry.get(id);
+    if (entry.worker && typeof entry.worker.terminate === 'function') {
+      _s(function () { entry.worker.terminate(); });
+    }
+    _registry.delete(id);
+    _log(id, 'removed', { reason: 'unregister' });
+    return true;
   }
 
   // ── Record heartbeat ─────────────────────────────────────────────────────
   function _recordPong(workerId) {
-    if (!_registry || !_registry.has(workerId)) return;
-    var entry = _registry.get(workerId);
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return;
+    var entry = _registry.get(id);
     entry.lastPong    = Date.now();
     entry.heartbeats  = (entry.heartbeats || 0) + 1;
     entry.misses      = 0;
-    setTrust(workerId, TRUST_HEARTBEAT_BONUS, 'heartbeat-ok');
+    setTrust(id, TRUST_HEARTBEAT_BONUS, 'heartbeat-ok');
   }
 
   function _recordMiss(workerId) {
     if (!_registry || !_registry.has(workerId)) return;
     var entry = _registry.get(workerId);
     entry.misses = (entry.misses || 0) + 1;
-    setTrust(workerId, TRUST_HEARTBEAT_MISS, 'heartbeat-miss');
+    setTrust(id, TRUST_HEARTBEAT_MISS, 'heartbeat-miss');
   }
 
   // ── getMeshHealth ──────────────────────────────────────────────────────────
@@ -212,8 +251,9 @@
   }
 
   function getTrustScore(workerId) {
-    if (!_registry || !_registry.has(workerId)) return -1;
-    return _registry.get(workerId).trust;
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return -1;
+    return _registry.get(id).trust;
   }
 
   function getWorkersInState(state) {
