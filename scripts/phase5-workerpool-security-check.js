@@ -9,7 +9,7 @@ const pool = read('public/workers/workerPool.js');
 const pkg = JSON.parse(read('package.json'));
 
 const required = [
-  ["WorkerPool version", /VERSION:\s*['"]5\.1['"]/],
+  ["WorkerPool version", /VERSION:\s*['"]5\.2['"]/],
   ["inbound validation helper", /function _validateInboundWorkerMessage\(data\)/],
   ["RuntimeSecurity lookup", /RuntimeSecurity/],
   ["validator call", /validateWorkerMessage\(data\)/],
