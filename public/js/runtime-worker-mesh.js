@@ -290,7 +290,7 @@
 
       eb.on('worker:terminated', function (data) {
         var id = data && _normalizeWorkerId(data.workerId);
-          if (id && _registry) {
+        if (id && _registry) {
           _registry.delete(id);
           _log(id, 'removed', null);
         }
