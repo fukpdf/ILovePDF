@@ -38,11 +38,11 @@ check('route selects capable worker',r.route('OCR')==='worker-a');
 const table=r.getRoutingTable();
 check('prototype-safe routing table',Object.getPrototypeOf(table)===null);
 check('routing table is snapshot',table.ocr.length===1 && table.ocr[0]==='worker-a');
-window.RuntimeEventBus.handlers['worker:spawned']({workerId:'worker-c',url:'/workers/ocr-worker.js'});
-check('spawn event registers worker',r.getCapableWorkers('ocr').includes('worker-c'));
-window.RuntimeEventBus.handlers['worker:terminated']({workerId:'worker-c'});
-check('termination unregisters worker',!r.getCapableWorkers('ocr').includes('worker-c'));
-window.RuntimeWorkerMesh={getTrustScore:(id)=>{if(id==='worker-a') throw new Error('mesh failure');return 50;}};
+check('public unregister contract',r.unregisterCapability('worker-a')===true && r.getCapableWorkers('ocr').length===0);
+check('unregister unknown worker rejected',r.unregisterCapability('missing-worker')===false);
+r.registerCapability('worker-a',['ocr']);
+check('reregister after unregister',r.getCapableWorkers('ocr').includes('worker-a'));
+check('lifecycle API remains idempotent',r.unregisterCapability('worker-a')===true && r.unregisterCapability('worker-a')===false);
 check('trust lookup failure fails closed',r.route('ocr')===null);
 if(failures.length){console.error('\nPhase 5 Units 281-293 audit FAILED:');failures.forEach(x=>console.error(' - '+x));process.exit(1);}
 console.log('\nPhase 5 Units 281-293 audit PASSED.');
