@@ -162,7 +162,7 @@
     if (!_registry || !id || !_registry.has(id)) return false;
     var entry = _registry.get(id);
 
-    if (entry.state === 'QUARANTINED') return;
+    if (entry.state === 'QUARANTINED') return false;
     entry.state = 'QUARANTINED';
 
     console.warn(LOG, 'quarantined worker:', id, '| reason:', reason);
@@ -217,8 +217,9 @@
   }
 
   function _recordMiss(workerId) {
-    if (!_registry || !_registry.has(workerId)) return;
-    var entry = _registry.get(workerId);
+    var id = _normalizeWorkerId(workerId);
+    if (!_registry || !id || !_registry.has(id)) return;
+    var entry = _registry.get(id);
     entry.misses = (entry.misses || 0) + 1;
     setTrust(id, TRUST_HEARTBEAT_MISS, 'heartbeat-miss');
   }
