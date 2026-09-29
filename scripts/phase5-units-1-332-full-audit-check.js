@@ -8,7 +8,7 @@ const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 const checks=[]; const pass=(id,d)=>checks.push({id,s:'PASS',d}); const fail=(id,d)=>checks.push({id,s:'FAIL',d});
 const exists=(p,id)=>fs.existsSync(path.join(ROOT,p))?pass(id,'exists'):fail(id,'missing '+p);
 const pkg=JSON.parse(read('package.json'));
-function audit(name,id){if(!pkg.scripts?.[name]) return fail(id,'missing package audit '+name); const m=pkg.scripts[name].match(/^node (.+)$/); if(!m) return fail(id,'unsupported command '+pkg.scripts[name]); try{execFileSync(process.execPath,[m[1]],{cwd:ROOT,stdio:'ignore'});pass(id,'audit passed');}catch(e){fail(id,'audit failed exit '+(e.status??'unknown'));}}
+function audit(name,id){if(!pkg.scripts?.[name]) return fail(id,'missing package audit '+name); const m=pkg.scripts[name].match(/^node (.+)$/); if(!m) return fail(id,'unsupported command '+pkg.scripts[name]); try{const out=execFileSync(process.execPath,[m[1]],{cwd:ROOT,stdio:'pipe'});pass(id,'audit passed');}catch(e){if(e.stdout) process.stdout.write(String(e.stdout)); if(e.stderr) process.stdout.write(String(e.stderr)); fail(id,'audit failed exit '+(e.status??'unknown'));}}
 function source(p,re,id){try{re.test(read(p))?pass(id,'source contract present'):fail(id,'source contract missing in '+p);}catch(e){fail(id,'source missing '+p);}}
 const std=[
 ['2','rotate','public/js/rotate-runtime.js'],['3','compress','public/js/compress-runtime.js'],['4','merge','public/js/merge-runtime.js'],
