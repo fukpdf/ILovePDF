@@ -8,6 +8,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 
 const audits = [
   'audit:phase5',
+  'audit:phase5:units-229-241',
   'audit:phase5:toolapp-lifecycle',
   'audit:i18n:special',
   'audit:i18n:global',
