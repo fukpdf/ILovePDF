@@ -29,7 +29,8 @@
     "audit:phase5:workerpool-security": "node scripts/phase5-workerpool-security-check.js",
     "audit:phase5:worker-coordinator-cancellation": "node scripts/phase5-worker-coordinator-cancellation-check.js",
     "audit:phase5:worker-prewarm-reliability": "node scripts/phase5-worker-prewarm-reliability-check.js",
-    "audit:phase5:worker-lifecycle-reliability": "node scripts/phase5-worker-lifecycle-reliability-check.js"
+    "audit:phase5:worker-lifecycle-reliability": "node scripts/phase5-worker-lifecycle-reliability-check.js",
+    "audit:phase5:task-timeout-graph-reliability": "node scripts/phase5-task-timeout-graph-reliability-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
