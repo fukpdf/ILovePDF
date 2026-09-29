@@ -30,7 +30,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG       = '[DomThrottle]';
-  var VERSION   = '1.0';
+  var VERSION   = '1.1';
   var HOLD_TTL_MS = 30 * 1000;  // max time a task sits in hold queue
 
   // ── Per-family concurrency caps (max concurrent WorkerPool slots) ──────────
@@ -134,6 +134,28 @@
   }
 
   // ── Hold queue management ─────────────────────────────────────────────────
+  function _dispatchHeld(family, entry) {
+    if (!entry || entry.settled) return;
+    if (entry.opts && entry.opts.token && entry.opts.token.cancelled) {
+      entry.settled = true;
+      try { entry.reject(new Error('task_cancelled')); } catch (_) {}
+      return;
+    }
+
+    entry.settled = true;
+    _increment(family);
+    _dispatch(entry.workerUrl, entry.payload, entry.opts).then(
+      function (result) {
+        _decrement(family);
+        entry.resolve(result);
+      },
+      function (err) {
+        _decrement(family);
+        entry.reject(err);
+      }
+    );
+  }
+
   function _holdTask(family, workerUrl, payload, opts) {
     if (!_holdQueues[family]) _holdQueues[family] = [];
     return new Promise(function (resolve, reject) {
@@ -144,19 +166,34 @@
         payload:   payload,
         opts:      opts,
         queuedAt:  Date.now(),
+        settled:   false,
       };
       _holdQueues[family].push(entry);
+
+      // Cancellation must remove the held entry immediately so payloads and
+      // transfer references are not retained until TTL/drain.
+      if (opts && opts.token && typeof opts.token.onCancel === 'function') {
+        opts.token.onCancel(function () {
+          if (entry.settled) return;
+          var q = _holdQueues[family];
+          var idx = q ? q.indexOf(entry) : -1;
+          if (idx !== -1) q.splice(idx, 1);
+          entry.settled = true;
+          try { reject(new Error('task_cancelled')); } catch (_) {}
+        });
+      }
+
       console.debug(LOG, 'held task for family:', family, '— queue depth:', _holdQueues[family].length);
 
-      // TTL release: don't hold forever
+      // TTL release: don't hold forever. Preserve cancellation state and
+      // account for the family concurrency cap on release.
       setTimeout(function () {
         var q = _holdQueues[family];
         if (!q) return;
         var idx = q.indexOf(entry);
-        if (idx === -1) return; // already dispatched
+        if (idx === -1 || entry.settled) return;
         q.splice(idx, 1);
-        // Release after TTL — dispatch regardless of pressure
-        _dispatch(workerUrl, payload, opts).then(resolve).catch(reject);
+        _dispatchHeld(family, entry);
       }, HOLD_TTL_MS);
     });
   }
@@ -168,9 +205,7 @@
     var cap = _getCap(family);
     while (q.length > 0 && _activeCount(family) < cap) {
       var entry = q.shift();
-      _dispatch(entry.workerUrl, entry.payload, entry.opts)
-        .then(entry.resolve)
-        .catch(entry.reject);
+      _dispatchHeld(family, entry);
     }
   }
 

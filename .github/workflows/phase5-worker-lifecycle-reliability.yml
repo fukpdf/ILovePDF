@@ -1,0 +1,33 @@
+name: Phase 5 Worker Lifecycle Reliability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/workers/workerPool.js'
+      - 'public/js/runtime-worker-domain-throttle.js'
+      - 'public/js/runtime-memory-recovery.js'
+      - 'scripts/phase5-worker-lifecycle-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-lifecycle-reliability.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/workers/workerPool.js'
+      - 'public/js/runtime-worker-domain-throttle.js'
+      - 'public/js/runtime-memory-recovery.js'
+      - 'scripts/phase5-worker-lifecycle-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-lifecycle-reliability.yml'
+
+jobs:
+  worker-lifecycle-reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-lifecycle-reliability

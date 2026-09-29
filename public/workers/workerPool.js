@@ -1,4 +1,4 @@
-// Worker Pool v5.0 — Phase 24 upgrade from v4.0.
+// Worker Pool v5.2 — Phase 24 lifecycle hardening.
 // v4.x: priority queues (high/normal/low), CancelToken, heartbeat, slot rotation.
 // v5.0 NEW:
 //   — 4th queue tier: 'background' (AI batch jobs, prewarm, cleanup)
@@ -14,9 +14,10 @@
   // deviceMemory: 0.25/0.5/1/2/4/8 GB (or undefined on unsupported browsers).
   var _devMem   = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 4;
   var _devCores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
-  var MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
+  var DEFAULT_MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
                     (_devMem <= 2 || _devCores <= 4) ? 2 : 4;
-  MAX_PER_URL = Math.max(1, Math.min(MAX_PER_URL, _devCores, 4));
+  DEFAULT_MAX_PER_URL = Math.max(1, Math.min(DEFAULT_MAX_PER_URL, _devCores, 4));
+  var MAX_PER_URL = DEFAULT_MAX_PER_URL;
 
   var TIMEOUT_MS         = 0;      // 0 = no artificial per-task execution timeout
   var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
@@ -126,6 +127,34 @@
     }
   }
 
+  function _recoverWorkerAfterFault(pool, slot, err) {
+    // A worker fault must settle the current task BEFORE any queued task is
+    // dispatched, and the replacement must be installed before draining.
+    var wasBusy = slot.busy;
+    if (wasBusy) {
+      settle(pool, slot, err, null, false);
+    } else {
+      _clearIdleTimer(slot);
+    }
+
+    try { slot.worker.terminate(); } catch (_) {}
+
+    if (slot.crashes >= MAX_CRASHES) {
+      slot.worker = null;
+      return false;
+    }
+
+    var replacement = spawnWorker(pool.url);
+    if (!replacement) {
+      slot.worker = null;
+      return false;
+    }
+
+    slot.worker = replacement;
+    attachHandlers(pool, slot);
+    return true;
+  }
+
   function attachHandlers(pool, slot) {
     slot.worker.onmessage = function (e) {
       try {
@@ -138,15 +167,15 @@
     slot.worker.onerror   = function (e) {
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
-      settle(pool, slot, err, null);
-      if (slot.crashes < MAX_CRASHES) {
-        var w = spawnWorker(pool.url);
-        if (w) { slot.worker = w; attachHandlers(pool, slot); }
-      }
+      var replaced = _recoverWorkerAfterFault(pool, slot, err);
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
     };
     slot.worker.onmessageerror = function () {
       slot.crashes++;
-      settle(pool, slot, new Error('worker_message_error'), null);
+      var replaced = _recoverWorkerAfterFault(pool, slot, new Error('worker_message_error'));
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
     };
   }
 
@@ -183,7 +212,8 @@
     if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
   }
 
-  function settle(pool, slot, err, data) {
+  function settle(pool, slot, err, data, shouldDrain) {
+    if (shouldDrain === undefined) shouldDrain = true;
     if (!slot.busy) return;
     clearTimeout(slot.timer);
     var res = slot.resolve;
@@ -203,8 +233,10 @@
       res(data);
     }
 
-    _startIdleTimer(pool, slot);
-    drainOne(pool, slot);
+    if (shouldDrain) {
+      _startIdleTimer(pool, slot);
+      drainOne(pool, slot);
+    }
   }
 
   function dispatch(pool, slot, task) {
@@ -523,6 +555,30 @@
     return false;
   }
 
+  // Dynamically lower/restore the per-URL worker cap during memory pressure.
+  // Lowering the cap never kills a busy worker; only excess idle workers are
+  // retired. New slots remain bounded by the current cap.
+  function setMaxPerUrl(cap) {
+    if (typeof cap !== 'number' || !isFinite(cap)) return MAX_PER_URL;
+    MAX_PER_URL = Math.max(1, Math.min(Math.floor(cap), _devCores, 4));
+    Object.keys(pools).forEach(function (url) {
+      var pool = pools[url];
+      var idle = pool.slots.filter(function (slot) { return !slot.busy; });
+      while (pool.slots.length > MAX_PER_URL && idle.length) {
+        var slot = idle.pop();
+        var idx = pool.slots.indexOf(slot);
+        if (idx !== -1) pool.slots.splice(idx, 1);
+        _clearIdleTimer(slot);
+        try { slot.worker.terminate(); } catch (_) {}
+      }
+    });
+    return MAX_PER_URL;
+  }
+
+  function restoreMaxPerUrl() {
+    return setMaxPerUrl(DEFAULT_MAX_PER_URL);
+  }
+
   function terminateAll() {
     Object.keys(pools).forEach(function (url) {
       terminatePool(url);
@@ -557,14 +613,17 @@
   }
 
   window.WorkerPool = {
-    VERSION:       '5.1',
+    VERSION:       '5.2',
     run:           run,
     getStats:      getStats,
     prewarm:       prewarm,
     terminatePool: terminatePool,
     terminateAll:  terminateAll,
     CancelToken:   CancelToken,   // v4.0
-    MAX_WORKERS:   MAX_PER_URL,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
+    MAX_WORKERS:   MAX_PER_URL,
+    DEFAULT_MAX_WORKERS: DEFAULT_MAX_PER_URL,
+    setMaxPerUrl:  setMaxPerUrl,
+    restoreMaxPerUrl: restoreMaxPerUrl,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
     // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
     DEVICE_MEM:    _devMem,
     DEVICE_CORES:  _devCores,
