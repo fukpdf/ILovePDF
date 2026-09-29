@@ -17,7 +17,7 @@ function makeWindow(){
     WorkerPool:{getStats:()=>({})},
     RuntimeWorkerMesh:null,
     document:{readyState:'complete',addEventListener(){}},
-    setTimeout,
+    setTimeout:(fn)=>{fn();return 0},
     console,
     addEventListener(name,fn){(listeners[name]??=[]).push(fn);},
     dispatchEvent(evt){(listeners[evt.type]||[]).forEach(fn=>fn(evt));return true;},
