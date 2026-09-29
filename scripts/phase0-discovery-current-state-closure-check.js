@@ -49,7 +49,7 @@ const checks = [
   ['server upload lifecycle exists', read('utils/upload.js').includes('sweepUploads') && read('utils/upload.js').includes('UPLOAD_DIR')],
   ['security workflow invokes core validation', read('.github/workflows/audit.yml').includes('npm test') && read('.github/workflows/audit.yml').includes('audit:security') && read('.github/workflows/audit.yml').includes('audit:runtime')],
   ['deployment workflow validates before deploy', read('.github/workflows/deploy.yml').includes('npm test') && read('.github/workflows/deploy.yml').includes('audit:security')],
-  ['Phase 0 scope lists all baseline dimensions', (() => { const c=read('docs/architecture/PHASE-0-1-COMPLETION.md'); return ['repository structure','runtime and deployment','tool inventory','browser/server','security and secret','temporary/permanent storage','tests and CI','current UI/shared','migration constraints'].every(x=>c.toLowerCase().includes(x)); })()]
+  ['Phase 0 scope lists all baseline dimensions', (() => { const c=read('docs/architecture/PHASE-0-1-COMPLETION.md'); return ['repository structure','runtime and deployment paths','existing tool inventory','browser/server execution','security and secret boundaries','temporary/permanent storage','tests and CI checks','current UI/shared systems','migration constraints and non-goals'].every(x=>c.toLowerCase().includes(x)); })()]
 ];
 for (const [name, ok] of checks) ok ? pass(name) : fail(name);
 
