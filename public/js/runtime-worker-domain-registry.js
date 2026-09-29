@@ -139,7 +139,7 @@
   function recordCrash(toolId) {
     var id = _normalizeToolId(toolId);
     var family = (id && TOOL_FAMILY[id]) || _activeFamily;
-    if (!family || !FAMILY_WORKERS.hasOwnProperty(family)) return;
+    if (!family || !Object.prototype.hasOwnProperty.call(FAMILY_WORKERS, family)) return;
     var domain = ensureDomain(family);
     domain.crashCount++;
     if (domain.crashCount >= 3) {
