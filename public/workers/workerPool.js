@@ -14,9 +14,10 @@
   // deviceMemory: 0.25/0.5/1/2/4/8 GB (or undefined on unsupported browsers).
   var _devMem   = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 4;
   var _devCores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
-  var MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
+  var DEFAULT_MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
                     (_devMem <= 2 || _devCores <= 4) ? 2 : 4;
-  MAX_PER_URL = Math.max(1, Math.min(MAX_PER_URL, _devCores, 4));
+  DEFAULT_MAX_PER_URL = Math.max(1, Math.min(DEFAULT_MAX_PER_URL, _devCores, 4));
+  var MAX_PER_URL = DEFAULT_MAX_PER_URL;
 
   var TIMEOUT_MS         = 0;      // 0 = no artificial per-task execution timeout
   var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
@@ -554,6 +555,30 @@
     return false;
   }
 
+  // Dynamically lower/restore the per-URL worker cap during memory pressure.
+  // Lowering the cap never kills a busy worker; only excess idle workers are
+  // retired. New slots remain bounded by the current cap.
+  function setMaxPerUrl(cap) {
+    if (typeof cap !== 'number' || !isFinite(cap)) return MAX_PER_URL;
+    MAX_PER_URL = Math.max(1, Math.min(Math.floor(cap), _devCores, 4));
+    Object.keys(pools).forEach(function (url) {
+      var pool = pools[url];
+      var idle = pool.slots.filter(function (slot) { return !slot.busy; });
+      while (pool.slots.length > MAX_PER_URL && idle.length) {
+        var slot = idle.pop();
+        var idx = pool.slots.indexOf(slot);
+        if (idx !== -1) pool.slots.splice(idx, 1);
+        _clearIdleTimer(slot);
+        try { slot.worker.terminate(); } catch (_) {}
+      }
+    });
+    return MAX_PER_URL;
+  }
+
+  function restoreMaxPerUrl() {
+    return setMaxPerUrl(DEFAULT_MAX_PER_URL);
+  }
+
   function terminateAll() {
     Object.keys(pools).forEach(function (url) {
       terminatePool(url);
@@ -595,7 +620,10 @@
     terminatePool: terminatePool,
     terminateAll:  terminateAll,
     CancelToken:   CancelToken,   // v4.0
-    MAX_WORKERS:   MAX_PER_URL,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
+    MAX_WORKERS:   MAX_PER_URL,
+    DEFAULT_MAX_WORKERS: DEFAULT_MAX_PER_URL,
+    setMaxPerUrl:  setMaxPerUrl,
+    restoreMaxPerUrl: restoreMaxPerUrl,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
     // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
     DEVICE_MEM:    _devMem,
     DEVICE_CORES:  _devCores,
