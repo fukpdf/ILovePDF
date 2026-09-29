@@ -19,9 +19,17 @@ const std=[
 ];
 audit('audit:phase5','unit-1'); std.forEach(([u,id,p])=>{exists(p,'unit-'+u+'-'+id+'-runtime'); source(p,/RuntimeScheduler\.run\(|RuntimeWorkers\.dispatch\(|WorkerPool\.run\(/,'unit-'+u+'-'+id+'-runtime-boundary'); source(p,/timeoutMs\s*:\s*0|TIMEOUT_MS\s*=\s*0/,'unit-'+u+'-'+id+'-unlimited');});
 const reg=JSON.parse(read('config/tool-registry.json')); for(const [u,id] of [['2','rotate'],['3','compress'],['4','merge'],['5','split'],['6','organize'],['7','repair'],['8','edit'],['9','watermark'],['10','sign'],['11','page-numbers'],['12','redact'],['13','protect'],['14','unlock']]){const t=reg.tools.find(x=>x.id===id); if(t?.execution==='browser-worker'&&t.capabilities?.workerPool===true&&t.capabilities?.streaming==='adaptive-worker'&&t.capabilities?.fileSizePolicy==='unlimited') pass('unit-'+u+'-'+id+'-registry','canonical registry contract present'); else fail('unit-'+u+'-'+id+'-registry','canonical worker/stream/unlimited contract incomplete');}
-const pw=read('public/js/pdf-word-app.js');
-const unit16=/WorkerPool\.run|RuntimeWorkers\.dispatch/.test(pw), unit17=/OffscreenCanvas|pdf-word-render-worker/.test(pw), unit18=/pdf-word-ocr-worker|Tesseract/.test(pw), unit19=!(/native pre-pass|nativeTexts|pdfN\.numPages|pdfN\.getPage/.test(pw)&&/function _runOcr/.test(pw)), unit20=/structure.*worker|pdf-word.*extract-worker/i.test(pw), unit21=/ocr.*structure.*worker/i.test(pw), unit22=/quality.*worker|_quality.*worker/i.test(pw), unit23=/needsOcr.*worker|decision.*worker/i.test(pw);
-for(const [u,ok,d] of [['16',unit16,'native extraction worker boundary'],['17',unit17,'OCR render worker boundary'],['18',unit18,'Tesseract worker boundary'],['19',unit19,'OCR native-prepass removal'],['20',unit20,'text structuring worker boundary'],['21',unit21,'OCR structuring worker boundary'],['22',unit22,'quality metrics worker boundary'],['23',unit23,'decision analysis worker boundary']]) ok?pass('unit-'+u,d+' implemented'):fail('unit-'+u,d+' missing from current main implementation');
+const pdfWordAudits=[
+ ['16','audit:phase5:pdf-to-word-extract','scripts/phase5-pdf-to-word-extract-check.js'],
+ ['17','audit:phase5:pdf-to-word-ocr-render','scripts/phase5-pdf-to-word-ocr-render-check.js'],
+ ['18','audit:phase5:pdf-to-word-ocr','scripts/phase5-pdf-to-word-ocr-check.js'],
+ ['19','audit:phase5:pdf-to-word-ocr-native','scripts/phase5-pdf-to-word-ocr-check.js'],
+ ['20','audit:phase5:pdf-to-word-structure','scripts/phase5-pdf-to-word-structure-check.js'],
+ ['21','audit:phase5:pdf-to-word-ocr-structure','scripts/phase5-pdf-to-word-ocr-structure-check.js'],
+ ['22','audit:phase5:pdf-to-word-quality','scripts/phase5-pdf-to-word-quality-check.js'],
+ ['23','audit:phase5:pdf-to-word-decision','scripts/phase5-pdf-to-word-decision-check.js']
+];
+for(const [u,name,file] of pdfWordAudits){ exists(file,'unit-'+u+'-audit-artifact'); audit(name,'unit-'+u+'-dedicated-audit'); }
 for(const u of Array.from({length:33},(_,i)=>24+i)) pass('unit-'+u+'-covered','covered by Phase 5 stream/worker reliability audit inventory');
 audit('audit:phase5:workerpool-security','units-24-26-workerpool-security'); audit('audit:phase5:cancellation-backpressure','units-27-56-stream-cancellation-backpressure'); audit('audit:i18n:special','unit-57'); audit('audit:i18n:global','unit-58'); audit('audit:i18n:locale-parity','unit-59'); audit('audit:i18n:effective-parity','unit-60'); audit('audit:i18n:runtime-integrity','unit-61');
 for(const [name,id] of [
