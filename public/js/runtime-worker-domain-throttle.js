@@ -30,7 +30,7 @@
   var _FROZEN = Object.freeze({ v: 1 });
 
   var LOG       = '[DomThrottle]';
-  var VERSION   = '1.1';
+  var VERSION   = '1.2';
   var HOLD_TTL_MS = 30 * 1000;  // max time a task sits in hold queue
 
   // ── Per-family concurrency caps (max concurrent WorkerPool slots) ──────────
@@ -89,6 +89,16 @@
   var _holdQueues   = {};
   var _activeCounts = {}; // family → current concurrent count
 
+  function _normalizeFamily(family) {
+    if (typeof family !== 'string') return null;
+    var value = family.trim().toLowerCase();
+    return value && Object.prototype.hasOwnProperty.call(FAMILY_CAPS, value) ? value : null;
+  }
+
+  function _normalizeCap(cap) {
+    return typeof cap === 'number' && Number.isFinite(cap) ? Math.max(1, Math.min(Math.floor(cap), 8)) : null;
+  }
+
   function _getFamily(workerUrl, opts) {
     // Try from opts.toolId first
     if (opts && opts.toolId) {
@@ -96,7 +106,7 @@
       if (f) return f;
     }
     // Fall back to URL mapping
-    return URL_FAMILY[workerUrl] || 'organize';
+    return URL_FAMILY[workerUrl] || null;
   }
 
   function _getCap(family) {
@@ -187,7 +197,7 @@
 
       // TTL release: don't hold forever. Preserve cancellation state and
       // account for the family concurrency cap on release.
-      setTimeout(function () {
+      var timer = setTimeout(function () {
         var q = _holdQueues[family];
         if (!q) return;
         var idx = q.indexOf(entry);
@@ -195,6 +205,8 @@
         q.splice(idx, 1);
         _dispatchHeld(family, entry);
       }, HOLD_TTL_MS);
+      if (!_holdTimers[family]) _holdTimers[family] = new Set();
+      _holdTimers[family].add(timer);
     });
   }
 
@@ -222,6 +234,7 @@
   function run(workerUrl, payload, opts) {
     opts = opts || {};
     var family = _getFamily(workerUrl, opts);
+    if (!family) return Promise.reject(new Error('worker-family-unmapped'));
     var cap    = _getCap(family);
 
     // If pressured: hold the task
@@ -277,7 +290,12 @@
     getStats: getStats,
     drainHold: function (family) { _drainHold(family); },
     setFamilyCap: function (family, cap) {
-      if (typeof cap === 'number' && cap >= 1) FAMILY_CAPS[family] = cap;
+      family = _normalizeFamily(family);
+      cap = _normalizeCap(cap);
+      if (!family || cap === null) return false;
+      FAMILY_CAPS[family] = cap;
+      _drainHold(family);
+      return true;
     },
   });
 
