@@ -16,8 +16,8 @@ const checks = [
   ['routing load from pool', /function loadOf\(id\)/],
   ['routing least load', /return loadOf\(a\) - loadOf\(b\)/],
   ['routing tie round robin', /_rrCursor.*capability/],
-  ['routing stale capability cleanup', /if \(_workerCaps\.has\(workerId\)\) _unregisterWorker\(workerId\)/],
-  ['routing URL retained after refresh', /registerCapability\(data\.workerId, caps\);\s*if \(_workerUrls\) _workerUrls\.set/s],
+  ['routing stale capability cleanup', /if \(_workerCaps\.has\(id\)\) _unregisterWorker\(id\)/],
+  ['routing URL retained after refresh', /var previousUrl = _workerUrls && _workerUrls\.has\(id\).*?if \(previousUrl != null && _workerUrls\) _workerUrls\.set\(id, previousUrl\)/s],
 ];
 const failures = checks.filter(([, re]) => !re.test(scheduler + '\n' + routing));
 if (failures.length) {
