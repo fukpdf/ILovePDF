@@ -10,6 +10,7 @@
   var _recoveries = 0;
   var _lastRecovery = 0;
   var _COOLDOWN_MS = 15000; // minimum 15 s between recovery runs
+  var _restoreTimer = null;
 
   // ── Tracked blob URLs ─────────────────────────────────────────────────────
   var _blobs = new Set();
@@ -57,10 +58,23 @@
   // ── Reduce advanced-engine concurrency ───────────────────────────────────
   function throttleEngines() {
     try {
-      if (G.WorkerPool && typeof G.WorkerPool.setMaxPerUrl === 'function') {
-        G.WorkerPool.setMaxPerUrl(1);
-      }
+      if (!G.WorkerPool || typeof G.WorkerPool.setMaxPerUrl !== 'function') return false;
+      G.WorkerPool.setMaxPerUrl(1);
+
+      // Pressure response is temporary: restore the device-adaptive cap after
+      // a quiet period instead of permanently pinning the session to one worker.
+      if (_restoreTimer) clearTimeout(_restoreTimer);
+      _restoreTimer = setTimeout(function () {
+        _restoreTimer = null;
+        try {
+          if (G.WorkerPool && typeof G.WorkerPool.restoreMaxPerUrl === 'function') {
+            G.WorkerPool.restoreMaxPerUrl();
+          }
+        } catch (_) {}
+      }, 30000);
+      return true;
     } catch (_) {}
+    return false;
   }
 
   // ── Emit telemetry ────────────────────────────────────────────────────────
@@ -83,11 +97,12 @@
     var released = releaseBlobs();
     var evictedIdb = evictIdbCache();
     evictOpfsStaging();
-    throttleEngines();
+    var enginesThrottled = throttleEngines();
 
-    _emit('warn', { reason: reason, blobsReleased: released, idbEvicted: evictedIdb });
+    _emit('warn', { reason: reason, blobsReleased: released, idbEvicted: evictedIdb, enginesThrottled: enginesThrottled });
     console.info('[RuntimeMemoryRecovery] recovery #' + _recoveries +
-      ' reason=' + reason + ' blobs=' + released + ' idb=' + evictedIdb);
+      ' reason=' + reason + ' blobs=' + released + ' idb=' + evictedIdb +
+      ' enginesThrottled=' + enginesThrottled);
     return true;
   }
 
