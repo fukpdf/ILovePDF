@@ -20,7 +20,7 @@
   if (G.RuntimeTaskOrchestrator) return;
 
   var LOG     = '[TaskOrchestrator]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
   // ── Priority lanes ────────────────────────────────────────────────
   var CRITICAL   = 0;  // UI-blocking — run immediately
@@ -61,6 +61,7 @@
   var _metrics     = { submitted: 0, completed: 0, dropped: 0, throttled: 0, graphResolved: 0 };
   var _telemetry   = [];
   var _idSeq       = 0;
+  var _graphFailures = 0;
 
   function _tel(ev, data) {
     _telemetry.push({ ts: Date.now(), ev: ev, d: data || null });
@@ -112,17 +113,30 @@
       meta:       spec.meta       || {},
       state:      'queued',
       submittedAt: Date.now(),
+      cancelled:  false,
+      cancelReason: null,
     };
 
     _graph[id] = task;
     _metrics.submitted++;
     _tel('submit', { id: id, lane: LANE_NAMES[priority], type: task.type, deps: task.deps.length });
 
-    // Resolve graph immediately if no deps
+    // Resolve graph immediately if no deps. Validate dependencies up front so
+    // missing IDs cannot create a permanent "waiting" task.
     if (task.deps.length === 0) {
       _enqueue(task);
     } else {
-      task.state = 'waiting';
+      var missing = task.deps.some(function (depId) { return !_graph[depId]; });
+      if (missing) {
+        task.state = 'error';
+        task.error = new Error('missing_dependency');
+        _graphFailures++;
+        _metrics.dropped++;
+        _tel('graph-invalid', { id: id, reason: 'missing_dependency' });
+        try { task.onError && task.onError(task.error); } catch (_) {}
+      } else {
+        task.state = 'waiting';
+      }
     }
 
     if (!_ticking) _tick();
@@ -142,6 +156,32 @@
     });
   }
 
+  function _depsBlocked(task) {
+    return task.deps.some(function (depId) {
+      var dep = _graph[depId];
+      return !dep || dep.state === 'error' || dep.state === 'cancelled' || dep.state === 'dropped';
+    });
+  }
+
+  function _graphHasCycle(startId) {
+    var visiting = {};
+    var visited = {};
+    function visit(id) {
+      if (visiting[id]) return true;
+      if (visited[id]) return false;
+      var node = _graph[id];
+      if (!node || node.state !== 'waiting') { visited[id] = true; return false; }
+      visiting[id] = true;
+      for (var i = 0; i < node.deps.length; i++) {
+        if (visit(node.deps[i])) return true;
+      }
+      delete visiting[id];
+      visited[id] = true;
+      return false;
+    }
+    return visit(startId);
+  }
+
   // ── Tick: cooperative scheduler ───────────────────────────────────
   function _tick() {
     _ticking = true;
@@ -150,10 +190,18 @@
     // Promote waiting tasks whose deps are now resolved
     Object.keys(_graph).forEach(function (id) {
       var task = _graph[id];
-      if (task.state === 'waiting' && _depsResolved(task)) {
+      if (task.state !== 'waiting') return;
+      if (_depsResolved(task)) {
         _enqueue(task);
         _metrics.graphResolved++;
         _tel('graph-resolved', { id: id });
+      } else if (_depsBlocked(task) || _graphHasCycle(id)) {
+        task.state = 'error';
+        task.error = new Error(_depsBlocked(task) ? 'dependency_failed' : 'dependency_cycle');
+        _graphFailures++;
+        _metrics.dropped++;
+        _tel('graph-invalid', { id: id, reason: task.error.message });
+        try { task.onError && task.onError(task.error); } catch (_) {}
       }
     });
 
@@ -174,6 +222,10 @@
       while (queue.length && _runningCount < maxConc && laneRun < laneMax) {
         var task = queue.shift();
         if (!task || task.state === 'cancelled') continue;
+        if (task.cancelled) {
+          task.state = 'cancelled';
+          continue;
+        }
 
         // Affinity: check if worker pool can accept
         var affFamily = TYPE_AFFINITY[task.type];
@@ -221,6 +273,19 @@
     _runningCount++;
 
     setTimeout(function () {
+      if (task.cancelled || task.state === 'cancelled') {
+        task.state = 'cancelled';
+        _runningCount = Math.max(0, _runningCount - 1);
+        delete _running[task.id];
+        if (affFamily) {
+          try {
+            var pwCancel = G.RuntimeProcessorWorkers;
+            if (pwCancel && pwCancel.taskEnd) pwCancel.taskEnd(affFamily);
+          } catch (_) {}
+        }
+        _tel('cancelled', { id: task.id });
+        return;
+      }
       try {
         task.fn();
         task.state = 'done';
@@ -249,9 +314,16 @@
   }
 
   // ── Cancel a task ─────────────────────────────────────────────────
-  function cancel(id) {
+  function cancel(id, reason) {
     var task = _graph[id];
-    if (task) { task.state = 'cancelled'; delete _graph[id]; }
+    if (task) {
+      task.cancelled = true;
+      task.cancelReason = reason || 'cancelled';
+      task.state = 'cancelled';
+      _tel('cancel', { id: id, reason: task.cancelReason });
+      // Keep running tasks in the graph until their execution boundary observes
+      // cancellation, so counters/affinity cleanup cannot be orphaned.
+    }
     // Also cancel dependents
     Object.keys(_graph).forEach(function (tid) {
       var t = _graph[tid];
@@ -267,7 +339,7 @@
       waiting:      Object.keys(_graph).filter(function (id) { return _graph[id].state === 'waiting'; }).length,
       thermalTier:  _thermalTier,
       maxConcurrency: _maxConcurrency(),
-      metrics:      Object.assign({}, _metrics),
+      metrics:      Object.assign({}, _metrics, { graphFailures: _graphFailures }),
       laneDepths:   _lanes.map(function (q) { return q.length; }),
     };
   }
