@@ -120,6 +120,14 @@
     return true;
   }
 
+  function unregisterCapability(workerId) {
+    if (!_table || !_workerCaps) return false;
+    var id = _normalizeWorkerId(workerId);
+    if (!id || !_workerCaps.has(id)) return false;
+    _unregisterWorker(id);
+    return true;
+  }
+
   function _unregisterWorker(workerId) {
     if (!_table || !_workerCaps) return;
     var caps = _workerCaps.get(workerId) || [];
@@ -240,6 +248,7 @@
     VERSION:            VERSION,
     route:              route,
     registerCapability: registerCapability,
+    unregisterCapability: unregisterCapability,
     getCapableWorkers:  getCapableWorkers,
     getRoutingTable:    getRoutingTable,
     status: function () {
