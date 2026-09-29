@@ -21,7 +21,7 @@
   if (G.RuntimeRecoveryOrchestrator) return;
 
   var LOG     = '[RecoveryOrchestrator]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
 
   // ── Subsystem dependency graph ────────────────────────────────────
   // Each entry: { id, deps[], global, recoveryFn }
@@ -73,6 +73,34 @@
   }
 
   var RECOVERY_ORDER = _topoSort(DEPENDENCY_GRAPH);
+
+  var _NODE_BY_ID = {};
+  DEPENDENCY_GRAPH.forEach(function (node) { _NODE_BY_ID[node.id] = node; });
+
+  function _expandRecoverySet(requested) {
+    var wanted = {};
+    var invalid = [];
+    (requested || []).forEach(function (id) {
+      if (_NODE_BY_ID[id]) wanted[id] = true; else invalid.push(id);
+    });
+    if (invalid.length) return { ok: false, invalid: invalid, ids: [] };
+    function addDeps(id, visiting) {
+      if (visiting[id]) return false;
+      visiting[id] = true;
+      var node = _NODE_BY_ID[id];
+      for (var i = 0; i < node.deps.length; i++) {
+        var dep = node.deps[i];
+        if (!_NODE_BY_ID[dep]) return false;
+        wanted[dep] = true;
+        if (!addDeps(dep, visiting)) return false;
+      }
+      delete visiting[id];
+      return true;
+    }
+    var ids = Object.keys(wanted);
+    for (var j = 0; j < ids.length; j++) if (!addDeps(ids[j], {})) return { ok: false, invalid: ['dependency-cycle-or-missing'], ids: [] };
+    return { ok: true, invalid: [], ids: RECOVERY_ORDER.filter(function (id) { return !!wanted[id]; }) };
+  }
 
   // ── Recovery actions per subsystem ───────────────────────────────
   function _recoverSubsystem(id, dryRun) {
@@ -142,7 +170,10 @@
     opts = opts || {};
     if (_recovery) return { ok: false, reason: 'recovery-in-progress' };
 
-    var subsystems = opts.subsystems || RECOVERY_ORDER;
+    var requestedSubsystems = opts.subsystems || RECOVERY_ORDER;
+    var expanded = _expandRecoverySet(requestedSubsystems);
+    if (!expanded.ok) return { ok: false, reason: 'invalid-recovery-graph', invalid: expanded.invalid };
+    var subsystems = expanded.ids;
     var dryRun     = !!opts.dryRun;
     var snapBefore = null;
     _stats.runs++;
@@ -173,6 +204,7 @@
     // Execute sequentially (async to avoid blocking)
     var seq = subsystems.slice();
     var allSteps = {};
+    var runFailed = false;
 
     function _next() {
       if (!seq.length) {
@@ -180,12 +212,12 @@
         _recovery.ended   = Date.now();
         _recovery.durationMs = _recovery.ended - _recovery.started;
         _recovery.steps   = allSteps;
-        _stats.succeeded++;
-        _log('complete', { id: _recovery.id, ms: _recovery.durationMs });
+        if (runFailed) _stats.failed++; else _stats.succeeded++;
+        _log(runFailed ? 'failed' : 'complete', { id: _recovery.id, ms: _recovery.durationMs });
         console.debug(LOG, 'recovery complete:', _recovery.id, _recovery.durationMs + 'ms');
         try {
-          G.dispatchEvent(new CustomEvent('arc9:recovery-complete', {
-            detail: { id: _recovery.id, dryRun: dryRun, ms: _recovery.durationMs },
+          G.dispatchEvent(new CustomEvent(runFailed ? 'arc9:recovery-failed' : 'arc9:recovery-complete', {
+            detail: { id: _recovery.id, dryRun: dryRun, failed: runFailed, ms: _recovery.durationMs },
           }));
         } catch (_) {}
         _history.push(Object.assign({}, _recovery));
@@ -197,6 +229,7 @@
       _recovery.phase = 'HEAL:' + sub;
       try {
         allSteps[sub] = _recoverSubsystem(sub, dryRun);
+        if (allSteps[sub].some(function (step) { return String(step).indexOf('error:') === 0; })) runFailed = true;
       } catch (e) {
         allSteps[sub] = ['error:' + e.message];
       }
