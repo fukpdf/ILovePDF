@@ -29,7 +29,7 @@
     storage: { total: 256, allocated: 0, unit: 'MB'    },
   };
 
-  var _allocations = {};   // owner → { cpu, memory, workers, storage }
+  var _allocations = Object.create(null);   // owner → { cpu, memory, workers, storage }
   var _pressureLog = [];   // last 500 pressure readings
   var MAX_LOG = 500;
   var _metrics = { allocations: 0, releases: 0, pressureEvents: 0, overflows: 0, invalidRequests: 0 };
@@ -65,11 +65,13 @@
       _metrics.invalidRequests++;
       return { ok: false, reason: 'Invalid release request' };
     }
-    var ownerAlloc = _allocations[owner] && (_allocations[owner][resource] || 0);
+    var ownerRecord = Object.prototype.hasOwnProperty.call(_allocations, owner) ? _allocations[owner] : null;
+    var ownerAlloc = ownerRecord && (ownerRecord[resource] || 0);
     if (ownerAlloc <= 0) return { ok: false, released: 0, reason: 'Owner has no allocation' };
     var released = Math.min(amount, ownerAlloc);
     b.allocated = Math.max(0, b.allocated - released);
-    _allocations[owner][resource] = ownerAlloc - released;
+    if (!ownerRecord) return { ok: false, released: 0, reason: 'Owner has no allocation' };
+    ownerRecord[resource] = ownerAlloc - released;
     _metrics.releases++;
     _dispatch('arc15:resource-released', { resource: resource, amount: released, owner: owner, ts: Date.now() });
     return { ok: true, released: released };
