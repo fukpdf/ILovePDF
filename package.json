@@ -34,7 +34,8 @@
     "audit:phase5:cancellation-backpressure": "node scripts/phase5-units-242-254-check.js",
     "audit:phase5:resource-recovery-integrity": "node scripts/phase5-units-255-267-check.js",
     "audit:phase5:runtime-integrity-268-280": "node scripts/phase5-units-268-280-runtime-integrity-check.js",
-    "audit:phase5:worker-routing-281-293": "node scripts/phase5-units-281-293-worker-routing-check.js"
+    "audit:phase5:worker-routing-281-293": "node scripts/phase5-units-281-293-worker-routing-check.js",
+    "audit:phase5:worker-domain-integrity-294-306": "node scripts/phase5-units-294-306-worker-domain-integrity-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
