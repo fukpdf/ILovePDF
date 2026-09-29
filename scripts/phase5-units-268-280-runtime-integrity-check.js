@@ -38,7 +38,7 @@ for (const p of files) {
 
 {
   const window = makeWindow();
-  vm.runInNewContext(read(files[0]), { window, console, isFinite, Number, Object, JSON, Date, Math });
+  vm.runInNewContext(read(files[0]), { window, console, isFinite, Number, Object, JSON, Date, Math, setInterval: () => 0 });
   const r = window.RuntimeResourceOrchestrator;
   const a = r.allocate('cpu', 10, 'owner-a');
   const wrong = r.release('cpu', 10, 'owner-b');
@@ -60,7 +60,7 @@ for (const p of files) {
 
 {
   const window = makeWindow();
-  vm.runInNewContext(read(files[2]), { window, console, setTimeout, Object, Array, Number, Math, Date, isFinite });
+  vm.runInNewContext(read(files[2]), { window, console, setTimeout, setInterval: () => 0, Object, Array, Number, Math, Date, isFinite });
   const p = window.RuntimeProcessorWorkers;
   check('processor pool registration validation', p.registerPool('', {})?.ok === false);
   check('processor pool registration', p.registerPool('ocr', { maxWorkers: 2 })?.ok === true);
