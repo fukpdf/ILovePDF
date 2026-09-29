@@ -1,0 +1,31 @@
+name: Phase 5 Task Timeout Graph Reliability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-timeout-reaper.js'
+      - 'public/js/runtime-task-orchestrator.js'
+      - 'scripts/phase5-task-timeout-graph-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-task-timeout-graph-reliability.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-timeout-reaper.js'
+      - 'public/js/runtime-task-orchestrator.js'
+      - 'scripts/phase5-task-timeout-graph-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-task-timeout-graph-reliability.yml'
+
+jobs:
+  task-timeout-graph-reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:task-timeout-graph-reliability
