@@ -114,7 +114,9 @@
     // WorkerPool is a direct Worker consumer, so it must not bypass the
     // centralized RuntimeSecurity validation layer.
     var rs = (typeof window !== 'undefined') ? window.RuntimeSecurity : null;
-    if (!rs || typeof rs.validateWorkerMessage !== 'function') return data;
+    if (!rs || typeof rs.validateWorkerMessage !== 'function') {
+      throw new Error('RuntimeSecurity unavailable for WorkerPool inbound message');
+    }
     try {
       return rs.validateWorkerMessage(data);
     } catch (err) {
