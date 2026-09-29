@@ -38,3 +38,7 @@ self.onmessage=async function(ev){
     self.postMessage({op:'error',jobId:d.jobId,error:String(e&&e.message||e)});
   }
 };
+
+
+importScripts('/workers/p4-heartbeat-mixin.js');
+if (typeof _p4ApplyMixin === 'function') _p4ApplyMixin();
