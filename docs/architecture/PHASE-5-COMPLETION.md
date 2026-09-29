@@ -44,3 +44,12 @@ No Phase 5 completion claim is valid from source inspection alone. The final clo
 Browser/E2E and production deployment remain separate validation scopes and are not represented as passed by this source/CI closure.
 
 GitHub branch protection remains an administrative repository setting and is not represented as enabled unless independently confirmed.
+
+
+## Final repeated validation evidence
+
+Final corrected validation head: `d74de8f11584787d9728bc8aa3d6b81a79811d1c`.
+
+GitHub CI result: **30/30 checks successful, 0 failed, 0 pending**; dedicated `phase5-complete-reaudit`: **SUCCESS**.
+
+The final run executed the complete re-audit inventory, including Units 229–241, and also completed the project test, security audit, and runtime audit.
