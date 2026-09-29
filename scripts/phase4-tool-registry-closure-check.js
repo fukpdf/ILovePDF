@@ -82,8 +82,9 @@ if(hydration.includes('activationStatus')&&hydration.includes('errorCount')&&hyd
 else fail('hydration-integrity','Hydration failure integrity boundary is incomplete.');
 
 const documentedUnits=[...doc.matchAll(/^## Unit (\d+)/gm)].map(m=>Number(m[1]));
-if(documentedUnits.length>=15&&documentedUnits.includes(1)&&documentedUnits.includes(15)) pass('unit-documentation','Phase 4 implementation record documents Units 1–15.');
-else fail('unit-documentation','Phase 4 unit implementation record is incomplete.');
+const expectedUnits=[1,2,4,6,7,8,9,10,11,12,13,14,15,16];
+if(expectedUnits.every(u=>documentedUnits.includes(u)) && documentedUnits.length===expectedUnits.length) pass('unit-documentation','Phase 4 implementation record documents every implemented Phase 4 unit (1,2,4,6–16).');
+else fail('unit-documentation','Phase 4 unit implementation record does not match the implemented unit set.');
 
 const scopeTruth=['No file-size/page-count limits','no Laba AI dependency','server processing dependency'].every(x=>doc.includes(x));
 if(scopeTruth) pass('scope-boundaries','Phase 4 record preserves explicit scope/non-dependency boundaries.');
