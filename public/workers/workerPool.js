@@ -110,8 +110,31 @@
     try { return new Worker(url); } catch (_) { return null; }
   }
 
+  function _validateInboundWorkerMessage(data) {
+    // WorkerPool is a direct Worker consumer, so it must not bypass the
+    // centralized RuntimeSecurity validation layer.
+    var rs = (typeof window !== 'undefined') ? window.RuntimeSecurity : null;
+    if (!rs || typeof rs.validateWorkerMessage !== 'function') {
+      throw new Error('RuntimeSecurity unavailable for WorkerPool inbound message');
+    }
+    try {
+      return rs.validateWorkerMessage(data);
+    } catch (err) {
+      var e = new Error((err && err.message) || 'worker_message_security_rejected');
+      e.name = 'SecurityError';
+      throw e;
+    }
+  }
+
   function attachHandlers(pool, slot) {
-    slot.worker.onmessage = function (e) { settle(pool, slot, null, e.data); };
+    slot.worker.onmessage = function (e) {
+      try {
+        var validated = _validateInboundWorkerMessage(e.data);
+        settle(pool, slot, null, validated);
+      } catch (err) {
+        settle(pool, slot, err, null);
+      }
+    };
     slot.worker.onerror   = function (e) {
       slot.crashes++;
       var err = new Error((e && e.message) || 'worker_error');
@@ -534,6 +557,7 @@
   }
 
   window.WorkerPool = {
+    VERSION:       '5.1',
     run:           run,
     getStats:      getStats,
     prewarm:       prewarm,
