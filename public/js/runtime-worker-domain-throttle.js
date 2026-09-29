@@ -66,22 +66,17 @@
 
   // ── Worker URL → family (reverse mapping) ─────────────────────────────────
   var URL_FAMILY = {
-    '/workers/pdf-lib-worker.js':       'organize',
-    '/workers/pdf-worker.js':           'organize',
-    '/workers/compress-worker.js':      'compress',
-    '/workers/pdf-word-docx-worker.js': 'convert-from',
-    '/workers/pdf-excel-xlsx-worker.js':'convert-from',
-    '/workers/pdf-ppt-pptx-worker.js':  'convert-from',
-    '/workers/advanced-worker.js':      'ai',
-    '/workers/summary-worker.js':       'ai',
-    '/workers/translation-worker.js':   'ai',
+    '/workers/compress-worker.js':        'compress',
+    '/workers/advanced-worker.js':        'ai',
+    '/workers/summary-worker.js':         'ai',
+    '/workers/translation-worker.js':     'ai',
     '/workers/ocr-preprocessor-worker.js':'ai',
-    '/workers/image-tools-worker.js':   'image',
-    '/workers/image-pipeline-worker.js':'image',
-    '/workers/remove-bg-worker.js':     'image',
-    '/workers/compare-worker.js':       'edit',
-    '/workers/repair-worker.js':        'edit',
-    '/workers/shared-cluster-worker.js':'organize',
+    '/workers/image-tools-worker.js':     'image',
+    '/workers/image-pipeline-worker.js':  'image',
+    '/workers/remove-bg-worker.js':       'image',
+    '/workers/compare-worker.js':         'edit',
+    '/workers/repair-worker.js':          'edit',
+    '/workers/shared-cluster-worker.js':  'organize',
   };
 
   // ── Per-family hold queues ─────────────────────────────────────────────────
