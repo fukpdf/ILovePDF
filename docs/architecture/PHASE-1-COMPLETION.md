@@ -53,3 +53,20 @@ GitHub branch protection remains an external repository-administration control. 
 ## Final status
 
 Phase 1 is complete only after the dedicated closure audit and CI gate pass on the final validation head.
+
+
+## Final validation evidence — 2026-09-29
+
+The dedicated Phase 1 closure audit initially failed. The failure was traced to an overly strict wording matcher for the engine-bounded streaming/chunking contract; no runtime implementation regression was inferred from that audit-contract failure. The matcher was corrected, and the closure audit was rerun.
+
+Final validation head: `7e78da20c84befef69a44a6ef5cec93dc2cac285`
+
+Final GitHub check-run state:
+
+- 27 total checks
+- 27 successful
+- 0 failed
+- 0 pending
+- dedicated `phase1-closure`: SUCCESS
+
+The earlier failure was not counted as validation success. The corrected closure audit passed before completion.
