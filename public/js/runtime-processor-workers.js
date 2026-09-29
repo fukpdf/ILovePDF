@@ -26,7 +26,7 @@
   // family → { workerUrl, maxWorkers, auxWorkerUrls,
   //             activeCount, crashCount, isolated,
   //             thermalLimit, queue }
-  var _pools = {};
+  var _pools = Object.create(null);
 
   // ── Shared thermal tier ───────────────────────────────────────────
   var _thermalTier = 'nominal';
