@@ -36,7 +36,8 @@
     "audit:phase5:runtime-integrity-268-280": "node scripts/phase5-units-268-280-runtime-integrity-check.js",
     "audit:phase5:worker-routing-281-293": "node scripts/phase5-units-281-293-worker-routing-check.js",
     "audit:phase5:worker-domain-integrity-294-306": "node scripts/phase5-units-294-306-worker-domain-integrity-check.js",
-    "audit:phase5:worker-domain-cross-boundary-307-319": "node scripts/phase5-units-307-319-worker-domain-cross-boundary-check.js"
+    "audit:phase5:worker-domain-cross-boundary-307-319": "node scripts/phase5-units-307-319-worker-domain-cross-boundary-check.js",
+    "audit:phase5:final-closure-320-332": "node scripts/phase5-final-closure-320-332-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
