@@ -58,6 +58,7 @@
   // ── Task queue (priority-sorted waiting tasks) ────────────────────────────
   // Tasks that cannot start immediately go here sorted by priority.
   var _waitQueue = []; // [{ resolve, reject, type, priority, label, ts }]
+  // Units 229-241 fairness audit target.
 
   // ── Mobile / low-end adjustments ─────────────────────────────────────────
   var _ua = navigator.userAgent || '';
@@ -85,12 +86,21 @@
   }
 
   // ── Drain wait queue ──────────────────────────────────────────────────────
+  var AGING_STEP_MS = 5000;
+  function _effectivePriority(item, now) {
+    var base = PRIORITY[item.priority];
+    if (base === undefined) base = PRIORITY.normal;
+    var promotions = Math.floor(Math.max(0, now - item.ts) / AGING_STEP_MS);
+    return Math.max(PRIORITY.critical, base - promotions);
+  }
+
   function _drain() {
     if (!_waitQueue.length) return;
-    // Process in priority order
+    // Priority ages toward CRITICAL so sustained high-priority traffic cannot starve old work.
+    var now = Date.now();
     _waitQueue.sort(function (a, b) {
-      var pa = PRIORITY[a.priority] || 2;
-      var pb = PRIORITY[b.priority] || 2;
+      var pa = _effectivePriority(a, now);
+      var pb = _effectivePriority(b, now);
       return pa !== pb ? pa - pb : a.ts - b.ts; // FIFO within same priority
     });
     var i = 0;

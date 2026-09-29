@@ -77,11 +77,14 @@
   // ── Routing table: capability → [workerId] ─────────────────────────────────
   var _table   = typeof Map !== 'undefined' ? new Map() : null;  // cap → Set<workerId>
   var _workerCaps = typeof Map !== 'undefined' ? new Map() : null; // workerId → caps[]
+  var _workerUrls = typeof Map !== 'undefined' ? new Map() : null;
+  var _rrCursor = typeof Map !== 'undefined' ? new Map() : null;
   var _routeCount = 0;
 
   function registerCapability(workerId, caps) {
     if (!_table || !_workerCaps) return;
-    _workerCaps.set(workerId, caps);
+    if (_workerCaps.has(workerId)) _unregisterWorker(workerId);
+    _workerCaps.set(workerId, Array.isArray(caps) ? caps.slice() : []);
     for (var i = 0; i < caps.length; i++) {
       var cap = caps[i];
       if (!_table.has(cap)) _table.set(cap, new Set());
@@ -97,6 +100,7 @@
       if (workers) workers.delete(workerId);
     });
     _workerCaps.delete(workerId);
+    if (_workerUrls) _workerUrls.delete(workerId);
   }
 
   // ── Route a request ────────────────────────────────────────────────────────
@@ -121,15 +125,28 @@
 
     if (candidates.length === 0) return null;
 
-    // Prefer VERIFIED over TRUSTED over NEW
-    if (mesh) {
-      candidates.sort(function (a, b) {
-        return mesh.getTrustScore(b) - mesh.getTrustScore(a);
-      });
+    var poolStats = _s(function () { return G.WorkerPool && G.WorkerPool.getStats ? G.WorkerPool.getStats() : null; }, null) || {};
+    function loadOf(id) {
+      var url = _workerUrls && _workerUrls.get(id);
+      if (!url || !poolStats[url]) return 0;
+      return (poolStats[url].busy || 0) + (poolStats[url].queued || 0);
     }
-
+    var cursor = _rrCursor ? (_rrCursor.get(capability) || 0) : 0;
+    candidates.sort(function (a, b) {
+      var ta = mesh ? mesh.getTrustScore(a) : 0;
+      var tb = mesh ? mesh.getTrustScore(b) : 0;
+      if (ta !== tb) return tb - ta;
+      return loadOf(a) - loadOf(b);
+    });
+    var bestLoad = loadOf(candidates[0]);
+    var bestTrust = mesh ? mesh.getTrustScore(candidates[0]) : 0;
+    var ties = candidates.filter(function (id) {
+      return loadOf(id) === bestLoad && (!mesh || mesh.getTrustScore(id) === bestTrust);
+    });
+    var picked = ties[cursor % ties.length] || candidates[0];
+    if (_rrCursor) _rrCursor.set(capability, cursor + 1);
     _routeCount++;
-    return candidates[0];
+    return picked;
   }
 
   function getCapableWorkers(cap) {
@@ -156,6 +173,7 @@
         if (!data || !data.workerId) return;
         var caps = _inferCaps(data.url);
         registerCapability(data.workerId, caps);
+        if (_workerUrls) _workerUrls.set(data.workerId, data.url || '');
         console.debug(LOG, 'worker registered:', data.workerId, '| caps:', caps.join(','));
       });
 
