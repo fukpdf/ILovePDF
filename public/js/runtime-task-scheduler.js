@@ -58,6 +58,7 @@
   // ── Task queue (priority-sorted waiting tasks) ────────────────────────────
   // Tasks that cannot start immediately go here sorted by priority.
   var _waitQueue = []; // [{ resolve, reject, type, priority, label, ts }]
+  // Units 229-241 fairness audit target.
 
   // ── Mobile / low-end adjustments ─────────────────────────────────────────
   var _ua = navigator.userAgent || '';
