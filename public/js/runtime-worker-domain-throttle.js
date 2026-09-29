@@ -142,6 +142,12 @@
   // ── Hold queue management ─────────────────────────────────────────────────
   function _dispatchHeld(family, entry) {
     if (!entry || entry.settled) return;
+    var cap = _getCap(family);
+    if (_activeCount(family) >= cap) {
+      var queue = _holdQueues[family] || (_holdQueues[family] = []);
+      queue.push(entry);
+      return;
+    }
     if (entry.opts && entry.opts.token && entry.opts.token.cancelled) {
       entry.settled = true;
       try { entry.reject(new Error('task_cancelled')); } catch (_) {}
