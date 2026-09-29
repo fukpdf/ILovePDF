@@ -86,8 +86,8 @@
 
   // ── Per-family hold queues ─────────────────────────────────────────────────
   // family → [{ resolve, reject, workerUrl, payload, opts, queuedAt }]
-  var _holdQueues   = {};
-  var _activeCounts = {}; // family → current concurrent count
+  var _holdQueues   = Object.create(null);
+  var _activeCounts = Object.create(null); // family → current concurrent count
 
   function _normalizeFamily(family) {
     if (typeof family !== 'string') return null;
@@ -107,7 +107,7 @@
       if (f) return f;
     }
     // Fall back to URL mapping
-    return URL_FAMILY[workerUrl] || null;
+    return Object.prototype.hasOwnProperty.call(URL_FAMILY, workerUrl) ? URL_FAMILY[workerUrl] : null;
   }
 
   function _getCap(family) {
@@ -271,7 +271,7 @@
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
   function getStats() {
-    var out = {};
+    var out = Object.create(null);
     Object.keys(FAMILY_CAPS).forEach(function (f) {
       out[f] = {
         cap:       _getCap(f),
