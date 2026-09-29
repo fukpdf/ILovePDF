@@ -104,7 +104,7 @@ if (workflow.includes('scripts/phase2-shared-design-platform-closure-check.js') 
 else fail('dedicated Phase 2 closure CI contract incomplete');
 if (chrome.includes('SHARED_HEADER_HTML') && chrome.includes('SHARED_FOOTER_HTML') && chrome.includes('replaceWith(canonicalHeader)') && chrome.includes('replaceWith(canonicalFooter)')) pass('canonical chrome replaces page chrome rather than creating parallel shells');
 else fail('canonical chrome replacement contract incomplete');
-if (chrome.includes('footer-lang-btn') && chrome.includes('footer-lang-panel') && chrome.includes('applyLanguage')) pass('language selector has runtime application path');
+if (chrome.includes('footer-lang-btn') && chrome.includes('footer-lang-panel') && chrome.includes('RuntimeI18n.setLanguage')) pass('language selector has runtime application path');
 else fail('language selector runtime application path incomplete');
 if (headerCss.includes('@media') && footerCss.includes('@media') && a11yCss.includes('font-size')) pass('responsive and readability CSS contracts present');
 else fail('responsive/readability CSS contract incomplete');
