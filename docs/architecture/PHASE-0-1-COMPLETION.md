@@ -98,3 +98,21 @@ Phase 0 was re-audited against the actual repository rather than relying on the 
 Phase 0 source implementation/documentation and automated closure validation are complete. Browser/E2E remains a separate validation layer by design.
 
 GitHub administrative branch protection is **not falsely marked complete**. The current API state reports `main` unprotected; enabling the documented rules requires repository-owner/admin permission outside committed repository source.
+
+
+### Final Phase 0 validation evidence
+
+After the initial closure failure, the audit was corrected and rerun.
+
+Validation head: `c3e2cc95c996dc077fef03b2d34fa6db8f4b54a7`
+
+Final GitHub check-run state for that head:
+
+- 26 total checks
+- 26 successful
+- 0 failed
+- 0 pending
+- dedicated `phase0-closure`: SUCCESS
+
+The failed run was not treated as a pass. Its exact deficiencies were corrected first: the scope matcher was aligned with the documented Phase 0 vocabulary and the repository inventory walker was corrected to exclude `node_modules/` and `.git/`.
+
