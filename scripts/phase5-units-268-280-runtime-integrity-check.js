@@ -41,9 +41,11 @@ for (const p of files) {
   vm.runInNewContext(read(files[0]), { window, console, isFinite, Number, Object, JSON, Date, Math, setInterval: () => 0 });
   const r = window.RuntimeResourceOrchestrator;
   const a = r.allocate('cpu', 10, 'owner-a');
+  const special = r.allocate('cpu', 1, '__proto__');
   const wrong = r.release('cpu', 10, 'owner-b');
   const right = r.release('cpu', 10, 'owner-a');
   check('resource allocation', a.ok && a.available === 90);
+  check('prototype-safe resource owner map', special.ok === true);
   check('owner-scoped release rejection', wrong.ok === false && wrong.released === 0);
   check('owner-scoped release success', right.ok === true && right.released === 10);
   check('resource releaseAll invalid-owner guard', r.releaseAll('')?.ok === false);
@@ -55,7 +57,9 @@ for (const p of files) {
   const r = window.RuntimeRecoveryOrchestrator;
   check('recovery graph validity', r.GRAPH_VALID === true);
   const bad = r.runRecovery({ subsystems: ['not-a-real-subsystem'] });
+  const protoBad = r.runRecovery({ subsystems: ['constructor'] });
   check('invalid recovery request fails closed', bad.ok === false && bad.reason === 'invalid-recovery-graph');
+  check('prototype-safe recovery registry', protoBad.ok === false && protoBad.reason === 'invalid-recovery-graph');
 }
 
 {
@@ -63,6 +67,7 @@ for (const p of files) {
   vm.runInNewContext(read(files[2]), { window, console, setTimeout, setInterval: () => 0, Object, Array, Number, Math, Date, isFinite });
   const p = window.RuntimeProcessorWorkers;
   check('processor pool registration validation', p.registerPool('', {})?.ok === false);
+  check('prototype-safe processor registry', p.registerPool('constructor', { maxWorkers: 2 })?.ok === true);
   check('processor pool registration', p.registerPool('ocr', { maxWorkers: 2 })?.ok === true);
   check('processor cap enforced', p.taskStart('ocr') === true && p.taskStart('ocr') === true && p.taskStart('ocr') === false);
   check('thermal limit validation', p.setThermalLimit('ocr', 0)?.ok === false);
