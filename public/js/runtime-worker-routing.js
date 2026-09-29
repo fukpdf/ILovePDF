@@ -29,7 +29,7 @@
 
   if (G.RuntimeWorkerRouting) return;
 
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var LOG     = '[WorkerRouting]';
 
   function _s(fn, def) { try { return fn(); } catch (_) { return def !== undefined ? def : null; } }
@@ -81,15 +81,43 @@
   var _rrCursor = typeof Map !== 'undefined' ? new Map() : null;
   var _routeCount = 0;
 
-  function registerCapability(workerId, caps) {
-    if (!_table || !_workerCaps) return;
-    if (_workerCaps.has(workerId)) _unregisterWorker(workerId);
-    _workerCaps.set(workerId, Array.isArray(caps) ? caps.slice() : []);
+  function _normalizeWorkerId(workerId) {
+    if (typeof workerId !== 'string') return null;
+    var id = workerId.trim();
+    return id && id.length <= 256 ? id : null;
+  }
+
+  function _normalizeCapabilities(caps) {
+    if (!Array.isArray(caps)) return [];
+    var out = [];
+    var seen = Object.create(null);
     for (var i = 0; i < caps.length; i++) {
-      var cap = caps[i];
-      if (!_table.has(cap)) _table.set(cap, new Set());
-      _table.get(cap).add(workerId);
+      if (typeof caps[i] !== 'string') continue;
+      var cap = caps[i].trim().toLowerCase();
+      if (!cap || cap.length > 128 || seen[cap]) continue;
+      seen[cap] = true;
+      out.push(cap);
     }
+    return out;
+  }
+
+  function _validCapability(capability) {
+    return typeof capability === 'string' && capability.trim().length > 0 && capability.trim().length <= 128;
+  }
+
+  function registerCapability(workerId, caps) {
+    if (!_table || !_workerCaps) return false;
+    var id = _normalizeWorkerId(workerId);
+    if (!id) return false;
+    var normalized = _normalizeCapabilities(caps);
+    if (_workerCaps.has(id)) _unregisterWorker(id);
+    _workerCaps.set(id, normalized);
+    for (var i = 0; i < normalized.length; i++) {
+      var cap = normalized[i];
+      if (!_table.has(cap)) _table.set(cap, new Set());
+      _table.get(cap).add(id);
+    }
+    return true;
   }
 
   function _unregisterWorker(workerId) {
@@ -105,8 +133,9 @@
 
   // ── Route a request ────────────────────────────────────────────────────────
   function route(capability, opts) {
-    if (!_enabled || !_table) return null;
+    if (!_enabled || !_table || !_validCapability(capability)) return null;
     opts = opts || {};
+    capability = capability.trim().toLowerCase();
 
     var candidates = _table.has(capability)
       ? Array.from(_table.get(capability))
@@ -118,8 +147,8 @@
     var mesh = _s(function () { return G.RuntimeWorkerMesh; }, null);
     if (mesh) {
       candidates = candidates.filter(function (id) {
-        var trust = mesh.getTrustScore(id);
-        return trust >= 0 && trust > 5;  // not quarantined
+        var trust = _s(function () { return Number(mesh.getTrustScore(id)); }, -1);
+        return Number.isFinite(trust) && trust > 5;  // not quarantined
       });
     }
 
@@ -133,15 +162,15 @@
     }
     var cursor = _rrCursor ? (_rrCursor.get(capability) || 0) : 0;
     candidates.sort(function (a, b) {
-      var ta = mesh ? mesh.getTrustScore(a) : 0;
-      var tb = mesh ? mesh.getTrustScore(b) : 0;
+      var ta = mesh ? _s(function () { return Number(mesh.getTrustScore(a)); }, 0) : 0;
+      var tb = mesh ? _s(function () { return Number(mesh.getTrustScore(b)); }, 0) : 0;
       if (ta !== tb) return tb - ta;
       return loadOf(a) - loadOf(b);
     });
     var bestLoad = loadOf(candidates[0]);
-    var bestTrust = mesh ? mesh.getTrustScore(candidates[0]) : 0;
+    var bestTrust = mesh ? _s(function () { return Number(mesh.getTrustScore(candidates[0])); }, 0) : 0;
     var ties = candidates.filter(function (id) {
-      return loadOf(id) === bestLoad && (!mesh || mesh.getTrustScore(id) === bestTrust);
+      return loadOf(id) === bestLoad && (!mesh || _s(function () { return Number(mesh.getTrustScore(id)); }, 0) === bestTrust);
     });
     var picked = ties[cursor % ties.length] || candidates[0];
     if (_rrCursor) _rrCursor.set(capability, cursor + 1);
@@ -150,12 +179,14 @@
   }
 
   function getCapableWorkers(cap) {
-    if (!_table || !_table.has(cap)) return [];
+    if (!_table || !_validCapability(cap)) return [];
+    cap = cap.trim().toLowerCase();
+    if (!_table.has(cap)) return [];
     return Array.from(_table.get(cap));
   }
 
   function getRoutingTable() {
-    var result = {};
+    var result = Object.create(null);
     if (!_table) return result;
     _table.forEach(function (workers, cap) {
       result[cap] = Array.from(workers);
@@ -171,9 +202,11 @@
 
       eb.on('worker:spawned', function (data) {
         if (!data || !data.workerId) return;
+        var workerId = _normalizeWorkerId(data.workerId);
+        if (!workerId) return;
         var caps = _inferCaps(data.url);
-        registerCapability(data.workerId, caps);
-        if (_workerUrls) _workerUrls.set(data.workerId, data.url || '');
+        if (!registerCapability(workerId, caps)) return;
+        if (_workerUrls) _workerUrls.set(workerId, data.url || '');
         console.debug(LOG, 'worker registered:', data.workerId, '| caps:', caps.join(','));
       });
 
