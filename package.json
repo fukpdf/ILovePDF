@@ -38,7 +38,8 @@
     "audit:phase5:worker-domain-integrity-294-306": "node scripts/phase5-units-294-306-worker-domain-integrity-check.js",
     "audit:phase5:worker-domain-cross-boundary-307-319": "node scripts/phase5-units-307-319-worker-domain-cross-boundary-check.js",
     "audit:phase5:final-closure-320-332": "node scripts/phase5-final-closure-320-332-check.js",
-    "audit:phase2:shared-design-platform-closure": "node scripts/phase2-shared-design-platform-closure-check.js"
+    "audit:phase2:shared-design-platform-closure": "node scripts/phase2-shared-design-platform-closure-check.js",
+    "audit:phase0:discovery-current-state-closure": "node scripts/phase0-discovery-current-state-closure-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
