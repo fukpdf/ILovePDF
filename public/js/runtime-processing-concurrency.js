@@ -56,7 +56,7 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _active  = 0;     // currently running
-  var _waiting = [];    // [{resolve, reject, priority, label, ts, timeoutId}]
+  var _waiting = [];    // [{resolve, reject, priority, label, ts, timeoutId, token, cancelDetach}]
   var _stats   = { totalAcquired: 0, totalReleased: 0, totalTimeout: 0 };
   var _drainingId = null;
 
@@ -91,7 +91,9 @@
 
       while (_active < slots && _waiting.length > 0) {
         var next = _waiting.shift();
+        if (next.token && next.token.cancelled) { if (next.cancelDetach) next.cancelDetach(); continue; }
         if (next.timeoutId) { clearTimeout(next.timeoutId); next.timeoutId = null; }
+        if (next.cancelDetach) { next.cancelDetach(); next.cancelDetach = null; }
         _active++;
         _stats.totalAcquired++;
 
@@ -114,6 +116,7 @@
     var timeoutMs = (opts.timeoutMs != null) ? opts.timeoutMs : DEFAULT_TIMEOUT;
     var label     = opts.label     || 'task';
     var slots     = _maxSlots();
+    var token     = opts.token || null;
 
     // Fast path: slot available right now
     if (_active < slots) {
@@ -127,12 +130,14 @@
 
     // Queue it
     return new Promise(function (resolve, reject) {
-      var entry = { resolve: resolve, reject: reject, priority: priority, label: label, ts: Date.now(), timeoutId: null };
+      var entry = { resolve: resolve, reject: reject, priority: priority, label: label, ts: Date.now(), timeoutId: null, token: token, cancelDetach: null, settled: false };
 
       if (timeoutMs > 0) {
         entry.timeoutId = setTimeout(function () {
           var idx = _waiting.indexOf(entry);
           if (idx !== -1) _waiting.splice(idx, 1);
+          entry.settled = true;
+          if (entry.cancelDetach) { entry.cancelDetach(); entry.cancelDetach = null; }
           _stats.totalTimeout++;
           if (G.RuntimeTelemetry) {
             try { G.RuntimeTelemetry.record('concurrency:timeout', { label: label }); } catch (_) {}
@@ -141,6 +146,18 @@
         }, timeoutMs);
       }
 
+      if (token && typeof token.onCancel === 'function') {
+        entry.cancelDetach = token.onCancel(function (reason) {
+          if (entry.settled) return;
+          var idx = _waiting.indexOf(entry);
+          if (idx !== -1) _waiting.splice(idx, 1);
+          if (entry.timeoutId) { clearTimeout(entry.timeoutId); entry.timeoutId = null; }
+          entry.settled = true;
+          if (entry.cancelDetach) { entry.cancelDetach(); entry.cancelDetach = null; }
+          reject(new Error('concurrency:cancelled:' + (reason || label)));
+          _drain();
+        });
+      }
       _waiting.push(entry);
 
       if (G.RuntimeTelemetry) {
@@ -179,6 +196,8 @@
   G.addEventListener('pagehide', function () {
     _waiting.forEach(function (e) {
       if (e.timeoutId) clearTimeout(e.timeoutId);
+      if (e.cancelDetach) e.cancelDetach();
+      e.settled = true;
       e.reject(new Error('concurrency:pagehide'));
     });
     _waiting.length = 0;
