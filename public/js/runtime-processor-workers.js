@@ -18,7 +18,7 @@
   if (G.RuntimeProcessorWorkers) return;
 
   var LOG     = '[ProcWorkers]';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var CRASH_ISOLATE = 3;   // crashes before isolating the pool
   var THERMAL_CHECK = 30 * 1000;
 
@@ -103,10 +103,13 @@
   function resetPool(family) {
     var pool = _pools[family];
     if (!pool) return;
+    var pending = pool.queue.splice(0);
+    pending.forEach(function (entry) {
+      try { if (entry && typeof entry.onReject === 'function') entry.onReject(new Error('processor-pool-reset')); } catch (_) {}
+    });
     pool.crashCount  = 0;
     pool.isolated    = false;
     pool.activeCount = 0;
-    pool.queue       = [];
     console.debug(LOG, 'pool reset:', family);
   }
 
@@ -128,9 +131,11 @@
     if (!pool) { try { taskFn(); } catch (_) {} return; }
     if (pool.isolated) {
       console.debug(LOG, 'queue rejected — isolated:', family);
-      return;
+      try { if (typeof opts.onReject === 'function') opts.onReject(new Error('processor-pool-isolated')); } catch (_) {}
+      return false;
     }
-    pool.queue.push({ fn: taskFn, token: opts.token || null, ts: Date.now() });
+    pool.queue.push({ fn: taskFn, token: opts.token || null, onReject: opts.onReject || null, ts: Date.now() });
+    return true;
     console.debug(LOG, 'queued task for:', family, '— queue length:', pool.queue.length);
   }
 
@@ -141,7 +146,11 @@
     if (!canAccept(family)) return;
     while (pool.queue.length && canAccept(family)) {
       var next = pool.queue.shift();
-      if (!next || (next.token && next.token.cancelled)) continue;
+      if (!next) continue;
+      if (next.token && next.token.cancelled) {
+        try { if (typeof next.onReject === 'function') next.onReject(new Error('task_cancelled')); } catch (_) {}
+        continue;
+      }
       taskStart(family);
       try { next.fn(); } catch (_) { recordCrash(family); }
     }
