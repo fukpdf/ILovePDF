@@ -1,0 +1,29 @@
+name: Phase 5 Runtime Integrity 268-280
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-resource-orchestrator.js'
+      - 'public/js/runtime-recovery-orchestrator.js'
+      - 'public/js/runtime-processor-workers.js'
+      - 'scripts/phase5-units-268-280-runtime-integrity-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-runtime-integrity-268-280.yml'
+  pull_request:
+    paths:
+      - 'public/js/runtime-resource-orchestrator.js'
+      - 'public/js/runtime-recovery-orchestrator.js'
+      - 'public/js/runtime-processor-workers.js'
+      - 'scripts/phase5-units-268-280-runtime-integrity-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-runtime-integrity-268-280.yml'
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:runtime-integrity-268-280

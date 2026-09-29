@@ -73,12 +73,13 @@
   }
 
   var RECOVERY_ORDER = _topoSort(DEPENDENCY_GRAPH);
+  var GRAPH_VALID = RECOVERY_ORDER.length === DEPENDENCY_GRAPH.length;
 
-  var _NODE_BY_ID = {};
+  var _NODE_BY_ID = Object.create(null);
   DEPENDENCY_GRAPH.forEach(function (node) { _NODE_BY_ID[node.id] = node; });
 
   function _expandRecoverySet(requested) {
-    var wanted = {};
+    var wanted = Object.create(null);
     var invalid = [];
     (requested || []).forEach(function (id) {
       if (_NODE_BY_ID[id]) wanted[id] = true; else invalid.push(id);
@@ -170,6 +171,7 @@
     opts = opts || {};
     if (_recovery) return { ok: false, reason: 'recovery-in-progress' };
 
+    if (!GRAPH_VALID) return { ok: false, reason: 'invalid-recovery-graph', invalid: ['dependency-cycle-or-missing'] };
     var requestedSubsystems = opts.subsystems || RECOVERY_ORDER;
     var expanded = _expandRecoverySet(requestedSubsystems);
     if (!expanded.ok) return { ok: false, reason: 'invalid-recovery-graph', invalid: expanded.invalid };
@@ -232,6 +234,7 @@
         if (allSteps[sub].some(function (step) { return String(step).indexOf('error:') === 0; })) runFailed = true;
       } catch (e) {
         allSteps[sub] = ['error:' + e.message];
+        runFailed = true;
       }
       setTimeout(_next, 50);  // 50ms between each to stay non-blocking
     }
@@ -250,6 +253,7 @@
   // ── Safe mode ─────────────────────────────────────────────────────
   function enterSafeMode() {
     if (_safeMode) return { ok: false, reason: 'already-in-safe-mode' };
+    if (_recovery) return { ok: false, reason: 'recovery-in-progress' };
     _safeMode = true;
     console.warn(LOG, 'ENTERING SAFE MODE');
     // Disable non-critical subsystems
@@ -304,6 +308,7 @@
   });
 
   G.RuntimeRecoveryOrchestrator = Object.freeze({
+    GRAPH_VALID:       GRAPH_VALID,
     VERSION:           VERSION,
     runRecovery:       runRecovery,
     restartSubsystem:  restartSubsystem,

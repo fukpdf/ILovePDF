@@ -25,7 +25,7 @@ for (const p of files) {
 
 const resource = read(files[0]);
 check('resource input validation', resource.includes('invalidRequests') && resource.includes('amount <= 0'), 'invalid allocation/release requests are rejected');
-check('owner-scoped release', resource.includes('var ownerAlloc = _allocations[owner]') && resource.includes('Math.min(amount, ownerAlloc)'), 'release cannot consume another owner\'s allocation');
+check('owner-scoped release', resource.includes('var ownerRecord = Object.prototype.hasOwnProperty.call(_allocations, owner)') && resource.includes('var ownerAlloc = ownerRecord') && resource.includes('Math.min(amount, ownerAlloc)'), 'release cannot consume another owner\'s allocation');
 check('unknown-owner release', resource.includes("Owner has no allocation"), 'unowned release is rejected');
 
 const recovery = read(files[1]);
