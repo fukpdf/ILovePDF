@@ -159,6 +159,16 @@ function requireBrowserRuntimeContract(id, label) {
   if (!tool.capabilities || tool.capabilities.lazyLoad !== true) fail(label + ' lazyLoad contract is missing.');
   if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
 }
+function requireBrowserWorkerRuntimeContract(id, label) {
+  const tool = (registry.tools || []).find(t => t.id === id);
+  if (!tool) { fail(label + ' is missing from the canonical tool registry.'); return; }
+  if (tool.execution !== 'browser-worker') fail(label + ' execution must remain browser-worker.');
+  if (!tool.capabilities || tool.capabilities.lazyLoad !== true) fail(label + ' lazyLoad contract is missing.');
+  if (!tool.capabilities || tool.capabilities.workerPool !== true) fail(label + ' workerPool contract is missing.');
+  if (!tool.capabilities || tool.capabilities.streaming !== 'adaptive-worker') fail(label + ' adaptive-worker streaming contract is missing.');
+  if (!tool.capabilities || tool.capabilities.fileSizePolicy !== 'unlimited') fail(label + ' file-size policy is not unlimited.');
+}
+
 
 // ── Runtime scheduler cancellation contract ───────────────────────────────
 const taskScheduler = read('public/js/task-scheduler.js');
@@ -190,8 +200,11 @@ if (browserRuntime.indexOf('finally {') === -1 || browserRuntime.indexOf('active
 if (browserRuntime.indexOf('function cancel(toolId, reason)') === -1 || browserRuntime.indexOf("item.token.cancel(reason || 'cancelled')") === -1) fail('BrowserToolRuntime cancel() is not scoped to the requested tool token.');
 
 
+const browserWorkerRuntimeIds = [
+  ['pdf-to-word', 'PDF to Word']
+];
 const browserRuntimeIds = [
-  ['pdf-to-word', 'PDF to Word'], ['pdf-to-powerpoint', 'PDF to PowerPoint'],
+  ['pdf-to-powerpoint', 'PDF to PowerPoint'],
   ['pdf-to-excel', 'PDF to Excel'], ['pdf-to-jpg', 'PDF to JPG'],
   ['word-to-pdf', 'Word to PDF'], ['powerpoint-to-pdf', 'PowerPoint to PDF'],
   ['excel-to-pdf', 'Excel to PDF'], ['word-to-excel', 'Word to Excel'],
@@ -200,6 +213,7 @@ const browserRuntimeIds = [
   ['background-remover', 'Background Remover'], ['crop-image', 'Crop Image'],
   ['resize-image', 'Image Resize'], ['image-filters', 'Image Filters'],
 ];
+browserWorkerRuntimeIds.forEach(function (pair) { requireBrowserWorkerRuntimeContract(pair[0], pair[1]); });
 browserRuntimeIds.forEach(function (pair) { requireBrowserRuntimeContract(pair[0], pair[1]); });
 const browserEngineLimitChecks = [
   ['ai-summarize', 'public/js/ai-summarizer-app.js'],
