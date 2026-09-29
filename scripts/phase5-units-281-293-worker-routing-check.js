@@ -43,6 +43,8 @@ check('unregister unknown worker rejected',r.unregisterCapability('missing-worke
 r.registerCapability('worker-a',['ocr']);
 check('reregister after unregister',r.getCapableWorkers('ocr').includes('worker-a'));
 check('lifecycle API remains idempotent',r.unregisterCapability('worker-a')===true && r.unregisterCapability('worker-a')===false);
+r.registerCapability('worker-a',['ocr']);
+window.RuntimeWorkerMesh={getTrustScore:()=>{throw new Error('mesh failure')}};
 check('trust lookup failure fails closed',r.route('ocr')===null);
 if(failures.length){console.error('\nPhase 5 Units 281-293 audit FAILED:');failures.forEach(x=>console.error(' - '+x));process.exit(1);}
 console.log('\nPhase 5 Units 281-293 audit PASSED.');
