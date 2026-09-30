@@ -102,3 +102,41 @@ Final full-audit head: `d2f02e104a912a0a28c966fa51906ddf5abde599`.
 - Phase 5 Final Closure Certification 320–332: **SUCCESS**
 
 The full-audit cycle was repeated after the implementation corrections; no completion claim is based only on source inspection.
+
+
+## Independent Unit 1–332 audit-completeness hardening
+
+A further independent review found that the earlier full-audit script contained blanket PASS markers for some ranges and did not execute the dedicated Unit 74–111 contracts directly. This was treated as a validation deficiency even though the underlying implementation and earlier CI were passing.
+
+The audit was corrected so every documented Phase 5 range from Units 1–332 executes a concrete registered audit contract:
+
+- Units 1–14: standard-tool contract
+- Unit 15: PDF-to-Word base pipeline
+- Units 16–23: dedicated PDF-to-Word worker audits
+- Units 24–26: WorkerPool security
+- Units 27–39: coordinator cancellation
+- Units 40–56: cancellation/backpressure
+- Unit 57 and Units 58–61: i18n contracts
+- Units 62–73: runtime-integrity
+- Units 74–85: page/i18n coverage
+- Units 86–98: standard-tool CI contract
+- Units 99–111: ToolApp lifecycle/isolation
+- Units 112–124 through 320–332: the corresponding executable bulk audits
+
+No range is accepted merely because it is numbered in the audit script.
+
+### Repeated validation evidence
+
+Validation head: `c0ffa03f85741f2a805a089acdbce79dcda5e008`.
+
+GitHub workflow `Phase 5 Units 1-332 Full Audit` completed successfully.
+
+- **Phase 5 Units 1–332 FULL AUDIT: 116/116 PASS**
+- **0 failures**
+- **0 pending**
+- `npm test`: PASS
+- `npm run audit:security`: PASS
+- `npm run audit:runtime`: PASS
+- All workflow runs associated with the validation head completed successfully.
+
+This replaces the weaker blanket-range validation with executable range-by-range closure evidence.
