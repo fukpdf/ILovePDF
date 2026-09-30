@@ -30,8 +30,64 @@ const pdfWordAudits=[
  ['23','audit:phase5:pdf-to-word-decision','scripts/phase5-pdf-to-word-decision-check.js']
 ];
 for(const [u,name,file] of pdfWordAudits){ exists(file,'unit-'+u+'-audit-artifact'); audit(name,'unit-'+u+'-dedicated-audit'); }
-for(const u of Array.from({length:33},(_,i)=>24+i)) pass('unit-'+u+'-covered','covered by Phase 5 stream/worker reliability audit inventory');
-audit('audit:phase5:workerpool-security','units-24-26-workerpool-security'); audit('audit:phase5:cancellation-backpressure','units-27-56-stream-cancellation-backpressure'); audit('audit:i18n:special','unit-57'); audit('audit:i18n:global','unit-58'); audit('audit:i18n:locale-parity','unit-59'); audit('audit:i18n:effective-parity','unit-60'); audit('audit:i18n:runtime-integrity','unit-61');
-for(const [name,id] of [
-['audit:i18n:page-coverage','units-62-73-and-page-coverage'],['audit:phase5:runtime-doc-contract','units-112-124'],['audit:phase5:worker-security-boundary','units-125-137'],['audit:phase5:worker-factory-security','units-138-150'],['audit:phase5:worker-message-integrity','units-151-163'],['audit:phase5:workerpool-security','units-164-176'],['audit:phase5:worker-coordinator-cancellation','units-177-189'],['audit:phase5:worker-prewarm-reliability','units-190-202'],['audit:phase5:worker-lifecycle-reliability','units-203-215'],['audit:phase5:task-timeout-graph-reliability','units-216-228'],['audit:phase5:units-229-241','units-229-241'],['audit:phase5:cancellation-backpressure','units-242-254'],['audit:phase5:resource-recovery-integrity','units-255-267'],['audit:phase5:runtime-integrity-268-280','units-268-280'],['audit:phase5:worker-routing-281-293','units-281-293'],['audit:phase5:worker-domain-integrity-294-306','units-294-306'],['audit:phase5:worker-domain-cross-boundary-307-319','units-307-319'],['audit:phase5:final-closure-320-332','units-320-332']]) audit(name,id);
+// Every range must execute an executable contract; no range is accepted merely by numbering.
+// Units 1–14: canonical standard-tool migration gate.
+audit('audit:phase5','units-1-14-standard-tools');
+// Unit 15: PDF-to-Word base pipeline.
+audit('audit:phase5:pdf-to-word','unit-15-pdf-to-word');
+// Units 16–23: dedicated PDF-to-Word worker migration audits.
+for(const [u,name] of pdfWordAudits) { exists(pkg.scripts?.[name]?.replace(/^node /,'' ) || file,'unit-'+u+'-audit-registration'); audit(name,'unit-'+u+'-dedicated-audit-repeat'); }
+// Units 24–26: WorkerPool security boundary.
+audit('audit:phase5:workerpool-security','units-24-26-workerpool-security');
+// Units 27–56: cancellation/backpressure/resource handoff contracts.
+audit('audit:phase5:worker-coordinator-cancellation','units-27-39-coordinator-cancellation');
+audit('audit:phase5:cancellation-backpressure','units-40-56-cancellation-backpressure');
+// Units 57–61: i18n contracts. Unit 57 is retained as the special-page entry contract.
+audit('audit:i18n:special','unit-57-special-i18n-entry');
+audit('audit:i18n:special','unit-58-special-i18n');
+audit('audit:i18n:global','unit-59-global-i18n');
+audit('audit:i18n:locale-parity','unit-60-locale-parity');
+audit('audit:i18n:effective-parity','unit-61-effective-locale-parity');
+// Units 62–73: runtime-integrity batch.
+audit('audit:i18n:runtime-integrity','units-62-73-runtime-integrity');
+// Units 74–85: page/i18n coverage and shared chrome.
+audit('audit:i18n:page-coverage','units-74-85-page-i18n-coverage');
+// Units 86–98: standard-tool contract CI.
+audit('audit:phase5','units-86-98-standard-tool-contract');
+// Units 99–111: ToolApp lifecycle/isolation.
+audit('audit:phase5:toolapp-lifecycle','units-99-111-toolapp-lifecycle');
+// Units 112–124.
+audit('audit:phase5:runtime-doc-contract','units-112-124');
+// Units 125–137.
+audit('audit:phase5:worker-security-boundary','units-125-137');
+// Units 138–150.
+audit('audit:phase5:worker-factory-security','units-138-150');
+// Units 151–163.
+audit('audit:phase5:worker-message-integrity','units-151-163');
+// Units 164–176.
+audit('audit:phase5:workerpool-security','units-164-176');
+// Units 177–189.
+audit('audit:phase5:worker-coordinator-cancellation','units-177-189');
+// Units 190–202.
+audit('audit:phase5:worker-prewarm-reliability','units-190-202');
+// Units 203–215.
+audit('audit:phase5:worker-lifecycle-reliability','units-203-215');
+// Units 216–228.
+audit('audit:phase5:task-timeout-graph-reliability','units-216-228');
+// Units 229–241.
+audit('audit:phase5:units-229-241','units-229-241');
+// Units 242–254.
+audit('audit:phase5:cancellation-backpressure','units-242-254');
+// Units 255–267.
+audit('audit:phase5:resource-recovery-integrity','units-255-267');
+// Units 268–280.
+audit('audit:phase5:runtime-integrity-268-280','units-268-280');
+// Units 281–293.
+audit('audit:phase5:worker-routing-281-293','units-281-293');
+// Units 294–306.
+audit('audit:phase5:worker-domain-integrity-294-306','units-294-306');
+// Units 307–319.
+audit('audit:phase5:worker-domain-cross-boundary-307-319','units-307-319');
+// Units 320–332.
+audit('audit:phase5:final-closure-320-332','units-320-332');
 const bad=checks.filter(x=>x.s==='FAIL'); checks.forEach(x=>console.log('['+x.s+'] '+x.id+': '+x.d)); console.log('\nPhase 5 Units 1-332 FULL AUDIT: '+(bad.length?'FAILED':'PASSED')+' ('+(checks.length-bad.length)+'/'+checks.length+')'); process.exitCode=bad.length?1:0;
