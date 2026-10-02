@@ -140,3 +140,17 @@ GitHub workflow `Phase 5 Units 1-332 Full Audit` completed successfully.
 - All workflow runs associated with the validation head completed successfully.
 
 This replaces the weaker blanket-range validation with executable range-by-range closure evidence.
+
+
+## Units 1–332 complete validation closure
+
+A fresh repository-wide Phase 5 audit identified a validation-coverage deficiency: `scripts/phase5-units-1-332-full-audit-check.js` existed, but it was not registered as an npm command or enforced by a dedicated CI workflow. In addition, Unit 19 was represented only by an alias to the Unit 18 OCR audit rather than a separately named executable contract.
+
+Corrections on the complete-validation branch:
+- added `scripts/phase5-pdf-to-word-ocr-native-check.js` as the explicit Unit 19 gate;
+- registered `audit:phase5:pdf-to-word-ocr-native` to that dedicated gate;
+- registered `audit:phase5:units-1-332-full`;
+- added `.github/workflows/phase5-units-1-332-complete-validation.yml`;
+- retained the existing runtime implementation; no artificial processing limit was introduced.
+
+The complete gate covers Units 1–332 through the documented individual/range contracts and additionally runs project test, security, and runtime audits. Completion is valid only after the complete gate and all required checks pass with zero failures and zero pending checks.
