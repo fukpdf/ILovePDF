@@ -154,3 +154,18 @@ Corrections on the complete-validation branch:
 - retained the existing runtime implementation; no artificial processing limit was introduced.
 
 The complete gate covers Units 1–332 through the documented individual/range contracts and additionally runs project test, security, and runtime audits. Completion is valid only after the complete gate and all required checks pass with zero failures and zero pending checks.
+
+
+## Final Units 1–332 validation evidence
+
+Validation head: `e20921fba7168f5ee97e3cb1558e5f0ca3e2d99e`.
+
+Dedicated `phase5-full` CI result: **SUCCESS**.
+
+- Phase 5 Units 1–332 FULL AUDIT: **116/116 PASS**
+- npm test: **PASS**
+- security audit: **PASS**
+- runtime audit: **PASS**
+- overall PR check runs at this validation head: **32/32 SUCCESS, 0 FAILED, 0 PENDING**
+
+The 116-check full audit includes the explicit Unit 19 executable gate and all documented Phase 5 individual/range contracts through Units 320–332.
