@@ -1,0 +1,26 @@
+name: Phase 5 Units 1-332 Complete Validation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'public/js/**'
+      - 'public/workers/**'
+      - 'config/**'
+      - 'scripts/phase5-*.js'
+      - 'docs/architecture/PHASE-5-COMPLETION.md'
+      - '.github/workflows/phase5-units-1-332-complete-validation.yml'
+  workflow_dispatch:
+jobs:
+  phase5-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:units-1-332-full
+      - run: npm test
+      - run: npm run audit:security
+      - run: npm run audit:runtime
