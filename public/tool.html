@@ -29,26 +29,20 @@
   <link rel="stylesheet" href="/css/economy.css">
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
-  <!-- Resource hints: fonts only on the critical upload path -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="//fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Worker prefetch: browser downloads these during idle so the first tool
-       dispatch hits cache instead of the network cold-start.
-       ?v=__BUILD_ID__ ensures stale worker scripts are never served after a deploy. -->
-  <link rel="stylesheet" href="/css/home.css">
+  <!-- Critical CSS only: keep the upload shell render path small. -->
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20260924" data-shared-header-css="1">
   <link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924">
   <link rel="stylesheet" href="/css/styles.css?v=20261003-cloud-layout-v4">
-  <link rel="stylesheet" href="/css/blog.css">
-  <link rel="stylesheet" href="/css/seo-extended.css">
-  <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css">
-  <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css">
+  <link rel="stylesheet" href="/css/rtl.css">
   <link rel="stylesheet" href="/css/editor-workspace.css">
-  <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
+  <!-- Font and non-critical page CSS are loaded after first paint by tool-page-loader. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
+  <link rel="preload" as="style"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
 </head>
 <body>
 
@@ -186,10 +180,9 @@
     </div>
   </div>
 
-  <!-- Lightweight upload-page bootstrap. It loads only the critical UI/runtime first;
-       processor, preview, worker and optional modules are selected per active tool
-       after the upload page has painted. -->
-  <script src="/js/tool-page-loader.js"></script>
+  <!-- Lightweight upload-page bootstrap. Deferred discovery lets HTML/CSS parse
+       while the critical JS graph starts downloading in parallel. -->
+  <script defer src="/js/tool-page-loader.js"></script>
 
 </body>
 </html>
