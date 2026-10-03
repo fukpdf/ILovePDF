@@ -8,15 +8,6 @@
   if (G.__ILOVE_HOME_LOADER__) return;
   G.__ILOVE_HOME_LOADER__ = true;
 
-  var CRITICAL = [
-  "/js/config.js",
-  "/js/n2w-converter.js",
-  "/js/i18n.js?v=23",
-  "/js/tool-i18n-bridge.js?v=23",
-  "/js/i18n-ext.js?v=23",
-  "/js/chrome.js",
-  "/js/home.js"
-];
   var POST_LOAD = [
   "/js/browser-tools.js",
   "/js/runtime-protection.js",
