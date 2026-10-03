@@ -706,7 +706,7 @@ function brandedToolPalette(tool) {
 }
 
 // ── SHARED BRANDED UPLOAD — tool-specific content, common visual system ────
-/* MORE CLOUD PROVIDERS V1 */
+/* CLOUD PROVIDERS — compact side buttons + centered provider menu. */
 function cloudProviderLogo(provider) {
   const p = String(provider || '').toLowerCase();
   if (p === 'google-drive') return '<svg viewBox="0 0 64 56" aria-hidden="true"><path fill="#0F9D58" d="M21 3h16l20 35H41L21 3z"/><path fill="#4285F4" d="M21 3 3 34l8 14 18-31L21 3z"/><path fill="#F4B400" d="M11 48h36l10-17H21L11 48z"/></svg>';
@@ -744,7 +744,7 @@ function renderBrandedUploadStep(tool, config) {
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
       '</div>'
-    : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud">' + cloudProviderLogo('google-drive') + '</span><span class="ilpdf-branded-cloud">' + cloudProviderLogo('dropbox') + '</span></div>';
+    : '';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
@@ -762,8 +762,8 @@ function renderBrandedUploadStep(tool, config) {
             ${cloudButtonsHtml}
           </div>
 
-          <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
           ${config.cloudButtons ? renderCloudProviderMenu() : ''}
+          <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
             ${(config.benefits || []).map(function (b) {
