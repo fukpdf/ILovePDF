@@ -7336,3 +7336,102 @@ i[data-lucide] {
  .ilpdf-branded-upload .seo-content--crop-contract+.tool-faq{width:calc(100% - 20px)!important;padding:28px 16px 0!important;margin-bottom:40px!important}
 }
 @media(prefers-reduced-motion:reduce){.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{transition:none}}
+
+/* FULL-PAGE SECOND SECTION FINISH — same visual language as the upload page. */
+.ilpdf-branded-upload .seo-content--crop-contract{
+ width:100vw!important;max-width:none!important;margin:42px 0 0 calc(50% - 50vw)!important;
+ padding:64px max(24px,calc((100vw - 1240px)/2)) 18px!important;
+ border:0!important;border-radius:0!important;background:linear-gradient(180deg,#f8fbff 0%,#ffffff 34%,#fbfcff 100%)!important;
+ box-shadow:none!important;position:relative;overflow:hidden
+}
+.ilpdf-branded-upload .seo-content--crop-contract::before{
+ content:"";position:absolute;inset:0 0 auto;height:4px;
+ background:linear-gradient(90deg,#2563eb,#7c3aed,#ec4899,#059669,#f59e0b)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-intro,
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-grid,
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block{
+ width:min(100%,1180px);margin-left:auto;margin-right:auto
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-intro{
+ padding:0 0 18px;margin-bottom:22px;position:relative
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-kicker{
+ box-shadow:0 7px 20px rgba(79,70,229,.12);border:1px solid rgba(99,102,241,.13)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-grid{
+ gap:22px;margin-bottom:10px
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{
+ position:relative;overflow:hidden;min-height:205px;border-radius:22px
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card::after{
+ content:"";position:absolute;right:-35px;bottom:-45px;width:120px;height:120px;border-radius:50%;
+ background:rgba(99,102,241,.055);pointer-events:none
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(1){border-top:3px solid #3b82f6}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(2){border-top:3px solid #8b5cf6}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(3){border-top:3px solid #10b981}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-icon{
+ display:grid;place-items:center;box-shadow:0 8px 18px rgba(37,45,70,.08);border:1px solid rgba(255,255,255,.8)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block{
+ padding:38px 0;border-top:1px solid rgba(99,102,241,.12);position:relative
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3{
+ display:flex;align-items:center;gap:12px
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3::before{
+ content:"";width:10px;height:10px;flex:0 0 10px;border-radius:50%;
+ background:linear-gradient(135deg,#2563eb,#a855f7);box-shadow:0 0 0 6px rgba(99,102,241,.08)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps{counter-reset:crop-step;list-style:none;padding-left:0}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps li{
+ counter-increment:crop-step;position:relative;padding:12px 16px 12px 58px;margin-bottom:9px;
+ border:1px solid rgba(99,102,241,.09);border-radius:14px;background:rgba(255,255,255,.78)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps li::before{
+ content:counter(crop-step);position:absolute;left:17px;top:11px;width:28px;height:28px;
+ display:grid;place-items:center;border-radius:10px;color:#fff;font-size:12px;font-weight:900;
+ background:linear-gradient(135deg,#2563eb,#7c3aed);box-shadow:0 5px 12px rgba(79,70,229,.18)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps li::marker{content:""}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-benefits{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-benefits li{
+ min-height:76px;background:#fff;box-shadow:0 6px 18px rgba(37,45,70,.045);display:flex;align-items:center
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div{
+ min-height:142px;transition:transform .18s ease,box-shadow .18s ease;position:relative;overflow:hidden
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div::before{
+ content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+ background:linear-gradient(180deg,#3b82f6,#a855f7)
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div:nth-child(2)::before{background:linear-gradient(180deg,#ec4899,#f59e0b)}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div:nth-child(3)::before{background:linear-gradient(180deg,#10b981,#06b6d4)}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div:nth-child(4)::before{background:linear-gradient(180deg,#8b5cf6,#6366f1)}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid>div:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(37,45,70,.09)}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-trust-block{
+ padding:40px 0 24px;background:linear-gradient(90deg,rgba(239,246,255,.75),rgba(250,245,255,.75));
+ border-radius:20px;margin-bottom:12px;padding-left:24px;padding-right:24px
+}
+.ilpdf-branded-upload .seo-content--crop-contract+.tool-faq{
+ width:100vw!important;max-width:none!important;margin:0 0 0 calc(50% - 50vw)!important;
+ padding:48px max(24px,calc((100vw - 1180px)/2)) 70px!important;border-top:1px solid rgba(99,102,241,.12);
+ background:#fff
+}
+.ilpdf-branded-upload .seo-content--crop-contract+.tool-faq h2,
+.ilpdf-branded-upload .seo-content--crop-contract+.tool-faq .blog-faq-list{width:min(100%,1180px);margin-left:auto;margin-right:auto}
+@media(max-width:900px){
+ .ilpdf-branded-upload .seo-content--crop-contract{padding-left:22px!important;padding-right:22px!important}
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-benefits{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+ .ilpdf-branded-upload .seo-content--crop-contract{width:100vw!important;margin-left:calc(50% - 50vw)!important;padding:48px 16px 10px!important}
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-grid,
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-intro,
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-section-block{width:100%}
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{min-height:180px;padding:22px}
+ .ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3{font-size:21px}
+ .ilpdf-branded-upload .seo-content--crop-contract+.tool-faq{width:100vw!important;padding:38px 16px 52px!important}
+}
