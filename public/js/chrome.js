@@ -247,21 +247,13 @@ function renderHeader(){
       <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
     </div>
 
-    <div class="nav-item has-dd has-mega" id="all-tools-item">
-      <button class="nav-btn all-tools" id="all-tools-btn" type="button"
-              aria-expanded="false" aria-haspopup="true">
-        <span data-i18n="nav.all_tools">All Tools</span> <i data-lucide="chevron-down"></i>
-      </button>
-      <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
+    <div class="nav-item has-mega all-tools-static" id="all-tools-item">
+      <div class="mega" role="menu" aria-label="All Tools"><div class="mega-grid">${megaCols}</div></div>
     </div>
 
   `;
 
-  const allItem = document.getElementById('all-tools-item');
-  if (allItem) allItem.classList.remove('is-open');
-
   wireSimpleDropdowns();
-  wireAllToolsToggle();
   wireHoverPrefetch(nav);
 }
 
