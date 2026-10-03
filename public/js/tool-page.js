@@ -2647,6 +2647,11 @@ function renderSeoFeatureVisual(icon, variant) {
 function seoLineIcon(text) {
   const value = String(text || '').toLowerCase();
   const rules = [
+    // Compression use cases: prefer audience/context visuals over generic file icons.
+    [/job applications?/, 'user-round-check'],
+    [/marketing files?/, 'megaphone'],
+    [/legal\s*&?\s*finance/, 'users-round'],
+    [/email\s*&?\s*sharing/, 'send'],
     [/upload|select|drag|file/, 'upload-cloud'],
     [/preview|review|inspect|check/, 'scan-search'],
     [/compress|size|smaller|storage|attachment/, 'minimize-2'],
