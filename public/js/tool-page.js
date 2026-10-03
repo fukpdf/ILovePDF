@@ -2711,33 +2711,33 @@ function renderSeoContent(tool) {
     ];
 
     return `
-      <section class="seo-content seo-content--tool seo-content--compress" aria-labelledby="compress-seo-heading">
+      <section class="seo-content seo-content--crop-contract seo-content--compress" aria-labelledby="compress-seo-heading">
         <div class="seo-intro">
           <span class="seo-kicker">PDF COMPRESSION TOOL</span>
           <h2 id="compress-seo-heading">Compress PDF Online — Free, Fast &amp; Simple</h2>
-          <p><strong>Need to reduce a large PDF?</strong> This online PDF compressor helps shrink file size while keeping the document practical to read, share, print, and store.</p>
-          <p>Compress portfolios, scanned documents, brochures, invoices, reports, and other PDFs when a smaller file is easier to upload, email, publish, or archive.</p>
+          <p><strong>Need to reduce a large PDF?</strong> This online PDF compressor helps shrink page data and keep the document practical to read, share, print, and store.</p>
+          <p>Compress scanned documents, portfolios, brochures, invoices, reports, and other PDFs before uploading, emailing, publishing, or archiving them.</p>
         </div>
 
         <div class="seo-feature-grid">
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="minimize-2"></i></span><div><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></div></article>
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="sliders-horizontal"></i></span><div><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></div></article>
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="send"></i></span><div><h3>Prepare files for sharing</h3><p>Create a lighter PDF before sending it by email, uploading it to a portal, or storing it online.</p></div></article>
+          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="minimize-2"></i></span><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></article>
+          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="sliders-horizontal"></i></span><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></article>
+          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="send"></i></span><h3>Prepare lighter documents</h3><p>Create a smaller PDF before sharing, uploading, printing, or storing the finished document.</p></article>
         </div>
 
-        <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="list-checks"></i></span><div><span class="seo-section-kicker">STEP-BY-STEP</span><h3>How to compress a PDF online</h3></div></div>
+        <div class="seo-section-block">
+          <h3>How to compress a PDF online</h3>
           <ol class="seo-steps">
             <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
-            <li><strong>Review the document</strong> — check the file before choosing how strongly it should be compressed.</li>
-            <li><strong>Set the compression level</strong> — choose Low, Medium, or High according to your size and quality needs.</li>
-            <li><strong>Review the result</strong> — confirm that the compressed document still looks right for its intended use.</li>
-            <li><strong>Compress PDF</strong> — process the document and download the smaller PDF.</li>
+            <li><strong>Open the compression controls</strong> — review the document before selecting a compression level.</li>
+            <li><strong>Set the compression level</strong> — choose Low, Medium, or High according to the size and quality you need.</li>
+            <li><strong>Review the result</strong> — check that important text, images, and page content remain suitable for your purpose.</li>
+            <li><strong>Compress PDF</strong> — process the document and download the finished compressed PDF.</li>
           </ol>
         </div>
 
-        <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="gauge"></i></span><div><span class="seo-section-kicker">LIGHTER FILES</span><h3>Why compress a PDF?</h3></div></div>
+        <div class="seo-section-block">
+          <h3>Why compress a PDF?</h3>
           <ul class="seo-benefits">
             <li><strong>Share files faster.</strong> Smaller PDFs are easier to upload, download, and send over slower connections.</li>
             <li><strong>Meet attachment limits.</strong> Reducing file size can help when email or application portals impose size limits.</li>
@@ -2746,25 +2746,24 @@ function renderSeoContent(tool) {
           </ul>
         </div>
 
-        <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span><div><span class="seo-section-kicker">REAL-WORLD USE</span><h3>Common PDF compression use cases</h3></div></div>
+        <div class="seo-section-block">
+          <h3>Common PDF compression use cases</h3>
           <div class="seo-usecase-grid">
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="briefcase-business"></i></span><strong>Job applications</strong><span>Reduce portfolio or resume PDFs for portals with strict upload limits.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="megaphone"></i></span><strong>Marketing files</strong><span>Make brochures and downloadable PDFs lighter for website visitors.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="landmark"></i></span><strong>Legal &amp; finance</strong><span>Reduce document size before archiving or moving large batches.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="mail"></i></span><strong>Email &amp; sharing</strong><span>Prepare documents for services with attachment or upload limits.</span></article>
+            <div><strong>Job applications</strong><span>Reduce portfolio or resume PDFs for portals with strict upload limits.</span></div>
+            <div><strong>Marketing files</strong><span>Make brochures and downloadable PDFs lighter for website visitors.</span></div>
+            <div><strong>Legal &amp; finance</strong><span>Reduce document size before archiving or moving large batches.</span></div>
+            <div><strong>Email &amp; sharing</strong><span>Prepare documents for services with attachment or upload limits.</span></div>
           </div>
         </div>
 
-        <div class="seo-section-block seo-trust-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span><div><span class="seo-section-kicker">SIMPLE WORKFLOW</span><h3>Compress PDF files without unnecessary steps</h3></div></div>
+        <div class="seo-section-block seo-trust-block">
+          <h3>Compress PDF files without unnecessary steps</h3>
           <p>The workflow is built around a simple task: <strong>upload, choose, review, and download.</strong> You can prepare a smaller PDF without installing desktop software.</p>
         </div>
       </section>
       ${renderToolFaq(tool, compressFaq)}
     `;
   }
-
 
   // Generic SEO content for the other tools.
   const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
