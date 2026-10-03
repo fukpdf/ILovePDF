@@ -82,10 +82,12 @@ if (!/window\.ToolRegistry\.mergeLegacy\(legacyTool\)/.test(toolPage)) fail('too
 const toolShell = read('public/tool.html');
 const pageLoader = read('public/js/tool-page-loader.js');
 const staticRegistryBeforeToolPage = /src="\/js\/tool-registry-runtime\.js" defer[\\s\\S]*src="\/js\/tool-page\.js/.test(toolShell);
-const lazyRegistryBeforeToolPage = /var BASE = \[([\\s\\S]*?)\];/.test(pageLoader)
-  && /tool-registry-runtime\.js/.test(pageLoader)
-  && /tool-page\.js/.test(pageLoader)
-  && pageLoader.indexOf('tool-registry-runtime.js') < pageLoader.indexOf('tool-page.js');
+const baseMatch = pageLoader.match(/var BASE = \[([\s\S]*?)\];/);
+const baseScripts = baseMatch ? baseMatch[1] : '';
+const lazyRegistryBeforeToolPage = !!baseMatch
+  && /tool-registry-runtime\.js/.test(baseScripts)
+  && /tool-page\.js/.test(baseScripts)
+  && baseScripts.indexOf('tool-registry-runtime.js') < baseScripts.indexOf('tool-page.js');
 if (!staticRegistryBeforeToolPage && !lazyRegistryBeforeToolPage) fail('tool.html does not load the runtime registry before tool-page.js.');
 
 if (!/const registryMeta = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page popstate routing is not registry-backed.');
