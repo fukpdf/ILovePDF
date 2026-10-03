@@ -40,7 +40,11 @@
     '/css/blog.css',
     '/css/seo-extended.css',
     '/css/ads.css',
-    '/css/responsive-ads.css'
+    '/css/responsive-ads.css',
+    '/css/home-footer-v2.css?v=20260924',
+    '/css/rtl.css',
+    '/css/editor-workspace.css',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
   ];
 
   var loaded = Object.create(null);
