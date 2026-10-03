@@ -2619,23 +2619,35 @@ function renderSeoToolIdentity(tool) {
     '<span class="seo-tool-identity-text">' + name + '</span></div>';
 }
 
-function renderSeoFeatureVisual(icon, variant) {
-  const safeIcon = escapeHtml(icon || 'file-text');
-  const v = Number.isFinite(Number(variant)) ? Number(variant) : 0;
-  const labels = ['INPUT', 'ADJUST', 'OUTPUT'];
-  const label = labels[v % labels.length];
+function seoLineIcon(text, fallback) {
+  const s=String(text||'').toLowerCase();
+  const rules=[
+    [/compress|shrink|size|smaller|light/,'minimize-2'],[/quality|preserve|clear|crisp|read/,'eye'],
+    [/upload|select|choose|import/,'upload'],[/preview|review|check|inspect/,'scan-search'],
+    [/rotate|orientation|sideways|portrait|landscape/,'rotate-cw'],[/crop|margin|trim|edge/,'crop'],
+    [/merge|combine|join/,'layers'],[/split|separate|extract/,'scissors'],[/protect|secure|security|password|lock/,'shield-check'],
+    [/unlock|unlocked/,'lock-open'],[/sign|signature/,'pen-line'],[/edit|annotate|modify|text|draw/,'pen-tool'],
+    [/convert|conversion|format/,'refresh-cw'],[/print|printer/,'printer'],[/share|send|email|download/,'send'],
+    [/scan|scanned/,'scan-line'],[/archive|store|storage|save/,'archive'],[/invoice|receipt|finance|payment/,'receipt'],
+    [/study|notes|school|student/,'book-open'],[/contract|legal|form|application/,'file-check-2'],[/image|photo|picture/,'image'],
+    [/folder|document|file/,'file-text']
+  ];
+  for(const pair of rules) if(pair[0].test(s)) return pair[1];
+  return fallback||'sparkles';
+}
+function renderSeoFeatureVisual(icon,variant,label){
+  const safeIcon=escapeHtml(icon||'file-text'); const v=Number.isFinite(Number(variant))?Number(variant):0;
+  const labels=['INPUT','ADJUST','OUTPUT']; const visualLabel=label||labels[v%labels.length];
   return `
-    <span class="seo-feature-visual" aria-hidden="true" data-visual-variant="${v % 3}">
-      <span class="seo-visual-sheet">
-        <span class="seo-visual-sheet-line line-a"></span>
-        <span class="seo-visual-sheet-line line-b"></span>
-        <span class="seo-visual-sheet-line line-c"></span>
-      </span>
+    <span class="seo-feature-visual" aria-hidden="true" data-visual-variant="${v%3}">
+      <span class="seo-visual-sheet"><span class="seo-visual-sheet-line line-a"></span><span class="seo-visual-sheet-line line-b"></span><span class="seo-visual-sheet-line line-c"></span></span>
       <span class="seo-visual-icon"><i data-lucide="${safeIcon}"></i></span>
-      <span class="seo-visual-chip">${label}</span>
-      <span class="seo-visual-dot dot-a"></span>
-      <span class="seo-visual-dot dot-b"></span>
+      <span class="seo-visual-chip">${escapeHtml(visualLabel)}</span><span class="seo-visual-dot dot-a"></span><span class="seo-visual-dot dot-b"></span>
     </span>`;
+}
+function renderSeoLineVisual(text,fallback){
+  const icon=seoLineIcon(text,fallback);
+  return '<span class="seo-line-visual" aria-hidden="true"><i data-lucide="'+escapeHtml(icon)+'"></i></span>';
 }
 
 function renderSeoContent(tool) {
@@ -2675,19 +2687,19 @@ function renderSeoContent(tool) {
 
         <div class="seo-feature-grid">
           <article class="seo-feature-card">
-            ${renderSeoFeatureVisual('scan-search', 0)}
+            ${renderSeoFeatureVisual('scan-search', 0, 'PREVIEW')}
             <span class="seo-feature-icon"><i data-lucide="scan-search"></i></span>
             <h3>See the page before you rotate</h3>
             <p>Review the actual PDF page previews so you can identify the pages that need correction.</p>
           </article>
           <article class="seo-feature-card">
-            ${renderSeoFeatureVisual('rotate-cw', 1)}
+            ${renderSeoFeatureVisual('rotate-cw', 1, 'ROTATE')}
             <span class="seo-feature-icon"><i data-lucide="rotate-cw"></i></span>
             <h3>Rotate right or left</h3>
             <p>Choose the direction that matches the way your page needs to turn, with separate portrait and landscape controls.</p>
           </article>
           <article class="seo-feature-card">
-            ${renderSeoFeatureVisual('printer', 2)}
+            ${renderSeoFeatureVisual('printer', 2, 'PRINT')}
             <span class="seo-feature-icon"><i data-lucide="printer"></i></span>
             <h3>Ready for sharing and printing</h3>
             <p>Correct the orientation before sending the document to a client, colleague, archive, or printer.</p>
@@ -2697,11 +2709,11 @@ function renderSeoContent(tool) {
         <div class="seo-section-block">
           <h3>How to rotate a PDF online</h3>
           <ol class="seo-steps">
-            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
-            <li><strong>Check the page previews</strong> — identify pages that are sideways or upside down.</li>
-            <li><strong>Choose the pages to rotate</strong> — use All, Portrait, or Landscape when you need a specific orientation.</li>
-            <li><strong>Choose Right or Left</strong> — apply the direction that fixes the page orientation.</li>
-            <li><strong>Rotate PDF</strong> — create the corrected PDF and download the finished file.</li>
+            <li>${renderSeoLineVisual("Upload your PDF")}<span class="seo-line-copy"><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</span></li>
+            <li>${renderSeoLineVisual("Check the page previews")}<span class="seo-line-copy"><strong>Check the page previews</strong> — identify pages that are sideways or upside down.</span></li>
+            <li>${renderSeoLineVisual("Choose the pages to rotate")}<span class="seo-line-copy"><strong>Choose the pages to rotate</strong> — use All, Portrait, or Landscape when you need a specific orientation.</span></li>
+            <li>${renderSeoLineVisual("Choose Right or Left")}<span class="seo-line-copy"><strong>Choose Right or Left</strong> — apply the direction that fixes the page orientation.</span></li>
+            <li>${renderSeoLineVisual("Rotate PDF")}<span class="seo-line-copy"><strong>Rotate PDF</strong> — create the corrected PDF and download the finished file.</span></li>
           </ol>
         </div>
 
@@ -2718,10 +2730,10 @@ function renderSeoContent(tool) {
         <div class="seo-section-block">
           <h3>Common PDF rotation use cases</h3>
           <div class="seo-usecase-grid">
-            <div><strong>Scanned contracts</strong><span>Fix individual pages that were scanned sideways.</span></div>
-            <div><strong>Invoices &amp; receipts</strong><span>Make business documents easier to review and archive.</span></div>
-            <div><strong>Study notes</strong><span>Correct photographed or scanned pages before sharing.</span></div>
-            <div><strong>Office forms</strong><span>Standardize mixed portrait and landscape pages.</span></div>
+            <div>${renderSeoLineVisual("Scanned contracts")}<span class="seo-usecase-copy"><strong>Scanned contracts</strong><span>Fix individual pages that were scanned sideways.</span></span></div>
+            <div>${renderSeoLineVisual("Invoices &amp; receipts")}<span class="seo-usecase-copy"><strong>Invoices &amp; receipts</strong><span>Make business documents easier to review and archive.</span></span></div>
+            <div>${renderSeoLineVisual("Study notes")}<span class="seo-usecase-copy"><strong>Study notes</strong><span>Correct photographed or scanned pages before sharing.</span></span></div>
+            <div>${renderSeoLineVisual("Office forms")}<span class="seo-usecase-copy"><strong>Office forms</strong><span>Standardize mixed portrait and landscape pages.</span></span></div>
           </div>
         </div>
 
@@ -2753,19 +2765,19 @@ function renderSeoContent(tool) {
         </div>
 
         <div class="seo-feature-grid">
-          <article class="seo-feature-card">${renderSeoFeatureVisual('minimize-2', 0)}<span class="seo-feature-icon"><i data-lucide="minimize-2"></i></span><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></article>
-          <article class="seo-feature-card">${renderSeoFeatureVisual('sliders-horizontal', 1)}<span class="seo-feature-icon"><i data-lucide="sliders-horizontal"></i></span><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></article>
-          <article class="seo-feature-card">${renderSeoFeatureVisual('send', 2)}<span class="seo-feature-icon"><i data-lucide="send"></i></span><h3>Prepare lighter documents</h3><p>Create a smaller PDF before sharing, uploading, printing, or storing the finished document.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('minimize-2', 0, 'SIZE')}<span class="seo-feature-icon"><i data-lucide="minimize-2"></i></span><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('sliders-horizontal', 1, 'QUALITY')}<span class="seo-feature-icon"><i data-lucide="sliders-horizontal"></i></span><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('send', 2, 'SHARE')}<span class="seo-feature-icon"><i data-lucide="send"></i></span><h3>Prepare lighter documents</h3><p>Create a smaller PDF before sharing, uploading, printing, or storing the finished document.</p></article>
         </div>
 
         <div class="seo-section-block">
           <h3>How to compress a PDF online</h3>
           <ol class="seo-steps">
-            <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
-            <li><strong>Open the compression controls</strong> — review the document before selecting a compression level.</li>
-            <li><strong>Set the compression level</strong> — choose Low, Medium, or High according to the size and quality you need.</li>
-            <li><strong>Review the result</strong> — check that important text, images, and page content remain suitable for your purpose.</li>
-            <li><strong>Compress PDF</strong> — process the document and download the finished compressed PDF.</li>
+            <li>${renderSeoLineVisual("Upload your PDF")}<span class="seo-line-copy"><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</span></li>
+            <li>${renderSeoLineVisual("Open the compression controls")}<span class="seo-line-copy"><strong>Open the compression controls</strong> — review the document before selecting a compression level.</span></li>
+            <li>${renderSeoLineVisual("Set the compression level")}<span class="seo-line-copy"><strong>Set the compression level</strong> — choose Low, Medium, or High according to the size and quality you need.</span></li>
+            <li>${renderSeoLineVisual("Review the result")}<span class="seo-line-copy"><strong>Review the result</strong> — check that important text, images, and page content remain suitable for your purpose.</span></li>
+            <li>${renderSeoLineVisual("Compress PDF")}<span class="seo-line-copy"><strong>Compress PDF</strong> — process the document and download the finished compressed PDF.</span></li>
           </ol>
         </div>
 
@@ -2782,10 +2794,10 @@ function renderSeoContent(tool) {
         <div class="seo-section-block">
           <h3>Common PDF compression use cases</h3>
           <div class="seo-usecase-grid">
-            <div><strong>Job applications</strong><span>Reduce portfolio or resume PDFs for portals with strict upload limits.</span></div>
-            <div><strong>Marketing files</strong><span>Make brochures and downloadable PDFs lighter for website visitors.</span></div>
-            <div><strong>Legal &amp; finance</strong><span>Reduce document size before archiving or moving large batches.</span></div>
-            <div><strong>Email &amp; sharing</strong><span>Prepare documents for services with attachment or upload limits.</span></div>
+            <div>${renderSeoLineVisual("Job applications")}<span class="seo-usecase-copy"><strong>Job applications</strong><span>Reduce portfolio or resume PDFs for portals with strict upload limits.</span></span></div>
+            <div>${renderSeoLineVisual("Marketing files")}<span class="seo-usecase-copy"><strong>Marketing files</strong><span>Make brochures and downloadable PDFs lighter for website visitors.</span></span></div>
+            <div>${renderSeoLineVisual("Legal &amp; finance")}<span class="seo-usecase-copy"><strong>Legal &amp; finance</strong><span>Reduce document size before archiving or moving large batches.</span></span></div>
+            <div>${renderSeoLineVisual("Email &amp; sharing")}<span class="seo-usecase-copy"><strong>Email &amp; sharing</strong><span>Prepare documents for services with attachment or upload limits.</span></span></div>
           </div>
         </div>
 
@@ -2814,7 +2826,7 @@ function renderSeoContent(tool) {
       <div class="seo-section-block">
         <h3>Why use ${escapeHtml(tool.name)}?</h3>
         <ul class="seo-benefits">
-          ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n          ')}
+          ${extra.benefits.map(b => `<li>${renderSeoLineVisual(b.title)}<span class="seo-line-copy"><strong>${escapeHtml(b.title)}.</strong> ${b.body}</span></li>`).join('\\n          ')}
         </ul>
       </div>` : '';
 
@@ -2822,7 +2834,7 @@ function renderSeoContent(tool) {
       <div class="seo-section-block">
         <h3>Common use cases</h3>
         <div class="seo-usecase-grid">
-          ${extra.useCases.slice(0, 4).map(uc => `<div><strong>${escapeHtml(uc.audience)}</strong><span>${uc.body}</span></div>`).join('\\n          ')}
+          ${extra.useCases.slice(0, 4).map(uc => `<div>${renderSeoLineVisual("${escapeHtml(uc.audience)}")}<span class="seo-usecase-copy"><strong>${escapeHtml(uc.audience)}</strong><span>${uc.body}</span></span></div>`).join('\\n          ')}
         </div>
       </div>` : '';
 
@@ -2837,16 +2849,16 @@ function renderSeoContent(tool) {
       </div>
 
       <div class="seo-feature-grid">
-        ${featureItems.map((b, i) => `<article class="seo-feature-card">${renderSeoFeatureVisual(featureIcons[i], i)}<span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
+        ${featureItems.map((b, i) => `<article class="seo-feature-card">${renderSeoFeatureVisual(seoLineIcon(b.title, featureIcons[i]), i, b.title)}<span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
       </div>
 
       <div class="seo-section-block">
         <h3>How ${escapeHtml(tool.name)} works</h3>
         <ol class="seo-steps">
-          <li><strong>Upload your file</strong> — select a ${fileType} file or drag it into the upload area.</li>
-          <li><strong>Preview &amp; configure</strong> — review your file and adjust the available options.</li>
-          <li><strong>Process</strong> — start the configured ${escapeHtml(tool.name).toLowerCase()} operation.</li>
-          <li><strong>Download</strong> — download the processed result directly from your browser.</li>
+          <li>${renderSeoLineVisual("Upload your file")}<span class="seo-line-copy"><strong>Upload your file</strong> — select a ${fileType} file or drag it into the upload area.</span></li>
+          <li>${renderSeoLineVisual("Preview &amp; configure")}<span class="seo-line-copy"><strong>Preview &amp; configure</strong> — review your file and adjust the available options.</span></li>
+          <li>${renderSeoLineVisual("Process")}<span class="seo-line-copy"><strong>Process</strong> — start the configured ${escapeHtml(tool.name).toLowerCase()} operation.</span></li>
+          <li>${renderSeoLineVisual("Download")}<span class="seo-line-copy"><strong>Download</strong> — download the processed result directly from your browser.</span></li>
         </ol>
       </div>
       ${benefitsBlock}
