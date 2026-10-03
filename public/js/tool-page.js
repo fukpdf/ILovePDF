@@ -750,7 +750,7 @@ function renderBrandedUploadStep(tool, config) {
         '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
         '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
       '</div>' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><span class="ilpdf-cloud-single-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 14l5-5 5 5"/></svg></span><span class="ilpdf-cloud-arrow-trio" aria-hidden="true"><span>↑</span><span>↑</span><span>↑</span></span></button>' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><span class="ilpdf-cloud-single-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 10l5 5 5-5"/></svg></span><span class="ilpdf-cloud-arrow-trio" aria-hidden="true"><span>↑</span><span>↑</span><span>↑</span></span></button>' +
       renderCloudProviderMenu() +
     '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
