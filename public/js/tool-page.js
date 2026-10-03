@@ -259,7 +259,9 @@ window.addEventListener('popstate', () => {
 window.Flow = Flow; // exposed for queue-client and any future hookups
 window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initToolPage() {
+  if (window.__ILOVE_TOOL_PAGE_INIT_STARTED__) return;
+  window.__ILOVE_TOOL_PAGE_INIT_STARTED__ = true;
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
@@ -395,7 +397,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (_) {}
     }, 1800);
   });
-});
+}
+
+// The loader is dynamically importing this module. Dynamic scripts do not
+// block DOMContentLoaded, so the event may have fired before this file arrives.
+// Run from either lifecycle path, but only once.
+document.addEventListener('DOMContentLoaded', initToolPage, { once: true });
+window.addEventListener('ilovepdf:tool-critical-ready', initToolPage, { once: true });
 
 function renderNotFound(toolId, slug) {
   const c = document.getElementById('tool-content');
