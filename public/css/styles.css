@@ -9509,3 +9509,17 @@ i[data-lucide] {
     overflow-wrap:anywhere!important;
   }
 }
+
+
+/* Mobile upload benefits: the disclosure control was removed; keep all benefit cards visible. */
+@media (max-width:640px){
+  .ilpdf-branded-upload .ilpdf-branded-benefits{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:9px!important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-benefit{
+    width:100%!important;
+    min-width:0!important;
+  }
+}
