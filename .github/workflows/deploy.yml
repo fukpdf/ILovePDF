@@ -174,8 +174,11 @@ jobs:
 
           for path in /crop-pdf /rotate-pdf; do
             html="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$origin$path")"
-            printf '%s' "$html" | grep -q '/js/tool-page.js'
-            printf '%s' "$html" | grep -q '/js/tools-config.js'
+            # tool.html intentionally bootstraps these modules dynamically via
+            # tool-page-loader.js. Do not require lazy-loaded module tags in the
+            # initial HTML shell; verify the actual loader and canonical shell.
+            printf '%s' "$html" | grep -q '/js/tool-page-loader.js'
+            printf '%s' "$html" | grep -q 'id="tool-content"'
             if printf '%s' "$html" | grep -qi 'Coming Soon'; then
               echo "FAIL stale Coming Soon shell: $origin$path"
               exit 1
