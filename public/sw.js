@@ -5,7 +5,7 @@
 // v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
 // cacheFirst retained only for truly-immutable font files.
 // Bumping this version clears all v1 caches on next SW activation.
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
@@ -94,7 +94,7 @@ self.addEventListener('fetch', event => {
 
   // Locale files: stale-while-revalidate
   if (LOCALE_PATH.test(path)) {
-    event.respondWith(staleWhileRevalidate(request, CACHE_LOCALE));
+    event.respondWith(networkFirst(request, CACHE_LOCALE));
     return;
   }
 
@@ -103,12 +103,11 @@ self.addEventListener('fetch', event => {
     event.respondWith(cacheFirst(request, CACHE_STATIC));
     return;
   }
-  // JS / CSS / images: stale-while-revalidate.
-  // Responds instantly from cache then refreshes in the background.
-  // This ensures a new BUILD_ID deploy is reflected on the NEXT navigation
-  // even if the browser hasn't yet evicted the old entry.
+  // JS / CSS / images: network-first.
+  // Always ask the server for the current asset; cached content is only a
+  // fallback for offline use. This prevents users from seeing stale builds.
   if (STATIC_EXTS.test(path)) {
-    event.respondWith(staleWhileRevalidate(request, CACHE_STATIC));
+    event.respondWith(networkFirst(request, CACHE_STATIC));
     return;
   }
 
@@ -120,6 +119,21 @@ self.addEventListener('fetch', event => {
 });
 
 // ── Strategies ─────────────────────────────────────────────────────────────
+
+async function networkFirst(request, cacheName) {
+  try {
+    const response = await fetch(request, { cache: 'no-cache' });
+    if (response.ok) {
+      const cache = await caches.open(cacheName);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return new Response('', { status: 503, statusText: 'Offline' });
+  }
+}
 
 async function cacheFirst(request, cacheName) {
   const cached = await caches.match(request);
