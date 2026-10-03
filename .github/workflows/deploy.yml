@@ -117,33 +117,54 @@ jobs:
         run: |
           set -euo pipefail
           base="${PRODUCTION_BASE_URL:-https://ilovepdf.cyou}"
+          origin="${PRODUCTION_ORIGIN_URL:-https://ilovepdf-web.web.app}"
+          echo "Smoke origin: $origin"
+          echo "Smoke public domain: $base"
+
+          smoke_path() {
+            local host="$1" path="$2" body="/tmp/ilpdf-smoke"
+            local code
+            if ! code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$body" -w '%{http_code}' "$host$path")"; then
+              echo "FAIL network: $host$path"
+              return 1
+            fi
+            if [ "$code" != "200" ] || [ ! -s "$body" ]; then
+              echo "FAIL HTTP: $host$path [$code]"
+              head -c 300 "$body" || true
+              return 1
+            fi
+            echo "PASS $host$path [$code]"
+          }
+
           for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js; do
-            code="$(curl -L -sS -o /tmp/ilpdf-smoke -w '%{http_code}' "$base$path")"
-            test "$code" = "200"
-            test -s /tmp/ilpdf-smoke
-            echo "PASS $path [$code]"
+            smoke_path "$origin" "$path"
           done
-          config="$(curl -L -sS "$base/js/tools-config.js")"
+
+          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js; do
+            smoke_path "$base" "$path"
+          done
+
+          config="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS "$base/js/tools-config.js")"
           node - "$config" <<'NODE'
           const config = process.argv[2];
           for (const id of ['crop','rotate','merge']) {
-            const re = new RegExp("id\\s*:\\s*['\\\"]" + id + "['\\\"]");
-            const start = config.search(re);
-            if (start < 0) {
-              console.error('FAIL production config tool id:', id);
-              process.exit(1);
-            }
+            const re = /id\s*:\s*['\"]([^'\"]+)['\"]/g;
+            let match; let start = -1;
+            while ((match = re.exec(config))) { if (match[1] === id) { start = match.index; break; } }
+            if (start < 0) throw new Error('production config missing tool: ' + id);
             const windowText = config.slice(start, start + 900);
-            if (!/working\s*:\s*true/.test(windowText)) {
-              console.error('FAIL production config working=true:', id);
-              process.exit(1);
-            }
+            if (!/working\s*:\s*true/.test(windowText)) throw new Error('production config working=false: ' + id);
             console.log('PASS production config working=true:', id);
           }
           NODE
+
           for path in /crop-pdf /rotate-pdf; do
-            html="$(curl -L -sS "$base$path")"
+            html="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS "$base$path")"
             printf '%s' "$html" | grep -q '/js/tool-page.js'
             printf '%s' "$html" | grep -q '/js/tools-config.js'
-            echo "PASS tool shell assets: $path"
+            if printf '%s' "$html" | grep -qi 'Coming Soon'; then
+              echo "FAIL stale Coming Soon shell: $base$path"
+              exit 1
+            fi
+            echo "PASS production tool shell: $base$path"
           done
