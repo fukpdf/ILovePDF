@@ -130,6 +130,28 @@ async function handleHealth(request, env) {
   return json(env, request, { ok, service: 'ilovepdf-queue', services: { r2: { bound: r2_bound, reachable: r2_reachable }, kv: { bound: kv_bound }, queue: { bound: q_bound }, hf: { configured: !!hf_url, token: hf_token, reachable: hf_reachable, url: hf_url, note: 'not used for processing' }, firebase: { project_id: fb_proj }, backend: { cloud_run_url: env.BACKEND_URL || null } }, tools: [...QUEUED_TOOLS] });
 }
 
+
+async function proxyFirebase(request, env) {
+  const origin = String(env.FIREBASE_ORIGIN || 'https://ilovepdf-web.web.app').replace(/\\\/$/, '');
+  const incoming = new URL(request.url);
+  const target = new URL(origin + incoming.pathname + incoming.search);
+  const headers = new Headers(request.headers);
+  headers.set('host', target.host);
+  headers.set('cache-control', 'no-cache');
+  headers.set('x-ilovepdf-edge', 'cloudflare-firebase-proxy');
+  const upstream = new Request(target.toString(), {
+    method: request.method,
+    headers,
+    body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : undefined,
+    redirect: 'follow',
+  });
+  const response = await fetch(upstream, { cache: 'no-store' });
+  const out = new Response(response.body, response);
+  out.headers.set('cache-control', 'no-store, no-cache, must-revalidate, max-age=0');
+  out.headers.set('x-ilovepdf-edge', 'cloudflare-firebase-proxy');
+  return out;
+}
+
 async function handleLimits(request, env) {
   const id = await identify(request, env);
   const tier = id.plan || (id.user_id ? 'free' : 'guest');
@@ -158,7 +180,7 @@ export default {
         try { const resp = await fetch(proxied); const headers = new Headers(resp.headers); Object.entries(corsHeaders(env, request)).forEach(([k, v]) => headers.set(k, v)); return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers }); }
         catch (proxyErr) { console.error('[proxy] backend request failed:', proxyErr.message); return json(env, request, { error: 'backend unreachable', detail: proxyErr.message }, 502); }
       }
-      return fetch(request);
+      return await proxyFirebase(request, env);
     } catch (e) { console.error('[fetch] unhandled:', e?.stack || e?.message || e); return json(env, request, { error: 'internal error' }, 500); }
   },
   async queue(batch, env, ctx) {
