@@ -739,12 +739,11 @@ function renderBrandedUploadStep(tool, config) {
   const fileLabel = tool.multipleFiles
     ? _tp('tool.upload_files', config.fileLabel || 'Select files')
     : _tp('tool.upload_file', config.fileLabel || 'Select file');
-  const cloudButtonsHtml = config.cloudButtons
-    ? '<div class="ilpdf-branded-clouds" aria-label="Cloud upload options">' +
+  const cloudButtonsHtml =
+    '<div class="ilpdf-branded-clouds" aria-label="Cloud upload options">' +
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
-      '</div>'
-    : '';
+    '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
@@ -762,7 +761,7 @@ function renderBrandedUploadStep(tool, config) {
             ${cloudButtonsHtml}
           </div>
 
-          ${config.cloudButtons ? renderCloudProviderMenu() : ''}
+          ${renderCloudProviderMenu()}
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
@@ -800,7 +799,7 @@ function renderBrandedUploadStep(tool, config) {
   if (window.lucide) lucide.createIcons();
   setupFileInput();
 
-  if (config.cloudButtons) {
+  {
     const moreBtn = document.getElementById('cloud-more-btn');
     const providerList = document.getElementById('cloud-provider-list');
     if (moreBtn && providerList) {
