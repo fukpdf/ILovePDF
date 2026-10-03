@@ -67,6 +67,19 @@
   "/js/pwa-register.js",
   "/js/footer-lang.js"
 ];
+  // These scripts are already declared with defer in index.html. They are the
+  // homepage's critical UI graph; keep them as the loader barrier so the
+  // post-load graph cannot start from an undefined CRITICAL list.
+  var CRITICAL = [
+    '/js/config.js',
+    '/js/n2w-converter.js',
+    '/js/i18n.js?v=23',
+    '/js/tool-i18n-bridge.js?v=23',
+    '/js/i18n-ext.js?v=23',
+    '/js/chrome.js',
+    '/js/home.js'
+  ];
+
   var AD_SCRIPT = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556';
 
   var loaded = Object.create(null);
