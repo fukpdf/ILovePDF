@@ -979,6 +979,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ensureSharedShell();
   await ensureI18nAssets();
   renderHeader();
+  syncHeaderOffset();
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
@@ -999,6 +1000,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Re-render header (mega-menu names + badges) whenever language changes. */
   window.addEventListener('i18n:change', function () {
     renderHeader();
+    syncHeaderOffset();
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   });
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
@@ -1031,6 +1033,23 @@ document.addEventListener('click', function (e) {
   history.pushState({ toolSlug: slug }, '', href);
   if (typeof window.loadToolPage === 'function') window.loadToolPage(href);
 });
+
+/* Keep the document offset synchronized with the now variable-height static tool rail. */
+function syncHeaderOffset() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  const apply = () => {
+    document.documentElement.style.setProperty('--ilpdf-header-offset', Math.ceil(header.getBoundingClientRect().height) + 'px');
+  };
+  apply();
+  if (window.ResizeObserver) {
+    if (window.__ilpdfHeaderResizeObserver) window.__ilpdfHeaderResizeObserver.disconnect();
+    window.__ilpdfHeaderResizeObserver = new ResizeObserver(apply);
+    window.__ilpdfHeaderResizeObserver.observe(header);
+  } else {
+    window.addEventListener('resize', apply, { passive: true });
+  }
+}
 
 // ── Smart header: hide Login/Sign-up + center the logo when signed in ────
 // AuthUI doesn't currently emit events, so we lightweight-poll its
