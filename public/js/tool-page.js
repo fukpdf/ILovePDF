@@ -706,6 +706,31 @@ function brandedToolPalette(tool) {
 }
 
 // ── SHARED BRANDED UPLOAD — tool-specific content, common visual system ────
+/* MORE CLOUD PROVIDERS V1 */
+function cloudProviderLogo(provider) {
+  const p = String(provider || '').toLowerCase();
+  if (p === 'google-drive') return '<svg viewBox="0 0 64 56" aria-hidden="true"><path fill="#0F9D58" d="M21 3h16l20 35H41L21 3z"/><path fill="#4285F4" d="M21 3 3 34l8 14 18-31L21 3z"/><path fill="#F4B400" d="M11 48h36l10-17H21L11 48z"/></svg>';
+  if (p === 'dropbox') return '<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#0061FF" d="m20 9 12 9-12 9-12-9 12-9zm24 0 12 9-12 9-12-9 12-9zM20 29l12 9-12 9-12-9 12-9zm24 0 12 9-12 9-12-9 12-9z"/><path fill="#0061FF" d="m20 50 12-9 12 9-12 7-12-7z"/></svg>';
+  if (p === 'onedrive') return '<svg viewBox="0 0 64 52" aria-hidden="true"><path fill="#0364B8" d="M25 44H13C6 44 1 39 1 33s5-11 12-11c1-8 8-14 16-14 7 0 13 4 15 10 1 0 2-.2 3-.2 8 0 15 6 15 13.5S55 44 47 44H25z"/><path fill="#0078D4" d="M39 44h9c7 0 14-5 14-12.7 0-6.2-4.8-11.4-11-12.4-1.4 0-3.1.1-4.5.7C44 14 39 9 32 9c-1.3 0-2.5.2-3.7.5 6.4 1.8 11.1 7.2 12 13.9 7 0 12.8 4.7 14.4 11H39v9.6z"/></svg>';
+  if (p === 'box') return '<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#0061D5" d="m8 19 24-11 24 11-24 11L8 19zm0 6 24 11 24-11v20L32 56 8 45V25z"/><path fill="#fff" d="m20 27 12 6 12-6v6l-12 6-12-6v-6z"/></svg>';
+  if (p === 'icloud') return '<svg viewBox="0 0 64 56" aria-hidden="true"><path fill="#5B5B60" d="M21 45H12C5 45 1 40 1 34s5-11 12-11c1-9 8-15 17-15 8 0 14 5 16 12 1 0 2-.2 3-.2 8 0 14 6 14 13.5S57 45 49 45H21z"/></svg>';
+  return '<i data-lucide="cloud"></i>';
+}
+
+function renderCloudProviderMenu() {
+  return '<div class="ilpdf-cloud-provider-picker" id="cloud-provider-picker">' +
+    '<button type="button" class="ilpdf-cloud-more" id="cloud-more-btn" aria-expanded="false" aria-controls="cloud-provider-list">' +
+      '<i data-lucide="cloud"></i><span>More cloud providers</span><i data-lucide="chevron-down" class="ilpdf-cloud-more-chevron"></i>' +
+    '</button>' +
+    '<div class="ilpdf-cloud-provider-list" id="cloud-provider-list" hidden>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="google-drive"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('google-drive') + '</span><span><strong>Google Drive</strong><small>Available</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="dropbox"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('dropbox') + '</span><span><strong>Dropbox</strong><small>Available</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="onedrive"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('onedrive') + '</span><span><strong>Microsoft OneDrive</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="box"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('box') + '</span><span><strong>Box</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="icloud"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('icloud') + '</span><span><strong>iCloud Drive</strong><small>Provider option</small></span></button>' +
+    '</div></div>';
+}
+
 function renderBrandedUploadStep(tool, config) {
   const container = document.getElementById('tool-content');
   if (!container) return;
@@ -716,10 +741,10 @@ function renderBrandedUploadStep(tool, config) {
     : _tp('tool.upload_file', config.fileLabel || 'Select file');
   const cloudButtonsHtml = config.cloudButtons
     ? '<div class="ilpdf-branded-clouds" aria-label="Cloud upload options">' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive"><i data-lucide="hard-drive-upload"></i></button>' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox"><i data-lucide="box"></i></button>' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
       '</div>'
-    : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud"><i data-lucide="hard-drive-upload"></i></span><span class="ilpdf-branded-cloud"><i data-lucide="box"></i></span></div>';
+    : '<div class="ilpdf-branded-clouds" aria-hidden="true"><span class="ilpdf-branded-cloud">' + cloudProviderLogo('google-drive') + '</span><span class="ilpdf-branded-cloud">' + cloudProviderLogo('dropbox') + '</span></div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
@@ -738,6 +763,7 @@ function renderBrandedUploadStep(tool, config) {
           </div>
 
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
+          ${config.cloudButtons ? renderCloudProviderMenu() : ''}
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
             ${(config.benefits || []).map(function (b) {
@@ -775,6 +801,32 @@ function renderBrandedUploadStep(tool, config) {
   setupFileInput();
 
   if (config.cloudButtons) {
+    const moreBtn = document.getElementById('cloud-more-btn');
+    const providerList = document.getElementById('cloud-provider-list');
+    if (moreBtn && providerList) {
+      moreBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = providerList.hidden;
+        providerList.hidden = !open;
+        moreBtn.setAttribute('aria-expanded', String(open));
+      });
+      providerList.querySelectorAll('[data-cloud-provider]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const provider = btn.getAttribute('data-cloud-provider');
+          if (provider === 'google-drive' || provider === 'dropbox') {
+            if (window.CloudUpload && typeof window.CloudUpload.open === 'function') {
+              window.CloudUpload.open(provider, document.getElementById('file-input'));
+            } else {
+              document.getElementById('file-input')?.click();
+            }
+          }
+          providerList.hidden = true;
+          moreBtn.setAttribute('aria-expanded', 'false');
+        });
+      });
+    }
+
     const googleBtn = document.getElementById('upload-google-drive');
     const dropboxBtn = document.getElementById('upload-dropbox');
     if (googleBtn) googleBtn.addEventListener('click', function (e) {
