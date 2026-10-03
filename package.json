@@ -62,7 +62,8 @@
     "audit:phase5:pdf-to-word-ocr-structure": "node scripts/phase5-pdf-to-word-ocr-structure-check.js",
     "audit:phase5:pdf-to-word-quality": "node scripts/phase5-pdf-to-word-quality-check.js",
     "audit:phase5:pdf-to-word-decision": "node scripts/phase5-pdf-to-word-decision-check.js",
-    "audit:phase5:units-1-332-full": "node scripts/phase5-units-1-332-full-audit-check.js"
+    "audit:phase5:units-1-332-full": "node scripts/phase5-units-1-332-full-audit-check.js",
+    "audit:production:smoke": "node scripts/production-smoke-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1053.0",
