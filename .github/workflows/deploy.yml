@@ -1,6 +1,8 @@
 name: Deploy Project
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -145,3 +147,26 @@ jobs:
             HF_API_TOKEN
         env:
           HF_API_TOKEN: ${{ secrets.HF_TOKEN }}
+
+      - name: Production HTTP smoke validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${PRODUCTION_BASE_URL:-https://ilovepdf.cyou}"
+          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js; do
+            code="$(curl -L -sS -o /tmp/ilpdf-smoke -w '%{http_code}' "$base$path")"
+            test "$code" = "200"
+            test -s /tmp/ilpdf-smoke
+            echo "PASS $path [$code]"
+          done
+          config="$(curl -L -sS "$base/js/tools-config.js")"
+          for id in crop rotate merge; do
+            printf '%s' "$config" | grep -Eq "id:[[:space:]]*['"]$id['"][[:space:][:print:]]*working:[[:space:]]*true"
+            echo "PASS production config working=true: $id"
+          done
+          for path in /crop-pdf /rotate-pdf; do
+            html="$(curl -L -sS "$base$path")"
+            printf '%s' "$html" | grep -q '/js/tool-page.js'
+            printf '%s' "$html" | grep -q '/js/tools-config.js'
+            echo "PASS tool shell assets: $path"
+          done
