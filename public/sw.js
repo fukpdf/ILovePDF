@@ -5,7 +5,7 @@
 // v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
 // cacheFirst retained only for truly-immutable font files.
 // Bumping this version clears all v1 caches on next SW activation.
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
