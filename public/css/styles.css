@@ -7435,3 +7435,66 @@ i[data-lucide] {
  .ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3{font-size:21px}
  .ilpdf-branded-upload .seo-content--crop-contract+.tool-faq{width:100vw!important;padding:38px 16px 52px!important}
 }
+
+/* SECOND SECTION REFINEMENT — tool-specific colorful logo, no divider bars.
+   The section structure remains unchanged; only identity and visual hierarchy are refined. */
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity{
+  width:min(100%,1180px);
+  margin:0 auto 18px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo{
+  width:58px;
+  height:58px;
+  flex:0 0 58px;
+  display:grid;
+  place-items:center;
+  border-radius:17px;
+  color:#fff;
+  background:linear-gradient(135deg,var(--seo-logo-a,#2563eb),var(--seo-logo-b,#7c3aed));
+  box-shadow:0 10px 22px color-mix(in srgb,var(--seo-logo-a,#2563eb) 24%,transparent);
+  border:3px solid rgba(255,255,255,.9);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo svg{
+  width:29px;
+  height:29px;
+  stroke-width:2.25;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity-text{
+  font-size:13px;
+  line-height:1.2;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#64748b;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block{
+  border-top:0!important;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3::before{
+  display:none;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block>h3{
+  gap:0;
+}
+.ilpdf-branded-upload .seo-content--crop-contract+.tool-faq{
+  border-top:0!important;
+}
+@media(max-width:640px){
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity{
+    gap:11px;
+    margin-bottom:14px;
+  }
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo{
+    width:50px;
+    height:50px;
+    flex-basis:50px;
+    border-radius:15px;
+  }
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo svg{
+    width:25px;
+    height:25px;
+  }
+}
