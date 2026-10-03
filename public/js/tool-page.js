@@ -2636,7 +2636,7 @@ function renderSeoContent(tool) {
     ];
 
     return `
-      <section class="seo-content seo-content--rotate" aria-labelledby="rotate-seo-heading">
+      <section class="seo-content seo-content--crop-contract seo-content--rotate" aria-labelledby="rotate-seo-heading">
         <div class="seo-intro">
           <span class="seo-kicker">PDF ROTATION TOOL</span>
           <h2 id="rotate-seo-heading">Rotate PDF Online — Free, Fast &amp; Easy</h2>
@@ -2769,40 +2769,59 @@ function renderSeoContent(tool) {
   const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
   const extra = (window.TOOL_CONTENT && window.TOOL_CONTENT[slug]) || null;
 
+  const benefitItems = extra?.benefits || [
+    { title: 'Simple workflow', body: `Complete the main ${escapeHtml(tool.name).toLowerCase()} task with a clear upload, configure, process, and download flow.` },
+    { title: 'Browser-based processing', body: 'Use the configured browser processing path without installing desktop software.' },
+    { title: 'Practical output', body: 'Prepare a finished document that is ready to read, share, print, or store.' },
+  ];
+  const featureIcons = ['sparkles', 'sliders-horizontal', 'check-circle-2'];
+  const featureItems = benefitItems.slice(0, 3);
+
   const benefitsBlock = extra ? `
-      <h3>Benefits of ${escapeHtml(tool.name)}</h3>
-      <ul class="seo-benefits">
-        ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n        ')}
-      </ul>` : '';
+      <div class="seo-section-block">
+        <h3>Why use ${escapeHtml(tool.name)}?</h3>
+        <ul class="seo-benefits">
+          ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n          ')}
+        </ul>
+      </div>` : '';
 
   const useCasesBlock = extra ? `
-      <h3>Common use cases</h3>
-      <ul class="seo-usecases">
-        ${extra.useCases.map(uc => `<li><strong>${escapeHtml(uc.audience)}:</strong> ${uc.body}</li>`).join('\\n        ')}
-      </ul>` : '';
+      <div class="seo-section-block">
+        <h3>Common use cases</h3>
+        <div class="seo-usecase-grid">
+          ${extra.useCases.slice(0, 4).map(uc => `<div><strong>${escapeHtml(uc.audience)}</strong><span>${uc.body}</span></div>`).join('\\n          ')}
+        </div>
+      </div>` : '';
 
   return `
-    <div class="seo-content">
-      <h2>${tool.name} Online — Free, Fast &amp; Secure</h2>
-      <p><strong>ILovePDF's ${tool.name}</strong> lets you ${tool.description.charAt(0).toLowerCase() + tool.description.slice(1)} — entirely for free, instantly. No software to download, no account to create, no hidden fees.</p>
-      <p>Drag and drop your ${fileType} onto the upload area or click to browse. Processing runs in your browser, so there is no artificial file-size cap imposed by the shared tool flow. Very large files may take longer on lower-capability devices.</p>
-      <h3>How ${tool.name} works</h3>
-      <ol class="seo-steps">
-        <li><strong>Upload your file</strong> — drag &amp; drop or click the upload area.</li>
-        <li><strong>Preview &amp; configure</strong> — review your file and adjust any options.</li>
-        <li><strong>Process</strong> — click the Process button and let your device complete the task.</li>
-        <li><strong>Download</strong> — download the processed result directly from your browser.</li>
-      </ol>
+    <section class="seo-content seo-content--crop-contract" aria-labelledby="${escapeHtml(tool.id)}-seo-heading">
+      <div class="seo-intro">
+        <span class="seo-kicker">${escapeHtml(tool.name).toUpperCase()} TOOL</span>
+        <h2 id="${escapeHtml(tool.id)}-seo-heading">${escapeHtml(tool.name)} Online — Free, Fast &amp; Secure</h2>
+        <p><strong>Need to ${escapeHtml(tool.description.charAt(0).toLowerCase() + tool.description.slice(1))}?</strong> This online tool helps you complete the task quickly and prepare a practical result.</p>
+        <p>Use it for ${fileType} files when you need a straightforward browser-based workflow before sharing, printing, publishing, or archiving.</p>
+      </div>
+
+      <div class="seo-feature-grid">
+        ${featureItems.map((b, i) => `<article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
+      </div>
+
+      <div class="seo-section-block">
+        <h3>How ${escapeHtml(tool.name)} works</h3>
+        <ol class="seo-steps">
+          <li><strong>Upload your file</strong> — select a ${fileType} file or drag it into the upload area.</li>
+          <li><strong>Preview &amp; configure</strong> — review your file and adjust the available options.</li>
+          <li><strong>Process</strong> — start the configured ${escapeHtml(tool.name).toLowerCase()} operation.</li>
+          <li><strong>Download</strong> — download the processed result directly from your browser.</li>
+        </ol>
+      </div>
       ${benefitsBlock}
       ${useCasesBlock}
-      <h3>Why choose ILovePDF?</h3>
-      <ul class="seo-why">
-        <li><strong>Fast.</strong> Most files are processed in seconds.</li>
-        <li><strong>Free.</strong> No watermark, no daily cap, and no artificial file-size cap in the shared browser flow.</li>
-        <li><strong>Secure.</strong> Processing follows the tool's configured processing path; see the site's privacy information for data handling details.</li>
-        <li><strong>Complete.</strong> ${TOOLS.length} tools to ${kw} — all in one place.</li>
-      </ul>
-    </div>
+      <div class="seo-section-block seo-trust-block">
+        <h3>${escapeHtml(tool.name)} without unnecessary steps</h3>
+        <p>The workflow is built around the task you came to complete: <strong>upload, configure, process, and download.</strong> Processing follows this tool's configured browser workflow.</p>
+      </div>
+    </section>
     ${extra && extra.faq && extra.faq.length ? renderToolFaq(tool, extra.faq) : ''}`;
 }
 function renderToolFaq(tool, faq) {
