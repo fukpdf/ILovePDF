@@ -690,6 +690,19 @@ function popularToolsHtml(currentToolId) {
     </section>`;
 }
 
+// ── SHARED BRANDED UPLOAD — deterministic tool-specific visual palette ────
+function brandedToolPalette(tool) {
+  const palettes = [
+    ['#4f46e5','#7c3aed'], ['#2563eb','#06b6d4'], ['#059669','#84cc16'],
+    ['#db2777','#f43f5e'], ['#ea580c','#f59e0b'], ['#0891b2','#0e7490'],
+    ['#7c3aed','#c026d3'], ['#16a34a','#0d9488'], ['#dc2626','#f97316'],
+  ];
+  const id = String(tool && (tool.id || tool.name) || 'tool');
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return palettes[Math.abs(hash) % palettes.length];
+}
+
 // ── SHARED BRANDED UPLOAD — tool-specific content, common visual system ────
 function renderBrandedUploadStep(tool, config) {
   const container = document.getElementById('tool-content');
