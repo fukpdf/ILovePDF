@@ -33,10 +33,3 @@ ALLOWED_ORIGINS     = "https://ilovepdf.cyou,https://www.ilovepdf.cyou"
 FIREBASE_PROJECT_ID = "ilovepdf-web"
 FIREBASE_ORIGIN     = "https://ilovepdf-web.web.app"
 
-[[routes]]
-pattern = "ilovepdf.cyou/*"
-zone_name = "ilovepdf.cyou"
-
-[[routes]]
-pattern = "www.ilovepdf.cyou/*"
-zone_name = "ilovepdf.cyou"
