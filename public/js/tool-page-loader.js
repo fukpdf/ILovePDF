@@ -13,6 +13,8 @@
 
   // Critical scripts only. They are inserted together so the browser can
   // download them in parallel; async=false preserves their execution order.
+  // Do not turn this into a sequential waterfall: the tool shell must become
+  // interactive as soon as the dependency graph is available.
   var BASE = [
     '/js/config.js',
     '/js/timer-registry.js',
@@ -191,15 +193,11 @@
   ];
 
   async function bootCritical() {
-    // Do not waterfall the critical graph. Dynamic scripts with async=false
-    // still execute in insertion order, while their network fetches can overlap.
-    // Execute the critical graph in deterministic order. Dynamic classic scripts with
-    // async=false are intended to preserve order, but sequential awaiting also
-    // makes the bootstrap contract explicit and prevents a fast child script from
-    // observing an uninitialised global when the browser/cache timing changes.
-    for (var i = 0; i < BASE.length; i++) {
-      await loadScript(BASE[i]);
-    }
+    // Start the whole critical graph together. Dynamic classic scripts with
+    // async=false execute in insertion order while their downloads overlap.
+    // This removes the old N-request waterfall without changing dependency
+    // execution order.
+    await Promise.all(BASE.map(loadScript));
 
     // tool-page.js registers its DOMContentLoaded handler. The loader is
     // deferred in <head>, so the critical chain can finish before DOMContentLoaded
