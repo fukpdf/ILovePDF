@@ -8462,3 +8462,148 @@ i[data-lucide] {
     font-size:14px;
   }
 }
+
+
+/* CLOUD PROVIDERS V2 — authentic brand-color marks on clean white cards. */
+.ilpdf-branded-upload .ilpdf-branded-clouds{
+  width:auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+}
+.ilpdf-branded-upload .ilpdf-branded-cloud{
+  width:76px;
+  height:76px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:16px;
+  background:#fff;
+  color:#334155;
+  border:1px solid #e5e7eb;
+  box-shadow:0 5px 14px rgba(37,45,70,.08);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.ilpdf-branded-upload .ilpdf-branded-cloud:hover{
+  transform:translateY(-2px);
+  border-color:#d7dbe4;
+  box-shadow:0 9px 20px rgba(37,45,70,.12);
+}
+.ilpdf-branded-upload .ilpdf-branded-cloud svg{
+  width:42px;
+  height:42px;
+  stroke-width:0;
+  display:block;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-picker{
+  width:min(100%,360px);
+  margin:14px auto 0;
+  position:relative;
+}
+.ilpdf-branded-upload .ilpdf-cloud-more{
+  width:100%;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  padding:10px 16px;
+  border:1px solid #dfe3ea;
+  border-radius:12px;
+  background:#fff;
+  color:#34445a;
+  font-size:15px;
+  font-weight:700;
+  box-shadow:0 4px 12px rgba(37,45,70,.06);
+}
+.ilpdf-branded-upload .ilpdf-cloud-more:hover{
+  border-color:#cdd3df;
+  box-shadow:0 7px 16px rgba(37,45,70,.09);
+}
+.ilpdf-branded-upload .ilpdf-cloud-more svg{
+  width:19px;
+  height:19px;
+}
+.ilpdf-branded-upload .ilpdf-cloud-more .ilpdf-cloud-more-chevron{
+  margin-left:3px;
+  transition:transform .18s ease;
+}
+.ilpdf-branded-upload .ilpdf-cloud-more[aria-expanded="true"] .ilpdf-cloud-more-chevron{
+  transform:rotate(180deg);
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-list{
+  position:absolute;
+  z-index:30;
+  left:0;
+  right:0;
+  top:calc(100% + 8px);
+  padding:8px;
+  display:grid;
+  gap:5px;
+  background:#fff;
+  border:1px solid #e1e5ec;
+  border-radius:14px;
+  box-shadow:0 16px 35px rgba(30,41,59,.16);
+  text-align:left;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-list[hidden]{display:none}
+.ilpdf-branded-upload .ilpdf-cloud-provider-option{
+  width:100%;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 10px;
+  border:0;
+  border-radius:10px;
+  background:#fff;
+  color:#26364b;
+  text-align:left;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-option:hover{
+  background:#f6f7fa;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-logo{
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  display:grid;
+  place-items:center;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-logo svg{
+  width:30px;
+  height:30px;
+  display:block;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-option > span:last-child{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-option strong{
+  font-size:14px;
+  line-height:1.2;
+}
+.ilpdf-branded-upload .ilpdf-cloud-provider-option small{
+  font-size:12px;
+  line-height:1.2;
+  color:#718096;
+}
+@media(max-width:640px){
+  .ilpdf-branded-upload .ilpdf-branded-clouds{gap:10px}
+  .ilpdf-branded-upload .ilpdf-branded-cloud{
+    width:68px;
+    height:68px;
+    border-radius:14px;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-cloud svg{
+    width:38px;
+    height:38px;
+  }
+  .ilpdf-branded-upload .ilpdf-cloud-provider-picker{
+    width:min(100%,340px);
+    margin-top:12px;
+  }
+}
