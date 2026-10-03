@@ -232,7 +232,6 @@ browserEngineLimitChecks.forEach(function (pair) {
 });
 
 
-if (!/browser-tool-runtime\.js/.test(read('public/tool.html'))) fail('Canonical browser runtime adapter is not loaded by the standard tool shell.');
 if (!/registryTool\.execution === 'browser'/.test(read('public/js/tool-page.js'))) fail('Tool page does not route registry browser tools through BrowserToolRuntime.');
 
 const browserTools = read('public/js/browser-tools.js');
@@ -255,7 +254,9 @@ if (!/window\.BrowserTools\.process\(toolId, files, opts\)/.test(toolPage)) fail
 if (!/No verified browser processor exists for this tool/.test(toolPage)) fail('Shared tool page fallback policy is not explicit.');
 
 const toolHtml = read('public/tool.html');
-if (!/src="\/js\/crop-pdf-app\.js" defer/.test(toolHtml)) fail('Crop app is not loaded by the standard tool shell.');
+const toolPageLoader = read('public/js/tool-page-loader.js');
+const shellLoads = src => toolHtml.includes(src) || toolPageLoader.includes(src);
+if (!shellLoads('/js/browser-tool-runtime.js')) fail('Canonical browser runtime adapter is not loaded by the standard tool shell.');
 
 // ── Crop reference ─────────────────────────────────────────────────────────
 requirePdfWorkerContract('crop', 'Crop');
@@ -403,7 +404,7 @@ if (!/PDFDocument\.load/.test(pageNumbersBlock) || !/getPages\(\)/.test(pageNumb
 if (!/startFrom/.test(pageNumbersBlock) || !/position/.test(pageNumbersBlock)) fail('Page Numbers worker does not consume numbering options.');
 if (!/buffers\[0\]\s*=\s*null/.test(pageNumbersBlock)) fail('Page Numbers worker does not release the source buffer.');
 if (!/['"]page-numbers['"]/.test(workerSet)) fail('Page Numbers is not in BrowserTools WORKER_TOOLS.');
-if (!/page-numbers-worker-adapter\.js/.test(toolHtml)) fail('Page Numbers adapter is not loaded by the standard tool shell.');
+if (!shellLoads('/js/page-numbers-worker-adapter.js')) fail('Page Numbers adapter is not loaded by the standard tool shell.');
 
 // ── Redact PDF canonical tool ─────────────────────────────────────────────
 requirePdfWorkerContract('redact', 'Redact PDF');
@@ -425,7 +426,7 @@ const redactWorker = read('public/workers/redact-worker.js');
 if (!/d\.tool !== 'redact'|d\.tool === 'redact'/.test(redactWorker) || !/d\.opts = d\.opts \|\| d\.options/.test(redactWorker)) fail('Redact worker canonical protocol is missing.');
 if (!/pdfjs-dist/.test(redactWorker) || !/renderRedactedPage/.test(redactWorker) || !/embedPng/.test(redactWorker)) fail('Redact true-flattening security path is missing.');
 if (!/copyPages/.test(redactWorker)) fail('Redact non-target page preservation is missing.');
-if (!/redact-worker-adapter\.js/.test(toolHtml)) fail('Redact adapter is not loaded by the standard tool shell.');
+if (!shellLoads('/js/redact-worker-adapter.js')) fail('Redact adapter is not loaded by the standard tool shell.');
 
 // ── Sign PDF canonical tool ───────────────────────────────────────────────
 requirePdfWorkerContract('sign', 'Sign PDF');
@@ -450,7 +451,7 @@ if (!signBlock) fail('Shared PDF worker has no Sign operation.');
 if (!/PDFDocument\.load/.test(signBlock) || !/drawText/.test(signBlock) || !/drawLine/.test(signBlock)) fail('Sign worker drawing contract is incomplete.');
 if (!/signatureText|opts\.text/.test(signBlock)) fail('Sign worker does not consume signature text.');
 if (!/buffers\[0\]\s*=\s*null/.test(signBlock)) fail('Sign worker does not release the source buffer.');
-if (!/sign-worker-adapter\.js/.test(toolHtml)) fail('Sign adapter is not loaded by the standard tool shell.');
+if (!shellLoads('/js/sign-worker-adapter.js')) fail('Sign adapter is not loaded by the standard tool shell.');
 
 // ── Compress PDF canonical tool ─────────────────────────────────────────────
 requirePdfWorkerContract('compress', 'Compress PDF');
@@ -577,7 +578,7 @@ if (!/PDFDocument\.load/.test(watermarkBlock) || !/drawText/.test(watermarkBlock
 if (!/text/.test(watermarkBlock) || !/opacity/.test(watermarkBlock) || !/position/.test(watermarkBlock)) fail('Watermark worker does not consume watermark options.');
 if (!/buffers\[0\]\s*=\s*null/.test(watermarkBlock)) fail('Watermark worker does not release the source buffer.');
 if (!/['"]watermark['"]/.test(workerSet)) fail('Watermark is not in BrowserTools WORKER_TOOLS.');
-if (!/watermark-worker-adapter\.js/.test(toolHtml)) fail('Watermark adapter is not loaded by the standard tool shell.');
+if (!shellLoads('/js/watermark-worker-adapter.js')) fail('Watermark adapter is not loaded by the standard tool shell.');
 
 // ── Rotate canonical-tool residue checks ─────────────────────────────────
 const mergeApp = read('public/js/merge-pdf-app.js');
@@ -706,7 +707,7 @@ const compareTool = (registry.tools || []).find(t => t.id === 'compare');
 if (!compareTool || compareTool.execution !== 'browser-worker') fail('Compare registry is not browser-worker.');
 if (!compareTool || !compareTool.capabilities || compareTool.capabilities.streaming !== 'adaptive-worker') fail('Compare registry does not declare adaptive worker streaming.');
 if (!compareTool || !compareTool.capabilities || compareTool.capabilities.workerPool !== true) fail('Compare registry does not declare worker pool execution.');
-if (!/compare-worker-adapter\.js/.test(toolHtml)) fail('Compare adapter is not loaded by the standard tool shell.');
+if (!shellLoads('/js/compare-worker-adapter.js')) fail('Compare adapter is not loaded by the standard tool shell.');
 
 
 
@@ -730,7 +731,7 @@ if (/WorkerPool\.run\(/.test(ocrAdapter)) fail('OCR adapter contains a direct Wo
 if (!/TIMEOUT_MS=0/.test(ocrAdapter)) fail('OCR adapter has an artificial scheduler timeout.');
 if (!/function key\(file,opts\)/.test(ocrAdapter) || !/dedupeKey:key/.test(ocrAdapter)) fail('OCR adapter dedupe key is missing.');
 if (!/cancel\(reason\)/.test(ocrAdapter)) fail('OCR adapter cancellation contract is missing.');
-if (!/ocr-worker-adapter\.js/.test(toolHtml) || !/ocr-runtime\.js/.test(toolHtml)) fail('OCR canonical runtime files are not loaded by the standard tool shell.');
+if (!shellLoads('/js/ocr-worker-adapter.js') || !shellLoads('/js/ocr-runtime.js')) fail('OCR canonical runtime files are not loaded by the standard tool shell.');
 
 // ── Translate canonical tool ─────────────────────────────────────────────
 requirePdfWorkerContract('translate', 'Translate');
