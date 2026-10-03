@@ -692,10 +692,14 @@ function popularToolsHtml(currentToolId) {
 
 // ── SHARED BRANDED UPLOAD — deterministic tool-specific visual palette ────
 function brandedToolPalette(tool) {
+  // Human-designed flat color families: the upload CTA's violet remains the
+  // visual anchor, while each tool gets two restrained supporting accents.
   const palettes = [
-    ['#4f46e5','#7c3aed'], ['#2563eb','#06b6d4'], ['#059669','#84cc16'],
-    ['#db2777','#f43f5e'], ['#ea580c','#f59e0b'], ['#0891b2','#0e7490'],
-    ['#7c3aed','#c026d3'], ['#16a34a','#0d9488'], ['#dc2626','#f97316'],
+    ['#5b3df5','#18b7d6','#ffb703'], ['#5b3df5','#ff6b6b','#06d6a0'],
+    ['#2563eb','#06b6d4','#f59e0b'], ['#7c3aed','#ec4899','#22c55e'],
+    ['#0f766e','#14b8a6','#f59e0b'], ['#c2410c','#f97316','#facc15'],
+    ['#4338ca','#6366f1','#fb7185'], ['#047857','#10b981','#fbbf24'],
+    ['#be123c','#f43f5e','#22d3ee'],
   ];
   const id = String(tool && (tool.id || tool.name) || 'tool');
   let hash = 0;
@@ -2616,7 +2620,10 @@ function renderSeoToolIdentity(tool) {
   const icon = escapeHtml(tool && tool.icon ? tool.icon : 'file-text');
   const name = escapeHtml(tool && tool.name ? tool.name : 'PDF Tool');
   return '<div class="seo-tool-identity" aria-hidden="true">' +
-    '<span class="seo-tool-logo" style="--seo-logo-a:' + palette[0] + ';--seo-logo-b:' + palette[1] + '"><i data-lucide="' + icon + '"></i></span>' +
+    '<span class="seo-tool-logo" style="--seo-logo-a:' + palette[0] + ';--seo-logo-b:' + palette[1] + ';--seo-logo-c:' + palette[2] + '">' +
+      '<span class="seo-logo-accent seo-logo-accent-a"></span><span class="seo-logo-accent seo-logo-accent-b"></span>' +
+      '<i data-lucide="' + icon + '"></i>' +
+    '</span>' +
     '<span class="seo-tool-identity-text">' + name + '</span></div>';
 }
 
