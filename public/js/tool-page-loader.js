@@ -28,7 +28,8 @@
     '/js/i18n-ext.js?v=__BUILD_ID__',
     '/js/chrome.js',
     '/js/tool-page.js?v=20261003-cloud-layout-v4',
-    '/js/shared.js?v=__BUILD_ID__'
+    '/js/shared.js?v=__BUILD_ID__',
+    '/js/browser-tool-runtime.js'
   ];
 
   // Non-critical UI assets are deliberately delayed until after first paint.
@@ -160,6 +161,21 @@
 
     if (toolId === 'background-remover') scripts.push('/js/bg-remover-pro.js');
     if (toolId === 'edit') scripts.push('/js/edit-pdf-pro.js');
+
+    // Canonical tool adapters/apps are lazy too: only the active tool pays for
+    // its processor boundary after the upload shell has painted.
+    var canonicalToolDeps = {
+      'crop': ['/js/crop-pdf-app.js'],
+      'page-numbers': ['/js/page-numbers-worker-adapter.js'],
+      'redact': ['/js/redact-worker-adapter.js'],
+      'sign': ['/js/sign-worker-adapter.js'],
+      'watermark': ['/js/watermark-worker-adapter.js'],
+      'compare': ['/js/compare-worker-adapter.js'],
+      'ocr': ['/js/ocr-tool-app.js', '/js/ocr-runtime.js', '/js/ocr-worker-adapter.js']
+    };
+    (canonicalToolDeps[toolId] || []).forEach(function (src) {
+      scripts.push(src);
+    });
 
     return unique(scripts);
   }
