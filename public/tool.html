@@ -54,13 +54,20 @@
 
   <!-- ───────────── Tool content (centered, full-width, NO sidebar) ───────────── -->
   <main id="tool-content" class="tool-page">
-    <!-- sk: upload / preview / download skeleton — replaced by tool-page.js renderStep() -->
-    <div class="sk-upload-wrap" aria-hidden="true">
-      <div class="sk-upload-icon"></div>
-      <div class="sk-upload-btn"></div>
-      <div class="sk-upload-line sk-upload-line--wide"></div>
-      <div class="sk-upload-line sk-upload-line--narrow"></div>
-    </div>
+    <!--
+      Instant upload shell: this is intentionally real, visible HTML rather
+      than an aria-hidden skeleton. It gives the visitor an immediately usable
+      upload surface while the tool runtime hydrates and replaces it.
+    -->
+    <section class="ilpdf-bootstrap-upload" aria-labelledby="bootstrap-upload-heading">
+      <h1 id="bootstrap-upload-heading">Upload your file</h1>
+      <p>Choose a file to get started.</p>
+      <label class="btn btn-primary ilpdf-bootstrap-upload-btn">
+        <span>Upload file</span>
+        <input type="file" id="bootstrap-file-input" hidden>
+      </label>
+      <p class="ilpdf-bootstrap-hint">Your tool is loading in the background.</p>
+    </section>
   </main>
 
   <!-- ───────────── Shared Footer ───────────── -->
