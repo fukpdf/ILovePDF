@@ -8464,6 +8464,22 @@ i[data-lucide] {
 }
 
 
+/* COMPRESS USE-CASE ICONS — keep semantic logos crisp white on colorful badges. */
+.ilpdf-branded-upload .seo-content--compress .seo-usecase-grid .seo-line-visual{
+  color:#fff!important;
+  background:#5b3df5;
+}
+.ilpdf-branded-upload .seo-content--compress .seo-usecase-grid .seo-line-visual svg{
+  color:#fff!important;
+  stroke:currentColor!important;
+  width:22px;
+  height:22px;
+  stroke-width:2.35;
+}
+.ilpdf-branded-upload .seo-content--compress .seo-usecase-grid > div:nth-child(2) .seo-line-visual{background:#ec4899}
+.ilpdf-branded-upload .seo-content--compress .seo-usecase-grid > div:nth-child(3) .seo-line-visual{background:#06a77d}
+.ilpdf-branded-upload .seo-content--compress .seo-usecase-grid > div:nth-child(4) .seo-line-visual{background:#f2a900}
+
 /* CLOUD PROVIDERS V7 — vertical remaining providers open beside the cloud buttons. */
 .ilpdf-branded-upload .ilpdf-branded-action-row{width:min(100%,720px);gap:10px;align-items:center}
 .ilpdf-branded-upload .ilpdf-branded-clouds{position:relative;width:auto;flex:0 0 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:7px}
