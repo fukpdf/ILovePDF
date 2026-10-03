@@ -767,10 +767,6 @@ function renderBrandedUploadStep(tool, config) {
             <button type="button" class="btn btn-primary ilpdf-branded-select" id="upload-cta-btn">
               <i data-lucide="upload"></i> ${escapeHtml(fileLabel)}
             </button>
-            <button type="button" class="ilpdf-mobile-benefits-toggle" id="mobile-benefits-toggle" aria-expanded="false" aria-controls="upload-benefits-list">
-              <span class="ilpdf-mobile-benefits-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 9l5 5 5-5"></path></svg></span>
-              <span class="sr-only">Show tool benefits</span>
-            </button>
             ${cloudButtonsHtml}
           </div>
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
@@ -809,18 +805,6 @@ function renderBrandedUploadStep(tool, config) {
 
   if (window.lucide) lucide.createIcons();
   setupFileInput();
-
-  const benefitsToggle = document.getElementById('mobile-benefits-toggle');
-  const benefitsList = document.getElementById('upload-benefits-list');
-  if (benefitsToggle && benefitsList) {
-    benefitsToggle.addEventListener('click', function (e) {
-      e.stopPropagation();
-      const expanded = benefitsToggle.getAttribute('aria-expanded') === 'true';
-      benefitsToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-      benefitsToggle.classList.toggle('is-open', !expanded);
-      benefitsList.classList.toggle('is-open', !expanded);
-    });
-  }
 
   {
     const moreBtn = document.getElementById('cloud-more-btn');
