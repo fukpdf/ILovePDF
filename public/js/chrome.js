@@ -247,13 +247,21 @@ function renderHeader(){
       <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
     </div>
 
-    <div class="nav-item has-mega all-tools-static" id="all-tools-item">
-      <div class="mega" role="menu" aria-label="All Tools"><div class="mega-grid">${megaCols}</div></div>
+    <div class="nav-item has-dd has-mega" id="all-tools-item">
+      <button class="nav-btn all-tools" id="all-tools-btn" type="button"
+              aria-expanded="false" aria-haspopup="true">
+        <span data-i18n="nav.all_tools">All Tools</span> <i data-lucide="chevron-down"></i>
+      </button>
+      <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
     </div>
 
   `;
 
+  const allItem = document.getElementById('all-tools-item');
+  if (allItem) allItem.classList.remove('is-open');
+
   wireSimpleDropdowns();
+  wireAllToolsToggle();
   wireHoverPrefetch(nav);
 }
 
@@ -407,6 +415,52 @@ function wireHoverPrefetch(scope){
   scope.addEventListener('focusin', (e) => {
     const a = e.target.closest('a[href]');
     if (a) prefetch(a.getAttribute('href'));
+  });
+}
+
+/* "All Tools" — opens on hover (CSS) on desktop. On touch / keyboard
+   activation, toggle an .is-open class so it works without a hover state. */
+function wireAllToolsToggle(){
+  const item = document.getElementById('all-tools-item');
+  const btn  = document.getElementById('all-tools-btn');
+  if (!item || !btn) return;
+
+  const close = () => {
+    item.classList.remove('is-open');
+    btn.setAttribute('aria-expanded','false');
+  };
+  const open = () => {
+    item.classList.add('is-open');
+    btn.setAttribute('aria-expanded','true');
+  };
+
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    item.classList.contains('is-open') ? close() : open();
+  });
+
+  // Click anywhere outside the mega closes it.
+  document.addEventListener('click', e => {
+    if (!item.classList.contains('is-open')) return;
+    if (item.contains(e.target)) return;
+    close();
+  });
+
+  // Mouse leaving the menu area also closes it (matches hover-open UX).
+  // Small delay so quick reentries (e.g. crossing the gap) don't flicker.
+  let leaveTimer = null;
+  item.addEventListener('mouseleave', () => {
+    clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(close, 180);
+  });
+  item.addEventListener('mouseenter', () => {
+    clearTimeout(leaveTimer);
+  });
+
+  // ESC closes.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
   });
 }
 
@@ -933,7 +987,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   ensureSharedShell();
   await ensureI18nAssets();
   renderHeader();
-  syncHeaderOffset();
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
@@ -954,7 +1007,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Re-render header (mega-menu names + badges) whenever language changes. */
   window.addEventListener('i18n:change', function () {
     renderHeader();
-    syncHeaderOffset();
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   });
   const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
@@ -987,23 +1039,6 @@ document.addEventListener('click', function (e) {
   history.pushState({ toolSlug: slug }, '', href);
   if (typeof window.loadToolPage === 'function') window.loadToolPage(href);
 });
-
-/* Keep the document offset synchronized with the now variable-height static tool rail. */
-function syncHeaderOffset() {
-  const header = document.querySelector('.site-header');
-  if (!header) return;
-  const apply = () => {
-    document.documentElement.style.setProperty('--ilpdf-header-offset', Math.ceil(header.getBoundingClientRect().height) + 'px');
-  };
-  apply();
-  if (window.ResizeObserver) {
-    if (window.__ilpdfHeaderResizeObserver) window.__ilpdfHeaderResizeObserver.disconnect();
-    window.__ilpdfHeaderResizeObserver = new ResizeObserver(apply);
-    window.__ilpdfHeaderResizeObserver.observe(header);
-  } else {
-    window.addEventListener('resize', apply, { passive: true });
-  }
-}
 
 // ── Smart header: hide Login/Sign-up + center the logo when signed in ────
 // AuthUI doesn't currently emit events, so we lightweight-poll its
