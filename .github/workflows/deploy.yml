@@ -161,11 +161,10 @@ jobs:
           config="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$origin/js/tools-config.js")"
           node - "$config" <<'NODE'
           const config = process.argv[2];
-          const config = process.argv[2];
           const toolsBlock = config.match(/const\s+TOOLS\s*=\s*\[([\s\S]*?)\n\];/);
           if (!toolsBlock) throw new Error('production config TOOLS block missing');
           for (const id of ['crop','rotate','merge']) {
-            const re = new RegExp('\\\\{\\\\s*id\\\\s*:\\s*[\\'\\"]' + id + '[\\'\\"]([\\s\\S]*?)(?=\\n\\s*\\},)');
+            const re = new RegExp("\\{\\s*id\\s*:\\s*['\"]" + id + "['\"]([\\s\\S]*?)(?=\\n\\s*\\},)");
             const match = toolsBlock[1].match(re);
             if (!match) throw new Error('production config missing tool: ' + id);
             if (!/working\s*:\s*true/.test(match[1])) throw new Error('production config working=false: ' + id);
