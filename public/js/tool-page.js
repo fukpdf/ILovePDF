@@ -2676,25 +2676,41 @@ function seoLineIcon(text) {
 
 function decorateSeoLineVisuals(root) {
   if (!root) return;
-  const add = (item, copySelector) => {
-    if (!item || item.querySelector('.seo-line-visual')) return;
-    const source = item.querySelector(copySelector || 'strong');
-    const label = source ? source.textContent : item.textContent;
-    const icon = seoLineIcon(label);
-    const visual = document.createElement('span');
-    visual.className = 'seo-line-visual';
-    visual.setAttribute('aria-hidden', 'true');
-    visual.innerHTML = '<i data-lucide="' + escapeHtml(icon) + '"></i>';
-    item.insertBefore(visual, item.firstChild);
-    item.classList.add('seo-line-item');
+
+  const wrapCopy = (item, className) => {
+    if (!item || item.querySelector('.' + className)) return;
+    const copy = document.createElement('span');
+    copy.className = className;
+    Array.from(item.childNodes).forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) {
+        if (!(node.nodeType === Node.ELEMENT_NODE && node.classList.contains('seo-line-visual'))) {
+          copy.appendChild(node);
+        }
+      }
+    });
+    item.appendChild(copy);
   };
 
-  root.querySelectorAll('.seo-steps li').forEach(li => add(li, 'strong'));
-  root.querySelectorAll('.seo-benefits li').forEach(li => add(li, 'strong'));
-  root.querySelectorAll('.seo-usecase-grid > *').forEach(card => add(card, 'strong'));
+  const add = (item, copySelector, copyClass) => {
+    if (!item) return;
+    const source = item.querySelector(copySelector || 'strong');
+    const label = source ? source.textContent : item.textContent;
+    if (!item.querySelector('.seo-line-visual')) {
+      const icon = seoLineIcon(label);
+      const visual = document.createElement('span');
+      visual.className = 'seo-line-visual';
+      visual.setAttribute('aria-hidden', 'true');
+      visual.innerHTML = '<i data-lucide="' + escapeHtml(icon) + '"></i>';
+      item.insertBefore(visual, item.firstChild);
+    }
+    item.classList.add('seo-line-item');
+    wrapCopy(item, copyClass || 'seo-line-copy');
+  };
 
-  // The small visual on each feature card is now explicitly tied to its
-  // feature heading rather than being a generic decorative badge.
+  root.querySelectorAll('.seo-steps li').forEach(li => add(li, 'strong', 'seo-line-copy'));
+  root.querySelectorAll('.seo-benefits li').forEach(li => add(li, 'strong', 'seo-line-copy'));
+  root.querySelectorAll('.seo-usecase-grid > *').forEach(card => add(card, 'strong', 'seo-usecase-copy'));
+
   root.querySelectorAll('.seo-feature-card').forEach(card => {
     const heading = card.querySelector('h3');
     const visualIcon = card.querySelector('.seo-visual-icon');
