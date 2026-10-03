@@ -2593,15 +2593,6 @@ function copyTextResult(btn) {
   });
 }
 
-function showComingSoon(toolName) {
-  const modal = document.getElementById('coming-soon-modal');
-  const label = document.getElementById('modal-tool-name');
-  if (!modal) return;
-  if (label) label.textContent = toolName || 'This feature';
-  modal.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
