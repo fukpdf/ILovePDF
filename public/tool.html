@@ -164,20 +164,6 @@
   </footer>
 
   <!-- ───────────── Modals (kept from original tool layout) ───────────── -->
-  <div id="coming-soon-modal" class="modal-backdrop hidden" onclick="handleModalBackdropClick(event)">
-    <div class="modal-box">
-      <button class="modal-close" onclick="closeComingSoonModal()" aria-label="Close"><i data-lucide="x"></i></button>
-      <span class="modal-emoji">🚧</span>
-      <h3 class="modal-title" data-i18n="modal.coming_soon_title">Coming Soon</h3>
-      <span class="modal-tool-label" id="modal-tool-name">This feature</span>
-      <p class="modal-message" data-i18n="modal.coming_soon_msg">We're actively building this tool and it will be available soon.</p>
-      <div class="modal-actions">
-        <button class="btn btn-primary" onclick="closeComingSoonModal()"><i data-lucide="check"></i> <span data-i18n="modal.got_it">Got It</span></button>
-      </div>
-    </div>
-  </div>
-
-
   <div id="processing-overlay" class="processing-overlay hidden" aria-live="polite">
     <div class="processing-card">
       <div class="processing-anim">
