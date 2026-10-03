@@ -769,6 +769,8 @@ function renderBrandedUploadStep(tool, config) {
     brandedRoot.style.setProperty('--tool-tone-2', palette[1]);
   }
 
+  decorateSeoLineVisuals(container.querySelector('.seo-content--crop-contract'));
+
   if (window.lucide) lucide.createIcons();
   setupFileInput();
 
@@ -2636,6 +2638,72 @@ function renderSeoFeatureVisual(icon, variant) {
       <span class="seo-visual-dot dot-a"></span>
       <span class="seo-visual-dot dot-b"></span>
     </span>`;
+}
+
+
+
+function seoLineIcon(text) {
+  const value = String(text || '').toLowerCase();
+  const rules = [
+    [/upload|select|drag|file/, 'upload-cloud'],
+    [/preview|review|inspect|check/, 'scan-search'],
+    [/compress|size|smaller|storage|attachment/, 'minimize-2'],
+    [/quality|visual|image|photo|scan/, 'image'],
+    [/rotate|sideways|orientation|portrait|landscape|turn/, 'rotate-cw'],
+    [/merge|combine|join/, 'git-merge'],
+    [/split|separate|divide|extract/, 'scissors'],
+    [/convert|format|word|jpg|png|excel|powerpoint/, 'repeat-2'],
+    [/protect|security|password|encrypt|safe/, 'shield-check'],
+    [/unlock|locked/, 'unlock'],
+    [/sign|signature/, 'pen-line'],
+    [/edit|annotate|markup|text/, 'pencil-line'],
+    [/watermark|stamp/, 'stamp'],
+    [/crop|margin|edge|trim/, 'crop'],
+    [/page|pages|document/, 'file-text'],
+    [/print|printer/, 'printer'],
+    [/share|send|email/, 'send'],
+    [/download|output|result|finish/, 'download'],
+    [/archive|store/, 'archive'],
+    [/form|application/, 'clipboard-list'],
+    [/invoice|receipt|finance/, 'receipt-text'],
+    [/study|notes|school/, 'graduation-cap'],
+    [/job|resume|portfolio|career/, 'briefcase-business'],
+    [/legal|contract/, 'scale'],
+  ];
+  for (const [re, icon] of rules) if (re.test(value)) return icon;
+  return 'circle-check';
+}
+
+function decorateSeoLineVisuals(root) {
+  if (!root) return;
+  const add = (item, copySelector) => {
+    if (!item || item.querySelector('.seo-line-visual')) return;
+    const source = item.querySelector(copySelector || 'strong');
+    const label = source ? source.textContent : item.textContent;
+    const icon = seoLineIcon(label);
+    const visual = document.createElement('span');
+    visual.className = 'seo-line-visual';
+    visual.setAttribute('aria-hidden', 'true');
+    visual.innerHTML = '<i data-lucide="' + escapeHtml(icon) + '"></i>';
+    item.insertBefore(visual, item.firstChild);
+    item.classList.add('seo-line-item');
+  };
+
+  root.querySelectorAll('.seo-steps li').forEach(li => add(li, 'strong'));
+  root.querySelectorAll('.seo-benefits li').forEach(li => add(li, 'strong'));
+  root.querySelectorAll('.seo-usecase-grid > *').forEach(card => add(card, 'strong'));
+
+  // The small visual on each feature card is now explicitly tied to its
+  // feature heading rather than being a generic decorative badge.
+  root.querySelectorAll('.seo-feature-card').forEach(card => {
+    const heading = card.querySelector('h3');
+    const visualIcon = card.querySelector('.seo-visual-icon');
+    if (heading && visualIcon) {
+      const icon = seoLineIcon(heading.textContent);
+      visualIcon.innerHTML = '<i data-lucide="' + escapeHtml(icon) + '"></i>';
+      visualIcon.setAttribute('aria-label', heading.textContent.trim());
+    }
+  });
 }
 
 function renderSeoContent(tool) {
