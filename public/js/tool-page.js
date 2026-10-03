@@ -270,7 +270,15 @@ async function initToolPage() {
   // Resolve only after the registry readiness barrier so clean URLs never depend
   // on the legacy SLUG_MAP identity table.
   if (window.ToolRegistryReady) {
-    try { await window.ToolRegistryReady; } catch (_) { /* registry failure is handled below */ }
+    // The registry is an enhancement for routing metadata, not a reason to leave
+    // the upload shell permanently blank. A network/cache stall must not block
+    // the legacy TOOLS fallback from rendering the active tool.
+    try {
+      await Promise.race([
+        window.ToolRegistryReady,
+        new Promise(function (resolve) { setTimeout(resolve, 1500); })
+      ]);
+    } catch (_) { /* registry failure is handled below */ }
   }
   const pathnameSlug = (window.location.pathname || '/')
     .replace(/^\/+|\/+$/g, '')
