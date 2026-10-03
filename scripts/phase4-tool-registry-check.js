@@ -80,7 +80,15 @@ const toolPage = read('public/js/tool-page.js');
 if (!/await window\.ToolRegistryReady/.test(toolPage)) fail('tool-page.js does not wait for the authoritative registry.');
 if (!/window\.ToolRegistry\.mergeLegacy\(legacyTool\)/.test(toolPage)) fail('tool-page.js does not resolve tools through ToolRegistry.');
 const toolShell = read('public/tool.html');
-if (!/src="\/js\/tool-registry-runtime\.js" defer/.test(toolShell)) fail('tool.html does not load the runtime registry before tool-page.js.');
+const pageLoader = read('public/js/tool-page-loader.js');
+const staticRegistryBeforeToolPage = /src="\/js\/tool-registry-runtime\.js" defer[\\s\\S]*src="\/js\/tool-page\.js/.test(toolShell);
+const baseMatch = pageLoader.match(/var BASE = \[([\s\S]*?)\];/);
+const baseScripts = baseMatch ? baseMatch[1] : '';
+const lazyRegistryBeforeToolPage = !!baseMatch
+  && /tool-registry-runtime\.js/.test(baseScripts)
+  && /tool-page\.js/.test(baseScripts)
+  && baseScripts.indexOf('tool-registry-runtime.js') < baseScripts.indexOf('tool-page.js');
+if (!staticRegistryBeforeToolPage && !lazyRegistryBeforeToolPage) fail('tool.html does not load the runtime registry before tool-page.js.');
 
 if (!/const registryMeta = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page popstate routing is not registry-backed.');
 if (!/const registryTool = \(window\.ToolRegistry/.test(toolPage)) fail('tool-page initial routing is not registry-backed after readiness.');
