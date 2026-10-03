@@ -760,6 +760,13 @@ function renderBrandedUploadStep(tool, config) {
       ${popularToolsHtml(tool.id)}
     </div>`;
 
+  const palette = brandedToolPalette(tool);
+  const brandedRoot = container.querySelector('.ilpdf-branded-upload');
+  if (brandedRoot) {
+    brandedRoot.style.setProperty('--tool-tone', palette[0]);
+    brandedRoot.style.setProperty('--tool-tone-2', palette[1]);
+  }
+
   if (window.lucide) lucide.createIcons();
   setupFileInput();
 
