@@ -738,8 +738,10 @@ function renderBrandedUploadStep(tool, config) {
     : _tp('tool.upload_file', config.fileLabel || 'Select file');
   const cloudButtonsHtml =
     '<div class="ilpdf-branded-clouds" aria-label="Cloud upload options">' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
+      '<div class="ilpdf-cloud-stack">' +
+        '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
+        '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
+      '</div>' +
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><i data-lucide="chevron-right"></i></button>' +
     '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
