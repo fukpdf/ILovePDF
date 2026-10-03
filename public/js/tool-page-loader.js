@@ -20,7 +20,6 @@
     '/js/runtime-device-lite.js',
     '/js/tools-config.js?v=20261003-second-section-v2',
     '/js/tool-registry-runtime.js',
-    '/js/browser-tools.js',
     '/js/tool-module-registry.js',
     '/js/tool-content.js',
     '/js/tool-state.js',
@@ -167,6 +166,7 @@
 
   // Keep authentication/language/PWA helpers out of the upload critical path.
   var POST_LOAD_SHARED = [
+    '/js/browser-tools.js',
     'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
     '/js/tool-i18n-bridge.js?v=__BUILD_ID__',
     '/js/auth-ui.js?v=__BUILD_ID__',

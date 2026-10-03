@@ -35,24 +35,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/home.css">
+<link rel="stylesheet" href="/css/home.css">
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20260924" data-shared-header-css="1">
-  <link rel="stylesheet" href="/css/economy.css">
-  <link rel="stylesheet" href="/css/community-economy.css">
-  <link rel="stylesheet" href="/css/rtl.css">
-  <link rel="stylesheet" href="/css/seo-extended.css">
-  <link rel="stylesheet" href="/css/home-footer-v2.css">
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css">
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
+  
   <!-- Homepage structured data -->
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"ILovePDF","url":"https://ilovepdf.cyou","description":"Free online PDF and image tools — merge, split, compress, convert, edit, sign, protect, OCR, AI summarize and more. No signup required.","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://ilovepdf.cyou/?q={search_term_string}"},"query-input":"required name=search_term_string"}}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"ILovePDF","url":"https://ilovepdf.cyou","logo":{"@type":"ImageObject","url":"https://ilovepdf.cyou/favicon.svg","width":512,"height":512},"description":"ILovePDF provides free online PDF and image processing tools for students, professionals, and businesses worldwide.","foundingDate":"2024","contactPoint":{"@type":"ContactPoint","contactType":"customer support","url":"https://ilovepdf.cyou/about"}}</script>
+  <script defer src="/js/home-page-loader.js"></script>
 </head>
 <body>
 
@@ -697,58 +689,55 @@
   </footer>
 
   <script src="/js/config.js" defer></script>
-  <script src="/js/browser-tools.js" defer></script>
-  <script src="/js/runtime-protection.js" defer></script>
+  
+  
   <!-- Enterprise Runtime Shield Layer (additive — same load order as tool.html) -->
-  <script src="/js/runtime-shield-core.js" defer></script>
-  <script src="/js/runtime-shield-integrity.js" defer></script>
-  <script src="/js/runtime-shield-workers.js" defer></script>
-  <script src="/js/runtime-shield-dependency.js" defer></script>
+  
+  
+  
+  
   <!-- Phase 2: Trusted Module Manifest + Script Registry + Import Guard -->
-  <script src="/js/runtime-manifest.js" defer></script>
+  
   <!-- Phase 2: Centralized Worker Factory + Spawn Hardening             -->
-  <script src="/js/runtime-worker-factory.js" defer></script>
+  
   <!-- Phase 2: Runtime Chunk Manifest (Task 5 + Task 11 hooks)         -->
-  <script src="/core/runtime-chunk-manifest.js" defer></script>
+  
   <!-- Phase 2 Final: Compatibility validation (all systems + browser)  -->
-  <script src="/js/runtime-compat-validator.js" defer></script>
+  
   <!-- Phase 2 Final: Rollback safety — snapshot + drift detection      -->
-  <script src="/js/runtime-rollback.js" defer></script>
+  
   <!-- Phase 2 Final: Domain binding + deployment integrity             -->
-  <script src="/js/runtime-deployment-bind.js" defer></script>
+  
   <!-- Phase 3: Adaptive Security Tiers (central tier authority)       -->
-  <script src="/js/runtime-security-tiers.js" defer></script>
+  
   <!-- Phase 3: Security Telemetry Center (lightweight event bus)      -->
-  <script src="/js/runtime-security-telemetry.js" defer></script>
+  
   <!-- Phase 3: SRI + Hash Enforcement (advisory hash verification)    -->
-  <script src="/js/runtime-sri-engine.js" defer></script>
+  
   <!-- Phase 3: Worker Bootstrap (heartbeat + graceful restart)        -->
-  <script src="/js/runtime-worker-bootstrap.js" defer></script>
+  
   <!-- Phase 3: WASM Registry (lifecycle + crash recovery)             -->
-  <script src="/js/runtime-wasm-registry.js" defer></script>
+  
   <!-- Phase 3: Performance Safety (memory + blob + idle cleanup)      -->
-  <script src="/js/runtime-perf-safety.js" defer></script>
+  
   <!-- Phase 3: Foreign Deploy Protection (soft degradation)           -->
-  <script src="/js/runtime-foreign-deploy.js" defer></script>
-  <script src="/js/app-router.js" defer></script>
-  <script src="https://unpkg.com/lucide@latest" defer></script>
-  <script type="module" src="/js/firebase-init.js"></script>
+  
+  
+  
+  
   <script src="/js/n2w-converter.js" defer></script>
   <script src="/js/i18n.js?v=23" defer></script>
   <script src="/js/tool-i18n-bridge.js?v=23" defer></script>
   <script src="/js/i18n-ext.js?v=23" defer></script>
   <script src="/js/chrome.js" defer></script>
-  <script src="/js/dropdown-fix.js" defer></script>
+  
   <script src="/js/home.js" defer></script>
-  <script src="/js/auth-ui.js" defer></script>
+  
   <!-- Laba AI Assistant — widget CSS + button UI load eagerly for instant chat bubble -->
-  <link rel="stylesheet" href="/laba/laba-widget.css">
-  <script src="/laba/laba-widget.js" defer></script>
-
   <!-- Phase 12: Shared Core Architecture (additive — safe on every page) -->
-  <script src="/core/core-manifest.js" defer></script>
-  <script src="/core/shared-constants.js" defer></script>
-  <script src="/core/runtime-contracts.js" defer></script>
+  
+  
+  
 
   <!-- Phase 13: Homepage Lazy Loader
        Replaces 50+ eager-defer AI/Laba script tags.
@@ -756,50 +745,50 @@
        Real users: heavy AI stack loads after 4 s idle OR first Laba interaction.
        Order of each module is preserved exactly as before. -->
   <!-- Phase 25–27: Economy + Analytics runtime -->
-  <script src="/js/runtime-identity.js" defer></script>
-  <script src="/js/runtime-savings.js" defer></script>
-  <script src="/js/runtime-ads.js" defer></script>
+  
+  
+  
   <!-- Phase 4: Display ad slot manager (AdSense/Ezoic/Media.net) -->
-  <script src="/js/ad-manager.js" defer></script>
+  
   <!-- Phase 5: Responsive engine — viewport slot sizing, session density, step events -->
-  <script src="/js/ad-responsive-engine.js" defer></script>
-  <script src="/js/runtime-credits.js" defer></script>
-  <script src="/js/runtime-donation.js" defer></script>
-  <script src="/js/runtime-failed-log.js" defer></script>
-  <script src="/js/runtime-device-lite.js" defer></script>
-  <script src="/js/runtime-analytics.js" defer></script>
+  
+  
+  
+  
+  
+  
   <!-- Phase Performance: Compression Presets + Session Intelligence -->
-  <script src="/js/runtime-compression-presets.js" defer></script>
-  <script src="/js/runtime-session-intel.js" defer></script>
-  <script src="/js/runtime-tool-engagement.js" defer></script>
+  
+  
+  
   <!-- Phase 6.1: Analytics foundation — facade over RSI/RTE + visitor profile + bridges -->
-  <script src="/js/analytics-engine.js" defer></script>
-  <script src="/js/analytics-sync.js" defer></script>
-  <script src="/js/runtime-pinned-tools.js" defer></script>
-  <script src="/js/runtime-offline.js" defer></script>
-  <script src="/js/runtime-updater.js" defer></script>
-  <script src="/js/runtime-changelog.js" defer></script>
-  <script src="/js/runtime-recovery.js" defer></script>
-  <script src="/js/runtime-ai-scheduler.js" defer></script>
-  <script src="/js/runtime-perf.js" defer></script>
-  <script src="/js/homepage-lazy-loader.js" defer></script>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   <!-- Phase Community: savings animation + community economy runtime -->
-  <script src="/js/savings-animation.js" defer></script>
+  
   <!-- LiveStatsSim must load before community-economy.js so it can seed
        window._simTickerMsgs and window.LiveStatsSim before that module runs -->
-  <script src="/js/live-stats-sim.js" defer></script>
-  <script src="/js/community-economy.js" defer></script>
+  
+  
 
   <!-- Phase 18/20: Production mode guard.
        Detects environment, suppresses Phase-tagged console noise in production,
        and blocks public activation of admin-only debug APIs (runtime dashboard
        is now served exclusively at /admin/runtime for authenticated admins). -->
-  <script src="/core/production-mode.js" defer></script>
+  
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
-  <script src="/js/pwa-register.js" defer></script>
+  
 
   <!-- Phase 10H: Footer language links — extracted (Phase 2 nonce hardening) -->
-  <script src="/js/footer-lang.js" defer></script>
+  
 </body>
 </html>
