@@ -193,7 +193,13 @@
   async function bootCritical() {
     // Do not waterfall the critical graph. Dynamic scripts with async=false
     // still execute in insertion order, while their network fetches can overlap.
-    await Promise.all(BASE.map(loadScript));
+    // Execute the critical graph in deterministic order. Dynamic classic scripts with
+    // async=false are intended to preserve order, but sequential awaiting also
+    // makes the bootstrap contract explicit and prevents a fast child script from
+    // observing an uninitialised global when the browser/cache timing changes.
+    for (var i = 0; i < BASE.length; i++) {
+      await loadScript(BASE[i]);
+    }
 
     // tool-page.js registers its DOMContentLoaded handler. The loader is
     // deferred in <head>, so the critical chain can finish before DOMContentLoaded
