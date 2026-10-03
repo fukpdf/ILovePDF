@@ -8424,3 +8424,41 @@ i[data-lucide] {
     overflow-wrap:anywhere;
   }
 }
+
+
+/* COMPRESS SECOND SECTION — center the tool logo and its name beneath it. */
+.ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-identity{
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  margin:0 auto 24px;
+  text-align:center;
+}
+.ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-logo-wrap{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-logo{
+  margin:0;
+}
+.ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-name{
+  width:100%;
+  text-align:center;
+  font-size:15px;
+  line-height:1.25;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#4b5870;
+}
+@media(max-width:640px){
+  .ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-identity{
+    gap:8px;
+    margin-bottom:20px;
+  }
+  .ilpdf-branded-upload .seo-content--crop-contract.seo-content--compress .seo-tool-name{
+    font-size:14px;
+  }
+}
