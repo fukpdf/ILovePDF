@@ -8480,6 +8480,13 @@ i[data-lucide] {
 .ilpdf-branded-upload .seo-content--compress .seo-usecase-grid > div:nth-child(3) .seo-line-visual{background:#06a77d}
 .ilpdf-branded-upload .seo-content--compress .seo-usecase-grid > div:nth-child(4) .seo-line-visual{background:#f2a900}
 
+/* CIRCLED CHEVRON-UP ARROW — Icons8-inspired compact control. */
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-single-arrow{width:30px;height:30px;display:grid;place-items:center}
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-single-arrow svg{width:30px;height:30px;display:block;overflow:visible}
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-single-arrow svg path{fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger.is-open .ilpdf-cloud-single-arrow{color:#fff!important}
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-arrow-trio{font-size:15px;line-height:1;letter-spacing:-3px}
+
 /* CLOUD PROVIDERS V7 — vertical remaining providers open beside the cloud buttons. */
 .ilpdf-branded-upload .ilpdf-branded-action-row{width:min(100%,720px);gap:10px;align-items:center}
 .ilpdf-branded-upload .ilpdf-branded-clouds{position:relative;width:auto;flex:0 0 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:7px}
