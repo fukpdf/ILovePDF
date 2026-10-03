@@ -7498,3 +7498,39 @@ i[data-lucide] {
     height:25px;
   }
 }
+
+/* COLORFUL TOOL LOGOS — inspired by the upload CTA palette, not AI-style gradients. */
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  background:var(--seo-logo-a,#5b3df5);
+  border:3px solid #fff;
+  box-shadow:0 8px 18px rgba(35,31,85,.15);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo svg{
+  position:relative;
+  z-index:3;
+  color:#fff;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.14));
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-logo-accent{
+  position:absolute;
+  z-index:1;
+  border-radius:999px;
+  pointer-events:none;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-logo-accent-a{
+  width:31px;
+  height:31px;
+  right:-7px;
+  top:-7px;
+  background:var(--seo-logo-b,#18b7d6);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-logo-accent-b{
+  width:23px;
+  height:23px;
+  left:-5px;
+  bottom:-5px;
+  background:var(--seo-logo-c,#ffb703);
+}
