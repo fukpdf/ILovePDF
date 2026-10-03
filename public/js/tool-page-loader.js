@@ -11,6 +11,8 @@
   if (G.__ILOVE_TOOL_PAGE_LOADER__) return;
   G.__ILOVE_TOOL_PAGE_LOADER__ = true;
 
+  // Critical scripts only. They are inserted together so the browser can
+  // download them in parallel; async=false preserves their execution order.
   var BASE = [
     '/js/config.js',
     '/js/timer-registry.js',
@@ -23,13 +25,26 @@
     '/js/tool-content.js',
     '/js/tool-state.js',
     '/js/session-persist.js',
-    'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
     '/js/i18n.js?v=__BUILD_ID__',
     '/js/i18n-ext.js?v=__BUILD_ID__',
     '/js/chrome.js',
     '/js/tool-page.js?v=20261003-cloud-layout-v4',
-    '/js/shared.js?v=__BUILD_ID__',
-    '/js/tool-i18n-bridge.js?v=__BUILD_ID__'
+    '/js/shared.js?v=__BUILD_ID__'
+  ];
+
+  // Non-critical UI assets are deliberately delayed until after first paint.
+  var LAZY_CSS = [
+    '/css/economy.css',
+    '/css/community-economy.css',
+    '/css/home.css',
+    '/css/blog.css',
+    '/css/seo-extended.css',
+    '/css/ads.css',
+    '/css/responsive-ads.css',
+    '/css/home-footer-v2.css?v=20260924',
+    '/css/rtl.css',
+    '/css/editor-workspace.css',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
   ];
 
   var loaded = Object.create(null);
@@ -69,6 +84,24 @@
       document.head.appendChild(s);
     });
     return loading[src];
+  }
+
+  function loadStylesheet(href) {
+    if (document.querySelector('link[data-ilpdf-lazy-css="' + href + '"]')) {
+      return Promise.resolve();
+    }
+    return new Promise(function (resolve) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.setAttribute('data-ilpdf-lazy-css', href);
+      link.onload = resolve;
+      link.onerror = function () {
+        console.warn('[ToolPageLoader] failed CSS:', href);
+        resolve();
+      };
+      document.head.appendChild(link);
+    });
   }
 
   function getToolId() {
@@ -134,17 +167,21 @@
 
   // Keep authentication/language/PWA helpers out of the upload critical path.
   var POST_LOAD_SHARED = [
+    'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
+    '/js/tool-i18n-bridge.js?v=__BUILD_ID__',
     '/js/auth-ui.js?v=__BUILD_ID__',
     '/js/footer-lang.js',
     '/js/pwa-register.js'
   ];
 
   async function bootCritical() {
-    for (var i = 0; i < BASE.length; i++) await loadScript(BASE[i]);
+    // Do not waterfall the critical graph. Dynamic scripts with async=false
+    // still execute in insertion order, while their network fetches can overlap.
+    await Promise.all(BASE.map(loadScript));
 
-    // tool-page.js registers its DOMContentLoaded handler. Because this loader
-    // is itself placed at the end of <body>, the critical chain completes
-    // before DOMContentLoaded fires, preserving the existing initialization.
+    // tool-page.js registers its DOMContentLoaded handler. The loader is
+    // deferred in <head>, so the critical chain can finish before DOMContentLoaded
+    // while HTML parsing continues uninterrupted.
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-critical-ready', {
         detail: { toolId: getToolId() }
@@ -156,9 +193,10 @@
     var toolId = getToolId();
     var deps = relatedScripts(toolId);
 
-    // Wait until the browser has painted the upload page. This is deliberately
-    // later than DOMContentLoaded so the first screen is interactive first.
-    for (var i = 0; i < deps.length; i++) await loadScript(deps[i]);
+    // After first paint, fetch only this tool's processor graph and optional
+    // shared assets. Dependencies in the selected graph are still ordered.
+    await Promise.all(deps.map(loadScript));
+    await Promise.all(LAZY_CSS.map(loadStylesheet));
 
     // The existing per-tool graph loads only workers/extras belonging to the
     // active tool. No other tool's processor bundle is fetched.
@@ -168,10 +206,9 @@
       }
     } catch (_) {}
 
-    // Small shared helpers are non-critical; load them after the tool runtime.
-    for (var j = 0; j < POST_LOAD_SHARED.length; j++) {
-      await loadScript(POST_LOAD_SHARED[j]);
-    }
+    // Small shared helpers are non-critical; fetch them together after the
+    // active tool runtime so they cannot delay the upload screen.
+    await Promise.all(POST_LOAD_SHARED.map(loadScript));
 
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-lazy-ready', {
