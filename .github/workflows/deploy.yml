@@ -27,6 +27,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Stamp deployment version
+        shell: bash
+        run: printf '%s\\n' "$GITHUB_SHA" > public/deploy-version.txt
+
       - name: Install locked dependencies
         run: npm ci --omit=dev
       - name: Syntax audit — cloudflare
@@ -136,13 +140,21 @@ jobs:
             echo "PASS $host$path [$code]"
           }
 
-          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js; do
+          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js /deploy-version.txt; do
             smoke_path "$origin" "$path"
           done
 
-          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js; do
+
+          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js /deploy-version.txt; do
             smoke_path "$base" "$path"
           done
+
+          deployed_sha="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS "$base/deploy-version.txt" | tr -d '\r\n')"
+          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
+            echo "FAIL stale deployment: expected $GITHUB_SHA got $deployed_sha"
+            exit 1
+          fi
+          echo "PASS deployment version: $deployed_sha"
 
           config="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS "$base/js/tools-config.js")"
           node - "$config" <<'NODE'
