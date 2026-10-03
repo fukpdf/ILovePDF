@@ -479,9 +479,7 @@ function toolHeaderBlock(tool, opts = {}) {
   const bgAlpha = hexToRgba(color, 0.12);
   const statusHtml = !opts.hideStatus && tool.working
     ? `<span class="tool-status status-live"><span class="status-dot"></span>${_tp('tool.live_ready', 'Live &amp; Ready')}</span>`
-    : (!opts.hideStatus && !tool.working
-        ? `<span class="tool-status status-soon"><span class="status-dot"></span>${_tp('tool.coming_soon', 'Coming Soon')}</span>`
-        : '');
+    : '';
   const heading = opts.heading || tool.name;
   const desc    = opts.desc    || tool.description;
   const icon    = opts.icon    || tool.icon;
@@ -1931,7 +1929,10 @@ async function processFile() {
     showStatus('error', _tp('status.no_file', 'No file selected'), _tp('status.no_file_msg', 'Please upload a file before processing.'));
     return;
   }
-  if (!currentTool.working) { showComingSoon(currentTool.name); return; }
+  if (!currentTool.working) {
+    showStatus('error', _tp('tool.unavailable', 'Tool unavailable'), _tp('tool.unavailable_msg', 'This tool is not currently available.'));
+    return;
+  }
 
   // Daily usage limit — guests 15/day, logged-in 100/day
   if (window.UsageLimit && !window.UsageLimit.canUse()) {
@@ -2590,15 +2591,6 @@ function copyTextResult(btn) {
     if (window.lucide) lucide.createIcons();
     setTimeout(() => { btn.innerHTML = '<i data-lucide="copy"></i> Copy'; if (window.lucide) lucide.createIcons(); }, 2000);
   });
-}
-
-function showComingSoon(toolName) {
-  const modal = document.getElementById('coming-soon-modal');
-  const label = document.getElementById('modal-tool-name');
-  if (!modal) return;
-  if (label) label.textContent = toolName || 'This feature';
-  modal.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
 }
 
 function formatBytes(bytes) {

@@ -161,11 +161,19 @@ jobs:
           done
           config="$(curl -L -sS "$base/js/tools-config.js")"
           node - "$config" <<'NODE'
-          const fs = require('fs');
           const config = process.argv[2];
           for (const id of ['crop','rotate','merge']) {
-            const re = new RegExp("id\\\\s*:\\\\s*['\\\"]" + id + "['\\\"]");\n            const start = config.search(re);\n            if (start < 0) { console.error('FAIL production config tool id:', id); process.exit(1); }\n            const windowText = config.slice(start, start + 900);\n            if (!/working\\\\s*:\\\\s*true/.test(windowText)) { console.error('FAIL production config working=true:', id); process.exit(1); }
-            if (!re.test(config)) { console.error('FAIL production config working=true:', id); process.exit(1); }
+            const re = new RegExp("id\\s*:\\s*['\\\"]" + id + "['\\\"]");
+            const start = config.search(re);
+            if (start < 0) {
+              console.error('FAIL production config tool id:', id);
+              process.exit(1);
+            }
+            const windowText = config.slice(start, start + 900);
+            if (!/working\\s*:\\s*true/.test(windowText)) {
+              console.error('FAIL production config working=true:', id);
+              process.exit(1);
+            }
             console.log('PASS production config working=true:', id);
           }
           NODE
