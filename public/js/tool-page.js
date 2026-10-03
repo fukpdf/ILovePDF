@@ -750,7 +750,7 @@ function renderBrandedUploadStep(tool, config) {
         '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-google" id="upload-google-drive" title="Upload from Google Drive" aria-label="Upload from Google Drive">' + cloudProviderLogo('google-drive') + '</button>' +
         '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
       '</div>' +
-      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><i data-lucide="chevron-right"></i></button>' +
+      '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><span class="ilpdf-cloud-single-arrow" aria-hidden="true"><i data-lucide="chevron-right"></i></span><span class="ilpdf-cloud-arrow-trio" aria-hidden="true"><i data-lucide="chevron-right"></i><i data-lucide="chevron-right"></i><i data-lucide="chevron-right"></i></span></button>' +
       renderCloudProviderMenu() +
     '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
@@ -815,6 +815,7 @@ function renderBrandedUploadStep(tool, config) {
         const open = providerList.hidden;
         providerList.hidden = !open;
         moreBtn.setAttribute('aria-expanded', String(open));
+        moreBtn.classList.toggle('is-open', open);
       });
       providerList.querySelectorAll('[data-cloud-provider]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
