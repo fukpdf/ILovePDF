@@ -179,6 +179,7 @@ jobs:
             # initial HTML shell; verify the actual loader and canonical shell.
             printf '%s' "$html" | grep -q '/js/tool-page-loader.js'
             printf '%s' "$html" | grep -q 'id="tool-content"'
+            echo "PASS canonical lazy tool loader: $origin$path"
             if printf '%s' "$html" | grep -qi 'Coming Soon'; then
               echo "FAIL stale Coming Soon shell: $origin$path"
               exit 1
