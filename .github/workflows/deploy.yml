@@ -151,6 +151,13 @@ jobs:
           # against Firebase Hosting origin and record the edge limitation.
           echo "INFO public edge smoke is not blocking: Cloudflare may return 403 to GitHub-hosted runners."
 
+          deployed_sha="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$origin/deploy-version.txt" | tr -d '\r\n')"
+          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
+            echo "FAIL stale deployment: expected $GITHUB_SHA got $deployed_sha"
+            exit 1
+          fi
+          echo "PASS deployment version: $deployed_sha"
+
           config="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$origin/js/tools-config.js")"
           node - "$config" <<'NODE'
           const config = process.argv[2];
@@ -170,8 +177,8 @@ jobs:
             printf '%s' "$html" | grep -q '/js/tool-page.js'
             printf '%s' "$html" | grep -q '/js/tools-config.js'
             if printf '%s' "$html" | grep -qi 'Coming Soon'; then
-              echo "FAIL stale Coming Soon shell: $base$path"
+              echo "FAIL stale Coming Soon shell: $origin$path"
               exit 1
             fi
-            echo "PASS production tool shell: $base$path"
+            echo "PASS production tool shell: $origin$path"
           done
