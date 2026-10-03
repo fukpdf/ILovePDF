@@ -4579,10 +4579,7 @@
 
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside a Web Worker via WorkerPool.
-  const WORKER_TOOLS = new Set([
-    'compress', 'workflow', 'merge', 'split', 'rotate', 'organize', 'crop',
-    'page-numbers', 'watermark', 'sign', 'redact', 'edit', 'protect', 'unlock', 'compare',
-  ]);
+  // Merge uses the same pdf-lib processor directly on the browser main thread.\n  // It is intentionally not forced through the worker path because the live\n  // worker transport can be unavailable on some hosted/mobile environments.\n  // Keeping merge on its proven direct processor avoids a false failure while\n  // preserving local-only processing and the same output validation boundary.\n  const WORKER_TOOLS = new Set([\n    'compress', 'workflow', 'split', 'rotate', 'organize', 'crop',\n    'page-numbers', 'watermark', 'sign', 'redact', 'edit', 'protect', 'unlock', 'compare',\n  ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
   // exact pdf-lib dependency that the existing crop() handler uses, but does
