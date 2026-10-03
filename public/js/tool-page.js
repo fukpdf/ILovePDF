@@ -714,17 +714,23 @@ function cloudProviderLogo(provider) {
   if (p === 'onedrive') return '<svg viewBox="0 0 64 52" aria-hidden="true"><path fill="#0364B8" d="M25 44H13C6 44 1 39 1 33s5-11 12-11c1-8 8-14 16-14 7 0 13 4 15 10 1 0 2-.2 3-.2 8 0 15 6 15 13.5S55 44 47 44H25z"/><path fill="#0078D4" d="M39 44h9c7 0 14-5 14-12.7 0-6.2-4.8-11.4-11-12.4-1.4 0-3.1.1-4.5.7C44 14 39 9 32 9c-1.3 0-2.5.2-3.7.5 6.4 1.8 11.1 7.2 12 13.9 7 0 12.8 4.7 14.4 11H39v9.6z"/></svg>';
   if (p === 'box') return '<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#0061D5" d="m8 19 24-11 24 11-24 11L8 19zm0 6 24 11 24-11v20L32 56 8 45V25z"/><path fill="#fff" d="m20 27 12 6 12-6v6l-12 6-12-6v-6z"/></svg>';
   if (p === 'icloud') return '<svg viewBox="0 0 64 56" aria-hidden="true"><path fill="#5B5B60" d="M21 45H12C5 45 1 40 1 34s5-11 12-11c1-9 8-15 17-15 8 0 14 5 16 12 1 0 2-.2 3-.2 8 0 14 6 14 13.5S57 45 49 45H21z"/></svg>';
+  if (p === 'mega') return '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#d9272e"/><path fill="#fff" d="M12 40V23h7l13 11 13-11h7v17h-6V32L32 44 18 32v8h-6z"/></svg>';
+  if (p === 'pcloud') return '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#7b4bd6"/><path fill="#fff" d="M17 44V25c0-7 5-11 12-11 6 0 10 3 12 8 5 0 9 4 9 9s-4 9-10 9H28v-6h12c2 0 4-1 4-3s-2-3-5-3h-3v-4c0-3-3-5-6-5s-6 2-6 6v19h-7z"/></svg>';
+  if (p === 'sync') return '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#1a73e8"/><path fill="#fff" d="M18 28c3-7 8-10 15-10 5 0 9 2 12 6l-4 3c-2-2-5-4-8-4-4 0-7 2-9 5h7v5H18v-5zm28 8c-3 7-8 10-15 10-5 0-9-2-12-6l4-3c2 2 5 4 8 4 4 0 7-2 9-5h-7v-5h13v5z"/></svg>';
+  if (p === 'proton') return '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#6d4aff"/><path fill="#fff" d="M16 44V27c0-8 6-13 16-13s16 5 16 13v17h-7V28c0-4-3-7-9-7s-9 3-9 7v16h-7z"/></svg>';
   return '<i data-lucide="cloud"></i>';
 }
 
 function renderCloudProviderMenu() {
   return '<div class="ilpdf-cloud-provider-picker" id="cloud-provider-picker">' +
     '<div class="ilpdf-cloud-provider-list" id="cloud-provider-list" hidden>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="google-drive"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('google-drive') + '</span><span><strong>Google Drive</strong><small>Available</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="dropbox"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('dropbox') + '</span><span><strong>Dropbox</strong><small>Available</small></span></button>' +
       '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="onedrive"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('onedrive') + '</span><span><strong>Microsoft OneDrive</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="box"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('box') + '</span><span><strong>Box</strong><small>Provider option</small></span></button>' +
       '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="icloud"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('icloud') + '</span><span><strong>iCloud Drive</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="box"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('box') + '</span><span><strong>Box</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="mega"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('mega') + '</span><span><strong>MEGA</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="pcloud"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('pcloud') + '</span><span><strong>pCloud</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="sync"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('sync') + '</span><span><strong>Sync.com</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="proton"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('proton') + '</span><span><strong>Proton Drive</strong><small>Provider option</small></span></button>' +
     '</div></div>';
 }
 
@@ -743,6 +749,7 @@ function renderBrandedUploadStep(tool, config) {
         '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-dropbox" id="upload-dropbox" title="Upload from Dropbox" aria-label="Upload from Dropbox">' + cloudProviderLogo('dropbox') + '</button>' +
       '</div>' +
       '<button type="button" class="ilpdf-branded-cloud ilpdf-cloud-more-trigger" id="cloud-more-btn" title="More cloud providers" aria-label="More cloud providers" aria-expanded="false" aria-controls="cloud-provider-list"><i data-lucide="chevron-right"></i></button>' +
+      renderCloudProviderMenu() +
     '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
   container.innerHTML = `
@@ -760,8 +767,6 @@ function renderBrandedUploadStep(tool, config) {
             </button>
             ${cloudButtonsHtml}
           </div>
-
-          ${renderCloudProviderMenu()}
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
 
           <div class="ilpdf-branded-benefits" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
