@@ -137,21 +137,28 @@
     try { G.dispatchEvent(new CustomEvent('ilovepdf:home-critical-ready')); } catch (_) {}
 
     var startPostLoad = function () {
-      Promise.all([
-        loadOrderedBatch(POST_LOAD),
-        loadScript(AD_SCRIPT),
-        Promise.all(LAZY_CSS.map(loadStyle))
-      ]).then(function () {
-        try { G.dispatchEvent(new CustomEvent('ilovepdf:home-lazy-ready')); } catch (_) {}
-      });
+      var run = function () {
+        Promise.all([
+          loadOrderedBatch(POST_LOAD),
+          loadScript(AD_SCRIPT),
+          Promise.all(LAZY_CSS.map(loadStyle))
+        ]).then(function () {
+          try { G.dispatchEvent(new CustomEvent('ilovepdf:home-lazy-ready')); } catch (_) {}
+        });
+      };
+      if (G.requestAnimationFrame) {
+        G.requestAnimationFrame(function () {
+          G.requestAnimationFrame(run);
+        });
+      } else {
+        setTimeout(run, 50);
+      }
     };
 
-    if (G.requestAnimationFrame) {
-      G.requestAnimationFrame(function () {
-        G.requestAnimationFrame(startPostLoad);
-      });
+    if (document.readyState === 'complete') {
+      startPostLoad();
     } else {
-      setTimeout(startPostLoad, 50);
+      G.addEventListener('load', startPostLoad, { once: true });
     }
   }
 
