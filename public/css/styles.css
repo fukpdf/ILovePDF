@@ -9523,3 +9523,21 @@ i[data-lucide] {
     min-width:0!important;
   }
 }
+
+
+/* Instant tool shell — visible before the JS tool runtime hydrates. */
+.ilpdf-bootstrap-upload{
+  width:min(760px,calc(100% - 32px));
+  margin:clamp(36px,8vw,88px) auto;
+  padding:clamp(32px,6vw,64px) 24px;
+  text-align:center;
+  border:1px solid #e5e7eb;
+  border-radius:24px;
+  background:#fff;
+  box-shadow:0 14px 40px rgba(15,23,42,.08);
+}
+.ilpdf-bootstrap-upload h1{margin:0 0 10px;font-size:clamp(28px,4vw,42px);line-height:1.15;color:#111827}
+.ilpdf-bootstrap-upload p{margin:0;color:#64748b}
+.ilpdf-bootstrap-upload-btn{display:inline-flex;align-items:center;justify-content:center;margin:24px auto 10px;min-height:52px;padding:0 28px;cursor:pointer}
+.ilpdf-bootstrap-upload-btn input{display:none}
+.ilpdf-bootstrap-hint{font-size:13px;color:#94a3b8!important}
