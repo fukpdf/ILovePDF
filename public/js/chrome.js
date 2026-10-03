@@ -410,52 +410,6 @@ function wireHoverPrefetch(scope){
   });
 }
 
-/* "All Tools" — opens on hover (CSS) on desktop. On touch / keyboard
-   activation, toggle an .is-open class so it works without a hover state. */
-function wireAllToolsToggle(){
-  const item = document.getElementById('all-tools-item');
-  const btn  = document.getElementById('all-tools-btn');
-  if (!item || !btn) return;
-
-  const close = () => {
-    item.classList.remove('is-open');
-    btn.setAttribute('aria-expanded','false');
-  };
-  const open = () => {
-    item.classList.add('is-open');
-    btn.setAttribute('aria-expanded','true');
-  };
-
-  btn.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    item.classList.contains('is-open') ? close() : open();
-  });
-
-  // Click anywhere outside the mega closes it.
-  document.addEventListener('click', e => {
-    if (!item.classList.contains('is-open')) return;
-    if (item.contains(e.target)) return;
-    close();
-  });
-
-  // Mouse leaving the menu area also closes it (matches hover-open UX).
-  // Small delay so quick reentries (e.g. crossing the gap) don't flicker.
-  let leaveTimer = null;
-  item.addEventListener('mouseleave', () => {
-    clearTimeout(leaveTimer);
-    leaveTimer = setTimeout(close, 180);
-  });
-  item.addEventListener('mouseenter', () => {
-    clearTimeout(leaveTimer);
-  });
-
-  // ESC closes.
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') close();
-  });
-}
-
 /* Simple dropdowns (Organize, Convert) — open on hover + toggle on click/keyboard. */
 function wireSimpleDropdowns() {
   ['nav-organize', 'nav-convert'].forEach(id => {
