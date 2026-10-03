@@ -2627,6 +2627,25 @@ function renderSeoToolIdentity(tool) {
     '<span class="seo-tool-identity-text">' + name + '</span></div>';
 }
 
+function renderSeoFeatureVisual(icon, variant) {
+  const safeIcon = escapeHtml(icon || 'file-text');
+  const v = Number.isFinite(Number(variant)) ? Number(variant) : 0;
+  const labels = ['INPUT', 'ADJUST', 'OUTPUT'];
+  const label = labels[v % labels.length];
+  return `
+    <span class="seo-feature-visual" aria-hidden="true" data-visual-variant="${v % 3}">
+      <span class="seo-visual-sheet">
+        <span class="seo-visual-sheet-line line-a"></span>
+        <span class="seo-visual-sheet-line line-b"></span>
+        <span class="seo-visual-sheet-line line-c"></span>
+      </span>
+      <span class="seo-visual-icon"><i data-lucide="${safeIcon}"></i></span>
+      <span class="seo-visual-chip">${label}</span>
+      <span class="seo-visual-dot dot-a"></span>
+      <span class="seo-visual-dot dot-b"></span>
+    </span>`;
+}
+
 function renderSeoContent(tool) {
   const catDesc = {
     'Organize PDFs':       'organize, rearrange, and manage PDF documents',
@@ -2664,16 +2683,19 @@ function renderSeoContent(tool) {
 
         <div class="seo-feature-grid">
           <article class="seo-feature-card">
+            ${renderSeoFeatureVisual('scan-search', 0)}
             <span class="seo-feature-icon"><i data-lucide="scan-search"></i></span>
             <h3>See the page before you rotate</h3>
             <p>Review the actual PDF page previews so you can identify the pages that need correction.</p>
           </article>
           <article class="seo-feature-card">
+            ${renderSeoFeatureVisual('rotate-cw', 1)}
             <span class="seo-feature-icon"><i data-lucide="rotate-cw"></i></span>
             <h3>Rotate right or left</h3>
             <p>Choose the direction that matches the way your page needs to turn, with separate portrait and landscape controls.</p>
           </article>
           <article class="seo-feature-card">
+            ${renderSeoFeatureVisual('printer', 2)}
             <span class="seo-feature-icon"><i data-lucide="printer"></i></span>
             <h3>Ready for sharing and printing</h3>
             <p>Correct the orientation before sending the document to a client, colleague, archive, or printer.</p>
@@ -2739,9 +2761,9 @@ function renderSeoContent(tool) {
         </div>
 
         <div class="seo-feature-grid">
-          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="minimize-2"></i></span><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></article>
-          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="sliders-horizontal"></i></span><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></article>
-          <article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="send"></i></span><h3>Prepare lighter documents</h3><p>Create a smaller PDF before sharing, uploading, printing, or storing the finished document.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('minimize-2', 0)}<span class="seo-feature-icon"><i data-lucide="minimize-2"></i></span><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('sliders-horizontal', 1)}<span class="seo-feature-icon"><i data-lucide="sliders-horizontal"></i></span><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></article>
+          <article class="seo-feature-card">${renderSeoFeatureVisual('send', 2)}<span class="seo-feature-icon"><i data-lucide="send"></i></span><h3>Prepare lighter documents</h3><p>Create a smaller PDF before sharing, uploading, printing, or storing the finished document.</p></article>
         </div>
 
         <div class="seo-section-block">
@@ -2823,7 +2845,7 @@ function renderSeoContent(tool) {
       </div>
 
       <div class="seo-feature-grid">
-        ${featureItems.map((b, i) => `<article class="seo-feature-card"><span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
+        ${featureItems.map((b, i) => `<article class="seo-feature-card">${renderSeoFeatureVisual(featureIcons[i], i)}<span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
       </div>
 
       <div class="seo-section-block">
