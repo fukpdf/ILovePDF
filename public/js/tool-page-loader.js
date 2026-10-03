@@ -119,7 +119,6 @@
     ];
 
     var scripts = [
-      '/js/browser-tool-runtime.js',
       '/js/runtime-tool-code-loader.js'
     ];
 
