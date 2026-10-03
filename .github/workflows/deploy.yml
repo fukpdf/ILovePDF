@@ -128,7 +128,7 @@ jobs:
           smoke_path() {
             local host="$1" path="$2" body="/tmp/ilpdf-smoke"
             local code
-            if ! code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$body" -w '%{http_code}' "$host$path")"; then
+            if ! code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' -H 'Accept: text/html,application/xhtml+xml,application/javascript,text/javascript,*/*;q=0.8' -o "$body" -w '%{http_code}' "$host$path")"; then
               echo "FAIL network: $host$path"
               return 1
             fi
