@@ -722,15 +722,17 @@ function cloudProviderLogo(provider) {
 }
 
 function renderCloudProviderMenu() {
+  // The More menu intentionally shows logos only. Provider names remain in
+  // accessible labels/tooltips, while Google Drive and Dropbox stay outside.
   return '<div class="ilpdf-cloud-provider-picker" id="cloud-provider-picker">' +
     '<div class="ilpdf-cloud-provider-list" id="cloud-provider-list" hidden>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="onedrive"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('onedrive') + '</span><span><strong>Microsoft OneDrive</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="icloud"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('icloud') + '</span><span><strong>iCloud Drive</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="box"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('box') + '</span><span><strong>Box</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="mega"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('mega') + '</span><span><strong>MEGA</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="pcloud"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('pcloud') + '</span><span><strong>pCloud</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="sync"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('sync') + '</span><span><strong>Sync.com</strong><small>Provider option</small></span></button>' +
-      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="proton"><span class="ilpdf-cloud-provider-logo">' + cloudProviderLogo('proton') + '</span><span><strong>Proton Drive</strong><small>Provider option</small></span></button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="onedrive" title="Microsoft OneDrive" aria-label="Microsoft OneDrive">' + cloudProviderLogo('onedrive') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="icloud" title="iCloud Drive" aria-label="iCloud Drive">' + cloudProviderLogo('icloud') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="box" title="Box" aria-label="Box">' + cloudProviderLogo('box') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="mega" title="MEGA" aria-label="MEGA">' + cloudProviderLogo('mega') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="pcloud" title="pCloud" aria-label="pCloud">' + cloudProviderLogo('pcloud') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="sync" title="Sync.com" aria-label="Sync.com">' + cloudProviderLogo('sync') + '</button>' +
+      '<button type="button" class="ilpdf-cloud-provider-option" data-cloud-provider="proton" title="Proton Drive" aria-label="Proton Drive">' + cloudProviderLogo('proton') + '</button>' +
     '</div></div>';
 }
 
