@@ -7675,3 +7675,243 @@ i[data-lucide] {
 @media(prefers-reduced-motion:reduce){
   .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-visual *{animation:none!important}
 }
+
+
+/* PROFESSIONAL SECOND SECTION — BIG TOOL IDENTITY + FUNCTION VISUALS.
+   Keeps the Crop-contract structure, removes the "AI badge" feel, and makes
+   the actual configured tool icon the visual anchor. Upload section untouched. */
+.ilpdf-branded-upload .seo-content--crop-contract{
+  --seo-ink:#182033;
+  --seo-muted:#647089;
+  --seo-violet:#5b3df5;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  width:100%;
+  margin:0 auto 30px;
+  padding:10px 0 2px;
+  text-align:center;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo{
+  width:104px;
+  height:104px;
+  min-width:104px;
+  flex-basis:104px;
+  display:grid;
+  place-items:center;
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  border:5px solid #fff;
+  border-radius:30px;
+  background:var(--seo-logo-a,#5b3df5);
+  box-shadow:0 16px 34px rgba(35,31,85,.16),0 2px 0 rgba(35,31,85,.05);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo::after{
+  content:"";
+  position:absolute;
+  width:44px;
+  height:44px;
+  right:-12px;
+  top:-12px;
+  border-radius:50%;
+  background:var(--seo-logo-b,#18b7d6);
+  z-index:1;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo::before{
+  content:"";
+  position:absolute;
+  width:30px;
+  height:30px;
+  left:-8px;
+  bottom:-8px;
+  border-radius:50%;
+  background:var(--seo-logo-c,#ffb703);
+  z-index:1;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-logo-accent{display:none}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo svg{
+  position:relative;
+  z-index:3;
+  width:52px;
+  height:52px;
+  color:#fff;
+  stroke-width:2.15;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.14));
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity-text{
+  display:block;
+  color:var(--seo-ink);
+  font-size:18px;
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-intro{
+  text-align:center;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-intro .seo-kicker{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:32px;
+  padding:7px 12px;
+  border:1px solid rgba(91,61,245,.14);
+  border-radius:999px;
+  background:#f3f1ff;
+  color:#5b3df5;
+  font-size:11px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.14em;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-grid{
+  gap:24px;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{
+  position:relative;
+  overflow:hidden;
+  padding:24px 22px 25px;
+  border:1px solid #e7eaf3;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(35,31,85,.07);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:5px;
+  background:var(--card-accent,#5b3df5);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(2){--card-accent:#ec4899}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(3){--card-accent:#06a77d}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-visual{
+  height:124px;
+  margin:0 0 21px;
+  border:1px solid #e5e9f2;
+  border-radius:18px;
+  background:#f8faff;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-visual::before{
+  left:18px;
+  right:18px;
+  bottom:15px;
+  height:3px;
+  background:#e9edf5;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet{
+  left:28px;
+  top:21px;
+  width:70px;
+  height:82px;
+  border:2px solid #d6deec;
+  border-radius:11px;
+  box-shadow:0 9px 18px rgba(35,31,85,.09);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet::before{
+  width:21px;
+  height:21px;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet-line{height:5px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet-line.line-a{top:31px;width:39px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet-line.line-b{top:44px;width:47px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet-line.line-c{top:57px;width:30px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-icon{
+  left:77px;
+  top:43px;
+  width:54px;
+  height:54px;
+  border:4px solid #fff;
+  border-radius:16px;
+  background:#5b3df5;
+  box-shadow:0 10px 20px rgba(91,61,245,.24);
+  transform:rotate(2deg);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-icon svg{
+  width:27px;
+  height:27px;
+  stroke-width:2.3;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-chip{
+  right:20px;
+  top:22px;
+  padding:8px 10px;
+  border-radius:9px;
+  font-size:9px;
+  background:#fff;
+  box-shadow:0 6px 14px rgba(35,31,85,.08);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-dot{
+  width:14px;
+  height:14px;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-dot.dot-a{right:42px;bottom:31px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-visual-dot.dot-b{right:66px;bottom:48px}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(2) .seo-visual-icon{background:#7c3aed}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card:nth-child(3) .seo-visual-icon{background:#059669}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card h3{
+  font-size:20px;
+  line-height:1.25;
+  font-weight:750;
+  color:#20283a;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card p{
+  font-size:16px;
+  line-height:1.65;
+  color:#657087;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block{
+  padding-top:0;
+  margin-top:54px;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-section-block h2,
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecases h2,
+.ilpdf-branded-upload .seo-content--crop-contract .seo-trust-block h2{
+  font-size:30px;
+  line-height:1.2;
+  font-weight:800;
+  color:#182033;
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps li{
+  border:1px solid #e7eaf3;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 7px 20px rgba(35,31,85,.055);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-steps li::before{
+  background:#5b3df5;
+  box-shadow:0 7px 14px rgba(91,61,245,.20);
+}
+.ilpdf-branded-upload .seo-content--crop-contract .seo-usecase-grid > *{
+  border:1px solid #e7eaf3;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 7px 20px rgba(35,31,85,.05);
+}
+@media(max-width:640px){
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo{
+    width:86px;height:86px;min-width:86px;flex-basis:86px;border-radius:24px;
+  }
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo svg{width:43px;height:43px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity{margin-bottom:24px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{padding:20px 18px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-visual{height:112px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-visual-sheet{left:22px;top:18px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-visual-icon{left:66px;top:39px}
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-section-block h2,
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-usecases h2,
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-trust-block h2{font-size:25px}
+}
+@media(prefers-reduced-motion:reduce){
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo,
+  .ilpdf-branded-upload .seo-content--crop-contract .seo-feature-card{transition:none!important}
+}
