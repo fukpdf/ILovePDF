@@ -7242,3 +7242,250 @@ i[data-lucide] {
   }
 }
 
+
+
+/* ============================================================
+   CROP UPLOAD VISUAL FINISH — shared standard-tool upload shell
+   Visual-only refinement: colorful tool identity, readable type,
+   deliberate spacing, and a clear upload surface.
+   Processing/editor/download behavior is intentionally untouched.
+   ============================================================ */
+
+.ilpdf-branded-upload .ilpdf-branded-upload-hero {
+  position: relative;
+  isolation: isolate;
+  padding-top: clamp(52px, 6vw, 82px) !important;
+  padding-bottom: clamp(58px, 7vw, 92px) !important;
+  background:
+    radial-gradient(circle at 10% 8%, color-mix(in srgb, var(--tool-tone, #5b3df5) 12%, transparent), transparent 30%),
+    radial-gradient(circle at 90% 14%, color-mix(in srgb, var(--tool-tone-2, #7c3aed) 11%, transparent), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+}
+
+.ilpdf-branded-upload .ilpdf-branded-title {
+  max-width: 1180px;
+  font-size: clamp(40px, 4.6vw, 66px) !important;
+  line-height: 1.06 !important;
+  letter-spacing: -.038em !important;
+  font-weight: 760 !important;
+  color: #1d2a3a !important;
+  text-wrap: balance;
+  row-gap: 12px;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker {
+  width: 66px !important;
+  height: 66px !important;
+  min-width: 66px !important;
+  flex-basis: 66px !important;
+  border-radius: 19px !important;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.32), transparent 35%),
+    linear-gradient(135deg, var(--tool-tone, #5b3df5), var(--tool-tone-2, #7c3aed)) !important;
+  box-shadow:
+    0 5px 0 rgba(30,41,59,.08),
+    0 14px 30px color-mix(in srgb, var(--tool-tone, #5b3df5) 28%, transparent) !important;
+  transform: rotate(-3deg);
+}
+
+.ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker svg {
+  width: 32px !important;
+  height: 32px !important;
+  stroke-width: 2.35 !important;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.12));
+}
+
+.ilpdf-branded-upload .ilpdf-branded-title .tool-heading-label {
+  font-weight: 760 !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-subtitle {
+  margin-top: 22px !important;
+  margin-bottom: 40px !important;
+  font-size: clamp(18px, 1.65vw, 25px) !important;
+  line-height: 1.62 !important;
+  color: #52677f !important;
+  text-wrap: balance;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-upload-zone {
+  position: relative;
+  padding: clamp(28px, 3.2vw, 42px) clamp(18px, 3vw, 38px) 30px;
+  border: 2px dashed color-mix(in srgb, var(--tool-tone, #5b3df5) 22%, #dbe4f0);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--tool-tone, #5b3df5) 7%, transparent), transparent 48%),
+    rgba(255,255,255,.88);
+  box-shadow: 0 18px 48px rgba(30,41,59,.08);
+}
+
+.ilpdf-branded-upload .ilpdf-branded-upload-zone::before {
+  content: "UPLOAD";
+  position: absolute;
+  top: -12px;
+  left: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--tool-tone, #5b3df5);
+  border: 1px solid color-mix(in srgb, var(--tool-tone, #5b3df5) 18%, #e2e8f0);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-action-row {
+  gap: 18px;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-select {
+  width: min(496px, 100%) !important;
+  height: 112px !important;
+  border-radius: 20px !important;
+  font-size: clamp(21px, 2vw, 27px) !important;
+  font-weight: 750 !important;
+  letter-spacing: -.018em !important;
+  background:
+    radial-gradient(circle at 22% 15%, rgba(255,255,255,.22), transparent 28%),
+    linear-gradient(135deg, var(--tool-tone, #5b3df5), var(--tool-tone-2, #7c3aed)) !important;
+  box-shadow:
+    0 8px 0 rgba(30,41,59,.07),
+    0 16px 32px color-mix(in srgb, var(--tool-tone, #5b3df5) 27%, transparent) !important;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-select:hover,
+.ilpdf-branded-upload .ilpdf-branded-select:focus-visible {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.04);
+  box-shadow:
+    0 9px 0 rgba(30,41,59,.07),
+    0 20px 38px color-mix(in srgb, var(--tool-tone, #5b3df5) 31%, transparent) !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-select:focus-visible {
+  outline: 4px solid color-mix(in srgb, var(--tool-tone, #5b3df5) 22%, transparent);
+  outline-offset: 4px;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-clouds {
+  width: 58px;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-cloud {
+  background:
+    linear-gradient(135deg, var(--tool-tone, #5b3df5), var(--tool-tone-2, #7c3aed)) !important;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--tool-tone, #5b3df5) 23%, transparent);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-cloud:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.ilpdf-branded-upload .ilpdf-branded-droptext {
+  margin-top: 22px !important;
+  font-size: 17px !important;
+  line-height: 1.5 !important;
+  color: #61758d !important;
+  font-weight: 550;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-benefits {
+  margin-top: 34px !important;
+  gap: 20px !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-benefit {
+  min-height: 132px !important;
+  padding: 21px 20px 21px 18px !important;
+  gap: 17px !important;
+  border-radius: 19px !important;
+  border-color: color-mix(in srgb, var(--tool-tone, #5b3df5) 12%, #e2e8f0) !important;
+  box-shadow: 0 10px 28px rgba(30,41,59,.07) !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-sticker {
+  width: 72px !important;
+  height: 72px !important;
+  flex-basis: 72px !important;
+  border-radius: 21px !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-sticker svg {
+  width: 31px !important;
+  height: 31px !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-benefit-copy {
+  gap: 7px !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-benefit-copy strong {
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+  font-weight: 750 !important;
+  color: #24364b !important;
+}
+
+.ilpdf-branded-upload .ilpdf-branded-benefit-copy span {
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+  color: #60748b !important;
+  font-weight: 500 !important;
+}
+
+@media (max-width: 900px) {
+  .ilpdf-branded-upload .ilpdf-branded-upload-zone {
+    padding: 28px 18px 26px;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-benefits {
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ilpdf-branded-upload .ilpdf-branded-title {
+    font-size: clamp(35px, 10vw, 46px) !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker {
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+    flex-basis: 54px !important;
+    border-radius: 16px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker svg {
+    width: 27px !important;
+    height: 27px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-subtitle {
+    margin-bottom: 30px !important;
+    font-size: 18px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-upload-zone {
+    padding: 25px 12px 22px;
+    border-radius: 20px;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-select {
+    height: 76px !important;
+    font-size: 20px !important;
+    border-radius: 15px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-benefit {
+    min-height: 116px !important;
+    padding: 16px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-sticker {
+    width: 60px !important;
+    height: 60px !important;
+    flex-basis: 60px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-benefit-copy strong {
+    font-size: 17px !important;
+  }
+  .ilpdf-branded-upload .ilpdf-branded-benefit-copy span {
+    font-size: 14px !important;
+  }
+}
