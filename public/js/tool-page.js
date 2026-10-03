@@ -2613,12 +2613,14 @@ function renderSeoToolIdentity(tool) {
   const palette = brandedToolPalette(tool);
   const icon = escapeHtml(tool && tool.icon ? tool.icon : 'file-text');
   const name = escapeHtml(tool && tool.name ? tool.name : 'PDF Tool');
-  return '<div class="seo-tool-identity" aria-hidden="true">' +
-    '<span class="seo-tool-logo" style="--seo-logo-a:' + palette[0] + ';--seo-logo-b:' + palette[1] + ';--seo-logo-c:' + palette[2] + '">' +
-      '<span class="seo-logo-accent seo-logo-accent-a"></span><span class="seo-logo-accent seo-logo-accent-b"></span>' +
-      '<i data-lucide="' + icon + '"></i>' +
-    '</span>' +
-    '<span class="seo-tool-identity-text">' + name + '</span></div>';
+  return '<div class="seo-tool-identity" aria-label="' + name + '">' +
+    '<div class="seo-tool-logo-wrap">' +
+      '<span class="seo-tool-logo" style="--seo-logo-a:' + palette[0] + ';--seo-logo-b:' + palette[1] + ';--seo-logo-c:' + palette[2] + '" aria-hidden="true">' +
+        '<span class="seo-logo-accent seo-logo-accent-a"></span><span class="seo-logo-accent seo-logo-accent-b"></span>' +
+        '<i data-lucide="' + icon + '"></i>' +
+      '</span>' +
+    '</div>' +
+    '<div class="seo-tool-name">' + name + '</div></div>';
 }
 
 function renderSeoFeatureVisual(icon, variant) {
