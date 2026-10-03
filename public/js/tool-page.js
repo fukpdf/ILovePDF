@@ -2702,68 +2702,69 @@ function renderSeoContent(tool) {
     `;
   }
 
-  if (tool.id === 'crop') {
-    const cropFaq = [
-      { q: 'How do I crop a PDF?', a: 'Upload your PDF, adjust the crop area for the page, review the result, and create the cropped PDF.' },
-      { q: 'Can I remove PDF margins?', a: 'Yes. Cropping can remove unwanted white space or margins around the page content.' },
-      { q: 'Will cropping change the original PDF file?', a: 'No. The uploaded file is used to create a separate processed result; your original file is not edited in place.' },
-      { q: 'Can I crop a scanned PDF?', a: 'Yes. Cropping is useful for scanned documents, receipts, forms, screenshots, and other PDFs with extra page margins.' },
+  if (tool.id === 'compress') {
+    const compressFaq = [
+      { q: 'How much can a PDF be compressed?', a: 'The reduction depends on the document. Image-heavy PDFs can often shrink substantially, while text-only PDFs usually have less data to optimise.' },
+      { q: 'Will compressing a PDF make it blurry?', a: 'Compression primarily optimises embedded image data. Text and vector content are not intentionally blurred by the compression step.' },
+      { q: 'Which compression level should I choose?', a: 'Choose Low for maximum visual quality, Medium for a balanced result, or High when reducing file size is the main priority.' },
+      { q: 'Is my original PDF changed?', a: 'No. The uploaded file is used to create a separate compressed result; your original file remains unchanged.' },
     ];
 
     return `
-      <section class="seo-content seo-content--tool seo-content--crop" aria-labelledby="crop-seo-heading">
+      <section class="seo-content seo-content--tool seo-content--compress" aria-labelledby="compress-seo-heading">
         <div class="seo-intro">
-          <span class="seo-kicker">PDF CROP TOOL</span>
-          <h2 id="crop-seo-heading">Crop PDF Online — Free, Fast &amp; Simple</h2>
-          <p><strong>Need to remove unwanted PDF margins?</strong> This online PDF crop tool helps you trim page edges and keep the content you actually need.</p>
-          <p>Crop scanned documents, forms, receipts, notes, screenshots, and other PDF pages before sharing, printing, or archiving them.</p>
+          <span class="seo-kicker">PDF COMPRESSION TOOL</span>
+          <h2 id="compress-seo-heading">Compress PDF Online — Free, Fast &amp; Simple</h2>
+          <p><strong>Need to reduce a large PDF?</strong> This online PDF compressor helps shrink file size while keeping the document practical to read, share, print, and store.</p>
+          <p>Compress portfolios, scanned documents, brochures, invoices, reports, and other PDFs when a smaller file is easier to upload, email, publish, or archive.</p>
         </div>
 
         <div class="seo-feature-grid">
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="crop"></i></span><div><h3>Trim unwanted page space</h3><p>Remove extra margins and empty areas around the useful content on your PDF pages.</p></div></article>
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="scan-search"></i></span><div><h3>Review before processing</h3><p>Use the page workflow to check the document before creating the final cropped PDF.</p></div></article>
-          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="printer"></i></span><div><h3>Prepare cleaner documents</h3><p>Crop pages before printing, presenting, sharing, or storing the finished document.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="minimize-2"></i></span><div><h3>Reduce file size</h3><p>Optimise PDF data so large documents take less storage and are easier to transfer.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="sliders-horizontal"></i></span><div><h3>Choose the compression level</h3><p>Balance output size and visual quality with Low, Medium, or High compression.</p></div></article>
+          <article class="seo-feature-card seo-sticker-card"><span class="seo-feature-icon seo-sticker-icon"><i data-lucide="send"></i></span><div><h3>Prepare files for sharing</h3><p>Create a lighter PDF before sending it by email, uploading it to a portal, or storing it online.</p></div></article>
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="crop"></i></span><div><span class="seo-section-kicker">STEP-BY-STEP</span><h3>How to crop a PDF online</h3></div></div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-crop" aria-hidden="true"><i data-lucide="list-checks"></i></span><div><span class="seo-section-kicker">STEP-BY-STEP</span><h3>How to compress a PDF online</h3></div></div>
           <ol class="seo-steps">
             <li><strong>Upload your PDF</strong> — select a PDF file or drag it into the upload area.</li>
-            <li><strong>Open the crop controls</strong> — review the page and identify the margins or areas you want to remove.</li>
-            <li><strong>Set the crop values</strong> — adjust the page edges according to the content you want to keep.</li>
-            <li><strong>Review the result</strong> — check that important text, images, and page content remain inside the crop area.</li>
-            <li><strong>Crop PDF</strong> — process the document and download the finished file.</li>
+            <li><strong>Review the document</strong> — check the file before choosing how strongly it should be compressed.</li>
+            <li><strong>Set the compression level</strong> — choose Low, Medium, or High according to your size and quality needs.</li>
+            <li><strong>Review the result</strong> — confirm that the compressed document still looks right for its intended use.</li>
+            <li><strong>Compress PDF</strong> — process the document and download the smaller PDF.</li>
           </ol>
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="scan-search"></i></span><div><span class="seo-section-kicker">CLEANER PAGES</span><h3>Why crop a PDF?</h3></div></div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-focus" aria-hidden="true"><i data-lucide="gauge"></i></span><div><span class="seo-section-kicker">LIGHTER FILES</span><h3>Why compress a PDF?</h3></div></div>
           <ul class="seo-benefits">
-            <li><strong>Remove excess margins.</strong> Trim empty space around scanned or photographed pages.</li>
-            <li><strong>Focus the document.</strong> Keep attention on the content that matters.</li>
-            <li><strong>Improve print layout.</strong> Reduce unnecessary page space before printing.</li>
-            <li><strong>Clean up scans.</strong> Remove borders and surrounding areas from scanned paperwork.</li>
+            <li><strong>Share files faster.</strong> Smaller PDFs are easier to upload, download, and send over slower connections.</li>
+            <li><strong>Meet attachment limits.</strong> Reducing file size can help when email or application portals impose size limits.</li>
+            <li><strong>Save storage space.</strong> Smaller documents use less cloud and archive storage.</li>
+            <li><strong>Keep a practical balance.</strong> Select a compression level that fits the document's purpose instead of using the strongest setting every time.</li>
           </ul>
         </div>
 
         <div class="seo-section-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span><div><span class="seo-section-kicker">REAL-WORLD USE</span><h3>Common PDF cropping use cases</h3></div></div>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-usecase" aria-hidden="true"><i data-lucide="files"></i></span><div><span class="seo-section-kicker">REAL-WORLD USE</span><h3>Common PDF compression use cases</h3></div></div>
           <div class="seo-usecase-grid">
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="file-scan"></i></span><strong>Scanned documents</strong><span>Remove scanner borders and excess white space.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="receipt-text"></i></span><strong>Receipts &amp; invoices</strong><span>Focus pages on the useful transaction details.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="clipboard-pen-line"></i></span><strong>Forms &amp; applications</strong><span>Trim unnecessary page areas before sharing.</span></article>
-            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="book-open"></i></span><strong>Study material</strong><span>Clean up photographed or scanned notes.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="briefcase-business"></i></span><strong>Job applications</strong><span>Reduce portfolio or resume PDFs for portals with strict upload limits.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="megaphone"></i></span><strong>Marketing files</strong><span>Make brochures and downloadable PDFs lighter for website visitors.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="landmark"></i></span><strong>Legal &amp; finance</strong><span>Reduce document size before archiving or moving large batches.</span></article>
+            <article class="seo-usecase-card"><span class="seo-usecase-sticker"><i data-lucide="mail"></i></span><strong>Email &amp; sharing</strong><span>Prepare documents for services with attachment or upload limits.</span></article>
           </div>
         </div>
 
         <div class="seo-section-block seo-trust-block seo-section-with-sticker">
-          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span><div><span class="seo-section-kicker">SIMPLE WORKFLOW</span><h3>Crop PDF pages without unnecessary steps</h3></div></div>
-          <p>The workflow is built around a simple task: <strong>upload, adjust, review, and download.</strong> You can prepare a cleaner PDF without installing desktop software.</p>
+          <div class="seo-section-heading"><span class="seo-section-sticker seo-section-sticker-trust" aria-hidden="true"><i data-lucide="sparkles"></i></span><div><span class="seo-section-kicker">SIMPLE WORKFLOW</span><h3>Compress PDF files without unnecessary steps</h3></div></div>
+          <p>The workflow is built around a simple task: <strong>upload, choose, review, and download.</strong> You can prepare a smaller PDF without installing desktop software.</p>
         </div>
       </section>
-      ${renderToolFaq(tool, cropFaq)}
+      ${renderToolFaq(tool, compressFaq)}
     `;
   }
+
 
   // Generic SEO content for the other tools.
   const slug = TOOL_ID_TO_BLOG_SLUG[tool.id] || tool.id;
