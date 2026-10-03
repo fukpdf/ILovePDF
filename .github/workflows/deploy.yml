@@ -160,10 +160,15 @@ jobs:
             echo "PASS $path [$code]"
           done
           config="$(curl -L -sS "$base/js/tools-config.js")"
-          for id in crop rotate merge; do
-            printf '%s' "$config" | grep -Eq "id:[[:space:]]*['"]$id['"][[:space:][:print:]]*working:[[:space:]]*true"
-            echo "PASS production config working=true: $id"
-          done
+          node - "$config" <<'NODE'
+          const fs = require('fs');
+          const config = process.argv[2];
+          for (const id of ['crop','rotate','merge']) {
+            const re = new RegExp("id\\\\s*:\\\\s*['\\\"]" + id + "['\\\"]\\\\s*,[\\\\s\\\\S]*?working\\\\s*:\\\\s*true");
+            if (!re.test(config)) { console.error('FAIL production config working=true:', id); process.exit(1); }
+            console.log('PASS production config working=true:', id);
+          }
+          NODE
           for path in /crop-pdf /rotate-pdf; do
             html="$(curl -L -sS "$base$path")"
             printf '%s' "$html" | grep -q '/js/tool-page.js'
