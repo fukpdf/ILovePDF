@@ -145,11 +145,15 @@ jobs:
           done
 
 
-          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js /deploy-version.txt; do
-            smoke_path "$base" "$path"
-          done
+          # The public edge is protected by Cloudflare bot controls that may
+          # challenge GitHub-hosted curl requests. Validate the edge through
+          # its dedicated API health endpoint, while validating frontend
+          # deployment content directly against the Firebase Hosting origin.
+          smoke_path "$base" "/api/health"
+          edge_health="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$base/api/health")"
+          printf '%s' "$edge_health" | grep -q '"ok":true'
 
-          deployed_sha="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS "$base/deploy-version.txt" | tr -d '\r\n')"
+          deployed_sha="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -A 'Mozilla/5.0 (compatible; ILovePDF-Deployment-Smoke/1.0)' "$origin/deploy-version.txt" | tr -d '\r\n')"
           if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
             echo "FAIL stale deployment: expected $GITHUB_SHA got $deployed_sha"
             exit 1
