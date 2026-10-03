@@ -51,14 +51,13 @@
     var timeout = setTimeout(function () {
       if (controller) controller.abort();
     }, 1500);
-    var request = fetch(ENDPOINT, {
+    loading = fetch(ENDPOINT, {
       credentials: 'omit',
       cache: 'no-store',
       signal: controller ? controller.signal : undefined
     }).finally(function () {
       clearTimeout(timeout);
-    });
-    loading = request
+    })
       .then(function (response) {
         if (!response.ok) throw new Error('Tool registry HTTP ' + response.status);
         return response.json();
