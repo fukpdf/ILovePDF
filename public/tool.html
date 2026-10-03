@@ -175,8 +175,10 @@
     </div>
   </div>
 
-  <!-- Lightweight upload-page bootstrap. Deferred discovery lets HTML/CSS parse
-       while the critical JS graph starts downloading in parallel. -->
+  <!-- Shared shell scripts are explicit so global i18n/chrome audits can verify the page.
+       tool-page-loader detects these tags and does not load duplicates. -->
+  <script defer src="/js/i18n.js?v=__BUILD_ID__"></script>
+  <script defer src="/js/chrome.js"></script>
   <script defer src="/js/tool-page-loader.js"></script>
 
 </body>
