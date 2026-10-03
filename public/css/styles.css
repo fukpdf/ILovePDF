@@ -8514,6 +8514,9 @@ i[data-lucide] {
   stroke-width:0;
   display:block;
 }
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger{
+  align-self:center;
+}
 .ilpdf-branded-upload .ilpdf-cloud-more-trigger svg{
   width:20px;
   height:20px;
