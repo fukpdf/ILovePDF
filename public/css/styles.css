@@ -8495,3 +8495,244 @@ i[data-lucide] {
 .ilpdf-branded-upload .ilpdf-branded-cloud:hover{transform:translateY(-2px);border-color:#cdd3df;box-shadow:0 8px 18px rgba(37,45,70,.13)}
 .ilpdf-branded-upload .ilpdf-branded-cloud svg{width:31px;height:31px;display:block}
 .ilpdf-branded-upload .ilpdf-cloud-more-trigger{transform:translateY(-5px);color:var(--primary)}.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-arrow-trio{display:none;align-items:center;justify-content:center;gap:0;width:100%;height:100%;font-size:15px;font-weight:800;line-height:1;letter-spacing:-3px}.ilpdf-branded-upload .ilpdf-cloud-more-trigger .ilpdf-cloud-arrow-trio span{display:block;line-height:1;margin:0;padding:0}.ilpdf-branded-upload .ilpdf-cloud-more-trigger.is-open{background:var(--primary)!important;border-color:var(--primary)!important;color:#fff!important;box-shadow:0 7px 16px rgba(99,102,241,.28)}.ilpdf-branded-upload .ilpdf-cloud-more-trigger.is-open .ilpdf-cloud-single-arrow{display:none}.ilpdf-branded-upload .ilpdf-cloud-more-trigger.is-open .ilpdf-cloud-arrow-trio{display:flex}.ilpdf-branded-upload .ilpdf-cloud-more-trigger.is-open:hover{background:var(--primary-dark)!important;border-color:var(--primary-dark)!important;transform:translateY(-6px)}@media(max-width:640px){.ilpdf-branded-upload .ilpdf-branded-action-row{width:100%;gap:8px}.ilpdf-branded-upload .ilpdf-branded-select{width:auto;flex:1 1 auto;height:92px;min-width:0;padding:0 14px!important;font-size:20px;gap:8px}.ilpdf-branded-upload .ilpdf-branded-select svg{width:24px;height:24px}.ilpdf-branded-upload .ilpdf-branded-clouds{gap:7px}.ilpdf-branded-upload .ilpdf-cloud-stack{gap:7px}.ilpdf-branded-upload .ilpdf-branded-cloud{width:46px;height:46px;flex-basis:46px;border-radius:10px}.ilpdf-branded-upload .ilpdf-branded-cloud svg{width:31px;height:31px}.ilpdf-branded-upload .ilpdf-cloud-more-trigger{transform:translateY(-5px)}.ilpdf-branded-upload .ilpdf-cloud-more-trigger:hover{transform:translateY(-6px)}.ilpdf-branded-upload .ilpdf-cloud-provider-picker{left:auto;right:0;top:calc(100% + 10px)}.ilpdf-branded-upload .ilpdf-cloud-provider-list{left:auto;right:0;top:calc(100% + 10px);transform:none;width:max-content;max-width:calc(100vw - 24px);max-height:none;overflow-x:auto;overflow-y:hidden;grid-template-columns:repeat(7,46px);padding:6px;gap:6px}.ilpdf-branded-upload .ilpdf-cloud-provider-option{width:46px;height:46px;min-height:46px}.ilpdf-branded-upload .ilpdf-cloud-provider-option svg{width:31px;height:31px}}
+
+/* MOBILE UPLOAD LOGO + PROVIDER LAYOUT — keep the primary CTA first, providers below. */
+@media (max-width: 640px) {
+  .ilpdf-branded-upload .ilpdf-branded-upload-hero {
+    overflow-x: clip;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-title {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    text-align: center;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker,
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker svg {
+    flex: 0 0 auto;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name-sticker {
+    width: clamp(44px, 13vw, 54px);
+    height: clamp(44px, 13vw, 54px);
+    min-width: 44px;
+    min-height: 44px;
+    margin: 0;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-title .tool-name {
+    min-width: 0;
+    max-width: calc(100% - 64px);
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-subtitle {
+    width: 100%;
+    max-width: 620px;
+    margin-inline: auto;
+    padding-inline: 8px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  /* Primary upload button occupies its own row. */
+  .ilpdf-branded-upload .ilpdf-branded-action-row {
+    width: min(100%, 430px);
+    margin-inline: auto;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start;
+    gap: 12px !important;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-select {
+    order: 1;
+    width: 100% !important;
+    max-width: 430px;
+    min-width: 0;
+    height: 68px !important;
+    min-height: 68px;
+    padding: 0 18px !important;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-select svg {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Cloud/provider buttons are always BELOW the upload button on phones. */
+  .ilpdf-branded-upload .ilpdf-branded-clouds {
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px !important;
+  }
+
+  .ilpdf-branded-upload .ilpdf-cloud-stack {
+    width: auto;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px !important;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-cloud,
+  .ilpdf-branded-upload .ilpdf-cloud-more-trigger,
+  .ilpdf-branded-upload .ilpdf-cloud-provider-option {
+    flex: 0 0 44px;
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px !important;
+    min-height: 44px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-cloud svg,
+  .ilpdf-branded-upload .ilpdf-cloud-provider-option svg {
+    width: 25px !important;
+    height: 25px !important;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .ilpdf-branded-upload .ilpdf-cloud-provider-list {
+    max-width: calc(100vw - 28px) !important;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-droptext {
+    width: 100%;
+    max-width: 430px;
+    margin: 12px auto 0;
+    padding-inline: 8px;
+    text-align: center;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  /* Benefit logos stay beside their own text without squeezing either side. */
+  .ilpdf-branded-upload .ilpdf-branded-benefits {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-benefit {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-sticker {
+    width: 46px !important;
+    min-width: 46px;
+    height: 46px !important;
+    min-height: 46px;
+    margin: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-sticker svg {
+    width: 23px;
+    height: 23px;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-benefit-copy {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-benefit-copy strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-benefit-copy span {
+    display: block;
+    margin-top: 3px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .ilpdf-branded-upload .ilpdf-branded-action-row {
+    width: 100%;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-select {
+    height: 64px !important;
+    min-height: 64px;
+    font-size: 17px;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-cloud,
+  .ilpdf-branded-upload .ilpdf-cloud-more-trigger,
+  .ilpdf-branded-upload .ilpdf-cloud-provider-option {
+    flex-basis: 40px;
+    width: 40px !important;
+    min-width: 40px;
+    height: 40px !important;
+    min-height: 40px;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-cloud svg,
+  .ilpdf-branded-upload .ilpdf-cloud-provider-option svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-sticker {
+    width: 42px !important;
+    min-width: 42px;
+    height: 42px !important;
+    min-height: 42px;
+  }
+
+  .ilpdf-branded-upload .ilpdf-branded-benefit {
+    grid-template-columns: 42px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+}
