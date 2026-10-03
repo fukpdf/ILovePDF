@@ -2610,6 +2610,16 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+
+function renderSeoToolIdentity(tool) {
+  const palette = brandedToolPalette(tool);
+  const icon = escapeHtml(tool && tool.icon ? tool.icon : 'file-text');
+  const name = escapeHtml(tool && tool.name ? tool.name : 'PDF Tool');
+  return '<div class="seo-tool-identity" aria-hidden="true">' +
+    '<span class="seo-tool-logo" style="--seo-logo-a:' + palette[0] + ';--seo-logo-b:' + palette[1] + '"><i data-lucide="' + icon + '"></i></span>' +
+    '<span class="seo-tool-identity-text">' + name + '</span></div>';
+}
+
 function renderSeoContent(tool) {
   const catDesc = {
     'Organize PDFs':       'organize, rearrange, and manage PDF documents',
@@ -2637,6 +2647,7 @@ function renderSeoContent(tool) {
 
     return `
       <section class="seo-content seo-content--crop-contract seo-content--rotate" aria-labelledby="rotate-seo-heading">
+        ${renderSeoToolIdentity(tool)}
         <div class="seo-intro">
           <span class="seo-kicker">PDF ROTATION TOOL</span>
           <h2 id="rotate-seo-heading">Rotate PDF Online — Free, Fast &amp; Easy</h2>
@@ -2712,6 +2723,7 @@ function renderSeoContent(tool) {
 
     return `
       <section class="seo-content seo-content--crop-contract seo-content--compress" aria-labelledby="compress-seo-heading">
+        ${renderSeoToolIdentity(tool)}
         <div class="seo-intro">
           <span class="seo-kicker">PDF COMPRESSION TOOL</span>
           <h2 id="compress-seo-heading">Compress PDF Online — Free, Fast &amp; Simple</h2>
@@ -2795,7 +2807,8 @@ function renderSeoContent(tool) {
 
   return `
     <section class="seo-content seo-content--crop-contract" aria-labelledby="${escapeHtml(tool.id)}-seo-heading">
-      <div class="seo-intro">
+      ${renderSeoToolIdentity(tool)}
+        <div class="seo-intro">
         <span class="seo-kicker">${escapeHtml(tool.name).toUpperCase()} TOOL</span>
         <h2 id="${escapeHtml(tool.id)}-seo-heading">${escapeHtml(tool.name)} Online — Free, Fast &amp; Secure</h2>
         <p><strong>Need to ${escapeHtml(tool.description.charAt(0).toLowerCase() + tool.description.slice(1))}?</strong> This online tool helps you complete the task quickly and prepare a practical result.</p>
