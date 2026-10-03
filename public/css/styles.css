@@ -8501,7 +8501,7 @@ i[data-lucide] {
 }
 .ilpdf-branded-upload .ilpdf-branded-cloud svg{width:38px;height:38px;stroke-width:0;display:block}
 .ilpdf-branded-upload .ilpdf-cloud-more-trigger svg{width:24px;height:24px;stroke-width:2.4;display:block;transition:transform .18s ease}
-.ilpdf-branded-upload .ilpdf-cloud-more-trigger[aria-expanded="true"] svg{transform:rotate(180deg)}
+.ilpdf-branded-upload .ilpdf-cloud-more-trigger[aria-expanded="true"] svg{transform:translateX(2px)}
 .ilpdf-branded-upload .ilpdf-cloud-provider-picker{
   width:0;
   height:0;
