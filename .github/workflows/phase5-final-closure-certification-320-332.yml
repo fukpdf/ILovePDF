@@ -1,0 +1,24 @@
+name: Phase 5 Final Closure Certification 320-332
+
+on:
+  push:
+    branches:
+      - phase-5-bulk-units-320-332-final-closure-certification
+      - main
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'public/js/runtime-phase5.js'
+      - 'scripts/phase5-*.js'
+      - '.github/workflows/phase5-final-closure-certification-320-332.yml'
+
+jobs:
+  phase5-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: node scripts/phase5-final-closure-320-332-check.js

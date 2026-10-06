@@ -1,0 +1,31 @@
+name: Phase 5 Worker Prewarm Reliability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-prewarm.js'
+      - 'public/workers/workerPool.js'
+      - 'scripts/phase5-worker-prewarm-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-prewarm-reliability.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-prewarm.js'
+      - 'public/workers/workerPool.js'
+      - 'scripts/phase5-worker-prewarm-reliability-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-prewarm-reliability.yml'
+
+jobs:
+  worker-prewarm-reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-prewarm-reliability

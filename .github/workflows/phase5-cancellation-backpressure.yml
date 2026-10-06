@@ -1,0 +1,31 @@
+name: Phase 5 Cancellation Backpressure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-processing-concurrency.js'
+      - 'public/js/runtime-worker-orchestrator.js'
+      - 'public/js/runtime-processor-workers.js'
+      - 'scripts/phase5-units-242-254-check.js'
+      - '.github/workflows/phase5-cancellation-backpressure.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-processing-concurrency.js'
+      - 'public/js/runtime-worker-orchestrator.js'
+      - 'public/js/runtime-processor-workers.js'
+      - 'scripts/phase5-units-242-254-check.js'
+      - '.github/workflows/phase5-cancellation-backpressure.yml'
+
+jobs:
+  cancellation-backpressure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:cancellation-backpressure

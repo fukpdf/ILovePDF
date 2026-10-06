@@ -1,0 +1,396 @@
+{
+  "tools": [
+    {
+      "id": "compress-pdf",
+      "name": "Compress PDF",
+      "slug": "compress-pdf",
+      "description": "Reduce PDF file size while maintaining quality. Supports up to 200MB files.",
+      "how_to_use": "Upload your PDF file → Choose compression level (Low/Medium/High) → Click Compress → Download compressed file",
+      "file_limit": "200MB",
+      "free": true,
+      "keywords": ["compress", "reduce", "shrink", "smaller", "size", "compress pdf", "pdf compress", "file size", "heavy pdf", "bada pdf"]
+    },
+    {
+      "id": "merge-pdf",
+      "name": "Merge PDF",
+      "slug": "merge-pdf",
+      "description": "Combine multiple PDF files into one single PDF document.",
+      "how_to_use": "Upload multiple PDF files → Drag to reorder if needed → Click Merge PDF → Download merged file",
+      "file_limit": "50MB per file",
+      "free": true,
+      "keywords": ["merge", "combine", "join", "unite", "merge pdf", "multiple pdf", "ek pdf", "combine pdf", "jodna"]
+    },
+    {
+      "id": "split-pdf",
+      "name": "Split PDF",
+      "slug": "split-pdf",
+      "description": "Split a PDF into multiple separate files by page range or extract specific pages.",
+      "how_to_use": "Upload PDF → Choose split mode (by range / extract pages / every N pages) → Click Split → Download files",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["split", "divide", "separate", "extract pages", "split pdf", "page extract", "tod na", "pages alag karna"]
+    },
+    {
+      "id": "rotate-pdf",
+      "name": "Rotate PDF",
+      "slug": "rotate-pdf",
+      "description": "Rotate PDF pages 90°, 180°, or 270°. Rotate all pages or select specific pages.",
+      "how_to_use": "Upload PDF → Select pages to rotate → Choose rotation angle → Click Rotate → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["rotate", "turn", "flip", "rotate pdf", "page rotate", "ulta pdf", "sidha karna"]
+    },
+    {
+      "id": "organize-pdf",
+      "name": "Organize PDF",
+      "slug": "organize-pdf",
+      "description": "Reorder, delete, or rearrange pages in a PDF document visually.",
+      "how_to_use": "Upload PDF → Drag pages to reorder → Delete unwanted pages → Click Organize → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["organize", "reorder", "rearrange", "delete pages", "organize pdf", "page order", "pages theek karna"]
+    },
+    {
+      "id": "protect-pdf",
+      "name": "Protect PDF",
+      "slug": "protect-pdf",
+      "description": "Add password protection to your PDF file to prevent unauthorized access.",
+      "how_to_use": "Upload PDF → Set a password → Click Protect → Download password-protected PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["protect", "password", "lock", "secure", "encrypt", "protect pdf", "password pdf", "lock pdf", "private", "security"]
+    },
+    {
+      "id": "unlock-pdf",
+      "name": "Unlock PDF",
+      "slug": "unlock-pdf",
+      "description": "Remove password protection from PDF if you know the password.",
+      "how_to_use": "Upload locked PDF → Enter password → Click Unlock → Download unlocked PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["unlock", "remove password", "open", "decrypt", "unlock pdf", "password remove", "lock hatana"]
+    },
+    {
+      "id": "watermark-pdf",
+      "name": "Watermark PDF",
+      "slug": "watermark-pdf",
+      "description": "Add text or image watermark to your PDF pages.",
+      "how_to_use": "Upload PDF → Enter watermark text or upload image → Adjust position, opacity, size → Click Apply → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["watermark", "stamp", "mark", "watermark pdf", "text watermark", "image watermark", "branding"]
+    },
+    {
+      "id": "repair-pdf",
+      "name": "Repair PDF",
+      "slug": "repair-pdf",
+      "description": "Fix corrupted or damaged PDF files and recover content.",
+      "how_to_use": "Upload damaged PDF → Click Repair → Download fixed PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["repair", "fix", "corrupt", "damaged", "broken", "repair pdf", "fix pdf", "kharab pdf", "pdf nahi khul raha"]
+    },
+    {
+      "id": "ocr-pdf",
+      "name": "OCR PDF",
+      "slug": "ocr-pdf",
+      "description": "Convert scanned PDFs or images into searchable and editable text using OCR technology.",
+      "how_to_use": "Upload scanned PDF or image → Select language → Click OCR → Download searchable PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["ocr", "scan", "searchable", "text recognition", "scanned pdf", "image to text", "ocr pdf", "scan pdf", "readable"]
+    },
+    {
+      "id": "ai-summarizer",
+      "name": "AI Summarizer",
+      "slug": "ai-summarizer",
+      "description": "Summarize long PDF documents using AI. Get key points and highlights automatically.",
+      "how_to_use": "Upload PDF → AI analyzes content → View summary with key points → Download or copy",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["summarize", "summary", "ai summary", "key points", "summarizer", "ai summarizer", "short version", "brief", "tldr"]
+    },
+    {
+      "id": "ai-translate",
+      "name": "Translate PDF",
+      "slug": "ai-translate",
+      "description": "Translate PDF documents to different languages using AI while preserving layout.",
+      "how_to_use": "Upload PDF → Select target language → Click Translate → Download translated PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["translate", "translation", "language", "translate pdf", "hindi", "english", "pdf translate", "anuvad"]
+    },
+    {
+      "id": "sign-pdf",
+      "name": "Sign PDF",
+      "slug": "sign-pdf",
+      "description": "Add digital signature to PDF documents. Draw, type, or upload your signature.",
+      "how_to_use": "Upload PDF → Add signature (draw/type/upload) → Position on page → Click Apply → Download signed PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["sign", "signature", "digital signature", "sign pdf", "esign", "hastaakhar", "sign karna"]
+    },
+    {
+      "id": "pdf-to-word",
+      "name": "PDF to Word",
+      "slug": "pdf-to-word",
+      "description": "Convert PDF files to editable Word documents (.docx) while preserving formatting.",
+      "how_to_use": "Upload PDF → Click Convert → Download .docx Word file",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["pdf to word", "word", "docx", "convert pdf", "editable", "pdf word", "word mein convert"]
+    },
+    {
+      "id": "word-to-pdf",
+      "name": "Word to PDF",
+      "slug": "word-to-pdf",
+      "description": "Convert Word documents (.doc, .docx) to PDF format.",
+      "how_to_use": "Upload Word file → Click Convert → Download PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["word to pdf", "docx to pdf", "doc to pdf", "word pdf", "convert word"]
+    },
+    {
+      "id": "pdf-to-jpg",
+      "name": "PDF to JPG",
+      "slug": "pdf-to-jpg",
+      "description": "Convert PDF pages to high-quality JPG images.",
+      "how_to_use": "Upload PDF → Choose image quality → Click Convert → Download JPG images (zip if multiple)",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["pdf to jpg", "pdf to image", "jpg", "image", "pdf image", "screenshot", "pdf se image"]
+    },
+    {
+      "id": "jpg-to-pdf",
+      "name": "JPG to PDF",
+      "slug": "jpg-to-pdf",
+      "description": "Convert JPG, PNG, or other image files to PDF format.",
+      "how_to_use": "Upload image(s) → Arrange order → Click Convert → Download PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["jpg to pdf", "image to pdf", "png to pdf", "photo to pdf", "picture pdf", "image pdf"]
+    },
+    {
+      "id": "excel-to-pdf",
+      "name": "Excel to PDF",
+      "slug": "excel-to-pdf",
+      "description": "Convert Excel spreadsheets (.xls, .xlsx) to PDF format.",
+      "how_to_use": "Upload Excel file → Click Convert → Download PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["excel to pdf", "xlsx to pdf", "xls to pdf", "spreadsheet pdf", "excel pdf"]
+    },
+    {
+      "id": "pdf-to-excel",
+      "name": "PDF to Excel",
+      "slug": "pdf-to-excel",
+      "description": "Convert PDF tables and data to Excel spreadsheets.",
+      "how_to_use": "Upload PDF → Click Convert → Download Excel file",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["pdf to excel", "pdf to xlsx", "table extract", "pdf excel", "data extract"]
+    },
+    {
+      "id": "pdf-to-powerpoint",
+      "name": "PDF to PowerPoint",
+      "slug": "pdf-to-powerpoint",
+      "description": "Convert PDF slides to editable PowerPoint presentations (.pptx).",
+      "how_to_use": "Upload PDF → Click Convert → Download PowerPoint file",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["pdf to powerpoint", "pdf to ppt", "pdf pptx", "presentation", "slides"]
+    },
+    {
+      "id": "html-to-pdf",
+      "name": "HTML to PDF",
+      "slug": "html-to-pdf",
+      "description": "Convert HTML files or web pages to PDF format.",
+      "how_to_use": "Upload HTML file → Click Convert → Download PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["html to pdf", "webpage to pdf", "web pdf", "html pdf"]
+    },
+    {
+      "id": "pdf-to-text",
+      "name": "PDF to Text",
+      "slug": "pdf-to-text",
+      "description": "Extract all text content from PDF files as plain text (.txt).",
+      "how_to_use": "Upload PDF → Click Extract → Download .txt file",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["pdf to text", "extract text", "text extract", "pdf text", "copy text"]
+    },
+    {
+      "id": "edit-pdf",
+      "name": "Edit PDF",
+      "slug": "edit-pdf",
+      "description": "Add text, images, shapes, and annotations to PDF files in your browser.",
+      "how_to_use": "Upload PDF → Use editing tools to add text/images/shapes → Save → Download edited PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["edit pdf", "add text", "annotate", "pdf editor", "modify pdf", "pdf likhna"]
+    },
+    {
+      "id": "redact-pdf",
+      "name": "Redact PDF",
+      "slug": "redact-pdf",
+      "description": "Permanently hide or black out sensitive information in PDF documents.",
+      "how_to_use": "Upload PDF → Select text or area to redact → Click Apply → Download redacted PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["redact", "hide", "censor", "black out", "sensitive", "redact pdf", "information hide"]
+    },
+    {
+      "id": "pdf-metadata",
+      "name": "PDF Metadata",
+      "slug": "pdf-metadata",
+      "description": "View and edit PDF metadata including title, author, subject, and keywords.",
+      "how_to_use": "Upload PDF → View/edit metadata fields → Click Save → Download updated PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["metadata", "pdf info", "author", "title", "properties", "pdf metadata"]
+    },
+    {
+      "id": "compare-pdf",
+      "name": "Compare PDF",
+      "slug": "compare-pdf",
+      "description": "Compare two PDF documents and highlight differences between them.",
+      "how_to_use": "Upload two PDF files → Click Compare → View highlighted differences",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["compare", "difference", "diff", "compare pdf", "two pdf", "changes"]
+    },
+    {
+      "id": "image-to-pdf",
+      "name": "Image to PDF",
+      "slug": "image-to-pdf",
+      "description": "Convert any image format (JPG, PNG, WebP, BMP, GIF) to PDF.",
+      "how_to_use": "Upload images → Arrange order → Click Convert → Download PDF",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["image to pdf", "photo to pdf", "png pdf", "webp pdf", "image convert"]
+    },
+    {
+      "id": "bg-remove",
+      "name": "Background Remover",
+      "slug": "bg-remove",
+      "description": "Remove background from images automatically using AI. Get transparent PNG.",
+      "how_to_use": "Upload image → AI removes background → Download PNG with transparent background",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["background remove", "bg remove", "transparent", "no background", "background remover", "background hatao"]
+    },
+    {
+      "id": "image-compress",
+      "name": "Image Compressor",
+      "slug": "image-compress",
+      "description": "Compress JPG, PNG, WebP images to reduce file size without losing quality.",
+      "how_to_use": "Upload image → Choose quality level → Click Compress → Download compressed image",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["image compress", "compress image", "reduce image size", "image small", "photo compress"]
+    },
+    {
+      "id": "crop-image",
+      "name": "Crop Image",
+      "slug": "crop-image",
+      "description": "Crop images to any size or aspect ratio directly in your browser.",
+      "how_to_use": "Upload image → Drag crop area → Choose size or ratio → Click Crop → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["crop", "trim", "cut image", "crop image", "aspect ratio", "image trim"]
+    },
+    {
+      "id": "resize-image",
+      "name": "Resize Image",
+      "slug": "resize-image",
+      "description": "Resize images to exact dimensions (width × height) in pixels.",
+      "how_to_use": "Upload image → Enter new width/height → Click Resize → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["resize", "scale", "dimensions", "resize image", "image size change", "width height"]
+    },
+    {
+      "id": "image-filters",
+      "name": "Image Filters",
+      "slug": "image-filters",
+      "description": "Apply filters and effects to images: brightness, contrast, saturation, blur, etc.",
+      "how_to_use": "Upload image → Adjust filter sliders → Click Apply → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["filter", "effect", "brightness", "contrast", "blur", "image filter", "photo edit"]
+    },
+    {
+      "id": "numbers-to-words",
+      "name": "Numbers to Words",
+      "slug": "numbers-to-words",
+      "description": "Convert numbers to words in multiple languages including English, Hindi, Urdu.",
+      "how_to_use": "Enter number → Select language → Click Convert → Copy result",
+      "file_limit": "No file needed",
+      "free": true,
+      "keywords": ["numbers to words", "number words", "amount words", "cheque", "check writing", "n2w", "number likna"]
+    },
+    {
+      "id": "currency-converter",
+      "name": "Currency Converter",
+      "slug": "currency-converter",
+      "description": "Convert between 160+ currencies with live exchange rates.",
+      "how_to_use": "Enter amount → Select from/to currency → View converted amount (auto-updates)",
+      "file_limit": "No file needed",
+      "free": true,
+      "keywords": ["currency", "convert", "exchange rate", "usd", "inr", "eur", "dollar", "rupee", "currency converter", "paisa"]
+    },
+    {
+      "id": "crop-pdf",
+      "name": "Crop PDF",
+      "slug": "crop-pdf",
+      "description": "Crop PDF pages to remove margins or select specific areas.",
+      "how_to_use": "Upload PDF → Set crop margins → Click Crop → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["crop pdf", "trim pdf", "margins", "pdf crop", "cut pdf"]
+    },
+    {
+      "id": "add-page-numbers",
+      "name": "Add Page Numbers",
+      "slug": "add-page-numbers",
+      "description": "Add page numbers to PDF with custom position, font, and style.",
+      "how_to_use": "Upload PDF → Choose position (header/footer/corner) → Customize style → Click Apply → Download",
+      "file_limit": "50MB",
+      "free": true,
+      "keywords": ["page numbers", "add numbers", "numbering", "page number pdf", "header footer numbers"]
+    }
+  ],
+  "faq": [
+    {
+      "question": "Are all tools free?",
+      "keywords": ["free", "cost", "price", "pay", "muft", "free hai kya", "paid", "charge"],
+      "answer": "Yes! All 36 tools on ILovePDF are completely free to use. No signup required for basic features."
+    },
+    {
+      "question": "What is the file size limit?",
+      "keywords": ["size limit", "file size", "max size", "maximum", "large file", "bada file", "limit"],
+      "answer": "Compress PDF supports files up to 200MB. All other tools support files up to 50MB. Files are automatically deleted after processing."
+    },
+    {
+      "question": "Are my files safe?",
+      "keywords": ["safe", "secure", "privacy", "data", "delete", "security", "safe hai", "private"],
+      "answer": "Yes! Your files are processed securely and deleted automatically within seconds after download. We do not store or share your files."
+    },
+    {
+      "question": "Do I need to install anything?",
+      "keywords": ["install", "download app", "software", "setup", "install karna"],
+      "answer": "No installation needed! Everything works directly in your browser. No software to install."
+    },
+    {
+      "question": "How many tools does ILovePDF have?",
+      "keywords": ["how many tools", "tools count", "total tools", "kitne tools"],
+      "answer": "ILovePDF has 36 tools covering PDF editing, conversion, image processing, and utility tools."
+    },
+    {
+      "question": "What file formats are supported?",
+      "keywords": ["format", "file type", "supported", "which format", "extension"],
+      "answer": "PDF, Word (doc/docx), Excel (xls/xlsx), PowerPoint (ppt/pptx), HTML, JPG, PNG, WebP, BMP, GIF and more."
+    }
+  ]
+}

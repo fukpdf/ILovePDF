@@ -47,3 +47,17 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# ILovePDF runtime data and local secrets
+.env
+.env.*
+!.env.example
+.data/
+uploads/
+storage/
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal

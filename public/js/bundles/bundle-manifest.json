@@ -1,0 +1,196 @@
+{
+  "buildId": "mpxgtdiz",
+  "ts": 1780454796888,
+  "bundles": [
+    {
+      "name": "runtime-phase6-core.bundle.js",
+      "label": "Phase 6 Non-Deferred Core",
+      "deferred": false,
+      "files": 1,
+      "missing": 0,
+      "bytes": 9273,
+      "hash": "2f63122a7820",
+      "path": "public/js/bundles/runtime-phase6-core.bundle.js"
+    },
+    {
+      "name": "runtime-phase6-deferred.bundle.js",
+      "label": "Phase 6 Deferred",
+      "deferred": true,
+      "files": 12,
+      "missing": 0,
+      "bytes": 154862,
+      "hash": "7349c86db0d0",
+      "path": "public/js/bundles/runtime-phase6-deferred.bundle.js"
+    },
+    {
+      "name": "runtime-phase7.bundle.js",
+      "label": "Phase 7 Zero-Trust Mesh",
+      "deferred": true,
+      "files": 24,
+      "missing": 0,
+      "bytes": 200155,
+      "hash": "ed5fd0ab178a",
+      "path": "public/js/bundles/runtime-phase7.bundle.js"
+    },
+    {
+      "name": "runtime-phase8-deferred.bundle.js",
+      "label": "Phase 8 Deferred Hardening",
+      "deferred": true,
+      "files": 6,
+      "missing": 0,
+      "bytes": 70478,
+      "hash": "ed1058bebc86",
+      "path": "public/js/bundles/runtime-phase8-deferred.bundle.js"
+    },
+    {
+      "name": "runtime-phase9-infra.bundle.js",
+      "label": "Phase 9 Infrastructure Layer",
+      "deferred": false,
+      "files": 6,
+      "missing": 0,
+      "bytes": 29333,
+      "hash": "af9f52e23109",
+      "path": "public/js/bundles/runtime-phase9-infra.bundle.js"
+    },
+    {
+      "name": "runtime-arc2.bundle.js",
+      "label": "Arc 2 Production Hardening",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 64829,
+      "hash": "c14ec5c422ba",
+      "path": "public/js/bundles/runtime-arc2.bundle.js"
+    },
+    {
+      "name": "runtime-arc3.bundle.js",
+      "label": "Arc 3 Tool Runtime Isolation",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 64588,
+      "hash": "388483184515",
+      "path": "public/js/bundles/runtime-arc3.bundle.js"
+    },
+    {
+      "name": "runtime-arc4.bundle.js",
+      "label": "Arc 4 Enterprise Tool Runtime Completion",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 81957,
+      "hash": "ac7d802894ae",
+      "path": "public/js/bundles/runtime-arc4.bundle.js"
+    },
+    {
+      "name": "runtime-arc5.bundle.js",
+      "label": "Arc 5 True Enterprise Tool Isolation",
+      "deferred": true,
+      "files": 9,
+      "missing": 0,
+      "bytes": 85701,
+      "hash": "e3c69454ac35",
+      "path": "public/js/bundles/runtime-arc5.bundle.js"
+    },
+    {
+      "name": "runtime-arc6.bundle.js",
+      "label": "Arc 6 Advanced Engine Full Decomposition",
+      "deferred": true,
+      "files": 15,
+      "missing": 0,
+      "bytes": 98507,
+      "hash": "d06291514ac9",
+      "path": "public/js/bundles/runtime-arc6.bundle.js"
+    },
+    {
+      "name": "runtime-arc7.bundle.js",
+      "label": "Arc 7 Ultra Performance + Streaming Runtime",
+      "deferred": true,
+      "files": 8,
+      "missing": 0,
+      "bytes": 81625,
+      "hash": "ab9931d12200",
+      "path": "public/js/bundles/runtime-arc7.bundle.js"
+    },
+    {
+      "name": "runtime-arc8.bundle.js",
+      "label": "Arc 8 Enterprise Observability + Live Control Plane",
+      "deferred": true,
+      "files": 8,
+      "missing": 0,
+      "bytes": 76236,
+      "hash": "05ee6a7459ec",
+      "path": "public/js/bundles/runtime-arc8.bundle.js"
+    },
+    {
+      "name": "runtime-arc9.bundle.js",
+      "label": "Arc 9 Autonomous Self-Healing + Distributed Runtime Intelligence",
+      "deferred": true,
+      "files": 8,
+      "missing": 0,
+      "bytes": 83503,
+      "hash": "2bb2a0c5f9ae",
+      "path": "public/js/bundles/runtime-arc9.bundle.js"
+    },
+    {
+      "name": "runtime-arc10.bundle.js",
+      "label": "Arc 10D Admin Observability Dashboard",
+      "deferred": true,
+      "files": 14,
+      "missing": 0,
+      "bytes": 85013,
+      "hash": "24330bbd7123",
+      "path": "public/js/bundles/runtime-arc10.bundle.js"
+    },
+    {
+      "name": "runtime-arc11.bundle.js",
+      "label": "Arc 11 Distributed Runtime Mesh + Persistent Diagnostics",
+      "deferred": true,
+      "files": 13,
+      "missing": 0,
+      "bytes": 112143,
+      "hash": "d95fa9511d1a",
+      "path": "public/js/bundles/runtime-arc11.bundle.js"
+    },
+    {
+      "name": "runtime-arc12.bundle.js",
+      "label": "Arc 12 Enterprise Tool Intelligence Layer (ETIL)",
+      "deferred": true,
+      "files": 14,
+      "missing": 0,
+      "bytes": 90750,
+      "hash": "306d35216560",
+      "path": "public/js/bundles/runtime-arc12.bundle.js"
+    },
+    {
+      "name": "runtime-arc13.bundle.js",
+      "label": "Arc 13 Persistent Tool Intelligence + Circuit Breaker System",
+      "deferred": true,
+      "files": 14,
+      "missing": 0,
+      "bytes": 75794,
+      "hash": "2d1a186ce50c",
+      "path": "public/js/bundles/runtime-arc13.bundle.js"
+    },
+    {
+      "name": "runtime-arc14.bundle.js",
+      "label": "Arc 14 Enterprise Runtime Command Center (ERTCC)",
+      "deferred": true,
+      "files": 15,
+      "missing": 0,
+      "bytes": 87806,
+      "hash": "f87b4707a448",
+      "path": "public/js/bundles/runtime-arc14.bundle.js"
+    },
+    {
+      "name": "runtime-arc15.bundle.js",
+      "label": "Arc 15 Enterprise Runtime Automation & Policy Orchestration (ERAPO)",
+      "deferred": true,
+      "files": 15,
+      "missing": 0,
+      "bytes": 100972,
+      "hash": "dffaab154982",
+      "path": "public/js/bundles/runtime-arc15.bundle.js"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+name: Phase 5 Worker Routing Integrity 281-293
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-worker-routing.js'
+      - 'scripts/phase5-units-281-293-worker-routing-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-routing-281-293.yml'
+  pull_request:
+    paths:
+      - 'public/js/runtime-worker-routing.js'
+      - 'scripts/phase5-units-281-293-worker-routing-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-routing-281-293.yml'
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-routing-281-293

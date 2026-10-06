@@ -1,0 +1,259 @@
+/* responsive-ads.css — Phase 5: Responsive Multi-Stage Ad Orchestration
+ *
+ * Extends ads.css (never duplicates it) with:
+ *   1. Upload step slot — 201 (728×90 desktop / 468×60 tablet / 320×100 mobile)
+ *   2. Preview step slot — 202 (same responsive mapping)
+ *   3. Tablet breakpoint (768px–1199px) for all existing slot types
+ *   4. Sticky footer: 90px + iOS env(safe-area-inset-bottom)
+ *   5. Processing state: hide slots during active processing
+ *   6. Landscape mobile: reduced heights to preserve usable space
+ *   7. Body padding compensation for mobile sticky footer
+ *
+ * DOES NOT redefine anything already in ads.css.
+ * All rules are additive or breakpoint-scoped overrides.
+ *
+ * Responsive breakpoints:
+ *   Desktop : ≥ 1200px
+ *   Tablet  : 768px – 1199px
+ *   Mobile  : ≤ 767px
+ *
+ * Ezoic placeholder IDs:
+ *   201 — upload step slot
+ *   202 — preview step slot
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   UPLOAD STEP SLOT (Ezoic 201)
+   ═══════════════════════════════════════════════════════════════ */
+
+.ad-slot--upload {
+  display: block;
+  overflow: hidden;
+  contain: layout;
+  text-align: center;
+  margin: 0 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 728px;
+  transition: opacity .2s;
+}
+.ad-slot--upload[data-ad-pending]:not(.ad-slot--active) {
+  background: transparent;
+  min-height: 0;
+}
+.ad-slot--upload.ad-slot--active { min-height: 90px; }
+
+/* Tablet: 468×60 */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .ad-slot--upload {
+    max-width: 468px;
+  }
+  .ad-slot--upload.ad-slot--active { min-height: 60px; }
+}
+
+/* Mobile: 320×100 */
+@media (max-width: 767px) {
+  .ad-slot--upload {
+    max-width: 320px;
+  }
+  .ad-slot--upload.ad-slot--active { min-height: 100px; }
+}
+
+/* Landscape mobile: slim banner */
+@media (max-width: 767px) and (orientation: landscape) {
+  .ad-slot--upload {
+    max-width: 468px;
+  }
+  .ad-slot--upload.ad-slot--active { min-height: 50px; }
+}
+
+/* Debug mode */
+body[data-ad-debug] .ad-slot--upload[data-ad-pending]:not(.ad-slot--active) {
+  min-height: 90px;
+  background: #f0fdf4;
+  border: 1.5px dashed #86efac;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #16a34a;
+  font-family: 'Inter', system-ui, monospace;
+  border-radius: 6px;
+}
+body[data-ad-debug] .ad-slot--upload[data-ad-pending]:not(.ad-slot--active)::before {
+  content: '[ upload slot: ' attr(data-ad-slot) ' | Ezoic 201 ]';
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PREVIEW STEP SLOT (Ezoic 202)
+   ═══════════════════════════════════════════════════════════════ */
+
+.ad-slot--preview {
+  display: block;
+  overflow: hidden;
+  contain: layout;
+  text-align: center;
+  margin: 0 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 728px;
+  transition: opacity .2s;
+}
+.ad-slot--preview[data-ad-pending]:not(.ad-slot--active) {
+  background: transparent;
+  min-height: 0;
+}
+.ad-slot--preview.ad-slot--active { min-height: 90px; }
+
+/* Tablet: 468×60 */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .ad-slot--preview {
+    max-width: 468px;
+  }
+  .ad-slot--preview.ad-slot--active { min-height: 60px; }
+}
+
+/* Mobile: 320×100 */
+@media (max-width: 767px) {
+  .ad-slot--preview {
+    max-width: 320px;
+  }
+  .ad-slot--preview.ad-slot--active { min-height: 100px; }
+}
+
+/* Landscape mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .ad-slot--preview {
+    max-width: 468px;
+  }
+  .ad-slot--preview.ad-slot--active { min-height: 50px; }
+}
+
+/* Debug mode */
+body[data-ad-debug] .ad-slot--preview[data-ad-pending]:not(.ad-slot--active) {
+  min-height: 90px;
+  background: #fff7ed;
+  border: 1.5px dashed #fdba74;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #ea580c;
+  font-family: 'Inter', system-ui, monospace;
+  border-radius: 6px;
+}
+body[data-ad-debug] .ad-slot--preview[data-ad-pending]:not(.ad-slot--active)::before {
+  content: '[ preview slot: ' attr(data-ad-slot) ' | Ezoic 202 ]';
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLET BREAKPOINT OVERRIDES (768px – 1199px)
+   Existing slot types from ads.css — max-width stays at 728px
+   for all of tablet range (fits without overflow).
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  /* Leaderboard, in-content, hero-below, download: keep 728px max-width.
+     They already have max-width:728px which fits fine on tablets.
+     Just ensure no overflow on narrower tablets: */
+  .ad-slot--leaderboard,
+  .ad-slot--hero-below,
+  .ad-slot--in-content,
+  .ad-slot--download {
+    max-width: min(728px, 100%);
+  }
+
+  /* Rectangle stays 300px — fits all tablet widths */
+  .ad-slot--rectangle {
+    max-width: 300px;
+  }
+
+  /* Slot wrappers: keep centered on tablet */
+  .ad-wrap {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   STICKY FOOTER — 90px + iOS safe area
+   Overrides the 50px min-height from ads.css
+   ═══════════════════════════════════════════════════════════════ */
+
+.ad-slot--sticky-footer {
+  min-height: 90px;
+  height: calc(90px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Body bottom padding compensation so content is not hidden under the sticky footer */
+@media (max-width: 727px) {
+  body.has-sticky-ad {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Landscape mobile: reduce sticky footer height */
+@media (max-width: 767px) and (orientation: landscape) {
+  .ad-slot--sticky-footer {
+    min-height: 50px;
+    height: calc(50px + env(safe-area-inset-bottom, 0px));
+  }
+  @media (max-width: 727px) {
+    body.has-sticky-ad {
+      padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PROCESSING STATE — hide ads during active processing
+   body.tool-processing is set by AdResponsiveEngine via
+   MutationObserver watching for processing overlays.
+   ═══════════════════════════════════════════════════════════════ */
+
+body.tool-processing .ad-slot--sticky-footer {
+  /* Slide down out of view so it doesn't obscure the processing UI */
+  transform: translateY(110%);
+  transition: transform .2s ease-in;
+}
+
+body.tool-processing .ad-slot--upload,
+body.tool-processing .ad-slot--preview {
+  display: none !important;
+}
+
+/* Restore sticky footer when processing ends */
+.ad-slot--sticky-footer {
+  transform: translateY(0);
+  transition: transform .25s ease-out;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   HOMEPAGE TABLET LAYOUT (2-column grid awareness)
+   On tablet, the homepage uses a single-column layout
+   (.rail is collapsed). Ad slots should be fully centered.
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Homepage ad wraps: full-width centered on collapsed rail layout */
+  #ad-home-hero,
+  #ad-home-mid {
+    max-width: min(728px, calc(100vw - 32px));
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT — hide all new slot types
+   ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  .ad-slot--upload,
+  .ad-slot--preview { display: none !important; }
+}

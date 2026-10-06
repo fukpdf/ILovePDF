@@ -1,45 +1,63 @@
-# [Project name]
-
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+# ILovePDF — Free Online PDF & Image Tools
+ILovePDF is a production-ready platform offering 33+ online tools for PDF and image processing (merge, split, compress, convert, OCR, AI summarize, image manipulation, and more).
 
 ## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- **Run**: `node server.js`
+- **Port**: 5000
+- **Required env vars**: `JWT_SECRET` (auth signing key)
+- **Optional env vars**:
+  - Firebase Auth: `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - Cloudflare R2 storage: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+  - HuggingFace (informational only): `HF_API_TOKEN`
+  - CORS: `ALLOWED_ORIGINS` (comma-separated, defaults to production domains; `*` allows all)
 
 ## Stack
-
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Backend**: Node.js 20 + Express 5 (ES modules)
+- **Frontend**: Vanilla HTML/CSS/JS (no SPA framework)
+- **Database**: SQLite via `better-sqlite3` (`.data/app.db` — users, pending signups)
+- **Storage**: Cloudflare R2 (optional; falls back to local `/tmp/ilovepdf-uploads`)
+- **Auth**: JWT cookies (`ilovepdf_token`) + optional Firebase bridge for Google Sign-In
 
 ## Where things live
-
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `server.js` — Express entry point, middleware, route mounts
+- `routes/` — auth, organize, edit, convert, security, advanced, image, r2, seo-routes
+- `utils/db.js` — SQLite schema (source of truth)
+- `utils/firebase-admin.js` — Firebase Admin init + JWT cookie helpers
+- `utils/r2.js` — Cloudflare R2 helpers
+- `public/` — all static frontend assets
+- `public/js/tools-config.js` — source of truth for all tool definitions
+- `public/js/auth-ui.js` — auth modal + profile chip (injected on every page)
+- `public/js/live-preview.js` — Live Preview Engine v5.5 (word/excel/pdf/image previews)
+- `public/js/advanced-engine.js` — wraps `window.BrowserTools.process`; validation, quality scoring, retries, DebugTrace, `window.AdvancedEngine.audit()`
+- `cloudflare/worker/` — optional Cloudflare Queue Worker for heavy async jobs
 
 ## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Browser-first processing**: Most PDF/image tools run in the browser (pdf-lib, canvas APIs); server handles auth, storage, and heavier conversions.
+- **Optional Firebase**: Firebase is an enhancement for Google Sign-In only. The app fully works with its own email/password auth (SQLite + bcrypt + JWT).
+- **Optional R2**: File uploads fall back to local temp storage when R2 is not configured.
+- **Graceful degradation**: All optional services (Firebase, R2, HF) are probed at boot and disabled cleanly if credentials are absent — no hard crashes.
+- **Same-origin + cross-origin cookies**: `cookieOpts()` auto-detects cross-origin requests and switches to `SameSite=None; Secure` for the JWT cookie.
+- **Live Preview v5.5**: Non-blocking preview panels injected in `renderPreviewStep` for word-to-pdf (mammoth HTML), excel-to-pdf (XLSX tables), pdf-to-word/excel (PDF.js thumbnails + structure), background-remover (before/after canvas + threshold slider). Failures are silent — tool still works.
 
 ## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- 33+ PDF tools: merge, split, compress, rotate, watermark, sign, protect, unlock, OCR, repair, compare, AI summarize/translate
+- Image tools: background remover, crop, resize, filters
+- Utility tools: Numbers to Words, Currency Converter
+- User tiers: Guest → Free → Premium with per-day quotas and file-size caps
+- SEO: dynamic canonical URLs, structured data, sitemap, blog
 
 ## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Prefers detailed explanations
+- Wants iterative development with confirmation before major changes
 
 ## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `JWT_SECRET` must be set; defaults to `dev-secret-change-me` (insecure) if missing
+- `better-sqlite3` is a native addon — must be compiled for the correct Node version
+- `.data/` directory is auto-created at boot for SQLite; keep it out of Docker/CI caches
+- Firebase and R2 are entirely optional — the app boots and runs tools without them
 
 ## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Express 5 docs: https://expressjs.com/
+- pdf-lib: https://pdf-lib.js.org/
+- Firebase Admin SDK: https://firebase.google.com/docs/admin/setup
+- Cloudflare R2: https://developers.cloudflare.com/r2/

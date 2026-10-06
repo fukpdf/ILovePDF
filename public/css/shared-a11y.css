@@ -1,0 +1,45 @@
+/* Shared accessibility layer — designed for clear, comfortable use across the public site.
+   Keeps existing tool layouts intact while improving readability, touch targets,
+   keyboard focus, motion preferences, and RTL text flow. */
+:root{
+  --ilpdf-a11y-font-size:16px;
+  --ilpdf-a11y-line-height:1.55;
+  --ilpdf-a11y-focus:3px solid #4f46e5;
+}
+html{font-size:100%;scroll-behavior:smooth}
+body{font-size:var(--ilpdf-a11y-font-size);line-height:var(--ilpdf-a11y-line-height)}
+button,
+a,
+input,
+select,
+textarea{font:inherit}
+button,
+a[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"]{min-height:44px}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible{outline:var(--ilpdf-a11y-focus);outline-offset:3px}
+a{ text-underline-offset:3px }
+p,li{max-width:75ch}
+@media (max-width:700px){
+  body{font-size:16px}
+  button,.btn,.hero-btn,.tp-tab{min-height:46px}
+  input,select,textarea{min-height:46px}
+}
+@media (min-width:1200px){
+  body{font-size:16.5px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+}
+.rtl{line-height:1.7}

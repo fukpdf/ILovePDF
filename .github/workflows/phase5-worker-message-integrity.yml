@@ -1,0 +1,32 @@
+name: Phase 5 Worker Message Integrity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/runtime-shield-workers.js'
+      - 'public/js/runtime-worker-auth.js'
+      - 'public/js/runtime-security.js'
+      - 'scripts/phase5-worker-message-integrity-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-message-integrity.yml'
+  pull_request:
+    paths:
+      - 'public/js/runtime-shield-workers.js'
+      - 'public/js/runtime-worker-auth.js'
+      - 'public/js/runtime-security.js'
+      - 'scripts/phase5-worker-message-integrity-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-worker-message-integrity.yml'
+
+jobs:
+  worker-message-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:worker-message-integrity

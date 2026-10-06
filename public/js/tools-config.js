@@ -1,0 +1,808 @@
+// URL slug → tool-id (mirrors utils/seo.js SLUG_MAP). Lets the client
+// resolve clean URLs like /merge-pdf without needing the server-side
+// SEO middleware (essential when the frontend is on Firebase Hosting).
+// `special` is a redirect target (only for /n2w.html today).
+window.SLUG_MAP = {
+  'merge-pdf':         { id:'merge'         },
+  'split-pdf':         { id:'split'         },
+  'rotate-pdf':        { id:'rotate'        },
+  'crop-pdf':          { id:'crop'          },
+  'organize-pdf':      { id:'organize'      },
+  'compress-pdf':      { id:'compress'      },
+  'pdf-to-word':       { id:'pdf-to-word'   },
+  'pdf-to-powerpoint': { id:'pdf-to-powerpoint' },
+  'pdf-to-excel':      { id:'pdf-to-excel'  },
+  'pdf-to-jpg':        { id:'pdf-to-jpg'    },
+  'word-to-pdf':       { id:'word-to-pdf'   },
+  'powerpoint-to-pdf': { id:'powerpoint-to-pdf' },
+  'excel-to-pdf':      { id:'excel-to-pdf'  },
+  'word-to-excel':     { id:'word-to-excel' },
+  'jpg-to-pdf':        { id:'jpg-to-pdf'    },
+  'html-to-pdf':       { id:'html-to-pdf'   },
+  'edit-pdf':          { id:'edit'          },
+  'watermark-pdf':     { id:'watermark'     },
+  'sign-pdf':          { id:'sign'          },
+  'add-page-numbers':  { id:'page-numbers'  },
+  'redact-pdf':        { id:'redact'        },
+  'protect-pdf':       { id:'protect'       },
+  'unlock-pdf':        { id:'unlock'        },
+  'repair-pdf':        { id:'repair'        },
+  'scan-pdf':          { id:'scan-to-pdf'   },
+  'ocr-pdf':           { id:'ocr'           },
+  'compare-pdf':       { id:'compare'       },
+  'ai-summarizer':     { id:'ai-summarize'  },
+  'translate-pdf':     { id:'translate'     },
+  'workflow-builder':  { id:'workflow'      },
+  'numbers-to-words':  { id:'numbers-to-words',  special:'/numbers-to-words.html' },
+  'currency-converter':{ id:'currency-converter', special:'/currency-converter.html' },
+  'background-remover':{ id:'background-remover' },
+  'crop-image':        { id:'crop-image'    },
+  'resize-image':      { id:'resize-image'  },
+  'image-filters':     { id:'image-filters' },
+  'image-compressor':  { id:'image-compressor',  special:'/image-compressor.html'  },
+  'image-converter':   { id:'image-converter',   special:'/image-converter.html'   },
+  'qr-code-generator': { id:'qr-code-generator', special:'/qr-code-generator.html' },
+  'barcode-generator': { id:'barcode-generator', special:'/barcode-generator.html' },
+  'zip-builder':       { id:'zip-builder',       special:'/zip-builder.html'       },
+};
+
+// Resolve current page URL → tool-id. Falls back through:
+//   1. window.__TOOL_ID (injected by Express SEO middleware)
+//   2. ?id= query param (legacy /tool.html?id=merge URLs)
+//   3. Pathname slug → SLUG_MAP lookup (works on Firebase static)
+window.resolveToolIdFromUrl = function () {
+  if (typeof window.__TOOL_ID === 'string' && window.__TOOL_ID) return window.__TOOL_ID;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get('id');
+  if (fromQuery) return fromQuery;
+  const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (!slug) return null;
+  // Direct slug match
+  if (window.SLUG_MAP[slug]) return window.SLUG_MAP[slug].id;
+  // Tool-id used directly as path (e.g. /merge)
+  return slug;
+};
+
+const CATEGORIES = [
+  { name: 'Organize PDFs',       color: '#E5322E', icon: 'layers',             group: 'pdf'   },
+  { name: 'Compress & Optimize', color: '#10b981', icon: 'zap',                group: 'pdf'   },
+  { name: 'Convert From PDF',    color: '#f59e0b', icon: 'arrow-right-circle', group: 'pdf'   },
+  { name: 'Convert To PDF',      color: '#8b5cf6', icon: 'arrow-left-circle',  group: 'pdf'   },
+  { name: 'Edit & Annotate',     color: '#ec4899', icon: 'edit-3',             group: 'pdf'   },
+  { name: 'Security',            color: '#ef4444', icon: 'shield',             group: 'pdf'   },
+  { name: 'Advanced Tools',      color: '#6366f1', icon: 'cpu',                group: 'pdf'   },
+  { name: 'Image Tools',         color: '#a855f7', icon: 'image',              group: 'image' },
+];
+
+const TOOLS = [
+  // ── ADVANCED TOOLS — Utilities ────────────────────────────────────────────
+  {
+    id: 'numbers-to-words', name: 'Numbers to Words',
+    icon: 'hash', url: '/numbers-to-words',
+    description: 'Convert numbers, currency, or check amounts into words',
+    category: 'Advanced Tools', group: 'pdf', badge: 'NEW',
+    working: true, options: []
+  },
+  {
+    id: 'currency-converter', name: 'Currency Converter',
+    icon: 'dollar-sign', url: '/currency-converter',
+    description: 'Live exchange rates for 160+ world currencies',
+    category: 'Advanced Tools', group: 'pdf', badge: 'NEW',
+    working: true, options: []
+  },
+  // ── ORGANIZE PDFs ─────────────────────────────────────────────────────────
+  {
+    id: 'merge', name: 'Merge', icon: 'layers',
+    description: 'Combine multiple PDF files into a single document',
+    category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/merge', acceptedFiles: '.pdf',
+    multipleFiles: true, working: true, clientSide: true, options: []
+  },
+  {
+    id: 'split', name: 'Split', icon: 'scissors',
+    description: 'Extract specific pages or ranges from a PDF',
+    category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/split', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'range', label: 'Page Range', type: 'text', placeholder: 'e.g. 1-3, 5, 7-9 (blank = all)' }
+    ]
+  },
+  {
+    id: 'rotate', name: 'Rotate PDF', icon: 'rotate-cw',
+    description: 'Rotate PDF pages to the correct orientation, including 90°, 180°, and 270° rotations',
+    category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/rotate', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'degrees', label: 'Rotation Angle', type: 'select', options: [
+        { value: '0',   label: '— No rotation (keep original) —' },
+        { value: '90',  label: '90° Clockwise' },
+        { value: '180', label: '180°' },
+        { value: '270', label: '270° (Counter-clockwise)' }
+      ]},
+      { id: 'pages', label: 'Pages (comma-separated or "all")', type: 'text', placeholder: 'all' }
+    ]
+  },
+  {
+    id: 'crop', name: 'Crop', icon: 'crop',
+    description: 'Trim the margins of PDF pages',
+    category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/crop', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'cropLeft',   label: 'Crop Left (%)',   type: 'number', placeholder: '0' },
+      { id: 'cropRight',  label: 'Crop Right (%)',  type: 'number', placeholder: '0' },
+      { id: 'cropTop',    label: 'Crop Top (%)',    type: 'number', placeholder: '0' },
+      { id: 'cropBottom', label: 'Crop Bottom (%)', type: 'number', placeholder: '0' }
+    ]
+  },
+  {
+    id: 'organize', name: 'Organize PDF', icon: 'move',
+    description: 'Reorder the pages of your PDF document',
+    category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/organize', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageOrder', label: 'Page Order (optional — leave blank to use drag order)', type: 'text', placeholder: 'e.g. 3,1,2 — or drag pages above' }
+    ]
+  },
+
+  // ── COMPRESS & OPTIMIZE ───────────────────────────────────────────────────
+  {
+    id: 'compress', name: 'Compress PDF', icon: 'archive',
+    description: 'Reduce PDF file size while preserving quality',
+    category: 'Compress & Optimize', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/compress', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true, options: []
+  },
+
+  // ── CONVERT FROM PDF ──────────────────────────────────────────────────────
+  {
+    id: 'pdf-to-word', name: 'PDF to Word', icon: 'file-text',
+    description: 'Convert PDF to editable Word documents',
+    category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/pdf-to-word', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'structureMode', label: 'Structure', type: 'select', options: [
+        { value: 'preserve-layout', label: 'Preserve Layout' },
+        { value: 'simple-text',     label: 'Simple Text (Fast)' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'auto',  label: 'Auto (Recommended)' },
+        { value: 'force', label: 'Force OCR' },
+      ]},
+    ]
+  },
+  {
+    id: 'pdf-to-powerpoint', name: 'PDF to PowerPoint', icon: 'layout',
+    description: 'Transform PDFs into editable presentations',
+    category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/pdf-to-powerpoint', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'layout', label: 'Slide Layout', type: 'select', options: [
+        { value: '16x9',  label: 'Standard 16:9' },
+        { value: '4x3',   label: 'Classic 4:3' },
+        { value: 'wide',  label: 'Wide Cinema' },
+        { value: 'a4',    label: 'A4 Presentation' },
+      ]},
+      { id: 'contentStrategy', label: 'Content Strategy', type: 'select', options: [
+        { value: 'smart',    label: 'Smart Presentation Layout' },
+        { value: 'preserve', label: 'Preserve Original Layout' },
+        { value: 'minimal',  label: 'Minimal Clean Slides' },
+        { value: 'executive',label: 'Executive Style' },
+      ]},
+      { id: 'theme', label: 'Slide Theme', type: 'select', options: [
+        { value: 'modern',    label: 'Modern' },
+        { value: 'corporate', label: 'Corporate' },
+        { value: 'minimal',   label: 'Minimal' },
+        { value: 'dark',      label: 'Dark' },
+        { value: 'pitch',     label: 'Pitch Deck' },
+        { value: 'white',     label: 'Clean White' },
+      ]},
+      { id: 'slideDensity', label: 'Slide Density', type: 'select', options: [
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'compact',  label: 'Compact (more content/slide)' },
+        { value: 'spacious', label: 'Spacious (less content/slide)' },
+      ]},
+      { id: 'tableHandling', label: 'Table Handling', type: 'select', options: [
+        { value: 'editable', label: 'Keep as Editable Table' },
+        { value: 'split',    label: 'Auto-Split Large Tables' },
+        { value: 'image',    label: 'Convert to Image' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'auto',  label: 'Auto (Recommended)' },
+        { value: 'force', label: 'Force OCR' },
+        { value: 'off',   label: 'Off' },
+      ]},
+    ]
+  },
+  {
+    id: 'pdf-to-excel', name: 'PDF to Excel', icon: 'table',
+    description: 'Extract tables from PDFs into spreadsheets',
+    category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/pdf-to-excel', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true, options: []
+  },
+  {
+    id: 'pdf-to-jpg', name: 'PDF to JPG', icon: 'image', clientSide: true,
+    description: 'Convert PDF pages into high-quality JPG images',
+    category: 'Convert From PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/pdf-to-jpg', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'quality', label: 'Image Quality', type: 'select', options: [
+        { value: 'standard', label: 'Standard (150 DPI)' },
+        { value: 'high',     label: 'High (200 DPI)' }
+      ]}
+    ]
+  },
+
+  // ── CONVERT TO PDF ────────────────────────────────────────────────────────
+  {
+    id: 'word-to-pdf', name: 'Word to PDF', icon: 'file-up',
+    description: 'Convert Word documents to PDF format',
+    category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/word-to-pdf', acceptedFiles: '.doc,.docx',
+    multipleFiles: false, working: true, clientSide: true, options: []
+  },
+  {
+    id: 'powerpoint-to-pdf', name: 'PowerPoint to PDF', icon: 'monitor',
+    description: 'Convert presentations to PDF format',
+    category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/powerpoint-to-pdf', acceptedFiles: '.ppt,.pptx',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize', label: 'Page Size', type: 'select', options: [
+        { value: 'presentation', label: 'Presentation (16:9)' },
+        { value: 'A4',           label: 'A4' },
+        { value: 'Letter',       label: 'Letter' },
+        { value: 'Legal',        label: 'Legal' },
+        { value: 'Tabloid',      label: 'Tabloid' },
+      ]},
+      { id: 'margins', label: 'Margins', type: 'select', options: [
+        { value: 'none',   label: 'None' },
+        { value: 'narrow', label: 'Narrow' },
+        { value: 'normal', label: 'Normal' },
+        { value: 'wide',   label: 'Wide' },
+      ]},
+      { id: 'quality', label: 'Export Quality', type: 'select', options: [
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'print',    label: 'Print Quality' },
+        { value: 'small',    label: 'Small File' },
+        { value: 'retina',   label: 'Retina Quality' },
+      ]},
+      { id: 'handoutMode', label: 'Handout Mode', type: 'select', options: [
+        { value: '1', label: '1 Slide per Page' },
+        { value: '2', label: '2 Slides per Page' },
+        { value: '4', label: '4 Slides per Page' },
+        { value: '6', label: '6 Slides per Page' },
+      ]},
+      { id: 'speakerNotes', label: 'Speaker Notes', type: 'select', options: [
+        { value: 'ignore', label: 'Ignore Notes' },
+        { value: 'append', label: 'Append Notes Pages' },
+        { value: 'below',  label: 'Notes Below Slides' },
+      ]},
+      { id: 'watermark', label: 'Watermark', type: 'select', options: [
+        { value: 'none',         label: 'None' },
+        { value: 'confidential', label: 'Confidential' },
+        { value: 'draft',        label: 'Draft' },
+        { value: 'do-not-copy',  label: 'Do Not Copy' },
+      ]},
+    ]
+  },
+  {
+    id: 'excel-to-pdf', name: 'Excel to PDF', icon: 'grid',
+    description: 'Convert Excel spreadsheets to PDF',
+    category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/excel-to-pdf', acceptedFiles: '.xls,.xlsx',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize',    label: 'Page Size',   type: 'select', options: [{ value:'A4', label:'A4' }, { value:'Letter', label:'Letter' }, { value:'A3', label:'A3' }] },
+      { id: 'orientation', label: 'Orientation', type: 'select', options: [{ value:'', label:'Auto' }, { value:'portrait', label:'Portrait' }, { value:'landscape', label:'Landscape' }] },
+      { id: 'margins',     label: 'Margins',     type: 'select', options: [{ value:'normal', label:'Normal' }, { value:'narrow', label:'Narrow' }, { value:'none', label:'None' }] },
+      { id: 'scaling',     label: 'Scaling',     type: 'select', options: [{ value:'fit-page', label:'Fit Page' }, { value:'fit-width', label:'Fit Width' }, { value:'actual', label:'Actual Size' }] },
+    ]
+  },
+  {
+    id: 'word-to-excel', name: 'Word to Excel', icon: 'table',
+    description: 'Extract tables and structured data from Word documents into Excel',
+    category: 'Convert To PDF', group: 'pdf', badge: 'NEW',
+    apiEndpoint: '/api/word-to-excel', acceptedFiles: '.docx',
+    multipleFiles: false, working: true, clientSide: true, options: []
+  },
+  {
+    id: 'jpg-to-pdf', name: 'JPG to PDF', icon: 'file-image', clientSide: true,
+    description: 'Convert images (JPG, PNG) into a PDF document',
+    category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/jpg-to-pdf', acceptedFiles: '.jpg,.jpeg,.png',
+    multipleFiles: true, working: true, options: []
+  },
+  {
+    id: 'html-to-pdf', name: 'HTML to PDF', icon: 'globe',
+    description: 'Convert HTML files into PDF documents',
+    category: 'Convert To PDF', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/html-to-pdf', acceptedFiles: '.html,.htm',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'pageSize', label: 'Page Size', type: 'select', options: [
+        { value: 'a4',      label: 'A4 (210 × 297 mm)' },
+        { value: 'letter',  label: 'Letter (8.5 × 11 in)' },
+        { value: 'a3',      label: 'A3 (297 × 420 mm)' },
+        { value: 'a5',      label: 'A5 (148 × 210 mm)' },
+        { value: 'legal',   label: 'Legal (8.5 × 14 in)' },
+        { value: 'tabloid', label: 'Tabloid (11 × 17 in)' },
+      ]},
+      { id: 'orientation', label: 'Orientation', type: 'select', options: [
+        { value: 'portrait',  label: 'Portrait' },
+        { value: 'landscape', label: 'Landscape' },
+      ]},
+      { id: 'margins', label: 'Margins', type: 'select', options: [
+        { value: 'none',   label: 'None' },
+        { value: 'narrow', label: 'Narrow (5 mm)' },
+        { value: 'normal', label: 'Normal (10 mm)' },
+        { value: 'wide',   label: 'Wide (20 mm)' },
+      ]},
+      { id: 'printMode', label: 'Print Mode', type: 'select', options: [
+        { value: 'exact',        label: 'Exact Layout' },
+        { value: 'compact',      label: 'Compact (tight spacing)' },
+        { value: 'ink-saver',    label: 'Ink Saver (strip backgrounds)' },
+        { value: 'presentation', label: 'Presentation (larger text)' },
+        { value: 'book',         label: 'Book Layout (serif font)' },
+      ]},
+      { id: 'background', label: 'Background Graphics', type: 'select', options: [
+        { value: 'on',  label: 'Include backgrounds' },
+        { value: 'off', label: 'No backgrounds' },
+      ]},
+      { id: 'pageBreak', label: 'Page Break Strategy', type: 'select', options: [
+        { value: 'smart',     label: 'Smart (protect headings & tables)' },
+        { value: 'auto',      label: 'Auto (browser default)' },
+        { value: 'avoid-all', label: 'Avoid breaks inside all elements' },
+      ]},
+      { id: 'dpi', label: 'Render Quality', type: 'select', options: [
+        { value: '150', label: 'Standard (150 DPI)' },
+        { value: '200', label: 'High (200 DPI)' },
+        { value: '250', label: 'Ultra (250 DPI — slower)' },
+      ]},
+    ]
+  },
+
+  // ── EDIT & ANNOTATE ───────────────────────────────────────────────────────
+  {
+    id: 'edit', name: 'Edit PDF', icon: 'edit-3',
+    description: 'Add text annotations and overlays to your PDF',
+    category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/edit', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'text',     label: 'Text to Add',              type: 'text',   placeholder: 'Your text here...' },
+      { id: 'x',        label: 'X Position (%)',           type: 'number', placeholder: '50' },
+      { id: 'y',        label: 'Y Position (%)',           type: 'number', placeholder: '50' },
+      { id: 'fontSize', label: 'Font Size',                type: 'number', placeholder: '14' },
+      { id: 'page',     label: 'Page (number or "all")',   type: 'text',   placeholder: '1' }
+    ]
+  },
+  {
+    id: 'watermark', name: 'Watermark', icon: 'droplets', clientSide: true,
+    description: 'Add a text watermark to protect your document',
+    category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/watermark', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'text',     label: 'Watermark Text',     type: 'text',   placeholder: 'CONFIDENTIAL' },
+      { id: 'opacity',  label: 'Opacity (0.1–0.9)',  type: 'number', placeholder: '0.3' },
+      { id: 'position', label: 'Position', type: 'select', options: [
+        { value: 'center',       label: 'Center (Diagonal)' },
+        { value: 'top-left',     label: 'Top Left' },
+        { value: 'top-right',    label: 'Top Right' },
+        { value: 'bottom-left',  label: 'Bottom Left' },
+        { value: 'bottom-right', label: 'Bottom Right' }
+      ]}
+    ]
+  },
+  {
+    id: 'sign', name: 'Sign PDF', icon: 'pen-tool',
+    description: 'Add a digital text signature to your PDF',
+    category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/sign', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'signatureText', label: 'Your Name / Signature', type: 'text',   placeholder: 'John Doe' },
+      { id: 'page',          label: 'Page to Sign (blank = last)', type: 'number', placeholder: '' }
+    ]
+  },
+  {
+    id: 'page-numbers', name: 'Add Page Numbers', icon: 'hash', clientSide: true,
+    description: 'Insert page numbers into your document',
+    category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/page-numbers', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'position', label: 'Position', type: 'select', options: [
+        { value: 'bottom-center', label: 'Bottom Center' },
+        { value: 'bottom-right',  label: 'Bottom Right' },
+        { value: 'bottom-left',   label: 'Bottom Left' },
+        { value: 'top-center',    label: 'Top Center' },
+        { value: 'top-right',     label: 'Top Right' },
+        { value: 'top-left',      label: 'Top Left' }
+      ]},
+      { id: 'startFrom', label: 'Start Numbering From', type: 'number', placeholder: '1' }
+    ]
+  },
+  {
+    id: 'redact', name: 'Redact PDF', icon: 'eye-off',
+    description: 'Black out sensitive areas of your PDF',
+    category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/redact', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'x',      label: 'X Position (%)',  type: 'number', placeholder: '10' },
+      { id: 'y',      label: 'Y Position (%)',  type: 'number', placeholder: '40' },
+      { id: 'width',  label: 'Width (%)',        type: 'number', placeholder: '30' },
+      { id: 'height', label: 'Height (%)',       type: 'number', placeholder: '10' },
+      { id: 'pages',  label: 'Pages (number or "all")', type: 'text', placeholder: '1' }
+    ]
+  },
+
+  // ── SECURITY ──────────────────────────────────────────────────────────────
+  {
+    id: 'protect', name: 'Protect PDF', icon: 'lock',
+    description: 'Add password protection to your PDF',
+    category: 'Security', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/protect', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'password', label: 'Password', type: 'text', placeholder: 'Enter a password' }
+    ]
+  },
+  {
+    id: 'unlock', name: 'Unlock PDF', icon: 'unlock', clientSide: true,
+    description: 'Remove password protection from a PDF',
+    category: 'Security', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/unlock', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'password', label: 'Current Password (if known)', type: 'text', placeholder: 'Leave blank if unsure' }
+    ]
+  },
+
+  // ── ADVANCED TOOLS ────────────────────────────────────────────────────────
+  {
+    id: 'repair', name: 'Repair', icon: 'wrench',
+    description: 'Fix corrupted or damaged PDF files',
+    category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
+    apiEndpoint: '/api/repair', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'repairDepth', label: 'Repair Depth', type: 'select', options: [
+        { value: 'standard', label: 'Standard (Recommended)' },
+        { value: 'fast',     label: 'Fast Repair' },
+        { value: 'deep',     label: 'Deep Recovery' },
+        { value: 'maximum',  label: 'Maximum Recovery' },
+      ]},
+      { id: 'outputMode', label: 'Output Optimization', type: 'select', options: [
+        { value: 'preserve',      label: 'Preserve Original' },
+        { value: 'compatibility', label: 'Max Compatibility' },
+        { value: 'print-safe',    label: 'Print Safe' },
+        { value: 'reduce-size',   label: 'Reduce File Size' },
+      ]},
+    ]
+  },
+  {
+    id: 'scan-to-pdf', name: 'Scan', icon: 'scan-line',
+    description: 'Convert scanned images into a PDF document',
+    category: 'Advanced Tools', group: 'pdf', badge: 'PDF',
+    apiEndpoint: '/api/scan-to-pdf', acceptedFiles: '.jpg,.jpeg,.png',
+    multipleFiles: true, working: true, clientSide: true,
+    options: [
+      { id: 'outputFormat', label: 'Output', type: 'select', options: [
+        { value: 'pdf',            label: 'Enhanced PDF (image)' },
+        { value: 'searchable-pdf', label: 'Searchable PDF' },
+        { value: 'docx',           label: 'Word Document (.docx)' },
+        { value: 'txt',            label: 'Plain Text (.txt)' },
+      ]},
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'balanced',       label: 'Balanced (Recommended)' },
+        { value: 'fast',           label: 'Fast OCR' },
+        { value: 'accurate',       label: 'Deep OCR (accurate)' },
+        { value: 'table-priority', label: 'Table OCR' },
+      ]},
+      { id: 'enhancement', label: 'Enhancement', type: 'select', options: [
+        { value: 'auto',     label: 'Auto (Recommended)' },
+        { value: 'strong',   label: 'Strong Cleanup' },
+        { value: 'contrast', label: 'High Contrast' },
+        { value: 'table',    label: 'Table Focus' },
+        { value: 'light',    label: 'Light Cleanup' },
+        { value: 'none',     label: 'No Enhancement' },
+      ]},
+      { id: 'language', label: 'Language', type: 'select', options: [
+        { value: 'eng',     label: 'English' },
+        { value: 'fra',     label: 'French' },
+        { value: 'deu',     label: 'German' },
+        { value: 'spa',     label: 'Spanish' },
+        { value: 'ara',     label: 'Arabic' },
+        { value: 'urd',     label: 'Urdu' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'jpn',     label: 'Japanese' },
+      ]},
+    ]
+  },
+  {
+    id: 'ocr', name: 'OCR', icon: 'type',
+    description: 'Extract and copy text from your PDF document',
+    category: 'Advanced Tools', group: 'pdf', badge: 'AI',
+    apiEndpoint: '/api/ocr', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'ocrMode', label: 'OCR Mode', type: 'select', options: [
+        { value: 'balanced',        label: 'Balanced (Recommended)' },
+        { value: 'fast',            label: 'Fast OCR' },
+        { value: 'accurate',        label: 'Accurate (slower)' },
+        { value: 'layout-preserve', label: 'Layout Preserve' },
+        { value: 'table-priority',  label: 'Table Priority' },
+      ]},
+      { id: 'language', label: 'Language', type: 'select', options: [
+        { value: 'eng', label: 'English' },
+        { value: 'fra', label: 'French' },
+        { value: 'deu', label: 'German' },
+        { value: 'spa', label: 'Spanish' },
+        { value: 'ita', label: 'Italian' },
+        { value: 'por', label: 'Portuguese' },
+        { value: 'rus', label: 'Russian' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'jpn', label: 'Japanese' },
+        { value: 'ara', label: 'Arabic' },
+      ]},
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'docx',           label: 'Word Document (.docx)' },
+        { value: 'searchable-pdf', label: 'Searchable PDF' },
+        { value: 'txt',            label: 'Plain Text (.txt)' },
+      ]},
+      { id: 'preprocessing', label: 'Image Enhancement', type: 'select', options: [
+        { value: 'auto',     label: 'Auto (Recommended)' },
+        { value: 'contrast', label: 'Contrast Boost' },
+        { value: 'bw',       label: 'Black & White' },
+        { value: 'none',     label: 'None (raw scan)' },
+      ]},
+    ]
+  },
+  {
+    id: 'compare', name: 'Compare', icon: 'columns',
+    description: 'Find differences between two PDF files',
+    category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
+    apiEndpoint: '/api/compare', acceptedFiles: '.pdf',
+    multipleFiles: true, working: true, clientSide: true, options: []
+  },
+  {
+    id: 'ai-summarize', name: 'AI Summarizer', icon: 'sparkles',
+    description: 'Summarize PDF content with smart extraction',
+    category: 'Advanced Tools', group: 'pdf', badge: 'AI',
+    apiEndpoint: '/api/ai-summarize', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'summaryType', label: 'Summary Type', type: 'select', options: [
+        { value: 'short',     label: 'Short Summary (5–6 key sentences)' },
+        { value: 'detailed',  label: 'Detailed Summary (10–13 sentences)' },
+        { value: 'bullets',   label: 'Bullet Points' },
+        { value: 'insights',  label: 'Key Insights (numbered list)' },
+        { value: 'executive', label: 'Executive Summary (pro format)' },
+      ]},
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'txt',  label: 'Plain Text (.txt)' },
+        { value: 'docx', label: 'Word Document (.docx)' },
+      ]},
+    ]
+  },
+  {
+    id: 'translate', name: 'Translate', icon: 'languages',
+    description: 'Translate PDF documents into any language',
+    category: 'Advanced Tools', group: 'pdf', badge: 'AI',
+    apiEndpoint: '/api/translate', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'outputFormat', label: 'Output Format', type: 'select', options: [
+        { value: 'pdf',  label: 'PDF Document (.pdf)' },
+        { value: 'txt',  label: 'Plain Text (.txt)' },
+        { value: 'docx', label: 'Word Document (.docx)' },
+      ]},
+      { id: 'sourceLang', label: 'Source Language (language of your PDF)', type: 'select', options: [
+        { value: 'en', label: 'English' },
+        { value: 'ar', label: 'Arabic' },
+        { value: 'zh', label: 'Chinese (Simplified)' },
+        { value: 'zh-TW', label: 'Chinese (Traditional)' },
+        { value: 'nl', label: 'Dutch' },
+        { value: 'fr', label: 'French' },
+        { value: 'de', label: 'German' },
+        { value: 'el', label: 'Greek' },
+        { value: 'he', label: 'Hebrew' },
+        { value: 'hi', label: 'Hindi' },
+        { value: 'id', label: 'Indonesian' },
+        { value: 'it', label: 'Italian' },
+        { value: 'ja', label: 'Japanese' },
+        { value: 'ko', label: 'Korean' },
+        { value: 'ms', label: 'Malay' },
+        { value: 'fa', label: 'Persian (Farsi)' },
+        { value: 'pl', label: 'Polish' },
+        { value: 'pt', label: 'Portuguese' },
+        { value: 'ru', label: 'Russian' },
+        { value: 'es', label: 'Spanish' },
+        { value: 'sv', label: 'Swedish' },
+        { value: 'th', label: 'Thai' },
+        { value: 'tr', label: 'Turkish' },
+        { value: 'uk', label: 'Ukrainian' },
+        { value: 'ur', label: 'Urdu' },
+        { value: 'vi', label: 'Vietnamese' }
+      ]},
+      { id: 'targetLang', label: 'Target Language', type: 'select', options: [
+        { value: 'af', label: 'Afrikaans' },
+        { value: 'sq', label: 'Albanian' },
+        { value: 'am', label: 'Amharic' },
+        { value: 'ar', label: 'Arabic' },
+        { value: 'hy', label: 'Armenian' },
+        { value: 'az', label: 'Azerbaijani' },
+        { value: 'eu', label: 'Basque' },
+        { value: 'be', label: 'Belarusian' },
+        { value: 'bn', label: 'Bengali' },
+        { value: 'bs', label: 'Bosnian' },
+        { value: 'bg', label: 'Bulgarian' },
+        { value: 'ca', label: 'Catalan' },
+        { value: 'zh', label: 'Chinese (Simplified)' },
+        { value: 'zh-TW', label: 'Chinese (Traditional)' },
+        { value: 'hr', label: 'Croatian' },
+        { value: 'cs', label: 'Czech' },
+        { value: 'da', label: 'Danish' },
+        { value: 'nl', label: 'Dutch' },
+        { value: 'et', label: 'Estonian' },
+        { value: 'fi', label: 'Finnish' },
+        { value: 'fr', label: 'French' },
+        { value: 'gl', label: 'Galician' },
+        { value: 'ka', label: 'Georgian' },
+        { value: 'de', label: 'German' },
+        { value: 'el', label: 'Greek' },
+        { value: 'gu', label: 'Gujarati' },
+        { value: 'he', label: 'Hebrew' },
+        { value: 'hi', label: 'Hindi' },
+        { value: 'hu', label: 'Hungarian' },
+        { value: 'id', label: 'Indonesian' },
+        { value: 'it', label: 'Italian' },
+        { value: 'ja', label: 'Japanese' },
+        { value: 'kn', label: 'Kannada' },
+        { value: 'kk', label: 'Kazakh' },
+        { value: 'km', label: 'Khmer' },
+        { value: 'ko', label: 'Korean' },
+        { value: 'lv', label: 'Latvian' },
+        { value: 'lt', label: 'Lithuanian' },
+        { value: 'mk', label: 'Macedonian' },
+        { value: 'ms', label: 'Malay' },
+        { value: 'ml', label: 'Malayalam' },
+        { value: 'mr', label: 'Marathi' },
+        { value: 'mn', label: 'Mongolian' },
+        { value: 'my', label: 'Burmese' },
+        { value: 'ne', label: 'Nepali' },
+        { value: 'no', label: 'Norwegian' },
+        { value: 'fa', label: 'Persian (Farsi)' },
+        { value: 'pl', label: 'Polish' },
+        { value: 'pt', label: 'Portuguese' },
+        { value: 'pa', label: 'Punjabi' },
+        { value: 'ro', label: 'Romanian' },
+        { value: 'ru', label: 'Russian' },
+        { value: 'sr', label: 'Serbian' },
+        { value: 'si', label: 'Sinhala' },
+        { value: 'sk', label: 'Slovak' },
+        { value: 'sl', label: 'Slovenian' },
+        { value: 'es', label: 'Spanish' },
+        { value: 'sw', label: 'Swahili' },
+        { value: 'sv', label: 'Swedish' },
+        { value: 'ta', label: 'Tamil' },
+        { value: 'te', label: 'Telugu' },
+        { value: 'th', label: 'Thai' },
+        { value: 'tr', label: 'Turkish' },
+        { value: 'uk', label: 'Ukrainian' },
+        { value: 'ur', label: 'Urdu' },
+        { value: 'uz', label: 'Uzbek' },
+        { value: 'vi', label: 'Vietnamese' },
+        { value: 'cy', label: 'Welsh' }
+      ]}
+    ]
+  },
+  {
+    id: 'workflow', name: 'Workflow Builder', icon: 'git-branch',
+    description: 'Chain multiple PDF operations in a single pass',
+    category: 'Advanced Tools', group: 'pdf', badge: 'Utility',
+    apiEndpoint: '/api/workflow', acceptedFiles: '.pdf',
+    multipleFiles: false, working: true, clientSide: true,
+    options: [
+      { id: 'step1', label: 'Step 1 — Operation', type: 'select', options: [
+        { value: '',           label: '— Select operation —' },
+        { value: 'compress',   label: 'Compress' },
+        { value: 'rotate-90',  label: 'Rotate 90°' },
+        { value: 'rotate-180', label: 'Rotate 180°' },
+        { value: 'watermark',  label: 'Add Watermark' },
+        { value: 'page-numbers', label: 'Add Page Numbers' },
+        { value: 'sign',       label: 'Add Signature' }
+      ]},
+      { id: 'step1_value', label: 'Step 1 — Text Value (for Watermark / Signature)', type: 'text', placeholder: 'e.g. DRAFT or John Doe' },
+      { id: 'step2', label: 'Step 2 — Operation (optional)', type: 'select', options: [
+        { value: '',           label: '— None —' },
+        { value: 'compress',   label: 'Compress' },
+        { value: 'rotate-90',  label: 'Rotate 90°' },
+        { value: 'rotate-180', label: 'Rotate 180°' },
+        { value: 'watermark',  label: 'Add Watermark' },
+        { value: 'page-numbers', label: 'Add Page Numbers' },
+        { value: 'sign',       label: 'Add Signature' }
+      ]},
+      { id: 'step2_value', label: 'Step 2 — Text Value (optional)', type: 'text', placeholder: '' },
+      { id: 'step3', label: 'Step 3 — Operation (optional)', type: 'select', options: [
+        { value: '',           label: '— None —' },
+        { value: 'compress',   label: 'Compress' },
+        { value: 'rotate-90',  label: 'Rotate 90°' },
+        { value: 'rotate-180', label: 'Rotate 180°' },
+        { value: 'watermark',  label: 'Add Watermark' },
+        { value: 'page-numbers', label: 'Add Page Numbers' },
+        { value: 'sign',       label: 'Add Signature' }
+      ]},
+      { id: 'step3_value', label: 'Step 3 — Text Value (optional)', type: 'text', placeholder: '' }
+    ]
+  },
+
+  // ── IMAGE TOOLS ───────────────────────────────────────────────────────────
+  {
+    id: 'background-remover', name: 'Background Remover', icon: 'image-minus',
+    description: 'Automatically remove any background from images — solid, gradient, or complex',
+    category: 'Image Tools', group: 'image', badge: 'AI',
+    apiEndpoint: '/api/background-remove', acceptedFiles: '.jpg,.jpeg,.png,.webp',
+    multipleFiles: false, working: true, clientSide: true,
+    options: []
+  },
+  {
+    id: 'crop-image', name: 'Crop Image', icon: 'crop', clientSide: true,
+    description: 'Crop and trim your images with precision controls',
+    category: 'Image Tools', group: 'image', badge: 'Image',
+    apiEndpoint: '/api/crop-image', acceptedFiles: '.jpg,.jpeg,.png,.webp',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'x',      label: 'X Offset (%)',  type: 'number', placeholder: '0'   },
+      { id: 'y',      label: 'Y Offset (%)',  type: 'number', placeholder: '0'   },
+      { id: 'width',  label: 'Width (%)',      type: 'number', placeholder: '100' },
+      { id: 'height', label: 'Height (%)',     type: 'number', placeholder: '100' }
+    ]
+  },
+  {
+    id: 'resize-image', name: 'Image Resize', icon: 'maximize-2', clientSide: true,
+    description: 'Resize images with presets: 1:1, 16:9, A4, HD, or custom',
+    category: 'Image Tools', group: 'image', badge: 'Image',
+    apiEndpoint: '/api/resize-image', acceptedFiles: '.jpg,.jpeg,.png,.webp',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'preset', label: 'Preset', type: 'select', options: [
+        { value: 'custom',  label: 'Custom' },
+        { value: '1:1',     label: '1:1 Square (1080×1080)' },
+        { value: '16:9',    label: '16:9 Widescreen (1920×1080)' },
+        { value: 'a4',      label: 'A4 (2480×3508)' },
+        { value: 'hd',      label: 'HD (1920×1080)' }
+      ]},
+      { id: 'width',  label: 'Custom Width (px)',  type: 'number', placeholder: '800' },
+      { id: 'height', label: 'Custom Height (px)', type: 'number', placeholder: '600' }
+    ]
+  },
+  {
+    id: 'image-filters', name: 'Image Filters', icon: 'sliders', clientSide: true,
+    description: 'Apply grayscale, sepia, blur, brightness, contrast and more',
+    category: 'Image Tools', group: 'image', badge: 'Image',
+    apiEndpoint: '/api/filters', acceptedFiles: '.jpg,.jpeg,.png,.webp',
+    multipleFiles: false, working: true,
+    options: [
+      { id: 'filter', label: 'Filter Effect', type: 'select', options: [
+        { value: 'grayscale', label: 'Grayscale' },
+        { value: 'sepia',     label: 'Sepia' },
+        { value: 'blur',      label: 'Blur' },
+        { value: 'brighten',  label: 'Brightness Boost' },
+        { value: 'contrast',  label: 'High Contrast' },
+        { value: 'sharpen',   label: 'Sharpen' },
+        { value: 'invert',    label: 'Invert Colors' }
+      ]}
+    ]
+  },
+];

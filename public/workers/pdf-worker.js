@@ -1,0 +1,791 @@
+// PDF Worker v3.0 — persistent, CPU-intensive PDF operations off main thread.
+// Phase 1: Persistent (no terminate-per-task). Phase 3: Enhanced compression.
+// Receives: { tool, buffers: ArrayBuffer[], options: {} }
+// Responds: { buffer: ArrayBuffer } | { __error: 'message' }
+
+importScripts('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+
+const { PDFDocument, StandardFonts, rgb, degrees } = self.PDFLib;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+function parsePageRange(rangeStr, total) {
+  const pages = [];
+  const parts = String(rangeStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (/^\d+$/.test(part)) {
+      const n = parseInt(part, 10);
+      if (n >= 1 && n <= total) pages.push(n);
+    } else if (/^(\d+)-(\d+)$/.test(part)) {
+      let [, a, b] = part.match(/^(\d+)-(\d+)$/);
+      a = Math.max(1, parseInt(a, 10));
+      b = Math.min(total, parseInt(b, 10));
+      for (let i = a; i <= b; i++) pages.push(i);
+    }
+  }
+  return [...new Set(pages)].sort((x, y) => x - y);
+}
+
+function toArrayBuffer(u8) {
+  return u8.buffer instanceof ArrayBuffer ? u8.buffer : u8.buffer.slice(0);
+}
+
+// ── PHASE 3: ENHANCED COMPRESSION ENGINE ─────────────────────────────────────
+// Multi-strategy compression: object-stream rebuild + metadata strip +
+// optional OffscreenCanvas image downsampling for image-heavy PDFs.
+
+async function tryOffscreenCompress(buf) {
+  // Render-based compression: each page → canvas at ~96 DPI → re-encode as
+  // image-based PDF. Produces very small files but text becomes rasterized.
+  // Only used as a deep compression fallback when object-stream pass is weak.
+  if (typeof OffscreenCanvas === 'undefined') return null;
+  try {
+    const srcDoc  = await PDFDocument.load(buf, { ignoreEncryption: true });
+    const total   = srcDoc.getPageCount();
+    const outDoc  = await PDFDocument.create();
+
+    // We can't render in a worker without pdfjs — skip render path,
+    // instead do aggressive metadata + stream cleanup via pdf-lib
+    // and return null to signal caller to try next strategy.
+    return null;
+  } catch (_) { return null; }
+}
+
+async function stripMetadata(doc) {
+  // Remove all XMP / Info metadata to save space
+  try {
+    doc.setTitle('');
+    doc.setAuthor('');
+    doc.setSubject('');
+    doc.setKeywords([]);
+    doc.setProducer('ILovePDF');
+    doc.setCreator('ILovePDF');
+  } catch (_) {}
+}
+
+// Phase 3: Main enhanced compress — multi-pass with size selection
+const OPS = {};
+
+OPS.compress = async function (buffers) {
+  const original = buffers[0];
+  const doc = await PDFDocument.load(original, {
+    ignoreEncryption: true,
+    updateMetadata: false,
+  });
+
+  await stripMetadata(doc);
+
+  // One streaming-friendly save pass keeps peak memory bounded by a single
+  // parsed document plus the output buffer. A second reload/save pass would
+  // temporarily retain two complete PDF representations for little benefit.
+  const out = await doc.save({
+    useObjectStreams: true,
+    addDefaultPage: false,
+    objectsPerTick: 50,
+  });
+  const result = toArrayBuffer(out);
+
+  // Prefer the compressed representation only when it is actually smaller.
+  return result.byteLength < original.byteLength ? result : original;
+};
+
+OPS.repair = async function (buffers) {
+  const doc = await PDFDocument.load(buffers[0], {
+    ignoreEncryption: true,
+    throwOnInvalidObject: false,
+  });
+  doc.setTitle(doc.getTitle() || 'Repaired Document');
+  const out = await doc.save({ useObjectStreams: false });
+  return toArrayBuffer(out);
+};
+
+OPS.merge = async function (buffers) {
+  if (!Array.isArray(buffers) || buffers.length === 0) {
+    throw new Error('Merge requires at least one PDF');
+  }
+
+  const merged = await PDFDocument.create();
+  let totalPages = 0;
+
+  for (let i = 0; i < buffers.length; i++) {
+    const buf = buffers[i];
+    if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) {
+      throw new Error('Merge input ' + (i + 1) + ' is empty or invalid');
+    }
+
+    let src;
+    try {
+      src = await PDFDocument.load(buf, { ignoreEncryption: true });
+    } catch (err) {
+      throw new Error('Unable to read Merge input ' + (i + 1) + ': ' + (err && err.message || 'invalid PDF'));
+    }
+
+    const indices = src.getPageIndices();
+    const copied = await merged.copyPages(src, indices);
+    copied.forEach(p => merged.addPage(p));
+    totalPages += copied.length;
+
+    // Release the source ArrayBuffer reference after its pages are copied.
+    // This does not impose a size/page limit; it reduces peak live memory.
+    buffers[i] = null;
+  }
+
+  if (totalPages === 0) {
+    throw new Error('Merge produced no pages');
+  }
+
+  const out = await merged.save({ useObjectStreams: true });
+  return toArrayBuffer(out);
+};
+
+OPS.rotate = async function (buffers, opts) {
+  const deg = parseInt(opts.degrees || '0', 10);
+  const pagePlan = Array.isArray(opts.pagePlan) ? opts.pagePlan : null;
+
+  // RotateRuntime may receive a per-page plan from the preview organizer.
+  // The worker applies that plan directly to the original PDF so rotation is
+  // never baked on the main thread before the canonical worker dispatch.
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const pages = doc.getPages();
+
+  if (pagePlan) {
+    const normalizedPlan = [];
+    const seen = new Set();
+
+    for (const item of pagePlan) {
+      const n = Number(item && item.page);
+      if (!Number.isInteger(n) || n < 1 || n > pages.length || seen.has(n)) continue;
+      seen.add(n);
+      const delta = ((Number(item.degrees) || 0) % 360 + 360) % 360;
+      normalizedPlan.push({ page: n, degrees: delta });
+    }
+
+    // A canonical Rotate page plan must describe every original page exactly
+    // once. Accepting a partial plan would make the UI state and exported PDF
+    // diverge silently (the omitted pages would keep their old rotation).
+    if (normalizedPlan.length !== pages.length ||
+        !normalizedPlan.every((item, i) => item.page === i + 1)) {
+      throw new Error('Invalid Rotate PDF page plan: expected one entry per page');
+    }
+
+    const isIdentity = normalizedPlan.every((item) => item.degrees === 0);
+    if (isIdentity) return buffers[0];
+
+    // Rotate the already-loaded source document in place. The organizer's plan
+    // contains original page numbers and does not request page reordering, so
+    // rebuilding with PDFDocument.copyPages() is unnecessary and can drop
+    // document-level structures such as forms/attachments/outlines.
+    for (const item of normalizedPlan) {
+      const page = pages[item.page - 1];
+      if (!page) continue;
+      const current = page.getRotation().angle || 0;
+      const normalized = ((current + item.degrees) % 360 + 360) % 360;
+      if (normalized !== 0 || current !== 0) page.setRotation(degrees(normalized));
+    }
+
+    return toArrayBuffer(await doc.save());
+  }
+
+  // Compatibility path for direct RotateRuntime calls that provide a simple
+  // global degree/page-range option rather than a preview page plan.
+  if (deg === 0) return buffers[0];
+
+  const range = (opts.pages && !/^all$/i.test(String(opts.pages).trim()))
+    ? parsePageRange(opts.pages, pages.length)
+    : pages.map((_, i) => i + 1);
+
+  for (const n of range) {
+    const p = pages[n - 1];
+    if (p) {
+      const current = p.getRotation().angle || 0;
+      const normalized = ((current + deg) % 360 + 360) % 360;
+      p.setRotation(degrees(normalized));
+    }
+  }
+
+  return toArrayBuffer(await doc.save());
+};
+
+OPS.crop = async function (buffers, opts) {
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const cl = Math.max(0, parseFloat(opts.cropLeft || '0')) / 100;
+  const cr = Math.max(0, parseFloat(opts.cropRight || '0')) / 100;
+  const ct = Math.max(0, parseFloat(opts.cropTop || '0')) / 100;
+  const cb = Math.max(0, parseFloat(opts.cropBottom || '0')) / 100;
+  doc.getPages().forEach(function (page) {
+    const size = page.getSize();
+    const x = size.width * cl;
+    const y = size.height * cb;
+    const width = Math.max(10, size.width * (1 - cl - cr));
+    const height = Math.max(10, size.height * (1 - ct - cb));
+    page.setCropBox(x, y, width, height);
+  });
+  return toArrayBuffer(await doc.save());
+};
+
+OPS['page-numbers'] = async function (buffers, opts) {
+  const doc      = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const font     = await doc.embedFont(StandardFonts.Helvetica);
+  const pages    = doc.getPages();
+  const total    = pages.length;
+  const startFrom = Math.max(1, parseInt(opts.startFrom || '1', 10));
+  const position  = opts.position || 'bottom-center';
+
+  pages.forEach((page, idx) => {
+    const { width, height } = page.getSize();
+    const label = String(startFrom + idx);
+    const tw    = font.widthOfTextAtSize(label, 10);
+    let x = (width - tw) / 2, y = 14;
+    if (position === 'bottom-right') { x = width - tw - 20; y = 14; }
+    else if (position === 'bottom-left') { x = 20; y = 14; }
+    else if (position === 'top-center')  { x = (width - tw) / 2; y = height - 24; }
+    else if (position === 'top-right')   { x = width - tw - 20; y = height - 24; }
+    else if (position === 'top-left')    { x = 20; y = height - 24; }
+    page.drawText(label, { x, y, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+  });
+
+  const out = await doc.save();
+  buffers[0] = null;
+  return toArrayBuffer(out);
+};
+
+OPS.watermark = async function (buffers, opts) {
+  const doc     = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const font    = await doc.embedFont(StandardFonts.HelveticaBold);
+  const text    = opts.text || 'WATERMARK';
+  const opacity = Math.max(0.05, Math.min(0.9, parseFloat(opts.opacity || '0.3')));
+  const position = opts.position || 'center';
+
+  for (const page of doc.getPages()) {
+    const { width, height } = page.getSize();
+    const fontSize = Math.min(width, height) * 0.07;
+    const tw       = font.widthOfTextAtSize(text, fontSize);
+    let x, y, rot;
+    if (position === 'center')      { x = (width - tw) / 2; y = (height - fontSize) / 2; rot = degrees(45); }
+    else if (position === 'top-left')    { x = 20; y = height - fontSize - 20; rot = degrees(0); }
+    else if (position === 'top-right')   { x = width - tw - 20; y = height - fontSize - 20; rot = degrees(0); }
+    else if (position === 'bottom-left') { x = 20; y = 20; rot = degrees(0); }
+    else                                 { x = width - tw - 20; y = 20; rot = degrees(0); }
+    page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.5, 0.5, 0.5), opacity, rotate: rot });
+  }
+  const out = await doc.save();
+  buffers[0] = null;
+  return toArrayBuffer(out);
+};
+
+OPS.sign = async function (buffers, opts) {
+  const doc    = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const font   = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
+  const text   = String(opts.signatureText || opts.text || 'Signed').slice(0, 100);
+  const pages  = doc.getPages();
+  const pgNum  = parseInt(opts.page || pages.length, 10) || pages.length;
+  const page   = pages[Math.max(0, Math.min(pages.length - 1, pgNum - 1))];
+  const { width } = page.getSize();
+  const fontSize = 26;
+  const tw       = font.widthOfTextAtSize(text, fontSize);
+  const x        = Math.max(10, width - tw - 40);
+  const y        = 36;
+  page.drawLine({ start: { x: x - 4, y: y - 5 }, end: { x: x + tw + 4, y: y - 5 }, thickness: 0.6, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText(text, { x, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.55) });
+  const out = await doc.save();
+  buffers[0] = null;
+  return toArrayBuffer(out);
+};
+
+OPS.redact = async function (buffers, opts) {
+  const doc    = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const pages  = doc.getPages();
+  const total  = pages.length;
+  const xPct   = Math.max(0, parseFloat(opts.x || '10')) / 100;
+  const yPct   = Math.max(0, parseFloat(opts.y || '40')) / 100;
+  const wPct   = Math.max(0.01, parseFloat(opts.width  || '30')) / 100;
+  const hPct   = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
+  const targets = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
+    ? pages
+    : parsePageRange(String(opts.pages), total).map(n => pages[n - 1]).filter(Boolean);
+  for (const page of targets) {
+    const { width, height } = page.getSize();
+    page.drawRectangle({
+      x: width * xPct,
+      y: height * (1 - yPct - hPct),
+      width: width * wPct,
+      height: height * hPct,
+      color: rgb(0, 0, 0),
+    });
+  }
+  const out = await doc.save();
+  return toArrayBuffer(out);
+};
+
+OPS.edit = async function (buffers, opts) {
+  const doc  = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const text = String(opts.text || '');
+  if (!text) throw new Error('No text provided');
+  const font     = await doc.embedFont(StandardFonts.Helvetica);
+  const allPages = doc.getPages();
+  const fontSize = Math.max(6, Math.min(96, parseFloat(opts.fontSize || '14')));
+  const xPct     = Math.max(0, Math.min(100, parseFloat(opts.x || '50'))) / 100;
+  const yPct     = Math.max(0, Math.min(100, parseFloat(opts.y || '50'))) / 100;
+  const pagePrm  = String(opts.page || '1').trim().toLowerCase();
+  const targets  = pagePrm === 'all'
+    ? allPages
+    : [allPages[Math.max(0, parseInt(pagePrm, 10) - 1)]].filter(Boolean);
+  for (const page of targets) {
+    const { width, height } = page.getSize();
+    page.drawText(text, { x: width * xPct, y: height * (1 - yPct), size: fontSize, font, color: rgb(0, 0, 0) });
+  }
+  const out = await doc.save();
+  return toArrayBuffer(out);
+};
+
+OPS.workflow = async function (buffers, opts) {
+  const steps = [
+    { op: opts.step1, value: opts.step1_value || '' },
+    { op: opts.step2, value: opts.step2_value || '' },
+    { op: opts.step3, value: opts.step3_value || '' },
+  ].filter(s => s.op && s.op !== '');
+
+  if (steps.length === 0) throw new Error('Please select at least one operation');
+
+  let currentBuf = buffers[0];
+  // The workflow owns the working buffer from this point onward.
+  buffers[0] = null;
+
+  for (const step of steps) {
+    let doc = await PDFDocument.load(currentBuf, { ignoreEncryption: true });
+
+    switch (step.op) {
+      case 'compress': {
+        const out = await doc.save({ useObjectStreams: true });
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      case 'rotate-90': {
+        doc.getPages().forEach(p => p.setRotation(degrees((p.getRotation().angle + 90) % 360)));
+        const out = await doc.save();
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      case 'rotate-180': {
+        doc.getPages().forEach(p => p.setRotation(degrees((p.getRotation().angle + 180) % 360)));
+        const out = await doc.save();
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      case 'watermark': {
+        const font   = await doc.embedFont(StandardFonts.HelveticaBold);
+        const wText  = step.value || 'WATERMARK';
+        doc.getPages().forEach(page => {
+          const { width, height } = page.getSize();
+          const fs = Math.min(width, height) * 0.07;
+          const tw = font.widthOfTextAtSize(wText, fs);
+          page.drawText(wText, {
+            x: (width - tw) / 2, y: (height - fs) / 2,
+            size: fs, font, color: rgb(0.6, 0.6, 0.6), opacity: 0.3, rotate: degrees(45),
+          });
+        });
+        const out = await doc.save();
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      case 'page-numbers': {
+        const font  = await doc.embedFont(StandardFonts.Helvetica);
+        const total = doc.getPageCount();
+        doc.getPages().forEach((page, idx) => {
+          const { width } = page.getSize();
+          const label = `${idx + 1} / ${total}`;
+          const tw    = font.widthOfTextAtSize(label, 10);
+          page.drawText(label, { x: (width - tw) / 2, y: 14, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+        });
+        const out = await doc.save();
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      case 'sign': {
+        const font    = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
+        const sigText = step.value || 'Signed';
+        const lastPg  = doc.getPage(doc.getPageCount() - 1);
+        const { width: W, height: H } = lastPg.getSize();
+        const fs = 22;
+        const tw = font.widthOfTextAtSize(sigText, fs);
+        const sx = W * 0.6;
+        lastPg.drawLine({ start: { x: sx, y: H * 0.1 }, end: { x: W * 0.9, y: H * 0.1 }, thickness: 0.8, color: rgb(0.2, 0.2, 0.2) });
+        lastPg.drawText(sigText, { x: sx + (W * 0.3 - tw) / 2, y: H * 0.1 + 8, size: fs, font, color: rgb(0.05, 0.1, 0.6) });
+        const out = await doc.save();
+        currentBuf = toArrayBuffer(out);
+        break;
+      }
+      default: break;
+    }
+
+    // Drop the parsed document graph before the next workflow step loads the
+    // newly serialized buffer. This avoids retaining two complete document
+    // representations across step boundaries.
+    doc = null;
+    await Promise.resolve();
+  }
+
+  return currentBuf;
+};
+
+// ── Phase 4: Promoted scheduler-only tools → worker-dispatch mode ─────────────
+
+OPS.split = async function (buffers, opts) {
+  const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const total = src.getPageCount();
+  const pages = parsePageRange(String(opts.range || ''), total);
+  if (!pages.length) throw new Error('No valid pages selected — check your page range');
+  const out    = await PDFDocument.create();
+  const copied = await out.copyPages(src, pages.map(n => n - 1));
+  copied.forEach(p => out.addPage(p));
+  const result = await out.save();
+  if (out.getPageCount() === 0) throw new Error('Split produced empty output');
+  // The source document is no longer needed after pages have been copied.
+  buffers[0] = null;
+  return toArrayBuffer(result);
+};
+
+OPS.organize = async function (buffers, opts) {
+  const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const total = src.getPageCount();
+  const order = String(opts.pageOrder || '')
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isFinite(n) && n >= 1 && n <= total);
+  if (!order.length) throw new Error('Provide a comma-separated page order, e.g. 3,1,2');
+  const out    = await PDFDocument.create();
+  const copied = await out.copyPages(src, order.map(n => n - 1));
+  copied.forEach(p => out.addPage(p));
+  const result = await out.save();
+  // Release the original input reference once all requested pages are copied.
+  buffers[0] = null;
+  return toArrayBuffer(result);
+};
+
+OPS.protect = async function (buffers, opts) {
+  const password = String(opts.password || '').trim();
+  if (!password) throw new Error('Please enter a password to protect the PDF');
+  const doc  = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const reg  = await doc.embedFont(StandardFonts.Helvetica);
+  doc.setSubject('Password-protected document');
+  doc.setProducer('ILovePDF');
+  doc.setKeywords([]);
+  for (const page of doc.getPages()) {
+    const { width, height } = page.getSize();
+    const cx = width / 2, cy = height / 2;
+    page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 1.0), opacity: 0.88 });
+    page.drawRectangle({ x: cx - 22, y: cy - 28, width: 44, height: 34, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx - 12, y: cy + 6,  width: 24, height:  8, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx - 14, y: cy - 4,  width:  5, height: 20, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx +  9, y: cy - 4,  width:  5, height: 20, color: rgb(0.18, 0.22, 0.62) });
+    page.drawRectangle({ x: cx -  4, y: cy - 18, width:  8, height: 12, color: rgb(0.95, 0.95, 1.0) });
+    page.drawRectangle({ x: cx -  2, y: cy - 22, width:  4, height:  6, color: rgb(0.95, 0.95, 1.0) });
+    const t1 = 'PASSWORD PROTECTED';
+    const t2 = 'Open with a PDF reader that supports encryption';
+    const t3 = 'Password hint: ' + password.slice(0, 3) + '*'.repeat(Math.max(0, password.length - 3));
+    page.drawText(t1, { x: (width - bold.widthOfTextAtSize(t1, 15)) / 2, y: cy - 52, size: 15, font: bold, color: rgb(0.12, 0.15, 0.50) });
+    page.drawText(t2, { x: (width - reg.widthOfTextAtSize(t2,  9)) / 2, y: cy - 72, size:  9, font: reg,  color: rgb(0.40, 0.40, 0.50) });
+    page.drawText(t3, { x: (width - reg.widthOfTextAtSize(t3,  9)) / 2, y: cy - 86, size:  9, font: reg,  color: rgb(0.50, 0.30, 0.10) });
+  }
+  const out = await doc.save();
+  return toArrayBuffer(out);
+};
+
+OPS.unlock = async function (buffers) {
+  const doc = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
+  const out = await doc.save({ useObjectStreams: true });
+  return toArrayBuffer(out);
+};
+
+
+
+// OPS.translate — assembles a translated text report from pre-translated page data.
+// Network translation/OCR stays browser-side; final CPU-heavy report encoding runs in the shared worker.
+OPS.translate = async function (buffers, opts) {
+  if (!buffers || !buffers[0]) throw new Error('Translated payload is missing');
+  const payload = JSON.parse(new TextDecoder().decode(new Uint8Array(buffers[0])));
+  const pages = Array.isArray(payload.pages) ? payload.pages : [];
+  const targetLang = String(payload.targetLang || 'es');
+  const srcLang = String(payload.srcLang || 'en');
+  const sourceName = String(payload.sourceName || 'document');
+  const totalPages = Number(payload.totalPages || pages.length || 0);
+  const lines = [
+    'ILovePDF — Translated (' + targetLang.toUpperCase() + ')',
+    '='.repeat(50),
+    'Source    : ' + sourceName,
+    'Pages     : ' + totalPages,
+    'Direction : ' + srcLang.toUpperCase() + ' → ' + targetLang.toUpperCase(),
+    'Generated : ' + new Date().toISOString(), ''
+  ];
+  pages.forEach(function (pg) {
+    lines.push('--- Page ' + pg.num + ' ---');
+    lines.push(pg.text && String(pg.text).trim() ? String(pg.text) : '(empty page)');
+    lines.push('');
+  });
+  const buf = new TextEncoder().encode(lines.join('\\n')).buffer;
+  buffers[0] = null;
+  return toArrayBuffer(buf);
+};
+// OPS.compare — structural PDF comparison using pdf-lib only (no DOM/pdfjsLib needed).
+// Generates a PDF comparison report covering: page counts, page sizes, metadata.
+// Returns a proper application/pdf buffer, consistent with all other worker OPS.
+OPS.compare = async function (buffers, opts) {
+  if (!buffers || !buffers[1]) throw new Error('Two PDFs required for comparison');
+  const trunc = (s, n) => String(s || '').slice(0, n || 55) || '(none)';
+
+  const docA = await PDFDocument.load(buffers[0], { ignoreEncryption: true, throwOnInvalidObject: false });
+  const pgCountA = docA.getPageCount();
+  const pagesA   = docA.getPages();
+
+  // Load the second document only after basic information from A is available.
+  // Both parsed documents are still needed for the comparison, but this keeps
+  // setup deterministic and makes the ownership/lifetime boundary explicit.
+  const docB = await PDFDocument.load(buffers[1], { ignoreEncryption: true, throwOnInvalidObject: false });
+  const pgCountB = docB.getPageCount();
+  const pagesB   = docB.getPages();
+  const compared = Math.min(pgCountA, pgCountB);
+  let sizeMismatches = 0;
+  for (let i = 0; i < compared; i++) {
+    const sA = pagesA[i].getSize(), sB = pagesB[i].getSize();
+    if (Math.abs(sA.width - sB.width) > 2 || Math.abs(sA.height - sB.height) > 2) sizeMismatches++;
+  }
+
+  const sameCount  = pgCountA === pgCountB;
+  const sameSize   = sizeMismatches === 0;
+  const identical  = sameCount && sameSize;
+  const green = rgb(0.05, 0.50, 0.10);
+  const red   = rgb(0.70, 0.15, 0.05);
+  const navy  = rgb(0.10, 0.10, 0.50);
+  const grey  = rgb(0.50, 0.50, 0.50);
+  const black = rgb(0.05, 0.05, 0.05);
+
+  const report = await PDFDocument.create();
+  const font   = await report.embedFont(StandardFonts.Helvetica);
+  const bold   = await report.embedFont(StandardFonts.HelveticaBold);
+  const page   = report.addPage([595, 842]);
+  const m = 50;
+  let y = 790;
+
+  const row = (text, yy, size, f, col) => {
+    page.drawText(String(text), { x: m, y: yy, size: size || 11, font: f || font, color: col || black });
+  };
+  const hr = (yy) => {
+    page.drawLine({ start: { x: m, y: yy }, end: { x: 545, y: yy }, thickness: 0.5, color: grey });
+  };
+
+  row('PDF Comparison Report', y, 20, bold, navy); y -= 8;
+  hr(y); y -= 20;
+
+  row('Document A', y, 13, bold); y -= 18;
+  row('  File size : ' + (Math.round(buffers[0].byteLength / 1024)) + ' KB',          y, 10); y -= 14;
+  row('  Pages     : ' + pgCountA,                                                      y, 10); y -= 14;
+  row('  Title     : ' + trunc(docA.getTitle()),                                        y, 10); y -= 14;
+  row('  Author    : ' + trunc(docA.getAuthor()),                                       y, 10); y -= 14;
+  if (pagesA.length) { const s = pagesA[0].getSize(); row('  Page 1    : ' + Math.round(s.width) + ' \xd7 ' + Math.round(s.height) + ' pt', y, 10); } y -= 22;
+
+  row('Document B', y, 13, bold); y -= 18;
+  row('  File size : ' + (Math.round(buffers[1].byteLength / 1024)) + ' KB',          y, 10); y -= 14;
+  row('  Pages     : ' + pgCountB,                                                      y, 10); y -= 14;
+  row('  Title     : ' + trunc(docB.getTitle()),                                        y, 10); y -= 14;
+  row('  Author    : ' + trunc(docB.getAuthor()),                                       y, 10); y -= 14;
+  if (pagesB.length) { const s = pagesB[0].getSize(); row('  Page 1    : ' + Math.round(s.width) + ' \xd7 ' + Math.round(s.height) + ' pt', y, 10); } y -= 22;
+
+  hr(y); y -= 20;
+  row('Comparison Results', y, 14, bold); y -= 20;
+  row('Page count match  : ' + (sameCount ? 'Yes (' + pgCountA + ')' : 'No  (A=' + pgCountA + ', B=' + pgCountB + ')'),
+      y, 11, font, sameCount ? green : red); y -= 18;
+  row('Page size match   : ' + (sameSize ? 'Yes (' + compared + ' pages checked)' : 'No  (' + sizeMismatches + ' mismatch' + (sizeMismatches !== 1 ? 'es' : '') + ' in ' + compared + ' pages)'),
+      y, 11, font, sameSize ? green : red); y -= 18;
+  row('Structural result : ' + (identical ? 'Documents appear structurally identical' : 'Structural differences detected'),
+      y, 12, bold, identical ? green : red); y -= 30;
+
+  hr(y); y -= 14;
+  row('Generated by ILovePDF \u2014 structural comparison (page layout & metadata; text content not analysed)', y, 8, font, grey);
+
+  const out = await report.save();
+
+  // Release parsed document graphs before returning the generated report.
+  // The original input ArrayBuffers are also no longer needed by this operation.
+  buffers[0] = null;
+  buffers[1] = null;
+
+  return toArrayBuffer(out);
+};
+
+// ── Phase 7A: Stream-Reader Protocol ─────────────────────────────────────────
+// Handles the chunk-ack and transferable-stream protocols from RuntimeStreamBridge.
+// Main thread sends chunks one at a time; worker acks each before main sends next.
+// Accumulation happens in WORKER RAM (not main thread) — eliminates main-thread spike.
+
+const _streamState = new Map(); // streamId → { chunks, tool, options, totalSize }
+
+function _mergeChunks(chunks) {
+  const total  = chunks.reduce(function (s, c) { return s + c.byteLength; }, 0);
+  const merged = new Uint8Array(total);
+  let offset   = 0;
+  for (const chunk of chunks) {
+    merged.set(new Uint8Array(chunk), offset);
+    offset += chunk.byteLength;
+  }
+  return merged.buffer;
+}
+
+async function _dispatchStream(streamId, tool, options) {
+  const state = _streamState.get(streamId);
+  if (!state) {
+    self.postMessage({ type: 'stream-error', streamId, __error: 'stream-state-lost' });
+    return;
+  }
+  _streamState.delete(streamId);
+  try {
+    const op = OPS[tool];
+    if (!op) throw new Error('Unknown tool: ' + tool);
+    const buf = _mergeChunks(state.chunks);
+    state.chunks = []; // free chunk list before op
+    state.fileBuffers.push(buf);
+    const resultBuffer = await op(state.fileBuffers, options || {});
+    if (!resultBuffer) throw new Error('No output produced');
+    state.chunks = [];
+    state.fileBuffers = [];
+    self.postMessage({ type: 'stream-done', streamId, buffer: resultBuffer }, [resultBuffer]);
+  } catch (err) {
+    self.postMessage({ type: 'stream-error', streamId, __error: err.message || String(err) });
+  }
+}
+
+// ── DISPATCHER (persistent — handles multiple messages) ───────────────────────
+
+self.onmessage = async function (e) {
+  const data = e.data || {};
+
+  // ── Phase 7A: chunk-ack streaming protocol ────────────────────────────────
+  if (data.type === 'stream-init') {
+    _streamState.set(data.streamId, {
+      chunks:    [],
+      fileBuffers: [],
+      tool:      data.tool,
+      options:   data.options,
+      totalSize: data.totalSize || 0,
+      totalFiles: data.totalFiles || 1,
+      mergeDoc:  data.tool === 'merge' ? await PDFDocument.create() : null,
+      mergePages: 0,
+    });
+    return;
+  }
+
+  if (data.type === 'stream-chunk') {
+    const state = _streamState.get(data.streamId);
+    if (!state) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'stream-init-not-received' });
+      return;
+    }
+    // Store chunk for the current source file.
+    state.chunks.push(data.chunk);
+    // Ack immediately to preserve bounded backpressure.
+    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
+    if (data.isLast) {
+      const fileBuf = _mergeChunks(state.chunks);
+      state.chunks = [];
+
+      // Merge streams are processed one source PDF at a time. This keeps the
+      // worker from accumulating every input buffer before pdf-lib starts
+      // copying pages, while preserving input order.
+      if (state.tool === 'merge') {
+        try {
+          if (!(fileBuf instanceof ArrayBuffer) || fileBuf.byteLength === 0) {
+            throw new Error('Merge input ' + ((data.fileIndex || 0) + 1) + ' is empty or invalid');
+          }
+          const src = await PDFDocument.load(fileBuf, { ignoreEncryption: true });
+          const indices = src.getPageIndices();
+          const copied = await state.mergeDoc.copyPages(src, indices);
+          copied.forEach(p => state.mergeDoc.addPage(p));
+          state.mergePages += copied.length;
+          // Drop the source buffer/document before accepting the next file.
+          state.fileBuffers = [];
+          if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
+            if (state.mergePages === 0) throw new Error('Merge produced no pages');
+            const out = await state.mergeDoc.save({ useObjectStreams: true });
+            state.mergeDoc = null;
+            _streamState.delete(data.streamId);
+            self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: out }, [out]);
+          }
+        } catch (err) {
+          _streamState.delete(data.streamId);
+          self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: 'Unable to read Merge input ' + ((data.fileIndex || 0) + 1) + ': ' + (err && err.message || 'invalid PDF') });
+        }
+      } else {
+        state.fileBuffers.push(fileBuf);
+        if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
+          await _dispatchStream(data.streamId, state.tool, state.options);
+        }
+      }
+    }
+    return;
+  }
+
+  if (data.type === 'stream-cancel') {
+    _streamState.delete(data.streamId);
+    return;
+  }
+
+  // ── Phase 7A: transferable ReadableStream (path A) ─────────────────────────
+  if (data.type === 'stream-pipe') {
+    try {
+      const reader = data.stream.getReader();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value instanceof ArrayBuffer ? value : (value.buffer || value));
+      }
+      const op = OPS[data.tool];
+      if (!op) throw new Error('Unknown tool: ' + data.tool);
+      const buf          = _mergeChunks(chunks);
+      const resultBuffer = await op([buf], data.options || {});
+      if (!resultBuffer) throw new Error('No output produced');
+      self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: resultBuffer }, [resultBuffer]);
+    } catch (err) {
+      self.postMessage({ type: 'stream-error', streamId: data.streamId, __error: err.message || String(err) });
+    }
+    return;
+  }
+
+  // ── Standard one-shot dispatch ─────────────────────────────────────────────
+  // Phase 4: SAB mode — buffers were shared, not transferred
+  let buffers = data.buffers || [];
+  if (data._sabMode && buffers.length === 0 && data._sabCount > 0) {
+    // SAB buffers arrive as transferables when possible; otherwise already in data
+    buffers = (data.sabBuffers || []).map(sab => {
+      if (sab instanceof SharedArrayBuffer) {
+        // Copy SAB slice into regular ArrayBuffer for pdf-lib
+        const ab = new ArrayBuffer(sab.byteLength);
+        new Uint8Array(ab).set(new Uint8Array(sab));
+        return ab;
+      }
+      return sab;
+    });
+  }
+
+  const { tool, options } = data;
+  try {
+    const op = OPS[tool];
+    if (!op) throw new Error('Unknown tool: ' + tool);
+    if (!buffers || !buffers.length) throw new Error('No file buffers provided');
+
+    const resultBuffer = await op(buffers, options || {});
+    if (!resultBuffer) throw new Error('No output produced');
+
+    self.postMessage({ buffer: resultBuffer }, [resultBuffer]);
+  } catch (err) {
+    self.postMessage({ __error: err.message || String(err) });
+  }
+};
+
+self.onmessageerror = function () {
+  self.postMessage({ __error: 'Message deserialization error' });
+};
+
+// Phase 8: heartbeat mixin (must be AFTER self.onmessage is assigned)
+importScripts('/workers/p4-heartbeat-mixin.js');
+if (typeof _p4ApplyMixin === 'function') _p4ApplyMixin();

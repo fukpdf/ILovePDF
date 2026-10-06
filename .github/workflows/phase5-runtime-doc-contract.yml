@@ -1,0 +1,15 @@
+name: Phase 5 Runtime Documentation Contract
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  runtime-doc-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:runtime-doc-contract

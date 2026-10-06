@@ -1,0 +1,98 @@
+{
+  "name": "ILovePDF — Free PDF & Image Tools",
+  "short_name": "ILovePDF",
+  "description": "33+ free PDF and image tools online. Merge, split, compress, convert, OCR, AI summarize and more.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#4f46e5",
+  "background_color": "#ffffff",
+  "lang": "en",
+  "dir": "auto",
+  "id": "ilovepdf-pwa",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/merge-pdf",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": "files"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/merge-pdf",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
+    },
+    {
+      "action": "/jpg-to-pdf",
+      "accept": {
+        "image/jpeg": [".jpg", ".jpeg"],
+        "image/png":  [".png"],
+        "image/webp": [".webp"],
+        "image/gif":  [".gif"]
+      }
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Merge PDF",
+      "short_name": "Merge",
+      "description": "Combine multiple PDF files into one",
+      "url": "/merge-pdf?source=pwa-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Compress PDF",
+      "short_name": "Compress",
+      "description": "Reduce PDF file size",
+      "url": "/compress-pdf?source=pwa-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "PDF to Word",
+      "short_name": "PDF\u2192Word",
+      "description": "Convert PDF to editable Word document",
+      "url": "/pdf-to-word?source=pwa-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "AI Summarizer",
+      "short_name": "AI Summary",
+      "description": "Summarize any PDF with AI",
+      "url": "/ai-summarizer?source=pwa-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "ILovePDF Tool Dashboard"
+    }
+  ],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "handle_links": "preferred"
+}

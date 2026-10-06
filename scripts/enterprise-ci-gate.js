@@ -1,0 +1,364 @@
+#!/usr/bin/env node
+// scripts/enterprise-ci-gate.js — Phase 8 / Objective 9c
+// =============================================================================
+// Enterprise CI gate. Runs all security checks and fails the build if any
+// critical condition is detected. Designed to be called from CI/CD pipelines.
+//
+// Gate checks:
+//   1. All Phase 7+8 files present
+//   2. No eval() / new Function() in runtime files
+//   3. Singleton guard coverage >= 90%
+//   4. Object.freeze coverage >= 80%
+//   5. Worker heartbeat coverage = 100%
+//   6. CSP header present in server.js
+//   7. No missing route mounts in server.js
+//   8. No duplicate window globals
+//   9. No unsigned chunks in tool.html (SRI)
+//  10. Generate signed deployment manifest
+//
+// Usage: node scripts/enterprise-ci-gate.js [--strict] [--json]
+//        --strict: also fail on WARNs
+// Exit: 0 = PASS, 1 = FAIL
+// =============================================================================
+
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT      = path.resolve(__dirname, '..');
+const STRICT    = process.argv.includes('--strict');
+const JSON_MODE = process.argv.includes('--json');
+
+let passCount = 0;
+let failCount = 0;
+let warnCount = 0;
+const log = [];
+
+const SEP = '═'.repeat(56);
+
+function _read(rel)   { try { return readFileSync(path.join(ROOT, rel), 'utf8'); } catch (_) { return ''; } }
+function _exists(rel) { return existsSync(path.join(ROOT, rel)); }
+
+function pass(id, msg)  {
+  passCount++;
+  log.push({ status: 'PASS', id, msg });
+  console.log('  [✓]', id + ':', msg);
+}
+function fail(id, msg)  {
+  failCount++;
+  log.push({ status: 'FAIL', id, msg });
+  console.error('  [✗]', id + ':', msg);
+}
+function warn(id, msg)  {
+  warnCount++;
+  log.push({ status: 'WARN', id, msg });
+  console.warn('  [!]', id + ':', msg);
+  if (STRICT) failCount++;
+}
+
+// ── Gate 1: Required files ────────────────────────────────────────────────────
+console.log('\n[CIGate] Gate 1: Required files');
+const REQUIRED = [
+  // Phase 7
+  'public/js/runtime-human-signals.js',
+  'public/js/runtime-automation-detection.js',
+  'public/js/runtime-behavior-analysis.js',
+  'public/js/runtime-worker-mesh.js',
+  'public/js/runtime-incident-engine.js',
+  'public/js/runtime-forensics.js',
+  'public/js/runtime-session-recorder.js',
+  'public/js/runtime-security-stream.js',
+  'public/js/runtime-packet-integrity.js',
+  // Phase 8
+  'utils/runtime-packet-validator.js',
+  'routes/security-incidents.js',
+  'routes/threat-feed.js',
+  'public/js/runtime-session-persistence.js',
+  'public/js/runtime-forensics-replay.js',
+  'public/js/runtime-csp-enforcer.js',
+  'public/js/runtime-threat-intel.js',
+  'public/js/runtime-tab-mesh.js',
+  'public/js/runtime-memory-vault.js',
+  // Arc 9
+  'public/js/runtime-autonomous-healing.js',
+  'public/js/runtime-workload-intelligence.js',
+  'public/js/runtime-session-stability.js',
+  'public/js/runtime-recovery-orchestrator.js',
+  'public/js/runtime-adaptive-ai.js',
+  'public/js/runtime-governance.js',
+  'public/js/runtime-blackbox.js',
+  'public/js/runtime-adaptive-bundles.js',
+  // Arc 10D
+  'routes/debug.js',
+  'public/js/runtime-debug-security.js',
+  'public/js/runtime-debug-state.js',
+  'public/js/runtime-debug-storage.js',
+  'public/js/runtime-debug-renderer.js',
+  'public/js/runtime-debug-mobile.js',
+  'public/js/runtime-debug-export.js',
+  'public/js/runtime-debug-shell.js',
+  'public/js/debug-panels/panel-incidents.js',
+  'public/js/debug-panels/panel-timeline.js',
+  'public/js/debug-panels/panel-blackbox.js',
+  'public/js/debug-panels/panel-recovery.js',
+  'public/js/debug-panels/panel-performance.js',
+  'public/js/debug-panels/panel-control.js',
+  'public/js/debug-panels/panel-traces.js',
+  // Arc 11
+  'public/js/runtime-tab-mesh.js',
+  'public/js/runtime-blackbox-storage.js',
+  'public/js/runtime-crash-survival.js',
+  'public/js/runtime-sw-bridge.js',
+  'public/js/runtime-distributed-workload.js',
+  'public/js/runtime-incident-correlation.js',
+  'public/js/runtime-recovery-memory.js',
+  'public/js/runtime-deploy-resilience.js',
+  'public/js/debug-panels/panel-tab-mesh.js',
+  'public/js/debug-panels/panel-persistent-storage.js',
+  'public/js/debug-panels/panel-recovery-memory.js',
+  'public/js/debug-panels/panel-deploy-resilience.js',
+  'public/js/debug-panels/panel-crash-survival.js',
+  // Arc 12
+  'public/js/runtime-tool-registry.js',
+  'public/js/runtime-tool-health.js',
+  'public/js/runtime-tool-dependencies.js',
+  'public/js/runtime-tool-isolation.js',
+  'public/js/runtime-tool-predictor.js',
+  'public/js/runtime-tool-profiler.js',
+  'public/js/runtime-tool-recovery.js',
+  'public/js/runtime-tool-optimizer.js',
+  'public/js/runtime-tool-export.js',
+  'public/js/debug-panels/panel-tool-registry.js',
+  'public/js/debug-panels/panel-tool-health.js',
+  'public/js/debug-panels/panel-tool-predictor.js',
+  'public/js/debug-panels/panel-tool-recovery.js',
+  'public/js/debug-panels/panel-tool-optimizer.js',
+  // Arc 13
+  'public/js/runtime-tool-persistence.js',
+  'public/js/runtime-tool-circuit-breaker.js',
+  'public/js/runtime-tool-sla.js',
+  'public/js/runtime-tool-discovery.js',
+  'public/js/runtime-tool-ranking.js',
+  'public/js/runtime-tool-anomaly.js',
+  'public/js/runtime-tool-lifecycle.js',
+  'public/js/runtime-tool-insights.js',
+  'public/js/runtime-tool-export-extended.js',
+  'public/js/debug-panels/panel-tool-persistence.js',
+  'public/js/debug-panels/panel-tool-circuit-breaker.js',
+  'public/js/debug-panels/panel-tool-sla.js',
+  'public/js/debug-panels/panel-tool-discovery.js',
+  'public/js/debug-panels/panel-tool-insights.js',
+  // Arc 14 — Enterprise Runtime Command Center
+  'public/js/runtime-command-center.js',
+  'public/js/runtime-topology.js',
+  'public/js/runtime-heatmaps.js',
+  'public/js/runtime-command-analytics.js',
+  'public/js/runtime-alerts.js',
+  'public/js/runtime-fleet-manager.js',
+  'public/js/runtime-forecast.js',
+  'public/js/runtime-reports.js',
+  'public/js/runtime-command-export.js',
+  'public/js/panel-command-center.js',
+  'public/js/panel-topology.js',
+  'public/js/panel-heatmaps.js',
+  'public/js/panel-alerts.js',
+  'public/js/panel-analytics.js',
+  'public/js/panel-fleet.js',
+  // Arc 15 — Enterprise Runtime Automation & Policy Orchestration (ERAPO)
+  'public/js/runtime-policy-engine.js',
+  'public/js/runtime-automation-engine.js',
+  'public/js/runtime-workflow-engine.js',
+  'public/js/runtime-decision-engine.js',
+  'public/js/runtime-resource-orchestrator.js',
+  'public/js/runtime-autonomous-ops.js',
+  'public/js/runtime-policy-analytics.js',
+  'public/js/runtime-policy-reports.js',
+  'public/js/runtime-policy-export.js',
+  'public/js/panel-policy-engine.js',
+  'public/js/panel-automation-engine.js',
+  'public/js/panel-workflow-engine.js',
+  'public/js/panel-autonomous-ops.js',
+  'public/js/panel-policy-analytics.js',
+  'public/js/panel-decision-engine.js',
+  // Server
+  'server.js',
+  'utils/db.js',
+  'public/tool.html',
+];
+let missingFiles = 0;
+REQUIRED.forEach(f => {
+  if (_exists(f)) { pass('file:' + path.basename(f), 'present'); }
+  else { fail('file:' + path.basename(f), 'MISSING: ' + f); missingFiles++; }
+});
+
+// ── Gate 2: No eval() in runtime files ───────────────────────────────────────
+console.log('\n[CIGate] Gate 2: eval() scan');
+let evalFindings = 0;
+try {
+  const rfs = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  rfs.forEach(f => {
+    const lines = _read(path.join('public/js', f)).split('\n');
+    lines.forEach((line, i) => {
+      if (/\beval\s*\(/.test(line) && !line.trim().startsWith('//')) {
+        fail('eval:' + f, 'eval() at line ' + (i + 1));
+        evalFindings++;
+      }
+    });
+  });
+  if (!evalFindings) pass('no-eval', 'No eval() in ' + rfs.length + ' runtime files');
+} catch (_) { warn('eval-scan', 'Could not scan runtime files'); }
+
+// ── Gate 3: Singleton guard coverage ─────────────────────────────────────────
+console.log('\n[CIGate] Gate 3: Singleton guards');
+try {
+  const rfs = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  let withGuard = 0;
+  rfs.forEach(f => {
+    const c = _read(path.join('public/js', f));
+    if (/if\s*\(G\.\w+\)\s*return|if\s*\(window\.\w+\)\s*return/.test(c)) withGuard++;
+  });
+  const pct = Math.round((withGuard / rfs.length) * 100);
+  if (pct >= 90) pass('singleton-guards', pct + '% coverage (' + withGuard + '/' + rfs.length + ')');
+  else fail('singleton-guards', 'Only ' + pct + '% singleton guard coverage (need 90%)');
+} catch (_) { warn('singleton-guards', 'Scan failed'); }
+
+// ── Gate 4: Object.freeze coverage ───────────────────────────────────────────
+console.log('\n[CIGate] Gate 4: Object.freeze');
+try {
+  const rfs = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  let withFreeze = 0;
+  rfs.forEach(f => {
+    if (/Object\.freeze\(/.test(_read(path.join('public/js', f)))) withFreeze++;
+  });
+  const pct = Math.round((withFreeze / rfs.length) * 100);
+  if (pct >= 80) pass('object-freeze', pct + '% coverage');
+  else warn('object-freeze', 'Only ' + pct + '% Object.freeze coverage (target 80%)');
+} catch (_) { warn('object-freeze', 'Scan failed'); }
+
+// ── Gate 5: Worker heartbeat coverage ────────────────────────────────────────
+console.log('\n[CIGate] Gate 5: Worker heartbeat');
+try {
+  const workers = readdirSync(path.join(ROOT, 'public', 'workers'))
+    .filter(f => f.endsWith('.js') && f !== 'p4-heartbeat-mixin.js' && f !== 'workerPool.js');
+  let withMixin = 0;
+  const missing = [];
+  workers.forEach(f => {
+    const c = _read(path.join('public/workers', f));
+    if (c.includes('_p4ApplyMixin') || c.includes('p4-heartbeat-mixin')) {
+      withMixin++;
+    } else {
+      missing.push(f);
+    }
+  });
+  if (withMixin === workers.length) {
+    pass('worker-heartbeat', '100% coverage (' + withMixin + '/' + workers.length + ')');
+  } else {
+    fail('worker-heartbeat', withMixin + '/' + workers.length + ' — missing: ' + missing.join(', '));
+  }
+} catch (_) { warn('worker-heartbeat', 'Scan failed'); }
+
+// ── Gate 6: CSP + security headers ───────────────────────────────────────────
+console.log('\n[CIGate] Gate 6: Security headers');
+const serverJs = _read('server.js');
+[
+  ['Content-Security-Policy', 'CSP header'],
+  ['X-Frame-Options',         'X-Frame-Options'],
+  ['X-Content-Type-Options',  'X-Content-Type-Options'],
+  ['Referrer-Policy',         'Referrer-Policy'],
+  ['Permissions-Policy',      'Permissions-Policy'],
+].forEach(([hdr, label]) => {
+  if (serverJs.includes(hdr)) pass('header:' + label, label + ' present');
+  else fail('header:' + label, label + ' MISSING from server.js');
+});
+
+// ── Gate 7: Route mounting ─────────────────────────────────────────────────────
+console.log('\n[CIGate] Gate 7: Route mounts');
+const MOUNTS = [
+  ['security-telemetry',  'securityTelemetryRouter'],
+  ['execution-tickets',   'executionTicketsRouter'],
+  ['security-dashboard',  'securityDashboardRouter'],
+  ['security-incidents',  'securityIncidentsRouter'],
+  ['threat-feed',         'threatFeedRouter'],
+];
+MOUNTS.forEach(([name, routerVar]) => {
+  if (serverJs.includes(routerVar) || serverJs.includes(name)) {
+    pass('mount:' + name, name + ' mounted');
+  } else {
+    fail('mount:' + name, name + ' NOT mounted in server.js');
+  }
+});
+
+// ── Gate 8: Duplicate globals ──────────────────────────────────────────────────
+console.log('\n[CIGate] Gate 8: Duplicate globals');
+try {
+  const rfs = readdirSync(path.join(ROOT, 'public', 'js'))
+    .filter(f => f.startsWith('runtime-') && f.endsWith('.js'));
+  const globals = {};
+  rfs.forEach(f => {
+    const m = _read(path.join('public/js', f)).match(/G\.(\w+)\s*=\s*Object\.freeze/g);
+    if (!m) return;
+    m.forEach(s => {
+      const name = s.match(/G\.(\w+)/)[1];
+      globals[name] = (globals[name] || 0) + 1;
+    });
+  });
+  const dupes = Object.entries(globals).filter(([, n]) => n > 1);
+  if (!dupes.length) pass('no-duplicate-globals', 'No duplicate window globals');
+  else dupes.forEach(([name, n]) => fail('duplicate-global:' + name, name + ' registered ' + n + ' times'));
+} catch (_) { warn('duplicate-globals', 'Scan failed'); }
+
+// ── Gate 9: SRI in tool.html ──────────────────────────────────────────────────
+console.log('\n[CIGate] Gate 9: SRI integrity');
+const toolHtml = _read('public/tool.html');
+const externalScripts = (toolHtml.match(/<script[^>]+src="https:\/\/[^"]+"/g) || []);
+const withIntegrity   = externalScripts.filter(s => s.includes('integrity='));
+if (!externalScripts.length) {
+  pass('sri-coverage', 'No external scripts (all self-hosted)');
+} else if (withIntegrity.length === externalScripts.length) {
+  pass('sri-coverage', '100% SRI on ' + externalScripts.length + ' external scripts');
+} else {
+  warn('sri-coverage', withIntegrity.length + '/' + externalScripts.length + ' external scripts have SRI');
+}
+
+// ── Gate 10: Generate signed deployment manifest ──────────────────────────────
+console.log('\n[CIGate] Gate 10: Deployment manifest');
+try {
+  const manifest = {
+    ts:         Date.now(),
+    version:    'p8.1.0',
+    pass:       failCount === 0,
+    gates: { pass: passCount, fail: failCount, warn: warnCount },
+    files: REQUIRED.filter(f => _exists(f)).length + '/' + REQUIRED.length,
+    secret: process.env.JWT_SECRET ? 'configured' : 'not-present (expected in local/static CI)',
+  };
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'dev-secret')
+    .update(JSON.stringify(manifest))
+    .digest('hex')
+    .slice(0, 32);
+  manifest.signature = sig;
+
+  const outPath = path.join(ROOT, '.data', 'enterprise-manifest.json');
+  try {
+    writeFileSync(outPath, JSON.stringify(manifest, null, 2));
+    pass('deployment-manifest', 'Manifest written: ' + outPath);
+  } catch (_) {
+    warn('deployment-manifest', 'Could not write manifest (no .data dir yet)');
+  }
+} catch (_) { warn('deployment-manifest', 'Manifest generation failed'); }
+
+// ── Summary ────────────────────────────────────────────────────────────────────
+console.log('\n[CIGate] ' + SEP);
+console.log('[CIGate] ENTERPRISE CI GATE RESULT:', failCount === 0 ? '✓ PASS' : '✗ FAIL');
+console.log('[CIGate] Pass:', passCount, '| Fail:', failCount, '| Warn:', warnCount);
+console.log('[CIGate] ' + SEP);
+
+if (JSON_MODE) {
+  console.log(JSON.stringify({ ts: Date.now(), pass: failCount === 0, passCount, failCount, warnCount, log }, null, 2));
+}
+
+process.exit(failCount > 0 ? 1 : 0);

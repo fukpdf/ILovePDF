@@ -1,0 +1,28 @@
+name: Phase 5 Global i18n Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/phase5-global-i18n-contract-check.js'
+      - 'public/js/i18n.js'
+      - 'public/js/chrome.js'
+      - 'public/locales/**'
+      - 'public/**/*.html'
+      - 'package.json'
+      - '.github/workflows/phase5-global-i18n.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run global i18n contract
+        run: npm run audit:i18n:global

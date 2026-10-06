@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Static fallback sitemap. The Node app serves a dynamic /sitemap.xml from
+     routes/seo-routes.js that overrides this file. Both list canonical clean
+     URLs ( /merge-pdf instead of /tool.html?id=merge ). -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Home -->
+  <url><loc>https://ilovepdf.cyou/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+
+  <!-- Category hub pages -->
+  <url><loc>https://ilovepdf.cyou/pdf-tools</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/convert-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/edit-pdf</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://ilovepdf.cyou/security-tools</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/image-tools</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://ilovepdf.cyou/utilities</loc><changefreq>weekly</changefreq><priority>0.75</priority></url>
+
+  <!-- PDF tools -->
+  <url><loc>https://ilovepdf.cyou/merge-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/split-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/compress-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/rotate-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/crop-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/organize-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Convert -->
+  <url><loc>https://ilovepdf.cyou/pdf-to-word</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/pdf-to-powerpoint</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/pdf-to-excel</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/pdf-to-jpg</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/word-to-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/powerpoint-to-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/excel-to-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/jpg-to-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/html-to-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Edit -->
+  <url><loc>https://ilovepdf.cyou/edit-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/watermark-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/sign-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/add-page-numbers</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/redact-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Security -->
+  <url><loc>https://ilovepdf.cyou/protect-pdf</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/unlock-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Repair / OCR / AI -->
+  <url><loc>https://ilovepdf.cyou/repair-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/scan-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/ocr-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/compare-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/ai-summarizer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/translate-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ilovepdf.cyou/workflow-builder</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Image tools -->
+  <url><loc>https://ilovepdf.cyou/background-remover</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ilovepdf.cyou/crop-image</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/resize-image</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/image-filters</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Utility tools (clean URLs, served from public/*.html via SLUG_MAP direct) -->
+  <url><loc>https://ilovepdf.cyou/numbers-to-words</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/currency-converter</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Legal / blog -->
+  <url><loc>https://ilovepdf.cyou/privacy.html</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://ilovepdf.cyou/terms.html</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://ilovepdf.cyou/disclaimer.html</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://ilovepdf.cyou/blog.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ilovepdf.cyou/blog/merge-pdf-guide.html</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://ilovepdf.cyou/blog/compress-pdf-guide.html</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://ilovepdf.cyou/blog/best-pdf-tools.html</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+</urlset>
