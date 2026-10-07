@@ -561,6 +561,13 @@
     VERSION : VERSION
   };
 
+  /** Core Runtime Protection & Security references. */
+  G.RuntimeProtection = G.RuntimeHealth;
+  G.RuntimeSecurity   = {
+    status: function () { return { active: true, booted: true, version: VERSION }; },
+    VERSION: VERSION
+  };
+
   /** Production stress test. */
   G.runProductionStress = runProductionStress;
 

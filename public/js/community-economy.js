@@ -27,12 +27,19 @@
   // ── Safe accessor ────────────────────────────────────────────────────────
   function _s(fn, def) { try { return fn(); } catch (_) { return def; } }
 
-  // ── Format PKR ───────────────────────────────────────────────────────────
+  // ── Format Numbers & PKR ─────────────────────────────────────────────────
+  function fmtNum(n) {
+    n = Math.round(n || 0);
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 100000)  return (n / 1000).toFixed(0) + 'K';
+    return Number(n).toLocaleString();
+  }
+
   function fmtPKR(n) {
     n = Math.round(n || 0);
     if (n >= 1000000) return '₨' + (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000)    return '₨' + (n / 1000).toFixed(1) + 'K';
-    return '₨' + n;
+    return '₨' + Number(n).toLocaleString();
   }
 
   // ── Smooth count-up animation ─────────────────────────────────────────────
@@ -505,14 +512,14 @@
       countUp(el, val, 900, fmt);
     }
 
-    setCount('ce-today-files',   td.files,    String);
-    setCount('ce-today-users',   td.users,    String);
+    setCount('ce-today-files',   td.files,    fmtNum);
+    setCount('ce-today-users',   td.users,    fmtNum);
     setCount('ce-today-savings', td.savings,  fmtPKR);
-    setCount('ce-today-live',    td.live,     String);
-    setCount('ce-all-files',     at.files,    String);
-    setCount('ce-all-users',     at.users,    String);
+    setCount('ce-today-live',    td.live,     fmtNum);
+    setCount('ce-all-files',     at.files,    fmtNum);
+    setCount('ce-all-users',     at.users,    fmtNum);
     setCount('ce-all-savings',   at.savings,  fmtPKR);
-    setCount('ce-all-ai',        at.aiOps,    String);
+    setCount('ce-all-ai',        at.aiOps,    fmtNum);
   }
 
   // ── Activity ticker ───────────────────────────────────────────────────────

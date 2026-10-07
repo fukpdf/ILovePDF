@@ -185,6 +185,18 @@ STATIC_PAGES.forEach(slug => {
   });
 });
 
+// Clean URLs for blog posts (/blog/:slug)
+app.get('/blog/:slug', (req, res, next) => {
+  const slug = req.params.slug.replace(/\.html$/, '');
+  const filePath = path.join(PUBLIC_DIR, 'blog', `${slug}.html`);
+  if (fs.existsSync(filePath)) {
+    let content = fs.readFileSync(filePath, 'utf8');
+    content = injectNonce(content, res.locals.nonce);
+    return res.type('html').send(content);
+  }
+  next();
+});
+
 // Tool clean-URL routes (upload, preview, download)
 app.get('/:slug', (req, res, next) => {
   const slug = req.params.slug;

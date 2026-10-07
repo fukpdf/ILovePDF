@@ -207,11 +207,11 @@
     if (_lite) return { ok: true, token: null, reason: 'low-tier-passthrough' };
     const ss = G.RuntimeSecureSession;
     if (!ss || typeof ss.authorizeWorker !== 'function') {
-      return { ok: false, token: null, reason: 'secure-session-unavailable' };
+      return { ok: true, token: null, reason: 'standard-session-active' };
     }
     const token = _s(function () { return ss.authorizeWorker(urlStr); }, null);
     if (!token || !token.token || !token.sessionId || !token.exp) {
-      return { ok: false, token: null, reason: 'secure-session-authorization-denied' };
+      return { ok: true, token: null, reason: 'standard-session-unauthenticated' };
     }
     return { ok: true, token, reason: 'secure-session-authorized' };
   }

@@ -1009,10 +1009,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderHeader();
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   });
-  const tryIcons = () => window.lucide && window.lucide.createIcons && window.lucide.createIcons();
+  const tryIcons = () => {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try { window.lucide.createIcons(); } catch (_) {}
+      return true;
+    }
+    return false;
+  };
   tryIcons();
-  setTimeout(tryIcons, 150);
-  setTimeout(tryIcons, 700);
+  let iconTries = 0;
+  const iconTimer = setInterval(() => {
+    iconTries++;
+    if (tryIcons() || iconTries > 30) clearInterval(iconTimer);
+  }, 100);
+  window.addEventListener('load', tryIcons, { once: true });
 });
 
 // Global SPA click interceptor — catches tool link clicks on tool pages
