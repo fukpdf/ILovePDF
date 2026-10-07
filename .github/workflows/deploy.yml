@@ -104,18 +104,6 @@ jobs:
       - name: Deploy Firebase Hosting
         run: |
           npx --yes firebase-tools@13 deploy --only hosting --project ilovepdf-web --non-interactive
-      - name: Deploy Cloudflare Worker
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: cloudflare/worker
-          wranglerVersion: "4"
-          command: deploy
-          secrets: |
-            HF_API_TOKEN
-        env:
-          HF_API_TOKEN: ${{ secrets.HF_TOKEN }}
       - name: Production HTTP smoke validation
         shell: bash
         run: |

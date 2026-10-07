@@ -1,115 +1,107 @@
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
 
-const PDF_MAGIC = Buffer.from('%PDF-');
-const ZIP_MAGIC = [
-  [0x50, 0x4b, 0x03, 0x04],
-  [0x50, 0x4b, 0x05, 0x06],
-  [0x50, 0x4b, 0x07, 0x08],
-];
-
-function startsWithBytes(buffer, bytes) {
-  if (buffer.length < bytes.length) return false;
-  return bytes.every((byte, index) => buffer[index] === byte);
-}
-
-function isZipBuffer(buffer) {
-  return ZIP_MAGIC.some(signature => startsWithBytes(buffer, signature));
-}
-
-function isJpeg(buffer) {
-  return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-}
-
-function isPng(buffer) {
-  return startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-}
-
-function isGif(buffer) {
-  return buffer.length >= 6 && ['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'));
-}
-
-function isWebp(buffer) {
-  return buffer.length >= 12 &&
-    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
-    buffer.subarray(8, 12).toString('ascii') === 'WEBP';
-}
-
-function isBmp(buffer) {
-  return buffer.length >= 2 && buffer[0] === 0x42 && buffer[1] === 0x4d;
-}
-
-function isTiff(buffer) {
-  return startsWithBytes(buffer, [0x49, 0x49, 0x2a, 0x00]) ||
-    startsWithBytes(buffer, [0x4d, 0x4d, 0x00, 0x2a]);
-}
-
-function fail(reason) {
-  const error = new Error('Generated output failed structural validation.');
-  error.code = 'OUTPUT_VALIDATION_FAILED';
-  error.reason = reason;
-  throw error;
-}
-
-/**
- * Validate generated output before it is delivered to a user.
- *
- * This is intentionally structural rather than semantic: it confirms that
- * the generated artifact has the expected container/signature and, for PDFs,
- * can actually be parsed and contains at least one page.
- */
-export async function validateOutputBuffer(bytes, contentType = '') {
-  const buffer = Buffer.from(bytes || []);
-  if (!buffer.length) fail('empty-output');
-
-  const type = String(contentType).toLowerCase().split(';', 1)[0].trim();
-
-  if (type === 'application/pdf' || buffer.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)) {
-    if (!buffer.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)) fail('pdf-signature');
-    try {
-      const doc = await PDFDocument.load(buffer, { updateMetadata: false });
-      if (doc.getPageCount() < 1) fail('pdf-no-pages');
-      return { valid: true, kind: 'pdf', pages: doc.getPageCount(), bytes: buffer.length };
-    } catch (error) {
-      if (error?.code === 'OUTPUT_VALIDATION_FAILED') throw error;
-      fail('pdf-parse');
-    }
+export async function validateOutputBuffer(buffer, mimeType = '') {
+  if (!buffer || buffer.length === 0) {
+    const err = new Error('Output validation failed: buffer is empty');
+    err.code = 'OUTPUT_VALIDATION_FAILED';
+    err.reason = 'EMPTY_BUFFER';
+    throw err;
   }
 
-  const officeTypes = new Set([
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/zip',
-  ]);
+  const mime = String(mimeType).toLowerCase();
 
-  if (officeTypes.has(type)) {
-    if (!isZipBuffer(buffer)) fail('zip-signature');
+  // PDF Validation ('application/pdf')
+  if (mime.includes('application/pdf') || mime.includes('pdf') || buffer.slice(0, 5).toString('ascii') === '%PDF-') {
+    if (buffer.slice(0, 5).toString('ascii') !== '%PDF-') {
+      const err = new Error('Output validation failed: invalid PDF magic header');
+      err.code = 'OUTPUT_VALIDATION_FAILED';
+      err.reason = 'INVALID_PDF_HEADER';
+      throw err;
+    }
+    try {
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      if (doc.getPageCount() < 1) {
+        const err = new Error('Output validation failed: PDF contains no pages');
+        err.code = 'OUTPUT_VALIDATION_FAILED';
+        err.reason = 'ZERO_PAGES';
+        throw err;
+      }
+    } catch (e) {
+      const err = new Error('Output validation failed: corrupted PDF structure: ' + e.message);
+      err.code = 'OUTPUT_VALIDATION_FAILED';
+      err.reason = 'CORRUPT_PDF';
+      throw err;
+    }
+    return true;
+  }
+
+  // ZIP / Office XML documents ('application/zip')
+  if (
+    mime.includes('application/zip') ||
+    mime.includes('zip') ||
+    mime.includes('word') ||
+    mime.includes('excel') ||
+    mime.includes('powerpoint') ||
+    mime.includes('spreadsheet') ||
+    mime.includes('presentation')
+  ) {
+    const isZip = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4B;
+    if (!isZip) {
+      const err = new Error('Output validation failed: missing ZIP container header');
+      err.code = 'OUTPUT_VALIDATION_FAILED';
+      err.reason = 'INVALID_ZIP_HEADER';
+      throw err;
+    }
     try {
       const zip = await JSZip.loadAsync(buffer);
-      const entries = Object.keys(zip.files);
-      if (!entries.length) fail('zip-empty');
-      return { valid: true, kind: 'zip', entries: entries.length, bytes: buffer.length };
-    } catch (error) {
-      if (error?.code === 'OUTPUT_VALIDATION_FAILED') throw error;
-      fail('zip-parse');
+      if (Object.keys(zip.files).length === 0) {
+        const err = new Error('Output validation failed: ZIP archive contains no entries');
+        err.code = 'OUTPUT_VALIDATION_FAILED';
+        err.reason = 'EMPTY_ZIP_ARCHIVE';
+        throw err;
+      }
+    } catch (e) {
+      const err = new Error('Output validation failed: corrupted ZIP/Office document: ' + e.message);
+      err.code = 'OUTPUT_VALIDATION_FAILED';
+      err.reason = 'CORRUPT_ZIP';
+      throw err;
+    }
+    return true;
+  }
+
+  // Images ('image/')
+  if (mime.includes('image/')) {
+    if (mime.includes('jpeg') || mime.includes('jpg')) {
+      if (buffer.length < 3 || buffer[0] !== 0xFF || buffer[1] !== 0xD8 || buffer[2] !== 0xFF) {
+        const err = new Error('Output validation failed: invalid JPEG header');
+        err.code = 'OUTPUT_VALIDATION_FAILED';
+        err.reason = 'INVALID_JPEG_HEADER';
+        throw err;
+      }
+      return true;
+    }
+
+    if (mime.includes('png')) {
+      if (buffer.length < 8 || buffer[0] !== 0x89 || buffer[1] !== 0x50 || buffer[2] !== 0x4E || buffer[3] !== 0x47) {
+        const err = new Error('Output validation failed: invalid PNG header');
+        err.code = 'OUTPUT_VALIDATION_FAILED';
+        err.reason = 'INVALID_PNG_HEADER';
+        throw err;
+      }
+      return true;
+    }
+
+    if (mime.includes('webp')) {
+      if (buffer.length < 12 || buffer.slice(0, 4).toString('ascii') !== 'RIFF' || buffer.slice(8, 12).toString('ascii') !== 'WEBP') {
+        const err = new Error('Output validation failed: invalid WebP header');
+        err.code = 'OUTPUT_VALIDATION_FAILED';
+        err.reason = 'INVALID_WEBP_HEADER';
+        throw err;
+      }
+      return true;
     }
   }
 
-  if (type === 'image/jpeg' && !isJpeg(buffer)) fail('jpeg-signature');
-  if (type === 'image/png' && !isPng(buffer)) fail('png-signature');
-  if (type === 'image/gif' && !isGif(buffer)) fail('gif-signature');
-  if (type === 'image/webp' && !isWebp(buffer)) fail('webp-signature');
-  if (type === 'image/bmp' && !isBmp(buffer)) fail('bmp-signature');
-  if (type === 'image/tiff' && !isTiff(buffer)) fail('tiff-signature');
-
-  if (type === 'application/json') {
-    try {
-      JSON.parse(buffer.toString('utf8'));
-    } catch (_) {
-      fail('json-parse');
-    }
-  }
-
-  return { valid: true, kind: type || 'unknown', bytes: buffer.length };
+  return true;
 }

@@ -1,51 +1,59 @@
-/**
- * Phase 3 — shared file lifecycle primitives.
- *
- * User artifacts are temporary by default. This module centralizes registration,
- * release and safe cleanup without touching permanent/static application assets.
- */
+import crypto from 'crypto';
+import fs from 'fs';
 
-const active = new Map();
-let sequence = 0;
+const registry = new Map();
 
-function normalizePath(value) {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  return value;
-}
-
-export function registerTempArtifact(path, meta = {}) {
-  const filePath = normalizePath(path);
-  if (!filePath) return null;
-  const id = meta.id || `tmp_${Date.now().toString(36)}_${(++sequence).toString(36)}`;
-  active.set(id, {
+export function registerTempArtifact(filePath, metadata = {}) {
+  const id = 'art_' + crypto.randomBytes(8).toString('hex');
+  const record = {
     id,
-    path: filePath,
+    filePath,
     createdAt: Date.now(),
-    kind: meta.kind || 'user-artifact',
-    owner: meta.owner || null,
-  });
+    owner: metadata.owner || 'system',
+    kind: metadata.kind || 'temporary-artifact',
+    meta: metadata,
+  };
+  registry.set(id, record);
   return id;
 }
 
+export function releaseTempArtifact(idOrPath) {
+  if (!idOrPath) return false;
+  let targetId = null;
+  let targetRecord = null;
+
+  if (registry.has(idOrPath)) {
+    targetId = idOrPath;
+    targetRecord = registry.get(idOrPath);
+  } else {
+    for (const [id, rec] of registry.entries()) {
+      if (rec.filePath === idOrPath) {
+        targetId = id;
+        targetRecord = rec;
+        break;
+      }
+    }
+  }
+
+  if (targetRecord) {
+    registry.delete(targetId);
+    try {
+      if (fs.existsSync(targetRecord.filePath)) {
+        fs.unlinkSync(targetRecord.filePath);
+      }
+    } catch (_) {}
+    return true;
+  }
+  return false;
+}
+
+export function listTempArtifacts(filter = {}) {
+  const list = Array.from(registry.values());
+  if (filter.owner) return list.filter(r => r.owner === filter.owner);
+  if (filter.kind) return list.filter(r => r.kind === filter.kind);
+  return list;
+}
+
 export function getTempArtifact(id) {
-  return active.get(id) || null;
-}
-
-export function releaseTempArtifact(id) {
-  if (!id) return false;
-  return active.delete(id);
-}
-
-export function listTempArtifacts() {
-  return Array.from(active.values()).map(item => ({ ...item }));
-}
-
-export function releaseAllTempArtifacts() {
-  const items = listTempArtifacts();
-  active.clear();
-  return items;
-}
-
-export function lifecycleStats() {
-  return { activeArtifacts: active.size };
+  return registry.get(id) || null;
 }
