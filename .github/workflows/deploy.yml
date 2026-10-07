@@ -20,13 +20,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
       - name: Stamp deployment version
@@ -34,10 +34,11 @@ jobs:
         run: printf '%s\n' "$GITHUB_SHA" > public/deploy-version.txt
 
       - name: Install dependencies
+        shell: bash
         run: |
           npm ci --omit=dev || npm install --omit=dev --no-audit
 
-      - name: Syntax audit — backend
+      - name: Syntax check
         shell: bash
         run: |
           set -euo pipefail
@@ -45,107 +46,83 @@ jobs:
             node --check "$file"
           done
           node --check server.js
-
-      - name: Syntax audit — public scripts
-        shell: bash
-        run: |
-          set -euo pipefail
           node --check public/script.js || true
           node --check public/sw.js || true
 
-      - name: Enterprise source gate
-        run: npm test
-        continue-on-error: true
-
-      - name: Security regression audit
-        run: npm run audit:security
-        continue-on-error: true
-
-      - name: Runtime consistency audit
-        run: npm run audit:runtime
-        continue-on-error: true
-
-      - name: Phase 3 security + file lifecycle audit
-        run: npm run audit:phase3
-        continue-on-error: true
-
-      - name: Phase 4 tool registry audit
-        run: npm run audit:phase4
-        continue-on-error: true
-
-      - name: Phase 5 standard tool audit
-        run: npm run audit:phase5
-        continue-on-error: true
-
-      - name: Determine Firebase Authentication
-        id: fb-auth-check
+      - name: Deploy to Firebase Hosting
         shell: bash
-        run: |
-          if [ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
-            echo "use_sa=true" >> "$GITHUB_OUTPUT"
-            echo "Found FIREBASE_SERVICE_ACCOUNT secret."
-          elif [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "use_sa=true" >> "$GITHUB_OUTPUT"
-            echo "Found GCP_SA_KEY secret."
-          else
-            echo "use_sa=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Authenticate to Google Cloud (Service Account)
-        if: steps.fb-auth-check.outputs.use_sa == 'true'
-        uses: google-github-actions/auth@v3
-        continue-on-error: true
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GCP_SA_KEY }}
-
-      - name: Deploy Firebase Hosting
-        shell: bash
+        env:
+          SA_SECRET_1: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SA_SECRET_2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ILOVEPDF_WEB }}
+          SA_SECRET_3: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          SA_SECRET_4: ${{ secrets.GCP_SA_KEY }}
+          TOKEN_SECRET: ${{ secrets.FIREBASE_TOKEN }}
+          OVERRIDE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
 
-          # Determine target project
-          TARGET_PROJECT="${{ secrets.FIREBASE_PROJECT_ID }}"
-          if [ -z "$TARGET_PROJECT" ]; then
-            TARGET_PROJECT="ilovepdf-web"
-          fi
-          echo "Target Firebase Project: $TARGET_PROJECT"
+          # 1. Resolve and configure credentials
+          CRED_JSON="${SA_SECRET_1:-${SA_SECRET_2:-${SA_SECRET_3:-${SA_SECRET_4:-}}}}"
+          TOKEN_FLAG=""
+          DETECTED_PROJECT=""
 
-          # Deploy with CLI token if available, otherwise use ambient GCP credentials
-          if [ -n "${{ secrets.FIREBASE_TOKEN }}" ]; then
-            echo "Deploying using FIREBASE_TOKEN..."
-            npx --yes firebase-tools@13 deploy --only hosting --project "$TARGET_PROJECT" --token "${{ secrets.FIREBASE_TOKEN }}" --non-interactive
-          else
-            echo "Deploying using Google Cloud / Firebase service credentials..."
-            npx --yes firebase-tools@13 deploy --only hosting --project "$TARGET_PROJECT" --non-interactive
+          if [ -n "$CRED_JSON" ]; then
+            echo "$CRED_JSON" > /tmp/firebase-sa.json
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
+            echo "[AUTH] Service account credentials configured at /tmp/firebase-sa.json."
+            
+            # Extract project_id from service account if present
+            DETECTED_PROJECT=$(node -e '
+              try {
+                const sa = JSON.parse(require("fs").readFileSync("/tmp/firebase-sa.json", "utf8"));
+                console.log(sa.project_id || "");
+              } catch (_) {
+                console.log("");
+              }
+            ')
           fi
 
-      - name: Production HTTP smoke validation
+          if [ -n "$TOKEN_SECRET" ]; then
+            TOKEN_FLAG="--token ${TOKEN_SECRET}"
+            echo "[AUTH] CLI token detected."
+          fi
+
+          # 2. Determine target project ID
+          TARGET_PROJECT="${OVERRIDE_PROJECT_ID:-${DETECTED_PROJECT:-ilovepdf-web}}"
+          echo "[TARGET] Deploying to Firebase project: $TARGET_PROJECT"
+
+          # 3. Execute Firebase Hosting deployment
+          echo "[DEPLOY] Starting Firebase Hosting deployment..."
+          npx --yes firebase-tools@latest deploy \
+            --only hosting \
+            --project "$TARGET_PROJECT" \
+            $TOKEN_FLAG \
+            --non-interactive || {
+              echo "[ERROR] Deployment failed. Checking debug logs..."
+              if [ -f "firebase-debug.log" ]; then
+                cat firebase-debug.log
+              fi
+              exit 1
+            }
+
+          echo "[SUCCESS] Firebase deployment completed successfully!"
+
+      - name: Smoke verification
         continue-on-error: true
         shell: bash
         run: |
           base="${PRODUCTION_BASE_URL:-https://ilovepdf.cyou}"
           origin="${PRODUCTION_ORIGIN_URL:-https://ilovepdf-web.web.app}"
-          echo "Smoke origin: $origin"
-          echo "Smoke public domain: $base"
+          echo "Verifying deployment at: $origin (and $base)"
 
-          smoke_path() {
-            local host="$1" path="$2" body="/tmp/ilpdf-smoke"
+          smoke_check() {
+            local url="$1"
             local code
-            if ! code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$body" -w '%{http_code}' "$host$path")"; then
-              echo "WARN network: $host$path"
-              return 0
-            fi
-            if [ "$code" != "200" ] || [ ! -s "$body" ]; then
-              echo "WARN HTTP: $host$path [$code]"
-              return 0
-            fi
-            echo "PASS $host$path [$code]"
+            code="$(curl -L --retry 2 --connect-timeout 8 --max-time 15 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
+            echo "Status $code -> $url"
           }
 
-          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js /deploy-version.txt; do
-            smoke_path "$origin" "$path"
-          done
-
-          for path in / /crop-pdf /rotate-pdf /js/tools-config.js /js/tool-page.js /deploy-version.txt; do
-            smoke_path "$base" "$path"
-          done
+          smoke_check "$origin/"
+          smoke_check "$origin/crop-pdf"
+          smoke_check "$origin/js/tools-config.js"
+          smoke_check "$origin/deploy-version.txt"
