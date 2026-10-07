@@ -283,32 +283,8 @@
       ['XAU','Gold (oz)'],['XAG','Silver (oz)'],['XDR','IMF SDR'],
       ['BTC','Bitcoin'],['ETH','Ethereum'],['USDT','Tether'],['BNB','BNB'],['XRP','XRP'],
     ];
-    const FX_STATIC = {
-      usd:1, eur:0.92, gbp:0.79, jpy:155.0, chf:0.88, cad:1.36, aud:1.52, nzd:1.65,
-      cny:7.25, hkd:7.82, twd:32.0, krw:1370, sgd:1.34, myr:4.7, thb:36.0, idr:15800,
-      vnd:25400, php:57.0, inr:83.4, pkr:278.0, bdt:117, lkr:300.0, npr:133.0, mmk:2100,
-      khr:4100, lak:21000, bnd:1.34, mop:8.06, mvr:15.4, btn:83.4,
-      aed:3.67, sar:3.75, qar:3.64, kwd:0.307, bhd:0.376, omr:0.385, jod:0.709,
-      lbp:89500, syp:13000, irr:42000, iqd:1310, yer:250, afn:71.0, ils:3.7, try:32.5,
-      egp:48.5, mad:9.95, dzd:134.0, tnd:3.13, lyd:4.85, sdg:601, etb:57.0, kes:129,
-      ugx:3760, tzs:2680, ngn:1480, ghs:14.5, zar:18.6, bwp:13.6, nad:18.6, mur:46.0,
-      xof:603, xaf:603, sek:10.6, nok:10.8, dkk:6.85, isk:139, pln:3.95, czk:23.2,
-      huf:362, ron:4.58, bgn:1.80, hrk:6.93, rsd:108, uah:39.5, byn:3.27, rub:92.0,
-      mnt:3380, kzt:475, uzs:12700, azn:1.70, gel:2.70, amd:388, kgs:88.5, tjs:10.9, tmt:3.5,
-      brl:5.05, mxn:17.1, ars:870, clp:945, cop:4080, pen:3.78, uyu:39.5, ves:36.5,
-      bob:6.91, pyg:7300, crc:512, gtq:7.78, hnl:24.7, nio:36.7, pab:1, dop:58.5,
-      cup:24, jmd:155, ttd:6.78, bbd:2, bsd:1, xcd:2.7, htg:132, ang:1.79, awg:1.8,
-      srd:33.5, gyd:209, bzd:2.01,
-      all:93.8, mkd:56.7, bam:1.80, mdl:17.5, zmw:25.8, mwk:1730, aoa:830, mzn:63.9,
-      mga:4500, scr:13.6, rwf:1300, bif:2860, cdf:2780, djf:178, sos:571, sll:22000,
-      lrd:188, gmd:67.5, cve:101, stn:22.6, szl:18.6, lsl:18.6, zwl:13.5,
-      fjd:2.25, pgk:3.92, sbd:8.4, vuv:120, wst:2.74, top:2.36, xpf:109,
-      xau:0.00043, xag:0.034, xdr:0.755,
-      btc:0.0000156, eth:0.00033, usdt:1.0, bnb:0.0017, xrp:1.96
-    };
-
     let FX_RATES = null;
-    let FX_FALLBACK_USED = false;
+    let FX_RATE_DATE = null;
 
     const fetchTimeout = (url, ms = 5000) => new Promise((resolve, reject) => {
       const ctrl = new AbortController();
@@ -324,15 +300,18 @@
         'https://latest.currency-api.pages.dev/v1/currencies/usd.json',
         'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/usd.json'
       ];
-      for (const url of sources) {
-        try {
-          const r = await fetchTimeout(url, 5000);
-          const data = await r.json();
-          if (data && data.usd && typeof data.usd === 'object') return data.usd;
-        } catch (e) { /* try next */ }
+      try {
+        const data = await Promise.any(sources.map(async url => {
+          const response = await fetchTimeout(url, 7000);
+          const body = await response.json();
+          if (!body || !body.usd || typeof body.usd !== 'object') throw new Error('Invalid exchange-rate response');
+          return body;
+        }));
+        FX_RATE_DATE = typeof data.date === 'string' ? data.date : null;
+        return data.usd;
+      } catch (e) {
+        return null;
       }
-      FX_FALLBACK_USED = true;
-      return FX_STATIC;
     }
 
     function fxConvert(amount, from, to){
@@ -364,13 +343,17 @@
       const update = () => {
         const a = parseFloat(amount.value);
         if (!isFinite(a) || a < 0) { result.textContent = '—'; rate.textContent = 'Enter a valid amount.'; return; }
-        if (!FX_RATES) { result.textContent = '—'; rate.textContent = 'Loading rates…'; return; }
+        if (!FX_RATES) {
+          result.textContent = '—';
+          rate.textContent = 'Live exchange rates are unavailable. No estimated rate was used.';
+          return;
+        }
         const v = fxConvert(a, from.value, to.value);
         if (v === null) { result.textContent = '—'; rate.textContent = 'Rate unavailable for this pair.'; return; }
         result.textContent = fmtMoney(v, to.value);
         const one = fxConvert(1, from.value, to.value);
-        const note = FX_FALLBACK_USED ? '  (offline rates)' : '';
-        rate.textContent = `1 ${from.value} = ${one.toFixed(4)} ${to.value}${note}`;
+        const asOf = FX_RATE_DATE ? ` · Rates as of ${FX_RATE_DATE}` : '';
+        rate.textContent = `1 ${from.value} = ${one.toFixed(4)} ${to.value}${asOf}`;
       };
 
       [amount, from, to].forEach(el => el.addEventListener('input', update));
@@ -379,8 +362,7 @@
       goBtn && goBtn.addEventListener('click', update);
 
       rate.textContent = 'Loading rates…';
-      const timeout = new Promise(res => setTimeout(() => { FX_FALLBACK_USED = true; res(FX_STATIC); }, 6000));
-      FX_RATES = await Promise.race([loadRates(), timeout]);
+      FX_RATES = await loadRates();
       update();
     }
 

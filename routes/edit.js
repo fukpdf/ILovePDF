@@ -3,7 +3,7 @@ import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import fs from 'fs';
 import { cleanupFiles, sendPdf } from '../utils/cleanup.js';
 import { createUpload } from '../utils/upload.js';
-import { gsCompress } from '../utils/pdfTools.js';
+import { gsCompress, secureRedactPdf } from '../utils/pdfTools.js';
 
 const router = express.Router();
 const upload = createUpload('pdf');
@@ -11,7 +11,7 @@ const upload = createUpload('pdf');
 // Returns 400 for known client-input errors, 500 for genuine server faults.
 function clientErrStatus(err) {
   const msg = (err && err.message) || '';
-  return /no (file|text|page|input)|invalid|not found|empty|corrupt|no text/i.test(msg) ? 400 : 500;
+  return /no (file|text|page|input)|invalid|not found|empty|corrupt|no text|outside|select at least one|enter valid/i.test(msg) ? 400 : 500;
 }
 
 // Compress — Ghostscript first (real size reduction), pdf-lib fallback
@@ -190,32 +190,20 @@ router.post('/page-numbers', upload.single('pdf'), async (req, res) => {
 router.post('/redact', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Please upload a PDF file.' });
-    const bytes = fs.readFileSync(req.file.path);
-    const doc = await PDFDocument.load(bytes);
-
-    const xPct  = clamp(parseFloat(req.body.x)      || 10, 0, 90) / 100;
-    const yPct  = clamp(parseFloat(req.body.y)       || 40, 0, 90) / 100;
-    const wPct  = clamp(parseFloat(req.body.width)   || 30, 1, 90) / 100;
-    const hPct  = clamp(parseFloat(req.body.height)  || 10, 1, 50) / 100;
-    const pagesParam = (req.body.pages || '1').trim().toLowerCase();
-
-    const allPages = doc.getPages();
-    const targets = pagesParam === 'all'
-      ? allPages.map((_, i) => i)
-      : pagesParam.split(',').map(s => parseInt(s.trim()) - 1).filter(n => !isNaN(n) && n >= 0 && n < allPages.length);
-
-    targets.forEach(i => {
-      const page = allPages[i];
-      const { width, height } = page.getSize();
-      page.drawRectangle({ x: width * xPct, y: height * yPct, width: width * wPct, height: height * hPct, color: rgb(0, 0, 0), opacity: 1 });
+    const outBytes = await secureRedactPdf(req.file.path, {
+      x: req.body.x,
+      y: req.body.y,
+      width: req.body.width,
+      height: req.body.height,
+      pages: req.body.pages || 'all',
     });
-
-    const outBytes = await doc.save();
     cleanupFiles(req.file);
     sendPdf(res, outBytes, 'ilovepdf-redact.pdf');
   } catch (err) {
     cleanupFiles(req.file);
-    res.status(clientErrStatus(err)).json({ error: err.message });
+    res.status(err.code === 'ENOENT' ? 503 : clientErrStatus(err)).json({
+      error: err.code === 'ENOENT' ? 'Secure PDF redaction is temporarily unavailable.' : err.message,
+    });
   }
 });
 

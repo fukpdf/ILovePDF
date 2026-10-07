@@ -220,7 +220,8 @@
       var height = parseInt(document.getElementById('bc-height').value, 10) || 100;
       var fs     = parseInt(document.getElementById('bc-fontsize').value, 10) || 20;
       var margin = parseInt(document.getElementById('bc-margin').value, 10);
-      var showTx = document.getElementById('bc-displayValue').checked;
+      var displayValueInput = document.getElementById('bc-displayValue');
+      var showTx = displayValueInput ? displayValueInput.checked : true;
       var fg     = document.getElementById('bc-fg').value;
       var bg     = document.getElementById('bc-bg').value;
       var errEl  = document.getElementById('bc-error');

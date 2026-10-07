@@ -64,8 +64,14 @@ export async function qpdfReorder(inputPath, orderArray) {
 
 export async function qpdfProtect(inputPath, userPwd, ownerPwd = userPwd) {
   const out = tmpOut();
-  await run('qpdf', ['--encrypt', userPwd, ownerPwd, '256', '--', inputPath, out]);
-  return readAndUnlink(out);
+  try {
+    await run('qpdf', ['--encrypt', userPwd, ownerPwd, '256', '--', inputPath, out]);
+    await run('qpdf', [`--password=${userPwd}`, '--check', out]);
+    return await readAndUnlink(out);
+  } catch (err) {
+    fs.promises.unlink(out).catch(() => {});
+    throw err;
+  }
 }
 
 export async function qpdfUnlock(inputPath, password = '') {

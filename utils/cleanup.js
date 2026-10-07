@@ -39,6 +39,16 @@ export async function sendPdf(res, bytes, filename = 'output.pdf') {
   }
 }
 
+export function sendEncryptedPdf(res, bytes, filename = 'protected.pdf') {
+  const buffer = Buffer.from(bytes || []);
+  if (buffer.length < 500 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+    return res.status(500).json({ error: 'Generated encrypted PDF failed validation.' });
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  return res.send(buffer);
+}
+
 export function placeholder(res, toolName) {
   return res.status(501).json({
     coming_soon: true,

@@ -694,57 +694,38 @@
     return new Blob([best], { type: 'application/pdf' });
   }
 
-  // ── PROTECT PDF (browser-side) ───────────────────────────────────────────
-  // pdf-lib does not support saving encrypted PDFs natively. We use a
-  // visually-protected approach: add a full-page overlay on every page that
-  // mimics a password prompt, and embed the password as a comment in metadata
-  // so it travels with the file. Note: this is a visual lock, not AES
-  // encryption — for true encryption use a dedicated desktop PDF app.
-  async function protect(files, opts) {
-    const { PDFDocument, StandardFonts, rgb, degrees } = await loadPdfLib();
-    const password = String(opts.password || '').trim();
-    if (!password) throw new Error('Please enter a password to protect the PDF');
-    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const bold  = await doc.embedFont(StandardFonts.HelveticaBold);
-    const reg   = await doc.embedFont(StandardFonts.Helvetica);
-    doc.setSubject('Password-protected document');
-    doc.setProducer('ILovePDF');
-    doc.setKeywords([]);
-    const pages = doc.getPages();
-    for (const page of pages) {
-      const { width, height } = page.getSize();
-      const cx = width / 2, cy = height / 2;
-      // Soft overlay to signal protection without covering content entirely
-      page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 1.0), opacity: 0.88 });
-      // Lock body
-      page.drawRectangle({ x: cx - 22, y: cy - 28, width: 44, height: 34, color: rgb(0.18, 0.22, 0.62) });
-      // Lock shackle top bar
-      page.drawRectangle({ x: cx - 12, y: cy + 6,  width: 24, height: 8,  color: rgb(0.18, 0.22, 0.62) });
-      // Lock shackle sides
-      page.drawRectangle({ x: cx - 14, y: cy - 4,  width: 5,  height: 20, color: rgb(0.18, 0.22, 0.62) });
-      page.drawRectangle({ x: cx + 9,  y: cy - 4,  width: 5,  height: 20, color: rgb(0.18, 0.22, 0.62) });
-      // Keyhole
-      page.drawRectangle({ x: cx - 4,  y: cy - 18, width: 8,  height: 12, color: rgb(0.95, 0.95, 1.0) });
-      page.drawRectangle({ x: cx - 2,  y: cy - 22, width: 4,  height: 6,  color: rgb(0.95, 0.95, 1.0) });
-      // Label text
-      const t1 = 'PASSWORD PROTECTED';
-      const t2 = 'Open with a PDF reader that supports encryption';
-      const t3 = `Password hint: ${password.slice(0, 3)}${'*'.repeat(Math.max(0, password.length - 3))}`;
-      page.drawText(t1, { x: (width - bold.widthOfTextAtSize(t1, 15)) / 2, y: cy - 52, size: 15, font: bold,  color: rgb(0.12, 0.15, 0.5) });
-      page.drawText(t2, { x: (width - reg.widthOfTextAtSize(t2, 9))   / 2, y: cy - 72, size: 9,  font: reg,   color: rgb(0.4, 0.4, 0.5) });
-      page.drawText(t3, { x: (width - reg.widthOfTextAtSize(t3, 9))   / 2, y: cy - 86, size: 9,  font: reg,   color: rgb(0.5, 0.3, 0.1) });
+  async function postPdfOperation(endpoint, file, options) {
+    if (!file) throw new Error('Please select a PDF file.');
+    const form = new FormData();
+    form.append('pdf', file, file.name || 'document.pdf');
+    Object.entries(options || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) form.append(key, String(value));
+    });
+
+    const response = await fetch(`/api/${endpoint}`, { method: 'POST', body: form });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || `PDF ${endpoint} failed (${response.status}).`);
     }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/pdf')) {
+      throw new Error(`PDF ${endpoint} returned an unexpected file type.`);
+    }
+    const blob = await response.blob();
+    if (blob.size < 500) throw new Error(`PDF ${endpoint} returned an empty file.`);
+    return blob;
   }
 
-  // ── UNLOCK PDF (browser-side) ────────────────────────────────────────────
-  // Loads with ignoreEncryption and re-saves an unencrypted copy. Works for
-  // PDFs that don't require an owner password to open (the typical case).
-  async function unlock(files) {
-    const { PDFDocument } = await loadPdfLib();
-    const doc = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const out = await doc.save({ useObjectStreams: true });
-    return new Blob([out], { type: 'application/pdf' });
+  // ── PROTECT PDF (server-side encryption) ──────────────────────────────────
+  async function protect(files, opts) {
+    const password = String((opts || {}).password || '').trim();
+    if (!password) throw new Error('Please enter a password to protect the PDF');
+    return postPdfOperation('protect', files[0], { password });
+  }
+
+  // ── UNLOCK PDF (server-side decryption) ───────────────────────────────────
+  async function unlock(files, opts) {
+    return postPdfOperation('unlock', files[0], { password: String((opts || {}).password || '') });
   }
 
   // ── PDF -> JPG (basic, browser-side via pdfjs+canvas) ────────────────────
@@ -1193,22 +1174,7 @@
 
   // ── PHASE 2: REDACT PDF ──────────────────────────────────────────────────
   async function redactPdf(files, opts) {
-    const { PDFDocument, rgb } = await loadPdfLib();
-    const doc   = await PDFDocument.load(await readFileBytes(files[0]), { ignoreEncryption: true });
-    const pages = doc.getPages();
-    const total = pages.length;
-    const xPct  = Math.max(0, parseFloat(opts.x      || '10')) / 100;
-    const yPct  = Math.max(0, parseFloat(opts.y      || '40')) / 100;
-    const wPct  = Math.max(0.01, parseFloat(opts.width  || '30')) / 100;
-    const hPct  = Math.max(0.01, parseFloat(opts.height || '10')) / 100;
-    const targets = (!opts.pages || /^all$/i.test(String(opts.pages).trim()))
-      ? pages
-      : parsePageRange(String(opts.pages), total).map(n => pages[n - 1]).filter(Boolean);
-    for (const page of targets) {
-      const { width, height } = page.getSize();
-      page.drawRectangle({ x: width * xPct, y: height * (1 - yPct - hPct), width: width * wPct, height: height * hPct, color: rgb(0, 0, 0) });
-    }
-    return new Blob([await doc.save()], { type: 'application/pdf' });
+    return postPdfOperation('redact', files[0], opts || {});
   }
 
   // ── Shared OCR line reconstructor ────────────────────────────────────────
@@ -3818,17 +3784,17 @@
         if (t && t.toLowerCase() !== chunk.trim().toLowerCase()) {
           translated.push(t);
         } else {
-          translated.push(chunk); failCount++;
+          failCount++;
         }
-      } catch { translated.push(chunk); failCount++; }
+      } catch { failCount++; }
 
       // Update context: last sentence (max 120 chars) for next chunk
       const sents = chunk.match(/[^.!?]+[.!?]+/g);
       lastSentence = sents && sents.length ? sents[sents.length - 1].trim().slice(-120) : chunk.slice(-120);
     }
 
-    if (failCount === chunks.length) {
-      throw new Error('Translation is temporarily unavailable. Please check your connection and try again in a moment.');
+    if (failCount > 0) {
+      throw new Error(`Translation failed for ${failCount} of ${chunks.length} text sections. No partial result was returned; please try again.`);
     }
 
     const translatedText = translated.join(' ');
@@ -4581,7 +4547,7 @@
   // can safely run inside the shared PDF worker via RuntimeWorkers.
   const WORKER_TOOLS = new Set([
     'merge', 'compress', 'workflow', 'split', 'rotate', 'organize', 'crop',
-    'page-numbers', 'watermark', 'sign', 'redact', 'edit', 'protect', 'unlock', 'compare',
+    'page-numbers', 'watermark', 'sign', 'edit', 'compare',
   ]);
 
   // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
