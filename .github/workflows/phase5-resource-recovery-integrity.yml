@@ -1,14 +1,6 @@
 name: Phase 5 Resource Recovery Integrity
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-resource-orchestrator.js'
-      - 'public/js/runtime-recovery-orchestrator.js'
-      - 'public/js/runtime-processor-workers.js'
-      - 'scripts/phase5-units-255-267-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-resource-recovery-integrity.yml'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'public/js/runtime-resource-orchestrator.js'

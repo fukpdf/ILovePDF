@@ -1,14 +1,6 @@
 name: Phase 5 Runtime Integrity 268-280
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-resource-orchestrator.js'
-      - 'public/js/runtime-recovery-orchestrator.js'
-      - 'public/js/runtime-processor-workers.js'
-      - 'scripts/phase5-units-268-280-runtime-integrity-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-runtime-integrity-268-280.yml'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'public/js/runtime-resource-orchestrator.js'

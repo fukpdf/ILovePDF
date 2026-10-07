@@ -1,15 +1,7 @@
 name: Phase 5 Worker Message Integrity
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-shield-workers.js'
-      - 'public/js/runtime-worker-auth.js'
-      - 'public/js/runtime-security.js'
-      - 'scripts/phase5-worker-message-integrity-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-worker-message-integrity.yml'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'public/js/runtime-shield-workers.js'

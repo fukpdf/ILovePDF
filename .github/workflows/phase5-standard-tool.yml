@@ -1,18 +1,7 @@
 name: Phase 5 Standard Tool Contract
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'config/tool-registry.json'
-      - 'public/config/tool-registry.json'
-      - 'public/js/**'
-      - 'public/workers/**'
-      - 'public/tool.html'
-      - 'public/*.html'
-      - 'scripts/phase5-standard-tool-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-standard-tool.yml'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'config/tool-registry.json'

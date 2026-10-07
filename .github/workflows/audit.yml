@@ -23,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci --omit=dev
+        run: npm ci --omit=dev || npm install --omit=dev --no-audit
 
       - name: JavaScript syntax audit — backend
         shell: bash

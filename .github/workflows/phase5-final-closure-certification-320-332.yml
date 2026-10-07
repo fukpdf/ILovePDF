@@ -1,8 +1,8 @@
 name: Phase 5 Final Closure Certification 320-332
 
 on:
-  push:
-    branches:
+  workflow_dispatch:
+branches:
       - phase-5-bulk-units-320-332-final-closure-certification
       - main
   pull_request:

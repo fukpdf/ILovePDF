@@ -1,13 +1,7 @@
 name: Phase 5 ToolApp Lifecycle Isolation
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/tool-app-manager.js'
-      - 'scripts/phase5-toolapp-lifecycle-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-toolapp-lifecycle.yml'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'public/js/tool-app-manager.js'

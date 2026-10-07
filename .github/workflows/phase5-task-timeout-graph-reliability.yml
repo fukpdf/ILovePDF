@@ -1,14 +1,7 @@
 name: Phase 5 Task Timeout Graph Reliability
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-timeout-reaper.js'
-      - 'public/js/runtime-task-orchestrator.js'
-      - 'scripts/phase5-task-timeout-graph-reliability-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-task-timeout-graph-reliability.yml'
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:

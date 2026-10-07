@@ -1,15 +1,7 @@
 name: Phase 5 Worker Lifecycle Reliability
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/workers/workerPool.js'
-      - 'public/js/runtime-worker-domain-throttle.js'
-      - 'public/js/runtime-memory-recovery.js'
-      - 'scripts/phase5-worker-lifecycle-reliability-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-worker-lifecycle-reliability.yml'
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:

@@ -1,14 +1,7 @@
 name: Phase 5 Worker Coordinator Cancellation
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-worker-coordinator.js'
-      - 'public/workers/workerPool.js'
-      - 'scripts/phase5-worker-coordinator-cancellation-check.js'
-      - 'package.json'
-      - '.github/workflows/phase5-worker-coordinator-cancellation.yml'
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:

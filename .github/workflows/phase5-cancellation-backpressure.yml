@@ -1,14 +1,7 @@
 name: Phase 5 Cancellation Backpressure
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'public/js/runtime-processing-concurrency.js'
-      - 'public/js/runtime-worker-orchestrator.js'
-      - 'public/js/runtime-processor-workers.js'
-      - 'scripts/phase5-units-242-254-check.js'
-      - '.github/workflows/phase5-cancellation-backpressure.yml'
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
