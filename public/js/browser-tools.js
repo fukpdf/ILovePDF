@@ -4546,7 +4546,7 @@
   // Tools whose processing is pure pdf-lib (no DOM, no canvas, no pdfjs) and
   // can safely run inside the shared PDF worker via RuntimeWorkers.
   const WORKER_TOOLS = new Set([
-    'merge', 'compress', 'workflow', 'split', 'rotate', 'organize', 'crop',
+    'compress', 'workflow', 'split', 'rotate', 'organize', 'crop',
     'page-numbers', 'watermark', 'sign', 'edit', 'compare',
   ]);
 
