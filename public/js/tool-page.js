@@ -727,6 +727,37 @@ function renderCloudProviderMenu() {
     '</div></div>';
 }
 
+function normalizeUploadAcceptSpec(spec) {
+  const mimeByExtension = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.txt': 'text/plain',
+    '.zip': 'application/zip'
+  };
+  return String(spec || '')
+    .split(',')
+    .map(function (rule) { return rule.trim().toLowerCase(); })
+    .filter(Boolean)
+    .flatMap(function (rule) {
+      if (rule.startsWith('.') && mimeByExtension[rule]) return [rule, mimeByExtension[rule]];
+      return [rule];
+    })
+    .filter(function (rule, index, list) { return list.indexOf(rule) === index; })
+    .join(',');
+}
+
 function renderBrandedUploadStep(tool, config) {
   const container = document.getElementById('tool-content');
   if (!container) return;
@@ -752,7 +783,7 @@ function renderBrandedUploadStep(tool, config) {
         <p class="ilpdf-branded-subtitle">${config.subtitle || escapeHtml(tool.description)}</p>
 
         <div class="ilpdf-branded-upload-zone" id="upload-area" tabindex="0" role="button" aria-label="${escapeHtml(fileLabel)}">
-          <input type="file" id="file-input" accept="${tool.acceptedFiles}" ${multiAttr}>
+          <input type="file" id="file-input" accept="${normalizeUploadAcceptSpec(tool.acceptedFiles)}" ${multiAttr}>
 
           <div class="ilpdf-branded-action-row">
             <button type="button" class="btn btn-primary ilpdf-branded-select" id="upload-cta-btn">
@@ -1664,6 +1695,25 @@ async function handleFiles(fileList) {
   if (!fileList || fileList.length === 0) return;
 
   const incoming = Array.from(fileList);
+
+  // Validate immediately at selection time so an unsupported file never enters
+  // the upload/preview pipeline. Keep the same BrowserTools validator used by
+  // processing; this is only an early UI guard.
+  if (window.BrowserTools && typeof window.BrowserTools.validateInputFiles === 'function') {
+    const validation = window.BrowserTools.validateInputFiles(
+      incoming,
+      currentTool && currentTool.acceptedFiles,
+      currentTool && currentTool.multipleFiles
+    );
+    if (!validation.ok) {
+      showStatus(
+        'error',
+        _tp('status.invalid_input', 'Invalid input'),
+        validation.message || _tp('status.invalid_input_msg', 'Please check the selected files and try again.')
+      );
+      return;
+    }
+  }
 
   const wrapped = incoming.map(f => ({ file: f, rotation: 0, id: cryptoId() }));
 
