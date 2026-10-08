@@ -10796,3 +10796,15 @@ body:has(.ilpdf-download-page) .site-header {
   background: var(--primary-dark) !important;
   border-color: var(--primary-dark) !important;
 }
+
+
+/* Download CTA — match the actual ILovePDF.cyou homepage brand gradient, not ilovepdf.com red. */
+.ilpdf-download-page .ilpdf-download-primary {
+  background: var(--home-download-brand, linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#9333ea 100%)) !important;
+  border-color: #4f46e5 !important;
+}
+.ilpdf-download-page .ilpdf-download-primary:hover,
+.ilpdf-download-page .ilpdf-download-primary:focus-visible {
+  background: linear-gradient(135deg,#4338ca 0%,#6d28d9 50%,#7e22ce 100%) !important;
+  border-color: #4338ca !important;
+}
