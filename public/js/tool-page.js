@@ -1378,22 +1378,24 @@ function renderDownloadStep(tool) {
                aria-label="Go back and process another file" title="Process another file">
               <i data-lucide="arrow-left"></i>
             </a>
-            <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
-                    aria-label="Save to Google Drive" title="Save to Google Drive" disabled>
-              ${cloudProviderLogo('google-drive')}
-            </button>
-            <button type="button" class="ilpdf-download-circle ilpdf-download-share-trigger"
-                    aria-label="Share download link" title="Share download link">
-              <i data-lucide="link-2"></i>
-            </button>
-            <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
-                    aria-label="Save to Dropbox" title="Save to Dropbox" disabled>
-              ${cloudProviderLogo('dropbox')}
-            </button>
-            <button type="button" class="ilpdf-download-circle ilpdf-download-delete"
-                    aria-label="Clear this result" title="Clear this result">
-              <i data-lucide="trash-2"></i>
-            </button>
+            <div class="ilpdf-download-provider-actions" aria-label="Provider and sharing options">
+              <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
+                      aria-label="Save to Google Drive" title="Save to Google Drive" disabled>
+                ${cloudProviderLogo('google-drive')}
+              </button>
+              <button type="button" class="ilpdf-download-circle ilpdf-download-share-trigger"
+                      aria-label="Share download link" title="Share download link">
+                <i data-lucide="link-2"></i>
+              </button>
+              <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
+                      aria-label="Save to Dropbox" title="Save to Dropbox" disabled>
+                ${cloudProviderLogo('dropbox')}
+              </button>
+              <button type="button" class="ilpdf-download-circle ilpdf-download-delete"
+                      aria-label="Clear this result" title="Clear this result">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
           </div>
         </div>
       </section>
