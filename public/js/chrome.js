@@ -983,10 +983,11 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initChrome() {
   ensureSharedShell();
-  await ensureI18nAssets();
-  renderHeader();
+  renderHeader(); // Synchronous initial render to replace skeleton nav pills immediately
+  try { await ensureI18nAssets(); } catch (_) {}
+  renderHeader(); // Re-render with i18n assets if available
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
@@ -1023,7 +1024,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tryIcons() || iconTries > 30) clearInterval(iconTimer);
   }, 100);
   window.addEventListener('load', tryIcons, { once: true });
-});
+}
+
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  initChrome();
+} else {
+  document.addEventListener('DOMContentLoaded', initChrome);
+}
 
 // Global SPA click interceptor — catches tool link clicks on tool pages
 // (any page that has #tool-content in the DOM) and navigates without reload.
@@ -1074,3 +1081,29 @@ function startAuthStateObserver() {
   tick();
   setInterval(tick, 600);
 }
+
+// Global cookie banner acceptance handler
+window.acceptCookies = function acceptCookies() {
+  try {
+    localStorage.setItem('ilovepdf_cookies', '1');
+    localStorage.setItem('ILovePDF_cookies', '1');
+  } catch (_) {}
+  const banner = document.getElementById('cookie-banner');
+  if (banner) {
+    banner.classList.add('hidden');
+    banner.style.display = 'none';
+  }
+};
+
+// Check cookie consent state on DOMReady
+document.addEventListener('DOMContentLoaded', function () {
+  try {
+    if (localStorage.getItem('ilovepdf_cookies') || localStorage.getItem('ILovePDF_cookies')) {
+      const banner = document.getElementById('cookie-banner');
+      if (banner) {
+        banner.classList.add('hidden');
+        banner.style.display = 'none';
+      }
+    }
+  } catch (_) {}
+});

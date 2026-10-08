@@ -675,16 +675,7 @@ function popularToolsHtml(currentToolId) {
   return `
     <section class="popular-tools" aria-label="Popular tools">
       <h2 class="popular-title">Popular tools</h2>
-      <div class="popular-grid">
-        ${list.map(t => `
-          <a class="popular-card" href="/${t.slug}">
-            <span class="popular-card-body">
-              <span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${homepageIcon(t.slug, t.icon)}"></i></span><span class="popular-card-name-label">${t.name}</span></span>
-              <span class="popular-card-description">${t.description}</span>
-            </span>
-            <span class="popular-card-arrow" aria-hidden="true">→</span>
-          </a>`).join('')}
-      </div>
+      <div class="popular-grid">${list.map(t => `<a class="popular-card" href="/${t.slug}"><span class="popular-card-body"><span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${homepageIcon(t.slug, t.icon)}"></i></span><span class="popular-card-name-label">${t.name}</span></span><span class="popular-card-description">${t.description}</span></span><span class="popular-card-arrow" aria-hidden="true">→</span></a>`).join('')}</div>
     </section>`;
 }
 
@@ -770,22 +761,9 @@ function renderBrandedUploadStep(tool, config) {
             ${cloudButtonsHtml}
           </div>
           <div class="ilpdf-branded-droptext">or drop ${tool.multipleFiles ? 'files' : 'your file'} here</div>
-
-          <div class="ilpdf-branded-benefits" id="upload-benefits-list" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">
-            ${(config.benefits || []).map(function (b) {
-              return `
-                <div class="ilpdf-branded-benefit">
-                  <div class="ilpdf-branded-sticker ${escapeHtml(b.sticker || '')}" aria-hidden="true">
-                    ${b.art || ''}<i data-lucide="${escapeHtml(b.icon || 'check-circle-2')}"></i>
-                  </div>
-                  <div class="ilpdf-branded-benefit-copy">
-                    <strong>${escapeHtml(b.title)}</strong>
-                    <span>${escapeHtml(b.text)}</span>
-                  </div>
-                </div>`;
-            }).join('')}
-          </div>
         </div>
+
+        <div class="ilpdf-branded-benefits" id="upload-benefits-list" aria-label="${escapeHtml(config.benefitsLabel || 'How this tool works')}">${(config.benefits || []).map(function (b) { return `<div class="ilpdf-branded-benefit"><div class="ilpdf-branded-sticker ${escapeHtml(b.sticker || '')}" aria-hidden="true">${b.art || ''}<i data-lucide="${escapeHtml(b.icon || 'check-circle-2')}"></i></div><div class="ilpdf-branded-benefit-copy"><strong>${escapeHtml(b.title)}</strong><span>${escapeHtml(b.text)}</span></div></div>`; }).join('')}</div>
       </section>
 
       ${trustStripHtml()}
@@ -2964,7 +2942,7 @@ function renderSeoContent(tool) {
       <div class="seo-section-block">
         <h3>Why use ${escapeHtml(tool.name)}?</h3>
         <ul class="seo-benefits">
-          ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('\\n          ')}
+          ${extra.benefits.map(b => `<li><strong>${escapeHtml(b.title)}.</strong> ${b.body}</li>`).join('')}
         </ul>
       </div>` : '';
 
@@ -2972,7 +2950,7 @@ function renderSeoContent(tool) {
       <div class="seo-section-block">
         <h3>Common use cases</h3>
         <div class="seo-usecase-grid">
-          ${extra.useCases.slice(0, 4).map(uc => `<div><strong>${escapeHtml(uc.audience)}</strong><span>${uc.body}</span></div>`).join('\\n          ')}
+          ${extra.useCases.slice(0, 4).map(uc => `<div><strong>${escapeHtml(uc.audience)}</strong><span>${uc.body}</span></div>`).join('')}
         </div>
       </div>` : '';
 
@@ -2987,7 +2965,7 @@ function renderSeoContent(tool) {
       </div>
 
       <div class="seo-feature-grid">
-        ${featureItems.map((b, i) => `<article class="seo-feature-card">${renderSeoFeatureVisual(featureIcons[i], i)}<span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('\\n        ')}
+        ${featureItems.map((b, i) => `<article class="seo-feature-card">${renderSeoFeatureVisual(featureIcons[i], i)}<span class="seo-feature-icon"><i data-lucide="${featureIcons[i]}"></i></span><h3>${escapeHtml(b.title)}</h3><p>${b.body}</p></article>`).join('')}
       </div>
 
       <div class="seo-section-block">

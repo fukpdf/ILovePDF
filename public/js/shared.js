@@ -71,8 +71,10 @@ function hideProcessing() {
 
 function acceptCookies() {
   localStorage.setItem('ilovepdf_cookies', '1');
-  document.getElementById('cookie-banner').classList.add('hidden');
+  const banner = document.getElementById('cookie-banner');
+  if (banner) banner.classList.add('hidden');
 }
+window.acceptCookies = acceptCookies;
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {

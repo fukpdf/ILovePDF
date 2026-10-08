@@ -192,6 +192,25 @@
     </div>
   </div>
 
+  <script>
+    function acceptCookies() {
+      try {
+        localStorage.setItem('ilovepdf_cookies', '1');
+        localStorage.setItem('ILovePDF_cookies', '1');
+      } catch (_) {}
+      var banner = document.getElementById('cookie-banner');
+      if (banner) {
+        banner.classList.add('hidden');
+        banner.style.display = 'none';
+      }
+    }
+    try {
+      if (localStorage.getItem('ilovepdf_cookies') || localStorage.getItem('ILovePDF_cookies')) {
+        document.write('<style>#cookie-banner { display: none !important; }</style>');
+      }
+    } catch (_) {}
+  </script>
+
   <script src="/js/config.js"></script>
   <script src="/js/debug-trace.js"></script>
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
@@ -757,7 +776,7 @@
   <script src="/js/app-router.js"></script>
   <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
   <script type="module" src="/js/firebase-init.js"></script>
-  <script src="/js/i18n.js?v=__BUILD_ID__" defer>
+  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
   <script src="/js/chrome.js"></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
@@ -773,7 +792,6 @@
   <script src="/js/tool-content.js" defer></script>
   <script src="/js/tool-state.js" defer></script>
   <script src="/js/session-persist.js" defer></script>
-  </script>
   <script src="/js/i18n-ext.js?v=__BUILD_ID__" defer></script>
   <script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
   <script src="/js/usage-limit.js?v=__BUILD_ID__" defer></script>

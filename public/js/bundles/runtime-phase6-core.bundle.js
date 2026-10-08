@@ -52,7 +52,7 @@
       ['SharedArrayBuffer', G.SharedArrayBuffer],
       // Crypto
       ['crypto',          G.crypto],
-      ['SubtleCrypto',    G.crypto && G.crypto.subtle],
+      ['SubtleCrypto',    G.SubtleCrypto],
       // Core JS
       ['JSON',            G.JSON],
       ['Array',           G.Array],
@@ -115,6 +115,13 @@
     var original = _originals[name];
     if (original === undefined) return false;
     try {
+      if (name === 'SubtleCrypto') {
+        var current = G.SubtleCrypto;
+        if (typeof current === 'function' && typeof original === 'function') {
+          return false;
+        }
+        return current !== original;
+      }
       return G[name] !== original;
     } catch (_) {
       return false;

@@ -123,27 +123,41 @@
     if (_intercepted) return;
     _intercepted = true;
 
-    var _origGetDocument = pdfjs.getDocument.bind(pdfjs);
+    try {
+      var descriptor = Object.getOwnPropertyDescriptor(pdfjs, 'getDocument');
+      if (descriptor && (descriptor.writable === false || descriptor.configurable === false)) {
+        console.info(LOG, 'pdfjsLib.getDocument is read-only or non-configurable, skipping intercept');
+        return;
+      }
+      if (Object.isFrozen(pdfjs) || !Object.isExtensible(pdfjs) || (typeof Symbol !== 'undefined' && pdfjs[Symbol.toStringTag] === 'Module')) {
+        console.info(LOG, 'pdfjsLib is frozen or an ES Module, skipping intercept');
+        return;
+      }
 
-    pdfjs.getDocument = function (src) {
-      var task = _origGetDocument(src);
-      // Wrap the promise to auto-register on success
-      var origPromise = task.promise;
-      task.promise = origPromise.then(function (pdfDoc) {
-        var label = (typeof src === 'string') ? src.split('/').pop().slice(-40) : 'pdfjs-doc';
-        var handle = register(pdfDoc, { label: label });
-        // Patch destroy so done() fires on normal cleanup
-        var origDestroy = pdfDoc.destroy.bind(pdfDoc);
-        pdfDoc.destroy = function () {
-          handle.done();
-          return origDestroy();
-        };
-        return pdfDoc;
-      });
-      return task;
-    };
+      var _origGetDocument = pdfjs.getDocument.bind(pdfjs);
 
-    console.info(LOG, 'pdfjsLib.getDocument intercepted — auto-tracking all PDF docs');
+      pdfjs.getDocument = function (src) {
+        var task = _origGetDocument(src);
+        // Wrap the promise to auto-register on success
+        var origPromise = task.promise;
+        task.promise = origPromise.then(function (pdfDoc) {
+          var label = (typeof src === 'string') ? src.split('/').pop().slice(-40) : 'pdfjs-doc';
+          var handle = register(pdfDoc, { label: label });
+          // Patch destroy so done() fires on normal cleanup
+          var origDestroy = pdfDoc.destroy.bind(pdfDoc);
+          pdfDoc.destroy = function () {
+            handle.done();
+            return origDestroy();
+          };
+          return pdfDoc;
+        });
+        return task;
+      };
+
+      console.info(LOG, 'pdfjsLib.getDocument intercepted — auto-tracking all PDF docs');
+    } catch (e) {
+      console.warn(LOG, 'pdfjsLib.getDocument is read-only ES module, skipping intercept:', e.message);
+    }
   }
 
   // ── Sweep loop ───────────────────────────────────────────────────────────────
