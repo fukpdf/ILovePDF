@@ -6,26 +6,10 @@
 //   - DedupeKey includes rotation angle and page range
 //   - No artificial processing-time cutoff; cancellation/runtime pressure remain available
 //
-// DESIGN: Monkey-patches BrowserTools.process('rotate', ...) only.
-//   - All other tools: completely unaffected
-//   - processFile() in tool-page.js: zero modifications
-//   - tryWithRetry(), OutputValidator, showStatus, Flow: zero modifications
-//   - Runtime failures remain visible to the caller; no hidden legacy fallback is used.
-//
-//
-// [FUTURE: StreamEngine] Replace _readFile() in RotateWorkerAdapter with
-// OPFS byte-range chunks when StreamEngine ships.
-//
-// [FUTURE: IndexedDB] Persist rotated result to IDB before handing URL to
-// showStatus() so refresh-after-rotate recovers the file without re-processing.
-//
-// [FUTURE: OPFSRuntime] Write intermediate rotated buffer to OPFS to avoid
-// buffer+Blob double-hold in the JS heap on large single-file PDFs.
-//
-// [FUTURE: AIOrchestrator] After rotate:success, optionally trigger
-// CentralRuntime.runAiTask('verify-orientation', outputBlob) to confirm
-// all pages are in the expected orientation.
-//
+// DESIGN: Canonical worker runtime owned by BrowserTools + execution policy.
+// BrowserTools.process('rotate', ...) already has the single worker-pool path.
+// This runtime remains available as a lifecycle/diagnostics helper but MUST NOT
+// monkey-patch BrowserTools.process or create a second execution pipeline.
 // Exposed as: window.RotateRuntime
 (function () {
   'use strict';
@@ -38,7 +22,6 @@
 
   // ── Per-run state ─────────────────────────────────────────────────────────
   // All state resets between runs via _resetRunState().
-  var _origProcess  = null; // saved before patch; never overwritten
   var _currentToken = null; // RuntimeCancellation token for active run
   var _currentSpan  = null; // RuntimeTelemetry span for full run
   var _progressTask = null; // RuntimeProgress task (scheduler-fallback only)
@@ -339,32 +322,12 @@
     }
   }
 
-  // ── Monkey-patch ──────────────────────────────────────────────────────────
-  // [Task Group R002] Intercepts BrowserTools.process for 'rotate' ONLY.
-  // All other tools pass through to _origProcess unchanged.
-  // Idempotent: _origProcess guard prevents double-patching.
+  // ── BrowserTools ownership ───────────────────────────────────────────────
+  // Rotate is executed by BrowserTools' canonical worker-pool path. Keeping
+  // this runtime free of process interception prevents the same duplicate
+  // pipeline failure class fixed in Merge PDF.
   function _patchBrowserTools() {
-    if (!window.BrowserTools || _origProcess) return;
-
-    // Check whether MergeRuntime already saved _origProcess.
-    // If so, we wrap the ALREADY-PATCHED function — this means we must
-    // unwrap by checking toolId before delegating non-rotate calls.
-    // Since MergeRuntime's patch also passes non-merge through to its own
-    // _origProcess, the chain is: rotate-patch → merge-patch → original.
-    // This is correct: each patch layer handles only its own toolId.
-    _origProcess = window.BrowserTools.process.bind(window.BrowserTools);
-
-    window.BrowserTools.process = function (toolId, files, options) {
-      if (toolId !== 'rotate') return _origProcess(toolId, files, options);
-      // rotate receives files as array from tryWithRetry; extract file[0]
-      var file = Array.isArray(files) ? files[0] : files;
-      return execute(file, options || {});
-    };
-
-    console.debug(LOG, 'BrowserTools.process patched for rotate-pdf runtime routing');
-
-    // Expose original for emergency bypass
-    window.BrowserTools._origRotateProcess = _origProcess;
+    return false;
   }
 
   // ── Streaming markers ─────────────────────────────────────────────────────
@@ -407,25 +370,8 @@
   // ── Apply patch (deferred safety) ─────────────────────────────────────────
   // rotate-runtime.js loads after browser-tools.js and merge-runtime.js,
   // so BrowserTools is available synchronously. Retry loop is a safety net.
-  (function _applyPatch() {
-    if (window.BrowserTools) {
-      _patchBrowserTools();
-      _registerStreamMarkers();
-    } else {
-      var retries = 0;
-      var tid = setInterval(function () {
-        retries++;
-        if (window.BrowserTools) {
-          clearInterval(tid);
-          _patchBrowserTools();
-          _registerStreamMarkers();
-        } else if (retries > 20) {
-          clearInterval(tid);
-          console.warn(LOG, 'BrowserTools not found after 20 attempts — patch skipped');
-        }
-      }, 100);
-      if (window.TimerRegistry) window.TimerRegistry.registerInterval(OWNER + '-patch-retry', tid);
-    }
+  (function _initializeRuntime() {
+    _registerStreamMarkers();
   })();
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -437,7 +383,7 @@
     // Diagnostics
     getDiagnostics: function () {
       return {
-        patchActive:    !!_origProcess,
+        patchActive:    false,
         activeToken:    _currentToken ? { id: _currentToken.id, cancelled: _currentToken.cancelled } : null,
         activeSpan:     _currentSpan,
         progressTask:   _progressTask ? _progressTask.taskId : null,
