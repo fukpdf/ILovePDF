@@ -1384,12 +1384,11 @@ function renderDownloadStep(tool) {
       </div>
     </div>`;
 
-  if (window.lucide) lucide.createIcons();
-
   const area = document.getElementById('result-area');
   if (area) {
-    // UI-only: use the processed file extension to present the same concise
-    // download wording used by the reference iLovePDF result page.
+    // UI-only: preserve the real result anchor (href + download filename)
+    // and only refresh its visible label/icon. Do this BEFORE lucide renders
+    // the icon so we never accidentally strip the icon from the real CTA.
     const realDownload = area.querySelector('a[download]');
     if (realDownload) {
       const filename = realDownload.getAttribute('download') || '';
@@ -1408,14 +1407,13 @@ function renderDownloadStep(tool) {
         zip: 'Download ZIP',
       };
       const label = labels[ext] || 'Download File';
-      const icon = realDownload.querySelector('[data-lucide]');
-      realDownload.innerHTML = '';
-      if (icon) realDownload.appendChild(icon);
-      realDownload.appendChild(document.createTextNode(' ' + label));
+      realDownload.innerHTML = '<i data-lucide="download" aria-hidden="true"></i>' + label;
     }
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
+
+  if (window.lucide) lucide.createIcons();
 
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
