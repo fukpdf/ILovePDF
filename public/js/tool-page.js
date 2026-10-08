@@ -1346,22 +1346,6 @@ function renderDownloadStep(tool) {
             ${Flow.result ? Flow.result.html : ''}
           </div>
 
-          <aside class="ilpdf-download-side-actions" aria-label="Download page actions">
-            <div class="ilpdf-download-side-block">
-              <span class="ilpdf-download-side-label">Need to make a change?</span>
-              <a href="/${slug}" class="ilpdf-download-side-link" data-go-step="upload">
-                <i data-lucide="rotate-ccw"></i><span>Process another file</span>
-              </a>
-            </div>
-            <div class="ilpdf-download-side-block">
-              <span class="ilpdf-download-side-label">Share this tool</span>
-              <div class="ilpdf-share-links">
-                <a class="ilpdf-share-link" href="#" data-share-network="facebook" aria-label="Share on Facebook">Facebook</a>
-                <a class="ilpdf-share-link" href="#" data-share-network="x" aria-label="Share on X">X</a>
-                <a class="ilpdf-share-link" href="#" data-share-network="linkedin" aria-label="Share on LinkedIn">LinkedIn</a>
-              </div>
-            </div>
-          </aside>
         </div>
       </section>
 
@@ -1427,29 +1411,6 @@ function renderDownloadStep(tool) {
       realDownload.innerHTML = '<i data-lucide="download" aria-hidden="true"></i><span>' + label + '</span>';
       realDownload.setAttribute('aria-label', label);
       area.querySelector('.ilpdf-download-cta-wrap').appendChild(realDownload);
-    }
-    // UI-only: preserve the real result anchor (href + download filename)
-    // and only refresh its visible label/icon. Do this BEFORE lucide renders
-    // the icon so we never accidentally strip the icon from the real CTA.
-    const realDownload = area.querySelector('a[download]');
-    if (realDownload) {
-      const filename = realDownload.getAttribute('download') || '';
-      const ext = (filename.split('.').pop() || '').toLowerCase();
-      const labels = {
-        pdf: 'Download PDF',
-        doc: 'Download WORD',
-        docx: 'Download WORD',
-        ppt: 'Download POWERPOINT',
-        pptx: 'Download POWERPOINT',
-        xls: 'Download EXCEL',
-        xlsx: 'Download EXCEL',
-        jpg: 'Download JPG',
-        jpeg: 'Download JPG',
-        png: 'Download PNG',
-        zip: 'Download ZIP',
-      };
-      const label = labels[ext] || 'Download File';
-      realDownload.innerHTML = '<i data-lucide="download" aria-hidden="true"></i>' + label;
     }
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
