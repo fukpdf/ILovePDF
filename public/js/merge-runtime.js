@@ -184,15 +184,11 @@
   // Merge owns one execution engine only. Do not monkey-patch BrowserTools.process:
   // its merge entry is routed to the canonical scheduler/worker runtime.
   function _patchBrowserTools() {
-    if (!window.BrowserTools || _origProcess) return;
-    _origProcess = window.BrowserTools.process.bind(window.BrowserTools);
-    window.BrowserTools.process = function (toolId, files, options) {
-      if (toolId !== 'merge') return _origProcess(toolId, files, options);
-      var list = Array.isArray(files) ? files : (files ? [files] : []);
-      return execute(list, options || {});
-    };
+    // Merge is intentionally owned by BrowserTools' stable pdf-lib processor.
+    // Do not monkey-patch BrowserTools.process or redirect Merge into a second
+    // worker pipeline; the page runtime already provides lifecycle/cancellation.
     _registerStreamMarkers();
-    console.debug(LOG, 'MergeRuntime ready — RuntimeScheduler + RuntimeWorkers');
+    console.debug(LOG, 'MergeRuntime ready — BrowserTools pdf-lib engine');
   }
 
   function _registerStreamMarkers() {
