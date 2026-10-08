@@ -77,8 +77,8 @@
       "validation": "shared-output-validator",
       "capabilities": {
         "lazyLoad": true,
-        "streaming": "adaptive-worker",
-        "workerPool": true,
+        "streaming": "not-applicable",
+        "workerPool": false,
         "fileSizePolicy": "unlimited"
       }
     },
