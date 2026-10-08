@@ -10520,3 +10520,60 @@ body:has(.ilpdf-download-page) .site-header {
   background: var(--primary-dark) !important;
   box-shadow: 0 5px 12px rgba(79,70,229,.28);
 }
+
+/* Download action row — one horizontal line, split left/right */
+.ilpdf-download-page .ilpdf-download-cloud-actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.ilpdf-download-page .ilpdf-download-back {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  background: #fff !important;
+  color: var(--text) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 6px rgba(15,23,42,.08);
+}
+.ilpdf-download-page .ilpdf-download-provider-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-download-circle {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(15,23,42,.08);
+}
+.ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-cloud-dropbox {
+  background: #fff;
+  color: var(--text);
+  border-color: #e2e8f0;
+}
+.ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-download-delete {
+  background: #fff !important;
+  color: var(--text) !important;
+  border-color: #e2e8f0 !important;
+}
+@media (max-width: 480px) {
+  .ilpdf-download-page .ilpdf-download-cloud-actions { gap: 8px; }
+  .ilpdf-download-page .ilpdf-download-back,
+  .ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-download-circle {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+  .ilpdf-download-page .ilpdf-download-provider-actions { gap: 5px; }
+}
