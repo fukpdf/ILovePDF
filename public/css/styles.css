@@ -10808,3 +10808,56 @@ body:has(.ilpdf-download-page) .site-header {
   background: linear-gradient(135deg,#4338ca 0%,#6d28d9 50%,#7e22ce 100%) !important;
   border-color: #4338ca !important;
 }
+
+
+/* Download action cards — increase desktop/tablet size by 30%, preserve mobile fit. */
+@media (min-width: 481px) {
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-back {
+    flex-basis: 49px !important;
+    width: 49px !important;
+    min-width: 49px !important;
+    max-width: 49px !important;
+    height: 75px !important;
+  }
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-provider-actions .ilpdf-download-circle {
+    flex-basis: 48px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    height: 72px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-back {
+    flex-basis: 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+  }
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-provider-actions .ilpdf-download-circle {
+    flex-basis: 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    height: 42px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-back {
+    flex-basis: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+  }
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-provider-actions .ilpdf-download-circle {
+    flex-basis: 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    height: 36px !important;
+  }
+}
