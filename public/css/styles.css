@@ -9925,281 +9925,362 @@ body:has(.ilpdf-download-page) .site-header {
 
 
 /* ============================================================
-   DOWNLOAD RESULT — premium iLovePDF-style result hierarchy
-   UI only: the real download anchor remains the source of truth.
+   DOWNLOAD RESULT — iLovePDF reference layout
+   UI only. Processing, result capture and download anchor are untouched.
    ============================================================ */
+
 .ilpdf-download-page {
-  background: #f7f7f8;
+  width: 100% !important;
+  max-width: 1120px !important;
+  margin: 0 auto !important;
+  padding: 0 24px 64px !important;
+  box-sizing: border-box;
+  background: #f7f7fb;
+  text-align: center;
 }
 
 .ilpdf-download-page .ilpdf-download-hero {
-  width: min(1120px, calc(100% - 48px));
+  width: 100%;
   margin: 0 auto;
-  padding: 54px 0 34px;
+  padding: 42px 0 34px;
 }
 
 .ilpdf-download-heading {
   margin: 0 auto 30px;
-  text-align: center;
-  color: #252525;
-  font-size: clamp(28px, 3.2vw, 40px);
-  line-height: 1.16;
-  font-weight: 800;
+  color: #303036;
+  font-size: clamp(26px, 3.05vw, 36px);
+  line-height: 1.2;
+  font-weight: 700;
   letter-spacing: -.025em;
 }
 
 .ilpdf-download-main {
-  width: 100%;
-  min-height: 270px;
+  width: min(100%, 760px);
+  min-height: 100px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) 230px;
+  grid-template-columns: 54px minmax(280px, 390px) 100px;
   align-items: center;
-  gap: 26px;
+  justify-content: center;
+  gap: 12px;
 }
 
 .ilpdf-download-back {
   width: 44px;
   height: 44px;
-  border: 1px solid #d9dce1;
-  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  color: #555b66;
-  box-shadow: 0 2px 7px rgba(0,0,0,.05);
+  border: 0;
+  border-radius: 50%;
+  background: #34363a;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,.18);
+  transition: transform .15s ease, background .15s ease;
 }
 
-.ilpdf-download-back:hover {
-  color: #e5322e;
-  border-color: #e5322e;
+.ilpdf-download-back:hover,
+.ilpdf-download-back:focus-visible {
+  background: #24262a;
+  color: #fff;
+  transform: translateX(-2px);
 }
 
 .ilpdf-download-back svg {
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.5;
 }
 
 .ilpdf-download-main .download-result {
   min-width: 0;
   min-height: 0;
+  margin: 0;
 }
 
-.ilpdf-download-result-card {
-  width: min(620px, 100%);
-  margin: 0 auto;
-  padding: 30px 34px 24px;
-  border: 1px solid #e1e3e6;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(30,35,45,.07);
-  text-align: center;
-}
-
-.ilpdf-download-file-name {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-width: 0;
-  margin-bottom: 20px;
-  color: #4c525b;
-  font-size: .9rem;
-  font-weight: 600;
-}
-
-.ilpdf-download-file-name svg {
-  width: 19px;
-  height: 19px;
-  color: #e5322e;
-  flex: 0 0 auto;
-}
-
-.ilpdf-download-file-name span {
-  max-width: min(460px, 75vw);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.ilpdf-download-reference-result,
 .ilpdf-download-cta-wrap {
-  display: flex;
-  justify-content: center;
+  width: 100%;
 }
 
 .ilpdf-download-primary {
-  width: min(390px, 100%);
-  min-height: 64px !important;
-  padding: 0 28px !important;
-  border-radius: 8px !important;
-  font-size: 1.02rem !important;
-  font-weight: 750 !important;
-  letter-spacing: -.005em;
-  box-shadow: 0 7px 16px rgba(229,50,46,.18);
+  width: 100%;
+  min-height: 66px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 16px 24px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: #e5322e !important;
+  color: #fff !important;
+  font-size: 20px !important;
+  line-height: 1;
+  font-weight: 700 !important;
+  text-decoration: none;
+  box-shadow: 0 3px 8px rgba(229,50,46,.24);
+  transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
+}
+
+.ilpdf-download-primary:hover,
+.ilpdf-download-primary:focus-visible {
+  background: #d82d29 !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(229,50,46,.28);
 }
 
 .ilpdf-download-primary svg {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.7;
 }
 
-.ilpdf-download-under-actions {
-  margin-top: 19px;
-  padding-top: 17px;
-  border-top: 1px solid #eceef1;
-  display: flex;
+.ilpdf-download-cloud-actions {
+  width: 92px;
+  display: grid;
+  grid-template-columns: repeat(2, 42px);
+  gap: 8px;
+  justify-content: end;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
 }
 
-.ilpdf-download-under-link,
-.ilpdf-download-share-caption {
-  font-size: .76rem;
-  line-height: 1.4;
-  color: #7b818a;
-}
-
-.ilpdf-download-under-link {
+.ilpdf-download-circle {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.ilpdf-download-under-link:hover {
-  color: #e5322e;
-}
-
-.ilpdf-download-under-link svg {
-  width: 14px;
-  height: 14px;
-}
-
-.ilpdf-download-share-caption {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.ilpdf-download-share-links {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  margin-left: 5px;
-}
-
-.ilpdf-download-share-link,
-.ilpdf-share-link {
-  color: #5f6670;
-  font-weight: 650;
-}
-
-.ilpdf-download-share-link:hover,
-.ilpdf-share-link:hover {
-  color: #e5322e;
-}
-
-.ilpdf-download-side-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  align-self: stretch;
   justify-content: center;
+  background: #e5322e;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(229,50,46,.18);
 }
 
-.ilpdf-download-side-block {
-  padding-left: 18px;
-  border-left: 1px solid #dedfe2;
+.ilpdf-download-circle svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.4;
 }
 
-.ilpdf-download-side-label {
-  display: block;
-  margin-bottom: 8px;
-  color: #8a8f97;
-  font-size: .7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+.ilpdf-download-circle:not(:disabled) {
+  cursor: pointer;
+  transition: transform .14s ease, background .14s ease;
 }
 
-.ilpdf-download-side-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #4e545d;
-  font-size: .82rem;
-  font-weight: 650;
+.ilpdf-download-circle:not(:disabled):hover,
+.ilpdf-download-circle:not(:disabled):focus-visible {
+  background: #d82d29;
+  color: #fff;
+  transform: translateY(-1px);
 }
 
-.ilpdf-download-side-link:hover {
-  color: #e5322e;
+.ilpdf-download-circle:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
-.ilpdf-download-side-link svg {
-  width: 15px;
-  height: 15px;
+.ilpdf-download-action-disabled svg {
+  width: 22px;
+  height: 22px;
 }
 
-.ilpdf-download-side-actions .ilpdf-share-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 13px;
-}
-
-.ilpdf-download-side-actions .ilpdf-share-link {
-  font-size: .8rem;
+.ilpdf-download-action-disabled.ilpdf-cloud-google svg,
+.ilpdf-download-action-disabled.ilpdf-cloud-dropbox svg {
+  width: 22px;
+  height: 22px;
 }
 
 .ilpdf-download-page .ilpdf-continue-card,
 .ilpdf-download-page .ilpdf-thanks-card {
-  width: min(1120px, calc(100% - 48px));
-  margin-left: auto;
-  margin-right: auto;
+  width: min(930px, 100%);
+  margin: 0 auto;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid #e7e5e2;
+  box-shadow: 0 1px 2px rgba(15,23,42,.03);
 }
 
 .ilpdf-download-page .ilpdf-continue-card {
-  margin-top: 10px;
+  margin-top: 0;
+  padding: 22px 24px 18px;
+  text-align: left;
+}
+
+.ilpdf-download-page .ilpdf-continue-title {
+  margin-bottom: 14px;
+  color: #303036;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ilpdf-download-page .related-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.ilpdf-download-page .related-tool-card {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #36373c;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ilpdf-download-page .related-tool-card:hover {
+  background: #f5f5f6;
+  color: #e5322e;
+}
+
+.ilpdf-download-page .rt-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #f1f3f5;
+  color: #e5322e;
+}
+
+.ilpdf-download-page .rt-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ilpdf-download-page .ilpdf-continue-more {
+  margin-top: 6px;
+  text-align: right;
+}
+
+.ilpdf-download-page .ilpdf-continue-more a {
+  color: #303036;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.ilpdf-download-page .ilpdf-thanks-card {
+  margin-top: 0;
+  padding: 26px 24px 28px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.ilpdf-download-page .ilpdf-thanks-card h2 {
+  margin: 0;
+  color: #303036;
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.ilpdf-download-page .ilpdf-thanks-card p {
+  margin: 7px 0 13px;
+  color: #74757c;
+  font-size: 13px;
+}
+
+.ilpdf-download-page .ilpdf-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.ilpdf-download-page .ilpdf-share-btn {
+  min-height: 32px;
+  padding: 6px 11px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d7d7db;
+  border-radius: 5px;
+  background: #fff;
+  color: #45464c;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ilpdf-download-page .ilpdf-share-btn:hover,
+.ilpdf-download-page .ilpdf-share-btn:focus-visible {
+  border-color: #bfc1c6;
+  color: #e5322e;
+  background: #fff;
+}
+
+.ilpdf-download-page .ilpdf-share-letter {
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ilpdf-download-page .ilpdf-download-ad {
+  width: min(930px, 100%);
+  margin: 4px auto 0;
 }
 
 @media (max-width: 900px) {
+  .ilpdf-download-page {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
   .ilpdf-download-page .ilpdf-download-hero {
-    width: min(100% - 32px, 760px);
-    padding-top: 40px;
+    padding-top: 36px;
   }
 
   .ilpdf-download-main {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: 48px minmax(250px, 390px) 92px;
+    gap: 10px;
   }
 
-  .ilpdf-download-side-actions {
-    grid-column: 2;
-    flex-direction: row;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 30px;
-    padding-top: 4px;
-  }
-
-  .ilpdf-download-side-block {
-    padding-left: 15px;
+  .ilpdf-download-heading {
+    font-size: clamp(25px, 4vw, 32px);
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .ilpdf-download-page {
+    padding: 28px 14px 44px !important;
+  }
+
   .ilpdf-download-page .ilpdf-download-hero {
-    width: calc(100% - 24px);
-    padding: 30px 0 24px;
+    padding: 20px 0 28px;
   }
 
   .ilpdf-download-heading {
     margin-bottom: 22px;
-    font-size: clamp(24px, 8vw, 32px);
+    font-size: clamp(23px, 6vw, 29px);
   }
 
   .ilpdf-download-main {
-    grid-template-columns: 1fr;
-    gap: 14px;
+    width: min(100%, 520px);
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
   }
 
   .ilpdf-download-back {
@@ -10207,38 +10288,111 @@ body:has(.ilpdf-download-page) .site-header {
     height: 40px;
   }
 
-  .ilpdf-download-result-card {
-    padding: 24px 16px 18px;
-    border-radius: 10px;
+  .ilpdf-download-primary {
+    min-height: 60px !important;
+    font-size: 18px !important;
+    padding: 14px 18px !important;
+  }
+
+  .ilpdf-download-cloud-actions {
+    grid-column: 2;
+    width: auto;
+    justify-content: start;
+    grid-template-columns: repeat(4, 38px);
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .ilpdf-download-circle {
+    width: 38px;
+    height: 38px;
+  }
+
+  .ilpdf-download-circle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ilpdf-download-page .related-tools-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .ilpdf-download-page {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .ilpdf-download-page .ilpdf-download-hero {
+    padding-top: 14px;
+  }
+
+  .ilpdf-download-heading {
+    font-size: clamp(21px, 7vw, 25px);
+  }
+
+  .ilpdf-download-main {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .ilpdf-download-back {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ilpdf-download-back svg {
+    width: 18px;
+    height: 18px;
   }
 
   .ilpdf-download-primary {
-    width: 100%;
-    min-height: 60px !important;
+    min-height: 56px !important;
+    font-size: 16px !important;
+    padding: 13px 12px !important;
+    gap: 7px;
   }
 
-  .ilpdf-download-under-actions {
-    align-items: flex-start;
-    flex-direction: column;
+  .ilpdf-download-primary svg {
+    width: 19px;
+    height: 19px;
   }
 
-  .ilpdf-download-share-caption {
-    text-align: left;
+  .ilpdf-download-cloud-actions {
+    grid-template-columns: repeat(4, 34px);
+    gap: 6px;
   }
 
-  .ilpdf-download-side-actions {
-    grid-column: 1;
-    flex-direction: column;
-    gap: 14px;
-    padding-left: 54px;
+  .ilpdf-download-circle {
+    width: 34px;
+    height: 34px;
   }
 
-  .ilpdf-download-side-block {
-    width: 100%;
+  .ilpdf-download-circle svg {
+    width: 16px;
+    height: 16px;
   }
 
-  .ilpdf-download-page .ilpdf-continue-card,
+  .ilpdf-download-page .ilpdf-continue-card {
+    padding: 18px 14px 14px;
+  }
+
+  .ilpdf-download-page .related-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
   .ilpdf-download-page .ilpdf-thanks-card {
-    width: calc(100% - 24px);
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .ilpdf-download-page .ilpdf-share-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ilpdf-download-page .ilpdf-share-btn {
+    width: 100%;
   }
 }
