@@ -433,7 +433,14 @@ OPS.workflow = async function (buffers, opts) {
 OPS.split = async function (buffers, opts) {
   const src   = await PDFDocument.load(buffers[0], { ignoreEncryption: true });
   const total = src.getPageCount();
-  const pages = parsePageRange(String(opts.range || ''), total);
+  // Empty range means the normal Split PDF action: include every page.
+  // Keep this aligned with the browser fallback processor so the canonical
+  // worker path does not reject a valid upload merely because no range was
+  // supplied by the shared UI.
+  const rawRange = String(opts.range || '').trim();
+  const pages = rawRange
+    ? parsePageRange(rawRange, total)
+    : Array.from({ length: total }, (_, i) => i + 1);
   if (!pages.length) throw new Error('No valid pages selected — check your page range');
   const out    = await PDFDocument.create();
   const copied = await out.copyPages(src, pages.map(n => n - 1));
