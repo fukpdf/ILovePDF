@@ -1,6 +1,5 @@
 import { PDFDocument, degrees } from 'pdf-lib';
 import fs from 'fs';
-import sharp from 'sharp';
 
 export async function qpdfMerge(paths) {
   const merged = await PDFDocument.create();
@@ -78,15 +77,33 @@ export async function magickImagesToPdf(paths) {
   const pdfDoc = await PDFDocument.create();
   for (const imgPath of paths) {
     const buf = await fs.promises.readFile(imgPath);
-    let pngBuf;
+    let img;
+    // Attempt native PDFDocument embedding for PNG or JPG
+    const isPng = buf.length > 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
     try {
-      pngBuf = await sharp(buf).png().toBuffer();
+      if (isPng) {
+        img = await pdfDoc.embedPng(buf);
+      } else {
+        img = await pdfDoc.embedJpg(buf);
+      }
     } catch (_) {
-      continue;
+      try {
+        img = await pdfDoc.embedPng(buf);
+      } catch (err) {
+        // Fallback: try sharp dynamically if available
+        try {
+          const sharpMod = (await import('sharp')).default;
+          const pngBuf = await sharpMod(buf).png().toBuffer();
+          img = await pdfDoc.embedPng(pngBuf);
+        } catch {
+          continue;
+        }
+      }
     }
-    const img = await pdfDoc.embedPng(pngBuf);
-    const page = pdfDoc.addPage([img.width, img.height]);
-    page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    if (img) {
+      const page = pdfDoc.addPage([img.width, img.height]);
+      page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    }
   }
   return await pdfDoc.save();
 }
