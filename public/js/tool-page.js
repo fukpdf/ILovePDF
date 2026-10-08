@@ -1460,6 +1460,24 @@ function renderDownloadStep(tool) {
     });
   }
 
+  container.querySelectorAll('[data-share-network]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const network = link.getAttribute('data-share-network');
+      const shareUrl = encodeURIComponent(window.location.href);
+      const text = encodeURIComponent(tool.name + ' — free online PDF tool');
+      const targets = {
+        facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + shareUrl,
+        x: 'https://twitter.com/intent/tweet?url=' + shareUrl + '&text=' + text,
+        linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + shareUrl
+      };
+      const target = targets[network];
+      if (target) {
+        window.open(target, '_blank', 'noopener,noreferrer,width=680,height=620');
+      }
+    });
+  });
+
   if (window.lucide) lucide.createIcons();
 
   wireStepNav();
