@@ -1330,113 +1330,106 @@ function renderDownloadStep(tool) {
   if (!container) return;
   const slug = Flow.baseSlug();
 
-  if (tool.id === 'rotate') {
-    container.classList.remove('ew-wide');
-    container.innerHTML = `
-      <div class="tool-page ilpdf-rotate-page ilpdf-download-page">
-        <div class="ilpdf-rotate-download">
-          <div class="ilpdf-download-card">
-            <div class="ilpdf-download-icon"><i data-lucide="check"></i></div>
-            ${standaloneToolHeadingHtml(tool, "ilpdf-download-title")}
-            <p>Your rotated PDF is ready.</p>
-            <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
-            <div class="ilpdf-download-actions">
-              <button type="button" class="btn btn-primary ilpdf-download-main" id="rotate-download-btn">
-                <i data-lucide="download"></i> Download PDF
-              </button>
-              <a href="/${slug}" class="ilpdf-download-secondary" data-go-step="upload">
-                Rotate another PDF
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    if (window.lucide) lucide.createIcons();
-
-    const area = document.getElementById('result-area');
-    if (area) {
-      area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
-      if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
-    }
-    const rotateDownloadBtn = document.getElementById('rotate-download-btn');
-    if (rotateDownloadBtn) {
-      rotateDownloadBtn.addEventListener('click', function () {
-        const realDownload = document.querySelector('#result-area a[download]');
-        if (realDownload) {
-          realDownload.click();
-        } else {
-          const fallback = document.querySelector('#result-area a[href^="blob:"]');
-          if (fallback) fallback.click();
-        }
-      });
-    }
-    wireStepNav();
-    try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
-    return;
-  }
-
   container.classList.remove('ew-wide');
   container.innerHTML = `
-    <div class="tool-page">
-      ${toolHeaderBlock(tool, {
-        heading: _tp('status.file_ready', 'Your file is ready'),
-        desc: `Files are deleted automatically — download below or try another tool.`,
-        icon: 'check-circle-2',
-        hideStatus: true,
-        back: { href: '/', label: _tp('tool.all_tools', 'All Tools') },
-      })}
-      ${stepIndicatorHtml('download')}
+    <div class="tool-page ilpdf-download-page">
+      <section class="ilpdf-download-hero" aria-label="Download your result">
+        <div class="ilpdf-download-heading">This task has been processed successfully.</div>
 
-      <section class="download-step" aria-label="Download your result">
-        <div id="result-area" class="download-result">${Flow.result ? Flow.result.html : ''}</div>
-
-        <div class="download-actions">
-          <a href="/${slug}" class="btn btn-outline" data-go-step="upload">
-            <i data-lucide="rotate-ccw"></i> Process another PDF
+        <div class="ilpdf-download-main">
+          <a href="/${slug}" class="ilpdf-download-back" data-go-step="upload"
+             aria-label="Go back and process another file" title="Process another file">
+            <i data-lucide="arrow-left"></i>
           </a>
-          <a href="/" class="btn btn-outline">
-            <i data-lucide="grid-3x3"></i> Try another tool
-          </a>
-          <a href="/blog" class="btn btn-outline">
-            <i data-lucide="book-open"></i> Read guides
-          </a>
-        </div>
 
-        <div class="related-tools-section" id="related-tools-area" style="display:none">
-          <div class="related-tools-title">Try these next</div>
-          <div class="related-tools-grid" id="related-tools-grid"></div>
-        </div>
+          <div id="result-area" class="download-result">
+            ${Flow.result ? Flow.result.html : ''}
+          </div>
 
-        <div class="ad-wrap ad-wrap--tight" role="complementary" aria-label="Advertisement">
-          <div class="ad-slot ad-slot--download"
-               id="ad-download-banner"
-               data-ad-slot="download-banner"
-               data-ad-ezoic="104"
-               data-ad-pending="1"
-               aria-hidden="true"></div>
+          <div class="ilpdf-download-cloud-actions" aria-hidden="true">
+            <span class="ilpdf-download-circle"><i data-lucide="hard-drive-upload"></i></span>
+            <span class="ilpdf-download-circle"><i data-lucide="link"></i></span>
+            <span class="ilpdf-download-circle"><i data-lucide="cloud"></i></span>
+            <span class="ilpdf-download-circle"><i data-lucide="trash-2"></i></span>
+          </div>
         </div>
       </section>
+
+      <section class="ilpdf-continue-card" aria-label="Continue to other PDF tools">
+        <div class="ilpdf-continue-title">Continue to...</div>
+        <div class="related-tools-grid" id="related-tools-grid"></div>
+        <div class="ilpdf-continue-more" id="related-tools-more" hidden>
+          <a href="/tools">See more</a>
+        </div>
+      </section>
+
+      <section class="ilpdf-thanks-card" aria-label="Share iLovePDF">
+        <h2>How can you thank us? Spread the word!</h2>
+        <p>Please share the tool to inspire more productive people!</p>
+        <div class="ilpdf-share-actions" aria-label="Social sharing">
+          <span class="ilpdf-share-btn ilpdf-share-trustpilot"><span class="ilpdf-share-star">★</span> Trustpilot</span>
+          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">f</span> Facebook</span>
+          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">𝕏</span> Twitter</span>
+          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">in</span> LinkedIn</span>
+        </div>
+      </section>
+
+      <div class="ad-wrap ad-wrap--tight ilpdf-download-ad" role="complementary" aria-label="Advertisement">
+        <div class="ad-slot ad-slot--download"
+             id="ad-download-banner"
+             data-ad-slot="download-banner"
+             data-ad-ezoic="104"
+             data-ad-pending="1"
+             aria-hidden="true"></div>
+      </div>
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+
   const area = document.getElementById('result-area');
   if (area) {
+    // UI-only: use the processed file extension to present the same concise
+    // download wording used by the reference iLovePDF result page.
+    const realDownload = area.querySelector('a[download]');
+    if (realDownload) {
+      const filename = realDownload.getAttribute('download') || '';
+      const ext = (filename.split('.').pop() || '').toLowerCase();
+      const labels = {
+        pdf: 'Download PDF',
+        doc: 'Download WORD',
+        docx: 'Download WORD',
+        ppt: 'Download POWERPOINT',
+        pptx: 'Download POWERPOINT',
+        xls: 'Download EXCEL',
+        xlsx: 'Download EXCEL',
+        jpg: 'Download JPG',
+        jpeg: 'Download JPG',
+        png: 'Download PNG',
+        zip: 'Download ZIP',
+      };
+      const label = labels[ext] || 'Download File';
+      const icon = realDownload.querySelector('[data-lucide]');
+      realDownload.innerHTML = '';
+      if (icon) realDownload.appendChild(icon);
+      realDownload.appendChild(document.createTextNode(' ' + label));
+    }
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
+
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'download' } })); } catch (_) {}
 
   setTimeout(function () {
     try {
       const relGrid = document.getElementById('related-tools-grid');
-      const relArea = document.getElementById('related-tools-area');
-      if (!relGrid || !relArea || !window.TOOL_GROUPS) return;
+      const more = document.getElementById('related-tools-more');
+      if (!relGrid || !window.TOOL_GROUPS) return;
       const toolId = tool && (tool.id || tool.tid);
-      const relHtml = _buildRelatedToolsHtml(toolId, 4);
+      const relHtml = _buildRelatedToolsHtml(toolId, 6);
       if (!relHtml) return;
       relGrid.innerHTML = relHtml;
-      relArea.style.display = '';
+      if (more) more.hidden = false;
       if (window.lucide) window.lucide.createIcons({ nodes: [relGrid] });
     } catch (_) {}
 
@@ -1451,7 +1444,6 @@ function renderDownloadStep(tool) {
     } catch (_) {}
   }, 0);
 }
-
 // Phase 4: Build HTML for related tools grid (same category first, then others)
 function _buildRelatedToolsHtml(toolId, maxCount) {
   if (!window.TOOL_GROUPS) return '';
