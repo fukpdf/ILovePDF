@@ -1337,16 +1337,16 @@ function renderDownloadStep(tool) {
         <h1 class="ilpdf-download-heading">Your ${escapeHtml(tool.name)} task was completed successfully.</h1>
 
         <div class="ilpdf-download-main">
-          <a href="/${slug}" class="ilpdf-download-back" data-go-step="upload"
-             aria-label="Go back and process another file" title="Process another file">
-            <i data-lucide="arrow-left"></i>
-          </a>
-
           <div id="result-area" class="download-result">
             ${Flow.result ? Flow.result.html : ''}
           </div>
 
           <div class="ilpdf-download-cloud-actions" aria-label="More download options">
+            <a href="/${slug}" class="ilpdf-download-circle ilpdf-download-back"
+               data-go-step="upload"
+               aria-label="Go back and process another file" title="Process another file">
+              <i data-lucide="arrow-left"></i>
+            </a>
             <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
                     aria-label="Save to Google Drive" title="Save to Google Drive" disabled>
               ${cloudProviderLogo('google-drive')}
