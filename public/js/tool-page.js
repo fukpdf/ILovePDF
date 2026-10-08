@@ -1388,6 +1388,31 @@ function renderDownloadStep(tool) {
 
   const area = document.getElementById('result-area');
   if (area) {
+    // UI-only: use the processed file extension to present the same concise
+    // download wording used by the reference iLovePDF result page.
+    const realDownload = area.querySelector('a[download]');
+    if (realDownload) {
+      const filename = realDownload.getAttribute('download') || '';
+      const ext = (filename.split('.').pop() || '').toLowerCase();
+      const labels = {
+        pdf: 'Download PDF',
+        doc: 'Download WORD',
+        docx: 'Download WORD',
+        ppt: 'Download POWERPOINT',
+        pptx: 'Download POWERPOINT',
+        xls: 'Download EXCEL',
+        xlsx: 'Download EXCEL',
+        jpg: 'Download JPG',
+        jpeg: 'Download JPG',
+        png: 'Download PNG',
+        zip: 'Download ZIP',
+      };
+      const label = labels[ext] || 'Download File';
+      const icon = realDownload.querySelector('[data-lucide]');
+      realDownload.innerHTML = '';
+      if (icon) realDownload.appendChild(icon);
+      realDownload.appendChild(document.createTextNode(' ' + label));
+    }
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
   }
