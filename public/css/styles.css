@@ -10766,3 +10766,33 @@ body:has(.ilpdf-download-page) .site-header {
     flex-basis: 36px !important; width: 36px !important; min-width: 36px !important; max-width: 36px !important; height: 36px !important;
   }
 }
+
+
+/* Download controls — desktop/tablet width reduced 20%, height increased 20%; mobile preserved. */
+@media (min-width: 481px) {
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-back {
+    flex-basis: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 58px !important;
+  }
+  .ilpdf-download-page .ilpdf-download-main .ilpdf-download-provider-actions .ilpdf-download-circle {
+    flex-basis: 37px !important;
+    width: 37px !important;
+    min-width: 37px !important;
+    max-width: 37px !important;
+    height: 55px !important;
+  }
+}
+
+/* ILovePDF theme color — use the site's existing primary token. */
+.ilpdf-download-page .ilpdf-download-primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+.ilpdf-download-page .ilpdf-download-primary:hover,
+.ilpdf-download-page .ilpdf-download-primary:focus-visible {
+  background: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
+}
