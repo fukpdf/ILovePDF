@@ -10406,11 +10406,39 @@ body:has(.ilpdf-download-page) .site-header {
 .ilpdf-download-page .ilpdf-download-main {
   width: min(100%, 540px);
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  column-gap: 14px;
   row-gap: 12px;
 }
+.ilpdf-download-page .ilpdf-download-main .download-result {
+  width: 100%;
+  grid-column: 1;
+}
+.ilpdf-download-page .ilpdf-download-cloud-actions {
+  width: 100%;
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+}
+.ilpdf-download-page .ilpdf-download-back {
+  width: 42px;
+  height: 42px;
+  grid-column: 1;
+  justify-self: start;
+  transform: none;
+}
+.ilpdf-download-page .ilpdf-download-provider-actions {
+  grid-column: 2;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
 .ilpdf-download-page .ilpdf-download-main .download-result {
   grid-column: 1 / -1;
   width: 100%;
