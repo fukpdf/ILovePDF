@@ -1447,6 +1447,10 @@ function renderDownloadStep(tool) {
       area.innerHTML = '<div class="ilpdf-download-reference-result"><div class="ilpdf-download-cta-wrap"></div></div>';
 
       realDownload.className = 'btn btn-primary ilpdf-download-primary dl-burst-trigger';
+      realDownload.style.setProperty('background', 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#9333ea 100%)', 'important');
+      realDownload.style.setProperty('background-color', '#4f46e5', 'important');
+      realDownload.style.setProperty('border-color', '#4f46e5', 'important');
+      realDownload.style.setProperty('color', '#fff', 'important');
       realDownload.innerHTML = '<i data-lucide="download" aria-hidden="true"></i><span>' + label + '</span>';
       realDownload.setAttribute('aria-label', label);
       area.querySelector('.ilpdf-download-cta-wrap').appendChild(realDownload);
