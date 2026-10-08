@@ -1334,7 +1334,7 @@ function renderDownloadStep(tool) {
   container.innerHTML = `
     <div class="tool-page ilpdf-download-page">
       <section class="ilpdf-download-hero" aria-label="Download your result">
-        <div class="ilpdf-download-heading">Your ${tool.name} task was completed successfully.</div>
+        <h1 class="ilpdf-download-heading">Your ${escapeHtml(tool.name)} task was completed successfully.</h1>
 
         <div class="ilpdf-download-main">
           <a href="/${slug}" class="ilpdf-download-back" data-go-step="upload"
@@ -1346,6 +1346,24 @@ function renderDownloadStep(tool) {
             ${Flow.result ? Flow.result.html : ''}
           </div>
 
+          <div class="ilpdf-download-cloud-actions" aria-label="More download options">
+            <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
+                    aria-label="Save to Google Drive" title="Save to Google Drive" disabled>
+              ${cloudProviderLogo('google-drive')}
+            </button>
+            <button type="button" class="ilpdf-download-circle ilpdf-download-share-trigger"
+                    aria-label="Share download link" title="Share download link">
+              <i data-lucide="link-2"></i>
+            </button>
+            <button type="button" class="ilpdf-download-circle ilpdf-download-action-disabled"
+                    aria-label="Save to Dropbox" title="Save to Dropbox" disabled>
+              ${cloudProviderLogo('dropbox')}
+            </button>
+            <button type="button" class="ilpdf-download-circle ilpdf-download-delete"
+                    aria-label="Clear this result" title="Clear this result">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1361,10 +1379,9 @@ function renderDownloadStep(tool) {
         <h2>How can you thank us? Spread the word!</h2>
         <p>Please share the tool to inspire more productive people!</p>
         <div class="ilpdf-share-actions" aria-label="Social sharing">
-          <span class="ilpdf-share-btn ilpdf-share-trustpilot"><span class="ilpdf-share-star">★</span> Trustpilot</span>
-          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">f</span> Facebook</span>
-          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">𝕏</span> Twitter</span>
-          <span class="ilpdf-share-btn"><span class="ilpdf-share-letter">in</span> LinkedIn</span>
+          <a class="ilpdf-share-btn" href="#" data-share-network="facebook" aria-label="Share on Facebook"><span class="ilpdf-share-letter">f</span> Facebook</a>
+          <a class="ilpdf-share-btn" href="#" data-share-network="x" aria-label="Share on X"><span class="ilpdf-share-letter">𝕏</span> Twitter</a>
+          <a class="ilpdf-share-btn" href="#" data-share-network="linkedin" aria-label="Share on LinkedIn"><span class="ilpdf-share-letter">in</span> LinkedIn</a>
         </div>
       </section>
 
@@ -1380,8 +1397,8 @@ function renderDownloadStep(tool) {
 
   const area = document.getElementById('result-area');
   if (area) {
-    // UI-only: remove the legacy result/checkmark presentation from the
-    // download surface while preserving the exact real download anchor.
+    // UI-only: preserve the exact real download anchor while moving it into
+    // the iLovePDF-style result layout.
     const realDownload = area.querySelector('a[download]');
     if (realDownload) {
       const filename = realDownload.getAttribute('download') || 'download';
@@ -1394,26 +1411,53 @@ function renderDownloadStep(tool) {
       };
       const label = labels[ext] || 'Download File';
 
-      area.innerHTML = '<div class="ilpdf-download-result-card">' +
-        '<div class="ilpdf-download-file-name"><i data-lucide="file-check-2" aria-hidden="true"></i><span title="' +
-        escapeHtml(filename) + '">' + escapeHtml(filename) + '</span></div>' +
-        '<div class="ilpdf-download-cta-wrap"></div>' +
-        '<div class="ilpdf-download-under-actions">' +
-          '<a href="/' + slug + '" class="ilpdf-download-under-link" data-go-step="upload"><i data-lucide="alert-circle" aria-hidden="true"></i>Something went wrong?</a>' +
-          '<span class="ilpdf-download-share-caption">Share <span class="ilpdf-download-share-links">' +
-            '<a href="#" data-share-network="facebook" aria-label="Share on Facebook">Facebook</a>' +
-            '<a href="#" data-share-network="x" aria-label="Share on X">X</a>' +
-            '<a href="#" data-share-network="linkedin" aria-label="Share on LinkedIn">LinkedIn</a>' +
-          '</span></span>' +
-        '</div>' +
-      '</div>';
-      realDownload.className = 'btn btn-primary ilpdf-download-primary';
+      area.innerHTML = '<div class="ilpdf-download-reference-result"><div class="ilpdf-download-cta-wrap"></div></div>';
+
+      realDownload.className = 'btn btn-primary ilpdf-download-primary dl-burst-trigger';
       realDownload.innerHTML = '<i data-lucide="download" aria-hidden="true"></i><span>' + label + '</span>';
       realDownload.setAttribute('aria-label', label);
       area.querySelector('.ilpdf-download-cta-wrap').appendChild(realDownload);
     }
+
     area.querySelectorAll('[data-burst-bound]').forEach(el => el.removeAttribute('data-burst-bound'));
     if (typeof attachDownloadBurst === 'function') attachDownloadBurst(area);
+  }
+
+  const resultArea = document.getElementById('result-area');
+  const shareTrigger = container.querySelector('.ilpdf-download-share-trigger');
+  const deleteTrigger = container.querySelector('.ilpdf-download-delete');
+
+  if (shareTrigger) {
+    shareTrigger.addEventListener('click', async () => {
+      const downloadAnchor = resultArea && resultArea.querySelector('a[download]');
+      const shareUrl = downloadAnchor && downloadAnchor.href;
+      if (!shareUrl) return;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: tool.name + ' result', url: shareUrl });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(shareUrl);
+          shareTrigger.setAttribute('title', 'Download link copied');
+          shareTrigger.setAttribute('aria-label', 'Download link copied');
+          setTimeout(() => {
+            shareTrigger.setAttribute('title', 'Share download link');
+            shareTrigger.setAttribute('aria-label', 'Share download link');
+          }, 1800);
+        }
+      } catch (_) {}
+    });
+  }
+
+  if (deleteTrigger) {
+    deleteTrigger.addEventListener('click', () => {
+      try {
+        if (window.ToolState && currentTool) {
+          const clear = window.ToolState.clearAfterDelivery || window.ToolState.clear;
+          if (typeof clear === 'function') clear.call(window.ToolState, slug);
+        }
+      } catch (_) {}
+      Flow.navTo('upload');
+    });
   }
 
   if (window.lucide) lucide.createIcons();
@@ -1445,6 +1489,7 @@ function renderDownloadStep(tool) {
     } catch (_) {}
   }, 0);
 }
+
 // Phase 4: Build HTML for related tools grid (same category first, then others)
 function _buildRelatedToolsHtml(toolId, maxCount) {
   if (!window.TOOL_GROUPS) return '';
