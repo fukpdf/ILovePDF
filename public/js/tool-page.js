@@ -1408,14 +1408,21 @@ function renderDownloadStep(tool) {
         </div>
       </section>
 
-      <section class="ilpdf-thanks-card" aria-label="Share iLovePDF">
-        <h2>How can you thank us? Spread the word!</h2>
-        <p>Please share the tool to inspire more productive people!</p>
+      <section class="ilpdf-thanks-card" aria-label="Share and support ILovePDF">
+        <div class="ilpdf-thanks-kicker"><i data-lucide="heart-handshake" aria-hidden="true"></i> Made to help, free to use</div>
+        <h2>Found this tool helpful? Spread the word!</h2>
+        <p>Your support helps us keep ILovePDF free for everyone. Share it with a friend, colleague, or student. If you can, a small donation helps cover hosting, maintenance, and the work needed to keep these tools available—every contribution makes a difference.</p>
         <div class="ilpdf-share-actions" aria-label="Social sharing">
-          <a class="ilpdf-share-btn" href="#" data-share-network="facebook" aria-label="Share on Facebook"><span class="ilpdf-share-letter">f</span> Facebook</a>
-          <a class="ilpdf-share-btn" href="#" data-share-network="x" aria-label="Share on X"><span class="ilpdf-share-letter">𝕏</span> Twitter</a>
-          <a class="ilpdf-share-btn" href="#" data-share-network="linkedin" aria-label="Share on LinkedIn"><span class="ilpdf-share-letter">in</span> LinkedIn</a>
+          <a class="ilpdf-share-btn ilpdf-share-facebook" href="#" data-share-network="facebook" aria-label="Share on Facebook"><span class="ilpdf-share-letter" aria-hidden="true">f</span> Facebook</a>
+          <a class="ilpdf-share-btn ilpdf-share-x" href="#" data-share-network="x" aria-label="Share on X"><span class="ilpdf-share-letter" aria-hidden="true">𝕏</span> Share on X</a>
+          <a class="ilpdf-share-btn ilpdf-share-linkedin" href="#" data-share-network="linkedin" aria-label="Share on LinkedIn"><span class="ilpdf-share-letter" aria-hidden="true">in</span> LinkedIn</a>
         </div>
+        <a class="ilpdf-support-project-btn" href="/blog/support-the-project.html">
+          <i data-lucide="heart" aria-hidden="true"></i>
+          <span>Support the project</span>
+          <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+        </a>
+        <p class="ilpdf-support-note">Donations are optional. Sharing ILovePDF is also a huge help.</p>
       </section>
 
       <div class="ad-wrap ad-wrap--tight ilpdf-download-ad" role="complementary" aria-label="Advertisement">
