@@ -11722,3 +11722,42 @@ body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-description {
     padding: 10px !important;
   }
 }
+
+
+/* Download CTA matches the shared Upload CTA dimensions at each breakpoint. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
+  width: min(100%, 460px) !important;
+  max-width: 460px !important;
+  min-width: 0 !important;
+  height: 82px !important;
+  min-height: 82px !important;
+  padding: 0 24px !important;
+  border-radius: 20px !important;
+  box-sizing: border-box !important;
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+  gap: 11px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger svg {
+  width: 29px !important;
+  height: 29px !important;
+  flex: 0 0 29px !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
+    width: min(100%, 390px) !important;
+    max-width: 390px !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    padding: 0 24px !important;
+    border-radius: 18px !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+    gap: 10px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger svg {
+    width: 23px !important;
+    height: 23px !important;
+    flex-basis: 23px !important;
+  }
+}
