@@ -2193,3 +2193,50 @@
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* Compress PDF mode output: show only the selected mode's control. */
+.compress-options [hidden] {
+  display: none !important;
+}
+.compress-options .compress-estimate,
+.compress-options .compress-custom-target {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--ew-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--ew-surface-sub, #fafbff);
+}
+.compress-options .compress-estimate {
+  display: grid;
+  gap: 5px;
+}
+.compress-options .compress-estimate-label,
+.compress-options .compress-estimate-note {
+  display: block;
+}
+.compress-options .compress-estimate-value {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.compress-options .compress-custom-target-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 8px;
+}
+.compress-options .compress-custom-target-row > * {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 480px) {
+  .compress-options .compress-custom-target {
+    padding: 10px;
+  }
+  .compress-options .compress-custom-target-row {
+    grid-template-columns: minmax(0, 1fr) 78px;
+  }
+}
