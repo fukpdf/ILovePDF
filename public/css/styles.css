@@ -13384,7 +13384,9 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
    The generic download-page CTA selector is more specific than the base
    Merge-only class, so this selector deliberately wins that cascade. */
 .ilpdf-download-page .download-result .dl-burst-trigger.merge-pdf-download-cta {
+  width: 80% !important;
   min-height: 52.8px !important;
+  margin-inline: auto !important;
   padding: 12.8px 20.8px !important;
   gap: 8px !important;
   font-size: 16px !important;
