@@ -13378,3 +13378,19 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
   width: 12.8px;
   height: 12.8px;
 }
+
+
+/* Higher-specificity override for the actual /merge-pdf/download result page.
+   The generic download-page CTA selector is more specific than the base
+   Merge-only class, so this selector deliberately wins that cascade. */
+.ilpdf-download-page .download-result .dl-burst-trigger.merge-pdf-download-cta {
+  min-height: 52.8px !important;
+  padding: 12.8px 20.8px !important;
+  gap: 8px !important;
+  font-size: 16px !important;
+}
+.ilpdf-download-page .download-result .dl-burst-trigger.merge-pdf-download-cta svg,
+.ilpdf-download-page .download-result .dl-burst-trigger.merge-pdf-download-cta i {
+  width: 16px !important;
+  height: 16px !important;
+}
