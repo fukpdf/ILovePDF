@@ -46,6 +46,9 @@ jobs:
             node --check "$file"
           done
           node --check server.js
+          node --check public/js/tool-page.js
+          node --check scripts/compress-hybrid-regression-check.js
+          node scripts/compress-hybrid-regression-check.js
           node --check public/script.js || true
           node --check public/sw.js || true
 
@@ -108,9 +111,9 @@ jobs:
           echo "[SUCCESS] Firebase deployment completed successfully!"
 
       - name: Smoke verification
-        continue-on-error: true
         shell: bash
         run: |
+          set -euo pipefail
           base="${PRODUCTION_BASE_URL:-https://ilovepdf.cyou}"
           origin="${PRODUCTION_ORIGIN_URL:-https://ilovepdf-web.web.app}"
           echo "Verifying deployment at: $origin (and $base)"
@@ -118,11 +121,23 @@ jobs:
           smoke_check() {
             local url="$1"
             local code
-            code="$(curl -L --retry 2 --connect-timeout 8 --max-time 15 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
+            code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
             echo "Status $code -> $url"
+            if [ "$code" != "200" ]; then
+              echo "::error::Smoke verification failed for $url (HTTP $code)"
+              return 1
+            fi
           }
 
           smoke_check "$origin/"
           smoke_check "$origin/crop-pdf"
+          smoke_check "$origin/compress-pdf"
           smoke_check "$origin/js/tools-config.js"
-          smoke_check "$origin/deploy-version.txt"
+          smoke_check "$origin/js/tool-page.js?v=20261009-hybrid-text-v1"
+          smoke_check "$base/compress-pdf"
+          deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
+          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
+            echo "::error::Deployment version mismatch. Expected $GITHUB_SHA, got $deployed_sha"
+            exit 1
+          fi
+          echo "Deployment version verified: $deployed_sha"
