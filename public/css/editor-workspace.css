@@ -1958,14 +1958,16 @@
 /* ── 640px: Small phone — sticky CTA, compact scrolls ──────── */
 @media (max-width: 640px) {
 
-  /* Fixed bottom process CTA */
+  /* Fixed mobile action rail: keep BOTH actions visible, never wrap the
+     secondary button below the viewport/home-indicator area. */
   .ew-process-panel {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     margin: 0 !important;
-    padding: 10px 16px env(safe-area-inset-bottom, 10px) !important;
+    box-sizing: border-box !important;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
     border-radius: 0 !important;
     border: none !important;
     border-top: 1px solid #e2e8f0 !important;
@@ -1974,25 +1976,31 @@
     -webkit-backdrop-filter: blur(12px) !important;
     box-shadow: 0 -4px 16px rgba(0,0,0,.08) !important;
     z-index: 200 !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
     gap: 8px !important;
+    max-height: calc(100dvh - 12px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
   }
 
-  .ew-process-panel .btn-primary {
-    flex: 1 !important;
-    min-width: 0 !important;
-    height: 46px !important;
-    font-size: .9rem !important;
-    padding: 0 16px !important;
-    border-radius: 10px !important;
-  }
-
+  .ew-process-panel .btn-primary,
   .ew-process-panel .btn-outline {
+    box-sizing: border-box !important;
     flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
     height: 46px !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    font-size: .9rem !important;
     padding: 0 14px !important;
-    width: auto !important;
+    border-radius: 10px !important;
   }
 
   /* Hide trust strip */
@@ -2184,8 +2192,10 @@
 
 /* Small screens: preserve the existing fixed Process CTA without covering controls. */
 @media (max-width: 640px) {
+  /* Reserve space for the two-row fixed action rail plus device safe area,
+     so the final controls/sections can scroll fully above it. */
   .ew-preview-page {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .ew-process-panel {
