@@ -1428,51 +1428,41 @@ function renderDownloadStep(tool) {
       <section class="ilpdf-platforms" aria-labelledby="ilpdf-platforms-title">
         <div class="ilpdf-platforms-eyebrow">ILOVEPDF EVERYWHERE</div>
         <h2 id="ilpdf-platforms-title">Your PDFs. Every device.</h2>
-        <p class="ilpdf-platforms-intro">Wherever you work, ILovePDF helps you manage PDF files with ease. Choose your device and find the right way to get started.</p>
+        <p class="ilpdf-platforms-intro">Work across your favourite devices with the same simple way to manage PDFs.</p>
 
         <div class="ilpdf-platform-grid">
           <div class="ilpdf-platform-item">
             <span class="ilpdf-platform-logo ilpdf-platform-logo--windows" aria-hidden="true">
-              <svg viewBox="0 0 40 40" focusable="false"><path d="M3 8.5 17.5 6.5V19H3V8.5Zm17-2.4L37 3.5V19H20V6.1ZM3 21h14.5v12.5L3 31.5V21Zm17 0h17v15.5l-17-2.4V21Z" fill="currentColor"/></svg>
+              <svg viewBox="0 0 48 48" focusable="false"><path d="M4 10.2 21 7.8v15H4V10.2Zm20-2.7L44 4.5v18.3H24V7.5ZM4 25.2h17v15L4 37.8V25.2Zm20 0h20v18.3L24 40.8V25.2Z" fill="currentColor"/></svg>
             </span>
             <h3>Windows</h3>
-            <p>For Windows PCs and laptops.</p>
-            <span class="ilpdf-platform-type">Desktop</span>
+            <p>PDF tools for Windows PCs and laptops.</p>
           </div>
 
           <div class="ilpdf-platform-item">
             <span class="ilpdf-platform-logo ilpdf-platform-logo--mac" aria-hidden="true">
-              <svg viewBox="0 0 40 40" focusable="false"><path d="M27.8 21.2c0-4 3.3-5.9 3.5-6-1.9-2.8-4.9-3.2-6-3.2-2.5-.3-4.9 1.5-6.2 1.5-1.4 0-3.4-1.5-5.6-1.4-2.9 0-5.6 1.7-7.1 4.3-3 5.2-.8 12.9 2.1 17.1 1.4 2.1 3.1 4.4 5.3 4.3 2.1-.1 2.9-1.4 5.5-1.4s3.3 1.4 5.5 1.3c2.3 0 3.7-2.1 5.1-4.2 1.6-2.4 2.2-4.8 2.2-4.9-.1 0-4.3-1.7-4.3-7.4ZM23.7 9.2c1.1-1.3 1.9-3.1 1.7-4.9-1.6.1-3.5 1.1-4.7 2.4-1 1.1-1.9 2.9-1.7 4.6 1.8.1 3.6-.9 4.7-2.1Z" fill="currentColor"/></svg>
+              <svg viewBox="0 0 48 48" focusable="false"><path d="M31.6 24.6c0-4.4 3.6-6.5 3.8-6.6-2.1-3.1-5.4-3.5-6.6-3.6-2.8-.3-5.4 1.7-6.9 1.7-1.6 0-3.8-1.6-6.2-1.6-3.2.1-6.2 1.9-7.9 4.8-3.3 5.7-.9 14.2 2.3 18.8 1.5 2.3 3.4 4.8 5.8 4.7 2.3-.1 3.2-1.5 6.1-1.5 2.8 0 3.6 1.5 6.1 1.5 2.5-.1 4.1-2.3 5.6-4.6 1.8-2.6 2.4-5.3 2.4-5.4-.1 0-4.7-1.9-4.7-8.2ZM27.1 11.4c1.2-1.5 2.1-3.4 1.9-5.4-1.8.1-3.9 1.2-5.2 2.7-1.1 1.2-2.1 3.2-1.9 5.1 2 .1 4-.9 5.2-2.4Z" fill="currentColor"/></svg>
             </span>
             <h3>Mac</h3>
-            <p>For MacBook and iMac computers.</p>
-            <span class="ilpdf-platform-type">Desktop</span>
+            <p>PDF tools for MacBook and iMac.</p>
           </div>
 
           <div class="ilpdf-platform-item">
             <span class="ilpdf-platform-logo ilpdf-platform-logo--android" aria-hidden="true">
-              <svg viewBox="0 0 40 40" focusable="false"><path d="M12.1 13.8 9.7 9.6a.8.8 0 0 1 1.4-.8l2.5 4.3a13.4 13.4 0 0 1 12.8 0l2.5-4.3a.8.8 0 1 1 1.4.8l-2.4 4.2a11.8 11.8 0 0 1 5.2 9.6H6.9a11.8 11.8 0 0 1 5.2-9.6ZM6.9 25h26.2v6.1a2.8 2.8 0 0 1-2.8 2.8h-2.1v3.2a1.8 1.8 0 0 1-3.6 0v-3.2h-7.2v3.2a1.8 1.8 0 0 1-3.6 0v-3.2h-2.1a2.8 2.8 0 0 1-2.8-2.8V25Z" fill="currentColor"/><circle cx="14.2" cy="18.3" r="1.2" fill="#fff"/><circle cx="25.8" cy="18.3" r="1.2" fill="#fff"/></svg>
+              <svg viewBox="0 0 48 48" focusable="false"><path d="M14.1 15.5 11.5 11a.9.9 0 0 1 1.6-.9l2.8 4.7a14.7 14.7 0 0 1 14.2 0l2.8-4.7a.9.9 0 1 1 1.6.9l-2.6 4.5a13 13 0 0 1 5.8 10.6H8.3a13 13 0 0 1 5.8-10.6ZM8.3 28.2h29.4V35a3.1 3.1 0 0 1-3.1 3.1h-2.3v3.5a2 2 0 0 1-4 0v-3.5h-8.1v3.5a2 2 0 0 1-4 0v-3.5h-2.3A3.1 3.1 0 0 1 8.3 35v-6.8Z" fill="currentColor"/><circle cx="16" cy="20.4" r="1.3" fill="#fff"/><circle cx="30" cy="20.4" r="1.3" fill="#fff"/></svg>
             </span>
             <h3>Android</h3>
-            <p>For Android phones and tablets.</p>
-            <span class="ilpdf-platform-type">Mobile</span>
+            <p>PDF tools for Android phones and tablets.</p>
           </div>
 
           <div class="ilpdf-platform-item">
             <span class="ilpdf-platform-logo ilpdf-platform-logo--ios" aria-hidden="true">
-              <svg viewBox="0 0 40 40" focusable="false"><path d="M11 31.5 20 8.5l9 23h-5.1l-1.7-4.8h-4.5L16 31.5H11Zm8.1-9.1h2l-1-3.1-1 3.1Z" fill="currentColor"/></svg>
+              <svg viewBox="0 0 48 48" focusable="false"><path d="M33.2 25.2c0-5.1 4.2-7.5 4.4-7.6-2.4-3.6-6.2-4-7.6-4.1-3.2-.3-6.2 2-7.9 2-1.8 0-4.4-1.9-7.1-1.8-3.7.1-7.1 2.2-9 5.5-3.8 6.5-1 16.2 2.6 21.4 1.7 2.6 3.9 5.5 6.6 5.4 2.6-.1 3.7-1.8 6.9-1.8 3.2 0 4.1 1.8 6.9 1.7 2.9-.1 4.7-2.6 6.4-5.2 2-3 2.8-6 2.8-6.2-.1 0-5.4-2.1-5.4-9.3ZM28.1 10.1c1.4-1.7 2.4-3.9 2.2-6.1-2 .1-4.4 1.4-5.9 3.1-1.3 1.4-2.4 3.6-2.2 5.8 2.3.1 4.5-1.1 5.9-2.8Z" fill="currentColor"/></svg>
             </span>
             <h3>iPhone &amp; iPad</h3>
-            <p>For your Apple mobile devices.</p>
-            <span class="ilpdf-platform-type">Mobile</span>
+            <p>PDF tools for iPhone and iPad.</p>
           </div>
         </div>
-
-        <a class="ilpdf-platforms-browser-link" href="/tools">
-          <i data-lucide="globe-2" aria-hidden="true"></i>
-          <span>Prefer not to install anything? Use ILovePDF in your browser.</span>
-          <i data-lucide="arrow-up-right" aria-hidden="true"></i>
-        </a>
       </section>
 
       <div class="ad-wrap ad-wrap--tight ilpdf-download-ad" role="complementary" aria-label="Advertisement">
