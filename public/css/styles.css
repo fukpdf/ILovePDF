@@ -12811,3 +12811,32 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
   margin-bottom: 0;
   background: #fff;
 }
+
+
+/* Final download-result spacing correction: remove the leftover band before the shared footer. */
+body:has(.ilpdf-download-page) .ilpdf-download-page {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
+  display: block;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: #fff !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad .ad-slot {
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body:has(.ilpdf-download-page) .site-footer {
+  margin-top: 0 !important;
+}
