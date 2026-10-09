@@ -12355,3 +12355,45 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-support-note {
     transition: none !important;
   }
 }
+
+
+/* Download thank-you area: 10% narrower, roomier vertically, and flat (not a card). */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card {
+  width: min(90%, 837px) !important;
+  max-width: 837px !important;
+  margin: 33px auto 26px !important;
+  padding: clamp(27px, 3.85vw, 46px) 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card h2 {
+  margin-bottom: 14px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card > p:not(.ilpdf-support-note) {
+  margin-bottom: 25px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-share-actions {
+  margin-bottom: 22px !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card {
+    width: 90% !important;
+    max-width: 90% !important;
+    margin: 24px auto 20px !important;
+    padding: 27px 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+@media (max-width: 360px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card {
+    width: 92% !important;
+    max-width: 92% !important;
+    padding: 22px 0 !important;
+  }
+}
