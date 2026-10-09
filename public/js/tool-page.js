@@ -2613,7 +2613,7 @@ async function runAdvancedCompress(config = {}) {
             ? 'Custom compression — page ' + i + ' of ' + total + '…'
             : 'Deep compression — page ' + i + ' of ' + total + '…',
           isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
+            ? 'Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
             : 'Optimising image quality for a smaller file size.',
         );
         const page = await srcPdf.getPage(i);
