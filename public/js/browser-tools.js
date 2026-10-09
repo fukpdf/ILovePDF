@@ -4694,6 +4694,15 @@
       : blob.type.includes('image') || blob.type.includes('zip') ? 100
       : blob.type.includes('text') ? 3 : 200;
     if (blob.size < minBytes) return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file appears incomplete. Please try again.' };
+    // A PDF MIME type alone is not proof of a PDF. Check its signature before
+    // exposing a download URL, especially on the compression worker path.
+    if (blob.type.toLowerCase().includes('pdf')) {
+      let signature = '';
+      try { signature = await blob.slice(0, 5).text(); } catch (_) {}
+      if (signature !== '%PDF-') {
+        return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The generated PDF is invalid or incomplete. Please try again.' };
+      }
+    }
     if (!outputMimeMatchesFilename(result && result.filename, blob.type)) {
       return { ok: false, code: 'OUTPUT_VALIDATION_FAILED', msg: 'The output file type does not match its filename.' };
     }
@@ -4791,9 +4800,19 @@
       if (!workerResult || !workerResult.buffer) {
         throw new Error('worker_processing_failed');
       }
+      const workerBlob = new Blob([workerResult.buffer], { type: 'application/pdf' });
       const workerResultObj = {
-        blob: new Blob([workerResult.buffer], { type: 'application/pdf' }),
-        filename: brandedFilename(fileName, '.pdf')
+        blob: workerBlob,
+        filename: brandedFilename(fileName, '.pdf'),
+        ...(toolId === 'compress' ? {
+          originalSize: files[0].size,
+          outputSize: workerBlob.size,
+          savedBytes: Math.max(0, files[0].size - workerBlob.size),
+          savedPercent: files[0].size > 0
+            ? Math.max(0, Math.round((1 - workerBlob.size / files[0].size) * 100))
+            : 0,
+          alreadyOptimized: workerBlob.size >= files[0].size,
+        } : {}),
       };
       const workerValidation = await validateOutput(toolId, workerResultObj);
       if (!workerValidation.ok) throw new Error('OUTPUT_VALIDATION_FAILED');
