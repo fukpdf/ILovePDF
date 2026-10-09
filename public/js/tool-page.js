@@ -3215,32 +3215,80 @@ function isPaidUser() {
 }
 
 function renderCompressOptionsHtml() {
-  // BUG-2 FIX: slider is now available to all users — no paid gate.
   return `
     <div class="options-section compress-options" data-compress-options="all">
-      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Level</div>
-      <div class="compress-slider-wrap">
-        <input type="range" min="0" max="2" step="1" value="1"
-               class="compress-slider" id="opt-level" />
-        <div class="compress-slider-labels">
-          <span data-lvl="0">Low<br><small>Best quality</small></span>
-          <span data-lvl="1" class="active">Medium<br><small>Recommended</small></span>
-          <span data-lvl="2">High<br><small>Smallest file</small></span>
+      <div class="options-title"><i data-lucide="sliders-horizontal"></i> Compression Mode</div>
+      <div class="form-group">
+        <label class="form-label" for="opt-compress-mode">Choose compression</label>
+        <select class="form-select" id="opt-compress-mode" name="compressMode">
+          <option value="deep" selected>Deep Compression</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="compress-estimate" id="compress-estimate" aria-live="polite">
+        <span class="compress-estimate-label" id="compress-estimate-label">Estimated output size</span>
+        <strong id="compress-estimate-value">Calculating…</strong>
+        <small id="compress-estimate-note">Approximate estimate; actual size depends on PDF content.</small>
+      </div>
+      <div class="form-group compress-custom-target" id="compress-custom-target" hidden>
+        <label class="form-label" for="opt-compress-target">Desired output size</label>
+        <div class="compress-custom-target-row">
+          <input class="form-input" id="opt-compress-target" type="number"
+                 min="1" step="any" inputmode="decimal" placeholder="e.g. 2.5" />
+          <select class="form-select" id="opt-compress-unit" aria-label="Output size unit">
+            <option value="MB" selected>MB</option>
+            <option value="KB">KB</option>
+          </select>
         </div>
+        <small class="compress-estimate-note">The compressor will try progressively smaller render settings to reach this target. Exact size cannot be guaranteed.</small>
       </div>
     </div>`;
 }
 
-// Wire the slider's active-label tracking once the options HTML is in DOM.
-function wireCompressSlider() {
-  const slider = document.getElementById('opt-level');
-  if (!slider) return;
-  const labels = document.querySelectorAll('.compress-slider-labels [data-lvl]');
+function formatCompressSize(bytes) {
+  const value = Math.max(0, Number(bytes) || 0);
+  if (value < 1024) return value + ' B';
+  if (value < 1024 * 1024) return (value / 1024).toFixed(value < 10 * 1024 ? 1 : 0) + ' KB';
+  return (value / (1024 * 1024)).toFixed(value < 10 * 1024 * 1024 ? 2 : 1) + ' MB';
+}
+
+// Wire the compression mode controls after the preview options enter the DOM.
+function wireCompressOptions() {
+  const mode = document.getElementById('opt-compress-mode');
+  const customBox = document.getElementById('compress-custom-target');
+  const estimateLabel = document.getElementById('compress-estimate-label');
+  const estimateValue = document.getElementById('compress-estimate-value');
+  const estimateNote = document.getElementById('compress-estimate-note');
+  const targetInput = document.getElementById('opt-compress-target');
+  const unitSelect = document.getElementById('opt-compress-unit');
+  if (!mode || !customBox || !estimateValue) return;
+
+  const sourceFile = selectedFiles[0] && selectedFiles[0].file;
+  const sourceSize = sourceFile ? sourceFile.size : 0;
+  // Raster/JPEG output varies widely with document content; show a rough
+  // midpoint estimate rather than promising a precise output size.
+  const estimatedDeepBytes = Math.max(1024, Math.round(sourceSize * 0.45));
+
   function paint() {
-    const v = String(slider.value);
-    labels.forEach((s) => s.classList.toggle('active', s.dataset.lvl === v));
+    const isCustom = mode.value === 'custom';
+    customBox.hidden = !isCustom;
+    if (estimateLabel) estimateLabel.textContent = isCustom ? 'Requested output size' : 'Estimated output size';
+    if (isCustom && targetInput && targetInput.value.trim()) {
+      const value = Number(targetInput.value);
+      const multiplier = unitSelect && unitSelect.value === 'KB' ? 1024 : 1024 * 1024;
+      estimateValue.textContent = Number.isFinite(value) && value > 0
+        ? formatCompressSize(Math.round(value * multiplier))
+        : 'Enter a valid target';
+      if (estimateNote) estimateNote.textContent = 'Target size, not a guaranteed result. The closest smaller output will be used when achievable.';
+    } else {
+      estimateValue.textContent = formatCompressSize(estimatedDeepBytes);
+      if (estimateNote) estimateNote.textContent = 'Approximate only; actual size depends on PDF content and page complexity.';
+    }
   }
-  slider.addEventListener('input', paint);
+
+  mode.addEventListener('change', paint);
+  if (targetInput) targetInput.addEventListener('input', paint);
+  if (unitSelect) unitSelect.addEventListener('change', paint);
   paint();
 }
 
@@ -3264,8 +3312,8 @@ async function renderCompressPreview() {
       <div class="compress-preview-meta">Reading <strong>${escapeHtml(entry.file.name)}</strong>…</div>
     </div>`;
 
-  // Wire the slider regardless of preview success.
-  wireCompressSlider();
+  // Wire mode-dependent estimate/custom controls regardless of preview success.
+  wireCompressOptions();
 
   if (!window.PdfPreview) return;
   let pdfDoc;
@@ -3297,16 +3345,30 @@ async function renderCompressPreview() {
   }
 }
 
-// Convert the slider value (0/1/2) into the level string the Express
-// /api/compress route forwards to the upstream processor.
-function readCompressLevel() {
-  // BUG-2 FIX: read actual slider value for all users.
-  const slider = document.getElementById('opt-level');
-  if (!slider) return 'medium';
-  const v = parseInt(slider.value, 10);
-  if (v === 0) return 'low';
-  if (v === 2) return 'high';
-  return 'medium';
+function readCompressTargetBytes() {
+  const mode = document.getElementById('opt-compress-mode');
+  if (!mode || mode.value !== 'custom') return null;
+  const input = document.getElementById('opt-compress-target');
+  const unit = document.getElementById('opt-compress-unit');
+  const value = Number(input && input.value);
+  if (!input || !input.value.trim() || !Number.isFinite(value) || value <= 0) {
+    throw new Error('Enter a valid desired output size.');
+  }
+  const multiplier = unit && unit.value === 'KB' ? 1024 : 1024 * 1024;
+  const bytes = Math.round(value * multiplier);
+  const sourceFile = selectedFiles[0] && selectedFiles[0].file;
+  if (!Number.isSafeInteger(bytes) || bytes < 1024) {
+    throw new Error('The desired output size must be at least 1 KB.');
+  }
+  if (sourceFile && bytes >= sourceFile.size) {
+    throw new Error('Choose an output size smaller than the original PDF.');
+  }
+  return bytes;
+}
+
+function readCompressMode() {
+  const mode = document.getElementById('opt-compress-mode');
+  return mode && mode.value === 'custom' ? 'custom' : 'deep';
 }
 
 // ── SPA NAVIGATION ─────────────────────────────────────────────────────────
