@@ -1437,7 +1437,7 @@ function renderDownloadStep(tool) {
             </span>
             <h3>Windows</h3>
             <p>PDF tools for Windows PCs and laptops.</p>
-            <a class="ilpdf-platform-link" href="https://www.ilovepdf.com/desktop" target="_blank" rel="noopener noreferrer">Get Windows app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="ilpdf-platform-link" href="/download/windows.html">Explore Windows app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
           </div>
 
           <div class="ilpdf-platform-item">
@@ -1446,7 +1446,7 @@ function renderDownloadStep(tool) {
             </span>
             <h3>Mac</h3>
             <p>PDF tools for MacBook and iMac.</p>
-            <a class="ilpdf-platform-link" href="https://www.ilovepdf.com/desktop" target="_blank" rel="noopener noreferrer">Get Mac app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="ilpdf-platform-link" href="/download/mac.html">Explore Mac app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
           </div>
 
           <div class="ilpdf-platform-item">
@@ -1455,7 +1455,7 @@ function renderDownloadStep(tool) {
             </span>
             <h3>Android</h3>
             <p>PDF tools for Android phones and tablets.</p>
-            <a class="ilpdf-platform-link" href="https://play.google.com/store/apps/details?id=com.ilovepdf.www" target="_blank" rel="noopener noreferrer">Get Android app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="ilpdf-platform-link" href="/download/android.html">Explore Android app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
           </div>
 
           <div class="ilpdf-platform-item">
@@ -1464,7 +1464,7 @@ function renderDownloadStep(tool) {
             </span>
             <h3>iPhone &amp; iPad</h3>
             <p>PDF tools for iPhone and iPad.</p>
-            <a class="ilpdf-platform-link" href="https://apps.apple.com/pk/app/ilovepdf-pdf-editor-scan/id1207332399" target="_blank" rel="noopener noreferrer">Get iPhone &amp; iPad app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="ilpdf-platform-link" href="/download/ios.html">Explore iPhone &amp; iPad app <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
           </div>
         </div>
       </section>
