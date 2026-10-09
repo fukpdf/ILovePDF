@@ -11761,3 +11761,37 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
     flex-basis: 23px !important;
   }
 }
+
+
+/* Download Continue-to section height reduced by another 10%. */
+body:has(.ilpdf-download-page) .ilpdf-continue-card {
+  padding-block: 9px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+  min-height: 78px;
+  padding-block: 7px;
+}
+@media (max-width: 980px) and (min-width: 641px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card {
+    padding-block: 8px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 72px;
+    padding-block: 6px;
+  }
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card {
+    padding-block: 7px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 44px;
+    padding-block: 3px;
+  }
+}
+@media (max-width: 360px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 41px;
+    padding-block: 2px;
+  }
+}
