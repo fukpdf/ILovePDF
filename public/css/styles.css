@@ -13369,12 +13369,12 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
    the dedicated download page keep their existing dimensions and behavior. */
 .merge-pdf-download-cta {
   min-height: 0 !important;
-  padding: 0.8em 1.3em !important;
-  gap: 0.8em !important;
-  font-size: 0.8em !important;
+  padding: 8.8px 19.2px !important;
+  gap: 6.4px !important;
+  font-size: 0.704rem !important;
 }
 .merge-pdf-download-cta svg,
 .merge-pdf-download-cta i {
-  width: 0.8em;
-  height: 0.8em;
+  width: 12.8px;
+  height: 12.8px;
 }
