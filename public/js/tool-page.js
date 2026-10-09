@@ -3452,7 +3452,10 @@ function readCompressMode() {
   if (!mode || !mode.value) {
     throw new Error('Choose Deep Compression or Custom before processing.');
   }
-  return mode.value === 'custom' ? 'custom' : 'deep';
+  if (mode.value !== 'deep' && mode.value !== 'custom') {
+    throw new Error('The selected compression mode is not supported. Please choose Deep Compression or Custom.');
+  }
+  return mode.value;
 }
 
 // ── SPA NAVIGATION ─────────────────────────────────────────────────────────
