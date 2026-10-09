@@ -2539,19 +2539,25 @@ function appendCompressAdvancedLink() {
   if (btn) btn.addEventListener('click', runAdvancedCompress, { once: true });
 }
 
-async function runAdvancedCompress() {
+async function runAdvancedCompress(config = {}) {
   if (!selectedFiles || !selectedFiles.length) return;
+  const targetBytes = Number.isSafeInteger(config.targetBytes) && config.targetBytes > 0
+    ? config.targetBytes : null;
+  const isCustom = !!targetBytes;
   const btn = document.getElementById('try-advanced-compress');
   if (btn) { btn.disabled = true; btn.textContent = 'Compressing…'; }
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
-  showProcessing('Applying deep compression…', 'Rendering pages for maximum size reduction.');
+  showProcessing(
+    isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
+    isCustom
+      ? 'Adjusting image quality and resolution to reach your requested output size.'
+      : 'Rendering pages for maximum size reduction.',
+  );
 
-  // srcPdf is declared outside the try so the finally block can always destroy
-  // it, even if an error fires mid-loop (prevents PDF.js memory leak).
+  // Keep the source document outside the try so every exit path destroys it.
   let srcPdf = null;
   try {
-    // Render-based deep compression: every page → JPEG canvas → re-embedded PDF.
     const { PDFDocument } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
     if (!pdfjsLib) {
@@ -2568,89 +2574,114 @@ async function runAdvancedCompress() {
     }
 
     const file = selectedFiles[0].file;
-    // [FUTURE: StreamEngine] Replace file.arrayBuffer() with OPFS byte-range
-    // streaming so giant PDFs don't spike the JS heap during deep compress.
-    let data  = await file.arrayBuffer();
-    srcPdf    = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    data      = null; // release ArrayBuffer reference; PDF.js owns it now
-    const total  = srcPdf.numPages;
-    const outDoc = await PDFDocument.create();
+    let data = await file.arrayBuffer();
+    srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+    data = null;
+    const total = srcPdf.numPages;
 
-    for (let i = 1; i <= total; i++) {
-      showProcessing(
-        `Deep compression — page ${i} of ${total}…`,
-        'Optimising image quality for a smaller file size.',
-      );
-      const page = await srcPdf.getPage(i);
-      // Native page size (points) — preserve original dimensions exactly.
-      const vp1   = page.getViewport({ scale: 1 });
-      const pw    = vp1.width;
-      const ph    = vp1.height;
-      // Render at ~110 DPI (scale ≈ 1.53) — good balance of quality vs size.
-      const scale = Math.min(1.53, 110 / 72);
-      const vp    = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(vp.width);
-      canvas.height = Math.round(vp.height);
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      page.cleanup();
-      const jpgBytes = await new Promise((res, rej) => {
-        canvas.toBlob(b => {
-          if (!b) { rej(new Error('Canvas encode failed')); return; }
-          b.arrayBuffer().then(ab => res(new Uint8Array(ab))).catch(rej);
-        }, 'image/jpeg', 0.72);
-      });
-      // Zero canvas dimensions to release GPU texture memory before next page.
-      canvas.width = 0; canvas.height = 0;
-      const img = await outDoc.embedJpg(jpgBytes);
-      const pg  = outDoc.addPage([pw, ph]);
-      pg.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+    // Deep uses one balanced pass. Custom progressively lowers JPEG quality
+    // and render resolution, stopping as soon as the requested target is met.
+    const strategies = isCustom
+      ? [
+          { scale: 1.53, quality: 0.72 },
+          { scale: 1.30, quality: 0.62 },
+          { scale: 1.12, quality: 0.52 },
+          { scale: 0.95, quality: 0.42 },
+          { scale: 0.80, quality: 0.32 },
+        ]
+      : [{ scale: 1.53, quality: 0.72 }];
+    let bestBlob = null;
+    let targetReached = false;
+
+    for (let pass = 0; pass < strategies.length; pass++) {
+      const strategy = strategies[pass];
+      const outDoc = await PDFDocument.create();
+      for (let i = 1; i <= total; i++) {
+        showProcessing(
+          isCustom
+            ? 'Custom compression — pass ' + (pass + 1) + '/' + strategies.length + ', page ' + i + '/' + total + '…'
+            : 'Deep compression — page ' + i + ' of ' + total + '…',
+          isCustom
+            ? 'Target: ' + formatCompressSize(targetBytes) + '. Testing output quality and size.'
+            : 'Optimising image quality for a smaller file size.',
+        );
+        const page = await srcPdf.getPage(i);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const pw = baseViewport.width;
+        const ph = baseViewport.height;
+        const viewport = page.getViewport({ scale: strategy.scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(viewport.width));
+        canvas.height = Math.max(1, Math.round(viewport.height));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not create a canvas for PDF compression.');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        page.cleanup();
+        const jpgBytes = await new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('Canvas image encoding failed.')); return; }
+            blob.arrayBuffer().then(ab => resolve(new Uint8Array(ab))).catch(reject);
+          }, 'image/jpeg', strategy.quality);
+        });
+        canvas.width = 0;
+        canvas.height = 0;
+        const img = await outDoc.embedJpg(jpgBytes);
+        const outPage = outDoc.addPage([pw, ph]);
+        outPage.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+      }
+
+      const outBytes = await outDoc.save({ useObjectStreams: true });
+      const candidate = new Blob([outBytes], { type: 'application/pdf' });
+      if (!bestBlob || candidate.size < bestBlob.size) bestBlob = candidate;
+      if (isCustom && candidate.size <= targetBytes) {
+        bestBlob = candidate;
+        targetReached = true;
+        break;
+      }
+      if (!isCustom) break;
     }
 
-    const outBytes = await outDoc.save({ useObjectStreams: true });
-    const generatedBlob = new Blob([outBytes], { type: 'application/pdf' });
+    if (!bestBlob) throw new Error('Compression did not produce a PDF.');
     const filename = brandedFilename(file.name, '.pdf');
-    // Deep compression is lossy and must not replace the source unless it
-    // actually reduces bytes. Keep the original when rasterized output is larger.
-    const didReduce = generatedBlob.size < file.size;
-    const blob = didReduce
-      ? generatedBlob
-      : file.slice(0, file.size, 'application/pdf');
-    const saved = didReduce
-      ? Math.round((1 - blob.size / file.size) * 100)
-      : 0;
+    // Never replace a usable original with a larger rasterised result.
+    const didReduce = bestBlob.size < file.size;
+    const blob = didReduce ? bestBlob : file.slice(0, file.size, 'application/pdf');
+    const saved = didReduce ? Math.round((1 - blob.size / file.size) * 100) : 0;
     const signature = await blob.slice(0, 5).text();
-    if (signature !== '%PDF-') throw new Error('Compression produced an invalid PDF output');
+    if (signature !== '%PDF-') throw new Error('Compression produced an invalid PDF output.');
 
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
-    showStatus(
-      'success',
-      didReduce ? `Reduced by ${saved}%` : 'Already optimised',
-      didReduce
-        ? 'Click the Download button below to save your smaller file.'
-        : 'Deep compression could not reduce this file further, so the original PDF is preserved.',
-      createStatusUrl(blob),
-      filename,
-    );
+    const title = !didReduce
+      ? 'Already optimised'
+      : (isCustom
+          ? (targetReached ? 'Custom target reached' : 'Best compression result')
+          : 'Reduced by ' + saved + '%');
+    let message;
+    if (!didReduce) {
+      message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
+    } else if (isCustom && targetReached) {
+      message = 'Requested target reached. Output file: ' + formatCompressSize(blob.size) + '.';
+    } else if (isCustom) {
+      message = 'The requested target of ' + formatCompressSize(targetBytes) + ' could not be reached with the available quality settings. Best result: ' + formatCompressSize(blob.size) + '.';
+    } else {
+      message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
+    }
+    showStatus('success', title, message, createStatusUrl(blob), filename);
   } catch (err) {
     hideProcessing();
     const msg = (err && err.message && err.message.length < 200)
       ? err.message : 'Please try again with a different file.';
-    showStatus('error', 'Deep compression failed', msg);
-    // showStatus replaces result-area markup, so mount a fresh retry CTA.
-    appendCompressAdvancedLink();
+    showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
+    // showStatus replaces result-area markup; restore a retry path for errors
+    // when this function is called from the legacy advanced-compression CTA.
+    if (document.getElementById('result-area')) appendCompressAdvancedLink();
   } finally {
-    // Always destroy the PDF.js document — even on mid-loop errors.
-    // This frees the decoded stream data and worker references.
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     if (processBtn) processBtn.disabled = false;
-    // The CTA uses a one-shot listener; restore it after either success or
-    // failure so users can retry without re-uploading the PDF.
-    if (btn) {
+    if (btn && document.body.contains(btn)) {
       btn.disabled = false;
       btn.innerHTML = '<i data-lucide="zap"></i> Try deep compression';
       btn.addEventListener('click', runAdvancedCompress, { once: true });
@@ -2658,7 +2689,6 @@ async function runAdvancedCompress() {
     }
   }
 }
-
 function showStatus(type, title, message, downloadUrl, filename) {
   // Phase 7J: push error/success events into the security stream
   try {
