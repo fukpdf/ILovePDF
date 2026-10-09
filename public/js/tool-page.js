@@ -1425,6 +1425,56 @@ function renderDownloadStep(tool) {
         <p class="ilpdf-support-note">Donations are optional. Sharing ILovePDF is also a huge help.</p>
       </section>
 
+      <section class="ilpdf-platforms" aria-labelledby="ilpdf-platforms-title">
+        <div class="ilpdf-platforms-eyebrow">ILOVEPDF EVERYWHERE</div>
+        <h2 id="ilpdf-platforms-title">Your PDFs. Every device.</h2>
+        <p class="ilpdf-platforms-intro">Wherever you work, ILovePDF helps you manage PDF files with ease. Choose your device and find the right way to get started.</p>
+
+        <div class="ilpdf-platform-grid">
+          <div class="ilpdf-platform-item">
+            <span class="ilpdf-platform-logo ilpdf-platform-logo--windows" aria-hidden="true">
+              <svg viewBox="0 0 40 40" focusable="false"><path d="M3 8.5 17.5 6.5V19H3V8.5Zm17-2.4L37 3.5V19H20V6.1ZM3 21h14.5v12.5L3 31.5V21Zm17 0h17v15.5l-17-2.4V21Z" fill="currentColor"/></svg>
+            </span>
+            <h3>Windows</h3>
+            <p>For Windows PCs and laptops.</p>
+            <span class="ilpdf-platform-type">Desktop</span>
+          </div>
+
+          <div class="ilpdf-platform-item">
+            <span class="ilpdf-platform-logo ilpdf-platform-logo--mac" aria-hidden="true">
+              <svg viewBox="0 0 40 40" focusable="false"><path d="M27.8 21.2c0-4 3.3-5.9 3.5-6-1.9-2.8-4.9-3.2-6-3.2-2.5-.3-4.9 1.5-6.2 1.5-1.4 0-3.4-1.5-5.6-1.4-2.9 0-5.6 1.7-7.1 4.3-3 5.2-.8 12.9 2.1 17.1 1.4 2.1 3.1 4.4 5.3 4.3 2.1-.1 2.9-1.4 5.5-1.4s3.3 1.4 5.5 1.3c2.3 0 3.7-2.1 5.1-4.2 1.6-2.4 2.2-4.8 2.2-4.9-.1 0-4.3-1.7-4.3-7.4ZM23.7 9.2c1.1-1.3 1.9-3.1 1.7-4.9-1.6.1-3.5 1.1-4.7 2.4-1 1.1-1.9 2.9-1.7 4.6 1.8.1 3.6-.9 4.7-2.1Z" fill="currentColor"/></svg>
+            </span>
+            <h3>Mac</h3>
+            <p>For MacBook and iMac computers.</p>
+            <span class="ilpdf-platform-type">Desktop</span>
+          </div>
+
+          <div class="ilpdf-platform-item">
+            <span class="ilpdf-platform-logo ilpdf-platform-logo--android" aria-hidden="true">
+              <svg viewBox="0 0 40 40" focusable="false"><path d="M12.1 13.8 9.7 9.6a.8.8 0 0 1 1.4-.8l2.5 4.3a13.4 13.4 0 0 1 12.8 0l2.5-4.3a.8.8 0 1 1 1.4.8l-2.4 4.2a11.8 11.8 0 0 1 5.2 9.6H6.9a11.8 11.8 0 0 1 5.2-9.6ZM6.9 25h26.2v6.1a2.8 2.8 0 0 1-2.8 2.8h-2.1v3.2a1.8 1.8 0 0 1-3.6 0v-3.2h-7.2v3.2a1.8 1.8 0 0 1-3.6 0v-3.2h-2.1a2.8 2.8 0 0 1-2.8-2.8V25Z" fill="currentColor"/><circle cx="14.2" cy="18.3" r="1.2" fill="#fff"/><circle cx="25.8" cy="18.3" r="1.2" fill="#fff"/></svg>
+            </span>
+            <h3>Android</h3>
+            <p>For Android phones and tablets.</p>
+            <span class="ilpdf-platform-type">Mobile</span>
+          </div>
+
+          <div class="ilpdf-platform-item">
+            <span class="ilpdf-platform-logo ilpdf-platform-logo--ios" aria-hidden="true">
+              <svg viewBox="0 0 40 40" focusable="false"><path d="M11 31.5 20 8.5l9 23h-5.1l-1.7-4.8h-4.5L16 31.5H11Zm8.1-9.1h2l-1-3.1-1 3.1Z" fill="currentColor"/></svg>
+            </span>
+            <h3>iPhone &amp; iPad</h3>
+            <p>For your Apple mobile devices.</p>
+            <span class="ilpdf-platform-type">Mobile</span>
+          </div>
+        </div>
+
+        <a class="ilpdf-platforms-browser-link" href="/tools">
+          <i data-lucide="globe-2" aria-hidden="true"></i>
+          <span>Prefer not to install anything? Use ILovePDF in your browser.</span>
+          <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+        </a>
+      </section>
+
       <div class="ad-wrap ad-wrap--tight ilpdf-download-ad" role="complementary" aria-label="Advertisement">
         <div class="ad-slot ad-slot--download"
              id="ad-download-banner"
