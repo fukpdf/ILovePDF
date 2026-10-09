@@ -347,3 +347,19 @@ body:has(.site-header){
   width: 10px !important;
   height: 10px !important;
 }
+
+
+/* All Tools mega-menu: fine-tune Instant/Advanced tool rows.
+   Logos 20% smaller; tool names 10% larger than the previous compact sizing. */
+.site-header .mega-link {
+  font-size: .64rem !important;
+}
+.site-header .mega-link .mi {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 5px !important;
+}
+.site-header .mega-link .mi svg {
+  width: 8px !important;
+  height: 8px !important;
+}
