@@ -1361,9 +1361,9 @@ function renderDownloadStep(tool) {
   if (!container) return;
   const slug = Flow.baseSlug();
 
-  container.classList.remove('ew-wide');
+  container.classList.remove('ew-wide', 'tool-page');
   container.innerHTML = `
-    <div class="tool-page ilpdf-download-page">
+    <div class="ilpdf-download-page">
       <section class="ilpdf-download-hero" aria-label="Download your result">
         <h1 class="ilpdf-download-heading">Your ${escapeHtml(tool.name)} task was completed successfully.</h1>
 
