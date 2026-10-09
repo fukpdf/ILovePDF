@@ -35,3 +35,7 @@ A small reusable pattern for temporary service notices, apologies, planned impro
 
 ## Deployment
 Changes deploy through .github/workflows/deploy.yml on pushes to main, targeting Firebase Hosting. Confirm the workflow succeeds and inspect the production URL before considering the task live.
+
+
+### Brand styling
+The announcement UI must follow the existing homepage design tokens from `public/css/home.css`: `--primary: #4f46e5`, `--primary-2: #7c3aed`, `--primary-deep: #1e1b4b`, and the `--grad` indigo/violet gradient. Do not introduce an unrelated red theme for this feature.

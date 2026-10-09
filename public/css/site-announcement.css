@@ -1,3 +1,4 @@
+/* Original ILovePDF theme: indigo-to-violet brand gradient from home.css tokens. */
 /* Isolated styles for the reusable ILovePDF announcement modal. */
 .ilpdf-announcement-overlay{position:fixed;inset:0;z-index:2500;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:rgba(15,23,42,.58);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);opacity:0;transition:opacity .18s ease}
 .ilpdf-announcement-overlay.is-visible{opacity:1}
@@ -8,26 +9,26 @@
 .ilpdf-announcement-close:hover{background:#eceef3;color:#202433}
 .ilpdf-announcement svg{display:block;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ilpdf-announcement-brand{display:flex;align-items:center;gap:10px;padding-right:38px;font-size:20px;font-weight:800;letter-spacing:-.7px}
-.ilpdf-announcement-brand-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#e5322d;color:#fff}
+.ilpdf-announcement-brand-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#4f46e5;color:#fff}
 .ilpdf-announcement-brand-icon svg{width:20px;height:20px}
-.ilpdf-announcement-brand-accent{color:#e5322d}
+.ilpdf-announcement-brand-accent{color:#4f46e5}
 .ilpdf-announcement-rule{height:1px;margin:20px 0 22px;background:#eceef2}
 .ilpdf-announcement-content{text-align:center}
-.ilpdf-announcement-emblem{display:grid;place-items:center;width:62px;height:62px;margin:0 auto 15px;border-radius:50%;background:#fff0ef;color:#e5322d}
+.ilpdf-announcement-emblem{display:grid;place-items:center;width:62px;height:62px;margin:0 auto 15px;border-radius:50%;background:#eef2ff;color:#4f46e5}
 .ilpdf-announcement-emblem svg{width:29px;height:29px}
-.ilpdf-announcement-eyebrow{margin:0 0 8px;color:#d92f2a;font-size:10px;font-weight:800;letter-spacing:1.25px;line-height:1.5}
+.ilpdf-announcement-eyebrow{margin:0 0 8px;color:#4f46e5;font-size:10px;font-weight:800;letter-spacing:1.25px;line-height:1.5}
 .ilpdf-announcement h2{margin:0 auto 12px;max-width:350px;color:#202433;font-size:clamp(23px,5vw,29px);line-height:1.18;letter-spacing:-.9px;font-weight:800}
 .ilpdf-announcement-intro,.ilpdf-announcement-closing{margin:0;color:#5c6371;font-size:13px;line-height:1.7}
 .ilpdf-announcement-features{display:grid;gap:9px;margin:20px 0;padding:13px;border-radius:16px;background:#f7f8fa;text-align:left}
 .ilpdf-announcement-feature{display:flex;align-items:center;gap:12px;min-width:0}
-.ilpdf-announcement-feature-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff;color:#e5322d;box-shadow:0 1px 3px rgba(20,25,40,.06)}
+.ilpdf-announcement-feature-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff;color:#4f46e5;box-shadow:0 1px 3px rgba(20,25,40,.06)}
 .ilpdf-announcement-feature-icon svg{width:19px;height:19px}
 .ilpdf-announcement-feature-copy{display:grid;gap:2px;min-width:0}
 .ilpdf-announcement-feature-copy strong{color:#292e3a;font-size:12px;font-weight:750}
 .ilpdf-announcement-feature-copy span{color:#707684;font-size:11px;line-height:1.45}
 .ilpdf-announcement-closing{margin-bottom:17px}
-.ilpdf-announcement-action{display:block;width:100%;min-height:47px;padding:12px 18px;border-radius:12px;background:#e5322d;color:#fff;font-size:13px;font-weight:750;box-shadow:0 6px 14px rgba(229,50,45,.19);transition:background .15s ease,transform .15s ease}
-.ilpdf-announcement-action:hover{background:#c92723}
+.ilpdf-announcement-action{display:block;width:100%;min-height:47px;padding:12px 18px;border-radius:12px;background:#4f46e5;color:#fff;font-size:13px;font-weight:750;box-shadow:0 6px 14px rgba(79,70,229,.19);transition:background .15s ease,transform .15s ease}
+.ilpdf-announcement-action:hover{background:#4338ca}
 .ilpdf-announcement-action:active{transform:translateY(1px)}
 .ilpdf-announcement button:focus-visible{outline:3px solid #4f46e5;outline-offset:3px}
 .ilpdf-announcement-footer{margin:13px 0 0;color:#9297a2;font-size:10px}

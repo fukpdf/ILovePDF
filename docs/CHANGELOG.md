@@ -6,6 +6,11 @@ Each entry documents: purpose, files added, globals exposed, panels, bundles, ma
 
 ---
 
+## 2026-10-09 — Announcement Theme Alignment
+
+- Aligned the announcement popup with the repository's original indigo/violet theme (`#4f46e5`, `#7c3aed`, `#9333ea`) instead of the temporary red accent.
+- Matched the brand emblem, primary action, accent text, and pale accent surface to existing homepage design tokens.
+
 ## 2026-10-09 — Homepage Community Announcement
 
 - Added a reusable, configuration-driven announcement modal, initially enabled on the homepage only.
