@@ -12791,3 +12791,23 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
   color: #202334;
 }
+
+
+/* Download page: carry the full-width white platform section down to the footer. */
+body:has(.ilpdf-download-page) #tool-content {
+  background: #fff;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page {
+  background: #fff;
+  padding-bottom: 0;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  margin-bottom: 0;
+  padding-bottom: clamp(44px, 5vw, 68px);
+  border-bottom: 0;
+  box-shadow: none;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
+  margin-bottom: 0;
+  background: #fff;
+}
