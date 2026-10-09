@@ -12832,10 +12832,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
   background: #fff !important;
 }
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad .ad-slot {
-  min-height: 0 !important;
-  height: 0 !important;
   margin: 0 !important;
-  padding: 0 !important;
+  background: #fff !important;
 }
 body:has(.ilpdf-download-page) .site-footer {
   margin-top: 0 !important;
