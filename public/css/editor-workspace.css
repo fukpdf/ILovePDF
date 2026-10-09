@@ -2155,3 +2155,41 @@
     background: #818cf8 !important;
   }
 }
+
+
+/* ── Sticky preview controls: keep options + Process reachable while scrolling ── */
+/* Desktop and tablet: pin the complete options/action rail below the shared header.
+   The rail can scroll internally when its contents exceed the available viewport. */
+@media (min-width: 641px) {
+  .ew-preview-workspace {
+    overflow: visible !important;
+    align-items: start !important;
+  }
+
+  .ew-preview-aside {
+    position: sticky !important;
+    top: calc(var(--ew-header-h, 72px) + 12px) !important;
+    align-self: start !important;
+    max-height: calc(100vh - var(--ew-header-h, 72px) - 24px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    z-index: 20;
+  }
+
+  .ew-preview-aside .ew-process-panel {
+    flex-shrink: 0;
+  }
+}
+
+/* Small screens: preserve the existing fixed Process CTA without covering controls. */
+@media (max-width: 640px) {
+  .ew-preview-page {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .ew-process-panel {
+    bottom: 0 !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
