@@ -83,9 +83,20 @@ OPS.compress = async function (buffers) {
     addDefaultPage: false,
     objectsPerTick: 50,
   });
-  const result = toArrayBuffer(out);
+  // Preserve the exact Uint8Array window; its backing buffer may include bytes
+  // outside byteOffset/byteLength in some runtimes.
+  const result = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
 
-  // Prefer the compressed representation only when it is actually smaller.
+  // Reject an invalid serialization before it can reach the download pipeline.
+  const signature = new Uint8Array(result, 0, Math.min(5, result.byteLength));
+  if (signature.length !== 5 ||
+      signature[0] !== 0x25 || signature[1] !== 0x50 ||
+      signature[2] !== 0x44 || signature[3] !== 0x46 || signature[4] !== 0x2D) {
+    throw new Error('Compression produced an invalid PDF output');
+  }
+
+  // Never replace a usable source with a larger "compressed" file.
+  // Returning the original is intentional; the UI reports no size reduction.
   return result.byteLength < original.byteLength ? result : original;
 };
 
