@@ -2520,8 +2520,6 @@ async function runAdvancedCompress(config = {}) {
   const targetBytes = Number.isSafeInteger(config.targetBytes) && config.targetBytes > 0
     ? config.targetBytes : null;
   const isCustom = !!targetBytes;
-  const btn = document.getElementById('try-advanced-compress');
-  if (btn) { btn.disabled = true; btn.textContent = 'Compressing…'; }
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
   showProcessing(
@@ -2654,12 +2652,6 @@ async function runAdvancedCompress(config = {}) {
   } finally {
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     if (processBtn) processBtn.disabled = false;
-    if (btn && document.body.contains(btn)) {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="zap"></i> Try deep compression';
-      btn.addEventListener('click', runAdvancedCompress, { once: true });
-      if (window.lucide) window.lucide.createIcons();
-    }
   }
 }
 function showStatus(type, title, message, downloadUrl, filename) {
