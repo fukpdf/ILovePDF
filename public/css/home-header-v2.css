@@ -409,3 +409,41 @@ body:has(.site-header){
   width: 14.4px !important;
   height: 14.4px !important;
 }
+
+
+/* Final shared-header alignment override.
+   Keep the brand and All Tools aligned on one row at desktop and mobile sizes. */
+@media (min-width: 1200px) {
+  .site-header .header-inner { gap: clamp(12px, 1.4vw, 22px) !important; padding: 0 clamp(14px, 2vw, 28px) !important; }
+  .site-header .brand { gap: 10px !important; font-size: clamp(1.08rem, 1.25vw, 1.3rem) !important; }
+  .site-header .brand-mark { width: 36px !important; height: 36px !important; min-width: 36px !important; flex-basis: 36px !important; }
+  .site-header .brand-mark svg { width: 19px !important; height: 19px !important; }
+  .site-header .nav { flex-wrap: nowrap !important; gap: clamp(2px, .45vw, 7px) !important; }
+  .site-header .nav a, .site-header .nav button { min-height: 40px !important; padding: 8px clamp(8px, .8vw, 12px) !important; font-size: clamp(.82rem, .88vw, .92rem) !important; gap: 6px !important; }
+}
+@media (min-width: 1024px) and (max-width: 1199.98px) {
+  .site-header .header-inner { gap: 14px !important; padding: 0 16px !important; }
+  .site-header .brand { gap: 9px !important; font-size: 1.15rem !important; }
+  .site-header .brand-mark { width: 34px !important; height: 34px !important; min-width: 34px !important; flex-basis: 34px !important; }
+  .site-header .nav { justify-content: flex-end !important; gap: 4px !important; }
+  .site-header .nav-direct, .site-header .nav-item.has-dd:not(.has-mega) { display: none !important; }
+  .site-header .nav-item.has-mega { display: block !important; }
+  .site-header .nav button { min-height: 40px !important; padding: 8px 12px !important; font-size: .9rem !important; }
+}
+@media (max-width: 1023.98px) {
+  .site-header .header-inner { display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 10px !important; padding: 0 14px !important; }
+  .site-header .brand { position: static !important; margin: 0 auto 0 0 !important; gap: 8px !important; font-size: 1.08rem !important; flex: 0 0 auto !important; }
+  .site-header .brand-mark { width: 32px !important; height: 32px !important; min-width: 32px !important; flex-basis: 32px !important; }
+  .site-header .nav { position: static !important; inset: auto !important; transform: none !important; display: flex !important; flex: 0 0 auto !important; width: auto !important; margin: 0 0 0 auto !important; gap: 0 !important; justify-content: flex-end !important; }
+  .site-header .nav-direct, .site-header .nav-item:not(.has-mega) { display: none !important; }
+  .site-header .nav-item.has-mega { display: block !important; }
+  .site-header .nav .all-tools { display: inline-flex !important; align-items: center !important; min-height: 38px !important; padding: 8px 10px !important; gap: 6px !important; font-size: .84rem !important; white-space: nowrap !important; }
+  .site-header .nav-item.has-mega .mega { left: auto !important; right: 0 !important; width: min(720px, calc(100vw - 20px)) !important; max-width: calc(100vw - 20px) !important; max-height: calc(100vh - 82px) !important; overflow-x: hidden !important; overflow-y: auto !important; padding: 14px !important; box-sizing: border-box !important; }
+  .site-header .nav-item.has-mega .mega-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+}
+@media (max-width: 420px) {
+  .site-header .brand { font-size: 1rem !important; gap: 6px !important; }
+  .site-header .brand-mark { width: 29px !important; height: 29px !important; min-width: 29px !important; flex-basis: 29px !important; }
+  .site-header .nav .all-tools { padding: 7px 8px !important; font-size: .8rem !important; }
+  .site-header .nav-item.has-mega .mega-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}
