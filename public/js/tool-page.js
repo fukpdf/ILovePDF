@@ -1590,7 +1590,9 @@ function _buildRelatedToolsHtml(toolId, maxCount) {
     var safeDescription = description.replace(/[&<>"']/g, function (ch) {
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
     });
-    return '<a class="popular-card" href="' + href + '" aria-label="' + safeName + '">' +
+    var palette = ['merge','compress','convert','image','word','rotate','protect','unlock'];
+    var colorIndex = related.indexOf(t) % palette.length;
+    return '<a class="popular-card continue-tool-card continue-tool-card--' + palette[colorIndex] + '" href="' + href + '" aria-label="' + safeName + '">' +
       '<span class="popular-card-icon" aria-hidden="true"><i data-lucide="' + icon + '"></i></span>' +
       '<span class="popular-card-body"><span class="popular-card-name">' + safeName + '</span>' +
       '<span class="popular-card-description">' + safeDescription + '</span></span>' +
