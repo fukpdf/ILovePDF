@@ -2576,11 +2576,10 @@ async function runAdvancedCompress(config = {}) {
     data = null;
     const total = srcPdf.numPages;
 
-    // Deep is the reference profile. Custom reuses the exact same JPEG
-    // quality and calculates a single render scale from the requested target.
-    // Rendered image area is approximately proportional to scale squared, so
-    // scale = DeepScale * sqrt(target / estimatedDeepOutput). This is an
-    // estimate, not a byte-size guarantee: PDF content and JPEG entropy vary.
+    // Deep is the reference profile. Custom reuses Deep's JPEG quality and
+    // starts with a target-derived scale, then corrects it from measured output.
+    // Rendered image area is approximately proportional to scale squared, but
+    // PDF content and JPEG entropy vary, so even feedback passes are estimates.
     const DEEP_RENDER_SCALE = 1.53;
     const DEEP_JPEG_QUALITY = 0.72;
     const MIN_RENDER_SCALE = 0.15;
