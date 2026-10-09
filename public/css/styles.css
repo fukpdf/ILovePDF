@@ -13292,3 +13292,73 @@ body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon svg {
     flex-basis: 22px !important;
   }
 }
+
+
+/* Final polish: Continue to... cards are 20% narrower; keep the section and card height unchanged. */
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+  width: 80% !important;
+  max-width: 80% !important;
+  justify-self: center !important;
+}
+
+/* ILovePDF Everywhere: slightly larger type and more breathing room for a polished hierarchy. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-eyebrow {
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+  letter-spacing: .18em !important;
+  margin-bottom: 13px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
+  font-size: clamp(29px, 3.35vw, 39px) !important;
+  line-height: 1.28 !important;
+  letter-spacing: -.035em !important;
+  margin-bottom: 15px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+  font-size: clamp(15px, 1.45vw, 17px) !important;
+  line-height: 1.9 !important;
+  max-width: 620px !important;
+  margin-bottom: 32px !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-eyebrow {
+    font-size: 10px !important;
+    margin-bottom: 11px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
+    font-size: clamp(26px, 6vw, 32px) !important;
+    line-height: 1.32 !important;
+    margin-bottom: 13px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+    font-size: 14px !important;
+    line-height: 1.85 !important;
+    margin-bottom: 25px !important;
+  }
+}
+
+/* Download CTA: reduce its overall footprint by about 20%, while keeping it easy to tap. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
+  min-height: 53px !important;
+  height: 53px !important;
+  padding: 12px 21px !important;
+  gap: 8px !important;
+  font-size: 16px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger svg {
+  width: 19px !important;
+  height: 19px !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
+    min-height: 49px !important;
+    height: 49px !important;
+    padding: 10px 16px !important;
+    font-size: 15px !important;
+    gap: 7px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
