@@ -2585,10 +2585,7 @@ async function runAdvancedCompress(config = {}) {
     let customScaleHigh = 2.40;
     const customJpegQuality = 0.78;
     const strategies = isCustom
-      ? Array.from({ length: customPassCount }, (_, pass) => ({
-          scale: pass === 0 ? customScaleLow : (customScaleLow + customScaleHigh) / 2,
-          quality: customJpegQuality,
-        }))
+      ? Array.from({ length: customPassCount }, () => ({ quality: customJpegQuality }))
       : [{ scale: 1.53, quality: 0.72 }];
     let bestBlob = null;
     let smallestBlob = null;
@@ -2596,7 +2593,14 @@ async function runAdvancedCompress(config = {}) {
     let targetReached = false;
 
     for (let pass = 0; pass < strategies.length; pass++) {
-      const strategy = strategies[pass];
+      // Calculate each Custom scale only after the previous candidate updates
+      // the search bounds; precomputing these values would repeat one scale.
+      const strategy = isCustom
+        ? {
+            scale: pass === 0 ? customScaleLow : (customScaleLow + customScaleHigh) / 2,
+            quality: customJpegQuality,
+          }
+        : strategies[pass];
       const outDoc = await PDFDocument.create();
       for (let i = 1; i <= total; i++) {
         showProcessing(
