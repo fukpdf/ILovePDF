@@ -12786,3 +12786,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
     gap: 22px 10px;
   }
 }
+
+/* Keep the platform section headline in the original ink color; brand red is reserved for the eyebrow line. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
+  color: #202334;
+}
