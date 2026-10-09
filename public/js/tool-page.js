@@ -2626,6 +2626,8 @@ async function runAdvancedCompress() {
     const msg = (err && err.message && err.message.length < 200)
       ? err.message : 'Please try again with a different file.';
     showStatus('error', 'Deep compression failed', msg);
+    // showStatus replaces result-area markup, so mount a fresh retry CTA.
+    appendCompressAdvancedLink();
   } finally {
     // Always destroy the PDF.js document — even on mid-loop errors.
     // This frees the decoded stream data and worker references.
