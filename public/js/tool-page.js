@@ -2169,6 +2169,28 @@ async function processFile() {
     }
   }
 
+  // Compress PDF uses the selected mode directly: Deep Compression needs no
+  // second click, while Custom passes its validated target size to the renderer.
+  if (currentTool.id === 'compress') {
+    let targetBytes = null;
+    try {
+      targetBytes = readCompressTargetBytes();
+    } catch (err) {
+      showStatus('error', 'Check compression settings', err.message || 'Enter a valid output size.');
+      return;
+    }
+    _processingInFlight = true;
+    const compressProcessBtn = document.getElementById('process-btn');
+    if (compressProcessBtn) compressProcessBtn.disabled = true;
+    try {
+      await runAdvancedCompress({ targetBytes, mode: readCompressMode() });
+    } finally {
+      _processingInFlight = false;
+      if (compressProcessBtn) compressProcessBtn.disabled = false;
+    }
+    return;
+  }
+
   // Past all synchronous validation — commit to processing.
   // The try/finally below guarantees _processingInFlight and processBtn are
   // always restored regardless of which exit path fires (success, error, throw).
@@ -2269,12 +2291,6 @@ async function processFile() {
       const el = document.getElementById(`opt-${opt.id}`);
       if (el && el.value.trim() !== '') formData.append(opt.id, el.value.trim());
     });
-    // Compress: inject the tier-aware level value (slider → 'low'|'medium'|'high').
-    if (currentTool.id === 'compress') {
-      const lvl = readCompressLevel();
-      if (lvl) formData.append('level', lvl);
-    }
-
     showProcessing(_tp('steps.processing_file', 'Processing your file…'), _tp('steps.usual_time', 'This usually takes only a few seconds.'));
     if (processBtn) processBtn.disabled = true;
 
@@ -2349,7 +2365,6 @@ async function processFile() {
           createStatusUrl(blob),
           filename,
         );
-        if (currentTool.id === 'compress') appendCompressAdvancedLink();
         return;
       } catch (err) {
         hideProcessing();
