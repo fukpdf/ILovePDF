@@ -11652,3 +11652,28 @@ body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-grid {
     font-size: 11px;
   }
 }
+
+
+/* Continue to... final requested order: 1 4 / 2 5 / 3 6. */
+body:has(.ilpdf-download-page) .ilpdf-continue-card .related-tools-grid,
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+}
+@media (max-width: 980px) and (min-width: 641px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .related-tools-grid,
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+  }
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .related-tools-grid,
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+}
