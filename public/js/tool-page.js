@@ -2713,7 +2713,7 @@ async function runAdvancedCompress(config = {}) {
         (targetReached
           ? ' (within 2% of target).'
           : ' (' + underPct.toFixed(1) + '% below target).') +
-        ' This single-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
+        ' This measured multi-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
     } else if (isCustom) {
       message = 'The calculated single-pass output was ' + formatCompressSize(blob.size) +
         ', above your ' + formatCompressSize(targetBytes) +
