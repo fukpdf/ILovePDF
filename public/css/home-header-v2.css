@@ -363,3 +363,43 @@ body:has(.site-header){
   width: 8px !important;
   height: 8px !important;
 }
+
+
+/* All Tools menu: keep all seven categories on one row on desktop. */
+@media (min-width: 1025px) {
+  .site-header .nav-item.has-mega .mega {
+    width: min(1240px, 96vw);
+    padding: 12px;
+    overflow-x: hidden;
+  }
+  .site-header .mega-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .site-header .mega-col { min-width: 0; }
+  .site-header .mega-col h5 {
+    font-size: .62rem;
+    letter-spacing: .035em;
+    line-height: 1.25;
+    padding-bottom: 5px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+  }
+  .site-header .mega-link {
+    gap: 5px;
+    padding: 5px 4px;
+    font-size: .62rem !important;
+    line-height: 1.25;
+  }
+  .site-header .mega-link .mi {
+    width: 16px !important;
+    height: 16px !important;
+    flex: 0 0 16px;
+  }
+}
+
+/* Smaller laptop/tablet menus still adapt instead of squeezing seven columns. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .site-header .mega-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .site-header .nav-item.has-mega .mega { width: min(920px, 94vw); padding: 14px; }
+}
