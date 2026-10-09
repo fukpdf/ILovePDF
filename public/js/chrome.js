@@ -44,18 +44,13 @@ window.TOOL_GROUPS = [
     ]
   },
   {
-    key:'convert', title:'Convert',
+    key:'edit', title:'Edit & Annotate',
     items:[
-      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF',          prio:'instant'  },
-      { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images',           prio:'instant'  },
-      { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx',    prio:'advanced' },
-      { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides',      prio:'advanced' },
-      { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx',          prio:'advanced' },
-      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
-      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
-      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
-      { tid:'word-to-excel',     slug:'word-to-excel',     name:'Word to Excel',     icon:'table',        desc:'Extract Word tables into .xlsx',   prio:'advanced' },
-      { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
+      { tid:'watermark',    slug:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks',     prio:'instant'  },
+      { tid:'page-numbers', slug:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers',         prio:'instant'  },
+      { tid:'edit',         slug:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes', prio:'advanced' },
+      { tid:'sign',         slug:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures',            prio:'advanced' },
+      { tid:'redact',       slug:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content',      prio:'advanced' },
     ]
   },
   {
@@ -69,13 +64,18 @@ window.TOOL_GROUPS = [
     ]
   },
   {
-    key:'edit', title:'Edit',
+    key:'convert', title:'Convert',
     items:[
-      { tid:'watermark',    slug:'watermark-pdf',    name:'Watermark PDF',    icon:'droplet', desc:'Stamp custom watermarks',     prio:'instant'  },
-      { tid:'page-numbers', slug:'add-page-numbers', name:'Add Page Numbers', icon:'hash',    desc:'Insert page numbers',         prio:'instant'  },
-      { tid:'edit',         slug:'edit-pdf',         name:'Edit PDF',         icon:'edit-3',  desc:'Add text, shapes, and notes', prio:'advanced' },
-      { tid:'sign',         slug:'sign-pdf',         name:'Sign PDF',         icon:'pen-tool',desc:'Add e-signatures',            prio:'advanced' },
-      { tid:'redact',       slug:'redact-pdf',       name:'Redact PDF',       icon:'eye-off', desc:'Hide sensitive content',      prio:'advanced' },
+      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF',          prio:'instant'  },
+      { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images',           prio:'instant'  },
+      { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx',    prio:'advanced' },
+      { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides',      prio:'advanced' },
+      { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx',          prio:'advanced' },
+      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
+      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
+      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
+      { tid:'word-to-excel',     slug:'word-to-excel',     name:'Word to Excel',     icon:'table',        desc:'Extract Word tables into .xlsx',   prio:'advanced' },
+      { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
     ]
   },
   {
