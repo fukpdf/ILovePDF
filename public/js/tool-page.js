@@ -2548,7 +2548,7 @@ async function runAdvancedCompress(config = {}) {
   showProcessing(
     isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
     isCustom
-      ? 'Adjusting image quality and resolution to reach your requested output size.'
+      ? 'Estimating render resolution, then correcting it using measured output size.'
       : 'Rendering pages for maximum size reduction.',
   );
 
@@ -2584,26 +2584,29 @@ async function runAdvancedCompress(config = {}) {
     const DEEP_RENDER_SCALE = 1.53;
     const DEEP_JPEG_QUALITY = 0.72;
     const MIN_RENDER_SCALE = 0.15;
-    const MAX_RENDER_SCALE = 2.40;
+    const MAX_RENDER_SCALE = 3.00;
+    const MAX_CUSTOM_PASSES = 4;
     const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
     const estimatedDeepBytes = Math.max(1024, Math.round(file.size * ESTIMATED_DEEP_SIZE_RATIO));
-    const calculatedCustomScale = isCustom
+    let currentCustomScale = isCustom
       ? Math.max(MIN_RENDER_SCALE, Math.min(
           MAX_RENDER_SCALE,
           DEEP_RENDER_SCALE * Math.sqrt(targetBytes / estimatedDeepBytes),
         ))
       : DEEP_RENDER_SCALE;
-    const strategies = [{
-      scale: calculatedCustomScale,
-      quality: DEEP_JPEG_QUALITY,
-    }];
+    const strategies = [{ scale: DEEP_RENDER_SCALE, quality: DEEP_JPEG_QUALITY }];
     let bestBlob = null;
     let smallestBlob = null;
     let closestUnderTargetBlob = null;
     let targetReached = false;
 
-    for (let pass = 0; pass < strategies.length; pass++) {
-      const strategy = strategies[pass];
+    // Custom uses measured output feedback for up to four passes. The scale
+    // estimate starts from Deep's baseline, then is corrected from actual
+    // candidate bytes. Limit each correction to avoid large overshoots.
+    for (let pass = 0; pass < (isCustom ? MAX_CUSTOM_PASSES : strategies.length); pass++) {
+      const strategy = isCustom
+        ? { scale: currentCustomScale, quality: DEEP_JPEG_QUALITY }
+        : strategies[pass];
       const outDoc = await PDFDocument.create();
       for (let i = 1; i <= total; i++) {
         showProcessing(
@@ -2611,7 +2614,7 @@ async function runAdvancedCompress(config = {}) {
             ? 'Custom compression — page ' + i + ' of ' + total + '…'
             : 'Deep compression — page ' + i + ' of ' + total + '…',
           isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Using a target-calculated render scale.'
+            ? 'Target: ' + formatCompressSize(targetBytes) + '. Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
             : 'Optimising image quality for a smaller file size.',
         );
         const page = await srcPdf.getPage(i);
@@ -2651,8 +2654,20 @@ async function runAdvancedCompress(config = {}) {
           closestUnderTargetBlob = candidate;
         }
 
-        // This is deliberately a single measured pass. We report the actual
-        // output below rather than claiming the estimate guarantees the target.
+        const errorRatio = targetBytes / Math.max(1, candidate.size);
+        if (pass < MAX_CUSTOM_PASSES - 1 &&
+            Math.abs(candidate.size - targetBytes) / targetBytes > 0.02) {
+          const correction = Math.sqrt(errorRatio);
+          const boundedCorrection = Math.max(0.75, Math.min(1.35, correction));
+          const nextScale = Math.max(
+            MIN_RENDER_SCALE,
+            Math.min(MAX_RENDER_SCALE, strategy.scale * boundedCorrection),
+          );
+          if (Math.abs(nextScale - strategy.scale) < 0.005) break;
+          currentCustomScale = nextScale;
+        } else {
+          break;
+        }
       } else {
         bestBlob = candidate;
         break;
@@ -2660,6 +2675,9 @@ async function runAdvancedCompress(config = {}) {
     }
 
     if (isCustom) {
+      // Treat the target as a maximum: prefer the largest candidate that does
+      // not exceed it. If none fit, use the smallest measured candidate and
+      // report that the target could not be reached.
       bestBlob = closestUnderTargetBlob || smallestBlob;
       targetReached = !!closestUnderTargetBlob && !!bestBlob &&
         ((targetBytes - bestBlob.size) / targetBytes) <= 0.02;
