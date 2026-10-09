@@ -332,3 +332,18 @@ body:has(.site-header){
     animation:none !important;
   }
 }
+
+
+/* All Tools mega-menu: reduce tool names and logo marks by approximately 30%. */
+.site-header .mega-link {
+  font-size: .58rem !important;
+}
+.site-header .mega-link .mi {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 6px !important;
+}
+.site-header .mega-link .mi svg {
+  width: 10px !important;
+  height: 10px !important;
+}
