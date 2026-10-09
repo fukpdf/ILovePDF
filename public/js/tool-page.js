@@ -1590,11 +1590,11 @@ function _buildRelatedToolsHtml(toolId, maxCount) {
     var safeDescription = description.replace(/[&<>"']/g, function (ch) {
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
     });
-    return '<a class="related-tool-card" href="' + href + '" aria-label="' + safeName + '">' +
-      '<span class="rt-icon" aria-hidden="true"><i data-lucide="' + icon + '"></i></span>' +
-      '<span class="related-tool-copy"><span class="related-tool-name">' + safeName + '</span>' +
-      '<span class="related-tool-description">' + safeDescription + '</span></span>' +
-      '<span class="related-tool-arrow" aria-hidden="true">→</span>' +
+    return '<a class="popular-card" href="' + href + '" aria-label="' + safeName + '">' +
+      '<span class="popular-card-icon" aria-hidden="true"><i data-lucide="' + icon + '"></i></span>' +
+      '<span class="popular-card-body"><span class="popular-card-name">' + safeName + '</span>' +
+      '<span class="popular-card-description">' + safeDescription + '</span></span>' +
+      '<span class="popular-card-arrow" aria-hidden="true">→</span>' +
     '</a>';
   }).join('');
 }
