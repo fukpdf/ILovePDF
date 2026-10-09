@@ -9,7 +9,7 @@
 .ilpdf-announcement-close:hover{background:#eceef3;color:#202433}
 .ilpdf-announcement svg{display:block;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ilpdf-announcement-brand{display:flex;align-items:center;gap:10px;padding-right:38px;font-size:20px;font-weight:800;letter-spacing:-.7px}
-.ilpdf-announcement-brand-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#4f46e5;color:#fff}
+.ilpdf-announcement-brand-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#9333ea 100%);color:#fff}
 .ilpdf-announcement-brand-icon svg{width:20px;height:20px}
 .ilpdf-announcement-brand-accent{color:#4f46e5}
 .ilpdf-announcement-rule{height:1px;margin:20px 0 22px;background:#eceef2}
@@ -27,8 +27,8 @@
 .ilpdf-announcement-feature-copy strong{color:#292e3a;font-size:12px;font-weight:750}
 .ilpdf-announcement-feature-copy span{color:#707684;font-size:11px;line-height:1.45}
 .ilpdf-announcement-closing{margin-bottom:17px}
-.ilpdf-announcement-action{display:block;width:100%;min-height:47px;padding:12px 18px;border-radius:12px;background:#4f46e5;color:#fff;font-size:13px;font-weight:750;box-shadow:0 6px 14px rgba(79,70,229,.19);transition:background .15s ease,transform .15s ease}
-.ilpdf-announcement-action:hover{background:#4338ca}
+.ilpdf-announcement-action{display:block;width:100%;min-height:47px;padding:12px 18px;border-radius:12px;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#9333ea 100%);color:#fff;font-size:13px;font-weight:750;box-shadow:0 6px 14px rgba(79,70,229,.19);transition:background .15s ease,transform .15s ease}
+.ilpdf-announcement-action:hover{background:linear-gradient(135deg,#4338ca 0%,#6d28d9 55%,#7e22ce 100%)}
 .ilpdf-announcement-action:active{transform:translateY(1px)}
 .ilpdf-announcement button:focus-visible{outline:3px solid #4f46e5;outline-offset:3px}
 .ilpdf-announcement-footer{margin:13px 0 0;color:#9297a2;font-size:10px}
