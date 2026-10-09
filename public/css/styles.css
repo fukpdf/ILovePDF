@@ -13231,3 +13231,64 @@ body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon svg {
     flex-basis: 18px !important;
   }
 }
+
+
+/* Correction: reduce Continue to... card width by 20%, not height. Restore the previous card height/icon sizing. */
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+  width: 80% !important;
+  justify-self: center !important;
+  min-height: 45px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon {
+  width: 42px !important;
+  height: 42px !important;
+  flex-basis: 42px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon svg {
+  width: 21px !important;
+  height: 21px !important;
+}
+@media (max-width: 980px) and (min-width: 641px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 42px !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 26px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon {
+    width: 24px !important;
+    height: 24px !important;
+    flex-basis: 24px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+}
+@media (max-width: 360px) {
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card {
+    min-height: 25px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-continue-card .popular-card-icon {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+  }
+}
