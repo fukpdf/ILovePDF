@@ -2596,16 +2596,28 @@ async function runAdvancedCompress() {
     }
 
     const outBytes = await outDoc.save({ useObjectStreams: true });
-    const blob     = new Blob([outBytes], { type: 'application/pdf' });
+    const generatedBlob = new Blob([outBytes], { type: 'application/pdf' });
     const filename = brandedFilename(file.name, '.pdf');
-    const saved    = Math.max(0, Math.round((1 - blob.size / file.size) * 100));
+    // Deep compression is lossy and must not replace the source unless it
+    // actually reduces bytes. Keep the original when rasterization is larger.
+    const didReduce = generatedBlob.size < file.size;
+    const blob = didReduce
+      ? generatedBlob
+      : file.slice(0, file.size, 'application/pdf');
+    const saved = didReduce
+      ? Math.round((1 - blob.size / file.size) * 100)
+      : 0;
+    const signature = await blob.slice(0, 5).text();
+    if (signature !== '%PDF-') throw new Error('Compression produced an invalid PDF output');
 
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
     showStatus(
       'success',
-      saved > 0 ? `Reduced by ${saved}%` : 'Compression complete',
-      'Click the Download button below to save your file.',
+      didReduce ? `Reduced by ${saved}%` : 'Already optimised',
+      didReduce
+        ? 'Click the Download button below to save your smaller file.'
+        : 'Deep compression could not reduce this file further, so the original PDF is preserved.',
       createStatusUrl(blob),
       filename,
     );
@@ -2619,6 +2631,14 @@ async function runAdvancedCompress() {
     // This frees the decoded stream data and worker references.
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     if (processBtn) processBtn.disabled = false;
+    // The CTA uses a one-shot listener; restore it after either success or
+    // failure so users can retry without re-uploading the PDF.
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="zap"></i> Try deep compression';
+      btn.addEventListener('click', runAdvancedCompress, { once: true });
+      if (window.lucide) window.lucide.createIcons();
+    }
   }
 }
 
