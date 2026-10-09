@@ -2548,12 +2548,13 @@ async function runAdvancedCompress(config = {}) {
   showProcessing(
     isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
     isCustom
-      ? 'Estimating render resolution, then correcting it using measured output size.'
-      : 'Rendering pages for maximum size reduction.',
+      ? 'Preserving selectable text and vector pages; measuring image-only page output against your target.'
+      : 'Preserving selectable text and vector pages while optimizing image-only pages.',
   );
 
   // Keep the source document outside the try so every exit path destroys it.
   let srcPdf = null;
+  let sourcePdfLib = null;
   try {
     const { PDFDocument } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
@@ -2572,9 +2573,47 @@ async function runAdvancedCompress(config = {}) {
 
     const file = selectedFiles[0].file;
     let data = await file.arrayBuffer();
+    // Keep a PDF-Lib copy of the original so text/vector pages can be copied
+    // into the output without flattening them into a JPEG page image.
+    sourcePdfLib = await PDFDocument.load(data.slice(0), {
+      ignoreEncryption: true,
+      throwOnInvalidObject: false,
+      updateMetadata: false,
+    });
     srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
     data = null;
     const total = srcPdf.numPages;
+
+    // Conservative per-page classification: any selectable text (including
+    // OCR text layers) and vector-only pages are preserved natively. Only
+    // image-only pages are rasterized. This avoids blurring text and keeps
+    // selectable/searchable text intact in mixed documents.
+    const imageOpNames = [
+      'paintImageXObject',
+      'paintJpegXObject',
+      'paintInlineImageXObject',
+      'paintImageMaskXObject',
+      'paintImageMaskXObjectGroup',
+    ];
+    const pdfOps = pdfjsLib.OPS || {};
+    const imageOpCodes = new Set(
+      imageOpNames.map(name => pdfOps[name]).filter(code => Number.isInteger(code)),
+    );
+    const pageModes = [];
+    let rasterPageCount = 0;
+    for (let i = 1; i <= total; i++) {
+      const page = await srcPdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const hasSelectableText = textContent.items.some(
+        item => typeof item.str === 'string' && item.str.trim().length > 0,
+      );
+      const operatorList = await page.getOperatorList();
+      const hasRasterImages = operatorList.fnArray.some(op => imageOpCodes.has(op));
+      const mode = hasSelectableText || !hasRasterImages ? 'preserve' : 'raster';
+      pageModes.push(mode);
+      if (mode === 'raster') rasterPageCount++;
+      page.cleanup();
+    }
 
     // Deep is the reference profile. Custom reuses Deep's JPEG quality and
     // starts with a target-derived scale, then corrects it from measured output.
@@ -2599,10 +2638,13 @@ async function runAdvancedCompress(config = {}) {
     let closestUnderTargetBlob = null;
     let targetReached = false;
 
-    // Custom uses measured output feedback for up to four passes. The scale
-    // estimate starts from Deep's baseline, then is corrected from actual
-    // candidate bytes. Limit each correction to avoid large overshoots.
-    for (let pass = 0; pass < (isCustom ? MAX_CUSTOM_PASSES : strategies.length); pass++) {
+    // Custom uses measured output feedback for up to four passes only when
+    // image-only pages are present. Native text/vector-only documents need one
+    // structural save; repeating identical saves cannot improve the target.
+    const passLimit = isCustom && rasterPageCount > 0
+      ? MAX_CUSTOM_PASSES
+      : strategies.length;
+    for (let pass = 0; pass < passLimit; pass++) {
       const strategy = isCustom
         ? { scale: currentCustomScale, quality: DEEP_JPEG_QUALITY }
         : strategies[pass];
@@ -2616,6 +2658,11 @@ async function runAdvancedCompress(config = {}) {
             ? 'Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
             : 'Optimising image quality for a smaller file size.',
         );
+        if (pageModes[i - 1] === 'preserve') {
+          const [preservedPage] = await outDoc.copyPages(sourcePdfLib, [i - 1]);
+          outDoc.addPage(preservedPage);
+          continue;
+        }
         const page = await srcPdf.getPage(i);
         const baseViewport = page.getViewport({ scale: 1 });
         const pw = baseViewport.width;
@@ -2643,6 +2690,19 @@ async function runAdvancedCompress(config = {}) {
         outPage.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
       }
 
+      // Metadata cleanup is safe for the new output document and does not
+      // alter the copied page content, text layer, or vector resources.
+      try {
+        outDoc.setTitle('');
+        outDoc.setAuthor('');
+        outDoc.setSubject('');
+        outDoc.setKeywords([]);
+        outDoc.setProducer('ILovePDF');
+        outDoc.setCreator('ILovePDF');
+      } catch (_) {}
+      if (outDoc.getPageCount() !== total) {
+        throw new Error('Compression output page count did not match the original PDF.');
+      }
       const outBytes = await outDoc.save({ useObjectStreams: true });
       const candidate = new Blob([outBytes], { type: 'application/pdf' });
       if (!smallestBlob || candidate.size < smallestBlob.size) smallestBlob = candidate;
@@ -2686,7 +2746,7 @@ async function runAdvancedCompress(config = {}) {
 
     if (!bestBlob) throw new Error('Compression did not produce a PDF.');
     const filename = brandedFilename(file.name, '.pdf');
-    // Never replace a usable original with a larger rasterised result.
+    // Never replace a usable original with a larger compressed result.
     const didReduce = bestBlob.size < file.size;
     const blob = didReduce ? bestBlob : file.slice(0, file.size, 'application/pdf');
     const saved = didReduce ? Math.round((1 - blob.size / file.size) * 100) : 0;
@@ -2715,9 +2775,9 @@ async function runAdvancedCompress(config = {}) {
           : ' (' + underPct.toFixed(1) + '% below target).') +
         ' This measured multi-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
     } else if (isCustom) {
-      message = 'The calculated single-pass output was ' + formatCompressSize(blob.size) +
+      message = 'The smallest measured output was ' + formatCompressSize(blob.size) +
         ', above your ' + formatCompressSize(targetBytes) +
-        ' target. The requested size could not be reached with these estimated settings. Try a larger target; PDF content affects output size.';
+        ' target. Native text/vector pages were preserved for readability, so this target may not be achievable without sacrificing content quality. Try a larger target.';
     } else {
       message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
     }
@@ -2729,6 +2789,7 @@ async function runAdvancedCompress(config = {}) {
     showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
   } finally {
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
+    sourcePdfLib = null;
     if (processBtn) processBtn.disabled = false;
   }
 }
@@ -3329,7 +3390,7 @@ function renderCompressOptionsHtml() {
             <option value="KB">KB</option>
           </select>
         </div>
-        <small class="compress-estimate-note">Custom calculates render resolution from your target and uses one compression pass. Actual output can vary with PDF content; exact size cannot be guaranteed.</small>
+        <small class="compress-estimate-note">Custom preserves selectable text and vector pages, and adjusts image-only pages against your target (up to 4 measured passes). Exact size cannot be guaranteed.</small>
       </div>
     </div>`;
 }
