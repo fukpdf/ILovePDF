@@ -2172,9 +2172,19 @@ async function processFile() {
   // Compress PDF uses the selected mode directly: Deep Compression needs no
   // second click, while Custom passes its validated target size to the renderer.
   if (currentTool.id === 'compress') {
+    let mode;
     let targetBytes = null;
     try {
-      targetBytes = readCompressTargetBytes();
+      // Read the mode once, then validate the target against that exact mode.
+      // This prevents a missing target from silently falling through to Deep.
+      mode = readCompressMode();
+      targetBytes = readCompressTargetBytes(mode);
+      if (mode === 'custom' && !Number.isSafeInteger(targetBytes)) {
+        throw new Error('Custom mode requires a valid target size. Deep Compression was not started.');
+      }
+      if (mode === 'deep' && targetBytes !== null) {
+        throw new Error('Unexpected custom target detected. Please reselect the compression mode.');
+      }
     } catch (err) {
       showStatus('error', 'Check compression settings', err.message || 'Enter a valid output size.');
       return;
@@ -2183,7 +2193,7 @@ async function processFile() {
     const compressProcessBtn = document.getElementById('process-btn');
     if (compressProcessBtn) compressProcessBtn.disabled = true;
     try {
-      await runAdvancedCompress({ targetBytes, mode: readCompressMode() });
+      await runAdvancedCompress({ targetBytes, mode });
     } finally {
       _processingInFlight = false;
       if (compressProcessBtn) compressProcessBtn.disabled = false;
@@ -2517,9 +2527,22 @@ async function fetchWithRetry(url, options, maxRetries) {
 
 async function runAdvancedCompress(config = {}) {
   if (!selectedFiles || !selectedFiles.length) return;
-  const targetBytes = Number.isSafeInteger(config.targetBytes) && config.targetBytes > 0
+
+  // The selected mode is authoritative. Never infer Custom vs Deep from the
+  // presence of targetBytes, because a missing/mismatched target must fail
+  // closed instead of silently running Deep Compression.
+  const requestedMode = config.mode;
+  if (requestedMode !== 'deep' && requestedMode !== 'custom') {
+    showStatus('error', 'Choose compression mode', 'Select Deep Compression or Custom before processing.');
+    return;
+  }
+  const isCustom = requestedMode === 'custom';
+  const targetBytes = isCustom && Number.isSafeInteger(config.targetBytes) && config.targetBytes > 0
     ? config.targetBytes : null;
-  const isCustom = !!targetBytes;
+  if (isCustom && !targetBytes) {
+    showStatus('error', 'Custom target missing', 'Custom mode did not receive a valid target size. Deep Compression was not started. Please re-enter the target and try again.');
+    return;
+  }
   const processBtn = document.getElementById('process-btn');
   if (processBtn) processBtn.disabled = true;
   showProcessing(
@@ -2553,27 +2576,27 @@ async function runAdvancedCompress(config = {}) {
     data = null;
     const total = srcPdf.numPages;
 
-    // Deep uses one balanced pass. Custom evaluates progressively finer
-    // quality/resolution levels and chooses the largest result that does not
-    // exceed the requested target (closest achievable result from below).
-    // Never stop at the first under-target candidate: that caused avoidable
-    // undershooting, e.g. a 14 MB target returning an earlier 12 MB candidate.
-    const strategies = isCustom
-      ? [
-          { scale: 1.70, quality: 0.84 },
-          { scale: 1.60, quality: 0.80 },
-          { scale: 1.50, quality: 0.76 },
-          { scale: 1.40, quality: 0.72 },
-          { scale: 1.30, quality: 0.68 },
-          { scale: 1.20, quality: 0.64 },
-          { scale: 1.10, quality: 0.60 },
-          { scale: 1.00, quality: 0.56 },
-          { scale: 0.92, quality: 0.50 },
-          { scale: 0.84, quality: 0.44 },
-          { scale: 0.76, quality: 0.38 },
-          { scale: 0.68, quality: 0.32 },
-        ]
-      : [{ scale: 1.53, quality: 0.72 }];
+    // Deep is the reference profile. Custom reuses the exact same JPEG
+    // quality and calculates a single render scale from the requested target.
+    // Rendered image area is approximately proportional to scale squared, so
+    // scale = DeepScale * sqrt(target / estimatedDeepOutput). This is an
+    // estimate, not a byte-size guarantee: PDF content and JPEG entropy vary.
+    const DEEP_RENDER_SCALE = 1.53;
+    const DEEP_JPEG_QUALITY = 0.72;
+    const MIN_RENDER_SCALE = 0.15;
+    const MAX_RENDER_SCALE = 2.40;
+    const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
+    const estimatedDeepBytes = Math.max(1024, Math.round(file.size * ESTIMATED_DEEP_SIZE_RATIO));
+    const calculatedCustomScale = isCustom
+      ? Math.max(MIN_RENDER_SCALE, Math.min(
+          MAX_RENDER_SCALE,
+          DEEP_RENDER_SCALE * Math.sqrt(targetBytes / estimatedDeepBytes),
+        ))
+      : DEEP_RENDER_SCALE;
+    const strategies = [{
+      scale: calculatedCustomScale,
+      quality: DEEP_JPEG_QUALITY,
+    }];
     let bestBlob = null;
     let smallestBlob = null;
     let closestUnderTargetBlob = null;
@@ -2585,10 +2608,10 @@ async function runAdvancedCompress(config = {}) {
       for (let i = 1; i <= total; i++) {
         showProcessing(
           isCustom
-            ? 'Custom compression — pass ' + (pass + 1) + '/' + strategies.length + ', page ' + i + '/' + total + '…'
+            ? 'Custom compression — page ' + i + ' of ' + total + '…'
             : 'Deep compression — page ' + i + ' of ' + total + '…',
           isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Testing output quality and size.'
+            ? 'Target: ' + formatCompressSize(targetBytes) + '. Using a target-calculated render scale.'
             : 'Optimising image quality for a smaller file size.',
         );
         const page = await srcPdf.getPage(i);
@@ -2627,8 +2650,9 @@ async function runAdvancedCompress(config = {}) {
             (!closestUnderTargetBlob || candidate.size > closestUnderTargetBlob.size)) {
           closestUnderTargetBlob = candidate;
         }
-        // Evaluate all levels so the result is the closest candidate below
-        // the target rather than whichever pass happened to cross it first.
+
+        // This is deliberately a single measured pass. We report the actual
+        // output below rather than claiming the estimate guarantees the target.
       } else {
         bestBlob = candidate;
         break;
@@ -2636,8 +2660,9 @@ async function runAdvancedCompress(config = {}) {
     }
 
     if (isCustom) {
-      targetReached = !!closestUnderTargetBlob;
       bestBlob = closestUnderTargetBlob || smallestBlob;
+      targetReached = !!closestUnderTargetBlob && !!bestBlob &&
+        ((targetBytes - bestBlob.size) / targetBytes) <= 0.02;
     } else if (!bestBlob) {
       bestBlob = smallestBlob;
     }
@@ -2656,22 +2681,26 @@ async function runAdvancedCompress(config = {}) {
     const title = !didReduce
       ? 'Already optimised'
       : (isCustom
-          ? (targetReached ? 'Custom target reached' : 'Best compression result')
+          ? (targetReached ? 'Custom target matched closely' : (closestUnderTargetBlob ? 'Custom output below target' : 'Target could not be reached'))
           : 'Reduced by ' + saved + '%');
     let message;
     if (!didReduce) {
       message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
-    } else if (isCustom && targetReached) {
-      const underBy = targetBytes - blob.size;
-      const underPct = targetBytes > 0 ? (underBy / targetBytes) * 100 : 0;
-      message = 'Closest result at or below your ' + formatCompressSize(targetBytes) +
+      if (isCustom) {
+        message += ' Your requested target was ' + formatCompressSize(targetBytes) + ' and was not reached.';
+      }
+    } else if (isCustom && closestUnderTargetBlob) {
+      const underPct = ((targetBytes - blob.size) / targetBytes) * 100;
+      message = 'Calculated output for your ' + formatCompressSize(targetBytes) +
         ' target: ' + formatCompressSize(blob.size) +
-        (underPct > 0.5 ? ' (' + underPct.toFixed(1) + '% below target).' : ' (within 0.5% of target).') +
-        ' PDF compression cannot promise an exact byte size.';
+        (targetReached
+          ? ' (within 2% of target).'
+          : ' (' + underPct.toFixed(1) + '% below target).') +
+        ' This single-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
     } else if (isCustom) {
-      message = 'The requested target of ' + formatCompressSize(targetBytes) +
-        ' could not be reached. Smallest generated result: ' + formatCompressSize(blob.size) +
-        ', which is still above the target. Try a larger target.';
+      message = 'The calculated single-pass output was ' + formatCompressSize(blob.size) +
+        ', above your ' + formatCompressSize(targetBytes) +
+        ' target. The requested size could not be reached with these estimated settings. Try a larger target; PDF content affects output size.';
     } else {
       message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
     }
@@ -3283,7 +3312,7 @@ function renderCompressOptionsHtml() {
             <option value="KB">KB</option>
           </select>
         </div>
-        <small class="compress-estimate-note">The compressor will try progressively smaller render settings to reach this target. Exact size cannot be guaranteed.</small>
+        <small class="compress-estimate-note">Custom calculates render resolution from your target and uses one compression pass. Actual output can vary with PDF content; exact size cannot be guaranteed.</small>
       </div>
     </div>`;
 }
@@ -3386,12 +3415,16 @@ async function renderCompressPreview() {
   }
 }
 
-function readCompressTargetBytes() {
+function readCompressTargetBytes(selectedMode) {
   const mode = document.getElementById('opt-compress-mode');
-  if (!mode || !mode.value) {
+  const modeValue = selectedMode || (mode && mode.value);
+  if (!modeValue) {
     throw new Error('Choose Deep Compression or Custom before processing.');
   }
-  if (mode.value !== 'custom') return null;
+  if (modeValue !== 'deep' && modeValue !== 'custom') {
+    throw new Error('The selected compression mode is not supported.');
+  }
+  if (modeValue !== 'custom') return null;
   const input = document.getElementById('opt-compress-target');
   const unit = document.getElementById('opt-compress-unit');
   const value = Number(input && input.value);
@@ -3415,7 +3448,10 @@ function readCompressMode() {
   if (!mode || !mode.value) {
     throw new Error('Choose Deep Compression or Custom before processing.');
   }
-  return mode.value === 'custom' ? 'custom' : 'deep';
+  if (mode.value !== 'deep' && mode.value !== 'custom') {
+    throw new Error('The selected compression mode is not supported. Please choose Deep Compression or Custom.');
+  }
+  return mode.value;
 }
 
 // ── SPA NAVIGATION ─────────────────────────────────────────────────────────
