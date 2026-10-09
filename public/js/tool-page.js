@@ -2590,10 +2590,12 @@ async function runAdvancedCompress(config = {}) {
     // selectable/searchable text intact in mixed documents.
     const imageOpNames = [
       'paintImageXObject',
+      'paintImageXObjectRepeat',
       'paintJpegXObject',
       'paintInlineImageXObject',
       'paintImageMaskXObject',
       'paintImageMaskXObjectGroup',
+      'paintSolidColorImageMask',
     ];
     const pdfOps = pdfjsLib.OPS || {};
     const imageOpCodes = new Set(
@@ -2619,13 +2621,13 @@ async function runAdvancedCompress(config = {}) {
       page.cleanup();
     }
 
-    // Deep is the reference profile. Custom reuses Deep's JPEG quality and
-    // starts with a target-derived scale, then corrects it from measured output.
-    // Rendered image area is approximately proportional to scale squared, but
-    // PDF content and JPEG entropy vary, so even feedback passes are estimates.
-    const DEEP_RENDER_SCALE = 1.53;
+    // PDF.js viewport scale 1 corresponds to 72 CSS pixels per PDF inch.
+    // Keep image-only/scanned pages at or above 150 DPI (150 / 72 scale)
+    // so target-size feedback cannot silently trade away fine document text.
+    // Native text/vector pages are copied directly and are not rasterized.
+    const MIN_RENDER_SCALE = 150 / 72;
+    const DEEP_RENDER_SCALE = MIN_RENDER_SCALE;
     const DEEP_JPEG_QUALITY = 0.72;
-    const MIN_RENDER_SCALE = 0.15;
     const MAX_RENDER_SCALE = 3.00;
     const MAX_CUSTOM_PASSES = 4;
     const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
@@ -3394,7 +3396,7 @@ function renderCompressOptionsHtml() {
             <option value="KB">KB</option>
           </select>
         </div>
-        <small class="compress-estimate-note">Custom preserves selectable text and vector pages, and adjusts image-only pages against your target (up to 4 measured passes). Exact size cannot be guaranteed.</small>
+        <small class="compress-estimate-note">Custom preserves selectable text and vector pages, keeps image-only pages at 150 DPI or higher, and adjusts measured output (up to 4 passes). Exact size cannot be guaranteed.</small>
       </div>
     </div>`;
 }
