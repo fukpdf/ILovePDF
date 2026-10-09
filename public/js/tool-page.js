@@ -2553,18 +2553,30 @@ async function runAdvancedCompress(config = {}) {
     data = null;
     const total = srcPdf.numPages;
 
-    // Deep uses one balanced pass. Custom progressively lowers JPEG quality
-    // and render resolution, stopping as soon as the requested target is met.
+    // Deep uses one balanced pass. Custom evaluates progressively finer
+    // quality/resolution levels and chooses the largest result that does not
+    // exceed the requested target (closest achievable result from below).
+    // Never stop at the first under-target candidate: that caused avoidable
+    // undershooting, e.g. a 14 MB target returning an earlier 12 MB candidate.
     const strategies = isCustom
       ? [
-          { scale: 1.53, quality: 0.72 },
-          { scale: 1.30, quality: 0.62 },
-          { scale: 1.12, quality: 0.52 },
-          { scale: 0.95, quality: 0.42 },
-          { scale: 0.80, quality: 0.32 },
+          { scale: 1.70, quality: 0.84 },
+          { scale: 1.60, quality: 0.80 },
+          { scale: 1.50, quality: 0.76 },
+          { scale: 1.40, quality: 0.72 },
+          { scale: 1.30, quality: 0.68 },
+          { scale: 1.20, quality: 0.64 },
+          { scale: 1.10, quality: 0.60 },
+          { scale: 1.00, quality: 0.56 },
+          { scale: 0.92, quality: 0.50 },
+          { scale: 0.84, quality: 0.44 },
+          { scale: 0.76, quality: 0.38 },
+          { scale: 0.68, quality: 0.32 },
         ]
       : [{ scale: 1.53, quality: 0.72 }];
     let bestBlob = null;
+    let smallestBlob = null;
+    let closestUnderTargetBlob = null;
     let targetReached = false;
 
     for (let pass = 0; pass < strategies.length; pass++) {
@@ -2608,13 +2620,26 @@ async function runAdvancedCompress(config = {}) {
 
       const outBytes = await outDoc.save({ useObjectStreams: true });
       const candidate = new Blob([outBytes], { type: 'application/pdf' });
-      if (!bestBlob || candidate.size < bestBlob.size) bestBlob = candidate;
-      if (isCustom && candidate.size <= targetBytes) {
+      if (!smallestBlob || candidate.size < smallestBlob.size) smallestBlob = candidate;
+
+      if (isCustom) {
+        if (candidate.size <= targetBytes &&
+            (!closestUnderTargetBlob || candidate.size > closestUnderTargetBlob.size)) {
+          closestUnderTargetBlob = candidate;
+        }
+        // Evaluate all levels so the result is the closest candidate below
+        // the target rather than whichever pass happened to cross it first.
+      } else {
         bestBlob = candidate;
-        targetReached = true;
         break;
       }
-      if (!isCustom) break;
+    }
+
+    if (isCustom) {
+      targetReached = !!closestUnderTargetBlob;
+      bestBlob = closestUnderTargetBlob || smallestBlob;
+    } else if (!bestBlob) {
+      bestBlob = smallestBlob;
     }
 
     if (!bestBlob) throw new Error('Compression did not produce a PDF.');
@@ -2637,9 +2662,16 @@ async function runAdvancedCompress(config = {}) {
     if (!didReduce) {
       message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
     } else if (isCustom && targetReached) {
-      message = 'Requested target reached. Output file: ' + formatCompressSize(blob.size) + '.';
+      const underBy = targetBytes - blob.size;
+      const underPct = targetBytes > 0 ? (underBy / targetBytes) * 100 : 0;
+      message = 'Closest result at or below your ' + formatCompressSize(targetBytes) +
+        ' target: ' + formatCompressSize(blob.size) +
+        (underPct > 0.5 ? ' (' + underPct.toFixed(1) + '% below target).' : ' (within 0.5% of target).') +
+        ' PDF compression cannot promise an exact byte size.';
     } else if (isCustom) {
-      message = 'The requested target of ' + formatCompressSize(targetBytes) + ' could not be reached with the available quality settings. Best result: ' + formatCompressSize(blob.size) + '.';
+      message = 'The requested target of ' + formatCompressSize(targetBytes) +
+        ' could not be reached. Smallest generated result: ' + formatCompressSize(blob.size) +
+        ', which is still above the target. Try a larger target.';
     } else {
       message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
     }
@@ -3231,11 +3263,12 @@ function renderCompressOptionsHtml() {
       <div class="form-group">
         <label class="form-label" for="opt-compress-mode">Choose compression</label>
         <select class="form-select" id="opt-compress-mode" name="compressMode">
-          <option value="deep" selected>Deep Compression</option>
+          <option value="" selected disabled>Choose a compression mode</option>
+          <option value="deep">Deep Compression</option>
           <option value="custom">Custom</option>
         </select>
       </div>
-      <div class="compress-estimate" id="compress-estimate" aria-live="polite">
+      <div class="compress-estimate" id="compress-estimate" aria-live="polite" hidden>
         <span class="compress-estimate-label" id="compress-estimate-label">Estimated output size</span>
         <strong id="compress-estimate-value">Calculating…</strong>
         <small id="compress-estimate-note">Approximate estimate; actual size depends on PDF content.</small>
@@ -3280,17 +3313,15 @@ function wireCompressOptions() {
   const estimatedDeepBytes = Math.max(1024, Math.round(sourceSize * 0.45));
 
   function paint() {
+    const isDeep = mode.value === 'deep';
     const isCustom = mode.value === 'custom';
+    // Show exactly one mode-specific control: estimate for Deep, empty target
+    // input for Custom, and neither until the user chooses a mode.
     customBox.hidden = !isCustom;
-    if (estimateLabel) estimateLabel.textContent = isCustom ? 'Requested output size' : 'Estimated output size';
-    if (isCustom && targetInput && targetInput.value.trim()) {
-      const value = Number(targetInput.value);
-      const multiplier = unitSelect && unitSelect.value === 'KB' ? 1024 : 1024 * 1024;
-      estimateValue.textContent = Number.isFinite(value) && value > 0
-        ? formatCompressSize(Math.round(value * multiplier))
-        : 'Enter a valid target';
-      if (estimateNote) estimateNote.textContent = 'Target size, not a guaranteed result. The closest smaller output will be used when achievable.';
-    } else {
+    const estimateBox = document.getElementById('compress-estimate');
+    if (estimateBox) estimateBox.hidden = !isDeep;
+    if (targetInput) targetInput.required = isCustom;
+    if (isDeep) {
       estimateValue.textContent = formatCompressSize(estimatedDeepBytes);
       if (estimateNote) estimateNote.textContent = 'Approximate only; actual size depends on PDF content and page complexity.';
     }
@@ -3357,7 +3388,10 @@ async function renderCompressPreview() {
 
 function readCompressTargetBytes() {
   const mode = document.getElementById('opt-compress-mode');
-  if (!mode || mode.value !== 'custom') return null;
+  if (!mode || !mode.value) {
+    throw new Error('Choose Deep Compression or Custom before processing.');
+  }
+  if (mode.value !== 'custom') return null;
   const input = document.getElementById('opt-compress-target');
   const unit = document.getElementById('opt-compress-unit');
   const value = Number(input && input.value);
@@ -3378,7 +3412,10 @@ function readCompressTargetBytes() {
 
 function readCompressMode() {
   const mode = document.getElementById('opt-compress-mode');
-  return mode && mode.value === 'custom' ? 'custom' : 'deep';
+  if (!mode || !mode.value) {
+    throw new Error('Choose Deep Compression or Custom before processing.');
+  }
+  return mode.value === 'custom' ? 'custom' : 'deep';
 }
 
 // ── SPA NAVIGATION ─────────────────────────────────────────────────────────
