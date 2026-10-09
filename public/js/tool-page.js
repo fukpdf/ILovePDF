@@ -2515,30 +2515,6 @@ async function fetchWithRetry(url, options, maxRetries) {
   }
 }
 
-// Compress: small "need more compression?" CTA appended below the standard
-// success card. Clicking it runs a render-based deep compression entirely in
-// the browser: each page is rasterised to JPEG then re-embedded in a new PDF.
-function appendCompressAdvancedLink() {
-  const area = document.getElementById('result-area');
-  if (!area || area.querySelector('.compress-advanced-link')) return;
-  const link = document.createElement('div');
-  link.className = 'compress-advanced-link';
-  link.innerHTML = `
-    <p class="compress-advanced-hint">Need a smaller file?</p>
-    <button type="button" class="btn btn-outline btn-sm" id="try-advanced-compress">
-      <i data-lucide="zap"></i> Try deep compression
-    </button>
-    <p class="compress-advanced-note">Renders each page as an optimised image for maximum size reduction.</p>
-    <p class="compress-advanced-note" style="color:#92400e;font-size:11px;margin-top:3px;">
-      &#9888; Text will not be selectable after deep compression.
-    </p>
-  `;
-  area.appendChild(link);
-  if (window.lucide) lucide.createIcons();
-  const btn = link.querySelector('#try-advanced-compress');
-  if (btn) btn.addEventListener('click', runAdvancedCompress, { once: true });
-}
-
 async function runAdvancedCompress(config = {}) {
   if (!selectedFiles || !selectedFiles.length) return;
   const targetBytes = Number.isSafeInteger(config.targetBytes) && config.targetBytes > 0
@@ -2675,9 +2651,6 @@ async function runAdvancedCompress(config = {}) {
     const msg = (err && err.message && err.message.length < 200)
       ? err.message : 'Please try again with a different file.';
     showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
-    // showStatus replaces result-area markup; restore a retry path for errors
-    // when this function is called from the legacy advanced-compression CTA.
-    if (document.getElementById('result-area')) appendCompressAdvancedLink();
   } finally {
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     if (processBtn) processBtn.disabled = false;
