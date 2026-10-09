@@ -139,6 +139,14 @@ The Node.js server runs on Replit via the workflow `node server.js` on port 5000
 
 ---
 
+## Site announcement UI
+
+The homepage can show a lightweight, config-driven community announcement using public/js/site-announcement.js and public/css/site-announcement.css. The JS file is included only by public/index.html; it does not load processing engines or change tool routes. Configure the content, enabled flag, version, display delay, and dismissal duration in the file. Bump version when publishing a materially new announcement so returning visitors can see it. Dismissal storage is best-effort and must not block the page when browser storage is unavailable.
+
+The main-branch push workflow in .github/workflows/deploy.yml deploys Firebase Hosting. Verify the Actions run and smoke-check the live homepage after a push; do not claim a live deployment until the workflow and public URL confirm success.
+
+---
+
 ## Rollback
 
 ### Replit rollback

@@ -6,6 +6,12 @@ Each entry documents: purpose, files added, globals exposed, panels, bundles, ma
 
 ---
 
+## 2026-10-09 — Homepage Community Announcement
+
+- Added a reusable, configuration-driven announcement modal, initially enabled on the homepage only.
+- Added isolated responsive styles, keyboard dismissal/focus handling, reduced-motion support, and versioned seven-day dismissal persistence.
+- Updated the project master, deployment guide, and this changelog. PDF processing tools and routing were not intentionally changed.
+
 ## Pre-Arc Era — Core Application (Phases 1–5)
 
 ### Phase 1 — Foundation

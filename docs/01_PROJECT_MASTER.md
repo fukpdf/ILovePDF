@@ -24,6 +24,12 @@ The site generates revenue via Google AdSense (publisher ID `ca-pub-324215640591
 
 ---
 
+## Reusable Site Announcements
+
+A lightweight, config-driven announcement modal is available for temporary homepage notices. It is isolated in public/js/site-announcement.js and public/css/site-announcement.css, with versioned dismissal, keyboard-accessible dialog behavior, responsive styling, and no dependency on the PDF processing runtime. New announcements should update the single config/version and the feature record; keep the script loaded only on intended pages.
+
+---
+
 ## Architecture Overview
 
 ```
