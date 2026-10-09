@@ -2822,7 +2822,7 @@ function showStatus(type, title, message, downloadUrl, filename) {
     ? `<div class="download-btn-wrap">
          <span class="dl-pulse">
            <a href="${downloadUrl}" download="${filename}"
-              class="btn btn-primary dl-burst-trigger${currentTool && currentTool.id === 'merge' ? ' merge-pdf-download-cta' : ''}">
+              class="btn btn-primary dl-burst-trigger">
              <i data-lucide="download"></i> ${currentTool && currentTool.id === 'rotate' ? 'Download PDF' : 'Download File'}
            </a>
          </span>
