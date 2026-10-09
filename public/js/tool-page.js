@@ -2576,39 +2576,42 @@ async function runAdvancedCompress(config = {}) {
     data = null;
     const total = srcPdf.numPages;
 
-    // Deep intentionally keeps one balanced pass. Custom instead performs
-    // a target-driven scale search at a stable JPEG quality. Each measured
-    // output updates the search bounds, so the next pass homes in on the
-    // requested byte size instead of walking through unrelated presets.
-    const customPassCount = 10;
-    let customScaleLow = 0.15;
-    let customScaleHigh = 2.40;
-    const customJpegQuality = 0.78;
-    const strategies = isCustom
-      ? Array.from({ length: customPassCount }, () => ({ quality: customJpegQuality }))
-      : [{ scale: 1.53, quality: 0.72 }];
+    // Deep is the reference profile. Custom reuses the exact same JPEG
+    // quality and calculates a single render scale from the requested target.
+    // Rendered image area is approximately proportional to scale squared, so
+    // scale = DeepScale * sqrt(target / estimatedDeepOutput). This is an
+    // estimate, not a byte-size guarantee: PDF content and JPEG entropy vary.
+    const DEEP_RENDER_SCALE = 1.53;
+    const DEEP_JPEG_QUALITY = 0.72;
+    const MIN_RENDER_SCALE = 0.15;
+    const MAX_RENDER_SCALE = 2.40;
+    const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
+    const estimatedDeepBytes = Math.max(1024, Math.round(file.size * ESTIMATED_DEEP_SIZE_RATIO));
+    const calculatedCustomScale = isCustom
+      ? Math.max(MIN_RENDER_SCALE, Math.min(
+          MAX_RENDER_SCALE,
+          DEEP_RENDER_SCALE * Math.sqrt(targetBytes / estimatedDeepBytes),
+        ))
+      : DEEP_RENDER_SCALE;
+    const strategies = [{
+      scale: calculatedCustomScale,
+      quality: DEEP_JPEG_QUALITY,
+    }];
     let bestBlob = null;
     let smallestBlob = null;
     let closestUnderTargetBlob = null;
     let targetReached = false;
 
     for (let pass = 0; pass < strategies.length; pass++) {
-      // Calculate each Custom scale only after the previous candidate updates
-      // the search bounds; precomputing these values would repeat one scale.
-      const strategy = isCustom
-        ? {
-            scale: pass === 0 ? customScaleLow : (customScaleLow + customScaleHigh) / 2,
-            quality: customJpegQuality,
-          }
-        : strategies[pass];
+      const strategy = strategies[pass];
       const outDoc = await PDFDocument.create();
       for (let i = 1; i <= total; i++) {
         showProcessing(
           isCustom
-            ? 'Custom compression — pass ' + (pass + 1) + '/' + strategies.length + ', page ' + i + '/' + total + '…'
+            ? 'Custom compression — page ' + i + ' of ' + total + '…'
             : 'Deep compression — page ' + i + ' of ' + total + '…',
           isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Testing output quality and size.'
+            ? 'Target: ' + formatCompressSize(targetBytes) + '. Using a target-calculated render scale.'
             : 'Optimising image quality for a smaller file size.',
         );
         const page = await srcPdf.getPage(i);
@@ -2648,17 +2651,8 @@ async function runAdvancedCompress(config = {}) {
           closestUnderTargetBlob = candidate;
         }
 
-        // Scale and output size are approximately monotonic for a fixed JPEG
-        // quality. If this candidate is too large, search lower resolutions;
-        // if it fits, search higher resolutions to use more of the target.
-        if (candidate.size > targetBytes) {
-          customScaleHigh = strategy.scale;
-        } else {
-          customScaleLow = strategy.scale;
-        }
-        // A target smaller than the minimum-scale output cannot be met with
-        // this quality floor; stop rather than repeat the same candidate.
-        if (pass === 0 && candidate.size > targetBytes) break;
+        // This is deliberately a single measured pass. We report the actual
+        // output below rather than claiming the estimate guarantees the target.
       } else {
         bestBlob = candidate;
         break;
@@ -2687,24 +2681,26 @@ async function runAdvancedCompress(config = {}) {
     const title = !didReduce
       ? 'Already optimised'
       : (isCustom
-          ? (targetReached ? 'Custom target matched closely' : (closestUnderTargetBlob ? 'Closest custom result' : 'Target could not be reached'))
+          ? (targetReached ? 'Custom target matched closely' : (closestUnderTargetBlob ? 'Custom output below target' : 'Target could not be reached'))
           : 'Reduced by ' + saved + '%');
     let message;
     if (!didReduce) {
       message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
+      if (isCustom) {
+        message += ' Your requested target was ' + formatCompressSize(targetBytes) + ' and was not reached.';
+      }
     } else if (isCustom && closestUnderTargetBlob) {
-      const underBy = targetBytes - blob.size;
-      const underPct = targetBytes > 0 ? (underBy / targetBytes) * 100 : 0;
-      message = 'Closest generated result at or below your ' + formatCompressSize(targetBytes) +
+      const underPct = ((targetBytes - blob.size) / targetBytes) * 100;
+      message = 'Calculated output for your ' + formatCompressSize(targetBytes) +
         ' target: ' + formatCompressSize(blob.size) +
         (targetReached
           ? ' (within 2% of target).'
-          : ' (' + underPct.toFixed(1) + '% below target; no tested setting produced a closer result).') +
-        ' PDF compression cannot promise an exact byte size.';
+          : ' (' + underPct.toFixed(1) + '% below target).') +
+        ' This single-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
     } else if (isCustom) {
-      message = 'The requested target of ' + formatCompressSize(targetBytes) +
-        ' could not be reached. Smallest generated result: ' + formatCompressSize(blob.size) +
-        ', which is still above the target. Try a larger target.';
+      message = 'The calculated single-pass output was ' + formatCompressSize(blob.size) +
+        ', above your ' + formatCompressSize(targetBytes) +
+        ' target. The requested size could not be reached with these estimated settings. Try a larger target; PDF content affects output size.';
     } else {
       message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
     }
@@ -3316,7 +3312,7 @@ function renderCompressOptionsHtml() {
             <option value="KB">KB</option>
           </select>
         </div>
-        <small class="compress-estimate-note">The compressor will try progressively smaller render settings to reach this target. Exact size cannot be guaranteed.</small>
+        <small class="compress-estimate-note">Custom calculates render resolution from your target and uses one compression pass. Actual output can vary with PDF content; exact size cannot be guaranteed.</small>
       </div>
     </div>`;
 }
