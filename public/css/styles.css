@@ -13362,3 +13362,19 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
     height: 18px !important;
   }
 }
+
+
+/* Merge PDF only: reduce the inline result Download CTA by 20%.
+   The class is emitted only when the active tool is Merge PDF; shared tools and
+   the dedicated download page keep their existing dimensions and behavior. */
+.merge-pdf-download-cta {
+  min-height: 0 !important;
+  padding: 0.8em 1.3em !important;
+  gap: 0.8em !important;
+  font-size: 0.8em !important;
+}
+.merge-pdf-download-cta svg,
+.merge-pdf-download-cta i {
+  width: 0.8em;
+  height: 0.8em;
+}
