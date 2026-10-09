@@ -13398,21 +13398,13 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 }
 
 
-/* Download result platform cards: enlarge only the logos and text.
-   Preserve the original card dimensions, spacing, grid, and layout. */
+/* Download result platform cards: dramatically enlarge logos only.
+   Keep card dimensions, grid, spacing, and text untouched. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo svg,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
-  width: 1.25em !important;
-  height: 1.25em !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
+  width: 10em !important;
+  height: 10em !important;
+  max-width: none !important;
+  max-height: none !important;
   object-fit: contain !important;
-}
-body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item h3 {
-  font-size: 1.12em !important;
-  line-height: 1.35 !important;
-}
-body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item p {
-  font-size: 1.1em !important;
-  line-height: 1.6 !important;
 }
