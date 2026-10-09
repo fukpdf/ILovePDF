@@ -2602,6 +2602,10 @@ async function runAdvancedCompress(config = {}) {
     const pageModes = [];
     let rasterPageCount = 0;
     for (let i = 1; i <= total; i++) {
+      showProcessing(
+        'Analyzing PDF content — page ' + i + ' of ' + total + '…',
+        'Preserving text/vector pages and identifying image-only pages.',
+      );
       const page = await srcPdf.getPage(i);
       const textContent = await page.getTextContent();
       const hasSelectableText = textContent.items.some(
