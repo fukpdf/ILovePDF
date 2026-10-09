@@ -1581,11 +1581,20 @@ function _buildRelatedToolsHtml(toolId, maxCount) {
 
   return related.slice(0, maxCount).map(function (t) {
     var href = t.url || (t.tid ? '/' + t.tid : '/');
-    var icon = t.icon || 'file';
-    var name = t.name || t.tid || 'Tool';
-    return '<a class="related-tool-card" href="' + href + '">' +
-      '<span class="rt-icon"><i data-lucide="' + icon + '"></i></span>' +
-      '<span>' + name + '</span>' +
+    var icon = String(t.icon || 'file').replace(/[^a-z0-9-]/gi, '');
+    var name = String(t.name || t.tid || 'Tool');
+    var description = String(t.description || t.desc || 'Open this tool to continue working with your files.');
+    var safeName = name.replace(/[&<>"']/g, function (ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+    var safeDescription = description.replace(/[&<>"']/g, function (ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+    return '<a class="related-tool-card" href="' + href + '" aria-label="' + safeName + '">' +
+      '<span class="rt-icon" aria-hidden="true"><i data-lucide="' + icon + '"></i></span>' +
+      '<span class="related-tool-copy"><span class="related-tool-name">' + safeName + '</span>' +
+      '<span class="related-tool-description">' + safeDescription + '</span></span>' +
+      '<span class="related-tool-arrow" aria-hidden="true">→</span>' +
     '</a>';
   }).join('');
 }
