@@ -155,3 +155,68 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     try { module.FS.unlink(outputPath); } catch {}
   }
 }
+
+
+export interface WasmJsonRequest {
+  engine: WasmEngine;
+  input: Uint8Array;
+  /** Arguments must include inputPath followed by outputPath. */
+  args: string[];
+  inputPath?: string;
+  outputPath?: string;
+  tools: Partial<WasmTools>;
+}
+
+export interface WasmJsonResult {
+  json: string;
+  exitCode: number;
+  stdout: string[];
+  stderr: string[];
+}
+
+/**
+ * Run a QPDF JSON inspection pass with output written to the WASM filesystem.
+ * The caller should use --json-stream-data=none for discovery and request
+ * inline stream data only for selected page/content objects.
+ */
+export function runJsonTool(request: WasmJsonRequest): WasmJsonResult {
+  const { engine, input, args, tools } = request;
+  if (!(input instanceof Uint8Array) || input.byteLength === 0) {
+    throw new Error("WASM JSON inspection requires a non-empty PDF byte array.");
+  }
+  const module = tools[engine];
+  if (!module) throw new Error(`WASM engine ${engine} was not initialized.`);
+  const inputPath = request.inputPath ?? "/input.pdf";
+  const outputPath = request.outputPath ?? "/output.json";
+  if (!args.includes(inputPath) || !args.includes(outputPath)) {
+    throw new Error("WASM JSON arguments must include the configured input and output paths.");
+  }
+  const logs = logBuffers.get(module) ?? { stdout: [], stderr: [] };
+  logs.stdout.length = 0;
+  logs.stderr.length = 0;
+  try {
+    try { module.FS.unlink(inputPath); } catch {}
+    try { module.FS.unlink(outputPath); } catch {}
+    module.FS.writeFile(inputPath, input);
+    const exitCode = module.callMain(args);
+    if (exitCode !== 0) {
+      throw new Error(`${engine} JSON inspection exited with code ${exitCode}: ${logs.stderr.join("\\n")}`);
+    }
+    if (module.FS.analyzePath && !module.FS.analyzePath(outputPath).exists) {
+      throw new Error(`${engine} did not create JSON output at ${outputPath}.`);
+    }
+    const bytes = module.FS.readFile(outputPath);
+    const json = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    let parsed: unknown;
+    try { parsed = JSON.parse(json); } catch {
+      throw new Error(`${engine} returned invalid JSON inspection output.`);
+    }
+    if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { qpdf?: unknown }).qpdf)) {
+      throw new Error(`${engine} JSON output did not contain a QPDF object table.`);
+    }
+    return { json, exitCode, stdout: [...logs.stdout], stderr: [...logs.stderr] };
+  } finally {
+    try { module.FS.unlink(inputPath); } catch {}
+    try { module.FS.unlink(outputPath); } catch {}
+  }
+}
