@@ -15,7 +15,8 @@ export function buildGsArgs(mode: Mode, qFactor: number, inputPath: string, outp
     "/ColorConversionStrategy /LeaveColorUnchanged",
     "/ColorImageDict << /QFactor " + q + " /HSamples [1 1 1 1] /VSamples [1 1 1 1] >>",
     "/GrayImageDict << /QFactor " + q + " /HSamples [1 1 1 1] /VSamples [1 1 1 1] >>",
-    "/MonoImageFilter /CCITTFaxEncode",\n    "/MonoImageDict << /K -1 >>",
+    "/MonoImageFilter /CCITTFaxEncode",
+    "/MonoImageDict << /K -1 >>",
     ">> setdistillerparams",
   ].join(" ");
   return [
