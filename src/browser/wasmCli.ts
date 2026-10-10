@@ -134,6 +134,8 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
   if (!module) throw new Error(`WASM engine ${engine} was not initialized.`);
   const inputPath = request.inputPath ?? "/input.pdf";
   const outputPath = request.outputPath ?? "/output.pdf";
+  const hasOutputPath = args.includes(outputPath) || args.includes(`-sOutputFile=${outputPath}`);
+  if (!args.includes(inputPath) || !hasOutputPath) throw new Error("WASM command must include input and output paths.");
 
   try {
     try { module.FS.unlink(inputPath); } catch {}
