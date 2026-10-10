@@ -13,6 +13,19 @@ const CMYK_JPEG_B64 = "/9j/7gAOQWRvYmUAZAAAAAAA/9sAQwAFAwQEBAMFBAQEBQUFBgcMCAcHB
 const CCITT_G4_B64 = "MxTMUzFMxTMUzFMxTMX//////////////////yaimYpmKZimYpmKZimYv///////////////////5mKZimYpmKZimYpmKZi//////////////////+TUUzFMxTMUzFMxTMUzF////////////////////MxTMUzFMxTMUzFMxTMX//////////////////yaimYpmKZimYpmKZimYv///////////////////5mKZimYpmKZimYpmKZi//////////////////+TUUzFMxTMUzFMxTMUzF////////////////////ABABA=";
 const ALPHA_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAZ0lEQVR42u3QQREAIBAAodW54Ea3h/KgAKtOU/tf065/CRAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQICAF1wxEiN01ib7sAAAAABJRU5ErkJggg==";
 
+function padJpegWithComment(bytes: Uint8Array, targetSize = 5000): Uint8Array {
+  assert.ok(bytes.length >= 4 && bytes[bytes.length-2] === 0xff && bytes[bytes.length-1] === 0xd9,
+    "fixture must end with a JPEG EOI marker");
+  if(bytes.length>=targetSize) return bytes.slice();
+  const payloadLength=targetSize-bytes.length-4,segmentLength=payloadLength+2;
+  assert.ok(segmentLength<=65535,"JPEG comment segment must fit its 16-bit length");
+  const out=new Uint8Array(targetSize),end=bytes.length-2;
+  out.set(bytes.subarray(0,end),0);
+  out[end]=0xff;out[end+1]=0xfe;out[end+2]=(segmentLength>>8)&0xff;out[end+3]=segmentLength&0xff;
+  out.fill(0x41,end+4,end+4+payloadLength);
+  out.set(bytes.subarray(end),end+4+payloadLength);
+  return out;
+}
 async function makePdfWithJpeg(bytes: Uint8Array, placements: Array<{ x: number; y: number; width: number; height: number }> = [{x:30,y:300,width:120,height:60}]): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([612, 792]);
@@ -117,9 +130,11 @@ test("dedupe requires exact image dictionary and bytes and redirects references 
 
 test("real grayscale and CMYK JPEG streams are not re-encoded by the light engine",async()=>{
   for(const [b64,colorSpace] of [[GRAY_JPEG_B64,"/DeviceGray"],[CMYK_JPEG_B64,"/DeviceCMYK"]] as const){
-    const input=await makePdfWithJpeg(Buffer.from(b64,"base64"),[{x:30,y:300,width:120,height:60}]);
+    const jpegBytes=padJpegWithComment(Buffer.from(b64,"base64"));
+    const input=await makePdfWithJpeg(jpegBytes,[{x:30,y:300,width:120,height:60}]);
     const before=await PDFDocument.load(input),beforeImage=imageStreams(before).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
     assert.ok(beforeImage,`fixture must be a valid ${colorSpace} JPEG`);
+    assert.ok(beforeImage!.stream.contents.length>4096,"fixture must exceed the light engine minimum image size");
     const result=await compressInBrowser(input,{mode:"extreme"});
     assert.ok(result.bytes.length<=input.length);
     const after=await PDFDocument.load(result.bytes),afterImage=imageStreams(after).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
