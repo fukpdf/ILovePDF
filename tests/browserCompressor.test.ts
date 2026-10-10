@@ -6,6 +6,7 @@ import { Buffer } from "node:buffer";
 import * as jpeg from "jpeg-js";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFString, decodePDFRawStream, StandardFonts } from "pdf-lib";
 import { compressInBrowser } from "../src/browser/browserCompressor";
+import { estimateJpegQuality } from "../src/shared/jpeg";
 
 const GRAY_JPEG_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAALCABAAIABAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAwcI/8QAFxAAAwEAAAAAAAAAAAAAAAAAAAIEYf/aAAgBAQAAPwDOCT4Ok+CpOOk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyTjJPg6T4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GSfBknwdJ8GSfBknwZJ8GSfBknwnKT4Ok+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DpPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJxknwZJ8GSfBknwdJ8GSfBknwZJ8GSfCdJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GScdJ8GSfBknwZJxknGSfBknwnST4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJ8GSfB0nwZJ8GSfBknwZJ8GSfBknwZJ8P//Z";
 const CMYK_JPEG_B64 = "/9j/7gAOQWRvYmUAZAAAAAAA/9sAQwAFAwQEBAMFBAQEBQUFBgcMCAcHBwcPCwsJDBEPEhIRDxERExYcFxMUGhURERghGBodHR8fHxMXIiQiHiQcHh8e/8AAFAgAQACABEMRAE0RAFkRAEsRAP/EABoAAQEBAAMBAAAAAAAAAAAAAAADBQYHCQj/xAAaEAEAAgMBAAAAAAAAAAAAAAAAAgQUQWJh/9oADgRDAE0AWQBLAAA/APmmu+acLx1RCD7LaVbRheLwgNKtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAaVbRheLwgNKtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAaVbRheLwgNGtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAeeVdyTC5dUQgNKtowuV4QGlW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuV4QGlW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuV4QGjW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgPPKu5JhcuqIQGlW0YXK0IDSraMLleEBpVtGFytCA0q2jC5XhAaVcwuVoQGlW0YXK0IDSraMLleEBpVtGFytCA0q2jC5XhAaVcwuVoQGlW0YXK8IDRraMLlaEBpVtGFytCA0q2jC5XhAaVcwuVoQHnlXckwvHVEIDSraMLxaEBpVtGF4vCA0q2jC8WhAaVbRheLwgNKuYXi0IDSraMLxaEBpVtGF4vCA0q2jC8WhAaVbRheLwgNKuYXi0IDSraMLxeEBo1tGF4tCA0q2jC8WhAaVbRheLwgNKuYXi0IDzyruSYXLqiEBpVtGFytCA0q2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEBpVtGFytCA0q2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEBpVtGFytCA0a2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEB55V3I8Lx1RCA0q2jC8WhAaVbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA0q2jC8WhAaVbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA0q2jC8WhAaNbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA88q7kmFy6ohAaVbRhcrQgNKtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAaVbRhcrQgNKtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAaVbRhcrQgNGtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAeeVdyTC5dUQgNKtowuVoQGlW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuVoQGlW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuVoQGjW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgP/Z";
@@ -89,6 +90,12 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
     assert.ok((changed!.newWidth! / (180/72)) >= 149,"placed image horizontal resolution must not fall below the 150 DPI floor");
     assert.ok((changed!.newHeight! / (100/72)) >= 149,"placed image vertical resolution must not fall below the 150 DPI floor");
   }
+  const afterDoc=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const afterImage=imageStreams(afterDoc).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()==="/DeviceRGB");
+  assert.ok(afterImage);
+  const sourceQuality=estimateJpegQuality(jpg),outputQuality=estimateJpegQuality(afterImage!.stream.contents);
+  assert.ok(sourceQuality!==null && outputQuality!==null);
+  assert.ok(outputQuality!<=sourceQuality!,"JPEG must never be re-encoded above its estimated source quality");
   const beforeHashes=await decodedPageHashes(input),afterHashes=await decodedPageHashes(result.bytes);
   assert.deepEqual(afterHashes,beforeHashes,"decoded page content streams must remain byte-identical by SHA-256");
 });
