@@ -39,6 +39,7 @@ export interface WasmTools {
 }
 
 let cachedTools: Promise<WasmTools> | undefined;
+const logBuffers = new WeakMap<EmModule, { stdout: string[]; stderr: string[] }>();
 
 async function importFactory(engine: WasmEngine): Promise<ModuleFactory> {
   if (engine === "qpdf") {
@@ -65,13 +66,17 @@ export function loadWasmTools(locate: WasmLocate): Promise<WasmTools> {
         importFactory("qpdf"),
       ]);
 
-      const make = (factory: ModuleFactory, wasmUrl: string): Promise<EmModule> =>
-        factory({
+      const make = async (factory: ModuleFactory, wasmUrl: string): Promise<EmModule> => {
+        const logs = { stdout: [] as string[], stderr: [] as string[] };
+        const module = await factory({
           locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
           noInitialRun: true,
-          print: () => {},
-          printErr: () => {},
+          print: (line) => logs.stdout.push(String(line)),
+          printErr: (line) => logs.stderr.push(String(line)),
         });
+        logBuffers.set(module, logs);
+        return module;
+      };
 
       try {
         const [ghostscript, qpdf] = await Promise.all([
@@ -118,12 +123,9 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
   const module = tools[engine];
   const inputPath = request.inputPath ?? "/input.pdf";
   const outputPath = request.outputPath ?? "/output.pdf";
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  const oldPrint = module.print;
-  const oldPrintErr = module.printErr;
-  module.print = (line) => stdout.push(String(line));
-  module.printErr = (line) => stderr.push(String(line));
+  const logs = logBuffers.get(module) ?? { stdout: [], stderr: [] };
+  logs.stdout.length = 0;
+  logs.stderr.length = 0;
 
   try {
     try { module.FS.unlink(inputPath); } catch {}
@@ -147,10 +149,8 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
         output[2] !== 0x44 || output[3] !== 0x46 || output[4] !== 0x2d) {
       throw new Error(`${engine} produced an invalid PDF signature.`);
     }
-    return { output: output.slice(), exitCode, stdout, stderr };
+    return { output: output.slice(), exitCode, stdout: [...logs.stdout], stderr: [...logs.stderr] };
   } finally {
-    module.print = oldPrint;
-    module.printErr = oldPrintErr;
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
   }
