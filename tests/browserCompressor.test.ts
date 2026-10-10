@@ -11,7 +11,6 @@ import { jpegQuantizationNoFiner } from "../src/shared/jpeg";
 const GRAY_JPEG_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAALCABAAIABAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAwcI/8QAFxAAAwEAAAAAAAAAAAAAAAAAAAIEYf/aAAgBAQAAPwDOCT4Ok+CpOOk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyTjJPg6T4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GSfBknwdJ8GSfBknwZJ8GSfBknwnKT4Ok+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DpPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJxknwZJ8GSfBknwdJ8GSfBknwZJ8GSfCdJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GScdJ8GSfBknwZJxknGSfBknwnST4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJ8GSfB0nwZJ8GSfBknwZJ8GSfBknwZJ8P//Z";
 const CMYK_JPEG_B64 = "/9j/7gAOQWRvYmUAZAAAAAAA/9sAQwAFAwQEBAMFBAQEBQUFBgcMCAcHBwcPCwsJDBEPEhIRDxERExYcFxMUGhURERghGBodHR8fHxMXIiQiHiQcHh8e/8AAFAgAQACABEMRAE0RAFkRAEsRAP/EABoAAQEBAAMBAAAAAAAAAAAAAAADBQYHCQj/xAAaEAEAAgMBAAAAAAAAAAAAAAAAAgQUQWJh/9oADgRDAE0AWQBLAAA/APmmu+acLx1RCD7LaVbRheLwgNKtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAaVbRheLwgNKtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAaVbRheLwgNGtowvFoQGlW0YXi0IDSraMLxeEBpVzC8WhAeeVdyTC5dUQgNKtowuV4QGlW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuV4QGlW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuV4QGjW0YXK0IDSraMLlaEBpVtGFyvCA0q5hcrQgPPKu5JhcuqIQGlW0YXK0IDSraMLleEBpVtGFytCA0q2jC5XhAaVcwuVoQGlW0YXK0IDSraMLleEBpVtGFytCA0q2jC5XhAaVcwuVoQGlW0YXK8IDRraMLlaEBpVtGFytCA0q2jC5XhAaVcwuVoQHnlXckwvHVEIDSraMLxaEBpVtGF4vCA0q2jC8WhAaVbRheLwgNKuYXi0IDSraMLxaEBpVtGF4vCA0q2jC8WhAaVbRheLwgNKuYXi0IDSraMLxeEBo1tGF4tCA0q2jC8WhAaVbRheLwgNKuYXi0IDzyruSYXLqiEBpVtGFytCA0q2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEBpVtGFytCA0q2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEBpVtGFytCA0a2jC5XhAaVbRhcrQgNKtowuV4QGlXMLlaEB55V3I8Lx1RCA0q2jC8WhAaVbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA0q2jC8WhAaVbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA0q2jC8WhAaNbRheLwgNKtowvFoQGlW0YXi8IDSrmF4tCA88q7kmFy6ohAaVbRhcrQgNKtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAaVbRhcrQgNKtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAaVbRhcrQgNGtowuV4QGlW0YXK0IDSraMLleEBpVzC5WhAeeVdyTC5dUQgNKtowuVoQGlW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuVoQGlW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgNKtowuVoQGjW0YXK8IDSraMLlaEBpVtGFyvCA0q5hcrQgP/Z";
 const CCITT_G4_B64 = "MxTMUzFMxTMUzFMxTMX//////////////////yaimYpmKZimYpmKZimYv///////////////////5mKZimYpmKZimYpmKZi//////////////////+TUUzFMxTMUzFMxTMUzF////////////////////MxTMUzFMxTMUzFMxTMX//////////////////yaimYpmKZimYpmKZimYv///////////////////5mKZimYpmKZimYpmKZi//////////////////+TUUzFMxTMUzFMxTMUzF////////////////////ABABA=";
-const ALPHA_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAZ0lEQVR42u3QQREAIBAAodW54Ea3h/KgAKtOU/tf065/CRAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQICAF1wxEiN01ib7sAAAAABJRU5ErkJggg==";
 
 function padJpegWithComment(bytes: Uint8Array, targetSize = 5000): Uint8Array {
   assert.ok(bytes.length >= 4 && bytes[bytes.length-2] === 0xff && bytes[bytes.length-1] === 0xd9,
@@ -90,6 +89,34 @@ async function makeCcittPdf(): Promise<Uint8Array> {
   return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
 }
 
+async function makeSMaskPdf(): Promise<Uint8Array> {
+  const doc=await PDFDocument.create(),page=doc.addPage([612,792]),width=128,height=128;
+  const pseudoRandom=(length:number,seed:number)=>{
+    const out=Buffer.alloc(length);let state=seed>>>0;
+    for(let i=0;i<length;i++){state=(Math.imul(state,1664525)+1013904223)>>>0;out[i]=state>>>24;}
+    return out;
+  };
+  const maskData=new Uint8Array(deflateSync(pseudoRandom(width*height,31)));
+  const maskDict=doc.context.obj({
+    Type:PDFName.of("XObject"),Subtype:PDFName.of("Image"),Width:PDFNumber.of(width),Height:PDFNumber.of(height),
+    ColorSpace:PDFName.of("DeviceGray"),BitsPerComponent:PDFNumber.of(8),Filter:PDFName.of("FlateDecode"),
+    Length:PDFNumber.of(maskData.length),
+  }) as PDFDict;
+  const maskRef=doc.context.register(PDFRawStream.of(maskDict,maskData));
+  const rgbData=new Uint8Array(deflateSync(pseudoRandom(width*height*3,71)));
+  const rgbDict=doc.context.obj({
+    Type:PDFName.of("XObject"),Subtype:PDFName.of("Image"),Width:PDFNumber.of(width),Height:PDFNumber.of(height),
+    ColorSpace:PDFName.of("DeviceRGB"),BitsPerComponent:PDFNumber.of(8),Filter:PDFName.of("FlateDecode"),
+    SMask:maskRef,Length:PDFNumber.of(rgbData.length),
+  }) as PDFDict;
+  const rgbRef=doc.context.register(PDFRawStream.of(rgbDict,rgbData));
+  page.node.set(PDFName.of("Resources"),doc.context.obj({XObject:doc.context.obj({Scan:rgbRef})}) as PDFDict);
+  const contents=doc.context.register(PDFRawStream.of(doc.context.obj({}) as PDFDict,
+    new TextEncoder().encode("q 128 0 0 128 40 300 cm /Scan Do Q")));
+  page.node.set(PDFName.of("Contents"),contents);
+  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+}
+
 test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", async()=>{
   const jpg=await makeRgbPhoto(), input=await makePdfWithJpeg(jpg,[{x:30,y:300,width:120,height:60},{x:250,y:300,width:180,height:100}]);
   const result=await compressInBrowser(input,{mode:"recommended"});
@@ -144,15 +171,13 @@ test("real grayscale and CMYK JPEG streams are not re-encoded by the light engin
   }
 });
 
-test("SMask image streams are left untouched",async()=>{
-  const doc=await PDFDocument.create(),page=doc.addPage([612,792]);
-  const image=await doc.embedPng(Buffer.from(ALPHA_PNG_B64,"base64"));
-  page.drawImage(image,{x:40,y:300,width:64,height:64});
-  const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
-  const before=await PDFDocument.load(input);
+test("large SMask image streams are left untouched",async()=>{
+  const input=await makeSMaskPdf(),before=await PDFDocument.load(input);
   const masked=imageStreams(before).find(x=>x.stream.dict.has(PDFName.of("SMask")));
-  assert.ok(masked,"transparent PNG should produce a PDF soft mask");
+  assert.ok(masked,"fixture must contain a PDF soft mask");
+  assert.ok(masked!.stream.contents.length>4096,"SMask fixture must exceed the image processing threshold");
   const result=await compressInBrowser(input,{mode:"recommended"});
+  assert.ok(result.bytes.length<=input.length);
   const after=await PDFDocument.load(result.bytes);
   const maskedAfter=imageStreams(after).find(x=>x.stream.dict.has(PDFName.of("SMask")));
   assert.ok(maskedAfter);
