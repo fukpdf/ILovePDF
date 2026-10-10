@@ -77,15 +77,25 @@ OPS.compress = async function (buffers) {
   // bytes rather than attempting a rewrite that could invalidate a signature,
   // alter form/XFA structures, or mishandle encryption.
   const sourceBytes = new Uint8Array(original);
-  const sourceText = new TextDecoder('latin1').decode(sourceBytes);
+  const hasMarker = (marker) => {
+    // Scan ASCII tokens directly so a large PDF does not also allocate a
+    // potentially hundreds-of-megabytes UTF-16 string in worker memory.
+    outer: for (let i = 0; i <= sourceBytes.length - marker.length; i++) {
+      for (let j = 0; j < marker.length; j++) {
+        if (sourceBytes[i + j] !== marker.charCodeAt(j)) continue outer;
+      }
+      return true;
+    }
+    return false;
+  };
   const sensitiveMarkers = [
     ['/ByteRange', 'digitally signed PDF'],
     ['/Encrypt', 'encrypted PDF'],
     ['/XFA', 'XFA PDF'],
     ['/AcroForm', 'interactive form PDF'],
   ];
-  for (const [marker, label] of sensitiveMarkers) {
-    if (sourceText.includes(marker)) {
+  for (const [marker] of sensitiveMarkers) {
+    if (hasMarker(marker)) {
       // Returning the original is a successful no-op: the caller can safely
       // deliver it and report that compression was skipped.
       return original;
