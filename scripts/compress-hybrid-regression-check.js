@@ -55,7 +55,7 @@ const checks = [
   ['QPDF preserves stream payloads while the deep route forbids lossy mono encoding', deepEngine.includes('"--stream-data=preserve"') && deepEngine.includes('"--object-streams=generate"') && gsParams.includes('-dDownsampleMonoImages=false') && gsParams.includes('/MonoImageDict << /K -1 >>') && !/jbig2/i.test(gsParams) && !kit.includes('"--recompress-flate"')],
   ['Every deep candidate is accepted only after decoded page-content SHA-256 validation', kit.includes('hashPageContentStreams(pageJson)') && kit.includes('hashPageContentStreams(outputPageJson)') && kit.includes('assertPageContentStreamsUnchanged(baseline.pageHashes, after)')],
   ['QPDF JSON selectors use documented object-number,generation syntax', kit.includes('return `${match[1]},${match[2]}`') && kit.includes('--json-object=${qpdfJsonSelector(selector)}')],
-  ['decoded page-content streams use SHA-256', integrity.includes('subtle.digest("SHA-256", bytes)')],
+  ['decoded page-content streams use SHA-256', integrity.includes('subtle.digest("SHA-256", digestBytes.buffer)')],
   ['un-decodable content streams fail closed', integrity.includes('refusing to certify it')],
   ['page order, page count and ordered stream hashes must match', integrity.includes('before.pageCount !== after.pageCount') && integrity.includes('left.length !== right.length') && integrity.includes('changed decoded page content streams on page')],
   ['output larger than source is never returned', kit.includes('candidate.byteLength >= original.byteLength') && kit.includes('best.byteLength >= original.byteLength') && kit.includes('outputBytes: best.byteLength')],
