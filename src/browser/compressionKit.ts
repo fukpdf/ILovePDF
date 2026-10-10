@@ -239,6 +239,7 @@ export async function compressLosslessly(
       mode: engineMode,
       targetKB: targetBytes === null ? undefined : targetBytes / 1024,
       tools,
+      qpdfOnly,
       signal: options.signal,
       onProgress(percent, text) {
         options.onProgress?.(percent >= 95 ? "complete" : percent >= 80 ? "validating" : "structural-pass", text);
