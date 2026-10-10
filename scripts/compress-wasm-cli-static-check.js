@@ -18,7 +18,7 @@ const checks = [
   ["output PDF signature is validated", cli.includes("output[0] !== 0x25") && cli.includes("output[4] !== 0x2d")],
   ["input and output virtual files are cleaned up", cli.includes("module.FS.unlink(inputPath)") && cli.includes("module.FS.unlink(outputPath)")],
   ["no network APIs are used in WASM CLI", !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(cli)],
-  ["qpdf module factory has declared API", declarations.includes('declare module "@neslinesli93/qpdf-wasm"') && declarations.includes("callMain(args: string[]): number")],
+  ["qpdf module factory is imported from its package entrypoint", cli.includes('import("@neslinesli93/qpdf-wasm")') && cli.includes("mod.default as unknown as ModuleFactory")],
   ["Ghostscript factory is explicitly declared", declarations.includes('declare module "@jspawn/ghostscript-wasm"')],
   ["no stale unbound stderr identifier remains", !/(?<![.\w])stderr\.join\(/.test(cli)],
 ];
