@@ -8,6 +8,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const toolPage = readFileSync(path.join(root, 'public/js/tool-page.js'), 'utf8');
 const toolHtml = readFileSync(path.join(root, 'public/tool.html'), 'utf8');
 
+const worker = readFileSync(path.join(root, 'public/workers/pdf-worker.js'), 'utf8');
+const compressStart = worker.indexOf('OPS.compress = async function (buffers) {');
+const compressEnd = worker.indexOf('\\nOPS.repair =', compressStart);
+const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
+
 const checks = [
   ['selectable text is inspected', toolPage.includes('await page.getTextContent()')],
   ['image-only pages are detected from PDF operators', toolPage.includes('page.getOperatorList()') && toolPage.includes('imageOpCodes.has(op)')],
@@ -26,6 +31,10 @@ const checks = [
   ['cache bust points to the hybrid implementation', toolHtml.includes('/js/tool-page.js?v=20261009-hybrid-150dpi-v2')],
   ['UI no longer claims one-pass-only Custom mode', !toolPage.includes('uses one compression pass') && !toolPage.includes('calculated single-pass output')],
   ['mixed text-and-image pages are conservatively preserved', toolPage.includes("hasSelectableText || !hasRasterImages ? 'preserve' : 'raster'") && toolPage.includes('outDoc.copyPages(sourcePdfLib, [i - 1])')],
+  ['signed PDFs are returned unchanged by the compression worker', compressBody.includes("['/ByteRange', 'digitally signed PDF']") && compressBody.includes('return original;')],
+  ['encrypted PDFs are returned unchanged by the compression worker', compressBody.includes("['/Encrypt', 'encrypted PDF']") && compressBody.includes('return original;')],
+  ['XFA and AcroForm PDFs are returned unchanged by the compression worker', compressBody.includes("['/XFA', 'XFA PDF']") && compressBody.includes("['/AcroForm', 'interactive form PDF']")],
+  ['compression does not strip metadata as a side effect', !compressBody.includes('stripMetadata(doc)')],
 ];
 
 for (const [name, condition] of checks) {
