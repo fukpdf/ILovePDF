@@ -60,7 +60,10 @@
       return {
         blob: blob,
         filename: filename,
-        alreadyOptimized: alreadyOptimized
+        alreadyOptimized: alreadyOptimized,
+        // Additive report field: existing consumers retain the original result
+        // shape while newer UI surfaces can explain skipped/target-unreachable runs.
+        report: result.report || null
       };
     } catch (err) {
       cleanup(token, 'compress-error');
