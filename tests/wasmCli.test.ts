@@ -69,6 +69,30 @@ test("runTool stages input in virtual FS, validates output, and cleans temporary
   assert.equal(module.FS.analyzePath?.("/output.pdf").exists, false);
 });
 
+test("runTool accepts Ghostscript's -sOutputFile output argument", () => {
+  const module = mockModule(0);
+  const result = runTool({
+    engine: "ghostscript",
+    input: validPdf,
+    args: ["-sDEVICE=pdfwrite", "-sOutputFile=/output.pdf", "/input.pdf"],
+    tools: { ghostscript: module },
+  });
+  assert.equal(result.exitCode, 0);
+  assert.deepEqual([...result.output], [...validPdf]);
+  assert.equal(module.FS.analyzePath?.("/input.pdf").exists, false);
+  assert.equal(module.FS.analyzePath?.("/output.pdf").exists, false);
+});
+
+test("runTool rejects a command that omits the configured output path", () => {
+  const module = mockModule(0);
+  assert.throws(() => runTool({
+    engine: "qpdf",
+    input: validPdf,
+    args: ["/input.pdf", "--check"],
+    tools: { qpdf: module },
+  }), /must include input and output paths/);
+});
+
 test("runTool rejects a non-zero WASM exit code and still cleans files", () => {
   const module = mockModule(2);
   assert.throws(() => runTool({
