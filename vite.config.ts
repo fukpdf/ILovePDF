@@ -24,7 +24,7 @@ export default defineConfig({
     minify: false,
     sourcemap: false,
     lib: {
-      entry: resolve(root, "src/browser/compressionKit.ts"),
+      entry: resolve(root, "src/browser/compressionKitEntry.ts"),
       formats: ["es"],
       fileName: () => "compression-kit.js",
     },
