@@ -14,6 +14,7 @@ import {
 import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
 import type { GateReport } from "../shared/quality";
 import type { Mode } from "../shared/policy";
+import { decideCompressionRoute } from "../router/smartRouter";
 
 export type CompressionMode = "deep" | "custom";
 export type CompressionStage = "loading-engine" | "structural-pass" | "validating" | "complete";
@@ -183,8 +184,11 @@ export async function compressLosslessly(
     return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
   }
 
-  const needsDeep = light.needsDeep || !lightCandidate || (targetBytes !== null && lightCandidate.byteLength > targetBytes);
-  if (!needsDeep) {
+  const routeDecision = decideCompressionRoute({
+    mode: options.mode, originalBytes: original.byteLength, candidateBytes: lightCandidate?.byteLength ?? null,
+    lightKeptOriginal: light.keptOriginal, lightNeedsDeep: light.needsDeep, targetBytes, deepReason: light.deepReason,
+  });
+  if (!routeDecision.useDeep) {
     const savedBytes = original.byteLength - best.byteLength;
     const savedPercent = Math.round(savedBytes / original.byteLength * 1000) / 10;
     const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
@@ -212,7 +216,7 @@ export async function compressLosslessly(
     const baseline = await createBaseline(original, qpdf);
 
     options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…");
-    const qpdfOnly = /AcroForm|interactive form/i.test(light.deepReason ?? "");
+    const qpdfOnly = routeDecision.qpdfOnly;
     let tools: Partial<WasmTools> = { qpdf };
     if (!qpdfOnly) {
       options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…");
