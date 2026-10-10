@@ -30,7 +30,7 @@ The legacy pdf-lib serialization route for ordinary PDFs is **not** proof of the
 
 ## Validation status
 
-No local `npm test`, TypeScript typecheck, production build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed. The static checks have been added to `npm test` and a GitHub Actions workflow, but no workflow run is visible in the available run lookup.
+No local `npm test`, TypeScript typecheck, production build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed. The static checks have been added to `npm test`; the GitHub Actions workflow also installs the two published WASM packages in an isolated temporary directory and typechecks the adapter against TypeScript 5.6.3. No workflow run is visible in the available run lookup, so none of these checks is yet confirmed executed.
 
 
 ## Package API audit (2026-10-10)
