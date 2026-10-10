@@ -198,6 +198,7 @@ async function main() {
 
     assert.ok(outputBytes.length <= inputBytes.length, "engine must never return a larger PDF");
     assert.ok(outputBytes.length < inputBytes.length, "photo fixture should produce a smaller PDF");
+    assert.ok(["browser-rgb-image", "ghostscript-quality-gated"].includes(report.method), "photo fixture must exercise a quality-gated image-compression route");
     assert.ok(textRatio >= 0.98, "extracted text retention must be at least 98%");
     assert.ok(gate && gate.passed === true, "real browser quality gate must pass");
     assert.ok(Array.isArray(gate.samples) && gate.samples.length > 0, "quality gate must report rendered page samples");
