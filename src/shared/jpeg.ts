@@ -6,6 +6,7 @@ export interface JpegInfo {
   unsupportedSof: boolean;
   quantTables: number[][];
   componentQuantTableIds: number[];
+  componentSamplingFactors: number[];
 }
 
 const SOF_MARKERS = new Set([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf]);
@@ -17,6 +18,7 @@ export function readJpegInfo(bytes: Uint8Array): JpegInfo | null {
   let i = 2, width = 0, height = 0, components = 0, precision = 0, sof = -1;
   const quantTables: number[][] = [];
   let componentQuantTableIds: number[] = [];
+  let componentSamplingFactors: number[] = [];
   while (i + 4 <= bytes.length) {
     if (bytes[i] !== 0xff) { i++; continue; }
     while (i < bytes.length && bytes[i] === 0xff) i++;
@@ -47,13 +49,14 @@ export function readJpegInfo(bytes: Uint8Array): JpegInfo | null {
       width = (bytes[start + 3] << 8) | bytes[start + 4];
       components = bytes[start + 5];
       if (len < 8 + components * 3) return null;
+      componentSamplingFactors = Array.from({ length: components }, (_, n) => bytes[start + 7 + n * 3]);
       componentQuantTableIds = Array.from({ length: components }, (_, n) => bytes[start + 8 + n * 3]);
       sof = marker;
     }
     i = end;
   }
   if (!width || !height || !components || sof < 0) return null;
-  return { width, height, components, precision, unsupportedSof: sof !== 0xc0 && sof !== 0xc1 && sof !== 0xc2, quantTables, componentQuantTableIds };
+  return { width, height, components, precision, unsupportedSof: sof !== 0xc0 && sof !== 0xc1 && sof !== 0xc2, quantTables, componentQuantTableIds, componentSamplingFactors };
 }
 
 
@@ -94,7 +97,8 @@ export function maxSafeJpegQuality(bytes: Uint8Array): number | null {
 export function jpegQuantizationProfileNoFiner(source: JpegInfo | null, output: JpegInfo | null): boolean {
   if (!source || !output || source.components !== 3 || output.components !== 3 ||
       source.precision !== 8 || output.precision !== 8 || source.unsupportedSof || output.unsupportedSof ||
-      source.componentQuantTableIds.length !== 3 || output.componentQuantTableIds.length !== 3) return false;
+      source.componentQuantTableIds.length !== 3 || output.componentQuantTableIds.length !== 3 ||
+      output.componentSamplingFactors.length !== 3 || output.componentSamplingFactors.some(value => value !== 0x11)) return false;
   for (let component = 0; component < 3; component++) {
     const src = source.quantTables[source.componentQuantTableIds[component]];
     const out = output.quantTables[output.componentQuantTableIds[component]];
