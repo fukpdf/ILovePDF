@@ -7,6 +7,7 @@ This is a safety-first integration slice, not certification of the new TypeScrip
 ### Implemented in this slice
 - The existing worker compression route now returns the exact input bytes without attempting a pdf-lib rewrite when the source visibly contains `/ByteRange`, `/Encrypt`, `/XFA`, or `/AcroForm`.
 - The compression path no longer strips document metadata as a side effect.
+- Add a first-pass `src/browser/wasmCli.ts` adapter that writes input bytes to the WASM virtual filesystem, validates exit status and output PDF signature, and cleans temporary virtual files. This adapter is not yet wired into the compression UI.
 - The existing compression regression script asserts those guard conditions.
 - Existing UI/runtime files and the root package scripts are intentionally retained.
 
