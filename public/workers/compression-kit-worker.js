@@ -1,4 +1,4 @@
-import { compressLosslessly } from "/js/compression-kit.js";
+import { compressLosslessly } from "/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v1";
 
 self.addEventListener("message", async (event) => {
   const message = event.data || {};
@@ -15,8 +15,8 @@ self.addEventListener("message", async (event) => {
     const result = await compressLosslessly(input, {
       mode: message.mode,
       targetBytes: Number.isSafeInteger(message.targetBytes) ? message.targetBytes : null,
-      qpdfWasmUrl: "/vendor/compression/qpdf.wasm",
-      ghostscriptWasmUrl: "/vendor/compression/gs.wasm",
+      qpdfWasmUrl: "/vendor/compression/qpdf.wasm?v=20261010-qpdf-lossless-kit-v1",
+      ghostscriptWasmUrl: "/vendor/compression/gs.wasm?v=20261010-qpdf-lossless-kit-v1",
       onProgress(stage, text) {
         self.postMessage({ id, type: "progress", stage, text });
       },
