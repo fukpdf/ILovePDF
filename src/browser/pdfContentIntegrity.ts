@@ -344,10 +344,10 @@ export function assertDocumentStructureUnchanged(beforeJson: string, afterJson: 
     if (!!leftStream !== !!rightStream) {
       throw new Error(`Compression changed object kind for ${key}; the original must be preserved.`);
     }
-    const leftPayload = leftStream && typeof leftStream === "object" && !Array.isArray(leftStream)
+    const leftPayload: JsonValue = leftStream && typeof leftStream === "object" && !Array.isArray(leftStream)
       ? { stream: (leftStream as JsonObject).dict ?? null }
       : { value: left.value ?? null };
-    const rightPayload = rightStream && typeof rightStream === "object" && !Array.isArray(rightStream)
+    const rightPayload: JsonValue = rightStream && typeof rightStream === "object" && !Array.isArray(rightStream)
       ? { stream: (rightStream as JsonObject).dict ?? null }
       : { value: right.value ?? null };
     if (stableJson(leftPayload) !== stableJson(rightPayload)) {
