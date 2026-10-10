@@ -197,6 +197,10 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
     if (!placement) { skip("image has no measurable page placement; preserved without re-encoding"); continue; }
     const target = computeUniformTarget(width, height, placement.wPt, placement.hPt, policy.floorDpi, policy.targetDpi);
     rep.effectiveDpi = target.effectiveDpi;
+    if (target.effectiveDpi !== null && target.effectiveDpi < policy.floorDpi) {
+      skip(`placed DPI ${target.effectiveDpi.toFixed(1)} is already below the ${policy.floorDpi} DPI floor; no upscaling or further image loss permitted`);
+      continue;
+    }
     const sourceQuality = maxSafeJpegQuality(bytes);
     if (sourceQuality === null) { skip("source JPEG quantization tables cannot establish a safe re-encode quality"); continue; }
     if (!target.resized && sourceQuality <= quality + 2) { skip(`source JPEG quality ~${sourceQuality} is already at/below target`); continue; }
