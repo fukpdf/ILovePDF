@@ -107,13 +107,17 @@
         if (token && token.cancelled) finish(new Error('Compression cancelled.'));
       }, 100);
 
-      worker.postMessage({
-        id: jobId,
-        type: 'compress',
-        buffer: buffer,
-        mode: mode,
-        targetBytes: targetBytes
-      }, [buffer]);
+      try {
+        worker.postMessage({
+          id: jobId,
+          type: 'compress',
+          buffer: buffer,
+          mode: mode,
+          targetBytes: targetBytes
+        }, [buffer]);
+      } catch (err) {
+        finish(new Error('Could not transfer PDF bytes to the local worker: ' + (err.message || err)));
+      }
     });
   }
 
