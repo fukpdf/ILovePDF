@@ -62,7 +62,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check regression script syntax
-        run: node --check scripts/compress-hybrid-regression-check.js && node --check scripts/compress-wasm-cli-static-check.js
+        run: node --check public/js/tool-page.js && node --check public/js/compress-worker-adapter.js && node --check public/js/compress-runtime.js && node --check public/workers/compression-kit-worker.js && node --check scripts/build-compression-kit.js && node --check scripts/compress-hybrid-regression-check.js && node --check scripts/compress-wasm-cli-static-check.js
       - name: Run compression static regression checks
         run: node scripts/compress-hybrid-regression-check.js
       - name: Run WASM CLI adapter static checks
