@@ -277,6 +277,94 @@ function stableJson(value: JsonValue): string {
   return JSON.stringify(value);
 }
 
+
+/** Select raw stream objects that must remain byte-identical, excluding page-content
+ * streams (checked after decoding) and eligible RGB DCT image streams (the only
+ * streams the light engine may re-encode). Object/xref stream containers are storage. */
+export function selectProtectedStreamObjects(jsonText: string): string[] {
+  let parsed: QpdfJson;
+  try { parsed = JSON.parse(jsonText) as QpdfJson; }
+  catch { throw new Error("QPDF did not return valid JSON while selecting protected streams."); }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 || !parsed.qpdf[1] ||
+      typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) {
+    throw new Error("QPDF JSON object table is missing while selecting protected streams.");
+  }
+  const objects = parsed.qpdf[1] as JsonObject;
+  const trailer = objects.trailer;
+  if (!trailer || typeof trailer !== "object" || Array.isArray(trailer)) throw new Error("QPDF trailer is missing.");
+  const trailerValue = (trailer as JsonObject).value;
+  if (!trailerValue || typeof trailerValue !== "object" || Array.isArray(trailerValue)) throw new Error("QPDF trailer dictionary is missing.");
+  const catalog = getValueObject(objects, (trailerValue as JsonObject)["/Root"]);
+  const root = catalog["/Pages"];
+  if (!root) throw new Error("PDF catalog has no page-tree root.");
+  const pageContentRefs = new Set<string>(), visiting = new Set<string>();
+  const walkPages = (ref: JsonValue): void => {
+    const key = objectRef(ref);
+    if (!key || visiting.has(key)) throw new Error("Invalid or cyclic page tree while selecting protected streams.");
+    visiting.add(key);
+    const wrapped = getObject(objects, ref), value = wrapped.value;
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid page-tree object.");
+    const dict = value as JsonObject;
+    if (dict["/Type"] === "/Page") {
+      const contents = dict["/Contents"];
+      if (Array.isArray(contents)) {
+        for (const child of contents) { const childKey = objectRef(child); if (!childKey) throw new Error("Invalid page content reference."); pageContentRefs.add(childKey); }
+      } else if (contents !== undefined && contents !== null) {
+        const contentKey = objectRef(contents);
+        if (!contentKey) throw new Error("Invalid page content reference.");
+        const contentObject = getObject(objects, contents);
+        if (contentObject.stream) pageContentRefs.add(contentKey);
+        else if (Array.isArray(contentObject.value)) {
+          for (const child of contentObject.value) { const childKey = objectRef(child); if (!childKey) throw new Error("Invalid indirect content-array reference."); pageContentRefs.add(childKey); }
+        } else throw new Error("Page Contents reference is neither a stream nor an array.");
+      }
+    } else if (dict["/Type"] === "/Pages" && Array.isArray(dict["/Kids"])) {
+      for (const child of dict["/Kids"] as JsonValue[]) walkPages(child);
+    } else throw new Error("Unexpected page-tree node type.");
+  };
+  walkPages(root);
+  const selected: string[] = [];
+  for (const [key, entry] of Object.entries(objects)) {
+    if (!key.startsWith("obj:") || !entry || typeof entry !== "object" || Array.isArray(entry) || isContainerStream(entry)) continue;
+    const stream = (entry as JsonObject).stream;
+    if (!stream || typeof stream !== "object" || Array.isArray(stream)) continue;
+    if (pageContentRefs.has(key)) continue;
+    const dict = (stream as JsonObject).dict;
+    if (!dict || typeof dict !== "object" || Array.isArray(dict)) throw new Error(`Stream dictionary missing for ${key}.`);
+    if (eligibleReencodedImage(dict as JsonObject)) continue;
+    selected.push(key);
+  }
+  return selected.sort();
+}
+
+/** Hash raw payloads of protected streams. Page content is verified separately
+ * with decoded SHA-256; all non-eligible image/font/form/metadata streams stay raw-identical. */
+export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypto = crypto.subtle): Promise<Record<string, string>> {
+  let parsed: QpdfJson;
+  try { parsed = JSON.parse(jsonText) as QpdfJson; }
+  catch { throw new Error("QPDF did not return valid JSON for protected-stream hashing."); }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 || !parsed.qpdf[1] ||
+      typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) {
+    throw new Error("QPDF JSON object table is missing during protected-stream hashing.");
+  }
+  const objects = parsed.qpdf[1] as JsonObject, hashes: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(objects)) {
+    if (!key.startsWith("obj:") || !entry || typeof entry !== "object" || Array.isArray(entry) || isContainerStream(entry)) continue;
+    const stream = (entry as JsonObject).stream;
+    if (!stream || typeof stream !== "object" || Array.isArray(stream)) continue;
+    const record = stream as JsonObject;
+    if (typeof record.data !== "string") throw new Error(`QPDF omitted raw bytes for protected stream ${key}.`);
+    hashes[key] = await sha256(decodeBase64(record.data), subtle);
+  }
+  return hashes;
+}
+
+export function assertProtectedStreamsUnchanged(before: Record<string, string>, after: Record<string, string>): void {
+  const left = Object.keys(before).sort(), right = Object.keys(after).sort();
+  if (stableJson(left) !== stableJson(right)) throw new Error("Protected stream object set changed.");
+  for (const key of left) if (before[key] !== after[key]) throw new Error(`Protected stream bytes changed for ${key}; original must be preserved.`);
+}
+
 function isContainerStream(entry: JsonValue | undefined): boolean {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
   const stream = (entry as JsonObject).stream;
@@ -294,7 +382,36 @@ function isContainerStream(entry: JsonValue | undefined): boolean {
  * QPDF is invoked with --stream-data=preserve; page content streams additionally
  * receive decoded SHA-256 verification in hashPageContentStreams.
  */
-export function assertDocumentStructureUnchanged(beforeJson: string, afterJson: string): void {
+function eligibleReencodedImage(dict: JsonObject): boolean {
+  return dict["/Subtype"] === "/Image" &&
+    dict["/Filter"] === "/DCTDecode" &&
+    dict["/ColorSpace"] === "/DeviceRGB" &&
+    dict["/SMask"] == null && dict["/Mask"] == null &&
+    dict["/Decode"] == null && dict["/ImageMask"] == null;
+}
+
+function allowedImageDictionaryChange(leftEntry: JsonValue | undefined, rightEntry: JsonValue | undefined): boolean {
+  if (!leftEntry || typeof leftEntry !== "object" || Array.isArray(leftEntry) ||
+      !rightEntry || typeof rightEntry !== "object" || Array.isArray(rightEntry)) return false;
+  const leftStream = (leftEntry as JsonObject).stream, rightStream = (rightEntry as JsonObject).stream;
+  if (!leftStream || typeof leftStream !== "object" || Array.isArray(leftStream) ||
+      !rightStream || typeof rightStream !== "object" || Array.isArray(rightStream)) return false;
+  const leftDict = (leftStream as JsonObject).dict, rightDict = (rightStream as JsonObject).dict;
+  if (!leftDict || typeof leftDict !== "object" || Array.isArray(leftDict) ||
+      !rightDict || typeof rightDict !== "object" || Array.isArray(rightDict)) return false;
+  const a = leftDict as JsonObject, b = rightDict as JsonObject;
+  if (!eligibleReencodedImage(a) || !eligibleReencodedImage(b)) return false;
+  const strip = (dict: JsonObject): JsonObject => {
+    const copy = { ...dict };
+    delete copy["/Width"]; delete copy["/Height"]; delete copy["/Length"];
+    return copy;
+  };
+  return stableJson(strip(a)) === stableJson(strip(b)) &&
+    [a["/Width"], a["/Height"], b["/Width"], b["/Height"]].every(v => typeof v === "number" && v > 0) &&
+    [a["/Length"], b["/Length"]].every(v => typeof v === "number" && v > 0);
+}
+
+export function assertDocumentStructureUnchanged(beforeJson: string, afterJson: string, allowImageStreamChanges = false): void {
   const parse = (text: string): { header: JsonValue; objects: JsonObject; trailer: JsonObject } => {
     let parsed: QpdfJson;
     try {
@@ -351,6 +468,7 @@ export function assertDocumentStructureUnchanged(beforeJson: string, afterJson: 
       ? { stream: (rightStream as JsonObject).dict ?? null }
       : { value: right.value ?? null };
     if (stableJson(leftPayload) !== stableJson(rightPayload)) {
+      if (allowImageStreamChanges && allowedImageDictionaryChange(before.objects[key], after.objects[key])) continue;
       throw new Error(`Compression changed document structure object ${key}; the original must be preserved.`);
     }
   }
