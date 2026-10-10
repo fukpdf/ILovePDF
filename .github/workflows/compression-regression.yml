@@ -27,32 +27,6 @@ on:
       - 'tests/wasmPackages.smoke.test.ts'
       - 'docs/compression-kit-merge-status.md'
       - '.github/workflows/compression-regression.yml'
-  push:
-    branches:
-      - main
-      - 'fix/browser-compress-kit-integration'
-    paths:
-      - 'public/workers/pdf-worker.js'
-      - 'public/js/tool-page.js'
-      - 'public/js/compress-worker-adapter.js'
-      - 'public/js/compress-runtime.js'
-      - 'public/workers/compression-kit-worker.js'
-      - 'scripts/compress-hybrid-regression-check.js'
-      - 'scripts/compress-wasm-cli-static-check.js'
-      - 'src/browser/wasmCli.ts'
-      - 'package.json'
-      - 'tsconfig.compression.json'
-      - 'src/browser/compressionKit.ts'
-      - 'scripts/build-compression-kit.js'
-      - 'tests/compressionKit.integration.test.ts'
-      - 'src/browser/pdfContentIntegrity.ts'
-      - 'src/browser/wasm-modules.d.ts'
-      - 'tests/wasmCli.test.ts'
-      - 'tests/pdfContentIntegrity.test.ts'
-      - 'tests/wasmPackages.smoke.test.ts'
-      - 'docs/compression-kit-merge-status.md'
-      - '.github/workflows/compression-regression.yml'
-
 jobs:
   static-regression:
     runs-on: ubuntu-latest
