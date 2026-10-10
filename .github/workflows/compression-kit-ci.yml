@@ -1,4 +1,5 @@
 name: Browser Compression Kit CI
+# Safety gate: run browser-only engine checks before any merge.
 
 on:
   pull_request:
