@@ -199,16 +199,13 @@ export function runJsonTool(request: WasmJsonRequest): WasmJsonResult {
   if (!args.includes(inputPath) || !args.includes(outputPath)) {
     throw new Error("WASM JSON arguments must include the configured input and output paths.");
   }
-  const logs = logBuffers.get(module) ?? { stdout: [], stderr: [] };
-  logs.stdout.length = 0;
-  logs.stderr.length = 0;
   try {
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
     module.FS.writeFile(inputPath, input);
     const exitCode = Number(module.callMain(args) ?? 0);
     if (exitCode !== 0) {
-      throw new Error(`${engine} JSON inspection exited with code ${exitCode}: ${logs.stderr.join("\\n")}`);
+      throw new Error(`${engine} JSON inspection exited with code ${exitCode}.`);
     }
     if (module.FS.analyzePath && !module.FS.analyzePath(outputPath).exists) {
       throw new Error(`${engine} did not create JSON output at ${outputPath}.`);
@@ -222,7 +219,7 @@ export function runJsonTool(request: WasmJsonRequest): WasmJsonResult {
     if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { qpdf?: unknown }).qpdf)) {
       throw new Error(`${engine} JSON output did not contain a QPDF object table.`);
     }
-    return { json, exitCode, stdout: [...logs.stdout], stderr: [...logs.stderr] };
+    return { json, exitCode, stdout: [], stderr: [] };
   } finally {
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
