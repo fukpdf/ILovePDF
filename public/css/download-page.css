@@ -374,8 +374,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo {
 }
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo svg,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
-  width: 30px !important;
-  height: 30px !important;
+  width: 36px !important;
+  height: 36px !important;
   max-width: 100% !important;
   max-height: 100% !important;
   object-fit: contain !important;
