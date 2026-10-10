@@ -5,13 +5,13 @@ import type { GateReport } from "../shared/quality";
 import { runTool, type WasmTools } from "./wasmCli";
 
 export interface DeepOptions {
-  mode: Mode; targetKB?: number; tools: WasmTools;
+  mode: Mode; targetKB?: number; tools: Partial<WasmTools>;
   onProgress?: (percent: number, stage: string) => void; signal?: AbortSignal;
 }
 export interface DeepResult {
   ok: boolean; bytes: Uint8Array; route: "unchanged" | "qpdf-wasm" | "ghostscript-wasm";
   inputBytes: number; outputBytes: number; savedPercent: number;
-  gate?: GateReport; targetReached?: boolean; gatePassed: boolean; warnings: string[]; error?: string;
+  gate?: GateReport; targetReached?: boolean; gatePassed: boolean; warnings: string[]; error?: string; fallbackBytes?: Uint8Array;
 }
 export function wasmMemoryAllowed(bytes: number): { allowed: boolean; reason?: string } {
   const deviceMemory = typeof navigator !== "undefined" ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
@@ -96,7 +96,7 @@ export async function compressDeep(raw: Uint8Array, options: DeepOptions): Promi
   }
 
   if (bestGate) {
-    const result = make(best, "ghostscript-wasm", { gate: bestGate, gatePassed: true, warnings });
+    const result = make(best, "ghostscript-wasm", { gate: bestGate, gatePassed: true, warnings, fallbackBytes: qpdfCandidate.length < input.length ? qpdfCandidate.slice() : undefined });
     if (targetBytes !== undefined) {
       result.targetReached = result.outputBytes <= targetBytes;
       if (!result.targetReached) result.warnings.push(`Target ${options.targetKB} KB is unreachable without violating the ${policy.floorDpi} DPI floor or quality gate; best safe result delivered.`);
