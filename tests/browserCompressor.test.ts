@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { Buffer } from "node:buffer";
 import * as jpeg from "jpeg-js";
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, decodePDFRawStream, StandardFonts } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFString, decodePDFRawStream, StandardFonts } from "pdf-lib";
 import { compressInBrowser } from "../src/browser/browserCompressor";
 
 const GRAY_JPEG_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAALCABAAIABAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAwcI/8QAFxAAAwEAAAAAAAAAAAAAAAAAAAIEYf/aAAgBAQAAPwDOCT4Ok+CpOOk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyTjJPg6T4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GSfBknwdJ8GSfBknwZJ8GSfBknwnKT4Ok+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DpPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJxknwZJ8GSfBknwdJ8GSfBknwZJ8GSfCdJPgyT4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPhOknwZJ8GSfBknwZJ8GSfBknwZJ8GScdJ8GSfBknwZJxknGSfBknwnST4Mk+DJPgyT4Mk+DJPg6T4Mk+DJPgyT4Mk+DJPgyT4Mk+DJPgyT4TpJ8GSfBknwZJ8GSfBknwZJ8GSfB0nwZJ8GSfBknwZJ8GSfBknwZJ8P//Z";
@@ -157,6 +157,13 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   const doc=await PDFDocument.create(),page=doc.addPage([612,792]),font=await doc.embedFont(StandardFonts.Helvetica);
   page.drawText("Native searchable text, vectors, annotations and links stay in PDF objects.",{x:45,y:700,size:16,font});
   page.drawLine({start:{x:45,y:680},end:{x:400,y:680},thickness:2});
+  const action=doc.context.obj({S:PDFName.of("URI"),URI:PDFString.of("https://example.com/keep-link")}) as PDFDict;
+  const annotation=doc.context.register(doc.context.obj({
+    Type:PDFName.of("Annot"),Subtype:PDFName.of("Link"),
+    Rect:doc.context.obj([PDFNumber.of(45),PDFNumber.of(690),PDFNumber.of(260),PDFNumber.of(720)]),
+    Border:doc.context.obj([PDFNumber.of(0),PDFNumber.of(0),PDFNumber.of(0)]),A:action,
+  }) as PDFDict);
+  page.node.set(PDFName.of("Annots"),doc.context.obj([annotation]) as PDFArray);
   const initial=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
   const input=await forceFlateTextStream(initial);
   const beforeDoc=await PDFDocument.load(input,{updateMetadata:false});
@@ -173,6 +180,7 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
   assert.equal(after.getPageCount(),1);
   assert.ok(after.getPage(0).node.Contents());
+  assert.equal(after.getPage(0).node.Annots()?.size(),1,"link annotation must remain intact");
 });
 
 test("signature marker is a fail-closed no-op",async()=>{
