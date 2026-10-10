@@ -2699,7 +2699,7 @@ async function runAdvancedCompress(config = {}) {
 
     showProcessing(
       isCustom ? 'Applying Custom compression…' : 'Applying Deep compression…',
-      'Running a lossless structural pass in your browser. Image data and page content are not re-encoded.',
+      'Processing locally in your browser. Text, vectors and protected streams stay intact; eligible RGB images are re-encoded only when visual quality checks pass.',
     );
     let runtimeResult;
     if (preflightCancelled) throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
@@ -2722,7 +2722,7 @@ async function runAdvancedCompress(config = {}) {
     const report = runtimeResult.report || {};
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
-    if (report.method !== 'qpdf-lossless-structure' || outputBlob.size >= file.size) {
+    if (!['qpdf-lossless-structure', 'browser-rgb-image', 'ghostscript-quality-gated'].includes(report.method) || outputBlob.size >= file.size) {
       const title = isCustom && targetBytes && file.size > targetBytes
         ? 'Custom target not reached'
         : 'Already optimised';
@@ -2738,7 +2738,7 @@ async function runAdvancedCompress(config = {}) {
 
     const filename = file.name.replace(/\.pdf$/i, '') + '_compressed.pdf';
     const title = isCustom && report.targetReached
-      ? 'Custom target reached with lossless compression'
+      ? 'Custom target reached with quality-gated compression'
       : (isCustom ? 'Custom target not reached' : 'Deep compression result');
     showStatus(
       'success',
