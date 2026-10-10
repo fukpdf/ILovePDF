@@ -596,11 +596,11 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card {
     padding-inline: 12px !important;
   }
 }
-/* Platform marks: original brand colours and 1000% of the previous 36px icon size.
+/* Platform marks: original brand colours and 30% smaller than the previous 360px logo size (252px).
    max-width keeps each logo inside its responsive column instead of overflowing. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo {
-  width: 360px !important;
-  height: 360px !important;
+  width: 252px !important;
+  height: 252px !important;
   max-width: 100% !important;
   margin: 0 auto 18px !important;
   display: flex !important;
@@ -615,8 +615,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo svg,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
   width: 100% !important;
   height: 100% !important;
-  max-width: 360px !important;
-  max-height: 360px !important;
+  max-width: 252px !important;
+  max-height: 252px !important;
   object-fit: contain !important;
 }
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--mac,
