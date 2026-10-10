@@ -327,7 +327,7 @@ export async function compressLosslessly(
       },
     });
     warnings.push(...deep.warnings);
-    if (deep.gate) qualityGate = deep.gate;
+    if (deep.gate && (!qualityGate || !qualityGate.passed)) qualityGate = deep.gate;
     const candidates: Array<{ bytes: Uint8Array; route: "qpdf-wasm" | "ghostscript-wasm"; gate?: GateReport }> = [];
     if (deep.ok && deep.gatePassed && deep.route !== "unchanged") candidates.push({ bytes: deep.bytes, route: deep.route, gate: deep.gate });
     if (deep.fallbackBytes && deep.fallbackBytes.byteLength < original.byteLength) candidates.push({ bytes: deep.fallbackBytes, route: "qpdf-wasm" });
@@ -340,7 +340,7 @@ export async function compressLosslessly(
         method = candidate.route === "ghostscript-wasm" ? "ghostscript-quality-gated" : "qpdf-lossless-structure";
         engine = candidate.route === "ghostscript-wasm" ? "ghostscript" : "qpdf";
         contentStreamsVerified = true;
-        qualityGate = candidate.gate;
+        if (candidate.gate) qualityGate = candidate.gate;
       } catch (error) {
         warnings.push(`${candidate.route} candidate rejected by the integrity gate: ${error instanceof Error ? error.message : "validation failed"}`);
       }
@@ -365,7 +365,7 @@ export async function compressLosslessly(
     const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
     const message = `Deep compression could not be certified (${reason}). ${targetReached === false ? "Custom target is unreachable with the remaining safe options." : "The best validated result is preserved."}`;
     options.onProgress?.("complete", message, 100);
-    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
+    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images, qualityGate);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
       targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
