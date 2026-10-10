@@ -56,7 +56,7 @@ function resultForOriginal(
   warnings: string[] = [], contentStreamsVerified = false, images: ImageReport[] = [],
 ): CompressionKitResult {
   return {
-    bytes: original,
+    bytes: original.byteOffset === 0 && original.byteLength === original.buffer.byteLength ? original : original.slice(),
     report: {
       mode, method: "original-preserved", originalBytes: original.byteLength, outputBytes: original.byteLength,
       savedBytes: 0, savedPercent: 0, targetBytes,
