@@ -20,8 +20,8 @@ const compressEnd = worker.indexOf('\nOPS.repair =', compressStart);
 const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
 
 const checks = [
-  ['compression UI invokes the dedicated module worker', toolPage.includes("new Worker('/workers/compression-kit-worker.js', { type: 'module' })")],
-  ['canonical CompressWorkerAdapter also routes through the verified module worker', compressAdapter.includes("var WORKER_URL = '/workers/compression-kit-worker.js'") && !compressAdapter.includes("window.RuntimeWorkers.dispatch(")],
+  ['compression UI invokes the dedicated module worker', toolPage.includes("new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'")],
+  ['canonical CompressWorkerAdapter also routes through the verified module worker', compressAdapter.includes("var WORKER_URL = '/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'") && !compressAdapter.includes("window.RuntimeWorkers.dispatch(")],
   ['canonical adapter preserves Deep/Custom and rejects missing mode', compressAdapter.includes("mode === 'custom'") && compressAdapter.includes("mode === 'deep'") && compressAdapter.includes('no default mode was substituted')],
   ['canonical adapter supports cancellation by terminating its worker', compressAdapter.includes('setInterval(function ()') && compressAdapter.includes('worker.terminate()') && compressAdapter.includes('Compression cancelled.')],
   ['CompressRuntime forwards the quality/target report without removing legacy result fields', compressRuntime.includes('alreadyOptimized: alreadyOptimized') && compressRuntime.includes('report: result.report || null')],
@@ -41,7 +41,7 @@ const checks = [
   ['output larger than source is never returned', kit.includes('candidate.byteLength >= original.byteLength') && kit.includes('candidate.byteLength > original.byteLength')],
   ['output PDF signature is checked by UI and WASM adapter', toolPage.includes("outputSignature !== '%PDF-'") && wasmCli.includes('output[4] !== 0x2d')],
   ['QPDF engine and JSON inspection use only in-memory WASM FS', wasmCli.includes('module.FS.writeFile(inputPath, input)') && wasmCli.includes('module.FS.readFile(outputPath)') && !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(wasmCli)],
-  ['worker loads only local same-origin WASM assets', compressionWorker.includes('"/vendor/compression/qpdf.wasm"') && compressionWorker.includes('"/vendor/compression/gs.wasm"')],
+  ['worker loads only local same-origin WASM assets', compressionWorker.includes('"/vendor/compression/qpdf.wasm?v=20261010-qpdf-lossless-kit-v1"') && compressionWorker.includes('"/vendor/compression/gs.wasm?v=20261010-qpdf-lossless-kit-v1"')],
   ['Custom target remains mandatory', toolPage.includes('Custom target missing') && toolPage.includes("requestedMode !== 'deep' && requestedMode !== 'custom'")],
   ['root build creates the browser bundle and local WASM assets', readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/js/compression-kit.js') && readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/vendor/compression')],
   ['compression runtime does not call network APIs with PDF bytes', !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit + integrity + wasmCli + compressionWorker)],
