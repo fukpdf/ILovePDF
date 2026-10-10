@@ -339,7 +339,7 @@ export function selectProtectedStreamObjects(jsonText: string): string[] {
 
 /** Hash raw payloads of protected streams. Page content is verified separately
  * with decoded SHA-256; all non-eligible image/font/form/metadata streams stay raw-identical. */
-export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypto = crypto.subtle): Promise<Record<string, string>> {
+export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypto = crypto.subtle, expectedRefs?: string[]): Promise<Record<string, string>> {
   let parsed: QpdfJson;
   try { parsed = JSON.parse(jsonText) as QpdfJson; }
   catch { throw new Error("QPDF did not return valid JSON for protected-stream hashing."); }
@@ -348,7 +348,9 @@ export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypt
     throw new Error("QPDF JSON object table is missing during protected-stream hashing.");
   }
   const objects = parsed.qpdf[1] as JsonObject, hashes: Record<string, string> = {};
+  const expected = expectedRefs ? new Set(expectedRefs) : null;
   for (const [key, entry] of Object.entries(objects)) {
+    if (expected && !expected.has(key)) continue;
     if (!key.startsWith("obj:") || !entry || typeof entry !== "object" || Array.isArray(entry) || isContainerStream(entry)) continue;
     const stream = (entry as JsonObject).stream;
     if (!stream || typeof stream !== "object" || Array.isArray(stream)) continue;
@@ -358,6 +360,7 @@ export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypt
     if (typeof record.data !== "string") throw new Error(`QPDF omitted raw bytes for protected stream ${key}.`);
     hashes[key] = await sha256(decodeBase64(record.data), subtle);
   }
+  if (expected && [...expected].some(key => hashes[key] === undefined)) throw new Error("QPDF omitted one or more selected protected streams.");
   return hashes;
 }
 
