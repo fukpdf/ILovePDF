@@ -5,6 +5,7 @@ export interface JpegInfo {
   precision: number;
   unsupportedSof: boolean;
   quantTables: number[][];
+  componentQuantTableIds: number[];
 }
 
 const SOF_MARKERS = new Set([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf]);
@@ -31,6 +32,7 @@ export function readJpegInfo(bytes: Uint8Array): JpegInfo | null {
       let p = start;
       while (p < end) {
         const info = bytes[p++], precisionBits = info >> 4, tableId = info & 0x0f;
+        if (precisionBits > 1) return null;
         const count = precisionBits === 0 ? 64 : 128;
         if (p + count > end || tableId > 3) break;
         const vals: number[] = [];
