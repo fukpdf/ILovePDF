@@ -69,7 +69,16 @@ const Flow = {
   // download step. Called after every success path in processFile() (and the
   // queue path via the wrapped showStatus). Idempotent.
   commitResult() {
-    const area = document.getElementById('result-area');
+    // Match the Upload Popular Tools palette as well as its shared card markup.
+  // The download page has a separate root, so explicitly provide the same tool tones.
+  const popularToolsScope = container.querySelector('.download-popular-tools-scope');
+  if (popularToolsScope) {
+    const palette = brandedToolPalette(tool);
+    popularToolsScope.style.setProperty('--tool-tone', palette[0]);
+    popularToolsScope.style.setProperty('--tool-tone-2', palette[1]);
+  }
+
+  const area = document.getElementById('result-area');
     if (!area) return;
     const html = area.innerHTML;
     if (!html || !html.trim()) return;
