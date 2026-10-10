@@ -193,7 +193,7 @@ export async function compressLosslessly(
         options.onProgress?.("validating", "Running the visual quality gate on the browser-compressed candidate…", 88);
         const { qualityGateInBrowser } = await import("./browserQualityGate");
         const lightGate = await qualityGateInBrowser(original, lightCandidate, engineMode);
-        if (!lightGate.pass) {
+        if (!lightGate.passed) {
           warnings.push(`Light candidate rejected by the visual quality gate: ${lightGate.reason}`);
           lightCandidate = null;
         } else {
