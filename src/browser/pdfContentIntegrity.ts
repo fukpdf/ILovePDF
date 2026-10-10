@@ -389,10 +389,11 @@ export function assertCompressionEligible(jsonText: string): void {
     throw new Error("QPDF JSON trailer dictionary is missing.");
   }
   const catalog = getValueObject(objects, (trailerValue as JsonObject)["/Root"]);
-  const unsafeCatalogKeys = [
-    "/AcroForm", "/Outlines", "/StructTreeRoot", "/Perms",
-    "/OpenAction", "/AA", "/Collection", "/Names",
-  ];
+  // Interactive fields, links, annotations, outlines, attachments, tags and
+  // actions may pass only because the later whole-object comparison verifies
+  // their dictionaries remain byte-for-byte equivalent at the PDF object level.
+  // Permission dictionaries can imply DocMDP/signature restrictions and fail closed.
+  const unsafeCatalogKeys = ["/Perms"];
   const foundCatalogKey = unsafeCatalogKeys.find(key => catalog[key] !== undefined && catalog[key] !== null);
   if (foundCatalogKey) {
     throw new Error(`This PDF contains unsupported document structure (${foundCatalogKey}); the original will be preserved.`);
@@ -445,12 +446,8 @@ export function assertCompressionEligible(jsonText: string): void {
     }
     const dict = rawValue as JsonObject;
     if (dict["/Type"] === "/Page") {
-      if (dict["/Annots"] !== undefined && dict["/Annots"] !== null) {
-        throw new Error("This PDF contains links or annotations; the original will be preserved.");
-      }
-      if (dict["/AA"] !== undefined && dict["/AA"] !== null) {
-        throw new Error("This PDF contains page actions; the original will be preserved.");
-      }
+      // /Annots and /AA are allowed only when the full object dictionary
+      // comparison after QPDF confirms their references and values did not change.
     } else if (dict["/Type"] === "/Pages") {
       const kids = dict["/Kids"];
       if (!Array.isArray(kids)) throw new Error("PDF page-tree node has no Kids array.");
