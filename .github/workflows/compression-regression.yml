@@ -1,0 +1,33 @@
+name: Compression regression guard
+
+on:
+  pull_request:
+    paths:
+      - 'public/workers/pdf-worker.js'
+      - 'public/js/tool-page.js'
+      - 'scripts/compress-hybrid-regression-check.js'
+      - 'docs/compression-kit-merge-status.md'
+      - '.github/workflows/compression-regression.yml'
+  push:
+    branches:
+      - main
+      - 'fix/browser-compress-kit-integration'
+    paths:
+      - 'public/workers/pdf-worker.js'
+      - 'public/js/tool-page.js'
+      - 'scripts/compress-hybrid-regression-check.js'
+      - 'docs/compression-kit-merge-status.md'
+      - '.github/workflows/compression-regression.yml'
+
+jobs:
+  static-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check regression script syntax
+        run: node --check scripts/compress-hybrid-regression-check.js
+      - name: Run compression static regression checks
+        run: node scripts/compress-hybrid-regression-check.js
