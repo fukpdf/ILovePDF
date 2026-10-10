@@ -12666,34 +12666,38 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 
 /* Platform-card logo sizing is normalized by shared download-page.css. */
 
-/* SHARED UPLOAD UI: center the tool logo/name stack above the SEO heading on every tool.
-   Keep the existing logo dimensions and mobile styling; normalize alignment only. */
-.ilpdf-branded-upload .seo-tool-identity {
+/* TARGETED FIX — shared upload UI, second-section identity only.
+   This selector intentionally outranks the legacy left-alignment rules.
+   It does not affect the upload hero or the tool-processing UI. */
+.tool-page.ilpdf-branded-upload section.seo-content.seo-content--crop-contract > .seo-tool-identity {
   width: 100% !important;
+  max-width: 1180px !important;
   min-width: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
+  align-self: center !important;
   justify-content: center !important;
   margin: 0 auto 24px !important;
   text-align: center !important;
   box-sizing: border-box !important;
 }
 
-.ilpdf-branded-upload .seo-tool-logo-wrap {
+.tool-page.ilpdf-branded-upload section.seo-content.seo-content--crop-contract > .seo-tool-identity > .seo-tool-logo-wrap {
   display: grid !important;
   place-items: center !important;
+  align-self: center !important;
   margin-inline: auto !important;
   flex: 0 0 auto !important;
 }
 
-.ilpdf-branded-upload .seo-tool-logo {
+.tool-page.ilpdf-branded-upload section.seo-content.seo-content--crop-contract > .seo-tool-identity > .seo-tool-logo-wrap > .seo-tool-logo {
   margin-inline: auto !important;
   justify-self: center !important;
   flex-shrink: 0 !important;
 }
 
-.ilpdf-branded-upload .seo-tool-name {
+.tool-page.ilpdf-branded-upload section.seo-content.seo-content--crop-contract > .seo-tool-identity > .seo-tool-name {
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100% !important;
