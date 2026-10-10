@@ -24,8 +24,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
-  width: min(100%, 1080px) !important;
-  max-width: 1080px !important;
+  width: min(100%, 864px) !important;
+  max-width: 864px !important;
   margin-left: auto !important;
   margin-right: auto !important;
   box-sizing: border-box;
@@ -561,17 +561,17 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item {
   box-shadow: none !important;
 }
 /* Download CTA: 10% narrower than the previous 80% width (now 72%),
-   and 10% taller than the previous 72px minimum height (now 79.2px). */
+   and 10% taller than the previous 72px minimum height (now 87.12px). */
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .ilpdf-download-primary,
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result a[download].ilpdf-download-primary,
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
   width: 72% !important;
   max-width: 72% !important;
-  min-height: 79.2px !important;
+  min-height: 87.12px !important;
   height: auto !important;
   align-self: center !important;
 }
-/* Continue-to: two columns on tablet/laptop/desktop; mobile remains one column. */
+/* Continue-to: 20% narrower than the previous 1080px cap (now 864px); two columns on tablet/laptop/desktop, one on mobile. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card {
   width: min(100%, 1080px) !important;
   max-width: 1080px !important;
