@@ -48,7 +48,7 @@ export async function compressDeep(raw: Uint8Array, options: DeepOptions): Promi
   let qpdfCandidate: Uint8Array = input;
   try {
     options.onProgress?.(10, "Optimising PDF structure with local QPDF-WASM");
-    const qpdf = run("qpdf", input, buildQpdfArgs("/input.pdf", "/output.pdf"));
+    const qpdf = run("qpdf", input, ["--stream-data=preserve", "--object-streams=generate", "--compression-level=9", "/input.pdf", "/output.pdf"]);
     if (qpdf.output.length < input.length) qpdfCandidate = qpdf.output;
     else warnings.push("QPDF structural pass did not reduce the file; original retained as the safe baseline.");
   } catch (error) {
