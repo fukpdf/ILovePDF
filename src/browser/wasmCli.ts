@@ -48,7 +48,7 @@ function assertRuntimeFs(module: EmModule, engine: WasmEngine): EmModule {
   return module;
 }
 
-async function createEngineModule(engine: WasmEngine, wasmUrl: string): Promise<EmModule> {
+async function createEngineModule(engine: WasmEngine, wasmUrl: string, logs: { stdout: string[]; stderr: string[] }): Promise<EmModule> {
   if (engine === "qpdf") {
     // Use QPDF's published factory signature exactly. Its published
     // declarations expose callMain/FS.readFile; writeFile/unlink are verified
@@ -62,6 +62,8 @@ async function createEngineModule(engine: WasmEngine, wasmUrl: string): Promise<
   const instance = await mod.default({
     locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
     noInitialRun: true,
+    print: (line) => logs.stdout.push(String(line)),
+    printErr: (line) => logs.stderr.push(String(line)),
   });
   return assertRuntimeFs(instance, engine);
 }
@@ -77,8 +79,9 @@ export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<Em
   const wasmUrl = engine === "qpdf" ? locate.qpdfWasmUrl : locate.ghostscriptWasmUrl;
   const pending = (async () => {
     try {
-      const module = await createEngineModule(engine, wasmUrl);
-      logBuffers.set(module, { stdout: [], stderr: [] });
+      const logs = { stdout: [] as string[], stderr: [] as string[] };
+      const module = await createEngineModule(engine, wasmUrl, logs);
+      logBuffers.set(module, logs);
       return module;
     } catch (error) {
       cachedModules.delete(engine);
