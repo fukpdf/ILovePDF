@@ -102,11 +102,12 @@ async function main() {
   });
   const address = server.address();
   const origin = "http://127.0.0.1:" + address.port;
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  let browser;
   const requests = [];
   const requestsWithBodies = [];
   const externalRequests = [];
   try {
+    browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     const page = await browser.newPage();
     page.on("request", request => {
       const url = request.url();
@@ -227,7 +228,7 @@ async function main() {
       "active worker cancellation must reject after progress; observed: " + JSON.stringify(cancelResult));
     console.log("PASS: browser-only worker, quality gate, text/page integrity, no-upload network check and cancellation.");
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     await new Promise(resolveClose => server.close(resolveClose));
   }
 }
