@@ -6,10 +6,15 @@ import {
   assertDocumentStructureUnchanged,
   assertPageContentStreamsUnchanged,
   assertProtectedStreamsUnchanged,
+  assertRgbImageStreamsUnchanged,
+  assertRgbImageQuantizationNotFiner,
   hashPageContentStreams,
   hashProtectedStreams,
   selectPageContentObjects,
   selectProtectedStreamObjects,
+  selectEligibleRgbImageObjects,
+  snapshotEligibleRgbImageStreams,
+  type EligibleRgbImageSnapshot,
   qpdfCatalogHasKey,
 } from "./pdfContentIntegrity";
 import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
@@ -98,12 +103,28 @@ async function hashProtectedInBatches(input: Uint8Array, qpdf: EmModule, refs: s
   return hashes;
 }
 
+async function snapshotRgbImagesInBatches(
+  input: Uint8Array, qpdf: EmModule, refs: string[],
+): Promise<EligibleRgbImageSnapshot> {
+  const snapshot: EligibleRgbImageSnapshot = { hashes: {}, profiles: {} };
+  for (let i = 0; i < refs.length; i += 8) {
+    const batch = refs.slice(i, i + 8);
+    const json = await inspectJson(input, qpdf, batch, true, "none");
+    const current = await snapshotEligibleRgbImageStreams(json, batch);
+    Object.assign(snapshot.hashes, current.hashes);
+    Object.assign(snapshot.profiles, current.profiles);
+  }
+  return snapshot;
+}
+
 interface Baseline {
   discovery: string;
   pageRefs: string[];
   protectedRefs: string[];
   pageHashes: Awaited<ReturnType<typeof hashPageContentStreams>>;
   protectedHashes: Record<string, string>;
+  rgbImageRefs: string[];
+  rgbImageSnapshot: EligibleRgbImageSnapshot;
   qpdfOnly: boolean;
 }
 async function createBaseline(original: Uint8Array, qpdf: EmModule): Promise<Baseline> {
@@ -111,10 +132,12 @@ async function createBaseline(original: Uint8Array, qpdf: EmModule): Promise<Bas
   assertCompressionEligible(discovery);
   const pageRefs = selectPageContentObjects(discovery);
   const protectedRefs = selectProtectedStreamObjects(discovery);
+  const rgbImageRefs = selectEligibleRgbImageObjects(discovery);
   const pageJson = await inspectJson(original, qpdf, pageRefs, true, "all");
   const pageHashes = await hashPageContentStreams(pageJson);
   const protectedHashes = await hashProtectedInBatches(original, qpdf, protectedRefs);
-  return { discovery, pageRefs, protectedRefs, pageHashes, protectedHashes, qpdfOnly: qpdfCatalogHasKey(discovery, "/AcroForm") };
+  const rgbImageSnapshot = await snapshotRgbImagesInBatches(original, qpdf, rgbImageRefs);
+  return { discovery, pageRefs, protectedRefs, pageHashes, protectedHashes, rgbImageRefs, rgbImageSnapshot, qpdfOnly: qpdfCatalogHasKey(discovery, "/AcroForm") };
 }
 
 async function certifyCandidate(
@@ -127,6 +150,13 @@ async function certifyCandidate(
   assertCompressionEligible(outputDiscovery);
   if (allowRgbImageChanges) assertDocumentStructureUnchanged(baseline.discovery, outputDiscovery, true);
   else assertDocumentStructureUnchanged(baseline.discovery, outputDiscovery);
+  const outputRgbImageRefs = selectEligibleRgbImageObjects(outputDiscovery);
+  if (JSON.stringify(baseline.rgbImageRefs) !== JSON.stringify(outputRgbImageRefs)) {
+    throw new Error("Candidate changed the eligible RGB image object set.");
+  }
+  const outputRgbImageSnapshot = await snapshotRgbImagesInBatches(candidate, qpdf, baseline.rgbImageRefs);
+  if (allowRgbImageChanges) assertRgbImageQuantizationNotFiner(baseline.rgbImageSnapshot, outputRgbImageSnapshot);
+  else assertRgbImageStreamsUnchanged(baseline.rgbImageSnapshot, outputRgbImageSnapshot);
   const outputPageRefs = selectPageContentObjects(outputDiscovery);
   const outputPageJson = await inspectJson(candidate, qpdf, outputPageRefs, true, "all");
   const after = await hashPageContentStreams(outputPageJson);
