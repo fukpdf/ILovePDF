@@ -2601,8 +2601,8 @@ async function runAdvancedCompress(config = {}) {
       return;
     }
 
-    // Keep a PDF-Lib copy of the original so text/vector pages can be copied
-    // into the output without flattening them into a JPEG page image.
+    // Load a read-only PDF-Lib view for catalog checks. Compression itself runs
+    // only in the local worker and is accepted only after structural validation.
     sourcePdfLib = await PDFDocument.load(data.slice(0), {
       ignoreEncryption: true,
       throwOnInvalidObject: false,
