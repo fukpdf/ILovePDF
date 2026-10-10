@@ -68,7 +68,8 @@
     "test:compression:unit": "tsx --test tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts",
     "typecheck:compression": "tsc --noEmit -p tsconfig.compression.json",
     "typecheck": "npm run typecheck:compression",
-    "test:compression:shared": "tsx --test tests/shared.test.ts tests/quality.test.ts tests/browserCompressor.test.ts"
+    "test:compression:shared": "tsx --test tests/shared.test.ts tests/quality.test.ts tests/browserCompressor.test.ts",
+    "test:browser": "node scripts/compression-browser-smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
@@ -109,6 +110,7 @@
   "devDependencies": {
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "playwright": "^1.53.0"
   }
 }
