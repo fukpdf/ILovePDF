@@ -447,3 +447,13 @@ body:has(.site-header){
   .site-header .nav .all-tools { padding: 7px 8px !important; font-size: .8rem !important; }
   .site-header .nav-item.has-mega .mega-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+/* Final override: permanently hide the header All Tools dropdown on tablet/mobile. */
+@media (max-width: 1023.98px) {
+  .site-header .nav-item.has-mega,
+  .site-header .nav .all-tools {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
