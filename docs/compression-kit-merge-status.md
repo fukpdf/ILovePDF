@@ -12,7 +12,8 @@ This is a safety-first integration slice, not certification of the new TypeScrip
 
 ### Not yet certified / still required before enabling the new engine
 - Integrate the supplied TypeScript modules behind the existing worker adapter while preserving UI modes and result/report contracts.
-- Verify exact installed Ghostscript-WASM and qpdf-WASM factory APIs and all runtime asset URLs.
+- Add an initial in-memory WASM CLI adapter (`src/browser/wasmCli.ts`) and ambient declaration for the undocumented Ghostscript package. QPDF's published factory/FS/callMain contract was cross-checked against its declarations and README. The adapter is not yet wired to the existing UI or bundled with local WASM assets.
+- Finish verifying Ghostscript-WASM runtime behavior from its published package tests/artifacts and test both engines against real PDFs.
 - Use qpdf-style lossless structural processing only when decoded page-content streams remain byte-identical after decoding; use a cryptographic digest, not FNV or extracted-text counts.
 - Prove link, annotation, AcroForm, font, page-box, rotation, outline and attachment preservation, not just annotation counts.
 - Implement and validate image dictionary eligibility, full deduplication identity (including bytes and all relevant dictionary entries), correct image placement matrices, and true box/bicubic resampling.
