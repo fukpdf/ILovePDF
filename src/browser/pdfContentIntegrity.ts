@@ -106,9 +106,21 @@ export async function hashPageContentStreams(
     const dict = nodeValue as JsonObject;
     if (dict["/Type"] === "/Page") {
       const contents = dict["/Contents"];
-      const refs: JsonValue[] = contents === undefined || contents === null
-        ? []
-        : Array.isArray(contents) ? contents : [contents];
+      let refs: JsonValue[] = [];
+      if (contents !== undefined && contents !== null) {
+        if (Array.isArray(contents)) {
+          refs = contents;
+        } else {
+          const referencedContents = getObject(objectTable, contents);
+          if (referencedContents.stream) {
+            refs = [contents];
+          } else if (Array.isArray(referencedContents.value)) {
+            refs = referencedContents.value;
+          } else {
+            throw new Error("PDF page Contents reference is neither a stream nor an array.");
+          }
+        }
+      }
       const hashes: string[] = [];
       for (const contentRef of refs) {
         const streamObject = getObject(objectTable, contentRef);
