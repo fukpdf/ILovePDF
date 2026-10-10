@@ -1,3 +1,6 @@
+import ghostscriptWasmUrl from "@jspawn/ghostscript-wasm/gs.wasm?url";
+import qpdfWasmUrl from "@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url";
+
 /**
  * Browser-side Emscripten CLI adapter.
  *
@@ -12,6 +15,9 @@ export interface WasmLocate {
   qpdfWasmUrl: string;
 }
 
+/** Vite emits these as same-origin asset URLs; importing the URL does not fetch the WASM bytes. */
+export const DEFAULT_WASM_LOCATE: WasmLocate = { ghostscriptWasmUrl, qpdfWasmUrl };
+
 export interface EmscriptenFS {
   writeFile(path: string, data: Uint8Array): void;
   readFile(path: string, options?: { encoding?: string }): Uint8Array;
@@ -21,7 +27,7 @@ export interface EmscriptenFS {
 
 export interface EmModule {
   FS: EmscriptenFS;
-  callMain(args: string[]): number;
+  callMain(args: string[]): number | void;
   print?: (text: string) => void;
   printErr?: (text: string) => void;
 }
@@ -93,7 +99,7 @@ export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<Em
 }
 
 /** Compatibility helper for flows that genuinely need both engines. */
-export async function loadWasmTools(locate: WasmLocate): Promise<WasmTools> {
+export async function loadWasmTools(locate: WasmLocate = DEFAULT_WASM_LOCATE): Promise<WasmTools> {
   const [ghostscript, qpdf] = await Promise.all([
     loadWasmTool("ghostscript", locate),
     loadWasmTool("qpdf", locate),
@@ -139,7 +145,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
     module.FS.writeFile(inputPath, input);
-    const exitCode = module.callMain(args);
+    const exitCode = Number(module.callMain(args) ?? 0);
     if (exitCode !== 0) {
       throw new Error(`${engine} exited with code ${exitCode}: ${logs.stderr.join("\n")}`);
     }
@@ -206,7 +212,7 @@ export function runJsonTool(request: WasmJsonRequest): WasmJsonResult {
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
     module.FS.writeFile(inputPath, input);
-    const exitCode = module.callMain(args);
+    const exitCode = Number(module.callMain(args) ?? 0);
     if (exitCode !== 0) {
       throw new Error(`${engine} JSON inspection exited with code ${exitCode}: ${logs.stderr.join("\\n")}`);
     }
