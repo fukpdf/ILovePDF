@@ -15,6 +15,8 @@ on:
       - 'scripts/compress-hybrid-regression-check.js'
       - 'scripts/compress-wasm-cli-static-check.js'
       - 'src/browser/wasmCli.ts'
+      - 'src/browser/node-fs-shim.cjs'
+      - 'src/browser/node-path-shim.cjs'
       - 'package.json'
       - 'tsconfig.compression.json'
       - 'src/browser/compressionKit.ts'
@@ -36,7 +38,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check regression script syntax
-        run: node --check public/js/tool-page.js && node --check public/js/compress-worker-adapter.js && node --check public/js/compress-runtime.js && node --check public/workers/compression-kit-worker.js && node --check scripts/build-compression-kit.js && node --check scripts/compress-hybrid-regression-check.js && node --check scripts/compress-wasm-cli-static-check.js
+        run: node --check public/js/tool-page.js && node --check public/js/compress-worker-adapter.js && node --check public/js/compress-runtime.js && node --check public/workers/compression-kit-worker.js && node --check scripts/build-compression-kit.js && node --check src/browser/node-fs-shim.cjs && node --check src/browser/node-path-shim.cjs && node --check scripts/compress-hybrid-regression-check.js && node --check scripts/compress-wasm-cli-static-check.js
       - name: Run compression static regression checks
         run: node scripts/compress-hybrid-regression-check.js
       - name: Run WASM CLI adapter static checks
@@ -45,7 +47,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/wasm-adapter-check/src/browser /tmp/wasm-adapter-check/tests /tmp/wasm-adapter-check/scripts
-          cp src/browser/wasmCli.ts src/browser/wasm-modules.d.ts src/browser/pdfContentIntegrity.ts src/browser/compressionKit.ts /tmp/wasm-adapter-check/src/browser/
+          cp src/browser/wasmCli.ts src/browser/wasm-modules.d.ts src/browser/pdfContentIntegrity.ts src/browser/compressionKit.ts src/browser/node-fs-shim.cjs src/browser/node-path-shim.cjs /tmp/wasm-adapter-check/src/browser/
           cp tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts /tmp/wasm-adapter-check/tests/
           cp tsconfig.compression.json /tmp/wasm-adapter-check/
           cp scripts/build-compression-kit.js /tmp/wasm-adapter-check/scripts/
