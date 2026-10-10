@@ -1350,3 +1350,76 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-pl
     padding: 34px 8px !important;
   }
 }
+
+/* Download-page geometry audit (2026-10-10)
+   Root cause: legacy full-bleed rules mix 100vw with calc(50% - 50vw),
+   while the shared footer adds a 56px top margin. That creates scrollbar-width
+   drift at the right edge and a visible gap after the last band. Keep both
+   editorial bands in normal flow and expand them by exactly the root's padding. */
+body:has(.ilpdf-download-page) .ilpdf-download-page:has(.ilpdf-platforms) {
+  padding-bottom: 0 !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  position: relative !important;
+  display: block !important;
+  width: calc(100% + clamp(32px, 6vw, 72px)) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-top: 0 !important;
+  margin-right: clamp(-36px, -3vw, -16px) !important;
+  margin-bottom: 0 !important;
+  margin-left: clamp(-36px, -3vw, -16px) !important;
+  box-sizing: border-box !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow-wrap: anywhere;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card {
+  padding: clamp(32px, 4.5vw, 64px) clamp(16px, 3vw, 36px) !important;
+  border: 0 !important;
+  border-top: 1px solid #e9edf5 !important;
+  border-bottom: 1px solid #e9edf5 !important;
+  background: #fff !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  padding: clamp(34px, 4.5vw, 60px) clamp(16px, 3vw, 36px) !important;
+  border: 0 !important;
+  border-top: 1px solid #e7eaf5 !important;
+  border-bottom: 1px solid #e7eaf5 !important;
+  background: #f1f5ff !important;
+  text-align: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms::before {
+  content: none !important;
+  display: none !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin-inline: auto !important;
+}
+body:has(.ilpdf-download-page) footer.footer {
+  margin-top: 0 !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+    width: calc(100% + 24px) !important;
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+@media (max-width: 380px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+    width: calc(100% + 16px) !important;
+    margin-left: -8px !important;
+    margin-right: -8px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
