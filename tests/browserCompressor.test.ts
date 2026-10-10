@@ -30,7 +30,7 @@ async function makePdfWithJpeg(bytes: Uint8Array, placements: Array<{ x: number;
   const page = doc.addPage([612, 792]);
   const image = await doc.embedJpg(bytes);
   for (const box of placements) page.drawImage(image, box);
-  return new Uint8Array(await doc.save({ useObjectStreams: false, updateMetadata: false }));
+  return new Uint8Array(await doc.save({ useObjectStreams: false }));
 }
 async function makeRgbPhoto(): Promise<Uint8Array> {
   const width=800,height=400,rgba=Buffer.alloc(width*height*4);
@@ -62,7 +62,7 @@ async function forceFlateTextStream(bytes: Uint8Array): Promise<Uint8Array> {
   const decoded=decodePDFRawStream(stream).decode(),compressed=new Uint8Array(deflateSync(decoded));
   const dict=doc.context.obj({Filter:PDFName.of("FlateDecode"),Length:PDFNumber.of(compressed.length)}) as PDFDict;
   doc.context.assign(first,PDFRawStream.of(dict,compressed));
-  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  return new Uint8Array(await doc.save({useObjectStreams:false}));
 }
 async function decodedPageHashes(bytes: Uint8Array): Promise<string[]> {
   const doc=await PDFDocument.load(bytes), page=doc.getPage(0), contents=page.node.Contents();
@@ -86,7 +86,7 @@ async function makeCcittPdf(): Promise<Uint8Array> {
   page.node.set(PDFName.of("Resources"),resources);
   const contents=doc.context.register(PDFRawStream.of(doc.context.obj({}) as PDFDict,new TextEncoder().encode("q 128 0 0 64 0 0 cm /Scan Do Q")));
   page.node.set(PDFName.of("Contents"),contents);
-  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  return new Uint8Array(await doc.save({useObjectStreams:false}));
 }
 
 async function makeSMaskPdf(): Promise<Uint8Array> {
@@ -114,7 +114,7 @@ async function makeSMaskPdf(): Promise<Uint8Array> {
   const contents=doc.context.register(PDFRawStream.of(doc.context.obj({}) as PDFDict,
     new TextEncoder().encode("q 128 0 0 128 40 300 cm /Scan Do Q")));
   page.node.set(PDFName.of("Contents"),contents);
-  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  return new Uint8Array(await doc.save({useObjectStreams:false}));
 }
 
 test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", async()=>{
@@ -157,7 +157,7 @@ test("dedupe requires exact image dictionary and bytes and redirects references 
   const first=await doc.embedJpg(jpg),second=await doc.embedJpg(jpg);
   page.drawImage(first,{x:30,y:300,width:120,height:60});
   page.drawImage(second,{x:250,y:300,width:180,height:90});
-  const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const input=new Uint8Array(await doc.save({useObjectStreams:false}));
   const before=await PDFDocument.load(input);
   assert.ok(imageStreams(before).length>=2,"fixture must contain two distinct image objects");
   const result=await compressInBrowser(input,{mode:"recommended"});
@@ -223,7 +223,7 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
     Border:doc.context.obj([PDFNumber.of(0),PDFNumber.of(0),PDFNumber.of(0)]),A:action,
   }) as PDFDict);
   page.node.set(PDFName.of("Annots"),doc.context.obj([annotation]) as PDFArray);
-  const initial=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const initial=new Uint8Array(await doc.save({useObjectStreams:false}));
   const input=await forceFlateTextStream(initial);
   const beforeDoc=await PDFDocument.load(input);
   const contentValue=beforeDoc.getPage(0).node.Contents();
@@ -244,7 +244,7 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
 
 test("signature marker is a fail-closed no-op",async()=>{
   const doc=await PDFDocument.create();doc.addPage([612,792]);
-  const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const input=new Uint8Array(await doc.save({useObjectStreams:false}));
   const marker=Buffer.from("/ByteRange [0 1 2 3]\n","ascii");
   const original=Buffer.concat([Buffer.from(input),marker,Buffer.from("%%EOF\n","ascii")]);
   const result=await compressInBrowser(new Uint8Array(original),{mode:"recommended"});
