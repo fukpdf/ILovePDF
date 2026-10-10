@@ -139,6 +139,19 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
   assert.deepEqual(afterHashes,beforeHashes,"decoded page content streams must remain byte-identical by SHA-256");
 });
 
+test("RGB images already below 150 DPI are preserved without re-encoding or upscaling",async()=>{
+  const jpg=await makeRgbPhoto(),input=await makePdfWithJpeg(jpg,[{x:30,y:300,width:400,height:200}]);
+  const before=await PDFDocument.load(input),imageBefore=imageStreams(before).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()==="/DeviceRGB");
+  assert.ok(imageBefore);
+  const result=await compressInBrowser(input,{mode:"extreme"});
+  assert.ok(result.bytes.length<=input.length);
+  const after=await PDFDocument.load(result.bytes),imageAfter=imageStreams(after).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()==="/DeviceRGB");
+  assert.ok(imageAfter);
+  assert.deepEqual(Array.from(imageAfter!.stream.contents),Array.from(imageBefore!.stream.contents),
+    "a source image below the DPI floor must not be re-encoded when upscaling is forbidden");
+  assert.ok(!result.images.some(image=>image.action==="recompressed"));
+});
+
 test("dedupe requires exact image dictionary and bytes and redirects references safely",async()=>{
   const jpg=await makeRgbPhoto(),doc=await PDFDocument.create(),page=doc.addPage([612,792]);
   const first=await doc.embedJpg(jpg),second=await doc.embedJpg(jpg);
