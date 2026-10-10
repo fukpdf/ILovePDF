@@ -2686,43 +2686,31 @@ async function runAdvancedCompress(config = {}) {
       isCustom ? 'Applying Custom compression…' : 'Applying Deep compression…',
       'Running a lossless structural pass in your browser. Image data and page content are not re-encoded.',
     );
-    const sourceBuffer = await file.arrayBuffer();
-    const worker = new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1', { type: 'module' });
-    const workerResult = await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (callback, value) => {
-        if (settled) return;
-        settled = true;
-        worker.terminate();
-        callback(value);
-      };
-      worker.onmessage = (event) => {
-        const message = event.data || {};
-        if (message.id !== 1) return;
-        if (message.type === 'progress') {
-          showProcessing(
-            message.text || 'Compressing PDF…',
-            'All PDF processing stays in browser memory.',
-          );
-        } else if (message.type === 'result') {
-          finish(resolve, message);
-        } else if (message.type === 'error') {
-          finish(reject, new Error(message.message || 'Compression worker failed.'));
-        }
-      };
-      worker.onerror = (event) => {
-        finish(reject, new Error(event.message || 'Compression worker could not start.'));
-      };
-      worker.postMessage({
-        id: 1,
-        type: 'compress',
-        buffer: sourceBuffer,
+    const cancelButton = document.getElementById('processing-cancel-btn');
+    let preflightCancelled = false;
+    const onCompressionCancel = () => {
+      preflightCancelled = true;
+      if (window.CompressRuntime && typeof window.CompressRuntime.cancelActive === 'function') {
+        window.CompressRuntime.cancelActive('user-cancel');
+      }
+    };
+    if (cancelButton) cancelButton.addEventListener('click', onCompressionCancel);
+
+    let runtimeResult;
+    try {
+      if (preflightCancelled) throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+      if (!window.CompressRuntime || typeof window.CompressRuntime.execute !== 'function') {
+        throw new Error('The local compression runtime is unavailable. No upload fallback was attempted.');
+      }
+      runtimeResult = await window.CompressRuntime.execute(file, {
         mode: requestedMode,
         targetBytes,
-      }, [sourceBuffer]);
-    });
+      });
+    } finally {
+      if (cancelButton) cancelButton.removeEventListener('click', onCompressionCancel);
+    }
 
-    const outputBlob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+    const outputBlob = runtimeResult.blob;
     if (outputBlob.size > file.size) {
       throw new Error('The candidate was larger than the source. The original PDF must be preserved.');
     }
@@ -2730,7 +2718,7 @@ async function runAdvancedCompress(config = {}) {
     if (outputSignature !== '%PDF-') {
       throw new Error('Compression produced an invalid PDF. The original was not replaced.');
     }
-    const report = workerResult.report || {};
+    const report = runtimeResult.report || {};
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
     if (report.method !== 'qpdf-lossless-structure' || outputBlob.size >= file.size) {
