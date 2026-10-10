@@ -16,6 +16,7 @@ const checks = [
   ["WASM CLI reads output from in-memory FS", cli.includes("module.FS.readFile(outputPath)")],
   ["non-zero exit codes are rejected", cli.includes("if (exitCode !== 0)")],
   ["output PDF signature is validated", cli.includes("output[0] !== 0x25") && cli.includes("output[4] !== 0x2d")],
+  ["Ghostscript output path is accepted in -sOutputFile form", cli.includes("args.includes(`-sOutputFile=${outputPath}`)")],
   ["input and output virtual files are cleaned up", cli.includes("module.FS.unlink(inputPath)") && cli.includes("module.FS.unlink(outputPath)")],
   ["no network APIs are used in WASM CLI", !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(cli)],
   ["QPDF uses its published factory signature", cli.includes('import("@neslinesli93/qpdf-wasm")') && cli.includes("const qpdfOptions = { locateFile: () => wasmUrl, noInitialRun: true }") && cli.includes("mod.default(qpdfOptions)") && cli.includes("assertRuntimeFs(instance as unknown as EmModule, engine)")],
