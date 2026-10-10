@@ -205,24 +205,25 @@ async function main() {
     assert.equal(requestsWithBodies.length, 0, "no network request may carry a request body or PDF bytes");
     assert.equal(externalRequests.length, 0, "compression smoke page must not make external network requests");
 
-    const cancelToken = { cancelled: false };
-    let sawWorkerProgress = false;
-    let cancelled = false;
-    try {
-      await page.evaluate(async (inputBase64) => {
-        const input = Uint8Array.from(atob(inputBase64), c => c.charCodeAt(0));
-        const file = new File([input], "cancel-fixture.pdf", { type: "application/pdf" });
-        const token = { cancelled: false };
-        window.__cancelToken = token;
-        return await window.CompressWorkerAdapter.dispatch(file, { mode: "deep", targetBytes: null }, (percent) => {
-          if (percent > 5) token.cancelled = true;
+    const cancelResult = await page.evaluate(async (inputBase64) => {
+      const input = Uint8Array.from(atob(inputBase64), c => c.charCodeAt(0));
+      const file = new File([input], "cancel-fixture.pdf", { type: "application/pdf" });
+      const token = { cancelled: false };
+      let sawWorkerProgress = false;
+      try {
+        await window.CompressWorkerAdapter.dispatch(file, { mode: "deep", targetBytes: null }, (percent) => {
+          if (percent > 5) {
+            sawWorkerProgress = true;
+            token.cancelled = true;
+          }
         }, token);
-      }, toBase64(inputBytes));
-    } catch (error) {
-      cancelled = /cancel/i.test(String(error));
-      sawWorkerProgress = true;
-    }
-    assert.ok(cancelled && sawWorkerProgress, "active worker cancellation must reject without returning output");
+        return { cancelled: false, sawWorkerProgress, message: "worker returned output" };
+      } catch (error) {
+        return { cancelled: /cancel/i.test(String(error && error.message || error)), sawWorkerProgress, message: String(error && error.message || error) };
+      }
+    }, toBase64(inputBytes));
+    assert.ok(cancelResult.cancelled && cancelResult.sawWorkerProgress,
+      "active worker cancellation must reject after progress; observed: " + JSON.stringify(cancelResult));
     console.log("PASS: browser-only worker, quality gate, text/page integrity, no-upload network check and cancellation.");
   } finally {
     await browser.close();
