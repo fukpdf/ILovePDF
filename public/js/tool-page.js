@@ -2548,252 +2548,195 @@ async function runAdvancedCompress(config = {}) {
   showProcessing(
     isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
     isCustom
-      ? 'Preserving selectable text and vector pages; measuring image-only page output against your target.'
-      : 'Preserving selectable text and vector pages while optimizing image-only pages.',
+      ? 'Trying a bounded, quality-gated compression pass against your target. The target will not be forced by degrading content.'
+      : 'Applying browser-only, quality-gated compression. Text, vectors and decoded page content stay unchanged; only eligible RGB images may be re-encoded.',
   );
 
   // Keep the source document outside the try so every exit path destroys it.
   let srcPdf = null;
   let sourcePdfLib = null;
-  try {
-    const { PDFDocument } = await window.BrowserTools._loadPdfLib();
-    let pdfjsLib = window.pdfjsLib;
-    if (!pdfjsLib) {
-      const _p = window.__pdfjsLibPromise ||
-        import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
-          const lib = m && (m.default || m);
-          lib.GlobalWorkerOptions.workerSrc =
-            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-          window.pdfjsLib = lib;
-          return lib;
-        });
-      window.__pdfjsLibPromise = _p;
-      pdfjsLib = await _p;
+  const cancelButton = document.getElementById('processing-cancel-btn');
+  let preflightCancelled = false;
+  const onCompressionCancel = () => {
+    preflightCancelled = true;
+    if (window.CompressRuntime && typeof window.CompressRuntime.cancelActive === 'function') {
+      window.CompressRuntime.cancelActive('user-cancel');
     }
-
+  };
+  if (cancelButton) {
+    cancelButton.addEventListener('click', onCompressionCancel);
+    cancelButton.classList.remove('hidden');
+  }
+  try {
+    const { PDFDocument, PDFName } = await window.BrowserTools._loadPdfLib();
     const file = selectedFiles[0].file;
     let data = await file.arrayBuffer();
-    // Keep a PDF-Lib copy of the original so text/vector pages can be copied
-    // into the output without flattening them into a JPEG page image.
+
+    // Fail closed before any rewrite for signatures, encryption and XFA.
+    // AcroForm is handled below by the kit's lossless QPDF-only route.
+    const rawPdfBytes = new Uint8Array(data);
+    const hasAsciiToken = (token) => {
+      outer: for (let i = 0; i <= rawPdfBytes.length - token.length; i++) {
+        for (let j = 0; j < token.length; j++) {
+          if (rawPdfBytes[i + j] !== token.charCodeAt(j)) continue outer;
+        }
+        return true;
+      }
+      return false;
+    };
+    const sensitivePdfReason = [
+      ['/ByteRange', 'Digitally signed PDFs cannot be modified without invalidating their signature.'],
+      ['/Encrypt', 'Encrypted PDFs are preserved unchanged until a verified lossless path is available.'],
+      ['/XFA', 'XFA forms are preserved unchanged to avoid damaging form data.'],
+    ].find(([token]) => hasAsciiToken(token));
+    if (sensitivePdfReason) {
+      hideProcessing();
+      showStatus(
+        'success',
+        'Compression safely skipped',
+        sensitivePdfReason[1] + ' Your original PDF is ready to download unchanged.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
+    }
+
+    // Load a read-only PDF-Lib view for catalog checks. Compression itself runs
+    // only in the local worker and is accepted only after structural validation.
     sourcePdfLib = await PDFDocument.load(data.slice(0), {
       ignoreEncryption: true,
       throwOnInvalidObject: false,
       updateMetadata: false,
     });
-    srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    data = null;
-    const total = srcPdf.numPages;
 
-    // Conservative per-page classification: any selectable text (including
-    // OCR text layers) and vector-only pages are preserved natively. Only
-    // image-only pages are rasterized. This avoids blurring text and keeps
-    // selectable/searchable text intact in mixed documents.
-    const imageOpNames = [
-      'paintImageXObject',
-      'paintImageXObjectRepeat',
-      'paintJpegXObject',
-      'paintInlineImageXObject',
-      'paintImageMaskXObject',
-      'paintImageMaskXObjectGroup',
-      'paintSolidColorImageMask',
-    ];
-    const pdfOps = pdfjsLib.OPS || {};
-    const imageOpCodes = new Set(
-      imageOpNames.map(name => pdfOps[name]).filter(code => Number.isInteger(code)),
-    );
-    const pageModes = [];
-    let rasterPageCount = 0;
-    for (let i = 1; i <= total; i++) {
+    // AcroForm can live in a compressed object stream, so use the parsed
+    // catalog as well as raw markers. The kit itself then enforces QPDF-only.
+    const hasAcroForm = Boolean(sourcePdfLib.catalog.get(PDFName.of('AcroForm')));
+    if (hasAcroForm) {
       showProcessing(
-        'Analyzing PDF content — page ' + i + ' of ' + total + '…',
-        'Preserving text/vector pages and identifying image-only pages.',
+        'Using lossless form-safe compression…',
+        'Interactive form detected. Only the QPDF structural route will be considered; field dictionaries and protected streams must remain unchanged.',
       );
-      const page = await srcPdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const hasSelectableText = textContent.items.some(
-        item => typeof item.str === 'string' && item.str.trim().length > 0,
-      );
-      const operatorList = await page.getOperatorList();
-      const hasRasterImages = operatorList.fnArray.some(op => imageOpCodes.has(op));
-      const mode = hasSelectableText || !hasRasterImages ? 'preserve' : 'raster';
-      pageModes.push(mode);
-      if (mode === 'raster') rasterPageCount++;
-      page.cleanup();
-    }
+    } else {
+      let pdfjsLib = window.pdfjsLib;
+      if (!pdfjsLib) {
+        const _p = window.__pdfjsLibPromise ||
+          import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
+            const lib = m && (m.default || m);
+            lib.GlobalWorkerOptions.workerSrc =
+              'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+            window.pdfjsLib = lib;
+            return lib;
+          });
+        window.__pdfjsLibPromise = _p;
+        pdfjsLib = await _p;
+      }
 
-    // PDF.js viewport scale 1 corresponds to 72 CSS pixels per PDF inch.
-    // Keep image-only/scanned pages at or above 150 DPI (150 / 72 scale)
-    // so target-size feedback cannot silently trade away fine document text.
-    // Native text/vector pages are copied directly and are not rasterized.
-    const MIN_RENDER_SCALE = 150 / 72;
-    const DEEP_RENDER_SCALE = MIN_RENDER_SCALE;
-    const DEEP_JPEG_QUALITY = 0.72;
-    const MAX_RENDER_SCALE = 3.00;
-    const MAX_CUSTOM_PASSES = 4;
-    const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
-    const estimatedDeepBytes = Math.max(1024, Math.round(file.size * ESTIMATED_DEEP_SIZE_RATIO));
-    let currentCustomScale = isCustom
-      ? Math.max(MIN_RENDER_SCALE, Math.min(
-          MAX_RENDER_SCALE,
-          DEEP_RENDER_SCALE * Math.sqrt(targetBytes / estimatedDeepBytes),
-        ))
-      : DEEP_RENDER_SCALE;
-    const strategies = [{ scale: DEEP_RENDER_SCALE, quality: DEEP_JPEG_QUALITY }];
-    let bestBlob = null;
-    let smallestBlob = null;
-    let closestUnderTargetBlob = null;
-    let targetReached = false;
+      srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+      data = null;
 
-    // Custom uses measured output feedback for up to four passes only when
-    // image-only pages are present. Native text/vector-only documents need one
-    // structural save; repeating identical saves cannot improve the target.
-    const passLimit = isCustom && rasterPageCount > 0
-      ? MAX_CUSTOM_PASSES
-      : strategies.length;
-    for (let pass = 0; pass < passLimit; pass++) {
-      const strategy = isCustom
-        ? { scale: currentCustomScale, quality: DEEP_JPEG_QUALITY }
-        : strategies[pass];
-      const outDoc = await PDFDocument.create();
-      for (let i = 1; i <= total; i++) {
-        showProcessing(
-          isCustom
-            ? 'Custom compression — page ' + i + ' of ' + total + '…'
-            : 'Deep compression — page ' + i + ' of ' + total + '…',
-          isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
-            : 'Optimising image quality for a smaller file size.',
+      // Page copying can drop document-level navigation and embedded files.
+      const [outline, attachments] = await Promise.all([
+        typeof srcPdf.getOutline === 'function' ? srcPdf.getOutline() : Promise.resolve(null),
+        typeof srcPdf.getAttachments === 'function' ? srcPdf.getAttachments() : Promise.resolve(null),
+      ]);
+      if (outline || attachments) {
+        hideProcessing();
+        showStatus(
+          'success',
+          'Compression safely skipped',
+          'This PDF contains bookmarks or embedded attachments. The original is preserved unchanged.',
+          createStatusUrl(file),
+          file.name,
         );
-        if (pageModes[i - 1] === 'preserve') {
-          const [preservedPage] = await outDoc.copyPages(sourcePdfLib, [i - 1]);
-          outDoc.addPage(preservedPage);
-          continue;
-        }
+        return;
+      }
+
+      for (let i = 1; i <= srcPdf.numPages; i++) {
+        showProcessing(
+          'Checking PDF structure — page ' + i + ' of ' + srcPdf.numPages + '…',
+          'Checking for links and annotations before compression.',
+        );
         const page = await srcPdf.getPage(i);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const pw = baseViewport.width;
-        const ph = baseViewport.height;
-        const viewport = page.getViewport({ scale: strategy.scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(viewport.width));
-        canvas.height = Math.max(1, Math.round(viewport.height));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not create a canvas for PDF compression.');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        const annotations = await page.getAnnotations({ intent: 'display' });
         page.cleanup();
-        const jpgBytes = await new Promise((resolve, reject) => {
-          canvas.toBlob(blob => {
-            if (!blob) { reject(new Error('Canvas image encoding failed.')); return; }
-            blob.arrayBuffer().then(ab => resolve(new Uint8Array(ab))).catch(reject);
-          }, 'image/jpeg', strategy.quality);
-        });
-        canvas.width = 0;
-        canvas.height = 0;
-        const img = await outDoc.embedJpg(jpgBytes);
-        const outPage = outDoc.addPage([pw, ph]);
-        outPage.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
-      }
-
-      // Metadata cleanup is safe for the new output document and does not
-      // alter the copied page content, text layer, or vector resources.
-      try {
-        outDoc.setTitle('');
-        outDoc.setAuthor('');
-        outDoc.setSubject('');
-        outDoc.setKeywords([]);
-        outDoc.setProducer('ILovePDF');
-        outDoc.setCreator('ILovePDF');
-      } catch (_) {}
-      if (outDoc.getPageCount() !== total) {
-        throw new Error('Compression output page count did not match the original PDF.');
-      }
-      const outBytes = await outDoc.save({ useObjectStreams: true });
-      const candidate = new Blob([outBytes], { type: 'application/pdf' });
-      if (!smallestBlob || candidate.size < smallestBlob.size) smallestBlob = candidate;
-
-      if (isCustom) {
-        if (candidate.size <= targetBytes &&
-            (!closestUnderTargetBlob || candidate.size > closestUnderTargetBlob.size)) {
-          closestUnderTargetBlob = candidate;
+        if (preflightCancelled) {
+          throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
         }
-
-        const errorRatio = targetBytes / Math.max(1, candidate.size);
-        if (pass < MAX_CUSTOM_PASSES - 1 &&
-            Math.abs(candidate.size - targetBytes) / targetBytes > 0.02) {
-          const correction = Math.sqrt(errorRatio);
-          const boundedCorrection = Math.max(0.75, Math.min(1.35, correction));
-          const nextScale = Math.max(
-            MIN_RENDER_SCALE,
-            Math.min(MAX_RENDER_SCALE, strategy.scale * boundedCorrection),
+        if (annotations.length > 0) {
+          hideProcessing();
+          showStatus(
+            'success',
+            'Compression safely skipped',
+            'This PDF contains links or annotations. The original is preserved unchanged.',
+            createStatusUrl(file),
+            file.name,
           );
-          if (Math.abs(nextScale - strategy.scale) < 0.005) break;
-          currentCustomScale = nextScale;
-        } else {
-          break;
+          return;
         }
-      } else {
-        bestBlob = candidate;
-        break;
       }
     }
 
-    if (isCustom) {
-      // Treat the target as a maximum: prefer the largest candidate that does
-      // not exceed it. If none fit, use the smallest measured candidate and
-      // report that the target could not be reached.
-      bestBlob = closestUnderTargetBlob || smallestBlob;
-      targetReached = !!closestUnderTargetBlob && !!bestBlob &&
-        ((targetBytes - bestBlob.size) / targetBytes) <= 0.02;
-    } else if (!bestBlob) {
-      bestBlob = smallestBlob;
+    showProcessing(
+      isCustom ? 'Applying Custom compression…' : 'Applying Deep compression…',
+      'Processing locally in your browser. Text, vectors and protected streams stay intact; eligible RGB images are re-encoded only when visual quality checks pass.',
+    );
+    let runtimeResult;
+    if (preflightCancelled) throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+    if (!window.CompressRuntime || typeof window.CompressRuntime.execute !== 'function') {
+      throw new Error('The local compression runtime is unavailable. No upload fallback was attempted.');
     }
+    runtimeResult = await window.CompressRuntime.execute(file, {
+      mode: requestedMode,
+      targetBytes,
+    });
 
-    if (!bestBlob) throw new Error('Compression did not produce a PDF.');
-    const filename = brandedFilename(file.name, '.pdf');
-    // Never replace a usable original with a larger compressed result.
-    const didReduce = bestBlob.size < file.size;
-    const blob = didReduce ? bestBlob : file.slice(0, file.size, 'application/pdf');
-    const saved = didReduce ? Math.round((1 - blob.size / file.size) * 100) : 0;
-    const signature = await blob.slice(0, 5).text();
-    if (signature !== '%PDF-') throw new Error('Compression produced an invalid PDF output.');
-
+    const outputBlob = runtimeResult.blob;
+    if (outputBlob.size > file.size) {
+      throw new Error('The candidate was larger than the source. The original PDF must be preserved.');
+    }
+    const outputSignature = await outputBlob.slice(0, 5).text();
+    if (outputSignature !== '%PDF-') {
+      throw new Error('Compression produced an invalid PDF. The original was not replaced.');
+    }
+    const report = runtimeResult.report || {};
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
-    const title = !didReduce
-      ? 'Already optimised'
-      : (isCustom
-          ? (targetReached ? 'Custom target matched closely' : (closestUnderTargetBlob ? 'Custom output below target' : 'Target could not be reached'))
-          : 'Reduced by ' + saved + '%');
-    let message;
-    if (!didReduce) {
-      message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
-      if (isCustom) {
-        message += ' Your requested target was ' + formatCompressSize(targetBytes) + ' and was not reached.';
-      }
-    } else if (isCustom && closestUnderTargetBlob) {
-      const underPct = ((targetBytes - blob.size) / targetBytes) * 100;
-      message = 'Calculated output for your ' + formatCompressSize(targetBytes) +
-        ' target: ' + formatCompressSize(blob.size) +
-        (targetReached
-          ? ' (within 2% of target).'
-          : ' (' + underPct.toFixed(1) + '% below target).') +
-        ' This measured multi-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
-    } else if (isCustom) {
-      message = 'The smallest measured output was ' + formatCompressSize(blob.size) +
-        ', above your ' + formatCompressSize(targetBytes) +
-        ' target. Native text/vector pages were preserved for readability, so this target may not be achievable without sacrificing content quality. Try a larger target.';
-    } else {
-      message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
+    if (!['qpdf-lossless-structure', 'browser-rgb-image', 'ghostscript-quality-gated'].includes(report.method) || outputBlob.size >= file.size) {
+      const title = isCustom && targetBytes && file.size > targetBytes
+        ? 'Custom target not reached'
+        : 'Already optimised';
+      showStatus(
+        'success',
+        title,
+        report.message || 'No verified reduction was available, so the original PDF is preserved unchanged.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
     }
-    showStatus('success', title, message, createStatusUrl(blob), filename);
+
+    const filename = file.name.replace(/\.pdf$/i, '') + '_compressed.pdf';
+    const title = isCustom && report.targetReached
+      ? 'Custom target reached'
+      : (isCustom ? 'Custom target not reached' : 'Compression result');
+    showStatus(
+      'success',
+      title,
+      report.message || 'Lossless structural compression completed and page-content streams were verified.',
+      createStatusUrl(outputBlob),
+      filename,
+    );
   } catch (err) {
     hideProcessing();
     const msg = (err && err.message && err.message.length < 200)
       ? err.message : 'Please try again with a different file.';
     showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
   } finally {
+    if (cancelButton) {
+      cancelButton.removeEventListener('click', onCompressionCancel);
+      cancelButton.classList.add('hidden');
+    }
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     sourcePdfLib = null;
     if (processBtn) processBtn.disabled = false;

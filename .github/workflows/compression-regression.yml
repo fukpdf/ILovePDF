@@ -1,0 +1,59 @@
+name: Compression regression guard
+
+concurrency:
+  group: compression-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - 'public/workers/pdf-worker.js'
+      - 'public/js/tool-page.js'
+      - 'public/js/compress-worker-adapter.js'
+      - 'public/js/compress-runtime.js'
+      - 'public/workers/compression-kit-worker.js'
+      - 'scripts/compress-hybrid-regression-check.js'
+      - 'scripts/compress-wasm-cli-static-check.js'
+      - 'src/browser/wasmCli.ts'
+      - 'src/browser/node-fs-shim.cjs'
+      - 'src/browser/node-path-shim.cjs'
+      - 'package.json'
+      - 'tsconfig.compression.json'
+      - 'src/browser/compressionKit.ts'
+      - 'scripts/build-compression-kit.js'
+      - 'tests/compressionKit.integration.test.ts'
+      - 'src/browser/pdfContentIntegrity.ts'
+      - 'src/browser/wasm-modules.d.ts'
+      - 'tests/wasmCli.test.ts'
+      - 'tests/pdfContentIntegrity.test.ts'
+      - 'tests/wasmPackages.smoke.test.ts'
+      - 'docs/compression-kit-merge-status.md'
+      - '.github/workflows/compression-regression.yml'
+jobs:
+  static-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check regression script syntax
+        run: node --check public/js/tool-page.js && node --check public/js/compress-worker-adapter.js && node --check public/js/compress-runtime.js && node --check public/workers/compression-kit-worker.js && node --check scripts/build-compression-kit.js && node --check src/browser/node-fs-shim.cjs && node --check src/browser/node-path-shim.cjs && node --check scripts/compress-hybrid-regression-check.js && node --check scripts/compress-wasm-cli-static-check.js
+      - name: Run compression static regression checks
+        run: node scripts/compress-hybrid-regression-check.js
+      - name: Run WASM CLI adapter static checks
+        run: node scripts/compress-wasm-cli-static-check.js
+      - name: Typecheck WASM adapter against published package APIs
+        shell: bash
+        run: |
+          mkdir -p /tmp/wasm-adapter-check/src/browser /tmp/wasm-adapter-check/tests /tmp/wasm-adapter-check/scripts
+          cp src/browser/wasmCli.ts src/browser/wasm-modules.d.ts src/browser/pdfContentIntegrity.ts src/browser/compressionKit.ts src/browser/node-fs-shim.cjs src/browser/node-path-shim.cjs /tmp/wasm-adapter-check/src/browser/
+          cp tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts /tmp/wasm-adapter-check/tests/
+          cp tsconfig.compression.json /tmp/wasm-adapter-check/
+          cp scripts/build-compression-kit.js /tmp/wasm-adapter-check/scripts/
+          cd /tmp/wasm-adapter-check
+          npm init -y
+          npm install --no-save --no-package-lock --no-audit --no-fund typescript@5.6.3 tsx@4.19.2 esbuild@0.24.2 pdf-lib@1.17.1 @types/node@22.20.5 @jspawn/ghostscript-wasm@0.0.2 @neslinesli93/qpdf-wasm@0.3.0
+          npx tsc --noEmit -p tsconfig.compression.json
+          npx tsx --test tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts
+          node scripts/build-compression-kit.js

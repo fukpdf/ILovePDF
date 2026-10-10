@@ -1,0 +1,42 @@
+name: Browser Compression Kit CI
+# Safety gate: run browser-only engine checks before any merge.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - fix/browser-compress-kit-integration
+
+permissions:
+  contents: read
+
+jobs:
+  compression-kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Upload resolved lockfile for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compression-package-lock-${{ github.run_id }}
+          path: package-lock.json
+          if-no-files-found: error
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Install Chromium for browser quality and no-upload tests
+        run: npx playwright install --with-deps chromium
+      - name: Full regression suite
+        run: npm test
+      - name: Build browser compression bundle and stage local WASM
+        run: npm run build

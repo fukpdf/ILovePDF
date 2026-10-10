@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          npm ci --omit=dev || npm install --omit=dev --no-audit
+          npm ci --no-audit --no-fund
 
       - name: Syntax check
         shell: bash
@@ -133,6 +133,10 @@ jobs:
           smoke_check "$origin/crop-pdf"
           smoke_check "$origin/compress-pdf"
           smoke_check "$origin/js/tools-config.js"
+          smoke_check "$origin/js/compression-kit.js"
+          smoke_check "$origin/workers/compression-kit-worker.js"
+          smoke_check "$origin/vendor/compression/qpdf.wasm"
+          smoke_check "$origin/vendor/compression/gs.wasm"
           smoke_check "$origin/js/tool-page.js?v=20261009-hybrid-150dpi-v2"
           smoke_check "$base/compress-pdf"
           deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
