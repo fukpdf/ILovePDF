@@ -3,7 +3,7 @@
   'use strict';
   if (window.CompressWorkerAdapter && window.CompressWorkerAdapter.__losslessKitV2) return;
 
-  var WORKER_URL = '/workers/compression-kit-worker.js';
+  var WORKER_URL = '/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1';
 
   function key(file, opts) {
     opts = opts || {};
