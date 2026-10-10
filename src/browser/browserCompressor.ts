@@ -67,7 +67,9 @@ function pageContentStreams(doc: PDFDocument, pageIndex: number): Uint8Array[] {
 }
 async function digest(bytes: Uint8Array): Promise<string> {
   if (!globalThis.crypto?.subtle) throw new Error("SHA-256 is unavailable; refusing to certify the PDF.");
-  const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  const hashBytes = new Uint8Array(bytes.byteLength);
+  hashBytes.set(bytes);
+  const hash = await globalThis.crypto.subtle.digest("SHA-256", hashBytes.buffer);
   return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join("");
 }
 async function pageContentHashes(doc: PDFDocument): Promise<string[][]> {
@@ -224,7 +226,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
       skip("JPEG decode/encode failed; source stream retained");
     }
   }
-  return { bytes: new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false })), aliases: dedupes.aliases, removed: dedupes.removed };
+  return { bytes: new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateFieldAppearances: false })), aliases: dedupes.aliases, removed: dedupes.removed };
 }
 
 function hasIndirectDictionaryKey(doc: PDFDocument, key: string): boolean {
@@ -364,7 +366,7 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
 
   const targetBytes = mode === "custom" ? Math.round(opts.targetKB! * 1024) : undefined;
   const ladder: readonly number[] = [MODE_POLICY[mode].jpegQuality];
-  let best = input, bestImages: ImageReport[] = [], passes = 0, validationErrors: string[] = [];
+  let best: Uint8Array = input, bestImages: ImageReport[] = [], passes = 0, validationErrors: string[] = [];
   for (const quality of ladder.slice(0, 4)) {
     if (signal?.aborted) return fail(input, "Cancelled.");
     passes++;
