@@ -212,7 +212,7 @@ export async function compressLosslessly(
     const baseline = await createBaseline(original, qpdf);
 
     options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…");
-    const qpdfOnly = /AcroForm|interactive form/i.test(light.deepReason ?? "") || (options.mode === "custom" && targetBytes !== null);
+    const qpdfOnly = /AcroForm|interactive form/i.test(light.deepReason ?? "");
     let tools: Partial<WasmTools> = { qpdf };
     if (!qpdfOnly) {
       options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…");
