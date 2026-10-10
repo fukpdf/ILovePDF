@@ -214,6 +214,17 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
   return new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false }));
 }
 
+function hasIndirectDictionaryKey(doc: PDFDocument, key: string): boolean {
+  const name = PDFName.of(key);
+  for (const [, object] of doc.context.enumerateIndirectObjects()) {
+    const dict = object instanceof PDFDict ? object : object instanceof PDFRawStream ? object.dict : undefined;
+    if (dict?.has(name)) return true;
+  }
+  const root = doc.context.trailerInfo.Root;
+  const rootObject = root instanceof PDFRef ? doc.context.lookup(root) : root;
+  if (rootObject instanceof PDFDict && rootObject.has(name)) return true;
+  return false;
+}
 function eligibleImageStream(stream: PDFRawStream): boolean {
   const dict = stream.dict;
   return isImage(stream) &&
@@ -292,8 +303,14 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
   if (containsAscii(input, "/XFA")) return noChange(input, mode, "XFA PDF detected; it was not modified.");
   if (containsAscii(input, "/AcroForm")) return noChange(input, mode, "AcroForm detected; routing to the lossless QPDF-only path.", true, "interactive form requires the lossless QPDF route");
   if (mode === "custom" && !(typeof opts.targetKB === "number" && Number.isFinite(opts.targetKB) && opts.targetKB > 0)) return fail(input, "Custom mode needs a target size greater than 0 KB.");
-  try { await PDFDocument.load(input, { updateMetadata: false }); }
+  let parsed: PDFDocument;
+  try { parsed = await PDFDocument.load(input, { updateMetadata: false }); }
   catch (e) { return noChange(input, mode, `PDF parser rejected the file; original preserved (${e instanceof Error ? e.message : "unknown reason"}).`); }
+  if (hasIndirectDictionaryKey(parsed, "ByteRange") || hasIndirectDictionaryKey(parsed, "SigFlags") || hasIndirectDictionaryKey(parsed, "Perms")) {
+    return noChange(input, mode, "Signature or permission-controlled PDF detected after parsing; original preserved.");
+  }
+  if (hasIndirectDictionaryKey(parsed, "XFA")) return noChange(input, mode, "XFA PDF detected after parsing; original preserved.");
+  if (hasIndirectDictionaryKey(parsed, "AcroForm")) return noChange(input, mode, "AcroForm detected after parsing; routing to lossless QPDF-only compression.", true, "interactive form requires the lossless QPDF route");
 
   const targetBytes = mode === "custom" ? Math.round(opts.targetKB! * 1024) : undefined;
   const ladder: readonly number[] = targetBytes ? CUSTOM_QUALITY_LADDER : [MODE_POLICY[mode].jpegQuality];
