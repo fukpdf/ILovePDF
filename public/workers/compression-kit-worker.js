@@ -10,7 +10,7 @@ self.addEventListener("message", async (event) => {
     }
     const input = new Uint8Array(message.buffer);
     const result = await compressLosslessly(input, {
-      mode: message.mode === "custom" ? "custom" : "deep",
+      mode: message.mode === "custom" ? "custom" : message.mode === "deep" ? "deep" : (() => { throw new Error("Compression mode is missing or invalid."); })(),
       targetBytes: Number.isSafeInteger(message.targetBytes) ? message.targetBytes : null,
       qpdfWasmUrl: "/vendor/compression/qpdf.wasm",
       ghostscriptWasmUrl: "/vendor/compression/gs.wasm",
