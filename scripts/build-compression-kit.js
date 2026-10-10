@@ -21,7 +21,7 @@ await build({ configFile: resolve(root, "vite.config.ts") });
 const entryBundle = resolve(outDir, "compression-kit.js");
 if (!existsSync(entryBundle)) throw new Error("Vite did not emit public/js/compression-kit.js.");
 const entrySource = readFileSync(entryBundle, "utf8");
-if (/(?:from\s*|import\s*\()\s*["'](?:node:)?(?:fs|path)["']/.test(entrySource)) {
+if (/(?:from\s*|import\s*\()\s*["'](?:node:)?(?:fs|path|os|crypto|worker_threads|child_process)(?:\/[^"']*)?["']/.test(entrySource)) {
   throw new Error("Browser bundle contains an unresolved Node builtin import.");
 }
 const chunkDir = resolve(outDir, "compression-chunks");
