@@ -211,7 +211,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
       skip("JPEG decode/encode failed; source stream retained");
     }
   }
-  return new Uint8Array(await doc.save({ useObjectStreams: true, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false }));
+  return new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false }));
 }
 
 function eligibleImageStream(stream: PDFRawStream): boolean {
