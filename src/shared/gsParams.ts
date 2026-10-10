@@ -23,7 +23,6 @@ export function buildGsArgs(mode: Mode, qFactor: number, inputPath: string, outp
     "-sDEVICE=pdfwrite",
     "-dCompatibilityLevel=1.7",
     "-dNOPAUSE", "-dBATCH", "-dSAFER", "-dQUIET",
-    "-dDetectDuplicateImages=true",
     "-dCompressFonts=false",
     "-dEmbedAllFonts=true",
     "-dPreserveAnnots=true",
