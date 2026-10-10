@@ -2,7 +2,8 @@ name: Phase 5 Worker Domain Cross-Boundary Integrity 307-319
 
 on:
   workflow_dispatch:
-branches:
+  push:
+    branches:
       - phase-5-bulk-units-307-319-domain-cross-boundary-integrity
       - main
   pull_request:
