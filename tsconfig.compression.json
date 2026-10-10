@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "include": [
+    "src/browser/wasmCli.ts",
+    "src/browser/wasm-modules.d.ts",
+    "src/browser/pdfContentIntegrity.ts",
+    "src/browser/compressionKit.ts",
+    "tests/wasmCli.test.ts",
+    "tests/wasmPackages.smoke.test.ts",
+    "tests/pdfContentIntegrity.test.ts",
+    "tests/compressionKit.integration.test.ts",
+    "src/shared/policy.ts",
+    "src/shared/bytes.ts",
+    "src/shared/jpeg.ts",
+    "src/shared/imageMath.ts",
+    "src/shared/placements.ts",
+    "src/shared/quality.ts",
+    "src/shared/gsParams.ts",
+    "tests/shared.test.ts",
+    "tests/quality.test.ts",
+    "src/browser/browserCompressor.ts",
+    "src/browser/browserQualityGate.ts",
+    "src/browser/deepEngine.ts",
+    "src/browser/assets.d.ts",
+    "src/router/smartRouter.ts",
+    "src/browser/compressionKitEntry.ts",
+    "tests/browserCompressor.test.ts"
+  ]
+}

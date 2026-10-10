@@ -5,7 +5,7 @@
 
 importScripts('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
 
-const { PDFDocument, StandardFonts, rgb, degrees } = self.PDFLib;
+const { PDFDocument, PDFName, StandardFonts, rgb, degrees } = self.PDFLib;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -30,9 +30,10 @@ function toArrayBuffer(u8) {
   return u8.buffer instanceof ArrayBuffer ? u8.buffer : u8.buffer.slice(0);
 }
 
-// ── PHASE 3: ENHANCED COMPRESSION ENGINE ─────────────────────────────────────
-// Multi-strategy compression: object-stream rebuild + metadata strip +
-// optional OffscreenCanvas image downsampling for image-heavy PDFs.
+// ── LEGACY COMPRESSION FALLBACK (NOT QUALITY-CONTRACT CERTIFIED) ─────────────
+// The generic pdf-lib save path is retained only as an interim fallback.
+// It is not a substitute for the browser kit's image-object processing and
+// cryptographic content-stream preservation gate; do not mark the kit complete.
 
 async function tryOffscreenCompress(buf) {
   // Render-based compression: each page → canvas at ~96 DPI → re-encode as
@@ -66,37 +67,15 @@ async function stripMetadata(doc) {
 // Phase 3: Main enhanced compress — multi-pass with size selection
 const OPS = {};
 
+// Retired compatibility shim: compression must go through the dedicated
+// module worker and the verified QPDF-WASM gate. Never let the legacy pdf-lib
+// rewrite path emit an unverified candidate.
 OPS.compress = async function (buffers) {
-  const original = buffers[0];
-  const doc = await PDFDocument.load(original, {
-    ignoreEncryption: true,
-    updateMetadata: false,
-  });
-
-  await stripMetadata(doc);
-
-  // One streaming-friendly save pass keeps peak memory bounded by a single
-  // parsed document plus the output buffer. A second reload/save pass would
-  // temporarily retain two complete PDF representations for little benefit.
-  const out = await doc.save({
-    useObjectStreams: true,
-    addDefaultPage: false,
-    objectsPerTick: 50,
-  });
-  // Copy only the serialized bytes into a transferable ArrayBuffer.
-  const result = Uint8Array.from(out).buffer;
-
-  // Reject an invalid serialization before it can reach the download pipeline.
-  const signature = new Uint8Array(result, 0, Math.min(5, result.byteLength));
-  if (signature.length !== 5 ||
-      signature[0] !== 0x25 || signature[1] !== 0x50 ||
-      signature[2] !== 0x44 || signature[3] !== 0x46 || signature[4] !== 0x2D) {
-    throw new Error('Compression produced an invalid PDF output');
+  const original = buffers && buffers[0];
+  if (!(original instanceof Uint8Array)) {
+    throw new Error('Legacy compression route disabled; expected original PDF bytes.');
   }
-
-  // Never replace a usable source with a larger "compressed" file.
-  // Returning the original is intentional; the UI reports no size reduction.
-  return result.byteLength < original.byteLength ? result : original;
+  return original.slice();
 };
 
 OPS.repair = async function (buffers) {
