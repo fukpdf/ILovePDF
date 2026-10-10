@@ -35,11 +35,11 @@ test("placement parser ignores strings, comments and inline images", () => {
   assert.equal(p.length,1);
   assert.equal(p[0].name,"Z");
 });
-function fakeJpeg(scale:number, comps=3):Uint8Array {
+function fakeJpeg(scale:number, comps=3, ySampling=0x11):Uint8Array {
   const std=[16,11,10,16,24,40,51,61,12,12,14,19,26,58,60,55,14,13,16,24,40,57,69,56,14,17,22,29,51,87,80,62,18,22,37,56,68,109,103,77,24,35,55,64,81,104,113,92,49,64,78,87,103,121,120,101,72,92,95,98,112,100,103,99];
   const table=std.map(v=>Math.max(1,Math.min(255,Math.floor((v*scale+50)/100))));
   const dqt=[0xff,0xdb,0,67,0,...table];
-  const sof=[0xff,0xc0,0,8+comps*3,8,0x03,0xe8,0x07,0xd0,comps,...Array.from({length:comps},(_,i)=>[i+1,0x11,0]).flat()];
+  const sof=[0xff,0xc0,0,8+comps*3,8,0x03,0xe8,0x07,0xd0,comps,...Array.from({length:comps},(_,i)=>[i+1,i===0?ySampling:0x11,0]).flat()];
   return new Uint8Array([0xff,0xd8,...dqt,...sof,0xff,0xda,0,2]);
 }
 test("JPEG header reader and source-quality estimate",()=>{
@@ -57,8 +57,10 @@ test("source JPEG quantization profile forbids higher-quality re-encoding",()=>{
   const same=readJpegInfo(fakeJpeg(200));
   const lowerQuality=readJpegInfo(fakeJpeg(250));
   const higherQuality=readJpegInfo(fakeJpeg(100));
-  assert.ok(source && same && lowerQuality && higherQuality);
+  const subsampled=readJpegInfo(fakeJpeg(250,3,0x22));
+  assert.ok(source && same && lowerQuality && higherQuality && subsampled);
   assert.equal(jpegQuantizationProfileNoFiner(source, same), true);
   assert.equal(jpegQuantizationProfileNoFiner(source, lowerQuality), true);
   assert.equal(jpegQuantizationProfileNoFiner(source, higherQuality), false);
+  assert.equal(jpegQuantizationProfileNoFiner(source, subsampled), false);
 });
