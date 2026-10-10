@@ -2548,8 +2548,8 @@ async function runAdvancedCompress(config = {}) {
   showProcessing(
     isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
     isCustom
-      ? 'Preserving selectable text and vector pages; measuring image-only page output against your target.'
-      : 'Preserving selectable text and vector pages while optimizing image-only pages.',
+      ? 'Trying a lossless compression pass against your target. The target will not be forced by degrading content.'
+      : 'Applying a lossless structural pass. Images and decoded page content will not be re-encoded.',
   );
 
   // Keep the source document outside the try so every exit path destroys it.
