@@ -2738,8 +2738,8 @@ async function runAdvancedCompress(config = {}) {
 
     const filename = file.name.replace(/\.pdf$/i, '') + '_compressed.pdf';
     const title = isCustom && report.targetReached
-      ? 'Custom target reached with quality-gated compression'
-      : (isCustom ? 'Custom target not reached' : 'Deep compression result');
+      ? 'Custom target reached'
+      : (isCustom ? 'Custom target not reached' : 'Compression result');
     showStatus(
       'success',
       title,
