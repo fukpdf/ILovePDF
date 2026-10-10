@@ -9,6 +9,7 @@ This is a safety-first integration slice, not certification of the new TypeScrip
 - The compression path no longer strips document metadata as a side effect.
 - Add a first-pass `src/browser/wasmCli.ts` adapter that lazily initializes one requested WASM engine, writes input bytes to its virtual filesystem, checks exit status and output PDF signature, captures logs, and cleans temporary virtual files. This adapter is not yet wired into the compression UI.
 - The existing compression regression script asserts those guard conditions.
+- Add `tests/wasmCli.test.ts` with mocked-module tests for success, non-zero exit, invalid output signature, and missing engine. The dedicated workflow typechecks and runs these tests in an isolated temporary workspace; execution remains pending CI.
 - Existing UI/runtime files and package dependencies are retained; the root `npm test` script was extended to include the new static WASM adapter check.
 
 ### Not yet certified / still required before enabling the new engine
