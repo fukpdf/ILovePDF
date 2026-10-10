@@ -2593,6 +2593,9 @@ async function runAdvancedCompress(config = {}) {
       ['/Encrypt', 'Encrypted PDFs are preserved unchanged until a verified lossless path is available.'],
       ['/XFA', 'XFA forms are preserved unchanged to avoid damaging form data.'],
       ['/AcroForm', 'Interactive forms are preserved unchanged until form-safe compression is available.'],
+      ['/Outlines', 'PDF bookmarks/outlines are preserved unchanged until document-structure preservation is verified.'],
+      ['/EmbeddedFiles', 'PDF attachments are preserved unchanged until document-structure preservation is verified.'],
+      ['/StructTreeRoot', 'Tagged-PDF structure is preserved unchanged until document-structure preservation is verified.'],
     ].find(([token]) => hasAsciiToken(token));
     if (sensitivePdfReason) {
       hideProcessing();
@@ -2657,6 +2660,18 @@ async function runAdvancedCompress(config = {}) {
         'Preserving text/vector pages and identifying image-only pages.',
       );
       const page = await srcPdf.getPage(i);
+      const annotations = await page.getAnnotations({ intent: 'display' });
+      if (annotations.length > 0) {
+        hideProcessing();
+        showStatus(
+          'success',
+          'Compression safely skipped',
+          'This PDF contains links, annotations, or other interactive page objects. The original is preserved unchanged.',
+          createStatusUrl(file),
+          file.name,
+        );
+        return;
+      }
       const textContent = await page.getTextContent();
       const hasSelectableText = textContent.items.some(
         item => typeof item.str === 'string' && item.str.trim().length > 0,
