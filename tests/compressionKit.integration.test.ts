@@ -33,13 +33,9 @@ test("QPDF WASM lossless pass preserves decoded content streams in a 100-page PD
   assert.equal(result.bytes[2], 0x44);
   assert.equal(result.bytes[3], 0x46);
   assert.equal(result.bytes[4], 0x2d);
-  assert.ok(result.bytes.byteLength <= input.byteLength, "output must never exceed input");
-  assert.equal(result.report.contentStreamsVerified, result.report.method === "qpdf-lossless-structure");
-  if (result.report.method === "qpdf-lossless-structure") {
-    assert.equal(result.report.contentStreamsVerified, true);
-    assert.ok(result.report.savedBytes > 0);
-  } else {
-    assert.equal(result.bytes.byteLength, input.byteLength);
-    assert.match(result.report.message, /preserved|did not reduce|validation/i);
-  }
+  assert.ok(result.bytes.byteLength < input.byteLength, "100-page fixture should benefit from object-stream compaction");
+  assert.equal(result.report.method, "qpdf-lossless-structure");
+  assert.equal(result.report.contentStreamsVerified, true);
+  assert.ok(result.report.savedBytes > 0);
+  assert.equal(result.report.outputBytes, result.bytes.byteLength);
 });
