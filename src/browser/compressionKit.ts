@@ -223,7 +223,7 @@ export async function compressLosslessly(
           sampleDpi: 100, maxSamplePages: 5,
         });
         if (!lightGate.passed) {
-          warnings.push(`Light candidate rejected by the visual quality gate: ${lightGate.reason}`);
+          warnings.push(`Light candidate rejected by the visual quality gate: ${(lightGate.failures.length ? lightGate.failures.join("; ") : lightGate.notes.join("; "))}`);
           lightCandidate = null;
         } else {
           qualityGate = lightGate;
