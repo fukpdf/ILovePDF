@@ -8,6 +8,7 @@ import {
   assertRgbImageQuantizationNotFiner,
   assertRgbImageStreamsUnchanged,
   hashPageContentStreams,
+  selectEligibleRgbImageObjects,
   snapshotEligibleRgbImageStreams,
   selectPageContentObjects,
 } from "../src/browser/pdfContentIntegrity";
@@ -155,6 +156,11 @@ test("eligibility gate rejects XFA and encrypted trailer dictionaries", () => {
   const encrypted = JSON.parse(qpdfJson("q Q"));
   encrypted.qpdf[1].trailer.value["/Encrypt"] = "9 0 R";
   assert.throws(() => assertCompressionEligible(JSON.stringify(encrypted)), /unsupported document structure.*Encrypt/);
+});
+
+test("selects only direct RGB DCT images for candidate quality comparison",()=>{
+  const json=qpdfJsonWithRgbImage(fakeRgbJpeg(200));
+  assert.deepEqual(selectEligibleRgbImageObjects(json),["obj:9 0 R"]);
 });
 
 test("eligible RGB image streams are byte-identical on QPDF route and never gain finer quantization",async()=>{
