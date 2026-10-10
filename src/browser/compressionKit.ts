@@ -14,7 +14,7 @@ import {
 } from "./pdfContentIntegrity";
 import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
 import type { GateReport } from "../shared/quality";
-import type { Mode } from "../shared/policy";
+import { MODE_POLICY, type Mode } from "../shared/policy";
 import { decideCompressionRoute } from "../router/smartRouter";
 
 export type CompressionMode = "deep" | "custom";
@@ -192,7 +192,11 @@ export async function compressLosslessly(
       try {
         options.onProgress?.("validating", "Running the visual quality gate on the browser-compressed candidate…", 88);
         const { qualityGateInBrowser } = await import("./browserQualityGate");
-        const lightGate = await qualityGateInBrowser(original, lightCandidate, engineMode);
+        const lightGate = await qualityGateInBrowser(original, lightCandidate, {
+          minPsnrDb: MODE_POLICY[engineMode].minPsnrDb,
+          minSharpnessRatio: MODE_POLICY[engineMode].minSharpnessRatio,
+          sampleDpi: 100, maxSamplePages: 5,
+        });
         if (!lightGate.passed) {
           warnings.push(`Light candidate rejected by the visual quality gate: ${lightGate.reason}`);
           lightCandidate = null;
