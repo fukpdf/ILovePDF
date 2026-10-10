@@ -62,7 +62,7 @@ async function createEngineModule(engine: WasmEngine, wasmUrl: string): Promise<
     // at runtime because the Emscripten FS declarations are incomplete.
     const mod = await import("@neslinesli93/qpdf-wasm");
     const qpdfOptions = { locateFile: () => wasmUrl, noInitialRun: true } as Parameters<typeof mod.default>[0] & { noInitialRun: true };
-      const instance = await mod.default(qpdfOptions);
+    const instance = await mod.default(qpdfOptions);
     return assertRuntimeFs(instance as unknown as EmModule, engine);
   }
 
@@ -134,9 +134,6 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
   if (!module) throw new Error(`WASM engine ${engine} was not initialized.`);
   const inputPath = request.inputPath ?? "/input.pdf";
   const outputPath = request.outputPath ?? "/output.pdf";
-  const logs = { stdout: [] as string[], stderr: [] as string[] };
-  logs.stdout.length = 0;
-  logs.stderr.length = 0;
 
   try {
     try { module.FS.unlink(inputPath); } catch {}
@@ -144,7 +141,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     module.FS.writeFile(inputPath, input);
     const exitCode = Number(module.callMain(args) ?? 0);
     if (exitCode !== 0) {
-      throw new Error(`${engine} exited with code ${exitCode}: ${logs.stderr.join("\n")}`);
+      throw new Error(`${engine} exited with code ${exitCode}.`);
     }
     if (module.FS.analyzePath && !module.FS.analyzePath(outputPath).exists) {
       throw new Error(`${engine} exited successfully but produced no output file.`);
@@ -153,14 +150,14 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     try {
       output = module.FS.readFile(outputPath);
     } catch {
-      throw new Error(`${engine} did not create readable output at ${outputPath}: ${logs.stderr.join("\n")}`);
+      throw new Error(`${engine} did not create readable output at ${outputPath}.`);
     }
     if (!(output instanceof Uint8Array) || output.byteLength < 5 ||
         output[0] !== 0x25 || output[1] !== 0x50 ||
         output[2] !== 0x44 || output[3] !== 0x46 || output[4] !== 0x2d) {
       throw new Error(`${engine} produced an invalid PDF signature.`);
     }
-    return { output: output.slice(), exitCode, stdout: [...logs.stdout], stderr: [...logs.stderr] };
+    return { output: output.slice(), exitCode, stdout: [], stderr: [] };
   } finally {
     try { module.FS.unlink(inputPath); } catch {}
     try { module.FS.unlink(outputPath); } catch {}
