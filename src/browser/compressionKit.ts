@@ -10,6 +10,7 @@ import {
   hashProtectedStreams,
   selectPageContentObjects,
   selectProtectedStreamObjects,
+  qpdfCatalogHasKey,
 } from "./pdfContentIntegrity";
 import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
 import type { GateReport } from "../shared/quality";
@@ -96,6 +97,7 @@ interface Baseline {
   protectedRefs: string[];
   pageHashes: Awaited<ReturnType<typeof hashPageContentStreams>>;
   protectedHashes: Record<string, string>;
+  qpdfOnly: boolean;
 }
 async function createBaseline(original: Uint8Array, qpdf: EmModule): Promise<Baseline> {
   const discovery = await inspectJson(original, qpdf, [], false);
@@ -105,7 +107,7 @@ async function createBaseline(original: Uint8Array, qpdf: EmModule): Promise<Bas
   const pageJson = await inspectJson(original, qpdf, pageRefs, true, "all");
   const pageHashes = await hashPageContentStreams(pageJson);
   const protectedHashes = await hashProtectedInBatches(original, qpdf, protectedRefs);
-  return { discovery, pageRefs, protectedRefs, pageHashes, protectedHashes };
+  return { discovery, pageRefs, protectedRefs, pageHashes, protectedHashes, qpdfOnly: qpdfCatalogHasKey(discovery, "/AcroForm") };
 }
 
 async function certifyCandidate(
@@ -226,7 +228,7 @@ export async function compressLosslessly(
     const baseline = await createBaseline(original, qpdf);
 
     options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…");
-    const qpdfOnly = routeDecision.qpdfOnly;
+    const qpdfOnly = routeDecision.qpdfOnly || baseline.qpdfOnly;
     let tools: Partial<WasmTools> = { qpdf };
     if (!qpdfOnly) {
       options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…");
