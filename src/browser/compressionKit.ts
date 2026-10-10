@@ -58,7 +58,7 @@ export interface CompressionKitResult {
 
 function resultForOriginal(
   original: Uint8Array, mode: CompressionMode, targetBytes: number | null, message: string,
-  warnings: string[] = [], contentStreamsVerified = false, images: ImageReport[] = [],
+  warnings: string[] = [], contentStreamsVerified = false, images: ImageReport[] = [], qualityGate?: GateReport,
 ): CompressionKitResult {
   return {
     bytes: original.byteOffset === 0 && original.byteLength === original.buffer.byteLength ? original : original.slice(),
@@ -66,7 +66,7 @@ function resultForOriginal(
       mode, method: "original-preserved", originalBytes: original.byteLength, outputBytes: original.byteLength,
       savedBytes: 0, savedPercent: 0, targetBytes,
       targetReached: targetBytes === null ? null : original.byteLength <= targetBytes,
-      contentStreamsVerified, message, engine: "original", warnings: [...warnings], images,
+      contentStreamsVerified, message, engine: "original", warnings: [...warnings], images, qualityGate,
     },
   };
 }
@@ -252,6 +252,7 @@ export async function compressLosslessly(
           minSharpnessRatio: MODE_POLICY[engineMode].minSharpnessRatio,
           sampleDpi: 100, maxSamplePages: 5,
         });
+        qualityGate = lightGate;
         if (!lightGate.passed) {
           warnings.push(`Light candidate rejected by the visual quality gate: ${(lightGate.failures.length ? lightGate.failures.join("; ") : lightGate.notes.join("; "))}`);
           lightCandidate = null;
@@ -326,6 +327,7 @@ export async function compressLosslessly(
       },
     });
     warnings.push(...deep.warnings);
+    if (deep.gate) qualityGate = deep.gate;
     const candidates: Array<{ bytes: Uint8Array; route: "qpdf-wasm" | "ghostscript-wasm"; gate?: GateReport }> = [];
     if (deep.ok && deep.gatePassed && deep.route !== "unchanged") candidates.push({ bytes: deep.bytes, route: deep.route, gate: deep.gate });
     if (deep.fallbackBytes && deep.fallbackBytes.byteLength < original.byteLength) candidates.push({ bytes: deep.fallbackBytes, route: "qpdf-wasm" });
@@ -354,7 +356,7 @@ export async function compressLosslessly(
       message += ` Requested target ${(targetBytes / 1024).toFixed(0)} KB is unreachable without violating the ${engineMode === "custom" ? "150 DPI floor, preservation checks or quality gate" : "preservation checks or quality gate"}; best safe output delivered.`;
     }
     options.onProgress?.("complete", message, 100);
-    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
+    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images, qualityGate);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
   } catch (error) {
