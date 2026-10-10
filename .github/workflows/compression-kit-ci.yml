@@ -23,8 +23,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - name: Install dependencies and reconcile the currently stale lockfile
-        run: npm install --no-audit --no-fund
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
       - name: Upload resolved lockfile for review
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,6 +34,8 @@ jobs:
           if-no-files-found: error
       - name: Typecheck
         run: npm run typecheck
+      - name: Install Chromium for browser quality and no-upload tests
+        run: npx playwright install --with-deps chromium
       - name: Full regression suite
         run: npm test
       - name: Build browser compression bundle and stage local WASM
