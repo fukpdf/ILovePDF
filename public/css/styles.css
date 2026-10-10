@@ -6652,12 +6652,12 @@ i[data-lucide] {
    CROP PDF — upload preparation journey + popular tool buttons
    Crop-only rollout. Existing processing/preview controls are untouched.
    ============================================================ */
-.ilpdf-branded-upload .popular-tools .popular-grid {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card {
   min-height: 92px;
   padding: 10px;
   gap: 0;
@@ -6670,13 +6670,13 @@ i[data-lucide] {
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(2) { background: linear-gradient(135deg, #10b981, #047857); }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(3) { background: linear-gradient(135deg, #38bdf8, #2563eb); }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #ea580c); }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(5) { background: linear-gradient(135deg, #fb7185, #e11d48); }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(6) { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(2) { background: linear-gradient(135deg, #10b981, #047857); }
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(3) { background: linear-gradient(135deg, #38bdf8, #2563eb); }
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(5) { background: linear-gradient(135deg, #fb7185, #e11d48); }
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(6) { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
 
-.ilpdf-branded-upload .popular-tools .popular-card:hover {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:hover {
   transform: translateY(-3px);
   border-color: transparent;
   box-shadow: 0 16px 32px rgba(37,45,70,.18);
@@ -6684,7 +6684,7 @@ i[data-lucide] {
   color: #26364b;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-body {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-body {
   min-width: 0;
   width: 100%;
   height: 100%;
@@ -6693,7 +6693,7 @@ i[data-lucide] {
   align-items: center;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-name {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name {
   width: 100%;
   min-height: 70px;
   padding: 9px 14px;
@@ -6709,7 +6709,7 @@ i[data-lucide] {
   letter-spacing: -.012em;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker {
   width: 42px;
   height: 42px;
   min-width: 42px;
@@ -6722,13 +6722,13 @@ i[data-lucide] {
   box-shadow: 0 5px 12px rgba(37,45,70,.10);
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker svg {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker svg {
   width: 21px;
   height: 21px;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-description,
-.ilpdf-branded-upload .popular-tools .popular-card-arrow {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-description,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-arrow {
   display: none !important;
 }
 
@@ -6927,14 +6927,14 @@ i[data-lucide] {
 @keyframes cropJourneyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
 @media (max-width: 980px) {
-  .ilpdf-branded-upload .popular-tools .popular-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
-  .ilpdf-branded-upload .popular-tools .popular-grid { grid-template-columns: 1fr; }
-  .ilpdf-branded-upload .popular-tools .popular-card { min-height: 82px; padding: 8px; }
-  .ilpdf-branded-upload .popular-tools .popular-card-name { min-height: 64px; font-size: 16px; gap: 11px; padding: 8px 12px; }
-  .ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker { width: 38px; height: 38px; min-width: 38px; flex-basis: 38px; }
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-grid { grid-template-columns: 1fr; }
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card { min-height: 82px; padding: 8px; }
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name { min-height: 64px; font-size: 16px; gap: 11px; padding: 8px 12px; }
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker { width: 38px; height: 38px; min-width: 38px; flex-basis: 38px; }
   .crop-upload-journey { grid-template-columns: 78px minmax(0,1fr); gap: 14px; padding: 18px; border-radius: 18px; }
   .crop-journey-visual { width: 72px; height: 82px; }
   .crop-journey-paper { width: 54px; height: 70px; }
@@ -6981,37 +6981,37 @@ i[data-lucide] {
 
 
 /* Crop Popular Tools — full-color homepage-style logo stickers */
-.ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker {
   border: 0 !important;
   color: #fff !important;
   box-shadow: 0 7px 16px rgba(37,45,70,.16), inset 0 1px 0 rgba(255,255,255,.28) !important;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(1) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(1) .tool-name-sticker {
   background: linear-gradient(145deg, #6366f1, #4338ca) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(2) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(2) .tool-name-sticker {
   background: linear-gradient(145deg, #10b981, #047857) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(3) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(3) .tool-name-sticker {
   background: linear-gradient(145deg, #38bdf8, #2563eb) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(4) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(4) .tool-name-sticker {
   background: linear-gradient(145deg, #f59e0b, #ea580c) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(5) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(5) .tool-name-sticker {
   background: linear-gradient(145deg, #fb7185, #e11d48) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:nth-child(6) .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:nth-child(6) .tool-name-sticker {
   background: linear-gradient(145deg, #a78bfa, #7c3aed) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:hover .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:hover .tool-name-sticker {
   transform: translateY(-2px) rotate(-2deg) scale(1.04);
   filter: saturate(1.08);
   box-shadow: 0 10px 20px rgba(37,45,70,.20), inset 0 1px 0 rgba(255,255,255,.32) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker {
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker {
     transition: none;
   }
 }
@@ -7149,11 +7149,23 @@ i[data-lucide] {
   margin-top: 24px !important;
 }
 
-.ilpdf-branded-upload .popular-tools .popular-title {
+/* Download Popular Tools must use the same section width and spacing as Upload.
+   The wrapper is intentionally not .ilpdf-branded-upload, so mirror only these
+   section-level rules instead of inheriting the Upload page's full layout. */
+.ilpdf-download-page .download-popular-tools-scope .popular-tools {
+  width: min(100%, 1180px) !important;
+  max-width: 1180px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 24px !important;
+  box-sizing: border-box;
+}
+
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-title {
   font-size: clamp(26px, 3vw, 36px);
 }
 
-.ilpdf-branded-upload .popular-tools .popular-card-name .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name .tool-name-sticker {
   border: 0 !important;
   color: #fff !important;
   background: linear-gradient(135deg, var(--tool-tone, #5b3df5), var(--tool-tone-2, #7c3aed)) !important;
@@ -7237,6 +7249,11 @@ i[data-lucide] {
   .ilpdf-branded-upload > .tool-faq,
   .ilpdf-branded-upload > .tool-learn-more,
   .ilpdf-branded-upload > .popular-tools {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .ilpdf-download-page .download-popular-tools-scope .popular-tools {
     width: 100% !important;
     max-width: none !important;
   }
@@ -12708,70 +12725,70 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 /* Popular-tool upload cards: stable identity-based colors and accessible interaction.
    Colors belong to the tool, not its filtered grid position; this keeps the same
    tool visually consistent across every upload page. */
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--merge-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--merge-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--merge-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--merge-pdf .tool-name-sticker {
   --popular-card-a: #7065f2;
   --popular-card-b: #4338ca;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--compress-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--compress-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--compress-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--compress-pdf .tool-name-sticker {
   --popular-card-a: #10b981;
   --popular-card-b: #047857;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--split-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--split-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--split-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--split-pdf .tool-name-sticker {
   --popular-card-a: #38bdf8;
   --popular-card-b: #2563eb;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--pdf-to-word,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--pdf-to-word .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--pdf-to-word,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--pdf-to-word .tool-name-sticker {
   --popular-card-a: #f59e0b;
   --popular-card-b: #ea580c;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--pdf-to-jpg,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--pdf-to-jpg .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--pdf-to-jpg,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--pdf-to-jpg .tool-name-sticker {
   --popular-card-a: #fb7185;
   --popular-card-b: #e11d48;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--word-to-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--word-to-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--word-to-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--word-to-pdf .tool-name-sticker {
   --popular-card-a: #a78bfa;
   --popular-card-b: #7c3aed;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--rotate-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--rotate-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--rotate-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--rotate-pdf .tool-name-sticker {
   --popular-card-a: #0f766e;
   --popular-card-b: #0d9488;
 }
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--organize-pdf,
-.ilpdf-branded-upload .popular-tools .popular-card.popular-card--organize-pdf .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--organize-pdf,
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card.popular-card--organize-pdf .tool-name-sticker {
   --popular-card-a: #be123c;
   --popular-card-b: #9f1239;
 }
-.ilpdf-branded-upload .popular-tools .popular-card[class*="popular-card--"] {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card[class*="popular-card--"] {
   background: linear-gradient(135deg, var(--popular-card-a, #7065f2), var(--popular-card-b, #4338ca)) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card[class*="popular-card--"] .tool-name-sticker {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card[class*="popular-card--"] .tool-name-sticker {
   background: linear-gradient(145deg, var(--popular-card-a, #7065f2), var(--popular-card-b, #4338ca)) !important;
 }
-.ilpdf-branded-upload .popular-tools .popular-card:focus-visible {
+:is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:focus-visible {
   outline: 3px solid #312e81 !important;
   outline-offset: 4px !important;
   box-shadow: 0 0 0 5px rgba(99, 102, 241, .18), 0 10px 24px rgba(37, 45, 70, .14) !important;
   z-index: 1;
 }
 @media (prefers-reduced-motion: reduce) {
-  .ilpdf-branded-upload .popular-tools .popular-card,
-  .ilpdf-branded-upload .popular-tools .popular-card .tool-name-sticker,
-  .ilpdf-branded-upload .popular-tools .popular-card .popular-card-arrow {
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card,
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card .tool-name-sticker,
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card .popular-card-arrow {
     transition: none !important;
     animation: none !important;
   }
-  .ilpdf-branded-upload .popular-tools .popular-card:hover {
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:hover {
     transform: none !important;
   }
-  .ilpdf-branded-upload .popular-tools .popular-card:hover .tool-name-sticker,
-  .ilpdf-branded-upload .popular-tools .popular-card:hover .popular-card-arrow {
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:hover .tool-name-sticker,
+  :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card:hover .popular-card-arrow {
     transform: none !important;
   }
 }
