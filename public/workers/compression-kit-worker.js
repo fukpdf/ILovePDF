@@ -2,7 +2,7 @@ import { compressLosslessly } from "/js/compression-kit.js";
 
 self.addEventListener("message", async (event) => {
   const message = event.data || {};
-  if (message.type !== "compress" || !Number.isInteger(message.id)) return;
+  if (message.type !== "compress" || !(Number.isInteger(message.id) || (typeof message.id === "string" && message.id.length > 0))) return;
   const id = message.id;
   try {
     if (!(message.buffer instanceof ArrayBuffer) || message.buffer.byteLength === 0) {
