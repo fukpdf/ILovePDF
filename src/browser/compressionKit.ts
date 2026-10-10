@@ -1,11 +1,19 @@
-import { loadWasmTool, runJsonTool, runTool, type WasmLocate } from "./wasmCli";
+import { compressInBrowser, type ImageReport } from "./browserCompressor";
+import { compressDeep, wasmMemoryAllowed, type DeepResult } from "./deepEngine";
+import { DEFAULT_WASM_LOCATE, loadWasmTool, runJsonTool, runTool, type EmModule, type WasmLocate, type WasmTools } from "./wasmCli";
 import {
   assertCompressionEligible,
   assertDocumentStructureUnchanged,
   assertPageContentStreamsUnchanged,
+  assertProtectedStreamsUnchanged,
   hashPageContentStreams,
+  hashProtectedStreams,
   selectPageContentObjects,
+  selectProtectedStreamObjects,
 } from "./pdfContentIntegrity";
+import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
+import type { GateReport } from "../shared/quality";
+import type { Mode } from "../shared/policy";
 
 export type CompressionMode = "deep" | "custom";
 export type CompressionStage = "loading-engine" | "structural-pass" | "validating" | "complete";
@@ -16,11 +24,12 @@ export interface CompressionKitOptions {
   qpdfWasmUrl?: string;
   ghostscriptWasmUrl?: string;
   onProgress?: (stage: CompressionStage, message: string) => void;
+  signal?: AbortSignal;
 }
 
 export interface CompressionKitReport {
   mode: CompressionMode;
-  method: "qpdf-lossless-structure" | "original-preserved";
+  method: "qpdf-lossless-structure" | "browser-rgb-image" | "ghostscript-quality-gated" | "original-preserved";
   originalBytes: number;
   outputBytes: number;
   savedBytes: number;
@@ -29,6 +38,10 @@ export interface CompressionKitReport {
   targetReached: boolean | null;
   contentStreamsVerified: boolean;
   message: string;
+  engine?: "light" | "qpdf" | "ghostscript" | "original";
+  warnings?: string[];
+  images?: ImageReport[];
+  qualityGate?: GateReport;
 }
 
 export interface CompressionKitResult {
@@ -36,72 +49,91 @@ export interface CompressionKitResult {
   report: CompressionKitReport;
 }
 
-const hasToken = (bytes: Uint8Array, token: string): boolean => {
-  outer: for (let i = 0; i <= bytes.length - token.length; i++) {
-    for (let j = 0; j < token.length; j++) {
-      if (bytes[i + j] !== token.charCodeAt(j)) continue outer;
-    }
-    return true;
-  }
-  return false;
-};
-
 function resultForOriginal(
-  original: Uint8Array,
-  mode: CompressionMode,
-  targetBytes: number | null,
-  message: string,
-  contentStreamsVerified = false,
+  original: Uint8Array, mode: CompressionMode, targetBytes: number | null, message: string,
+  warnings: string[] = [], contentStreamsVerified = false, images: ImageReport[] = [],
 ): CompressionKitResult {
   return {
     bytes: original.slice(),
     report: {
-      mode,
-      method: "original-preserved",
-      originalBytes: original.byteLength,
-      outputBytes: original.byteLength,
-      savedBytes: 0,
-      savedPercent: 0,
-      targetBytes,
+      mode, method: "original-preserved", originalBytes: original.byteLength, outputBytes: original.byteLength,
+      savedBytes: 0, savedPercent: 0, targetBytes,
       targetReached: targetBytes === null ? null : original.byteLength <= targetBytes,
-      contentStreamsVerified,
-      message,
+      contentStreamsVerified, message, engine: "original", warnings: [...warnings], images,
     },
   };
 }
 
 async function inspectJson(
-  input: Uint8Array,
-  wasm: { qpdf: Awaited<ReturnType<typeof loadWasmTool>> },
-  selectors: string[],
-  withStreamData: boolean,
+  input: Uint8Array, qpdf: EmModule, selectors: string[], withStreamData: boolean,
+  decodeLevel: "all" | "none" = withStreamData ? "all" : "none",
 ): Promise<string> {
-  const inputPath = "/input.pdf";
-  const outputPath = "/inspection.json";
+  const inputPath = "/input.pdf", outputPath = "/inspection.json";
   const args = [
     "--json",
     withStreamData ? "--json-stream-data=inline" : "--json-stream-data=none",
-    withStreamData ? "--decode-level=all" : "--decode-level=none",
+    `--decode-level=${decodeLevel}`,
     ...selectors.map(selector => `--json-object=${selector}`),
-    inputPath,
-    outputPath,
+    inputPath, outputPath,
   ];
-  return runJsonTool({
-    engine: "qpdf",
-    input,
-    args,
-    inputPath,
-    outputPath,
-    tools: { qpdf: wasm.qpdf },
-  }).json;
+  return runJsonTool({ engine: "qpdf", input, args, inputPath, outputPath, tools: { qpdf } }).json;
+}
+
+async function hashProtectedInBatches(input: Uint8Array, qpdf: EmModule, refs: string[]): Promise<Record<string, string>> {
+  const hashes: Record<string, string> = {};
+  for (let i = 0; i < refs.length; i += 48) {
+    const batch = refs.slice(i, i + 48);
+    const json = await inspectJson(input, qpdf, batch, true, "none");
+    Object.assign(hashes, await hashProtectedStreams(json, crypto.subtle, batch));
+  }
+  return hashes;
+}
+
+interface Baseline {
+  discovery: string;
+  pageRefs: string[];
+  protectedRefs: string[];
+  pageHashes: Awaited<ReturnType<typeof hashPageContentStreams>>;
+  protectedHashes: Record<string, string>;
+}
+async function createBaseline(original: Uint8Array, qpdf: EmModule): Promise<Baseline> {
+  const discovery = await inspectJson(original, qpdf, [], false);
+  assertCompressionEligible(discovery);
+  const pageRefs = selectPageContentObjects(discovery);
+  const protectedRefs = selectProtectedStreamObjects(discovery);
+  const pageJson = await inspectJson(original, qpdf, pageRefs, true, "all");
+  const pageHashes = await hashPageContentStreams(pageJson);
+  const protectedHashes = await hashProtectedInBatches(original, qpdf, protectedRefs);
+  return { discovery, pageRefs, protectedRefs, pageHashes, protectedHashes };
+}
+
+async function certifyCandidate(
+  original: Uint8Array, candidate: Uint8Array, qpdf: EmModule, baseline: Baseline,
+  allowRgbImageChanges: boolean,
+): Promise<void> {
+  if (candidate.byteLength >= original.byteLength) throw new Error("candidate.byteLength >= original.byteLength; larger/equal output is not accepted");
+  if (!startsWithPdf(candidate) || !endsWithPdfEof(candidate)) throw new Error("candidate PDF signature/EOF validation failed");
+  const outputDiscovery = await inspectJson(candidate, qpdf, [], false);
+  assertCompressionEligible(outputDiscovery);
+  if (allowRgbImageChanges) assertDocumentStructureUnchanged(baseline.discovery, outputDiscovery, true);
+  else assertDocumentStructureUnchanged(baseline.discovery, outputDiscovery);
+  const outputPageRefs = selectPageContentObjects(outputDiscovery);
+  const outputPageJson = await inspectJson(candidate, qpdf, outputPageRefs, true, "all");
+  const after = await hashPageContentStreams(outputPageJson);
+  assertPageContentStreamsUnchanged(baseline.pageHashes, after);
+  const outputProtectedRefs = selectProtectedStreamObjects(outputDiscovery);
+  if (JSON.stringify(baseline.protectedRefs) !== JSON.stringify(outputProtectedRefs)) {
+    throw new Error("Protected stream object set changed.");
+  }
+  const outputProtectedHashes = await hashProtectedInBatches(candidate, qpdf, outputProtectedRefs);
+  assertProtectedStreamsUnchanged(baseline.protectedHashes, outputProtectedHashes);
 }
 
 /**
- * Conservative, lossless structural compression for browser execution.
- * This pass never downsamples or re-encodes image streams. QPDF is explicitly
- * told to preserve all stream payloads and only compact indirect objects into
- * object streams. A smaller candidate is accepted only after SHA-256 equality
- * of every decoded page-content stream has been proved on input and output.
+ * The UI still submits its original Deep/Custom mode names. The adapter maps
+ * Deep to the kit's recommended policy while preserving the public result/report
+ * fields. Light processing runs first without downloading WASM. WASM is loaded
+ * only when the light engine cannot safely finish or the target is still unmet.
  */
 export async function compressLosslessly(
   source: Uint8Array,
@@ -110,112 +142,133 @@ export async function compressLosslessly(
   const original = source.slice();
   const targetBytes = options.mode === "custom" &&
       Number.isSafeInteger(options.targetBytes) && (options.targetBytes ?? 0) > 0
-    ? options.targetBytes as number
-    : null;
+    ? options.targetBytes as number : null;
 
-  if (original.byteLength < 5 || ![0x25, 0x50, 0x44, 0x46, 0x2d].every((v, i) => original[i] === v)) {
-    return resultForOriginal(original, options.mode, targetBytes, "Input is not a valid PDF header; original bytes were preserved.");
+  if (!startsWithPdf(original) || !endsWithPdfEof(original)) {
+    return resultForOriginal(original, options.mode, targetBytes, "Input is not a complete PDF; original bytes were preserved.");
   }
   if (options.mode === "custom" && targetBytes === null) {
     return resultForOriginal(original, options.mode, null, "Custom target is invalid; original bytes were preserved.");
   }
+  if (targetBytes !== null && original.byteLength <= targetBytes) {
+    return resultForOriginal(original, options.mode, targetBytes, "The original PDF already meets the requested target size.");
+  }
 
-  const sensitive = [
-    ["/ByteRange", "Digitally signed PDFs are not modified."],
-    ["/Encrypt", "Encrypted PDFs are not modified."],
-    ["/XFA", "XFA PDFs are not modified."],
-    ["/Perms", "Permission-controlled PDFs are not modified until signature restrictions are verified."],
-  ].find(([token]) => hasToken(original, token));
-  if (sensitive) return resultForOriginal(original, options.mode, targetBytes, sensitive[1]);
-
+  const engineMode: Mode = options.mode === "custom" ? "custom" : "recommended";
   const locate: WasmLocate = {
-    qpdfWasmUrl: options.qpdfWasmUrl ?? "/vendor/compression/qpdf.wasm",
-    ghostscriptWasmUrl: options.ghostscriptWasmUrl ?? "/vendor/compression/gs.wasm",
+    qpdfWasmUrl: options.qpdfWasmUrl ?? DEFAULT_WASM_LOCATE.qpdfWasmUrl,
+    ghostscriptWasmUrl: options.ghostscriptWasmUrl ?? DEFAULT_WASM_LOCATE.ghostscriptWasmUrl,
   };
+  const light = await compressInBrowser(original, {
+    mode: engineMode,
+    targetKB: targetBytes === null ? undefined : targetBytes / 1024,
+    signal: options.signal,
+    onProgress(percent, text) {
+      options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text);
+    },
+  });
+  const lightCandidate = light.ok && light.bytes.byteLength < original.byteLength ? light.bytes.slice() : null;
+  let best = lightCandidate ?? original;
+  let method: CompressionKitReport["method"] = lightCandidate ? "browser-rgb-image" : "original-preserved";
+  let engine: NonNullable<CompressionKitReport["engine"]> = lightCandidate ? "light" : "original";
+  let contentStreamsVerified = !!lightCandidate;
+  let qualityGate: GateReport | undefined;
+  const warnings = [...light.warnings, ...light.errors];
+  let images = light.images;
+
+  // Never attempt any engine on a signed, encrypted, XFA or permission-controlled document.
+  if (!light.needsDeep && light.keptOriginal && warnings.some(w => /signed PDF|encrypted PDF|XFA PDF|Signature or permission-controlled/i.test(w))) {
+    const message = warnings[warnings.length - 1] ?? "Sensitive PDF detected; original preserved.";
+    options.onProgress?.("complete", message);
+    return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
+  }
+
+  const needsDeep = light.needsDeep || !lightCandidate || (targetBytes !== null && lightCandidate.byteLength > targetBytes);
+  if (!needsDeep) {
+    const savedBytes = original.byteLength - best.byteLength;
+    const savedPercent = Math.round(savedBytes / original.byteLength * 1000) / 10;
+    const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
+    const message = `Browser image compression reduced the file by ${savedPercent}%. Non-image streams and decoded page-content SHA-256 hashes were preserved.`;
+    options.onProgress?.("complete", message);
+    return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
+      savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images } };
+  }
+
+  const memory = wasmMemoryAllowed(original.byteLength);
+  if (!memory.allowed) {
+    const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
+    const message = `Deep engine skipped due to memory safety (${memory.reason}). ${targetReached === false ? "The custom target is unreachable without exceeding the safe memory limit; best validated output preserved." : "Best validated output preserved."}`;
+    options.onProgress?.("complete", message);
+    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, [...warnings, memory.reason ?? ""], false, images);
+    return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
+      savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
+      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings: [...warnings, memory.reason ?? ""], images } };
+  }
 
   try {
     options.onProgress?.("loading-engine", "Loading the local QPDF WebAssembly engine…");
     const qpdf = await loadWasmTool("qpdf", locate);
-    const tools = { qpdf };
+    options.onProgress?.("validating", "Creating SHA-256 baseline for page content and protected PDF streams…");
+    const baseline = await createBaseline(original, qpdf);
 
-    options.onProgress?.("validating", "Checking PDF structure before compression…");
-    const sourceDiscovery = await inspectJson(original, { qpdf }, [], false);
-    assertCompressionEligible(sourceDiscovery);
-    const sourceSelectors = selectPageContentObjects(sourceDiscovery);
-
-    options.onProgress?.("structural-pass", "Applying lossless PDF object-stream compression…");
-    const inputPath = "/input.pdf";
-    const outputPath = "/output.pdf";
-    const compressed = runTool({
-      engine: "qpdf",
-      input: original,
-      inputPath,
-      outputPath,
-      args: [
-        "--stream-data=preserve",
-        "--object-streams=generate",
-        "--compression-level=9",
-        inputPath,
-        outputPath,
-      ],
+    options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…");
+    const qpdfOnly = /AcroForm|interactive form/i.test(light.deepReason ?? "") || (options.mode === "custom" && targetBytes !== null);
+    let tools: Partial<WasmTools> = { qpdf };
+    if (!qpdfOnly) {
+      options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…");
+      const ghostscript = await loadWasmTool("ghostscript", locate);
+      tools = { qpdf, ghostscript };
+    }
+    const deep: DeepResult = await compressDeep(original, {
+      mode: engineMode,
+      targetKB: targetBytes === null ? undefined : targetBytes / 1024,
       tools,
-    });
-    const candidate = compressed.output;
-    if (candidate.byteLength >= original.byteLength) {
-      options.onProgress?.("complete", "The original PDF is already as small as the lossless structural pass can make it.");
-      return resultForOriginal(
-        original,
-        options.mode,
-        targetBytes,
-        "Lossless structural compression did not reduce the file. The original PDF was preserved.",
-      );
-    }
-
-    options.onProgress?.("validating", "Verifying decoded page-content streams with SHA-256…");
-    const inputJson = await inspectJson(original, { qpdf }, sourceSelectors, true);
-    const outputDiscovery = await inspectJson(candidate, { qpdf }, [], false);
-    assertCompressionEligible(outputDiscovery);
-    assertDocumentStructureUnchanged(sourceDiscovery, outputDiscovery);
-    const outputSelectors = selectPageContentObjects(outputDiscovery);
-    const outputJson = await inspectJson(candidate, { qpdf }, outputSelectors, true);
-    const before = await hashPageContentStreams(inputJson);
-    const after = await hashPageContentStreams(outputJson);
-    assertPageContentStreamsUnchanged(before, after);
-
-    if (candidate.byteLength > original.byteLength) {
-      return resultForOriginal(original, options.mode, targetBytes, "The candidate was larger than the source; original preserved.", true);
-    }
-
-    const savedBytes = original.byteLength - candidate.byteLength;
-    const savedPercent = Math.round((savedBytes / original.byteLength) * 1000) / 10;
-    const targetReached = targetBytes === null ? null : candidate.byteLength <= targetBytes;
-    const message = targetBytes !== null && !targetReached
-      ? `Content was preserved and the file was reduced by ${savedPercent}%, but the requested target was unreachable with lossless structural compression. The target was not forced by degrading content.`
-      : `Lossless structural compression reduced the file by ${savedPercent}%. Decoded page-content streams were verified with SHA-256.`;
-    options.onProgress?.("complete", message);
-    return {
-      bytes: candidate,
-      report: {
-        mode: options.mode,
-        method: "qpdf-lossless-structure",
-        originalBytes: original.byteLength,
-        outputBytes: candidate.byteLength,
-        savedBytes,
-        savedPercent,
-        targetBytes,
-        targetReached,
-        contentStreamsVerified: true,
-        message,
+      signal: options.signal,
+      onProgress(percent, text) {
+        options.onProgress?.(percent >= 95 ? "complete" : percent >= 80 ? "validating" : "structural-pass", text);
       },
-    };
+    });
+    warnings.push(...deep.warnings);
+    const candidates: Array<{ bytes: Uint8Array; route: "qpdf-wasm" | "ghostscript-wasm"; gate?: GateReport }> = [];
+    if (deep.ok && deep.gatePassed && deep.route !== "unchanged") candidates.push({ bytes: deep.bytes, route: deep.route, gate: deep.gate });
+    if (deep.fallbackBytes && deep.fallbackBytes.byteLength < original.byteLength) candidates.push({ bytes: deep.fallbackBytes, route: "qpdf-wasm" });
+    for (const candidate of candidates) {
+      if (candidate.bytes.byteLength >= best.byteLength) continue;
+      try {
+        options.onProgress?.("validating", `Verifying ${candidate.route} output structure and protected streams…`);
+        await certifyCandidate(original, candidate.bytes, qpdf, baseline, candidate.route === "ghostscript-wasm");
+        best = candidate.bytes.slice();
+        method = candidate.route === "ghostscript-wasm" ? "ghostscript-quality-gated" : "qpdf-lossless-structure";
+        engine = candidate.route === "ghostscript-wasm" ? "ghostscript" : "qpdf";
+        contentStreamsVerified = true;
+        qualityGate = candidate.gate;
+      } catch (error) {
+        warnings.push(`${candidate.route} candidate rejected by the integrity gate: ${error instanceof Error ? error.message : "validation failed"}`);
+      }
+    }
+
+    const savedBytes = original.byteLength - best.byteLength;
+    const savedPercent = Math.round(savedBytes / original.byteLength * 1000) / 10;
+    const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
+    let message = best.byteLength < original.byteLength
+      ? `Compression reduced the file by ${savedPercent}%. Page-content SHA-256 and protected stream/object checks passed.`
+      : "No smaller candidate passed the integrity and quality gates; original PDF preserved.";
+    if (targetBytes !== null && !targetReached) {
+      message += ` Requested target ${(targetBytes / 1024).toFixed(0)} KB is unreachable without violating the ${engineMode === "custom" ? "150 DPI floor, preservation checks or quality gate" : "preservation checks or quality gate"}; best safe output delivered.`;
+    }
+    options.onProgress?.("complete", message);
+    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
+    return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
+      savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "validation failed";
-    options.onProgress?.("complete", "Validation did not pass; original PDF preserved.");
-    return resultForOriginal(
-      original,
-      options.mode,
-      targetBytes,
-      `Safe compression was skipped because validation could not be completed (${reason}). The original PDF was preserved unchanged.`,
-    );
+    warnings.push(reason);
+    const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
+    const message = `Deep compression could not be certified (${reason}). ${targetReached === false ? "Custom target is unreachable with the remaining safe options." : "The best validated result is preserved."}`;
+    options.onProgress?.("complete", message);
+    if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
+    return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
+      savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
+      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images } };
   }
 }
