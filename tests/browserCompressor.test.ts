@@ -42,7 +42,7 @@ function streamBytes(doc: PDFDocument, key: string): Uint8Array {
   return found.stream.contents;
 }
 async function forceFlateTextStream(bytes: Uint8Array): Promise<Uint8Array> {
-  const doc=await PDFDocument.load(bytes,{updateMetadata:false}),page=doc.getPage(0),contents=page.node.Contents();
+  const doc=await PDFDocument.load(bytes),page=doc.getPage(0),contents=page.node.Contents();
   const first=contents instanceof PDFArray?contents.get(0):contents;
   assert.ok(first instanceof PDFRef);
   const stream=doc.context.lookup(first);
@@ -53,7 +53,7 @@ async function forceFlateTextStream(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
 }
 async function decodedPageHashes(bytes: Uint8Array): Promise<string[]> {
-  const doc=await PDFDocument.load(bytes,{updateMetadata:false}), page=doc.getPage(0), contents=page.node.Contents();
+  const doc=await PDFDocument.load(bytes), page=doc.getPage(0), contents=page.node.Contents();
   const refs=contents instanceof PDFArray?Array.from({length:contents.size()},(_,i)=>contents.get(i)):contents?[contents]:[];
   return refs.map(item=>{
     const obj=item instanceof PDFRef?doc.context.lookup(item):item;
@@ -90,7 +90,7 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
     assert.ok((changed!.newWidth! / (180/72)) >= 149,"placed image horizontal resolution must not fall below the 150 DPI floor");
     assert.ok((changed!.newHeight! / (100/72)) >= 149,"placed image vertical resolution must not fall below the 150 DPI floor");
   }
-  const afterDoc=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const afterDoc=await PDFDocument.load(result.bytes);
   const afterImage=imageStreams(afterDoc).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()==="/DeviceRGB");
   assert.ok(afterImage);
   assert.ok(jpegQuantizationNoFiner(jpg,afterImage!.stream.contents),
@@ -105,12 +105,12 @@ test("dedupe requires exact image dictionary and bytes and redirects references 
   page.drawImage(first,{x:30,y:300,width:120,height:60});
   page.drawImage(second,{x:250,y:300,width:180,height:90});
   const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
-  const before=await PDFDocument.load(input,{updateMetadata:false});
+  const before=await PDFDocument.load(input);
   assert.ok(imageStreams(before).length>=2,"fixture must contain two distinct image objects");
   const result=await compressInBrowser(input,{mode:"recommended"});
   assert.ok(result.bytes.length<input.length,"duplicate image elimination should reduce this fixture");
   assert.ok(result.images.some(image=>image.action==="deduplicated"),"dedupe should be visible in the report");
-  const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const after=await PDFDocument.load(result.bytes);
   assert.equal(imageStreams(after).length,1,"unreferenced duplicate object should be removed");
   assert.deepEqual(await decodedPageHashes(result.bytes),await decodedPageHashes(input));
 });
@@ -118,11 +118,11 @@ test("dedupe requires exact image dictionary and bytes and redirects references 
 test("real grayscale and CMYK JPEG streams are not re-encoded by the light engine",async()=>{
   for(const [b64,colorSpace] of [[GRAY_JPEG_B64,"/DeviceGray"],[CMYK_JPEG_B64,"/DeviceCMYK"]] as const){
     const input=await makePdfWithJpeg(Buffer.from(b64,"base64"),[{x:30,y:300,width:120,height:60}]);
-    const before=await PDFDocument.load(input,{updateMetadata:false}),beforeImage=imageStreams(before).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
+    const before=await PDFDocument.load(input),beforeImage=imageStreams(before).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
     assert.ok(beforeImage,`fixture must be a valid ${colorSpace} JPEG`);
     const result=await compressInBrowser(input,{mode:"extreme"});
     assert.ok(result.bytes.length<=input.length);
-    const after=await PDFDocument.load(result.bytes,{updateMetadata:false}),afterImage=imageStreams(after).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
+    const after=await PDFDocument.load(result.bytes),afterImage=imageStreams(after).find(x=>x.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString()===colorSpace);
     assert.ok(afterImage);
     assert.deepEqual(Array.from(afterImage!.stream.contents),Array.from(beforeImage!.stream.contents),`${colorSpace} JPEG bytes must remain identical`);
     assert.equal(afterImage!.stream.dict.lookup(PDFName.of("ColorSpace"))?.toString(),colorSpace);
@@ -134,24 +134,24 @@ test("SMask image streams are left untouched",async()=>{
   const image=await doc.embedPng(Buffer.from(ALPHA_PNG_B64,"base64"));
   page.drawImage(image,{x:40,y:300,width:64,height:64});
   const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
-  const before=await PDFDocument.load(input,{updateMetadata:false});
+  const before=await PDFDocument.load(input);
   const masked=imageStreams(before).find(x=>x.stream.dict.has(PDFName.of("SMask")));
   assert.ok(masked,"transparent PNG should produce a PDF soft mask");
   const result=await compressInBrowser(input,{mode:"recommended"});
-  const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const after=await PDFDocument.load(result.bytes);
   const maskedAfter=imageStreams(after).find(x=>x.stream.dict.has(PDFName.of("SMask")));
   assert.ok(maskedAfter);
   assert.deepEqual(Array.from(maskedAfter!.stream.contents),Array.from(masked!.stream.contents));
 });
 
 test("1-bit CCITT Group 4 scans are never resampled or re-encoded",async()=>{
-  const input=await makeCcittPdf(),before=await PDFDocument.load(input,{updateMetadata:false});
+  const input=await makeCcittPdf(),before=await PDFDocument.load(input);
   const imageBefore=imageStreams(before).find(x=>x.stream.dict.lookup(PDFName.of("Filter"))?.toString()==="/CCITTFaxDecode");
   assert.ok(imageBefore);
   assert.equal(imageBefore!.stream.dict.lookup(PDFName.of("BitsPerComponent"))?.toString(),"1");
   const result=await compressInBrowser(input,{mode:"extreme"});
   assert.ok(result.bytes.length<=input.length);
-  const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const after=await PDFDocument.load(result.bytes);
   const imageAfter=imageStreams(after).find(x=>x.stream.dict.lookup(PDFName.of("Filter"))?.toString()==="/CCITTFaxDecode");
   assert.ok(imageAfter);
   assert.deepEqual(Array.from(imageAfter!.stream.contents),Array.from(imageBefore!.stream.contents));
@@ -172,7 +172,7 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   page.node.set(PDFName.of("Annots"),doc.context.obj([annotation]) as PDFArray);
   const initial=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
   const input=await forceFlateTextStream(initial);
-  const beforeDoc=await PDFDocument.load(input,{updateMetadata:false});
+  const beforeDoc=await PDFDocument.load(input);
   const contentValue=beforeDoc.getPage(0).node.Contents();
   const contentRef=contentValue instanceof PDFArray?contentValue.get(0):contentValue;
   assert.ok(contentRef instanceof PDFRef);
@@ -183,7 +183,7 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   const result=await compressInBrowser(input,{mode:"recommended"});
   assert.ok(result.bytes.length<=input.length);
   assert.deepEqual(await decodedPageHashes(result.bytes),beforeHashes);
-  const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const after=await PDFDocument.load(result.bytes);
   assert.equal(after.getPageCount(),1);
   assert.ok(after.getPage(0).node.Contents());
   assert.equal(after.getPage(0).node.Annots()?.size(),1,"link annotation must remain intact");
