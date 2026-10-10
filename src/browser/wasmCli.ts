@@ -78,7 +78,7 @@ async function createEngineModule(engine: WasmEngine, wasmUrl: string, logs: { s
  * Load only the requested engine. Call from a user-triggered compression path
  * so unused WASM binaries are not downloaded/initialized.
  */
-export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<EmModule> {
+export function loadWasmTool(engine: WasmEngine, locate: WasmLocate = DEFAULT_WASM_LOCATE): Promise<EmModule> {
   const existing = cachedModules.get(engine);
   if (existing) return existing;
 
