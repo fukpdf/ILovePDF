@@ -13,6 +13,7 @@ test("published qpdf-wasm package initializes its real WASM runtime", async () =
   assert.equal(typeof module.callMain, "function");
   assert.equal(typeof module.FS.writeFile, "function");
   assert.equal(typeof module.FS.readFile, "function");
+  assert.equal(typeof module.FS.unlink, "function");
 });
 
 test("published Ghostscript-WASM package initializes its real WASM runtime", async () => {
