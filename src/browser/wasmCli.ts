@@ -64,7 +64,7 @@ async function createEngineModule(engine: WasmEngine, wasmUrl: string, logs: { s
     // declarations expose callMain/FS.readFile; writeFile/unlink are verified
     // at runtime because the Emscripten FS declarations are incomplete.
     const mod = await import("@neslinesli93/qpdf-wasm");
-    const instance = await mod.default({ locateFile: () => wasmUrl });
+    const instance = await mod.default({ locateFile: () => wasmUrl, noInitialRun: true });
     return assertRuntimeFs(instance as unknown as EmModule, engine);
   }
 
