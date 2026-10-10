@@ -66,6 +66,13 @@ function resultForOriginal(
   };
 }
 
+function qpdfJsonSelector(selector: string): string {
+  if (selector === "trailer") return selector;
+  const match = /^obj:(\\d+) (\\d+) R$/.exec(selector);
+  if (!match) throw new Error(`Invalid QPDF JSON object selector: ${selector}`);
+  return `${match[1]},${match[2]}`;
+}
+
 async function inspectJson(
   input: Uint8Array, qpdf: EmModule, selectors: string[], withStreamData: boolean,
   decodeLevel: "all" | "none" = withStreamData ? "all" : "none",
@@ -75,7 +82,7 @@ async function inspectJson(
     "--json",
     withStreamData ? "--json-stream-data=inline" : "--json-stream-data=none",
     `--decode-level=${decodeLevel}`,
-    ...selectors.map(selector => `--json-object=${selector}`),
+    ...selectors.map(selector => `--json-object=${qpdfJsonSelector(selector)}`),
     inputPath, outputPath,
   ];
   return runJsonTool({ engine: "qpdf", input, args, inputPath, outputPath, tools: { qpdf } }).json;
