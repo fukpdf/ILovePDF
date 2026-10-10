@@ -11,6 +11,11 @@ const toolHtml = readFileSync(path.join(root, 'public/tool.html'), 'utf8');
 const worker = readFileSync(path.join(root, 'public/workers/pdf-worker.js'), 'utf8');
 const compressionWorker = readFileSync(path.join(root, 'public/workers/compression-kit-worker.js'), 'utf8');
 const kit = readFileSync(path.join(root, 'src/browser/compressionKit.ts'), 'utf8');
+const browserCompressor = readFileSync(path.join(root, 'src/browser/browserCompressor.ts'), 'utf8');
+const deepEngine = readFileSync(path.join(root, 'src/browser/deepEngine.ts'), 'utf8');
+const browserQualityGate = readFileSync(path.join(root, 'src/browser/browserQualityGate.ts'), 'utf8');
+const gsParams = readFileSync(path.join(root, 'src/shared/gsParams.ts'), 'utf8');
+const viteConfig = readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 const integrity = readFileSync(path.join(root, 'src/browser/pdfContentIntegrity.ts'), 'utf8');
 const wasmCli = readFileSync(path.join(root, 'src/browser/wasmCli.ts'), 'utf8');
 const compressAdapter = readFileSync(path.join(root, 'public/js/compress-worker-adapter.js'), 'utf8');
@@ -23,6 +28,9 @@ const compressEnd = worker.indexOf('\nOPS.repair =', compressStart);
 const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
 
 const checks = [
+  ['light engine only recompresses eligible RGB DCT images and uses a real box filter', browserCompressor.includes('PDFName.of("DCTDecode")') && browserCompressor.includes('PDFName.of("DeviceRGB")') && browserCompressor.includes('SMask') && browserCompressor.includes('PDFName.of("Decode")') && browserCompressor.includes('boxResizeRGBA') && browserCompressor.includes('Math.min(95, quality, sourceQuality)')],
+  ['PDF.js worker URL is configured and visual gate checks text plus sharpness', browserQualityGate.includes('configurePdfJs(pdfWorkerUrl)') && browserQualityGate.includes('pdf.worker.min.mjs?url') && browserQualityGate.includes('textCheck') && browserQualityGate.includes('judgeSample')],
+  ['Custom compression is bounded to four original-based attempts', browserCompressor.includes('const ladder: readonly number[] = [MODE_POLICY[mode].jpegQuality]') && deepEngine.includes('CUSTOM_GS_QFACTOR_LADDER.slice(0, 2)') && deepEngine.includes('run("ghostscript", input, buildGsArgs')],
   ['compression UI invokes the canonical cancellable CompressRuntime', toolPage.includes('window.CompressRuntime.execute(file, {') && toolPage.includes("window.CompressRuntime.cancelActive('user-cancel')")],
   ['canonical CompressWorkerAdapter routes through the verified module worker', compressAdapter.includes("var WORKER_URL = '/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'") && !compressAdapter.includes("window.RuntimeWorkers.dispatch(")],
   ['active UI no longer creates a duplicate uncancellable worker', !toolPage.includes("new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'")],
@@ -37,20 +45,20 @@ const checks = [
   ['parsed catalog AcroForm check runs before PDF.js page processing', toolPage.includes("sourcePdfLib.catalog.get(PDFName.of('AcroForm'))") && toolPage.indexOf("sourcePdfLib.catalog.get(PDFName.of('AcroForm'))") < toolPage.indexOf("srcPdf = await pdfjsLib.getDocument")],
   ['parsed PDF outlines and attachments are preserved unchanged', toolPage.includes('srcPdf.getOutline()') && toolPage.includes('srcPdf.getAttachments()') && toolPage.includes('if (outline || attachments)')],
   ['links and annotations cause a fail-closed no-op', toolPage.includes("page.getAnnotations({ intent: 'display' })") && toolPage.includes('annotations.length > 0') && toolPage.includes('The original is preserved unchanged.')],
-  ['QPDF preflight rejects permission/signature/XFA restrictions and structure changes are separately compared', integrity.includes('const unsafeCatalogKeys = ["/Perms"]') && integrity.includes('const unsafeNestedKeys = ["/ByteRange", "/XFA", "/SigFlags"]') && kit.includes('assertDocumentStructureUnchanged(sourceDiscovery, outputDiscovery)')],
-  ['QPDF preserves all stream payloads and does not recompress images', kit.includes('"--stream-data=preserve"') && kit.includes('"--object-streams=generate"') && !kit.includes('"--recompress-flate"')],
-  ['QPDF candidate is accepted only after decoded content stream validation', kit.includes('hashPageContentStreams(inputJson)') && kit.includes('hashPageContentStreams(outputJson)') && kit.includes('assertPageContentStreamsUnchanged(before, after)')],
+  ['QPDF preflight rejects permission/signature/XFA restrictions and compares all protected structure', integrity.includes('const unsafeCatalogKeys = ["/Perms"]') && integrity.includes('const unsafeNestedKeys = ["/ByteRange", "/XFA", "/SigFlags"]') && kit.includes('assertDocumentStructureUnchanged(baseline.discovery, outputDiscovery)') && kit.includes('assertProtectedStreamsUnchanged')],
+  ['QPDF preserves stream payloads while the deep route forbids lossy mono encoding', deepEngine.includes('"--stream-data=preserve"') && deepEngine.includes('"--object-streams=generate"') && gsParams.includes('-dDownsampleMonoImages=false') && gsParams.includes('/MonoImageDict << /K -1 >>') && !/jbig2/i.test(gsParams) && !kit.includes('"--recompress-flate"')],
+  ['Every deep candidate is accepted only after decoded page-content SHA-256 validation', kit.includes('hashPageContentStreams(pageJson)') && kit.includes('hashPageContentStreams(outputPageJson)') && kit.includes('assertPageContentStreamsUnchanged(baseline.pageHashes, after)')],
   ['decoded page-content streams use SHA-256', integrity.includes('subtle.digest("SHA-256", bytes)')],
   ['un-decodable content streams fail closed', integrity.includes('refusing to certify it')],
   ['page order, page count and ordered stream hashes must match', integrity.includes('before.pageCount !== after.pageCount') && integrity.includes('left.length !== right.length') && integrity.includes('changed decoded page content streams on page')],
-  ['output larger than source is never returned', kit.includes('candidate.byteLength >= original.byteLength') && kit.includes('candidate.byteLength > original.byteLength')],
+  ['output larger than source is never returned', kit.includes('candidate.byteLength >= original.byteLength') && kit.includes('best.byteLength >= original.byteLength') && kit.includes('outputBytes: best.byteLength')],
   ['output PDF signature is checked by UI and WASM adapter', toolPage.includes("outputSignature !== '%PDF-'") && wasmCli.includes('output[4] !== 0x2d')],
   ['QPDF engine and JSON inspection use only in-memory WASM FS', wasmCli.includes('module.FS.writeFile(inputPath, input)') && wasmCli.includes('module.FS.readFile(outputPath)') && !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(wasmCli)],
-  ['worker loads only local same-origin WASM assets', compressionWorker.includes('"/vendor/compression/qpdf.wasm?v=20261010-qpdf-lossless-kit-v1"') && compressionWorker.includes('"/vendor/compression/gs.wasm?v=20261010-qpdf-lossless-kit-v1"')],
+  ['worker resolves WASM binaries through Vite same-origin URL assets', wasmCli.includes('@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url') && wasmCli.includes('@jspawn/ghostscript-wasm/gs.wasm?url') && compressionWorker.includes('"/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v1"')],
   ['Custom target remains mandatory', toolPage.includes('Custom target missing') && toolPage.includes("requestedMode !== 'deep' && requestedMode !== 'custom'")],
   ['root build creates the browser bundle and local WASM assets', readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/js/compression-kit.js') && readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/vendor/compression')],
-  ['browser bundle splits dynamic engine chunks for lazy initialization', buildScript.includes('splitting: true') && buildScript.includes('chunkNames: "compression-chunks/[name]-[hash]"')],
-  ['Node-only builtins are shimmed instead of emitted as bare browser imports', buildScript.includes('node-fs-shim.cjs') && buildScript.includes('node-path-shim.cjs') && !buildScript.includes('external: ["fs", "path", "node:fs", "node:path"]')],
+  ['Vite splits lazy WASM and PDF.js quality-gate chunks', viteConfig.includes('chunkFileNames: "compression-chunks/[name]-[hash].js"') && deepEngine.includes('await import("./browserQualityGate")') && wasmCli.includes('await import("@neslinesli93/qpdf-wasm")')],
+  ['Node-only builtins are shimmed instead of emitted as bare browser imports', viteConfig.includes('node-fs-shim.cjs') && viteConfig.includes('node-path-shim.cjs') && !viteConfig.includes('external: ["fs", "path", "node:fs", "node:path"]')],
   ['browser shims fail closed if Node-only APIs are unexpectedly called', fsShim.includes('Node filesystem APIs are unavailable in the browser compression bundle.') && pathShim.includes('Node path APIs are unavailable in the browser compression bundle.')],
   ['compression runtime does not call network APIs with PDF bytes', !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit + integrity + wasmCli + compressionWorker)],
   ['legacy pdf-worker compression rewrite is disabled', compressBody.includes('Legacy compression route disabled') && !compressBody.includes('PDFDocument.load(')],
