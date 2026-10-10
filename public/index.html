@@ -5,20 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ILovePDF</title>
   <script>
-  /* Temporary bootstrap: inject full index from known-good commit.
-     Asset paths are root-relative (/js/..., /css/...) so they load from this origin. */
+  /* Step-2: assemble full index from zlib+base64 chunks (critical-path script order). */
   (function () {
-    var SRC = 'https://cdn.jsdelivr.net/gh/fukpdf/ILovePDF@4aec4ac78140920bb76559fc630f45d038ed5e77/public/index.html';
-    fetch(SRC, { credentials: 'omit', mode: 'cors' })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-      .then(function (html) {
-        document.open();
-        document.write(html);
-        document.close();
-      })
-      .catch(function (err) {
-        document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Homepage restore failed. Please replace <code>public/index.html</code> from commit 4aec4ac. (' + err + ')</p>';
+    var PARTS = [
+      '/index-chunks/z0.b64',
+      '/index-chunks/z1.b64',
+      '/index-chunks/z2.b64',
+      '/index-chunks/z3.b64'
+    ];
+    function fail(err) {
+      document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Homepage load failed. (' + err + ')</p>';
+    }
+    Promise.all(PARTS.map(function (u) {
+      return fetch(u, { credentials: 'same-origin' }).then(function (r) {
+        if (!r.ok) throw new Error(u + ' HTTP ' + r.status);
+        return r.text();
       });
+    })).then(function (parts) {
+      var b64 = parts.join('').replace(/\s+/g, '');
+      var bin = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+      if (typeof DecompressionStream === 'function') {
+        var stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate'));
+        return new Response(stream).text();
+      }
+      throw new Error('DecompressionStream not supported');
+    }).then(function (html) {
+      document.open();
+      document.write(html);
+      document.close();
+    }).catch(fail);
   })();
   </script>
 </head>
