@@ -136,14 +136,11 @@ function dedupeImages(doc: PDFDocument, report: ImageReport[]): void {
       const stream = doc.context.lookup(value);
       if (!(stream instanceof PDFRawStream) || !isImage(stream)) continue;
       const dict = stream.dict, bytes = stream.contents;
-      const signature = [
-        dict.get(PDFName.of("ColorSpace"))?.toString(), dict.get(PDFName.of("Decode"))?.toString(),
-        dict.get(PDFName.of("Filter"))?.toString(), dict.get(PDFName.of("SMask"))?.toString(),
-        dict.get(PDFName.of("Mask"))?.toString(), dict.get(PDFName.of("DecodeParms"))?.toString(),
-        dict.get(PDFName.of("Width"))?.toString(), dict.get(PDFName.of("Height"))?.toString(),
-        dict.get(PDFName.of("BitsPerComponent"))?.toString(), dict.get(PDFName.of("ImageMask"))?.toString(),
-        bytes.length, fnv(bytes),
-      ].join("|");
+      const dictionarySignature = dict.entries()
+        .map(([dictKey, value]) => [dictKey.toString(), value.toString()] as const)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([dictKey, value]) => `${dictKey}:${value}`).join("|");
+      const signature = [dictionarySignature, bytes.length, fnv(bytes)].join("|");
       const hit = canonical.get(signature);
       if (hit && hit.ref.tag !== value.tag && sameBytes(hit.bytes, bytes)) {
         xObjects.set(key, hit.ref);
