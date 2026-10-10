@@ -6658,8 +6658,8 @@ i[data-lucide] {
 }
 
 :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card {
-  min-height: 64px;
-  padding: 7px;
+  min-height: 92px;
+  padding: 10px;
   gap: 0;
   border: 0;
   border-radius: 16px;
@@ -6695,8 +6695,8 @@ i[data-lucide] {
 
 :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-card-name {
   width: 100%;
-  min-height: 50px;
-  padding: 7px 11px;
+  min-height: 70px;
+  padding: 9px 14px;
   display: flex;
   align-items: center;
   gap: 13px;
