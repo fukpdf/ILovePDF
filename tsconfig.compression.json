@@ -23,6 +23,15 @@
     "tests/wasmCli.test.ts",
     "tests/wasmPackages.smoke.test.ts",
     "tests/pdfContentIntegrity.test.ts",
-    "tests/compressionKit.integration.test.ts"
+    "tests/compressionKit.integration.test.ts",
+    "src/shared/policy.ts",
+    "src/shared/bytes.ts",
+    "src/shared/jpeg.ts",
+    "src/shared/imageMath.ts",
+    "src/shared/placements.ts",
+    "src/shared/quality.ts",
+    "src/shared/gsParams.ts",
+    "tests/shared.test.ts",
+    "tests/quality.test.ts"
   ]
 }
