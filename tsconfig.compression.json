@@ -32,6 +32,11 @@
     "src/shared/quality.ts",
     "src/shared/gsParams.ts",
     "tests/shared.test.ts",
-    "tests/quality.test.ts"
+    "tests/quality.test.ts",
+    "src/browser/browserCompressor.ts",
+    "src/browser/browserQualityGate.ts",
+    "src/browser/deepEngine.ts",
+    "src/browser/assets.d.ts",
+    "src/router/smartRouter.ts"
   ]
 }
