@@ -2,10 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0;url=https://cdn.jsdelivr.net/gh/fukpdf/ILovePDF@4aec4ac78140920bb76559fc630f45d038ed5e77/public/index.html">
-  <title>ILovePDF — loading…</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ILovePDF</title>
+  <script>
+  /* Temporary bootstrap: inject full index from known-good commit.
+     Asset paths are root-relative (/js/..., /css/...) so they load from this origin. */
+  (function () {
+    var SRC = 'https://cdn.jsdelivr.net/gh/fukpdf/ILovePDF@4aec4ac78140920bb76559fc630f45d038ed5e77/public/index.html';
+    fetch(SRC, { credentials: 'omit', mode: 'cors' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(function (html) {
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(function (err) {
+        document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Homepage restore failed. Please replace <code>public/index.html</code> from commit 4aec4ac. (' + err + ')</p>';
+      });
+  })();
+  </script>
 </head>
 <body>
-  <p>Restoring homepage… If you are not redirected, <a href="https://cdn.jsdelivr.net/gh/fukpdf/ILovePDF@4aec4ac78140920bb76559fc630f45d038ed5e77/public/index.html">open here</a>.</p>
+  <p style="font-family:system-ui;padding:2rem;color:#666">Loading ILovePDF…</p>
 </body>
 </html>
