@@ -42,9 +42,11 @@ jobs:
       - name: Typecheck WASM adapter against published package APIs
         shell: bash
         run: |
-          mkdir -p /tmp/wasm-adapter-check/src/browser
+          mkdir -p /tmp/wasm-adapter-check/src/browser /tmp/wasm-adapter-check/tests
           cp src/browser/wasmCli.ts src/browser/wasm-modules.d.ts /tmp/wasm-adapter-check/src/browser/
+          cp tests/wasmCli.test.ts /tmp/wasm-adapter-check/tests/
           cd /tmp/wasm-adapter-check
           npm init -y
-          npm install --no-save --no-package-lock --no-audit --no-fund typescript@5.6.3 @jspawn/ghostscript-wasm@0.0.2 @neslinesli93/qpdf-wasm@0.3.0
-          npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler src/browser/wasmCli.ts src/browser/wasm-modules.d.ts
+          npm install --no-save --no-package-lock --no-audit --no-fund typescript@5.6.3 tsx@4.19.2 @types/node@22.20.5 @jspawn/ghostscript-wasm@0.0.2 @neslinesli93/qpdf-wasm@0.3.0
+          npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler src/browser/wasmCli.ts src/browser/wasm-modules.d.ts tests/wasmCli.test.ts
+          npx tsx --test tests/wasmCli.test.ts
