@@ -65,16 +65,16 @@ const bareNodeImport = /(?:from\s*|import\s*\()\s*["'](?:node:)?(?:fs|path)["']/
 for (const file of emittedJs) {
   const source = readFileSync(file, "utf8");
   if (bareNodeImport.test(source)) {
-    throw new Error(\`Browser bundle contains an unresolved Node builtin import: \${file}\`);
+    throw new Error(`Browser bundle contains an unresolved Node builtin import: \${file}`);
   }
 }
 for (const name of ["qpdf.wasm", "gs.wasm"]) {
   if (!existsSync(resolve(vendorDir, name))) {
-    throw new Error(\`Required local WASM asset was not staged: \${name}\`);
+    throw new Error(`Required local WASM asset was not staged: \${name}`);
   }
 }
 if (!buildResult.metafile?.outputs || Object.keys(buildResult.metafile.outputs).length < 2) {
   throw new Error("Build metadata did not report the lazy engine chunks.");
 }
 
-console.log(\`Compression browser bundle generated with \${generatedChunks.length} lazy chunks and local WASM assets.\`);
+console.log(`Compression browser bundle generated with \${generatedChunks.length} lazy chunks and local WASM assets.`);
