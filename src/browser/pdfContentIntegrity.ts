@@ -506,7 +506,7 @@ function eligibleReencodedImage(dict: JsonObject): boolean {
     dict["/Filter"] === "/DCTDecode" &&
     dict["/ColorSpace"] === "/DeviceRGB" &&
     dict["/SMask"] == null && dict["/Mask"] == null &&
-    dict["/Decode"] == null && dict["/ImageMask"] == null;
+    dict["/Decode"] == null && dict["/DecodeParms"] == null && dict["/ImageMask"] == null;
 }
 
 function allowedImageDictionaryChange(leftEntry: JsonValue | undefined, rightEntry: JsonValue | undefined): boolean {
