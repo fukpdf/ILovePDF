@@ -854,3 +854,38 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
   background: linear-gradient(180deg, #f7f8ff 0%, #f1f5ff 100%) !important;
   box-shadow: none !important;
 }
+
+
+/* Center the platform section content within the full-bleed background band. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-eyebrow,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+  width: 100% !important;
+  text-align: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+  max-width: 680px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-grid {
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin-inline: auto !important;
+  align-self: center !important;
+  justify-content: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item {
+  box-sizing: border-box !important;
+  text-align: center !important;
+}
