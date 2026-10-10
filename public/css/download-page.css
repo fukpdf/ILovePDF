@@ -1489,7 +1489,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .contin
 /* Download Popular Tools — same card contract as the branded Upload UI.
    Scoped to this section so no upload, processing, preview, or other page styles change. */
 body:has(.ilpdf-download-page) .ilpdf-download-page > .popular-tools {
-  width: min(1180px, calc(100% - 48px));
+  width: min(1180px, 100%);
   max-width: 1180px;
   margin: 48px auto 8px;
 }
