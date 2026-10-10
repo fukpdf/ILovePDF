@@ -675,7 +675,7 @@ function popularToolsHtml(currentToolId) {
   return `
     <section class="popular-tools" aria-label="Popular tools">
       <h2 class="popular-title">Popular tools</h2>
-      <div class="popular-grid">${list.map(t => `<a class="popular-card" href="/${t.slug}"><span class="popular-card-body"><span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${homepageIcon(t.slug, t.icon)}"></i></span><span class="popular-card-name-label">${t.name}</span></span><span class="popular-card-description">${t.description}</span></span><span class="popular-card-arrow" aria-hidden="true">→</span></a>`).join('')}</div>
+      <div class="popular-grid">${list.map(t => `<a class="popular-card popular-card--${t.slug}" data-popular-tool="${t.slug}" href="/${t.slug}"><span class="popular-card-body"><span class="popular-card-name"><span class="tool-name-sticker" aria-hidden="true"><i data-lucide="${homepageIcon(t.slug, t.icon)}"></i></span><span class="popular-card-name-label">${t.name}</span></span><span class="popular-card-description">${t.description}</span></span><span class="popular-card-arrow" aria-hidden="true">→</span></a>`).join('')}</div>
     </section>`;
 }
 
