@@ -1,42 +1,35 @@
 # Browser Compression Kit Integration — Status
 
-## Scope of this branch
+## Implemented in this branch
 
-This is a safety-first integration slice, not certification of the new TypeScript/WASM kit.
+- The active \`runAdvancedCompress\` UI path no longer rasterizes PDF pages into JPEGs. The previous page-render route could damage 1-bit scans, masks, image filters, links, and page structures.
+- Deep/Custom now route through a dedicated module worker (\`public/workers/compression-kit-worker.js\`) and a locally bundled QPDF-WASM engine. The canonical \`CompressWorkerAdapter\` also points to that worker, and cancellation terminates its dedicated worker.
+- Added a strict QPDF structural pass using \`--stream-data=preserve\` and \`--object-streams=generate\`. It does not request image optimization or Flate recompression; the candidate is accepted only when smaller than the source.
+- Added QPDF JSON object selection and SHA-256 checks for every decoded page-content stream, preserving page order and stream order. If any content stream cannot be fully decoded, page count differs, a hash differs, or any validation fails, the exact original bytes are returned.
+- Added fail-closed preflight for visible signature/encryption/XFA/form markers, parsed \`/AcroForm\`, PDF.js outlines/attachments, page annotations/links, and QPDF catalog/page-tree structures including forms, outlines, tagged structure, permissions, actions, names, and annotations.
+- Added a static browser build script that bundles the kit and copies QPDF/Ghostscript WASM assets to same-origin \`/vendor/compression/\` paths. The deploy workflow runs the build and smoke-checks the emitted bundle, worker, and WASM assets.
+- Added mocked WASM CLI tests, QPDF JSON/hash-gate tests, published-package initialization smoke tests, and a generated 100-page PDF integration fixture. The regression workflow typechecks the compression modules, runs tests, and builds the bundle in an isolated workspace.
+- \`CompressRuntime\` now carries an additive \`report\` field while retaining \`blob\`, \`filename\`, and \`alreadyOptimized\`.
 
-### Implemented in this slice
-- The existing worker compression route returns exact input bytes for raw `/ByteRange`, `/Encrypt`, `/XFA`, and `/AcroForm` markers, and also checks the parsed PDF catalog for `/AcroForm` before serialization so forms hidden in compressed object streams are not rewritten.
-- The compression path no longer strips document metadata as a side effect.
-- Add a first-pass `src/browser/wasmCli.ts` adapter that lazily initializes one requested WASM engine, writes input bytes to its virtual filesystem, checks exit status and output PDF signature, captures logs, and cleans temporary virtual files. This adapter is not yet wired into the compression UI.
-- The existing compression regression script asserts those guard conditions.
-- Add `tests/wasmCli.test.ts` with mocked-module tests for success, non-zero exit, invalid output signature, and missing engine, plus `tests/wasmPackages.smoke.test.ts` to initialize both published WASM runtimes and inspect their real FS/callMain APIs. The dedicated workflow typechecks and runs these tests in an isolated temporary workspace; execution remains pending CI.
-- Existing UI/runtime files and package dependencies are retained; the root `npm test` script was extended to include the new static WASM adapter check.
+## Important: this is not the full image-optimization kit yet
 
-### Not yet certified / still required before enabling the new engine
-- Integrate the supplied TypeScript modules behind the existing worker adapter while preserving UI modes and result/report contracts.
-- Finish the browser bundle/runtime smoke test for Ghostscript-WASM and QPDF-WASM with locally served WASM asset URLs, then test both engines against real PDFs.
-- Use qpdf-style lossless structural processing only when decoded page-content streams remain byte-identical after decoding; use a cryptographic digest, not FNV or extracted-text counts.
-- Prove link, annotation, AcroForm, font, page-box, rotation, outline and attachment preservation, not just annotation counts.
-- Implement and validate image dictionary eligibility, full deduplication identity (including bytes and all relevant dictionary entries), correct image placement matrices, and true box/bicubic resampling.
-- Implement the browser-only quality gate with fail-closed output selection, worker cancellation, progress, lazy WASM loading and explicit memory-limit / unreachable-target messages.
-- Add the requested real-PDF fixture suite: Flate text, Word export, 1-bit scan, grayscale, CMYK JPEG, RGB photos, mixed aspect ratios, SMask, AcroForm, signed, encrypted and 100-page PDFs.
-- Add regression tests for each legacy bug, tune `gsQFactor`, `minPsnrDb`, and `minSharpnessRatio` using measured results, and record the results table.
-- Verify that no network request carries PDF bytes. WASM package downloads are not PDF uploads; PDF data must remain in browser memory only.
-- Preserve the existing site's build/test/audit commands. Do not replace the production `package.json` with the standalone kit manifest.
-- Review the Ghostscript AGPL-3.0 obligations before release.
+The integrated engine is currently a **lossless structural pass only**. It can compact PDF objects and may reduce file size, but it does not yet downsample or re-encode eligible RGB JPEG image objects. Deep/Custom preserve their UI mode names; Custom reports when its target is unreachable rather than degrading content to force a target.
 
-## Important limitation
-
-The legacy pdf-lib serialization route for ordinary PDFs is **not** proof of the requested content-stream hash contract. This branch does not claim that the full quality contract is met and must not be deployed as the completed hybrid engine until the remaining checks pass. If a check is unavailable or fails, the implementation must return the original PDF rather than an unverified candidate.
+Still required to meet the original full contract:
+- Integrate the supplied shared policy/bytes/JPEG/image-math/placement/quality modules and browser image-object compressor.
+- Prove exact eligibility for RGB DCT images and exact dictionary identity before deduplication; preserve gray, CMYK, Indexed, Flate, CCITT, JBIG2, masks, and all non-eligible image bytes.
+- Implement correct placed-size DPI, uniform aspect ratio, true box/bicubic resampling, minimum 150 DPI, no upscaling, source-quality ceiling, and no WebP/AVIF PDF images.
+- Integrate the deep Ghostscript/qpdf path only if it can satisfy the same decoded content-stream and structure-preservation contract. Do not use Ghostscript \`pdfwrite\` on documents where it rewrites non-image content.
+- Add real fixture PDFs for Word export, Flate text, 1-bit/grayscale scans, CMYK JPEG, RGB photos, mixed aspect ratios, SMask, AcroForm, signed, encrypted, and 100-page documents. The current 100-page test generates a fixture; it is not a substitute for the requested real-world fixture set.
+- Add browser automation/network capture proving that no PDF bytes leave the browser, exercise cancellation/memory pressure in actual browsers, and record quality-gate metrics and policy tuning.
+- Review Ghostscript-WASM AGPL-3.0 obligations before shipping its asset. It is currently staged by the build script but is not invoked by the active lossless route.
 
 ## Validation status
 
-No local `npm test`, TypeScript typecheck, production build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed. The static checks have been added to `npm test`; the GitHub Actions workflow also installs the two published WASM packages in an isolated temporary directory and typechecks the adapter against TypeScript 5.6.3. No workflow run is visible in the available run lookup, so none of these checks is yet confirmed executed.
+Static source checks have been inspected, and GitHub Actions has a current run queued. A queued run is **not a passing test result**. No completed TypeScript check, npm test run, browser build smoke test, browser network capture, or real-PDF hash comparison has been evidenced yet. The PR must remain draft until the workflow completes and the remaining full image-engine contract is implemented and validated.
 
+## Package API notes (2026-10-10)
 
-## Package API audit (2026-10-10)
-
-- `@neslinesli93/qpdf-wasm` publishes a default async module factory. Its published declarations expose `callMain(args: string[]): number`, `FS`, and `WORKERFS`; the README demonstrates `locateFile`, `FS.writeFile`, `FS.readFile`, and `callMain`. The kit's `wasmCli.ts` must match those actual types and check the numeric exit code and output file existence.
-- `@jspawn/ghostscript-wasm` version `0.0.2` declares `gs.js` as `main` and `gs.mjs` as `module`. Its published test `tests/all.js` initializes the default module factory, uses `mod.FS.mkdir/mount/chdir`, calls `mod.callMain(args)`, and asserts exit codes 0 and 1; `js/post.js` explicitly exposes `FS.writeFile` and `FS.readFile`. Its docs are sparse, so browser bundling and `locateFile` still require a package-level smoke test. The package is AGPL-3.0 and is a release/legal review item.
-- The repository's production app is a vanilla Node/static-page application, not an existing Vite TypeScript app: its root `package.json` build script currently only prints “Build complete”. The kit cannot be safely enabled by copying its standalone manifest or assuming a Vite worker/WASM URL pipeline already exists. A deliberate build integration and asset-path test is required.
-- No PDF fixture, browser network-capture, content-stream digest, typecheck, or full test execution is evidenced by this API audit.
+- QPDF-WASM \`0.3.0\` publishes a default module factory, \`callMain\`, and an Emscripten filesystem. Its published documentation demonstrates local \`locateFile\`, \`FS.writeFile\`, \`FS.readFile\`, and CLI invocation.
+- Ghostscript-WASM \`0.0.2\` publishes a module factory and \`gs.wasm\` at package root; its published tests exercise \`FS\`, \`callMain\`, and exit statuses. Browser bundling/asset loading still requires a passing build smoke test.
+- The production app is a vanilla Node/static-page app, not a pre-existing Vite project. This branch adds an esbuild pipeline rather than assuming Vite \`?url\` imports exist.
