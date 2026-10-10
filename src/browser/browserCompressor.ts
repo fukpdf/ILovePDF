@@ -194,7 +194,8 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
     if (!info || info.components !== 3 || info.precision !== 8 || info.unsupportedSof) { skip("unsupported JPEG variant"); continue; }
     if (info.width !== width || info.height !== height) { skip("JPEG dimensions disagree with the PDF image dictionary"); continue; }
     const placement = placements.get(ref.tag);
-    const target = computeUniformTarget(width, height, placement?.wPt ?? null, placement?.hPt ?? null, policy.floorDpi, policy.targetDpi);
+    if (!placement) { skip("image has no measurable page placement; preserved without re-encoding"); continue; }
+    const target = computeUniformTarget(width, height, placement.wPt, placement.hPt, policy.floorDpi, policy.targetDpi);
     rep.effectiveDpi = target.effectiveDpi;
     const sourceQuality = estimateJpegQuality(bytes);
     if (sourceQuality === null) { skip("source JPEG quality is unknown; avoiding an unprovable generation-loss risk"); continue; }
