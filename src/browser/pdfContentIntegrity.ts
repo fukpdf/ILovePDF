@@ -387,6 +387,21 @@ function isContainerStream(entry: JsonValue | undefined): boolean {
  * QPDF is invoked with --stream-data=preserve; page content streams additionally
  * receive decoded SHA-256 verification in hashPageContentStreams.
  */
+
+export function qpdfCatalogHasKey(jsonText: string, key: string): boolean {
+  let parsed: QpdfJson;
+  try { parsed = JSON.parse(jsonText) as QpdfJson; }
+  catch { throw new Error("QPDF did not return valid JSON while checking the catalog."); }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 || !parsed.qpdf[1] ||
+      typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) throw new Error("QPDF object table is missing.");
+  const objects = parsed.qpdf[1] as JsonObject, trailer = objects.trailer;
+  if (!trailer || typeof trailer !== "object" || Array.isArray(trailer)) throw new Error("QPDF trailer is missing.");
+  const trailerValue = (trailer as JsonObject).value;
+  if (!trailerValue || typeof trailerValue !== "object" || Array.isArray(trailerValue)) throw new Error("QPDF trailer dictionary is missing.");
+  const catalog = getValueObject(objects, (trailerValue as JsonObject)["/Root"]);
+  return catalog[key] !== undefined && catalog[key] !== null;
+}
+
 function eligibleReencodedImage(dict: JsonObject): boolean {
   return dict["/Subtype"] === "/Image" &&
     dict["/Filter"] === "/DCTDecode" &&
