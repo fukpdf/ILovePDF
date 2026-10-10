@@ -699,8 +699,13 @@ self.onmessage = async function (e) {
     }
     // Store chunk for the current source file.
     state.chunks.push(data.chunk);
-    // Ack immediately to preserve bounded backpressure.
-    self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
+    // Intermediate chunks can be acknowledged immediately. The final chunk
+    // must remain unacknowledged until this file has been parsed and copied:
+    // otherwise the bridge may send the next file while this async handler
+    // is still using state.chunks, corrupting the per-file stream boundary.
+    if (!data.isLast) {
+      self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
+    }
     if (data.isLast) {
       const fileBuf = _mergeChunks(state.chunks);
       state.chunks = [];
@@ -726,6 +731,9 @@ self.onmessage = async function (e) {
             state.mergeDoc = null;
             _streamState.delete(data.streamId);
             self.postMessage({ type: 'stream-done', streamId: data.streamId, buffer: out }, [out]);
+          } else {
+            // Release backpressure only after the current PDF has been copied.
+            self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
           }
         } catch (err) {
           _streamState.delete(data.streamId);
@@ -735,6 +743,8 @@ self.onmessage = async function (e) {
         state.fileBuffers.push(fileBuf);
         if ((data.fileIndex || 0) + 1 >= state.totalFiles) {
           await _dispatchStream(data.streamId, state.tool, state.options);
+        } else {
+          self.postMessage({ type: 'stream-ack', streamId: data.streamId, chunkIndex: data.chunkIndex, fileIndex: data.fileIndex });
         }
       }
     }
