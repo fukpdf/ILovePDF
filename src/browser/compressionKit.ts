@@ -273,7 +273,7 @@ export async function compressLosslessly(
     if (targetBytes !== null && !targetReached) {
       message += ` Requested target ${(targetBytes / 1024).toFixed(0)} KB is unreachable without violating the ${engineMode === "custom" ? "150 DPI floor, preservation checks or quality gate" : "preservation checks or quality gate"}; best safe output delivered.`;
     }
-    options.onProgress?.("complete", message);
+    options.onProgress?.("complete", message, 100);
     if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
@@ -282,7 +282,7 @@ export async function compressLosslessly(
     warnings.push(reason);
     const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
     const message = `Deep compression could not be certified (${reason}). ${targetReached === false ? "Custom target is unreachable with the remaining safe options." : "The best validated result is preserved."}`;
-    options.onProgress?.("complete", message);
+    options.onProgress?.("complete", message, 100);
     if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
