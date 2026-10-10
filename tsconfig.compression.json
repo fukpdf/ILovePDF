@@ -22,6 +22,7 @@
     "src/browser/compressionKit.ts",
     "tests/wasmCli.test.ts",
     "tests/wasmPackages.smoke.test.ts",
-    "tests/pdfContentIntegrity.test.ts"
+    "tests/pdfContentIntegrity.test.ts",
+    "tests/compressionKit.integration.test.ts"
   ]
 }
