@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import {
   assertCompressionEligible,
+  assertDocumentStructureUnchanged,
   assertPageContentStreamsUnchanged,
   hashPageContentStreams,
   selectPageContentObjects,
@@ -78,17 +79,39 @@ test("selects only trailer, catalog, page-tree, page, and content stream objects
   }
 });
 
-test("eligibility gate accepts a plain PDF and rejects AcroForm structures", () => {
-  assert.doesNotThrow(() => assertCompressionEligible(qpdfJson("q Q")));
+test("eligibility gate permits AcroForm only behind whole-object structure verification", () => {
   const parsed = JSON.parse(qpdfJson("q Q"));
   parsed.qpdf[1]["obj:1 0 R"].value["/AcroForm"] = "7 0 R";
-  assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /unsupported document structure.*AcroForm/);
+  parsed.qpdf[1]["obj:7 0 R"] = { value: { "/Fields": ["8 0 R"] } };
+  parsed.qpdf[1]["obj:8 0 R"] = { value: { "/FT": "/Tx", "/T": "CustomerName", "/V": "Safdar" } };
+  const source = JSON.stringify(parsed);
+  assert.doesNotThrow(() => assertCompressionEligible(source));
+  assert.doesNotThrow(() => assertDocumentStructureUnchanged(source, source));
+
+  const changed = JSON.parse(source);
+  changed.qpdf[1]["obj:8 0 R"].value["/V"] = "Changed";
+  assert.throws(
+    () => assertDocumentStructureUnchanged(source, JSON.stringify(changed)),
+    /changed document structure object obj:8 0 R/,
+  );
 });
 
-test("eligibility gate rejects page annotations", () => {
+test("links and annotations are accepted only if their dictionaries remain unchanged", () => {
   const parsed = JSON.parse(qpdfJson("q Q"));
-  parsed.qpdf[1]["obj:3 0 R"].value["/Annots"] = [];
-  assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /links or annotations/);
+  parsed.qpdf[1]["obj:3 0 R"].value["/Annots"] = ["5 0 R"];
+  parsed.qpdf[1]["obj:5 0 R"] = {
+    value: { "/Type": "/Annot", "/Subtype": "/Link", "/Rect": [0, 0, 100, 20], "/A": { "/S": "/URI", "/URI": "https://example.invalid" } },
+  };
+  const source = JSON.stringify(parsed);
+  assert.doesNotThrow(() => assertCompressionEligible(source));
+  assert.doesNotThrow(() => assertDocumentStructureUnchanged(source, source));
+
+  const changed = JSON.parse(source);
+  changed.qpdf[1]["obj:5 0 R"].value["/Rect"][2] = 101;
+  assert.throws(
+    () => assertDocumentStructureUnchanged(source, JSON.stringify(changed)),
+    /changed document structure object obj:5 0 R/,
+  );
 });
 
 
