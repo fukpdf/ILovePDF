@@ -266,3 +266,73 @@ export function selectPageContentObjects(jsonText: string): string[] {
     return `${match[1]},${match[2]}`;
   });
 }
+
+
+/**
+ * Reject PDF structures that the current lossless structural pass does not
+ * explicitly support. The caller must return the original bytes on failure.
+ */
+export function assertCompressionEligible(jsonText: string): void {
+  let parsed: QpdfJson;
+  try {
+    parsed = JSON.parse(jsonText) as QpdfJson;
+  } catch {
+    throw new Error("QPDF did not return valid JSON during safety preflight.");
+  }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2) {
+    throw new Error("QPDF JSON v2 object table is missing.");
+  }
+  const rawObjects = parsed.qpdf[1];
+  if (!rawObjects || typeof rawObjects !== "object" || Array.isArray(rawObjects)) {
+    throw new Error("QPDF JSON object table has an invalid shape.");
+  }
+  const objects = rawObjects as JsonObject;
+  const trailer = objects.trailer;
+  if (!trailer || typeof trailer !== "object" || Array.isArray(trailer)) {
+    throw new Error("QPDF JSON trailer is missing.");
+  }
+  const trailerValue = (trailer as JsonObject).value;
+  if (!trailerValue || typeof trailerValue !== "object" || Array.isArray(trailerValue)) {
+    throw new Error("QPDF JSON trailer dictionary is missing.");
+  }
+  const catalog = getValueObject(objects, (trailerValue as JsonObject)["/Root"]);
+  const unsafeCatalogKeys = [
+    "/AcroForm", "/Outlines", "/StructTreeRoot", "/Perms",
+    "/OpenAction", "/AA", "/Collection", "/Names",
+  ];
+  const foundCatalogKey = unsafeCatalogKeys.find(key => catalog[key] !== undefined && catalog[key] !== null);
+  if (foundCatalogKey) {
+    throw new Error(`This PDF contains unsupported document structure (${foundCatalogKey}); the original will be preserved.`);
+  }
+  const visited = new Set<string>();
+  const walk = (ref: JsonValue): void => {
+    const key = objectRef(ref);
+    if (!key || visited.has(key)) throw new Error("Invalid or cyclic PDF page tree.");
+    visited.add(key);
+    const wrapped = getObject(objects, ref);
+    const rawValue = wrapped.value;
+    if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
+      throw new Error("PDF page-tree node is not a dictionary.");
+    }
+    const dict = rawValue as JsonObject;
+    if (dict["/Type"] === "/Page") {
+      if (dict["/Annots"] !== undefined && dict["/Annots"] !== null) {
+        throw new Error("This PDF contains links or annotations; the original will be preserved.");
+      }
+      if (dict["/AA"] !== undefined && dict["/AA"] !== null) {
+        throw new Error("This PDF contains page actions; the original will be preserved.");
+      }
+    } else if (dict["/Type"] === "/Pages") {
+      const kids = dict["/Kids"];
+      if (!Array.isArray(kids)) throw new Error("PDF page-tree node has no Kids array.");
+      for (const kid of kids) walk(kid);
+    } else {
+      throw new Error("PDF page tree contains an unexpected node type.");
+    }
+  };
+  const rootRef = (trailerValue as JsonObject)["/Root"];
+  const catalogObject = getValueObject(objects, rootRef);
+  const pagesRef = catalogObject["/Pages"];
+  if (!pagesRef) throw new Error("PDF catalog has no page-tree root.");
+  walk(pagesRef);
+}
