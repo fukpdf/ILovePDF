@@ -313,7 +313,7 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
   if (hasIndirectDictionaryKey(parsed, "AcroForm")) return noChange(input, mode, "AcroForm detected after parsing; routing to lossless QPDF-only compression.", true, "interactive form requires the lossless QPDF route");
 
   const targetBytes = mode === "custom" ? Math.round(opts.targetKB! * 1024) : undefined;
-  const ladder: readonly number[] = targetBytes ? CUSTOM_QUALITY_LADDER : [MODE_POLICY[mode].jpegQuality];
+  const ladder: readonly number[] = targetBytes ? [MODE_POLICY[mode].jpegQuality] : [MODE_POLICY[mode].jpegQuality];
   let best = input, bestImages: ImageReport[] = [], passes = 0, validationErrors: string[] = [];
   for (const quality of ladder.slice(0, 4)) {
     if (signal?.aborted) return fail(input, "Cancelled.");
