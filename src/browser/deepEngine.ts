@@ -1,5 +1,5 @@
 import { CUSTOM_GS_QFACTOR_LADDER, LIMITS, MODE_POLICY, type Mode } from "../shared/policy";
-import { buildGsArgs, buildQpdfArgs } from "../shared/gsParams";
+import { buildGsArgs } from "../shared/gsParams";
 import { containsAscii, endsWithPdfEof, startsWithPdf } from "../shared/bytes";
 import type { GateReport } from "../shared/quality";
 import { runTool, type WasmTools } from "./wasmCli";
