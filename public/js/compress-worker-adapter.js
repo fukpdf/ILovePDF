@@ -18,8 +18,8 @@
   function selectedMode(opts) {
     var mode = opts && (opts.mode || opts.compressionMode);
     if (mode === 'custom') return 'custom';
-    if (mode === 'deep' || !mode) return 'deep';
-    throw new Error('Unknown compression mode. Select Deep or Custom.');
+    if (mode === 'deep') return 'deep';
+    throw new Error('Compression mode is missing or invalid. Select Deep or Custom; no default mode was substituted.');
   }
 
   function selectedTarget(opts, mode) {
