@@ -100,7 +100,7 @@ export interface WasmCliRequest {
   args: string[];
   inputPath?: string;
   outputPath?: string;
-  tools: WasmTools;
+  tools: Partial<WasmTools>;
 }
 
 export interface WasmCliResult {
@@ -120,6 +120,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     throw new Error("WASM CLI requires a non-empty PDF byte array.");
   }
   const module = tools[engine];
+  if (!module) throw new Error(`WASM engine ${engine} was not initialized.`);
   const inputPath = request.inputPath ?? "/input.pdf";
   const outputPath = request.outputPath ?? "/output.pdf";
   const logs = logBuffers.get(module) ?? { stdout: [], stderr: [] };
