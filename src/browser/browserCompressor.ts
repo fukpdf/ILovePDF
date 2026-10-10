@@ -172,7 +172,7 @@ function colorSpaceIsRgb(dict: PDFDict): boolean {
 }
 async function runPass(input: Uint8Array, mode: Mode, quality: number, images: ImageReport[], signal?: AbortSignal): Promise<{ bytes: Uint8Array; aliases: Map<string, string>; removed: Set<string> }> {
   const policy = MODE_POLICY[mode];
-  const doc = await PDFDocument.load(input, { updateMetadata: false });
+  const doc = await PDFDocument.load(input);
   const dedupes = dedupeImages(doc, images);
   const placements = collectPlacements(doc);
 
@@ -314,8 +314,8 @@ async function validate(input: Uint8Array, output: Uint8Array, aliases: Map<stri
   const errors: string[] = [];
   try {
     if (!startsWithPdf(output) || !endsWithPdfEof(output)) errors.push("output PDF header or EOF marker is invalid");
-    const before = await PDFDocument.load(input, { updateMetadata: false });
-    const after = await PDFDocument.load(output, { updateMetadata: false });
+    const before = await PDFDocument.load(input);
+    const after = await PDFDocument.load(output);
     if (before.getPageCount() !== after.getPageCount()) errors.push("page count changed");
     if (before.getPageCount() > LIMITS.maxPages) errors.push("page count exceeds supported limit");
     try { assertObjectGraphPreserved(before, after, aliases, removed); } catch (e) { errors.push(e instanceof Error ? e.message : "PDF object graph changed"); }
@@ -349,7 +349,7 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
   if (input.length > LIMITS.browserComfortBytes) return noChange(input, mode, "Light engine skipped due to memory safety; attempting the bounded deep route.", true, "file exceeds the light-engine memory budget");
   if (mode === "custom" && !(typeof opts.targetKB === "number" && Number.isFinite(opts.targetKB) && opts.targetKB > 0)) return fail(input, "Custom mode needs a target size greater than 0 KB.");
   let parsed: PDFDocument;
-  try { parsed = await PDFDocument.load(input, { updateMetadata: false }); }
+  try { parsed = await PDFDocument.load(input); }
   catch (e) { return noChange(input, mode, `PDF parser rejected the file; original preserved (${e instanceof Error ? e.message : "unknown reason"}).`); }
   if (hasIndirectDictionaryKey(parsed, "ByteRange") || hasIndirectDictionaryKey(parsed, "SigFlags") || hasIndirectDictionaryKey(parsed, "Perms")) {
     return noChange(input, mode, "Signature or permission-controlled PDF detected after parsing; original preserved.");
