@@ -268,6 +268,99 @@ export function selectPageContentObjects(jsonText: string): string[] {
 }
 
 
+function stableJson(value: JsonValue): string {
+  if (Array.isArray(value)) return "[" + value.map(stableJson).join(",") + "]";
+  if (value && typeof value === "object") {
+    const record = value as JsonObject;
+    return "{" + Object.keys(record).sort().map(key => JSON.stringify(key) + ":" + stableJson(record[key])).join(",") + "}";
+  }
+  return JSON.stringify(value);
+}
+
+function isContainerStream(entry: JsonValue | undefined): boolean {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+  const stream = (entry as JsonObject).stream;
+  if (!stream || typeof stream !== "object" || Array.isArray(stream)) return false;
+  const dict = (stream as JsonObject).dict;
+  if (!dict || typeof dict !== "object" || Array.isArray(dict)) return false;
+  const type = (dict as JsonObject)["/Type"];
+  return type === "/ObjStm" || type === "/XRef";
+}
+
+/**
+ * Compare every non-container PDF object dictionary before and after a QPDF
+ * structural pass. This covers AcroForm fields, widget annotations, links,
+ * outlines, attachments, tagged structure, metadata dictionaries and actions.
+ * QPDF is invoked with --stream-data=preserve; page content streams additionally
+ * receive decoded SHA-256 verification in hashPageContentStreams.
+ */
+export function assertDocumentStructureUnchanged(beforeJson: string, afterJson: string): void {
+  const parse = (text: string): { header: JsonValue; objects: JsonObject; trailer: JsonObject } => {
+    let parsed: QpdfJson;
+    try {
+      parsed = JSON.parse(text) as QpdfJson;
+    } catch {
+      throw new Error("QPDF returned invalid JSON while checking document structure.");
+    }
+    if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 ||
+        !parsed.qpdf[0] || typeof parsed.qpdf[0] !== "object" ||
+        !parsed.qpdf[1] || typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) {
+      throw new Error("QPDF JSON object table is missing during structure validation.");
+    }
+    const objects = parsed.qpdf[1] as JsonObject;
+    const trailerEntry = objects.trailer;
+    if (!trailerEntry || typeof trailerEntry !== "object" || Array.isArray(trailerEntry)) {
+      throw new Error("QPDF JSON trailer is missing during structure validation.");
+    }
+    const trailer = (trailerEntry as JsonObject).value;
+    if (!trailer || typeof trailer !== "object" || Array.isArray(trailer)) {
+      throw new Error("QPDF JSON trailer dictionary is missing during structure validation.");
+    }
+    return { header: parsed.qpdf[0], objects, trailer: trailer as JsonObject };
+  };
+
+  const before = parse(beforeJson);
+  const after = parse(afterJson);
+  const trailerKeys = ["/Root", "/Info", "/ID", "/Encrypt"];
+  for (const key of trailerKeys) {
+    if (stableJson(before.trailer[key] ?? null) !== stableJson(after.trailer[key] ?? null)) {
+      throw new Error(`Compression changed trailer entry ${key}; the original must be preserved.`);
+    }
+  }
+
+  const beforeKeys = Object.keys(before.objects).filter(key => key.startsWith("obj:") && !isContainerStream(before.objects[key]));
+  const afterKeys = Object.keys(after.objects).filter(key => key.startsWith("obj:") && !isContainerStream(after.objects[key]));
+  const afterSet = new Set(afterKeys);
+  const beforeSet = new Set(beforeKeys);
+
+  for (const key of beforeKeys) {
+    if (!afterSet.has(key)) {
+      throw new Error(`Compression removed document structure object ${key}; the original must be preserved.`);
+    }
+    const left = before.objects[key] as JsonObject;
+    const right = after.objects[key] as JsonObject;
+    const leftStream = left.stream;
+    const rightStream = right.stream;
+    if (!!leftStream !== !!rightStream) {
+      throw new Error(`Compression changed object kind for ${key}; the original must be preserved.`);
+    }
+    const leftPayload = leftStream && typeof leftStream === "object" && !Array.isArray(leftStream)
+      ? { stream: (leftStream as JsonObject).dict ?? null }
+      : { value: left.value ?? null };
+    const rightPayload = rightStream && typeof rightStream === "object" && !Array.isArray(rightStream)
+      ? { stream: (rightStream as JsonObject).dict ?? null }
+      : { value: right.value ?? null };
+    if (stableJson(leftPayload) !== stableJson(rightPayload)) {
+      throw new Error(`Compression changed document structure object ${key}; the original must be preserved.`);
+    }
+  }
+  for (const key of afterKeys) {
+    if (!beforeSet.has(key)) {
+      throw new Error(`Compression introduced unexpected document structure object ${key}; the original must be preserved.`);
+    }
+  }
+}
+
 /**
  * Reject PDF structures that the current lossless structural pass does not
  * explicitly support. The caller must return the original bytes on failure.
