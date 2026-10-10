@@ -38,7 +38,7 @@ export interface WasmTools {
   qpdf: EmModule;
 }
 
-let cachedTools: Promise<WasmTools> | undefined;
+const cachedModules = new Map<WasmEngine, Promise<EmModule>>();
 const logBuffers = new WeakMap<EmModule, { stdout: string[]; stderr: string[] }>();
 
 async function importFactory(engine: WasmEngine): Promise<ModuleFactory> {
@@ -55,43 +55,42 @@ async function importFactory(engine: WasmEngine): Promise<ModuleFactory> {
 }
 
 /**
- * Lazy-initialize both engines once. Do not call until the user starts a
- * compression job; WASM initialization can consume substantial memory.
+ * Load only the requested engine. Call from a user-triggered compression path
+ * so unused WASM binaries are not downloaded/initialized.
  */
-export function loadWasmTools(locate: WasmLocate): Promise<WasmTools> {
-  if (!cachedTools) {
-    cachedTools = (async () => {
-      const [gsFactory, qpdfFactory] = await Promise.all([
-        importFactory("ghostscript"),
-        importFactory("qpdf"),
-      ]);
+export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<EmModule> {
+  const existing = cachedModules.get(engine);
+  if (existing) return existing;
 
-      const make = async (factory: ModuleFactory, wasmUrl: string): Promise<EmModule> => {
-        const logs = { stdout: [] as string[], stderr: [] as string[] };
-        const module = await factory({
-          locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
-          noInitialRun: true,
-          print: (line) => logs.stdout.push(String(line)),
-          printErr: (line) => logs.stderr.push(String(line)),
-        });
-        logBuffers.set(module, logs);
-        return module;
-      };
+  const wasmUrl = engine === "qpdf" ? locate.qpdfWasmUrl : locate.ghostscriptWasmUrl;
+  const pending = (async () => {
+    const factory = await importFactory(engine);
+    const logs = { stdout: [] as string[], stderr: [] as string[] };
+    try {
+      const module = await factory({
+        locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
+        noInitialRun: true,
+        print: (line) => logs.stdout.push(String(line)),
+        printErr: (line) => logs.stderr.push(String(line)),
+      });
+      logBuffers.set(module, logs);
+      return module;
+    } catch (error) {
+      cachedModules.delete(engine);
+      throw error;
+    }
+  })();
+  cachedModules.set(engine, pending);
+  return pending;
+}
 
-      try {
-        const [ghostscript, qpdf] = await Promise.all([
-          make(gsFactory, locate.ghostscriptWasmUrl),
-          make(qpdfFactory, locate.qpdfWasmUrl),
-        ]);
-        return { ghostscript, qpdf };
-      } catch (error) {
-        // Do not cache a rejected initialization: a later retry may succeed.
-        cachedTools = undefined;
-        throw error;
-      }
-    })();
-  }
-  return cachedTools;
+/** Compatibility helper for flows that genuinely need both engines. */
+export async function loadWasmTools(locate: WasmLocate): Promise<WasmTools> {
+  const [ghostscript, qpdf] = await Promise.all([
+    loadWasmTool("ghostscript", locate),
+    loadWasmTool("qpdf", locate),
+  ]);
+  return { ghostscript, qpdf };
 }
 
 export interface WasmCliRequest {
