@@ -12776,3 +12776,124 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
   }
 }
 
+
+
+/* Continue-to tool cards — match the shared Popular tools card language. */
+.ilpdf-continue-card .related-tools-grid {
+  align-items: stretch;
+  gap: 14px;
+}
+.ilpdf-continue-card .continue-tool-card {
+  min-width: 0;
+  min-height: 118px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  position: relative;
+  border: 1px solid rgba(99, 102, 241, .16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .98);
+  color: #26364b;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(37, 45, 70, .07);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.ilpdf-continue-card .continue-tool-card:hover,
+.ilpdf-continue-card .continue-tool-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, .38);
+  box-shadow: 0 14px 32px rgba(37, 45, 70, .12);
+}
+.ilpdf-continue-card .continue-tool-card:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, .7);
+  outline-offset: 3px;
+  z-index: 1;
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--continue-border-a, #7065f2), var(--continue-border-b, #4338ca));
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(30, 41, 59, .13);
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-body {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 18px;
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-name {
+  display: block;
+  color: #26364b;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -.015em;
+  overflow-wrap: anywhere;
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-description {
+  display: block;
+  color: #60738b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.ilpdf-continue-card .continue-tool-card .popular-card-arrow {
+  right: 15px;
+  bottom: 13px;
+  color: var(--continue-border-b, #4338ca);
+  font-size: 20px;
+  transition: transform .18s ease;
+}
+.ilpdf-continue-card .continue-tool-card:hover .popular-card-arrow {
+  transform: translateX(3px);
+}
+.ilpdf-continue-card .continue-tool-card--merge { --continue-border-a: #7065f2; --continue-border-b: #4338ca; }
+.ilpdf-continue-card .continue-tool-card--compress { --continue-border-a: #10b981; --continue-border-b: #047857; }
+.ilpdf-continue-card .continue-tool-card--convert { --continue-border-a: #38bdf8; --continue-border-b: #2563eb; }
+.ilpdf-continue-card .continue-tool-card--image { --continue-border-a: #f59e0b; --continue-border-b: #ea580c; }
+.ilpdf-continue-card .continue-tool-card--word { --continue-border-a: #fb7185; --continue-border-b: #e11d48; }
+.ilpdf-continue-card .continue-tool-card--rotate { --continue-border-a: #a78bfa; --continue-border-b: #7c3aed; }
+.ilpdf-continue-card .continue-tool-card--protect { --continue-border-a: #0f766e; --continue-border-b: #0d9488; }
+.ilpdf-continue-card .continue-tool-card--unlock { --continue-border-a: #be123c; --continue-border-b: #9f1239; }
+@media (max-width: 640px) {
+  .ilpdf-continue-card .related-tools-grid { gap: 12px; }
+  .ilpdf-continue-card .continue-tool-card {
+    min-height: 100px;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 15px;
+  }
+  .ilpdf-continue-card .continue-tool-card .popular-card-icon {
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+    border-radius: 14px;
+  }
+  .ilpdf-continue-card .continue-tool-card .popular-card-icon svg { width: 24px; height: 24px; }
+  .ilpdf-continue-card .continue-tool-card .popular-card-name { font-size: 16px; }
+  .ilpdf-continue-card .continue-tool-card .popular-card-description { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ilpdf-continue-card .continue-tool-card,
+  .ilpdf-continue-card .continue-tool-card .popular-card-arrow {
+    transition: none !important;
+    animation: none !important;
+  }
+  .ilpdf-continue-card .continue-tool-card:hover { transform: none !important; }
+  .ilpdf-continue-card .continue-tool-card:hover .popular-card-arrow { transform: none !important; }
+}
