@@ -2369,9 +2369,11 @@ async function processFile() {
         showStatus(
           'success',
           isAlreadyOpt ? _tp('status.already_opt', 'Already optimised') : _tp('status.file_ready', 'Your file is ready'),
-          isAlreadyOpt
-            ? _tp('status.already_opt_msg', 'Your PDF is already well-optimised. Use the deep compression option below for a stronger result.')
-            : _tp('status.click_download', 'Click the Download button below to save your file.'),
+          result.report && result.report.message
+            ? result.report.message
+            : (isAlreadyOpt
+                ? _tp('status.already_opt_msg', 'Your PDF is already well-optimised. No verified lossless reduction was available, so the original was preserved.')
+                : _tp('status.click_download', 'Click the Download button below to save your file.')),
           createStatusUrl(blob),
           filename,
         );
