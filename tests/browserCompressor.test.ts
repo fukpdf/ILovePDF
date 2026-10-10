@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { deflateSync } from "node:zlib";
 import { Buffer } from "node:buffer";
 import * as jpeg from "jpeg-js";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, decodePDFRawStream, StandardFonts } from "pdf-lib";
@@ -39,6 +40,17 @@ function streamBytes(doc: PDFDocument, key: string): Uint8Array {
   assert.ok(found, `expected image with ColorSpace ${key}`);
   return found.stream.contents;
 }
+async function forceFlateTextStream(bytes: Uint8Array): Promise<Uint8Array> {
+  const doc=await PDFDocument.load(bytes,{updateMetadata:false}),page=doc.getPage(0),contents=page.node.Contents();
+  const first=contents instanceof PDFArray?contents.get(0):contents;
+  assert.ok(first instanceof PDFRef);
+  const stream=doc.context.lookup(first);
+  assert.ok(stream instanceof PDFRawStream);
+  const decoded=decodePDFRawStream(stream).decode(),compressed=new Uint8Array(deflateSync(decoded));
+  const dict=doc.context.obj({Filter:PDFName.of("FlateDecode"),Length:PDFNumber.of(compressed.length)}) as PDFDict;
+  doc.context.assign(first,PDFRawStream.of(dict,compressed));
+  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+}
 async function decodedPageHashes(bytes: Uint8Array): Promise<string[]> {
   const doc=await PDFDocument.load(bytes,{updateMetadata:false}), page=doc.getPage(0), contents=page.node.Contents();
   const refs=contents instanceof PDFArray?Array.from({length:contents.size()},(_,i)=>contents.get(i)):contents?[contents]:[];
@@ -70,6 +82,7 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
   assert.equal(result.ok,true);
   assert.ok(result.bytes.length<=input.length,"compression must never return a larger file");
   const changed=result.images.find(x=>x.action==="recompressed");
+  assert.ok(result.bytes.length<input.length,"the eligible RGB photo fixture must compress");
   if(result.bytes.length<input.length){
     assert.ok(changed,"a smaller RGB photo output must report the changed image");
     assert.ok(changed!.newWidth! / changed!.newHeight! > 1.99 && changed!.newWidth! / changed!.newHeight! < 2.01,"aspect ratio must remain uniform");
@@ -127,7 +140,12 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   const doc=await PDFDocument.create(),page=doc.addPage([612,792]),font=await doc.embedFont(StandardFonts.Helvetica);
   page.drawText("Native searchable text, vectors, annotations and links stay in PDF objects.",{x:45,y:700,size:16,font});
   page.drawLine({start:{x:45,y:680},end:{x:400,y:680},thickness:2});
-  const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const initial=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const input=await forceFlateTextStream(initial);
+  const beforeDoc=await PDFDocument.load(input,{updateMetadata:false});
+  const contentObj=beforeDoc.context.lookup(beforeDoc.getPage(0).node.Contents() as PDFRef);
+  assert.ok(contentObj instanceof PDFRawStream);
+  assert.equal(contentObj.dict.lookup(PDFName.of("Filter"))?.toString(),"/FlateDecode");
   const beforeHashes=await decodedPageHashes(input);
   const result=await compressInBrowser(input,{mode:"recommended"});
   assert.ok(result.bytes.length<=input.length);
