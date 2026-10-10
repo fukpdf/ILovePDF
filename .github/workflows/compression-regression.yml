@@ -9,6 +9,8 @@ on:
     paths:
       - 'public/workers/pdf-worker.js'
       - 'public/js/tool-page.js'
+      - 'public/js/compress-worker-adapter.js'
+      - 'public/js/compress-runtime.js'
       - 'public/workers/compression-kit-worker.js'
       - 'scripts/compress-hybrid-regression-check.js'
       - 'scripts/compress-wasm-cli-static-check.js'
@@ -32,6 +34,8 @@ on:
     paths:
       - 'public/workers/pdf-worker.js'
       - 'public/js/tool-page.js'
+      - 'public/js/compress-worker-adapter.js'
+      - 'public/js/compress-runtime.js'
       - 'public/workers/compression-kit-worker.js'
       - 'scripts/compress-hybrid-regression-check.js'
       - 'scripts/compress-wasm-cli-static-check.js'
