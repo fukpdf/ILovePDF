@@ -67,6 +67,6 @@ export function estimateJpegQuality(bytes: Uint8Array): number | null {
   if (!ratios.length) return null;
   ratios.sort((a,b)=>a-b);
   const scale = ratios[Math.floor(ratios.length / 2)];
-  const quality = scale <= 100 ? 5000 / Math.max(1, scale) : 200 - 2 * scale;
+  const quality = scale <= 100 ? 100 - scale / 2 : 5000 / Math.max(1, scale);
   return Math.max(1, Math.min(100, Math.round(quality)));
 }
