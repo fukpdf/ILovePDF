@@ -67,26 +67,44 @@ async function stripMetadata(doc) {
 const OPS = {};
 
 OPS.compress = async function (buffers) {
-  const original = buffers[0];
+  const original = buffers && buffers[0];
+  if (!(original instanceof ArrayBuffer) || original.byteLength === 0) {
+    throw new Error('Compress requires a non-empty PDF buffer');
+  }
+
+  // Fail closed for document types that a generic pdf-lib load/save cycle
+  // cannot safely preserve. This guard intentionally returns the exact input
+  // bytes rather than attempting a rewrite that could invalidate a signature,
+  // alter form/XFA structures, or mishandle encryption.
+  const sourceBytes = new Uint8Array(original);
+  const sourceText = new TextDecoder('latin1').decode(sourceBytes);
+  const sensitiveMarkers = [
+    ['/ByteRange', 'digitally signed PDF'],
+    ['/Encrypt', 'encrypted PDF'],
+    ['/XFA', 'XFA PDF'],
+    ['/AcroForm', 'interactive form PDF'],
+  ];
+  for (const [marker, label] of sensitiveMarkers) {
+    if (sourceText.includes(marker)) {
+      // Returning the original is a successful no-op: the caller can safely
+      // deliver it and report that compression was skipped.
+      return original;
+    }
+  }
+
   const doc = await PDFDocument.load(original, {
-    ignoreEncryption: true,
     updateMetadata: false,
   });
 
-  await stripMetadata(doc);
-
-  // One streaming-friendly save pass keeps peak memory bounded by a single
-  // parsed document plus the output buffer. A second reload/save pass would
-  // temporarily retain two complete PDF representations for little benefit.
+  // Do not strip or overwrite document metadata as a side effect of compression.
+  // A content-preserving compressor must be conservative about unrelated data.
   const out = await doc.save({
     useObjectStreams: true,
     addDefaultPage: false,
     objectsPerTick: 50,
   });
-  // Copy only the serialized bytes into a transferable ArrayBuffer.
   const result = Uint8Array.from(out).buffer;
 
-  // Reject an invalid serialization before it can reach the download pipeline.
   const signature = new Uint8Array(result, 0, Math.min(5, result.byteLength));
   if (signature.length !== 5 ||
       signature[0] !== 0x25 || signature[1] !== 0x50 ||
@@ -94,8 +112,9 @@ OPS.compress = async function (buffers) {
     throw new Error('Compression produced an invalid PDF output');
   }
 
-  // Never replace a usable source with a larger "compressed" file.
-  // Returning the original is intentional; the UI reports no size reduction.
+  // A larger result never replaces the original. The strict object-preservation
+  // gate for the new hybrid engine is a separate requirement and is not claimed
+  // to be satisfied by this legacy pdf-lib serialization path.
   return result.byteLength < original.byteLength ? result : original;
 };
 
