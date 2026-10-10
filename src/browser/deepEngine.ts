@@ -65,6 +65,12 @@ export async function compressDeep(raw: Uint8Array, options: DeepOptions): Promi
   const ladder: readonly number[] = options.mode === "custom" ? CUSTOM_GS_QFACTOR_LADDER.slice(0, 2) : [policy.gsQFactor];
   const targetBytes = options.mode === "custom" ? Math.round((options.targetKB ?? 0) * 1024) : undefined;
   let best = qpdfCandidate, bestGate: GateReport | undefined;
+  if (typeof OffscreenCanvas === "undefined") {
+    warnings.push("Visual quality gate is unavailable in this runtime; Ghostscript candidates are not accepted.");
+    return qpdfCandidate.length < input.length
+      ? make(qpdfCandidate, "qpdf-wasm", { gatePassed: true, warnings })
+      : make(input, "unchanged", { gatePassed: true, warnings });
+  }
   const { qualityGateInBrowser } = await import("./browserQualityGate");
 
   for (let i = 0; i < ladder.length && i < 4; i++) {
