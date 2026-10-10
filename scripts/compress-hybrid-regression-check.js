@@ -18,6 +18,7 @@ const gsParams = readFileSync(path.join(root, 'src/shared/gsParams.ts'), 'utf8')
 const viteConfig = readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 const integrity = readFileSync(path.join(root, 'src/browser/pdfContentIntegrity.ts'), 'utf8');
 const wasmCli = readFileSync(path.join(root, 'src/browser/wasmCli.ts'), 'utf8');
+const compressionKitEntry = readFileSync(path.join(root, 'src/browser/compressionKitEntry.ts'), 'utf8');
 const compressAdapter = readFileSync(path.join(root, 'public/js/compress-worker-adapter.js'), 'utf8');
 const compressRuntime = readFileSync(path.join(root, 'public/js/compress-runtime.js'), 'utf8');
 const buildScript = readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8');
@@ -54,7 +55,7 @@ const checks = [
   ['output larger than source is never returned', kit.includes('candidate.byteLength >= original.byteLength') && kit.includes('best.byteLength >= original.byteLength') && kit.includes('outputBytes: best.byteLength')],
   ['output PDF signature is checked by UI and WASM adapter', toolPage.includes("outputSignature !== '%PDF-'") && wasmCli.includes('output[4] !== 0x2d')],
   ['QPDF engine and JSON inspection use only in-memory WASM FS', wasmCli.includes('module.FS.writeFile(inputPath, input)') && wasmCli.includes('module.FS.readFile(outputPath)') && !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(wasmCli)],
-  ['worker resolves WASM binaries through Vite same-origin URL assets', wasmCli.includes('@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url') && wasmCli.includes('@jspawn/ghostscript-wasm/gs.wasm?url') && compressionWorker.includes('"/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v1"')],
+  ['worker resolves WASM binaries through Vite same-origin URL assets', compressionKitEntry.includes('@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url') && compressionKitEntry.includes('@jspawn/ghostscript-wasm/gs.wasm?url') && compressionWorker.includes('"/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v1"')],
   ['Custom target remains mandatory', toolPage.includes('Custom target missing') && toolPage.includes("requestedMode !== 'deep' && requestedMode !== 'custom'")],
   ['root build creates the browser bundle and local WASM assets', readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/js/compression-kit.js') && readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/vendor/compression')],
   ['Vite splits lazy WASM and PDF.js quality-gate chunks', viteConfig.includes('chunkFileNames: "compression-chunks/[name]-[hash].js"') && deepEngine.includes('await import("./browserQualityGate")') && wasmCli.includes('await import("@neslinesli93/qpdf-wasm")')],
