@@ -180,14 +180,35 @@ export async function compressLosslessly(
       errors: [`Light engine failed closed: ${error instanceof Error ? error.message : "unknown error"}`],
     };
   }
-  const lightCandidate = light.ok && light.bytes.byteLength < original.byteLength ? light.bytes.slice() : null;
+  const warnings = [...light.warnings, ...light.errors];
+  let images = light.images;
+  let lightCandidate = light.ok && light.bytes.byteLength < original.byteLength ? light.bytes.slice() : null;
+  let qualityGate: GateReport | undefined;
+  if (lightCandidate) {
+    if (typeof OffscreenCanvas === "undefined") {
+      warnings.push("Light candidate rejected because the visual quality gate is unavailable in this runtime.");
+      lightCandidate = null;
+    } else {
+      try {
+        options.onProgress?.("validating", "Running the visual quality gate on the browser-compressed candidate…", 88);
+        const { qualityGateInBrowser } = await import("./browserQualityGate");
+        const lightGate = await qualityGateInBrowser(original, lightCandidate, engineMode);
+        if (!lightGate.pass) {
+          warnings.push(`Light candidate rejected by the visual quality gate: ${lightGate.reason}`);
+          lightCandidate = null;
+        } else {
+          qualityGate = lightGate;
+        }
+      } catch (error) {
+        warnings.push(`Light candidate rejected because its visual quality gate failed closed: ${error instanceof Error ? error.message : "gate unavailable"}`);
+        lightCandidate = null;
+      }
+    }
+  }
   let best = lightCandidate ?? original;
   let method: CompressionKitReport["method"] = lightCandidate ? "browser-rgb-image" : "original-preserved";
   let engine: NonNullable<CompressionKitReport["engine"]> = lightCandidate ? "light" : "original";
   let contentStreamsVerified = !!lightCandidate;
-  let qualityGate: GateReport | undefined;
-  const warnings = [...light.warnings, ...light.errors];
-  let images = light.images;
 
   // Never attempt any engine on a signed, encrypted, XFA or permission-controlled document.
   if (!light.needsDeep && light.keptOriginal && warnings.some(w => /signed PDF|encrypted PDF|XFA PDF|Signature or permission-controlled/i.test(w))) {
