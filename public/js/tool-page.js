@@ -1400,7 +1400,7 @@ function renderDownloadStep(tool) {
         </div>
       </section>
 
-      <div class="ilpdf-branded-upload download-popular-tools-scope">${popularToolsHtml(tool.id)}</div>
+      <div class="download-popular-tools-scope">${popularToolsHtml(tool.id)}</div>
 
       <section class="ilpdf-thanks-card" aria-label="Share and support ILovePDF">
         <div class="ilpdf-thanks-kicker"><i data-lucide="heart-handshake" aria-hidden="true"></i> Made to help, free to use</div>
