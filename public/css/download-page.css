@@ -1102,3 +1102,18 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms::before {
     margin-bottom: -48px !important;
   }
 }
+
+
+/* Platform logos: reduce logo containers by 10% without resizing platform cards. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-logo {
+  width: 52px !important;
+  height: 52px !important;
+  flex: 0 0 52px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-logo svg,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-logo img {
+  width: 32px !important;
+  height: 32px !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
