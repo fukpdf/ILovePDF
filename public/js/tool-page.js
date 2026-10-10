@@ -800,7 +800,7 @@ function renderBrandedUploadStep(tool, config) {
       ${trustStripHtml()}
       ${renderSeoContent(tool)}
       ${learnMoreHtml(tool)}
-      <div class="ilpdf-branded-upload download-popular-tools-scope">${popularToolsHtml(tool.id)}</div>
+      ${popularToolsHtml(tool.id)}
     </div>`;
 
   const palette = brandedToolPalette(tool);
@@ -1400,7 +1400,7 @@ function renderDownloadStep(tool) {
         </div>
       </section>
 
-      ${popularToolsHtml(tool.id)}
+      <div class="ilpdf-branded-upload download-popular-tools-scope">${popularToolsHtml(tool.id)}</div>
 
       <section class="ilpdf-thanks-card" aria-label="Share and support ILovePDF">
         <div class="ilpdf-thanks-kicker"><i data-lucide="heart-handshake" aria-hidden="true"></i> Made to help, free to use</div>
