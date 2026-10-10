@@ -25,7 +25,7 @@ export interface CompressionKitOptions {
   targetBytes?: number | null;
   qpdfWasmUrl?: string;
   ghostscriptWasmUrl?: string;
-  onProgress?: (stage: CompressionStage, message: string) => void;
+  onProgress?: (stage: CompressionStage, message: string, percent?: number) => void;
   signal?: AbortSignal;
 }
 
@@ -169,7 +169,7 @@ export async function compressLosslessly(
       targetKB: targetBytes === null ? undefined : targetBytes / 1024,
       signal: options.signal,
       onProgress(percent, text) {
-        options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text);
+        options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text, percent);
       },
     });
   } catch (error) {
@@ -192,7 +192,7 @@ export async function compressLosslessly(
   // Never attempt any engine on a signed, encrypted, XFA or permission-controlled document.
   if (!light.needsDeep && light.keptOriginal && warnings.some(w => /signed PDF|encrypted PDF|XFA PDF|Signature or permission-controlled/i.test(w))) {
     const message = warnings[warnings.length - 1] ?? "Sensitive PDF detected; original preserved.";
-    options.onProgress?.("complete", message);
+    options.onProgress?.("complete", message, 100);
     return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
   }
 
@@ -205,7 +205,7 @@ export async function compressLosslessly(
     const savedPercent = Math.round(savedBytes / original.byteLength * 1000) / 10;
     const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
     const message = `Browser image compression reduced the file by ${savedPercent}%. Non-image streams and decoded page-content SHA-256 hashes were preserved.`;
-    options.onProgress?.("complete", message);
+    options.onProgress?.("complete", message, 100);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images } };
   }
@@ -214,7 +214,7 @@ export async function compressLosslessly(
   if (!memory.allowed) {
     const targetReached = targetBytes === null ? null : best.byteLength <= targetBytes;
     const message = `Deep engine skipped due to memory safety (${memory.reason}). ${targetReached === false ? "The custom target is unreachable without exceeding the safe memory limit; best validated output preserved." : "Best validated output preserved."}`;
-    options.onProgress?.("complete", message);
+    options.onProgress?.("complete", message, 100);
     if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, [...warnings, memory.reason ?? ""], false, images);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
@@ -222,16 +222,16 @@ export async function compressLosslessly(
   }
 
   try {
-    options.onProgress?.("loading-engine", "Loading the local QPDF WebAssembly engine…");
+    options.onProgress?.("loading-engine", "Loading the local QPDF WebAssembly engine…", 10);
     const qpdf = await loadWasmTool("qpdf", locate);
-    options.onProgress?.("validating", "Creating SHA-256 baseline for page content and protected PDF streams…");
+    options.onProgress?.("validating", "Creating SHA-256 baseline for page content and protected PDF streams…", 25);
     const baseline = await createBaseline(original, qpdf);
 
-    options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…");
+    options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…", 35);
     const qpdfOnly = routeDecision.qpdfOnly || baseline.qpdfOnly;
     let tools: Partial<WasmTools> = { qpdf };
     if (!qpdfOnly) {
-      options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…");
+      options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…", 30);
       const ghostscript = await loadWasmTool("ghostscript", locate);
       tools = { qpdf, ghostscript };
     }
@@ -242,7 +242,7 @@ export async function compressLosslessly(
       qpdfOnly,
       signal: options.signal,
       onProgress(percent, text) {
-        options.onProgress?.(percent >= 95 ? "complete" : percent >= 80 ? "validating" : "structural-pass", text);
+        options.onProgress?.(percent >= 95 ? "complete" : percent >= 80 ? "validating" : "structural-pass", text, percent);
       },
     });
     warnings.push(...deep.warnings);
@@ -252,7 +252,7 @@ export async function compressLosslessly(
     for (const candidate of candidates) {
       if (candidate.bytes.byteLength >= best.byteLength) continue;
       try {
-        options.onProgress?.("validating", `Verifying ${candidate.route} output structure and protected streams…`);
+        options.onProgress?.("validating", `Verifying ${candidate.route} output structure and protected streams…`, 90);
         await certifyCandidate(original, candidate.bytes, qpdf, baseline, candidate.route === "ghostscript-wasm");
         best = candidate.bytes.slice();
         method = candidate.route === "ghostscript-wasm" ? "ghostscript-quality-gated" : "qpdf-lossless-structure";
