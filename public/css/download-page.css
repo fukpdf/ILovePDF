@@ -801,3 +801,15 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card {
     flex-basis: 37.8px !important;
   }
 }
+
+
+/* Platform section typography refinement: eyebrow +30%, heading and supporting copy +20%. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-eyebrow {
+  font-size: 15.6px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
+  font-size: clamp(27.6px, 3.24vw, 38.4px) !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+  font-size: 1.2em !important;
+}
