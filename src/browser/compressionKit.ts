@@ -1,4 +1,4 @@
-import { compressInBrowser, type ImageReport } from "./browserCompressor";
+import { compressInBrowser, type BrowserResult, type ImageReport } from "./browserCompressor";
 import { compressDeep, wasmMemoryAllowed, type DeepResult } from "./deepEngine";
 import { DEFAULT_WASM_LOCATE, loadWasmTool, runJsonTool, runTool, type EmModule, type WasmLocate, type WasmTools } from "./wasmCli";
 import {
@@ -160,14 +160,24 @@ export async function compressLosslessly(
     qpdfWasmUrl: options.qpdfWasmUrl ?? DEFAULT_WASM_LOCATE.qpdfWasmUrl,
     ghostscriptWasmUrl: options.ghostscriptWasmUrl ?? DEFAULT_WASM_LOCATE.ghostscriptWasmUrl,
   };
-  const light = await compressInBrowser(original, {
-    mode: engineMode,
-    targetKB: targetBytes === null ? undefined : targetBytes / 1024,
-    signal: options.signal,
-    onProgress(percent, text) {
-      options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text);
-    },
-  });
+  let light: BrowserResult;
+  try {
+    light = await compressInBrowser(original, {
+      mode: engineMode,
+      targetKB: targetBytes === null ? undefined : targetBytes / 1024,
+      signal: options.signal,
+      onProgress(percent, text) {
+        options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text);
+      },
+    });
+  } catch (error) {
+    light = {
+      ok: false, bytes: original.slice(), inputBytes: original.byteLength, outputBytes: original.byteLength,
+      savedPercent: 0, keptOriginal: true, needsDeep: true,
+      deepReason: "light engine failed; try the bounded lossless/deep route", passes: 0, images: [], warnings: [],
+      errors: [`Light engine failed closed: ${error instanceof Error ? error.message : "unknown error"}`],
+    };
+  }
   const lightCandidate = light.ok && light.bytes.byteLength < original.byteLength ? light.bytes.slice() : null;
   let best = lightCandidate ?? original;
   let method: CompressionKitReport["method"] = lightCandidate ? "browser-rgb-image" : "original-preserved";
