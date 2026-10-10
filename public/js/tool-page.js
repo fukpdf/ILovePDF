@@ -2565,7 +2565,10 @@ async function runAdvancedCompress(config = {}) {
       window.CompressRuntime.cancelActive('user-cancel');
     }
   };
-  if (cancelButton) cancelButton.addEventListener('click', onCompressionCancel);
+  if (cancelButton) {
+    cancelButton.addEventListener('click', onCompressionCancel);
+    cancelButton.classList.remove('hidden');
+  }
   try {
     const { PDFDocument, PDFName } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
@@ -2750,7 +2753,10 @@ async function runAdvancedCompress(config = {}) {
       ? err.message : 'Please try again with a different file.';
     showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
   } finally {
-    if (cancelButton) cancelButton.removeEventListener('click', onCompressionCancel);
+    if (cancelButton) {
+      cancelButton.removeEventListener('click', onCompressionCancel);
+      cancelButton.classList.add('hidden');
+    }
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     sourcePdfLib = null;
     if (processBtn) processBtn.disabled = false;
