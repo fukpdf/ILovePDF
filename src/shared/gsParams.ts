@@ -47,5 +47,5 @@ export function buildGsArgs(mode: Mode, qFactor: number, inputPath: string, outp
 
 /** QPDF structural compaction preserves stream payloads; callers must validate the candidate. */
 export function buildQpdfArgs(inputPath: string, outputPath: string): string[] {
-  return ["--stream-data=preserve", "--object-streams=generate", "--compression-level=9", "--linearize", inputPath, outputPath];
+  return ["--stream-data=preserve", "--object-streams=generate", "--compression-level=9", inputPath, outputPath];
 }
