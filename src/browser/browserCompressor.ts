@@ -173,8 +173,8 @@ function colorSpaceIsRgb(dict: PDFDict): boolean {
 async function runPass(input: Uint8Array, mode: Mode, quality: number, images: ImageReport[], signal?: AbortSignal): Promise<{ bytes: Uint8Array; aliases: Map<string, string>; removed: Set<string> }> {
   const policy = MODE_POLICY[mode];
   const doc = await PDFDocument.load(input, { updateMetadata: false });
-  const placements = collectPlacements(doc);
   const dedupes = dedupeImages(doc, images);
+  const placements = collectPlacements(doc);
 
   for (const [ref, object] of doc.context.enumerateIndirectObjects()) {
     if (signal?.aborted) throw new Error("CANCELLED");
