@@ -5,7 +5,7 @@ import type { GateReport } from "../shared/quality";
 import { runTool, type WasmTools } from "./wasmCli";
 
 export interface DeepOptions {
-  mode: Mode; targetKB?: number; tools: Partial<WasmTools>;
+  mode: Mode; targetKB?: number; tools: Partial<WasmTools>; qpdfOnly?: boolean;
   onProgress?: (percent: number, stage: string) => void; signal?: AbortSignal;
 }
 export interface DeepResult {
@@ -57,7 +57,7 @@ export async function compressDeep(raw: Uint8Array, options: DeepOptions): Promi
 
   // Interactive AcroForms must never pass through Ghostscript. The outer
   // integrity gate verifies the QPDF candidate's page streams and object graph.
-  if (containsAscii(input, "/AcroForm") || options.mode === "lossless") {
+  if (containsAscii(input, "/AcroForm") || options.qpdfOnly || options.mode === "lossless") {
     return make(qpdfCandidate, "qpdf-wasm", { gatePassed: true, warnings });
   }
 
