@@ -2687,7 +2687,7 @@ async function runAdvancedCompress(config = {}) {
       'Running a lossless structural pass in your browser. Image data and page content are not re-encoded.',
     );
     const sourceBuffer = await file.arrayBuffer();
-    const worker = new Worker('/workers/compression-kit-worker.js', { type: 'module' });
+    const worker = new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1', { type: 'module' });
     const workerResult = await new Promise((resolve, reject) => {
       let settled = false;
       const finish = (callback, value) => {
