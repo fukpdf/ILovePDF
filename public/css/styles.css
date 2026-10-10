@@ -12665,3 +12665,39 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 /* Tool-specific download CTA overrides removed; shared styling lives in download-page.css. */
 
 /* Platform-card logo sizing is normalized by shared download-page.css. */
+
+/* DESKTOP + TABLET FIX: center the second-section tool identity consistently with mobile. */
+/* The mobile breakpoint already centers this identity; make that alignment the
+   shared baseline so desktop/tablet do not fall back to the left-aligned row. */
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-identity {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 24px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo-wrap {
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+  flex: 0 0 auto;
+}
+
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-logo {
+  margin-inline: auto;
+  flex-shrink: 0;
+}
+
+.ilpdf-branded-upload .seo-content--crop-contract .seo-tool-name {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
