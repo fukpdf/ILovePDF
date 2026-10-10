@@ -2,11 +2,11 @@
 
 ## Execution contract
 
-- PDF bytes are passed to a same-origin Web Worker as an in-memory Uint8Array; no PDF upload endpoint or network request is used to process the document.
+- PDF bytes are passed to a same-origin Web Worker as an in-memory Uint8Array; no upload endpoint is used and no network request carries PDF bytes.
 - The light engine only considers direct 3-component /DeviceRGB DCT images with no /Mask, /SMask, or /Decode; output quantisation tables are checked coefficient-by-coefficient against the source before acceptance.
 - Gray, CMYK, Indexed, Flate, CCITT, JBIG2, masked, and unplaced image streams are preserved by the light engine.
 - Image resize is uniform, box-filtered, based on the image's actual placement, never upscales, and skips images already below the 150 DPI floor.
-- QPDF is the lossless structural route. AcroForm, signed, encrypted, and XFA PDFs fail closed from lossy rewriting.
+- QPDF is the lossless structural route. AcroForm PDFs use QPDF only; signed, encrypted, and XFA PDFs remain byte-identical.
 - Ghostscript candidates are accepted only after page-content SHA-256 checks, structure/protected-stream checks, and the rendered PSNR/sharpness gate. Candidate outputs larger than the input are rejected.
 - Custom target work is bounded: light pass + QPDF structural pass + at most two Ghostscript attempts, each starting from the original input. If the target is unreachable, the report says so.
 
