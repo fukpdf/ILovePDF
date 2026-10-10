@@ -169,3 +169,100 @@ export function assertPageContentStreamsUnchanged(
     }
   }
 }
+
+
+/**
+ * Select only the catalog/page-tree objects and page-content streams for the
+ * second QPDF JSON pass. This keeps large embedded image payloads out of the
+ * integrity report while still including every object needed to resolve page
+ * order and /Contents arrays.
+ */
+export function selectPageContentObjects(jsonText: string): string[] {
+  let parsed: QpdfJson;
+  try {
+    parsed = JSON.parse(jsonText) as QpdfJson;
+  } catch {
+    throw new Error("QPDF did not return valid JSON while discovering content streams.");
+  }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2) {
+    throw new Error("QPDF JSON v2 object table is missing.");
+  }
+  const rawObjects = parsed.qpdf[1];
+  if (!rawObjects || typeof rawObjects !== "object" || Array.isArray(rawObjects)) {
+    throw new Error("QPDF JSON object table has an invalid shape.");
+  }
+  const objects = rawObjects as JsonObject;
+  const trailer = objects.trailer;
+  if (!trailer || typeof trailer !== "object" || Array.isArray(trailer)) {
+    throw new Error("QPDF JSON trailer is missing.");
+  }
+  const trailerValue = (trailer as JsonObject).value;
+  if (!trailerValue || typeof trailerValue !== "object" || Array.isArray(trailerValue)) {
+    throw new Error("QPDF JSON trailer dictionary is missing.");
+  }
+
+  const selected = new Set<string>(["trailer"]);
+  const addRef = (ref: JsonValue | undefined): string => {
+    const key = objectRef(ref);
+    if (!key) throw new Error("QPDF JSON contains an invalid indirect reference.");
+    selected.add(key);
+    return key;
+  };
+  const visiting = new Set<string>();
+  const walk = (ref: JsonValue): void => {
+    const key = addRef(ref);
+    if (visiting.has(key)) throw new Error("Invalid or cyclic PDF page tree.");
+    visiting.add(key);
+    const wrapped = getObject(objects, ref);
+    const rawValue = wrapped.value;
+    if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
+      throw new Error("PDF page-tree node is not a dictionary.");
+    }
+    const dict = rawValue as JsonObject;
+    if (dict["/Type"] === "/Page") {
+      const contents = dict["/Contents"];
+      if (contents !== undefined && contents !== null) {
+        if (Array.isArray(contents)) {
+          for (const item of contents) addContent(item);
+        } else {
+          addContent(contents);
+        }
+      }
+    } else if (dict["/Type"] === "/Pages") {
+      const kids = dict["/Kids"];
+      if (!Array.isArray(kids)) throw new Error("PDF page-tree node has no Kids array.");
+      for (const kid of kids) walk(kid);
+    } else {
+      throw new Error("PDF page tree contains an unexpected node type.");
+    }
+    visiting.delete(key);
+  };
+  const addContent = (ref: JsonValue): void => {
+    const key = addRef(ref);
+    const wrapped = getObject(objects, ref);
+    if (wrapped.stream) return;
+    if (Array.isArray(wrapped.value)) {
+      for (const child of wrapped.value) addContent(child);
+      return;
+    }
+    throw new Error("Page Contents reference is neither a stream nor an array.");
+  };
+
+  const rootRef = (trailerValue as JsonObject)["/Root"];
+  const catalogKey = addRef(rootRef);
+  const catalogObject = getObject(objects, rootRef);
+  const catalogValue = catalogObject.value;
+  if (!catalogValue || typeof catalogValue !== "object" || Array.isArray(catalogValue)) {
+    throw new Error("PDF catalog dictionary is missing.");
+  }
+  const pagesRef = (catalogValue as JsonObject)["/Pages"];
+  if (!pagesRef) throw new Error("PDF catalog has no page-tree root.");
+  walk(pagesRef);
+
+  return Array.from(selected, key => {
+    if (key === "trailer") return key;
+    const match = key.match(/^obj:(\d+)\s+(\d+)\s+R$/);
+    if (!match) throw new Error("Invalid QPDF object selector.");
+    return `${match[1]},${match[2]}`;
+  });
+}
