@@ -1433,7 +1433,7 @@ function renderDownloadStep(tool) {
         <div class="ilpdf-platform-grid">
           <div class="ilpdf-platform-item">
             <span class="ilpdf-platform-logo ilpdf-platform-logo--windows" aria-hidden="true">
-              <svg viewBox="0 0 48 48" focusable="false"><path d="M4 10.2 21 7.8v15H4V10.2Zm20-2.7L44 4.5v18.3H24V7.5ZM4 25.2h17v15L4 37.8V25.2Zm20 0h20v18.3L24 40.8V25.2Z" fill="currentColor"/></svg>
+              <svg viewBox="0 0 48 48" focusable="false"><path d="M4 10.2 21 7.8v15H4V10.2Z" fill="#f25022"/><path d="M24 7.5 44 4.5v18.3H24V7.5Z" fill="#7fba00"/><path d="M4 25.2h17v15L4 37.8V25.2Z" fill="#00a4ef"/><path d="M24 25.2h20v18.3L24 40.8V25.2Z" fill="#ffb900"/></svg>
             </span>
             <h3>Windows</h3>
             <p>PDF tools for Windows PCs and laptops.</p>
