@@ -90,9 +90,8 @@ export function maxSafeJpegQuality(bytes: Uint8Array): number | null {
   return null;
 }
 
-/** Compare encoded quantisers directly; output coefficients may never be finer than source coefficients. */
-export function jpegQuantizationNoFiner(sourceBytes: Uint8Array, outputBytes: Uint8Array): boolean {
-  const source = readJpegInfo(sourceBytes), output = readJpegInfo(outputBytes);
+/** Compare parsed quantisation tables without retaining full image byte arrays. */
+export function jpegQuantizationProfileNoFiner(source: JpegInfo | null, output: JpegInfo | null): boolean {
   if (!source || !output || source.components !== 3 || output.components !== 3 ||
       source.precision !== 8 || output.precision !== 8 || source.unsupportedSof || output.unsupportedSof ||
       source.componentQuantTableIds.length !== 3 || output.componentQuantTableIds.length !== 3) return false;
@@ -103,6 +102,11 @@ export function jpegQuantizationNoFiner(sourceBytes: Uint8Array, outputBytes: Ui
     for (let i = 0; i < 64; i++) if (out[i] < src[i]) return false;
   }
   return true;
+}
+
+/** Compare encoded quantisers directly; output coefficients may never be finer than source coefficients. */
+export function jpegQuantizationNoFiner(sourceBytes: Uint8Array, outputBytes: Uint8Array): boolean {
+  return jpegQuantizationProfileNoFiner(readJpegInfo(sourceBytes), readJpegInfo(outputBytes));
 }
 
 /** Estimate the original JPEG quality from its quantisation tables; null means unknown. */
