@@ -67,75 +67,15 @@ async function stripMetadata(doc) {
 // Phase 3: Main enhanced compress — multi-pass with size selection
 const OPS = {};
 
+// Retired compatibility shim: compression must go through the dedicated
+// module worker and the verified QPDF-WASM gate. Never let the legacy pdf-lib
+// rewrite path emit an unverified candidate.
 OPS.compress = async function (buffers) {
   const original = buffers && buffers[0];
-  if (!(original instanceof ArrayBuffer) || original.byteLength === 0) {
-    throw new Error('Compress requires a non-empty PDF buffer');
+  if (!(original instanceof Uint8Array)) {
+    throw new Error('Legacy compression route disabled; expected original PDF bytes.');
   }
-
-  // Fail closed for document types that a generic pdf-lib load/save cycle
-  // cannot safely preserve. This guard intentionally returns the exact input
-  // bytes rather than attempting a rewrite that could invalidate a signature,
-  // alter form/XFA structures, or mishandle encryption.
-  const sourceBytes = new Uint8Array(original);
-  const hasMarker = (marker) => {
-    // Scan ASCII tokens directly so a large PDF does not also allocate a
-    // potentially hundreds-of-megabytes UTF-16 string in worker memory.
-    outer: for (let i = 0; i <= sourceBytes.length - marker.length; i++) {
-      for (let j = 0; j < marker.length; j++) {
-        if (sourceBytes[i + j] !== marker.charCodeAt(j)) continue outer;
-      }
-      return true;
-    }
-    return false;
-  };
-  const sensitiveMarkers = [
-    ['/ByteRange', 'digitally signed PDF'],
-    ['/Encrypt', 'encrypted PDF'],
-    ['/XFA', 'XFA PDF'],
-    ['/AcroForm', 'interactive form PDF'],
-  ];
-  for (const [marker] of sensitiveMarkers) {
-    if (hasMarker(marker)) {
-      // Returning the original is a successful no-op: the caller can safely
-      // deliver it and report that compression was skipped.
-      return original;
-    }
-  }
-
-  const doc = await PDFDocument.load(original, {
-    updateMetadata: false,
-  });
-
-  // AcroForm/XFA dictionaries can be stored inside compressed object streams,
-  // so a raw byte-marker scan alone is not sufficient. Inspect the parsed
-  // catalog before any serialization and fail closed for every interactive form.
-  // This intentionally preserves AcroForm PDFs unchanged until the verified
-  // qpdf lossless route is integrated.
-  if (doc.catalog.get(PDFName.of('AcroForm'))) {
-    return original;
-  }
-
-  // Do not strip or overwrite document metadata as a side effect of compression.
-  // A content-preserving compressor must be conservative about unrelated data.
-  const out = await doc.save({
-    useObjectStreams: true,
-    addDefaultPage: false,
-    objectsPerTick: 50,
-  });
-  const result = Uint8Array.from(out).buffer;
-
-  const signature = new Uint8Array(result, 0, Math.min(5, result.byteLength));
-  if (signature.length !== 5 ||
-      signature[0] !== 0x25 || signature[1] !== 0x50 ||
-      signature[2] !== 0x44 || signature[3] !== 0x46 || signature[4] !== 0x2D) {
-    throw new Error('Compression produced an invalid PDF output');
-  }
-
-  // A larger result never replaces the original. The strict object-preservation
-  // gate for the new hybrid engine is a separate requirement and is not claimed
-  // to be satisfied by this legacy pdf-lib serialization path.
-  return result.byteLength < original.byteLength ? result : original;
+  return original.slice();
 };
 
 OPS.repair = async function (buffers) {
