@@ -1,6 +1,3 @@
-import ghostscriptWasmUrl from "@jspawn/ghostscript-wasm/gs.wasm?url";
-import qpdfWasmUrl from "@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url";
-
 /**
  * Browser-side Emscripten CLI adapter.
  *
@@ -15,8 +12,15 @@ export interface WasmLocate {
   qpdfWasmUrl: string;
 }
 
-/** Vite emits these as same-origin asset URLs; importing the URL does not fetch the WASM bytes. */
-export const DEFAULT_WASM_LOCATE: WasmLocate = { ghostscriptWasmUrl, qpdfWasmUrl };
+/** Browser builds replace these fallback URLs with Vite-emitted ?url assets. */
+export let DEFAULT_WASM_LOCATE: WasmLocate = {
+  ghostscriptWasmUrl: "/vendor/compression/gs.wasm",
+  qpdfWasmUrl: "/vendor/compression/qpdf.wasm",
+};
+export function configureWasmAssets(locate: WasmLocate): void {
+  if (!locate.ghostscriptWasmUrl || !locate.qpdfWasmUrl) throw new Error("Both local WASM asset URLs are required.");
+  DEFAULT_WASM_LOCATE = { ...locate };
+}
 
 export interface EmscriptenFS {
   writeFile(path: string, data: Uint8Array): void;
