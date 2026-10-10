@@ -15,8 +15,8 @@ self.addEventListener("message", async (event) => {
     const result = await compressLosslessly(input, {
       mode: message.mode,
       targetBytes: Number.isSafeInteger(message.targetBytes) ? message.targetBytes : null,
-      onProgress(stage, text) {
-        self.postMessage({ id, type: "progress", stage, text });
+      onProgress(stage, text, percent) {
+        self.postMessage({ id, type: "progress", stage, text, percent });
       },
     });
     const outputBuffer = result.bytes.buffer.slice(
