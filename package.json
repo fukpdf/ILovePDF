@@ -89,7 +89,8 @@
     "pdf-parse": "^2.4.5",
     "pptxgenjs": "^4.0.1",
     "@neslinesli93/qpdf-wasm": "0.3.0",
-    "@jspawn/ghostscript-wasm": "0.0.2"
+    "@jspawn/ghostscript-wasm": "0.0.2",
+    "esbuild": "^0.24.2"
   },
   "overrides": {
     "proxy-addr": "2.0.8",
@@ -102,7 +103,6 @@
   },
   "devDependencies": {
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "esbuild": "^0.24.2"
+    "typescript": "^5.6.3"
   }
 }
