@@ -11,7 +11,7 @@ declare module "jpeg-js" {
   }
   export function decode(
     bytes: Uint8Array,
-    options?: { useTArray?: boolean; formatAsRGBA?: boolean; tolerantDecoding?: boolean },
+    options?: { useTArray?: boolean; formatAsRGBA?: boolean; tolerantDecoding?: boolean; maxMemoryUsageInMB?: number },
   ): DecodedImage;
   export function encode(
     image: { data: Uint8Array; width: number; height: number },
