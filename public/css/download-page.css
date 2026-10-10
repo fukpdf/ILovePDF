@@ -1155,3 +1155,57 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
     height: min(192px, 60vw) !important;
   }
 }
+
+
+/* FINAL OVERRIDE: win against earlier platform-specific selectors and mobile rules. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  max-width: 100% !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo {
+  width: 312px !important;
+  max-width: 100% !important;
+  height: 312px !important;
+  min-height: 312px !important;
+  flex: 0 0 312px !important;
+  margin: 0 auto 18px !important;
+  border-radius: 24px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > svg,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > img {
+  display: block !important;
+  width: 192px !important;
+  max-width: 192px !important;
+  height: 192px !important;
+  max-height: 192px !important;
+  flex: 0 0 192px !important;
+  object-fit: contain !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo {
+    width: min(312px, 100%) !important;
+    max-width: 100% !important;
+    height: 312px !important;
+    min-height: 312px !important;
+    flex-basis: 312px !important;
+  }
+}
+@media (max-width: 380px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo {
+    width: min(312px, 100%) !important;
+    height: min(312px, 80vw) !important;
+    min-height: min(312px, 80vw) !important;
+    flex-basis: auto !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > svg,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > img {
+    width: min(192px, 60vw) !important;
+    max-width: min(192px, 60vw) !important;
+    height: min(192px, 60vw) !important;
+    max-height: min(192px, 60vw) !important;
+    flex-basis: auto !important;
+  }
+}
