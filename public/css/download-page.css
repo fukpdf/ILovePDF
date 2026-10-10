@@ -1209,3 +1209,58 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-plat
     flex-basis: auto !important;
   }
 }
+
+
+/* FINAL LAYOUT: keep all four platform options in one horizontal row at every breakpoint. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  max-width: 1200px !important;
+  gap: clamp(8px, 2vw, 24px) !important;
+  align-items: start !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo {
+  width: min(220px, 100%) !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  flex: 0 1 220px !important;
+  margin: 0 auto 18px !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > svg,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > img {
+  display: block !important;
+  width: min(192px, 100%) !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 192px !important;
+  aspect-ratio: 1 / 1 !important;
+  flex: 0 1 192px !important;
+  object-fit: contain !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-basis: auto !important;
+    margin-bottom: 10px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > svg,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item .ilpdf-platform-logo > img {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 60px !important;
+    flex-basis: auto !important;
+  }
+}
