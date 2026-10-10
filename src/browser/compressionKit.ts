@@ -1,6 +1,7 @@
 import { loadWasmTool, runJsonTool, runTool, type WasmLocate } from "./wasmCli";
 import {
   assertCompressionEligible,
+  assertDocumentStructureUnchanged,
   assertPageContentStreamsUnchanged,
   hashPageContentStreams,
   selectPageContentObjects,
@@ -123,7 +124,7 @@ export async function compressLosslessly(
     ["/ByteRange", "Digitally signed PDFs are not modified."],
     ["/Encrypt", "Encrypted PDFs are not modified."],
     ["/XFA", "XFA PDFs are not modified."],
-    ["/AcroForm", "Interactive form PDFs are not modified until form-safe processing is verified."],
+    ["/Perms", "Permission-controlled PDFs are not modified until signature restrictions are verified."],
   ].find(([token]) => hasToken(original, token));
   if (sensitive) return resultForOriginal(original, options.mode, targetBytes, sensitive[1]);
 
@@ -174,6 +175,7 @@ export async function compressLosslessly(
     const inputJson = await inspectJson(original, { qpdf }, sourceSelectors, true);
     const outputDiscovery = await inspectJson(candidate, { qpdf }, [], false);
     assertCompressionEligible(outputDiscovery);
+    assertDocumentStructureUnchanged(sourceDiscovery, outputDiscovery);
     const outputSelectors = selectPageContentObjects(outputDiscovery);
     const outputJson = await inspectJson(candidate, { qpdf }, outputSelectors, true);
     const before = await hashPageContentStreams(inputJson);
