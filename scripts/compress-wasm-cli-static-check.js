@@ -9,6 +9,8 @@ const cli = readFileSync(path.join(root, "src/browser/wasmCli.ts"), "utf8");
 const declarations = readFileSync(path.join(root, "src/browser/wasm-modules.d.ts"), "utf8");
 
 const checks = [
+  ["only the requested WASM engine can be lazy-loaded", cli.includes("export function loadWasmTool(")],
+  ["failed WASM imports clear the lazy-load cache", cli.includes("cachedModules.delete(engine)")],
   ["WASM CLI uses in-memory FS.writeFile for input bytes", cli.includes("module.FS.writeFile(inputPath, input)")],
   ["WASM CLI reads output from in-memory FS", cli.includes("module.FS.readFile(outputPath)")],
   ["non-zero exit codes are rejected", cli.includes("if (exitCode !== 0)")],
