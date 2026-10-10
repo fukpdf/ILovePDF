@@ -214,13 +214,56 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
   return new Uint8Array(await doc.save({ useObjectStreams: true, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false }));
 }
 
+function eligibleImageStream(stream: PDFRawStream): boolean {
+  const dict = stream.dict;
+  return isImage(stream) &&
+    dict.lookup(PDFName.of("Filter")) === PDFName.of("DCTDecode") &&
+    colorSpaceIsRgb(dict) &&
+    !dict.has(PDFName.of("SMask")) && !dict.has(PDFName.of("Mask")) &&
+    !dict.has(PDFName.of("Decode")) && !dict.has(PDFName.of("ImageMask"));
+}
+function dictFingerprint(dict: PDFDict, stripImageDimensions = false): string {
+  const ignored = stripImageDimensions ? new Set(["/Width", "/Height", "/Length"]) : new Set<string>();
+  const entries = dict.entries()
+    .filter(([key]) => !ignored.has(key.toString()))
+    .map(([key, value]) => [key.toString(), value.toString()])
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  return JSON.stringify(entries);
+}
+function assertObjectGraphPreserved(before: PDFDocument, after: PDFDocument): void {
+  const left = new Map(before.context.enumerateIndirectObjects().map(([ref, obj]) => [ref.tag, obj]));
+  const right = new Map(after.context.enumerateIndirectObjects().map(([ref, obj]) => [ref.tag, obj]));
+  const leftKeys = [...left.keys()].sort(), rightKeys = [...right.keys()].sort();
+  if (JSON.stringify(leftKeys) !== JSON.stringify(rightKeys)) throw new Error("Indirect PDF object set changed.");
+  for (const key of leftKeys) {
+    const a = left.get(key)!, b = right.get(key)!;
+    if (a instanceof PDFRawStream || b instanceof PDFRawStream) {
+      if (!(a instanceof PDFRawStream) || !(b instanceof PDFRawStream)) throw new Error(`Object kind changed for ${key}.`);
+      if (eligibleImageStream(a) && eligibleImageStream(b)) {
+        if (dictFingerprint(a.dict, true) !== dictFingerprint(b.dict, true)) throw new Error(`RGB JPEG object metadata changed beyond Width/Height/Length for ${key}.`);
+        continue;
+      }
+      if (dictFingerprint(a.dict) !== dictFingerprint(b.dict) || !sameBytes(a.contents, b.contents)) {
+        throw new Error(`Protected stream dictionary or bytes changed for ${key}.`);
+      }
+      continue;
+    }
+    if (a.constructor !== b.constructor || a.toString() !== b.toString()) throw new Error(`Protected PDF object changed for ${key}.`);
+  }
+  if (before.context.trailerInfo.Root?.toString() !== after.context.trailerInfo.Root?.toString() ||
+      before.context.trailerInfo.Info?.toString() !== after.context.trailerInfo.Info?.toString()) {
+    throw new Error("PDF trailer references changed.");
+  }
+}
 async function validate(input: Uint8Array, output: Uint8Array): Promise<string[]> {
   const errors: string[] = [];
   try {
+    if (!startsWithPdf(output) || !endsWithPdfEof(output)) errors.push("output PDF header or EOF marker is invalid");
     const before = await PDFDocument.load(input, { updateMetadata: false });
     const after = await PDFDocument.load(output, { updateMetadata: false });
     if (before.getPageCount() !== after.getPageCount()) errors.push("page count changed");
     if (before.getPageCount() > LIMITS.maxPages) errors.push("page count exceeds supported limit");
+    try { assertObjectGraphPreserved(before, after); } catch (e) { errors.push(e instanceof Error ? e.message : "PDF object graph changed"); }
     const hashesBefore = await pageContentHashes(before);
     const hashesAfter = await pageContentHashes(after);
     try { assertHashesEqual(hashesBefore, hashesAfter); } catch (e) { errors.push(e instanceof Error ? e.message : "decoded content hash mismatch"); }
