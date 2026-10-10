@@ -7149,6 +7149,18 @@ i[data-lucide] {
   margin-top: 24px !important;
 }
 
+/* Download Popular Tools must use the same section width and spacing as Upload.
+   The wrapper is intentionally not .ilpdf-branded-upload, so mirror only these
+   section-level rules instead of inheriting the Upload page's full layout. */
+.ilpdf-download-page .download-popular-tools-scope .popular-tools {
+  width: min(100%, 1180px) !important;
+  max-width: 1180px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 24px !important;
+  box-sizing: border-box;
+}
+
 :is(.ilpdf-branded-upload, .download-popular-tools-scope) .popular-tools .popular-title {
   font-size: clamp(26px, 3vw, 36px);
 }
@@ -7237,6 +7249,11 @@ i[data-lucide] {
   .ilpdf-branded-upload > .tool-faq,
   .ilpdf-branded-upload > .tool-learn-more,
   .ilpdf-branded-upload > .popular-tools {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .ilpdf-download-page .download-popular-tools-scope .popular-tools {
     width: 100% !important;
     max-width: none !important;
   }
