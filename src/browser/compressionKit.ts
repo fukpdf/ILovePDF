@@ -172,22 +172,31 @@ export async function compressLosslessly(
     ghostscriptWasmUrl: options.ghostscriptWasmUrl ?? DEFAULT_WASM_LOCATE.ghostscriptWasmUrl,
   };
   let light: BrowserResult;
-  try {
-    light = await compressInBrowser(original, {
-      mode: engineMode,
-      targetKB: targetBytes === null ? undefined : targetBytes / 1024,
-      signal: options.signal,
-      onProgress(percent, text) {
-        options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text, percent);
-      },
-    });
-  } catch (error) {
+  if (original.byteLength > LIMITS.browserComfortBytes) {
     light = {
-      ok: false, bytes: original.slice(), inputBytes: original.byteLength, outputBytes: original.byteLength,
+      ok: true, bytes: original, inputBytes: original.byteLength, outputBytes: original.byteLength,
       savedPercent: 0, keptOriginal: true, needsDeep: true,
-      deepReason: "light engine failed; try the bounded lossless/deep route", passes: 0, images: [], warnings: [],
-      errors: [`Light engine failed closed: ${error instanceof Error ? error.message : "unknown error"}`],
+      deepReason: "file exceeds the light-engine memory budget", passes: 0, images: [],
+      warnings: ["Light engine skipped due to memory safety; attempting the bounded deep route."], errors: [],
     };
+  } else {
+    try {
+      light = await compressInBrowser(original, {
+        mode: engineMode,
+        targetKB: targetBytes === null ? undefined : targetBytes / 1024,
+        signal: options.signal,
+        onProgress(percent, text) {
+          options.onProgress?.(percent >= 95 ? "validating" : "structural-pass", text, percent);
+        },
+      });
+    } catch (error) {
+      light = {
+        ok: false, bytes: original, inputBytes: original.byteLength, outputBytes: original.byteLength,
+        savedPercent: 0, keptOriginal: true, needsDeep: true,
+        deepReason: "light engine failed; try the bounded lossless/deep route", passes: 0, images: [], warnings: [],
+        errors: [`Light engine failed closed: ${error instanceof Error ? error.message : "unknown error"}`],
+      };
+    }
   }
   const warnings = [...light.warnings, ...light.errors];
   let images = light.images;
