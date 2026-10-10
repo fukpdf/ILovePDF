@@ -889,3 +889,86 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item {
   box-sizing: border-box !important;
   text-align: center !important;
 }
+
+
+/* Deep-audit correction: make the platform band and every content layer explicitly centered.
+   This overrides the legacy card-width rules in styles.css and download-page.css. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  display: block !important;
+  position: relative !important;
+  width: 100vw !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-eyebrow,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > h2,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-intro {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-eyebrow {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-intro {
+  max-width: 680px !important;
+  margin-bottom: 44px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+  display: grid !important;
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  justify-items: stretch !important;
+  align-items: start !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item h3,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item p,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-link {
+  max-width: 100% !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+@media (max-width: 980px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+    padding: 34px 16px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 20px 12px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-logo {
+    width: min(252px, 100%) !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+}
