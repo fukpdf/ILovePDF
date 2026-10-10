@@ -68,7 +68,7 @@ function resultForOriginal(
 
 function qpdfJsonSelector(selector: string): string {
   if (selector === "trailer") return selector;
-  const match = /^obj:(\\d+) (\\d+) R$/.exec(selector);
+  const match = /^obj:(\d+) (\d+) R$/.exec(selector);
   if (!match) throw new Error(`Invalid QPDF JSON object selector: ${selector}`);
   return `${match[1]},${match[2]}`;
 }
