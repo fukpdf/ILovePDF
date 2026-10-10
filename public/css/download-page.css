@@ -813,3 +813,9 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
   font-size: 1.2em !important;
 }
+
+
+/* Add intentional breathing room between the platform intro copy and device logos. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
+  margin-bottom: 44px !important;
+}
