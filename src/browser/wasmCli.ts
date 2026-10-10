@@ -26,12 +26,6 @@ export interface EmModule {
   printErr?: (text: string) => void;
 }
 
-export type ModuleFactory = (options: {
-  locateFile: (path: string, prefix?: string) => string;
-  noInitialRun?: boolean;
-  print?: (text: string) => void;
-  printErr?: (text: string) => void;
-}) => Promise<EmModule>;
 
 export interface WasmTools {
   ghostscript: EmModule;
@@ -41,17 +35,35 @@ export interface WasmTools {
 const cachedModules = new Map<WasmEngine, Promise<EmModule>>();
 const logBuffers = new WeakMap<EmModule, { stdout: string[]; stderr: string[] }>();
 
-async function importFactory(engine: WasmEngine): Promise<ModuleFactory> {
+function assertRuntimeFs(module: EmModule, engine: WasmEngine): EmModule {
+  const fs = module.FS as unknown as Record<string, unknown>;
+  for (const method of ["writeFile", "readFile", "unlink"]) {
+    if (typeof fs[method] !== "function") {
+      throw new Error(`${engine} WASM runtime is missing the required FS.${method} API.`);
+    }
+  }
+  if (typeof module.callMain !== "function") {
+    throw new Error(`${engine} WASM runtime is missing callMain(args).`);
+  }
+  return module;
+}
+
+async function createEngineModule(engine: WasmEngine, wasmUrl: string): Promise<EmModule> {
   if (engine === "qpdf") {
+    // Use QPDF's published factory signature exactly. Its published
+    // declarations expose callMain/FS.readFile; writeFile/unlink are verified
+    // at runtime because the Emscripten FS declarations are incomplete.
     const mod = await import("@neslinesli93/qpdf-wasm");
-    return mod.default as unknown as ModuleFactory;
+    const instance = await mod.default({ locateFile: () => wasmUrl });
+    return assertRuntimeFs(instance as unknown as EmModule, engine);
   }
+
   const mod = await import("@jspawn/ghostscript-wasm");
-  const factory = (mod as { default?: unknown }).default;
-  if (typeof factory !== "function") {
-    throw new Error("Ghostscript-WASM did not export a default module factory.");
-  }
-  return factory as ModuleFactory;
+  const instance = await mod.default({
+    locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
+    noInitialRun: true,
+  });
+  return assertRuntimeFs(instance, engine);
 }
 
 /**
@@ -65,15 +77,8 @@ export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<Em
   const wasmUrl = engine === "qpdf" ? locate.qpdfWasmUrl : locate.ghostscriptWasmUrl;
   const pending = (async () => {
     try {
-      const factory = await importFactory(engine);
-      const logs = { stdout: [] as string[], stderr: [] as string[] };
-      const module = await factory({
-        locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
-        noInitialRun: true,
-        print: (line) => logs.stdout.push(String(line)),
-        printErr: (line) => logs.stderr.push(String(line)),
-      });
-      logBuffers.set(module, logs);
+      const module = await createEngineModule(engine, wasmUrl);
+      logBuffers.set(module, { stdout: [], stderr: [] });
       return module;
     } catch (error) {
       cachedModules.delete(engine);
