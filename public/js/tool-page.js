@@ -2557,6 +2557,15 @@ async function runAdvancedCompress(config = {}) {
   // Keep the source document outside the try so every exit path destroys it.
   let srcPdf = null;
   let sourcePdfLib = null;
+  const cancelButton = document.getElementById('processing-cancel-btn');
+  let preflightCancelled = false;
+  const onCompressionCancel = () => {
+    preflightCancelled = true;
+    if (window.CompressRuntime && typeof window.CompressRuntime.cancelActive === 'function') {
+      window.CompressRuntime.cancelActive('user-cancel');
+    }
+  };
+  if (cancelButton) cancelButton.addEventListener('click', onCompressionCancel);
   try {
     const { PDFDocument, PDFName } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
@@ -2669,6 +2678,9 @@ async function runAdvancedCompress(config = {}) {
       const page = await srcPdf.getPage(i);
       const annotations = await page.getAnnotations({ intent: 'display' });
       page.cleanup();
+      if (preflightCancelled) {
+        throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+      }
       if (annotations.length > 0) {
         hideProcessing();
         showStatus(
@@ -2686,29 +2698,15 @@ async function runAdvancedCompress(config = {}) {
       isCustom ? 'Applying Custom compression…' : 'Applying Deep compression…',
       'Running a lossless structural pass in your browser. Image data and page content are not re-encoded.',
     );
-    const cancelButton = document.getElementById('processing-cancel-btn');
-    let preflightCancelled = false;
-    const onCompressionCancel = () => {
-      preflightCancelled = true;
-      if (window.CompressRuntime && typeof window.CompressRuntime.cancelActive === 'function') {
-        window.CompressRuntime.cancelActive('user-cancel');
-      }
-    };
-    if (cancelButton) cancelButton.addEventListener('click', onCompressionCancel);
-
     let runtimeResult;
-    try {
-      if (preflightCancelled) throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
-      if (!window.CompressRuntime || typeof window.CompressRuntime.execute !== 'function') {
-        throw new Error('The local compression runtime is unavailable. No upload fallback was attempted.');
-      }
-      runtimeResult = await window.CompressRuntime.execute(file, {
-        mode: requestedMode,
-        targetBytes,
-      });
-    } finally {
-      if (cancelButton) cancelButton.removeEventListener('click', onCompressionCancel);
+    if (preflightCancelled) throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+    if (!window.CompressRuntime || typeof window.CompressRuntime.execute !== 'function') {
+      throw new Error('The local compression runtime is unavailable. No upload fallback was attempted.');
     }
+    runtimeResult = await window.CompressRuntime.execute(file, {
+      mode: requestedMode,
+      targetBytes,
+    });
 
     const outputBlob = runtimeResult.blob;
     if (outputBlob.size > file.size) {
@@ -2752,6 +2750,7 @@ async function runAdvancedCompress(config = {}) {
       ? err.message : 'Please try again with a different file.';
     showStatus('error', isCustom ? 'Custom compression failed' : 'Deep compression failed', msg);
   } finally {
+    if (cancelButton) cancelButton.removeEventListener('click', onCompressionCancel);
     if (srcPdf) { try { await srcPdf.destroy(); } catch (_) {} srcPdf = null; }
     sourcePdfLib = null;
     if (processBtn) processBtn.disabled = false;
