@@ -45,9 +45,8 @@ const checks = [
   ['Custom target remains mandatory', toolPage.includes('Custom target missing') && toolPage.includes("requestedMode !== 'deep' && requestedMode !== 'custom'")],
   ['root build creates the browser bundle and local WASM assets', readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/js/compression-kit.js') && readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/vendor/compression')],
   ['compression runtime does not call network APIs with PDF bytes', !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit + integrity + wasmCli + compressionWorker)],
-  ['legacy worker sensitive checks remain before generic rewrite', compressBody.indexOf("['/ByteRange', 'digitally signed PDF']") >= 0 && compressBody.indexOf("['/ByteRange', 'digitally signed PDF']") < compressBody.indexOf('PDFDocument.load(')],
-  ['legacy worker does not strip metadata as a side effect', !compressBody.includes('stripMetadata(doc)')],
-  ['legacy worker returns original when its candidate is not smaller', compressBody.includes('return result.byteLength < original.byteLength ? result : original;')],
+  ['legacy pdf-worker compression rewrite is disabled', compressBody.includes('Legacy compression route disabled') && !compressBody.includes('PDFDocument.load(')],
+  ['legacy worker returns an exact copy of original bytes', compressBody.includes('return original.slice();')],
 
 ];
 
