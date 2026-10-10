@@ -60,8 +60,13 @@ export function estimateJpegQuality(bytes: Uint8Array): number | null {
     const table = info.quantTables[id];
     if (!table?.length) continue;
     const base = id === 0 ? BASE_LUMA : BASE_CHROMA;
-    for (let i = 0; i < Math.min(64, table.length); i++) {
-      if (base[i] > 0) ratios.push((table[i] / base[i]) * 100);
+    // JPEG DQT entries are stored in zig-zag order. Comparing sorted quantisers
+    // avoids a false quality estimate caused by comparing zig-zag bytes to the
+    // standard tables' natural order.
+    const sortedTable = table.slice(0, 64).sort((a, b) => a - b);
+    const sortedBase = base.slice().sort((a, b) => a - b);
+    for (let i = 0; i < Math.min(sortedTable.length, sortedBase.length); i++) {
+      if (sortedBase[i] > 0) ratios.push((sortedTable[i] / sortedBase[i]) * 100);
     }
   }
   if (!ratios.length) return null;
