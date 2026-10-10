@@ -21,4 +21,5 @@ test("published Ghostscript-WASM package initializes its real WASM runtime", asy
   assert.equal(typeof module.callMain, "function");
   assert.equal(typeof module.FS.writeFile, "function");
   assert.equal(typeof module.FS.readFile, "function");
+  assert.equal(typeof module.FS.unlink, "function");
 });
