@@ -21,7 +21,7 @@ await build({ configFile: resolve(root, "vite.config.ts") });
 const entryBundle = resolve(outDir, "compression-kit.js");
 if (!existsSync(entryBundle)) throw new Error("Vite did not emit public/js/compression-kit.js.");
 const entrySource = readFileSync(entryBundle, "utf8");
-if (/(?:from\\s*|import\\s*\\()\\s*["'](?:node:)?(?:fs|path)["']/.test(entrySource)) {
+if (/(?:from\s*|import\s*\()\s*["'](?:node:)?(?:fs|path)["']/.test(entrySource)) {
   throw new Error("Browser bundle contains an unresolved Node builtin import.");
 }
 const chunkDir = resolve(outDir, "compression-chunks");
@@ -30,7 +30,7 @@ if (chunks.length === 0) throw new Error("Vite did not emit lazy-loaded engine c
 const assetsDir = resolve(outDir, "assets");
 const assets = existsSync(assetsDir) ? readdirSync(assetsDir) : [];
 if (!assets.some(name => name.endsWith(".wasm"))) throw new Error("Vite did not emit local WASM URL assets.");
-if (!assets.some(name => /pdf\\.worker.*\\.mjs$/.test(name))) throw new Error("Vite did not emit the PDF.js worker URL asset.");
+if (!assets.some(name => /pdf\.worker.*\\.mjs$/.test(name))) throw new Error("Vite did not emit the PDF.js worker URL asset.");
 for (const name of ["qpdf.wasm", "gs.wasm"]) {
   if (!existsSync(resolve(vendorDir, name))) throw new Error(`Missing same-origin WASM fallback asset: ${name}`);
 }
