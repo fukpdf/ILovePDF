@@ -137,7 +137,7 @@ jobs:
           smoke_check "$origin/crop-pdf"
           smoke_check "$origin/compress-pdf"
           smoke_check "$origin/js/tools-config.js"
-          smoke_check "$origin/js/tool-page.js?v=20261009-hybrid-150dpi-v2"
+          smoke_check "$origin/js/tool-page.js?v=20261010-qpdf-lossless-kit-v1"
           smoke_check "$origin/js/compression-kit.js"
           smoke_check "$origin/workers/compression-kit-worker.js"
           smoke_check "$origin/vendor/compression/qpdf.wasm"
