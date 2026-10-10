@@ -8,9 +8,12 @@ self.addEventListener("message", async (event) => {
     if (!(message.buffer instanceof ArrayBuffer) || message.buffer.byteLength === 0) {
       throw new Error("Compression worker received an empty PDF buffer.");
     }
+    if (message.mode !== "deep" && message.mode !== "custom") {
+      throw new Error("Compression mode is missing or invalid.");
+    }
     const input = new Uint8Array(message.buffer);
     const result = await compressLosslessly(input, {
-      mode: message.mode === "custom" ? "custom" : message.mode === "deep" ? "deep" : (() => { throw new Error("Compression mode is missing or invalid."); })(),
+      mode: message.mode,
       targetBytes: Number.isSafeInteger(message.targetBytes) ? message.targetBytes : null,
       qpdfWasmUrl: "/vendor/compression/qpdf.wasm",
       ghostscriptWasmUrl: "/vendor/compression/gs.wasm",
