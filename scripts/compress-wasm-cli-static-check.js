@@ -10,6 +10,7 @@ const declarations = readFileSync(path.join(root, "src/browser/wasm-modules.d.ts
 
 const checks = [
   ["only the requested WASM engine can be lazy-loaded", cli.includes("export function loadWasmTool(")],
+  ["CLI accepts only the initialized engine", cli.includes("tools: Partial<WasmTools>") && cli.includes("WASM engine ${engine} was not initialized.")],
   ["failed WASM imports clear the lazy-load cache", cli.includes("cachedModules.delete(engine)")],
   ["WASM CLI uses in-memory FS.writeFile for input bytes", cli.includes("module.FS.writeFile(inputPath, input)")],
   ["WASM CLI reads output from in-memory FS", cli.includes("module.FS.readFile(outputPath)")],
