@@ -62,7 +62,7 @@ export async function compressDeep(raw: Uint8Array, options: DeepOptions): Promi
   }
 
   const policy = MODE_POLICY[options.mode];
-  const ladder: readonly number[] = options.mode === "custom" ? CUSTOM_GS_QFACTOR_LADDER.slice(0, 2) : [policy.gsQFactor];
+  const ladder: readonly number[] = options.mode === "custom" ? CUSTOM_GS_QFACTOR_LADDER.slice(2, 4) : [policy.gsQFactor];
   const targetBytes = options.mode === "custom" ? Math.round((options.targetKB ?? 0) * 1024) : undefined;
   let best = qpdfCandidate, bestGate: GateReport | undefined;
   if (typeof OffscreenCanvas === "undefined") {
