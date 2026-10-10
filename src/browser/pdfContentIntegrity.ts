@@ -9,6 +9,8 @@
  * if QPDF omits a page, content stream, or stream payload.
  */
 
+import { readJpegInfo, jpegQuantizationProfileNoFiner, type JpegInfo } from "../shared/jpeg";
+
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 type JsonObject = { [key: string]: JsonValue };
 type QpdfJson = { qpdf?: JsonValue[] };
@@ -44,7 +46,7 @@ function getValueObject(objects: JsonObject, ref: JsonValue | undefined): JsonOb
 }
 
 function decodeBase64(value: JsonValue | undefined): Uint8Array {
-  if (typeof value !== "string") throw new Error("QPDF JSON omitted decoded page content stream bytes.");
+  if (typeof value !== "string") throw new Error("QPDF JSON omitted stream bytes.");
   let binary: string;
   try {
     binary = atob(value);
@@ -364,6 +366,101 @@ export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypt
   }
   if (expected && [...expected].some(key => hashes[key] === undefined)) throw new Error("QPDF omitted one or more selected protected streams.");
   return hashes;
+}
+
+export interface EligibleRgbImageSnapshot {
+  hashes: Record<string, string>;
+  profiles: Record<string, JpegInfo>;
+}
+
+/** Select only RGB DCT images eligible for re-encoding; all other image streams stay protected. */
+export function selectEligibleRgbImageObjects(jsonText: string): string[] {
+  let parsed: QpdfJson;
+  try { parsed = JSON.parse(jsonText) as QpdfJson; }
+  catch { throw new Error("QPDF did not return valid JSON while selecting eligible RGB images."); }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 || !parsed.qpdf[1] ||
+      typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) {
+    throw new Error("QPDF JSON object table is missing while selecting eligible RGB images.");
+  }
+  const objects = parsed.qpdf[1] as JsonObject;
+  const selected: string[] = [];
+  for (const [key, entry] of Object.entries(objects)) {
+    if (!key.startsWith("obj:") || !entry || typeof entry !== "object" || Array.isArray(entry) || isContainerStream(entry)) continue;
+    const stream = (entry as JsonObject).stream;
+    if (!stream || typeof stream !== "object" || Array.isArray(stream)) continue;
+    const dict = (stream as JsonObject).dict;
+    if (dict && typeof dict === "object" && !Array.isArray(dict) && eligibleReencodedImage(dict as JsonObject)) selected.push(key);
+  }
+  return selected.sort();
+}
+
+/**
+ * Capture raw hashes and small JPEG quantisation profiles for eligible RGB DCT
+ * streams. The full JPEG bytes are discarded immediately to avoid retaining a
+ * second copy of potentially large images in memory.
+ */
+export async function snapshotEligibleRgbImageStreams(
+  jsonText: string,
+  expectedRefs?: string[],
+  subtle: SubtleCrypto = crypto.subtle,
+): Promise<EligibleRgbImageSnapshot> {
+  let parsed: QpdfJson;
+  try { parsed = JSON.parse(jsonText) as QpdfJson; }
+  catch { throw new Error("QPDF did not return valid JSON for RGB image validation."); }
+  if (!Array.isArray(parsed.qpdf) || parsed.qpdf.length < 2 || !parsed.qpdf[1] ||
+      typeof parsed.qpdf[1] !== "object" || Array.isArray(parsed.qpdf[1])) {
+    throw new Error("QPDF JSON object table is missing during RGB image validation.");
+  }
+  const objects = parsed.qpdf[1] as JsonObject;
+  const expected = expectedRefs ? new Set(expectedRefs) : null;
+  const snapshot: EligibleRgbImageSnapshot = { hashes: {}, profiles: {} };
+  for (const [key, entry] of Object.entries(objects)) {
+    if (!key.startsWith("obj:") || (expected && !expected.has(key)) ||
+        !entry || typeof entry !== "object" || Array.isArray(entry) || isContainerStream(entry)) continue;
+    const wrapped = entry as JsonObject;
+    const stream = wrapped.stream;
+    const dict = stream && typeof stream === "object" && !Array.isArray(stream)
+      ? (stream as JsonObject).dict : null;
+    const eligible = !!dict && typeof dict === "object" && !Array.isArray(dict) && eligibleReencodedImage(dict as JsonObject);
+    if (expected && expected.has(key) && !eligible) {
+      throw new Error(`Eligible RGB image ${key} changed filter or colour-space eligibility.`);
+    }
+    if (!eligible || !stream || typeof stream !== "object" || Array.isArray(stream)) continue;
+    const record = stream as JsonObject;
+    const bytes = decodeBase64(record.data);
+    const info = readJpegInfo(bytes);
+    if (!info || info.components !== 3 || info.precision !== 8 || info.unsupportedSof ||
+        info.componentQuantTableIds.length !== 3 ||
+        info.componentQuantTableIds.some(id => !info.quantTables[id] || info.quantTables[id].length < 64)) {
+      throw new Error(`Eligible RGB image ${key} does not contain a certifiable 8-bit three-component JPEG.`);
+    }
+    snapshot.hashes[key] = await sha256(bytes, subtle);
+    snapshot.profiles[key] = info;
+  }
+  if (expected && [...expected].some(key => snapshot.hashes[key] === undefined)) {
+    throw new Error("QPDF omitted one or more selected eligible RGB image streams.");
+  }
+  return snapshot;
+}
+
+export function assertRgbImageStreamsUnchanged(before: EligibleRgbImageSnapshot, after: EligibleRgbImageSnapshot): void {
+  const left = Object.keys(before.hashes).sort(), right = Object.keys(after.hashes).sort();
+  if (stableJson(left) !== stableJson(right)) throw new Error("QPDF changed the eligible RGB image object set.");
+  for (const key of left) {
+    if (before.hashes[key] !== after.hashes[key]) {
+      throw new Error(`QPDF changed RGB image bytes for ${key}; the lossless route must preserve them exactly.`);
+    }
+  }
+}
+
+export function assertRgbImageQuantizationNotFiner(before: EligibleRgbImageSnapshot, after: EligibleRgbImageSnapshot): void {
+  const left = Object.keys(before.profiles).sort(), right = Object.keys(after.profiles).sort();
+  if (stableJson(left) !== stableJson(right)) throw new Error("Candidate changed the eligible RGB image object set.");
+  for (const key of left) {
+    if (!jpegQuantizationProfileNoFiner(before.profiles[key], after.profiles[key])) {
+      throw new Error(`Candidate re-encoded RGB image ${key} at a higher quality than its source.`);
+    }
+  }
 }
 
 export function assertProtectedStreamsUnchanged(before: Record<string, string>, after: Record<string, string>): void {
