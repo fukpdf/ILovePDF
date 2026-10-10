@@ -170,11 +170,11 @@ function colorSpaceIsRgb(dict: PDFDict): boolean {
   // ICCBased profiles are skipped unless their RGB identity can be proven. DeviceRGB is unambiguous.
   return dict.lookup(PDFName.of("ColorSpace")) === PDFName.of("DeviceRGB");
 }
-async function runPass(input: Uint8Array, mode: Mode, quality: number, images: ImageReport[], signal?: AbortSignal): Promise<Uint8Array> {
+async function runPass(input: Uint8Array, mode: Mode, quality: number, images: ImageReport[], signal?: AbortSignal): Promise<{ bytes: Uint8Array; aliases: Map<string, string>; removed: Set<string> }> {
   const policy = MODE_POLICY[mode];
   const doc = await PDFDocument.load(input, { updateMetadata: false });
   const placements = collectPlacements(doc);
-  dedupeImages(doc, images);
+  const dedupes = dedupeImages(doc, images);
 
   for (const [ref, object] of doc.context.enumerateIndirectObjects()) {
     if (signal?.aborted) throw new Error("CANCELLED");
@@ -217,7 +217,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
       skip("JPEG decode/encode failed; source stream retained");
     }
   }
-  return new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false }));
+  return { bytes: new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false, updateMetadata: false, updateFieldAppearances: false })), aliases: dedupes.aliases, removed: dedupes.removed };
 }
 
 function hasIndirectDictionaryKey(doc: PDFDocument, key: string): boolean {
@@ -247,32 +247,62 @@ function dictFingerprint(dict: PDFDict, stripImageDimensions = false): string {
     .sort((a, b) => a[0].localeCompare(b[0]));
   return JSON.stringify(entries);
 }
-function assertObjectGraphPreserved(before: PDFDocument, after: PDFDocument): void {
+function samePdfObject(a: unknown, b: unknown, aliases: Map<string, string>): boolean {
+  if (a instanceof PDFRef || b instanceof PDFRef) {
+    return a instanceof PDFRef && b instanceof PDFRef && (aliases.get(a.tag) ?? a.tag) === b.tag;
+  }
+  if (a instanceof PDFRawStream || b instanceof PDFRawStream) {
+    if (!(a instanceof PDFRawStream) || !(b instanceof PDFRawStream)) return false;
+    if (eligibleImageStream(a) && eligibleImageStream(b)) return dictFingerprint(a.dict, true) === dictFingerprint(b.dict, true);
+    return samePdfObject(a.dict, b.dict, aliases) && sameBytes(a.contents, b.contents);
+  }
+  if (a instanceof PDFDict || b instanceof PDFDict) {
+    if (!(a instanceof PDFDict) || !(b instanceof PDFDict)) return false;
+    const left = new Map(a.entries().map(([key, value]) => [key.toString(), value]));
+    const right = new Map(b.entries().map(([key, value]) => [key.toString(), value]));
+    if (left.size !== right.size) return false;
+    for (const [key, value] of left) if (!right.has(key) || !samePdfObject(value, right.get(key), aliases)) return false;
+    return true;
+  }
+  if (a instanceof PDFArray || b instanceof PDFArray) {
+    if (!(a instanceof PDFArray) || !(b instanceof PDFArray) || a.size() !== b.size()) return false;
+    for (let i = 0; i < a.size(); i++) if (!samePdfObject(a.get(i), b.get(i), aliases)) return false;
+    return true;
+  }
+  if (a == null || b == null) return a === b;
+  return (a as { constructor?: unknown }).constructor === (b as { constructor?: unknown }).constructor &&
+    String(a) === String(b);
+}
+function assertObjectGraphPreserved(
+  before: PDFDocument, after: PDFDocument, aliases: Map<string, string> = new Map(), removed: Set<string> = new Set(),
+): void {
   const left = new Map(before.context.enumerateIndirectObjects().map(([ref, obj]) => [ref.tag, obj]));
   const right = new Map(after.context.enumerateIndirectObjects().map(([ref, obj]) => [ref.tag, obj]));
   const leftKeys = [...left.keys()].sort(), rightKeys = [...right.keys()].sort();
-  if (JSON.stringify(leftKeys) !== JSON.stringify(rightKeys)) throw new Error("Indirect PDF object set changed.");
-  for (const key of leftKeys) {
-    const a = left.get(key)!, b = right.get(key)!;
-    if (a instanceof PDFRawStream || b instanceof PDFRawStream) {
-      if (!(a instanceof PDFRawStream) || !(b instanceof PDFRawStream)) throw new Error(`Object kind changed for ${key}.`);
-      if (eligibleImageStream(a) && eligibleImageStream(b)) {
-        if (dictFingerprint(a.dict, true) !== dictFingerprint(b.dict, true)) throw new Error(`RGB JPEG object metadata changed beyond Width/Height/Length for ${key}.`);
-        continue;
-      }
-      if (dictFingerprint(a.dict) !== dictFingerprint(b.dict) || !sameBytes(a.contents, b.contents)) {
-        throw new Error(`Protected stream dictionary or bytes changed for ${key}.`);
-      }
-      continue;
+  const expectedKeys = leftKeys.filter(key => !removed.has(key));
+  if (JSON.stringify(expectedKeys) !== JSON.stringify(rightKeys)) throw new Error("Indirect PDF object set changed beyond safe image deduplication.");
+  for (const [duplicateTag, canonicalTag] of aliases) {
+    const duplicate = left.get(duplicateTag), canonical = left.get(canonicalTag), canonicalAfter = right.get(canonicalTag);
+    if (!(duplicate instanceof PDFRawStream) || !(canonical instanceof PDFRawStream) || !(canonicalAfter instanceof PDFRawStream) ||
+        !isImage(duplicate) || !isImage(canonical) ||
+        dictFingerprint(duplicate.dict) !== dictFingerprint(canonical.dict) ||
+        !sameBytes(duplicate.contents, canonical.contents)) {
+      throw new Error("Image deduplication attempted without an exact complete-dictionary and byte match.");
     }
-    if (a.constructor !== b.constructor || a.toString() !== b.toString()) throw new Error(`Protected PDF object changed for ${key}.`);
   }
-  if (before.context.trailerInfo.Root?.toString() !== after.context.trailerInfo.Root?.toString() ||
-      before.context.trailerInfo.Info?.toString() !== after.context.trailerInfo.Info?.toString()) {
+  for (const key of rightKeys) {
+    const a = left.get(key), b = right.get(key);
+    if (a === undefined || b === undefined || !samePdfObject(a, b, aliases)) {
+      throw new Error(`Protected PDF object or stream changed for ${key}.`);
+    }
+  }
+  if (!samePdfObject(before.context.trailerInfo.Root, after.context.trailerInfo.Root, aliases) ||
+      !samePdfObject(before.context.trailerInfo.Info, after.context.trailerInfo.Info, aliases)) {
     throw new Error("PDF trailer references changed.");
   }
 }
-async function validate(input: Uint8Array, output: Uint8Array): Promise<string[]> {
+
+async function validate(input: Uint8Array, output: Uint8Array, aliases: Map<string, string>, removed: Set<string>): Promise<string[]> {
   const errors: string[] = [];
   try {
     if (!startsWithPdf(output) || !endsWithPdfEof(output)) errors.push("output PDF header or EOF marker is invalid");
@@ -280,7 +310,7 @@ async function validate(input: Uint8Array, output: Uint8Array): Promise<string[]
     const after = await PDFDocument.load(output, { updateMetadata: false });
     if (before.getPageCount() !== after.getPageCount()) errors.push("page count changed");
     if (before.getPageCount() > LIMITS.maxPages) errors.push("page count exceeds supported limit");
-    try { assertObjectGraphPreserved(before, after); } catch (e) { errors.push(e instanceof Error ? e.message : "PDF object graph changed"); }
+    try { assertObjectGraphPreserved(before, after, aliases, removed); } catch (e) { errors.push(e instanceof Error ? e.message : "PDF object graph changed"); }
     const hashesBefore = await pageContentHashes(before);
     const hashesAfter = await pageContentHashes(after);
     try { assertHashesEqual(hashesBefore, hashesAfter); } catch (e) { errors.push(e instanceof Error ? e.message : "decoded content hash mismatch"); }
@@ -327,8 +357,9 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
     passes++;
     onProgress?.(15 + Math.round((passes / Math.min(ladder.length, 4)) * 65), `Image compression pass ${passes}/${Math.min(ladder.length, 4)} (quality ${quality})`);
     const images: ImageReport[] = [];
-    const output = await runPass(input, mode, quality, images, signal); // every target pass starts from ORIGINAL
-    const errors = await validate(input, output);
+    const pass = await runPass(input, mode, quality, images, signal); // every target pass starts from ORIGINAL
+    const output = pass.bytes;
+    const errors = await validate(input, output, pass.aliases, pass.removed);
     if (errors.length) { validationErrors = errors; break; }
     if (output.length < best.length) { best = output; bestImages = images; }
     if (!targetBytes || best.length <= targetBytes) break;
