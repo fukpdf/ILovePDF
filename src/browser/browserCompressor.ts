@@ -125,9 +125,10 @@ function referencedTags(doc: PDFDocument): Set<string> {
   walkRefs(doc.context.trailerInfo.Info, tags);
   return tags;
 }
-function dedupeImages(doc: PDFDocument, report: ImageReport[]): void {
+function dedupeImages(doc: PDFDocument, report: ImageReport[]): { aliases: Map<string, string>; removed: Set<string> } {
   const canonical = new Map<string, { ref: PDFRef; bytes: Uint8Array }>();
-  const replaced: PDFRef[] = [];
+  const replaced: Array<{ ref: PDFRef; canonicalRef: PDFRef }> = [];
+  const aliases = new Map<string, string>(), removed = new Set<string>();
   for (const page of doc.getPages()) {
     const xObjects = page.node.Resources()?.lookup(PDFName.of("XObject"));
     if (!(xObjects instanceof PDFDict)) continue;
@@ -144,19 +145,27 @@ function dedupeImages(doc: PDFDocument, report: ImageReport[]): void {
       const hit = canonical.get(signature);
       if (hit && hit.ref.tag !== value.tag && sameBytes(hit.bytes, bytes)) {
         xObjects.set(key, hit.ref);
-        replaced.push(value);
+        replaced.push({ ref: value, canonicalRef: hit.ref });
+        aliases.set(value.tag, hit.ref.tag);
         report.push({
           ref: value.tag, width: num(dict.lookup(PDFName.of("Width"))), height: num(dict.lookup(PDFName.of("Height"))),
           effectiveDpi: null, bytesBefore: bytes.length, bytesAfter: 0, action: "deduplicated",
-          reason: `exact image object match; reference updated to ${hit.ref.tag}`,
+          reason: `complete image dictionary and bytes match; reference redirected to ${hit.ref.tag}`,
         });
       } else if (!hit) canonical.set(signature, { ref: value, bytes });
     }
   }
-  if (!replaced.length) return;
+  if (!replaced.length) return { aliases, removed };
   const stillReferenced = referencedTags(doc);
-  for (const ref of replaced) if (!stillReferenced.has(ref.tag)) doc.context.delete(ref);
+  for (const entry of replaced) {
+    if (!stillReferenced.has(entry.ref.tag)) {
+      doc.context.delete(entry.ref);
+      removed.add(entry.ref.tag);
+    }
+  }
+  return { aliases, removed };
 }
+
 function colorSpaceIsRgb(dict: PDFDict): boolean {
   // ICCBased profiles are skipped unless their RGB identity can be proven. DeviceRGB is unambiguous.
   return dict.lookup(PDFName.of("ColorSpace")) === PDFName.of("DeviceRGB");
