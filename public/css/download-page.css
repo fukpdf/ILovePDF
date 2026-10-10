@@ -972,3 +972,105 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-plat
     aspect-ratio: 1 / 1 !important;
   }
 }
+
+
+/* Final correction after cascade + layout audit:
+   keep the section in normal document flow, and draw the full-viewport band
+   with a pseudo-element so 100vw/margin calculations cannot shift its content. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  position: relative !important;
+  isolation: isolate !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 1200px !important;
+  margin: 28px auto 28px !important;
+  padding: clamp(34px, 4.5vw, 60px) clamp(16px, 3vw, 28px) !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: -1 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  transform: translateX(-50%) !important;
+  border-top: 1px solid #e7eaf5 !important;
+  border-bottom: 1px solid #e7eaf5 !important;
+  background: linear-gradient(180deg, #f7f8ff 0%, #f1f5ff 100%) !important;
+  pointer-events: none !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-eyebrow,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > h2,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-intro {
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-eyebrow {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platforms-intro {
+  max-width: 680px !important;
+  margin-bottom: 44px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+  display: grid !important;
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  justify-content: center !important;
+  align-items: start !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item h3,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-item p,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-link {
+  max-width: 100% !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+@media (max-width: 980px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+    padding: 34px 16px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms > .ilpdf-platform-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 20px 12px !important;
+  }
+  /* Preserve the intended logo size on phones; do not scale logos to card width. */
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-platform-logo {
+    width: 58px !important;
+    height: 58px !important;
+    aspect-ratio: auto !important;
+  }
+}
