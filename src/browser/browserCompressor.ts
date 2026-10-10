@@ -197,8 +197,8 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
     if (!placement) { skip("image has no measurable page placement; preserved without re-encoding"); continue; }
     const target = computeUniformTarget(width, height, placement.wPt, placement.hPt, policy.floorDpi, policy.targetDpi);
     rep.effectiveDpi = target.effectiveDpi;
-    const sourceQuality = estimateJpegQuality(bytes);
-    if (sourceQuality === null) { skip("source JPEG quality is unknown; avoiding an unprovable generation-loss risk"); continue; }
+    const sourceQuality = maxSafeJpegQuality(bytes);
+    if (sourceQuality === null) { skip("source JPEG quantization tables cannot establish a safe re-encode quality"); continue; }
     if (!target.resized && sourceQuality <= quality + 2) { skip(`source JPEG quality ~${sourceQuality} is already at/below target`); continue; }
     // Never request a higher encoder quality than the source JPEG.
     const outputQuality = Math.max(1, Math.min(95, quality, sourceQuality));
@@ -207,6 +207,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
       if (decoded.width !== width || decoded.height !== height || decoded.data.length !== width * height * 4) { skip("JPEG decoder dimensions did not match the source"); continue; }
       const resized = boxResizeRGBA(decoded.data as Uint8Array, decoded.width, decoded.height, target.newWidth, target.newHeight);
       const encoded = new Uint8Array(jpeg.encode({ data: Buffer.from(resized), width: target.newWidth, height: target.newHeight }, outputQuality).data);
+      if (!jpegQuantizationNoFiner(bytes, encoded)) { skip("output JPEG quantization would be finer than the source; original stream preserved"); continue; }
       if (encoded.length >= bytes.length * (1 - LIMITS.minImageSavingRatio)) { skip("re-encode did not meet the minimum saving threshold"); continue; }
       dict.set(PDFName.of("Width"), PDFNumber.of(target.newWidth));
       dict.set(PDFName.of("Height"), PDFNumber.of(target.newHeight));
