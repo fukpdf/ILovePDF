@@ -37,6 +37,7 @@
     "src/browser/browserQualityGate.ts",
     "src/browser/deepEngine.ts",
     "src/browser/assets.d.ts",
-    "src/router/smartRouter.ts"
+    "src/router/smartRouter.ts",
+    "src/browser/compressionKitEntry.ts"
   ]
 }
