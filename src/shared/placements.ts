@@ -32,7 +32,7 @@ function tokens(source: string): string[] {
       let j=++i; while(i<source.length && !/[\s()[\]{}<>/%]/.test(source[i])) i++;
       out.push("/"+source.slice(j,i)); continue;
     }
-    if ("[]{}").includes(ch)) { out.push(ch); i++; continue; }
+    if ("[]{}".includes(ch)) { out.push(ch); i++; continue; }
     let j=i; while(i<source.length && !/[\s()[\]{}<>/%]/.test(source[i])) i++;
     if (j===i) { i++; continue; }
     out.push(source.slice(j,i));
