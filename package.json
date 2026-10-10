@@ -66,7 +66,8 @@
     "audit:phase5:pdf-to-word-decision": "node scripts/phase5-pdf-to-word-decision-check.js",
     "audit:phase5:units-1-332-full": "node scripts/phase5-units-1-332-full-audit-check.js",
     "test:compression:unit": "tsx --test tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts",
-    "typecheck:compression": "tsc --noEmit -p tsconfig.compression.json"
+    "typecheck:compression": "tsc --noEmit -p tsconfig.compression.json",
+    "typecheck": "npm run typecheck:compression"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
