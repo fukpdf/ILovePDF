@@ -819,3 +819,38 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
   margin-bottom: 44px !important;
 }
+
+
+/* Full-width editorial share band: clean white separation, not a floating card. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: none !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  padding: clamp(32px, 4.5vw, 64px) clamp(20px, 6vw, 88px) !important;
+  box-sizing: border-box !important;
+  border: 0 !important;
+  border-top: 1px solid #e9edf5 !important;
+  border-bottom: 1px solid #e9edf5 !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Premium, soft-tinted platform area to visually distinguish the device ecosystem. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: none !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  padding: clamp(34px, 4.5vw, 60px) clamp(20px, 6vw, 88px) !important;
+  box-sizing: border-box !important;
+  border: 0 !important;
+  border-top: 1px solid #e7eaf5 !important;
+  border-bottom: 1px solid #e7eaf5 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, #f7f8ff 0%, #f1f5ff 100%) !important;
+  box-shadow: none !important;
+}
