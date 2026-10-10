@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import {
+  assertCompressionEligible,
   assertPageContentStreamsUnchanged,
   hashPageContentStreams,
+  selectPageContentObjects,
 } from "../src/browser/pdfContentIntegrity";
 
 const subtle = webcrypto.subtle as SubtleCrypto;
@@ -67,4 +69,24 @@ test("content-stream preservation check rejects changed streams and page counts"
     ),
     /changed the PDF page count/,
   );
+});
+
+test("selects only trailer, catalog, page-tree, page, and content stream objects", () => {
+  const selectors = selectPageContentObjects(qpdfJson("q Q"));
+  for (const selector of ["trailer", "1,0", "2,0", "3,0", "4,0"]) {
+    assert.ok(selectors.includes(selector), `missing selector ${selector}`);
+  }
+});
+
+test("eligibility gate accepts a plain PDF and rejects AcroForm structures", () => {
+  assert.doesNotThrow(() => assertCompressionEligible(qpdfJson("q Q")));
+  const parsed = JSON.parse(qpdfJson("q Q"));
+  parsed.qpdf[1]["obj:1 0 R"].value["/AcroForm"] = "7 0 R";
+  assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /unsupported document structure.*AcroForm/);
+});
+
+test("eligibility gate rejects page annotations", () => {
+  const parsed = JSON.parse(qpdfJson("q Q"));
+  parsed.qpdf[1]["obj:3 0 R"].value["/Annots"] = [];
+  assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /links or annotations/);
 });
