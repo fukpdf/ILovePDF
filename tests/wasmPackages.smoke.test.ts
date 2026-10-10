@@ -28,7 +28,7 @@ test("published Ghostscript-WASM package initializes its real WASM runtime", asy
 async function smokePdf(): Promise<Uint8Array> {
   const doc=await PDFDocument.create(),page=doc.addPage([300,200]),font=await doc.embedFont(StandardFonts.Helvetica);
   page.drawText("Local WASM CLI smoke test",{x:24,y:150,size:14,font});
-  return new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  return new Uint8Array(await doc.save({useObjectStreams:false}));
 }
 
 test("published QPDF-WASM executes a real CLI transformation in its virtual FS", async () => {
