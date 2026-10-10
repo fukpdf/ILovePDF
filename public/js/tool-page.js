@@ -1400,13 +1400,7 @@ function renderDownloadStep(tool) {
         </div>
       </section>
 
-      <section class="ilpdf-continue-card" aria-label="Continue to other PDF tools">
-        <div class="ilpdf-continue-title">Continue to...</div>
-        <div class="related-tools-grid" id="related-tools-grid"></div>
-        <div class="ilpdf-continue-more" id="related-tools-more" hidden>
-          <a href="/tools">See more</a>
-        </div>
-      </section>
+      ${popularToolsHtml(tool.id)}
 
       <section class="ilpdf-thanks-card" aria-label="Share and support ILovePDF">
         <div class="ilpdf-thanks-kicker"><i data-lucide="heart-handshake" aria-hidden="true"></i> Made to help, free to use</div>
@@ -1573,18 +1567,6 @@ function renderDownloadStep(tool) {
 
   setTimeout(function () {
     try {
-      const relGrid = document.getElementById('related-tools-grid');
-      const more = document.getElementById('related-tools-more');
-      if (!relGrid || !window.TOOL_GROUPS) return;
-      const toolId = tool && (tool.id || tool.tid);
-      const relHtml = _buildRelatedToolsHtml(toolId, 6);
-      if (!relHtml) return;
-      relGrid.innerHTML = relHtml;
-      if (more) more.hidden = false;
-      if (window.lucide) window.lucide.createIcons({ nodes: [relGrid] });
-    } catch (_) {}
-
-    try {
       if (window.AdManager) {
         const slot = document.getElementById('ad-download-banner');
         if (slot) {
@@ -1594,62 +1576,6 @@ function renderDownloadStep(tool) {
       }
     } catch (_) {}
   }, 0);
-}
-
-// Phase 4: Build HTML for related tools grid (same category first, then others)
-function _buildRelatedToolsHtml(toolId, maxCount) {
-  if (!window.TOOL_GROUPS) return '';
-  var related = [];
-  var currentGroupKey = null;
-
-  (window.TOOL_GROUPS || []).forEach(function (g) {
-    (g.items || []).forEach(function (t) {
-      if ((t.tid || t.id) === toolId) currentGroupKey = g.key;
-    });
-  });
-
-  // Same group first
-  (window.TOOL_GROUPS || []).forEach(function (g) {
-    if (g.key !== currentGroupKey) return;
-    (g.items || []).forEach(function (t) {
-      if ((t.tid || t.id) === toolId) return;
-      if (!t.tid && !t.url) return;
-      if (related.length < maxCount) related.push(t);
-    });
-  });
-
-  // Fill from other groups
-  if (related.length < maxCount) {
-    (window.TOOL_GROUPS || []).forEach(function (g) {
-      if (g.key === currentGroupKey) return;
-      (g.items || []).forEach(function (t) {
-        if (!t.tid && !t.url) return;
-        var alreadyIn = related.some(function (r) { return (r.tid || r.id) === (t.tid || t.id); });
-        if (!alreadyIn && related.length < maxCount) related.push(t);
-      });
-    });
-  }
-
-  return related.slice(0, maxCount).map(function (t) {
-    var href = t.url || (t.tid ? '/' + t.tid : '/');
-    var icon = String(t.icon || 'file').replace(/[^a-z0-9-]/gi, '');
-    var name = String(t.name || t.tid || 'Tool');
-    var description = String(t.description || t.desc || 'Open this tool to continue working with your files.');
-    var safeName = name.replace(/[&<>"']/g, function (ch) {
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
-    });
-    var safeDescription = description.replace(/[&<>"']/g, function (ch) {
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
-    });
-    var palette = ['merge','compress','convert','image','word','rotate','protect','unlock'];
-    var colorIndex = related.indexOf(t) % palette.length;
-    return '<a class="popular-card continue-tool-card continue-tool-card--' + palette[colorIndex] + '" href="' + href + '" aria-label="' + safeName + '">' +
-      '<span class="popular-card-icon" aria-hidden="true"><i data-lucide="' + icon + '"></i></span>' +
-      '<span class="popular-card-body"><span class="popular-card-name">' + safeName + '</span>' +
-      '<span class="popular-card-description">' + safeDescription + '</span></span>' +
-      '<span class="popular-card-arrow" aria-hidden="true">→</span>' +
-    '</a>';
-  }).join('');
 }
 
 // ── FILE INPUT ─────────────────────────────────────────────────────────────
