@@ -38,6 +38,7 @@
     "src/browser/deepEngine.ts",
     "src/browser/assets.d.ts",
     "src/router/smartRouter.ts",
-    "src/browser/compressionKitEntry.ts"
+    "src/browser/compressionKitEntry.ts",
+    "tests/browserCompressor.test.ts"
   ]
 }
