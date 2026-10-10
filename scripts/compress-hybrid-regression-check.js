@@ -36,6 +36,7 @@ const checks = [
   ['XFA and AcroForm PDFs are returned unchanged by the compression worker', compressBody.includes("['/XFA', 'XFA PDF']") && compressBody.includes("['/AcroForm', 'interactive form PDF']")],
   ['compression does not strip metadata as a side effect', !compressBody.includes('stripMetadata(doc)')],
   ['sensitive-PDF checks happen before any pdf-lib rewrite', compressBody.indexOf("['/ByteRange', 'digitally signed PDF']") >= 0 && compressBody.indexOf("['/ByteRange', 'digitally signed PDF']") < compressBody.indexOf('PDFDocument.load(')],
+  ['AcroForm dictionaries hidden in object streams are checked before serialization', compressBody.includes("doc.catalog.get(PDFName.of('AcroForm'))") && compressBody.indexOf("doc.catalog.get(PDFName.of('AcroForm'))") < compressBody.indexOf('doc.save(')],
   ['compression worker does not issue network requests with PDF bytes', !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(compressBody)],
   ['compression worker returns original when candidate is not smaller', compressBody.includes('return result.byteLength < original.byteLength ? result : original;')],
 ];
