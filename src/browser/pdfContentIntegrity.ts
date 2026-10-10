@@ -57,7 +57,9 @@ function decodeBase64(value: JsonValue | undefined): Uint8Array {
 }
 
 async function sha256(bytes: Uint8Array, subtle: SubtleCrypto): Promise<string> {
-  const digest = await subtle.digest("SHA-256", bytes);
+  const digestBytes = new Uint8Array(bytes.byteLength);
+  digestBytes.set(bytes);
+  const digest = await subtle.digest("SHA-256", digestBytes.buffer);
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
