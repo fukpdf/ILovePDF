@@ -1117,3 +1117,41 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-plat
   max-width: 100% !important;
   max-height: 100% !important;
 }
+
+
+/* Platform brand logos: 500% larger artwork (6x), with a responsive single-column layout. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo {
+  width: min(312px, 100%) !important;
+  height: 312px !important;
+  flex: 0 0 auto !important;
+  margin: 0 auto 16px !important;
+  border-radius: 24px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo svg,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
+  width: min(192px, 100%) !important;
+  height: 192px !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+@media (max-width: 380px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo {
+    width: min(312px, 100%) !important;
+    height: min(312px, 80vw) !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo svg,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo img {
+    width: min(192px, 60vw) !important;
+    height: min(192px, 60vw) !important;
+  }
+}
