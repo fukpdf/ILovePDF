@@ -30,9 +30,10 @@ function toArrayBuffer(u8) {
   return u8.buffer instanceof ArrayBuffer ? u8.buffer : u8.buffer.slice(0);
 }
 
-// ── PHASE 3: ENHANCED COMPRESSION ENGINE ─────────────────────────────────────
-// Multi-strategy compression: object-stream rebuild + metadata strip +
-// optional OffscreenCanvas image downsampling for image-heavy PDFs.
+// ── LEGACY COMPRESSION FALLBACK (NOT QUALITY-CONTRACT CERTIFIED) ─────────────
+// The generic pdf-lib save path is retained only as an interim fallback.
+// It is not a substitute for the browser kit's image-object processing and
+// cryptographic content-stream preservation gate; do not mark the kit complete.
 
 async function tryOffscreenCompress(buf) {
   // Render-based compression: each page → canvas at ~96 DPI → re-encode as
