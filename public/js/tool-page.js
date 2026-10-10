@@ -2556,7 +2556,7 @@ async function runAdvancedCompress(config = {}) {
   let srcPdf = null;
   let sourcePdfLib = null;
   try {
-    const { PDFDocument } = await window.BrowserTools._loadPdfLib();
+    const { PDFDocument, PDFName } = await window.BrowserTools._loadPdfLib();
     let pdfjsLib = window.pdfjsLib;
     if (!pdfjsLib) {
       const _p = window.__pdfjsLibPromise ||
@@ -2613,6 +2613,21 @@ async function runAdvancedCompress(config = {}) {
       throwOnInvalidObject: false,
       updateMetadata: false,
     });
+
+    // AcroForm can live in a compressed object stream, so raw marker scanning
+    // is not enough. Check the parsed catalog before the legacy page-rebuild path.
+    if (sourcePdfLib.catalog.get(PDFName.of('AcroForm'))) {
+      hideProcessing();
+      showStatus(
+        'success',
+        'Compression safely skipped',
+        'This PDF contains an interactive form. It is preserved unchanged until form-safe compression is available.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
+    }
+
     srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
     data = null;
     const total = srcPdf.numPages;
