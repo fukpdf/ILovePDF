@@ -11,7 +11,7 @@
     "dev": "node server.js",
     "build": "node scripts/build-compression-kit.js",
     "lint": "node --check server.js",
-    "test": "node scripts/compress-hybrid-regression-check.js && node scripts/compress-wasm-cli-static-check.js && npm run test:compression:shared && npm run test:compression:unit && node scripts/enterprise-ci-gate.js",
+    "test": "node scripts/compress-hybrid-regression-check.js && node scripts/compress-wasm-cli-static-check.js && npm run test:compression:shared && npm run test:compression:unit && npm run test:browser && node scripts/enterprise-ci-gate.js",
     "audit:security": "node scripts/phase3-security-validation-file-lifecycle-closure-check.js",
     "audit:runtime": "node scripts/phase4-tool-registry-closure-check.js",
     "audit:phase3": "node scripts/phase3-file-lifecycle-check.js",
@@ -68,7 +68,8 @@
     "test:compression:unit": "tsx --test tests/wasmCli.test.ts tests/wasmPackages.smoke.test.ts tests/pdfContentIntegrity.test.ts tests/compressionKit.integration.test.ts",
     "typecheck:compression": "tsc --noEmit -p tsconfig.compression.json",
     "typecheck": "npm run typecheck:compression",
-    "test:compression:shared": "tsx --test tests/shared.test.ts tests/quality.test.ts tests/browserCompressor.test.ts"
+    "test:compression:shared": "tsx --test tests/shared.test.ts tests/quality.test.ts tests/browserCompressor.test.ts",
+    "test:browser": "npm run build && node scripts/compression-browser-smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
