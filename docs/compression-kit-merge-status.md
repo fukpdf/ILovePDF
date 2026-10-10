@@ -7,14 +7,13 @@ This is a safety-first integration slice, not certification of the new TypeScrip
 ### Implemented in this slice
 - The existing worker compression route now returns the exact input bytes without attempting a pdf-lib rewrite when the source visibly contains `/ByteRange`, `/Encrypt`, `/XFA`, or `/AcroForm`.
 - The compression path no longer strips document metadata as a side effect.
-- Add a first-pass `src/browser/wasmCli.ts` adapter that writes input bytes to the WASM virtual filesystem, validates exit status and output PDF signature, and cleans temporary virtual files. This adapter is not yet wired into the compression UI.
+- Add a first-pass `src/browser/wasmCli.ts` adapter that lazily initializes one requested WASM engine, writes input bytes to its virtual filesystem, checks exit status and output PDF signature, captures logs, and cleans temporary virtual files. This adapter is not yet wired into the compression UI.
 - The existing compression regression script asserts those guard conditions.
-- Existing UI/runtime files and the root package scripts are intentionally retained.
+- Existing UI/runtime files and package dependencies are retained; the root `npm test` script was extended to include the new static WASM adapter check.
 
 ### Not yet certified / still required before enabling the new engine
 - Integrate the supplied TypeScript modules behind the existing worker adapter while preserving UI modes and result/report contracts.
-- Add an initial in-memory WASM CLI adapter (`src/browser/wasmCli.ts`) and ambient declaration for the undocumented Ghostscript package. QPDF's published factory/FS/callMain contract was cross-checked against its declarations and README. The adapter is not yet wired to the existing UI or bundled with local WASM assets.
-- Finish verifying Ghostscript-WASM runtime behavior from its published package tests/artifacts and test both engines against real PDFs.
+- Finish the browser bundle/runtime smoke test for Ghostscript-WASM and QPDF-WASM with locally served WASM asset URLs, then test both engines against real PDFs.
 - Use qpdf-style lossless structural processing only when decoded page-content streams remain byte-identical after decoding; use a cryptographic digest, not FNV or extracted-text counts.
 - Prove link, annotation, AcroForm, font, page-box, rotation, outline and attachment preservation, not just annotation counts.
 - Implement and validate image dictionary eligibility, full deduplication identity (including bytes and all relevant dictionary entries), correct image placement matrices, and true box/bicubic resampling.
@@ -31,7 +30,7 @@ The legacy pdf-lib serialization route for ordinary PDFs is **not** proof of the
 
 ## Validation status
 
-No local `npm test`, typecheck, Vite build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed by this GitHub-only change operation. The added regression assertions need to be run in the repository environment.
+No local `npm test`, TypeScript typecheck, production build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed. The static checks have been added to `npm test` and a GitHub Actions workflow, but no workflow run is visible in the available run lookup.
 
 
 ## Package API audit (2026-10-10)
