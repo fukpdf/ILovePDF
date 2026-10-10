@@ -14,7 +14,7 @@ import {
 } from "./pdfContentIntegrity";
 import { startsWithPdf, endsWithPdfEof } from "../shared/bytes";
 import type { GateReport } from "../shared/quality";
-import { MODE_POLICY, type Mode } from "../shared/policy";
+import { LIMITS, MODE_POLICY, type Mode } from "../shared/policy";
 import { decideCompressionRoute } from "../router/smartRouter";
 
 export type CompressionMode = "deep" | "custom";
@@ -56,7 +56,7 @@ function resultForOriginal(
   warnings: string[] = [], contentStreamsVerified = false, images: ImageReport[] = [],
 ): CompressionKitResult {
   return {
-    bytes: original.slice(),
+    bytes: original,
     report: {
       mode, method: "original-preserved", originalBytes: original.byteLength, outputBytes: original.byteLength,
       savedBytes: 0, savedPercent: 0, targetBytes,
@@ -142,20 +142,29 @@ export async function compressLosslessly(
   source: Uint8Array,
   options: CompressionKitOptions,
 ): Promise<CompressionKitResult> {
-  const original = source.slice();
   const targetBytes = options.mode === "custom" &&
       Number.isSafeInteger(options.targetBytes) && (options.targetBytes ?? 0) > 0
     ? options.targetBytes as number : null;
 
-  if (!startsWithPdf(original) || !endsWithPdfEof(original)) {
-    return resultForOriginal(original, options.mode, targetBytes, "Input is not a complete PDF; original bytes were preserved.");
+  if (!startsWithPdf(source) || !endsWithPdfEof(source)) {
+    return resultForOriginal(source, options.mode, targetBytes, "Input is not a complete PDF; original bytes were preserved.");
   }
   if (options.mode === "custom" && targetBytes === null) {
-    return resultForOriginal(original, options.mode, null, "Custom target is invalid; original bytes were preserved.");
+    return resultForOriginal(source, options.mode, null, "Custom target is invalid; original bytes were preserved.");
   }
-  if (targetBytes !== null && original.byteLength <= targetBytes) {
-    return resultForOriginal(original, options.mode, targetBytes, "The original PDF already meets the requested target size.");
+  if (targetBytes !== null && source.byteLength <= targetBytes) {
+    return resultForOriginal(source, options.mode, targetBytes, "The original PDF already meets the requested target size.");
   }
+  if (source.byteLength > LIMITS.maxFileBytes) {
+    return resultForOriginal(source, options.mode, targetBytes, `Input exceeds the ${LIMITS.maxFileBytes / (1024 * 1024)} MB safe processing limit; original bytes were preserved.`);
+  }
+  const earlyMemory = wasmMemoryAllowed(source.byteLength);
+  if (source.byteLength > LIMITS.browserComfortBytes && !earlyMemory.allowed) {
+    const reached = targetBytes === null ? null : source.byteLength <= targetBytes;
+    const message = `Deep engine skipped due to memory safety (${earlyMemory.reason}). ${reached === false ? "The custom target is unreachable without exceeding the safe memory limit; original bytes preserved." : "Original bytes preserved."}`;
+    return resultForOriginal(source, options.mode, targetBytes, message, [earlyMemory.reason ?? ""], false);
+  }
+  const original = source.slice();
 
   const engineMode: Mode = options.mode === "custom" ? "custom" : "recommended";
   const locate: WasmLocate = {
