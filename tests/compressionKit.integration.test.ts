@@ -51,7 +51,7 @@ test("AcroForm PDFs stay on the lossless QPDF-only route", async () => {
     ghostscriptWasmUrl:"/deliberately-not-loaded/gs.wasm",
   });
   assert.ok(result.bytes.byteLength<=input.byteLength);
-  const output=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  const output=await PDFDocument.load(result.bytes);
   assert.equal(output.getForm().getFields().length,1);
   assert.ok(!result.report.warnings?.some(w=>/Ghostscript-WASM only|Ghostscript pass failed/i.test(w)),
     "AcroForm route must not initialize Ghostscript");
