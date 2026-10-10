@@ -310,8 +310,14 @@ export async function compressLosslessly(
 
     options.onProgress?.("structural-pass", "Running bounded deep compression from the original PDF…", 35);
     const qpdfOnly = routeDecision.qpdfOnly || baseline.qpdfOnly;
+    const skipGhostscriptForTarget = !qpdfOnly && options.mode === "custom" &&
+      targetBytes !== null && best.byteLength <= targetBytes;
+    if (skipGhostscriptForTarget) {
+      warnings.push("Custom target was reached by the validated browser image pass; Ghostscript was skipped.");
+    }
+    const qpdfOnlyForDeep = qpdfOnly || skipGhostscriptForTarget;
     let tools: Partial<WasmTools> = { qpdf };
-    if (!qpdfOnly) {
+    if (!qpdfOnlyForDeep) {
       options.onProgress?.("loading-engine", "Loading Ghostscript-WASM only because the safe target is still unmet…", 30);
       const ghostscript = await loadWasmTool("ghostscript", locate);
       tools = { qpdf, ghostscript };
@@ -320,7 +326,7 @@ export async function compressLosslessly(
       mode: engineMode,
       targetKB: targetBytes === null ? undefined : targetBytes / 1024,
       tools,
-      qpdfOnly,
+      qpdfOnly: qpdfOnlyForDeep,
       signal: options.signal,
       onProgress(percent, text) {
         options.onProgress?.(percent >= 95 ? "complete" : percent >= 80 ? "validating" : "structural-pass", text, percent);
