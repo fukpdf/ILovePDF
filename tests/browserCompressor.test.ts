@@ -77,7 +77,7 @@ async function makeCcittPdf(): Promise<Uint8Array> {
 }
 
 test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", async()=>{
-  const jpg=await makeRgbPhoto(), input=await makePdfWithJpeg(jpg,[{x:30,y:300,width:120,height:60},{x:250,y:300,width:180,height:90}]);
+  const jpg=await makeRgbPhoto(), input=await makePdfWithJpeg(jpg,[{x:30,y:300,width:120,height:60},{x:250,y:300,width:180,height:100}]);
   const result=await compressInBrowser(input,{mode:"recommended"});
   assert.equal(result.ok,true);
   assert.ok(result.bytes.length<=input.length,"compression must never return a larger file");
@@ -86,7 +86,8 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
   if(result.bytes.length<input.length){
     assert.ok(changed,"a smaller RGB photo output must report the changed image");
     assert.ok(changed!.newWidth! / changed!.newHeight! > 1.99 && changed!.newWidth! / changed!.newHeight! < 2.01,"aspect ratio must remain uniform");
-    assert.ok((changed!.newWidth! / (180/72)) >= 149,"placed image resolution must not fall below the 150 DPI floor");
+    assert.ok((changed!.newWidth! / (180/72)) >= 149,"placed image horizontal resolution must not fall below the 150 DPI floor");
+    assert.ok((changed!.newHeight! / (100/72)) >= 149,"placed image vertical resolution must not fall below the 150 DPI floor");
   }
   const beforeHashes=await decodedPageHashes(input),afterHashes=await decodedPageHashes(result.bytes);
   assert.deepEqual(afterHashes,beforeHashes,"decoded page content streams must remain byte-identical by SHA-256");
