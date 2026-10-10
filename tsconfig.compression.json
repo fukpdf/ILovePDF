@@ -6,13 +6,20 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
   "include": [
     "src/browser/wasmCli.ts",
     "src/browser/wasm-modules.d.ts",
     "src/browser/pdfContentIntegrity.ts",
+    "src/browser/compressionKit.ts",
     "tests/wasmCli.test.ts",
     "tests/wasmPackages.smoke.test.ts",
     "tests/pdfContentIntegrity.test.ts"
