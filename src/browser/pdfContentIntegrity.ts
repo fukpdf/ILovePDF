@@ -304,6 +304,42 @@ export function assertCompressionEligible(jsonText: string): void {
   if (foundCatalogKey) {
     throw new Error(`This PDF contains unsupported document structure (${foundCatalogKey}); the original will be preserved.`);
   }
+  if ((trailerValue as JsonObject)["/Encrypt"] !== undefined &&
+      (trailerValue as JsonObject)["/Encrypt"] !== null) {
+    throw new Error("This PDF contains unsupported document structure (/Encrypt); the original will be preserved.");
+  }
+
+  // Signatures and XFA dictionaries can be indirect or packed into object
+  // streams, so raw-byte marker scans alone cannot safely classify a PDF.
+  // Walk parsed dictionary keys throughout the QPDF object table and fail
+  // closed before any candidate is written.
+  const unsafeNestedKeys = ["/ByteRange", "/XFA", "/SigFlags"];
+  const seen = new Set<object>();
+  const findUnsafeNestedKey = (value: JsonValue): string | null => {
+    if (!value || typeof value !== "object") return null;
+    if (seen.has(value as object)) return null;
+    seen.add(value as object);
+    if (Array.isArray(value)) {
+      for (const child of value) {
+        const found = findUnsafeNestedKey(child);
+        if (found) return found;
+      }
+      return null;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (unsafeNestedKeys.includes(key) && child !== null) return key;
+      const found = findUnsafeNestedKey(child);
+      if (found) return found;
+    }
+    return null;
+  };
+  for (const [key, value] of Object.entries(objects)) {
+    if (key === "trailer") continue;
+    const found = findUnsafeNestedKey(value);
+    if (found) {
+      throw new Error(`This PDF contains unsupported document structure (${found}); the original will be preserved.`);
+    }
+  }
   const visited = new Set<string>();
   const walk = (ref: JsonValue): void => {
     const key = objectRef(ref);
