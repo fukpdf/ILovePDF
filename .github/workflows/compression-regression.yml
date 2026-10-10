@@ -7,6 +7,8 @@ on:
       - 'public/js/tool-page.js'
       - 'scripts/compress-hybrid-regression-check.js'
       - 'scripts/compress-wasm-cli-static-check.js'
+      - 'src/browser/wasmCli.ts'
+      - 'src/browser/wasm-modules.d.ts'
       - 'docs/compression-kit-merge-status.md'
       - '.github/workflows/compression-regression.yml'
   push:
