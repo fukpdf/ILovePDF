@@ -1,4 +1,4 @@
-import { compressLosslessly } from "/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v1";
+import { compressLosslessly } from "/js/compression-kit.js?v=20261010-qpdf-lossless-kit-v2";
 
 self.addEventListener("message", async (event) => {
   const message = event.data || {};
