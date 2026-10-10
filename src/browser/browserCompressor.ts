@@ -178,6 +178,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
 
   for (const [ref, object] of doc.context.enumerateIndirectObjects()) {
     if (signal?.aborted) throw new Error("CANCELLED");
+    if (dedupes.aliases.has(ref.tag)) continue; // retained duplicate is still referenced elsewhere; keep its stream byte-identical.
     if (!(object instanceof PDFRawStream) || !isImage(object)) continue;
     const dict = object.dict, width = num(dict.lookup(PDFName.of("Width"))), height = num(dict.lookup(PDFName.of("Height")));
     const bytes = object.contents;
@@ -292,9 +293,15 @@ function assertObjectGraphPreserved(
   }
   for (const key of rightKeys) {
     const a = left.get(key), b = right.get(key);
-    if (a === undefined || b === undefined || !samePdfObject(a, b, aliases)) {
-      throw new Error(`Protected PDF object or stream changed for ${key}.`);
+    if (a === undefined || b === undefined) throw new Error(`Protected PDF object disappeared for ${key}.`);
+    if (aliases.has(key)) {
+      if (!(a instanceof PDFRawStream) || !(b instanceof PDFRawStream) ||
+          dictFingerprint(a.dict) !== dictFingerprint(b.dict) || !sameBytes(a.contents, b.contents)) {
+        throw new Error(`Referenced duplicate image object changed for ${key}.`);
+      }
+      continue;
     }
+    if (!samePdfObject(a, b, aliases)) throw new Error(`Protected PDF object or stream changed for ${key}.`);
   }
   if (!samePdfObject(before.context.trailerInfo.Root, after.context.trailerInfo.Root, aliases) ||
       !samePdfObject(before.context.trailerInfo.Info, after.context.trailerInfo.Info, aliases)) {
