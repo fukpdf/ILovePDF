@@ -29,6 +29,7 @@ on:
       - 'src/browser/wasmCli.ts'
       - 'src/browser/wasm-modules.d.ts'
       - 'tests/wasmCli.test.ts'
+      - 'tests/wasmPackages.smoke.test.ts'
       - 'docs/compression-kit-merge-status.md'
       - '.github/workflows/compression-regression.yml'
 
