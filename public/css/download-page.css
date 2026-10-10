@@ -1423,3 +1423,64 @@ body:has(.ilpdf-download-page) footer.footer {
   }
 }
 
+
+
+/* Continue cards: align with the shared Popular tools visual design while
+   preserving the download page's two-column desktop/tablet arrangement. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card {
+  min-height: 118px !important;
+  height: 100%;
+  padding: 16px !important;
+  gap: 16px !important;
+  border: 1px solid rgba(99, 102, 241, .16) !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: 0 8px 24px rgba(37, 45, 70, .07) !important;
+  color: #26364b !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card:hover,
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, .38) !important;
+  box-shadow: 0 14px 32px rgba(37, 45, 70, .12) !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-icon {
+  width: 58px !important;
+  height: 58px !important;
+  flex-basis: 58px !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 14px rgba(30, 41, 59, .13) !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-icon svg {
+  width: 28px !important;
+  height: 28px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-name {
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-description {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-arrow {
+  right: 15px !important;
+  bottom: 13px !important;
+  font-size: 20px !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card {
+    min-height: 100px !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    border-width: 1px !important;
+    border-radius: 15px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-icon {
+    width: 50px !important;
+    height: 50px !important;
+    flex-basis: 50px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-name { font-size: 16px !important; }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-description { font-size: 12px !important; }
+}
