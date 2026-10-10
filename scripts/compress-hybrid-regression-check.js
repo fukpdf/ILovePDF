@@ -10,7 +10,7 @@ const toolHtml = readFileSync(path.join(root, 'public/tool.html'), 'utf8');
 
 const worker = readFileSync(path.join(root, 'public/workers/pdf-worker.js'), 'utf8');
 const compressStart = worker.indexOf('OPS.compress = async function (buffers) {');
-const compressEnd = worker.indexOf('\\nOPS.repair =', compressStart);
+const compressEnd = worker.indexOf('\nOPS.repair =', compressStart);
 const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
 
 const checks = [
