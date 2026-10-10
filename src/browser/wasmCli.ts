@@ -32,8 +32,6 @@ export interface EmscriptenFS {
 export interface EmModule {
   FS: EmscriptenFS;
   callMain(args: string[]): number | void;
-  print?: (text: string) => void;
-  printErr?: (text: string) => void;
 }
 
 
@@ -43,7 +41,6 @@ export interface WasmTools {
 }
 
 const cachedModules = new Map<WasmEngine, Promise<EmModule>>();
-const logBuffers = new WeakMap<EmModule, { stdout: string[]; stderr: string[] }>();
 
 function assertRuntimeFs(module: EmModule, engine: WasmEngine): EmModule {
   const fs = module.FS as unknown as Record<string, unknown>;
@@ -58,7 +55,7 @@ function assertRuntimeFs(module: EmModule, engine: WasmEngine): EmModule {
   return module;
 }
 
-async function createEngineModule(engine: WasmEngine, wasmUrl: string, logs: { stdout: string[]; stderr: string[] }): Promise<EmModule> {
+async function createEngineModule(engine: WasmEngine, wasmUrl: string): Promise<EmModule> {
   if (engine === "qpdf") {
     // Use QPDF's published factory signature exactly. Its published
     // declarations expose callMain/FS.readFile; writeFile/unlink are verified
@@ -73,8 +70,6 @@ async function createEngineModule(engine: WasmEngine, wasmUrl: string, logs: { s
   const instance = await mod.default({
     locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
     noInitialRun: true,
-    print: (line) => logs.stdout.push(String(line)),
-    printErr: (line) => logs.stderr.push(String(line)),
   });
   return assertRuntimeFs(instance, engine);
 }
@@ -90,10 +85,7 @@ export function loadWasmTool(engine: WasmEngine, locate: WasmLocate = DEFAULT_WA
   const wasmUrl = engine === "qpdf" ? locate.qpdfWasmUrl : locate.ghostscriptWasmUrl;
   const pending = (async () => {
     try {
-      const logs = { stdout: [] as string[], stderr: [] as string[] };
-      const module = await createEngineModule(engine, wasmUrl, logs);
-      logBuffers.set(module, logs);
-      return module;
+      return await createEngineModule(engine, wasmUrl);
     } catch (error) {
       cachedModules.delete(engine);
       throw error;
@@ -142,7 +134,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
   if (!module) throw new Error(`WASM engine ${engine} was not initialized.`);
   const inputPath = request.inputPath ?? "/input.pdf";
   const outputPath = request.outputPath ?? "/output.pdf";
-  const logs = logBuffers.get(module) ?? { stdout: [], stderr: [] };
+  const logs = { stdout: [] as string[], stderr: [] as string[] };
   logs.stdout.length = 0;
   logs.stderr.length = 0;
 
