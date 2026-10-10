@@ -2654,222 +2654,108 @@ async function runAdvancedCompress(config = {}) {
 
     const total = srcPdf.numPages;
 
-    // Conservative per-page classification: any selectable text (including
-    // OCR text layers) and vector-only pages are preserved natively. Only
-    // image-only pages are rasterized. This avoids blurring text and keeps
-    // selectable/searchable text intact in mixed documents.
-    const imageOpNames = [
-      'paintImageXObject',
-      'paintImageXObjectRepeat',
-      'paintJpegXObject',
-      'paintInlineImageXObject',
-      'paintImageMaskXObject',
-      'paintImageMaskXObjectGroup',
-      'paintSolidColorImageMask',
-    ];
-    const pdfOps = pdfjsLib.OPS || {};
-    const imageOpCodes = new Set(
-      imageOpNames.map(name => pdfOps[name]).filter(code => Number.isInteger(code)),
-    );
-    const pageModes = [];
-    let rasterPageCount = 0;
-    for (let i = 1; i <= total; i++) {
+    // The previous UI path rasterized image-only pages into JPEGs. That can
+    // damage 1-bit scans, masks, image filters, and non-page objects, so it is
+    // deliberately removed from the active path. Until the full image-object
+    // optimizer passes its quality gates, use only a verified lossless QPDF
+    // structural pass and preserve the original on every failed check.
+    for (let i = 1; i <= srcPdf.numPages; i++) {
       showProcessing(
-        'Analyzing PDF content — page ' + i + ' of ' + total + '…',
-        'Preserving text/vector pages and identifying image-only pages.',
+        'Checking PDF structure — page ' + i + ' of ' + srcPdf.numPages + '…',
+        'Checking for links and annotations before lossless compression.',
       );
       const page = await srcPdf.getPage(i);
       const annotations = await page.getAnnotations({ intent: 'display' });
+      page.cleanup();
       if (annotations.length > 0) {
         hideProcessing();
         showStatus(
           'success',
           'Compression safely skipped',
-          'This PDF contains links, annotations, or other interactive page objects. The original is preserved unchanged.',
+          'This PDF contains links or annotations. The original is preserved unchanged.',
           createStatusUrl(file),
           file.name,
         );
         return;
       }
-      const textContent = await page.getTextContent();
-      const hasSelectableText = textContent.items.some(
-        item => typeof item.str === 'string' && item.str.trim().length > 0,
-      );
-      const operatorList = await page.getOperatorList();
-      const hasRasterImages = operatorList.fnArray.some(op => imageOpCodes.has(op));
-      const mode = hasSelectableText || !hasRasterImages ? 'preserve' : 'raster';
-      pageModes.push(mode);
-      if (mode === 'raster') rasterPageCount++;
-      page.cleanup();
     }
 
-    // PDF.js viewport scale 1 corresponds to 72 CSS pixels per PDF inch.
-    // Keep image-only/scanned pages at or above 150 DPI (150 / 72 scale)
-    // so target-size feedback cannot silently trade away fine document text.
-    // Native text/vector pages are copied directly and are not rasterized.
-    const MIN_RENDER_SCALE = 150 / 72;
-    const DEEP_RENDER_SCALE = MIN_RENDER_SCALE;
-    const DEEP_JPEG_QUALITY = 0.72;
-    const MAX_RENDER_SCALE = 3.00;
-    const MAX_CUSTOM_PASSES = 4;
-    const ESTIMATED_DEEP_SIZE_RATIO = 0.45;
-    const estimatedDeepBytes = Math.max(1024, Math.round(file.size * ESTIMATED_DEEP_SIZE_RATIO));
-    let currentCustomScale = isCustom
-      ? Math.max(MIN_RENDER_SCALE, Math.min(
-          MAX_RENDER_SCALE,
-          DEEP_RENDER_SCALE * Math.sqrt(targetBytes / estimatedDeepBytes),
-        ))
-      : DEEP_RENDER_SCALE;
-    const strategies = [{ scale: DEEP_RENDER_SCALE, quality: DEEP_JPEG_QUALITY }];
-    let bestBlob = null;
-    let smallestBlob = null;
-    let closestUnderTargetBlob = null;
-    let targetReached = false;
-
-    // Custom uses measured output feedback for up to four passes only when
-    // image-only pages are present. Native text/vector-only documents need one
-    // structural save; repeating identical saves cannot improve the target.
-    const passLimit = isCustom && rasterPageCount > 0
-      ? MAX_CUSTOM_PASSES
-      : strategies.length;
-    for (let pass = 0; pass < passLimit; pass++) {
-      const strategy = isCustom
-        ? { scale: currentCustomScale, quality: DEEP_JPEG_QUALITY }
-        : strategies[pass];
-      const outDoc = await PDFDocument.create();
-      for (let i = 1; i <= total; i++) {
-        showProcessing(
-          isCustom
-            ? 'Custom compression — page ' + i + ' of ' + total + '…'
-            : 'Deep compression — page ' + i + ' of ' + total + '…',
-          isCustom
-            ? 'Target: ' + formatCompressSize(targetBytes) + '. Measuring this pass to refine the next scale.'
-            : 'Optimising image quality for a smaller file size.',
-        );
-        if (pageModes[i - 1] === 'preserve') {
-          const [preservedPage] = await outDoc.copyPages(sourcePdfLib, [i - 1]);
-          outDoc.addPage(preservedPage);
-          continue;
-        }
-        const page = await srcPdf.getPage(i);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const pw = baseViewport.width;
-        const ph = baseViewport.height;
-        const viewport = page.getViewport({ scale: strategy.scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(viewport.width));
-        canvas.height = Math.max(1, Math.round(viewport.height));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not create a canvas for PDF compression.');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        page.cleanup();
-        const jpgBytes = await new Promise((resolve, reject) => {
-          canvas.toBlob(blob => {
-            if (!blob) { reject(new Error('Canvas image encoding failed.')); return; }
-            blob.arrayBuffer().then(ab => resolve(new Uint8Array(ab))).catch(reject);
-          }, 'image/jpeg', strategy.quality);
-        });
-        canvas.width = 0;
-        canvas.height = 0;
-        const img = await outDoc.embedJpg(jpgBytes);
-        const outPage = outDoc.addPage([pw, ph]);
-        outPage.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
-      }
-
-      // Metadata cleanup is safe for the new output document and does not
-      // alter the copied page content, text layer, or vector resources.
-      try {
-        outDoc.setTitle('');
-        outDoc.setAuthor('');
-        outDoc.setSubject('');
-        outDoc.setKeywords([]);
-        outDoc.setProducer('ILovePDF');
-        outDoc.setCreator('ILovePDF');
-      } catch (_) {}
-      if (outDoc.getPageCount() !== total) {
-        throw new Error('Compression output page count did not match the original PDF.');
-      }
-      const outBytes = await outDoc.save({ useObjectStreams: true });
-      const candidate = new Blob([outBytes], { type: 'application/pdf' });
-      if (!smallestBlob || candidate.size < smallestBlob.size) smallestBlob = candidate;
-
-      if (isCustom) {
-        if (candidate.size <= targetBytes &&
-            (!closestUnderTargetBlob || candidate.size > closestUnderTargetBlob.size)) {
-          closestUnderTargetBlob = candidate;
-        }
-
-        const errorRatio = targetBytes / Math.max(1, candidate.size);
-        if (pass < MAX_CUSTOM_PASSES - 1 &&
-            Math.abs(candidate.size - targetBytes) / targetBytes > 0.02) {
-          const correction = Math.sqrt(errorRatio);
-          const boundedCorrection = Math.max(0.75, Math.min(1.35, correction));
-          const nextScale = Math.max(
-            MIN_RENDER_SCALE,
-            Math.min(MAX_RENDER_SCALE, strategy.scale * boundedCorrection),
+    showProcessing(
+      isCustom ? 'Applying Custom compression…' : 'Applying Deep compression…',
+      'Running a lossless structural pass in your browser. Image data and page content are not re-encoded.',
+    );
+    const sourceBuffer = await file.arrayBuffer();
+    const worker = new Worker('/workers/compression-kit-worker.js', { type: 'module' });
+    const workerResult = await new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        worker.terminate();
+        callback(value);
+      };
+      worker.onmessage = (event) => {
+        const message = event.data || {};
+        if (message.id !== 1) return;
+        if (message.type === 'progress') {
+          showProcessing(
+            message.text || 'Compressing PDF…',
+            'All PDF processing stays in browser memory.',
           );
-          if (Math.abs(nextScale - strategy.scale) < 0.005) break;
-          currentCustomScale = nextScale;
-        } else {
-          break;
+        } else if (message.type === 'result') {
+          finish(resolve, message);
+        } else if (message.type === 'error') {
+          finish(reject, new Error(message.message || 'Compression worker failed.'));
         }
-      } else {
-        bestBlob = candidate;
-        break;
-      }
+      };
+      worker.onerror = (event) => {
+        finish(reject, new Error(event.message || 'Compression worker could not start.'));
+      };
+      worker.postMessage({
+        id: 1,
+        type: 'compress',
+        buffer: sourceBuffer,
+        mode: requestedMode,
+        targetBytes,
+      }, [sourceBuffer]);
+    });
+
+    const outputBlob = new Blob([workerResult.buffer], { type: 'application/pdf' });
+    if (outputBlob.size > file.size) {
+      throw new Error('The candidate was larger than the source. The original PDF must be preserved.');
     }
-
-    if (isCustom) {
-      // Treat the target as a maximum: prefer the largest candidate that does
-      // not exceed it. If none fit, use the smallest measured candidate and
-      // report that the target could not be reached.
-      bestBlob = closestUnderTargetBlob || smallestBlob;
-      targetReached = !!closestUnderTargetBlob && !!bestBlob &&
-        ((targetBytes - bestBlob.size) / targetBytes) <= 0.02;
-    } else if (!bestBlob) {
-      bestBlob = smallestBlob;
+    const outputSignature = await outputBlob.slice(0, 5).text();
+    if (outputSignature !== '%PDF-') {
+      throw new Error('Compression produced an invalid PDF. The original was not replaced.');
     }
-
-    if (!bestBlob) throw new Error('Compression did not produce a PDF.');
-    const filename = brandedFilename(file.name, '.pdf');
-    // Never replace a usable original with a larger compressed result.
-    const didReduce = bestBlob.size < file.size;
-    const blob = didReduce ? bestBlob : file.slice(0, file.size, 'application/pdf');
-    const saved = didReduce ? Math.round((1 - blob.size / file.size) * 100) : 0;
-    const signature = await blob.slice(0, 5).text();
-    if (signature !== '%PDF-') throw new Error('Compression produced an invalid PDF output.');
-
+    const report = workerResult.report || {};
     hideProcessing();
     if (window.UsageLimit) window.UsageLimit.record(1);
-    const title = !didReduce
-      ? 'Already optimised'
-      : (isCustom
-          ? (targetReached ? 'Custom target matched closely' : (closestUnderTargetBlob ? 'Custom output below target' : 'Target could not be reached'))
-          : 'Reduced by ' + saved + '%');
-    let message;
-    if (!didReduce) {
-      message = 'Compression could not reduce this file further, so the original PDF is preserved. Output: ' + formatCompressSize(blob.size) + '.';
-      if (isCustom) {
-        message += ' Your requested target was ' + formatCompressSize(targetBytes) + ' and was not reached.';
-      }
-    } else if (isCustom && closestUnderTargetBlob) {
-      const underPct = ((targetBytes - blob.size) / targetBytes) * 100;
-      message = 'Calculated output for your ' + formatCompressSize(targetBytes) +
-        ' target: ' + formatCompressSize(blob.size) +
-        (targetReached
-          ? ' (within 2% of target).'
-          : ' (' + underPct.toFixed(1) + '% below target).') +
-        ' This measured multi-pass estimate may vary with PDF content; exact byte size is not guaranteed.';
-    } else if (isCustom) {
-      message = 'The smallest measured output was ' + formatCompressSize(blob.size) +
-        ', above your ' + formatCompressSize(targetBytes) +
-        ' target. Native text/vector pages were preserved for readability, so this target may not be achievable without sacrificing content quality. Try a larger target.';
-    } else {
-      message = 'Estimated output was approximate. Actual output: ' + formatCompressSize(blob.size) + '. Click Download to save your PDF.';
+    if (report.method !== 'qpdf-lossless-structure' || outputBlob.size >= file.size) {
+      const title = isCustom && targetBytes && file.size > targetBytes
+        ? 'Custom target not reached'
+        : 'Already optimised';
+      showStatus(
+        'success',
+        title,
+        report.message || 'No verified reduction was available, so the original PDF is preserved unchanged.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
     }
-    showStatus('success', title, message, createStatusUrl(blob), filename);
+
+    const filename = file.name.replace(/\.pdf$/i, '') + '_compressed.pdf';
+    const title = isCustom && report.targetReached
+      ? 'Custom target reached with lossless compression'
+      : (isCustom ? 'Custom target not reached' : 'Deep compression result');
+    showStatus(
+      'success',
+      title,
+      report.message || 'Lossless structural compression completed and page-content streams were verified.',
+      createStatusUrl(outputBlob),
+      filename,
+    );
   } catch (err) {
     hideProcessing();
     const msg = (err && err.message && err.message.length < 200)
