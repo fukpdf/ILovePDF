@@ -228,7 +228,7 @@ export async function compressLosslessly(
     const message = `Browser image compression reduced the file by ${savedPercent}%. Non-image streams and decoded page-content SHA-256 hashes were preserved.`;
     options.onProgress?.("complete", message, 100);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
-      savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images } };
+      savedBytes, savedPercent, targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
   }
 
   const memory = wasmMemoryAllowed(original.byteLength);
@@ -239,7 +239,7 @@ export async function compressLosslessly(
     if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, [...warnings, memory.reason ?? ""], false, images);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
-      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings: [...warnings, memory.reason ?? ""], images } };
+      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings: [...warnings, memory.reason ?? ""], images, qualityGate } };
   }
 
   try {
@@ -307,6 +307,6 @@ export async function compressLosslessly(
     if (best.byteLength >= original.byteLength) return resultForOriginal(original, options.mode, targetBytes, message, warnings, false, images);
     return { bytes: best, report: { mode: options.mode, method, originalBytes: original.byteLength, outputBytes: best.byteLength,
       savedBytes: original.byteLength-best.byteLength, savedPercent: Math.round((original.byteLength-best.byteLength)/original.byteLength*1000)/10,
-      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images } };
+      targetBytes, targetReached, contentStreamsVerified, message, engine, warnings, images, qualityGate } };
   }
 }
