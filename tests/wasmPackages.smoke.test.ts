@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { loadWasmTool, type WasmLocate } from "../src/browser/wasmCli";
 
 const locate: WasmLocate = {
-  ghostscriptWasmUrl: resolve(process.cwd(), "node_modules/@jspawn/ghostscript-wasm/dist/gs.wasm"),
+  ghostscriptWasmUrl: resolve(process.cwd(), "node_modules/@jspawn/ghostscript-wasm/gs.wasm"),
   qpdfWasmUrl: resolve(process.cwd(), "node_modules/@neslinesli93/qpdf-wasm/dist/qpdf.wasm"),
 };
 
