@@ -25,13 +25,23 @@ for (const [source, destination] of assets) {
 }
 
 await build({
-  entryPoints: [resolve(root, "src/browser/compressionKit.ts")],
+  entryPoints: {
+    "compression-kit": resolve(root, "src/browser/compressionKit.ts"),
+  },
   bundle: true,
+  splitting: true,
   platform: "browser",
   format: "esm",
   target: ["es2022"],
-  outfile: resolve(root, "public/js/compression-kit.js"),
-  external: ["fs", "path", "node:fs", "node:path"],
+  outdir: resolve(root, "public/js"),
+  entryNames: "[name]",
+  chunkNames: "compression-chunks/[name]-[hash]",
+  alias: {
+    fs: resolve(root, "src/browser/node-fs-shim.cjs"),
+    path: resolve(root, "src/browser/node-path-shim.cjs"),
+    "node:fs": resolve(root, "src/browser/node-fs-shim.cjs"),
+    "node:path": resolve(root, "src/browser/node-path-shim.cjs"),
+  },
   legalComments: "inline",
   sourcemap: false,
   minify: false,
