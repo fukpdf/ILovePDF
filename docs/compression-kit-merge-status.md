@@ -30,3 +30,11 @@ The legacy pdf-lib serialization route for ordinary PDFs is **not** proof of the
 ## Validation status
 
 No local `npm test`, typecheck, Vite build, browser fixture run, network-capture test, or PDF content-stream hash comparison has been executed by this GitHub-only change operation. The added regression assertions need to be run in the repository environment.
+
+
+## Package API audit (2026-10-10)
+
+- `@neslinesli93/qpdf-wasm` publishes a default async module factory. Its published declarations expose `callMain(args: string[]): number`, `FS`, and `WORKERFS`; the README demonstrates `locateFile`, `FS.writeFile`, `FS.readFile`, and `callMain`. The kit's `wasmCli.ts` must match those actual types and check the numeric exit code and output file existence.
+- `@jspawn/ghostscript-wasm` version `0.0.2` declares `gs.js` as `main` and `gs.mjs` as `module`, but its README does not document a typed factory/runtime contract; it points to package tests for examples. Do not assume the qpdf API applies to Ghostscript. The package is AGPL-3.0 and is a release/legal review item.
+- The repository's production app is a vanilla Node/static-page application, not an existing Vite TypeScript app: its root `package.json` build script currently only prints “Build complete”. The kit cannot be safely enabled by copying its standalone manifest or assuming a Vite worker/WASM URL pipeline already exists. A deliberate build integration and asset-path test is required.
+- No PDF fixture, browser network-capture, content-stream digest, typecheck, or full test execution is evidenced by this API audit.
