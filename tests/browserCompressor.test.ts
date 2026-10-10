@@ -159,7 +159,10 @@ test("Flate-compressed text PDF keeps decoded page-content SHA-256 and native te
   const initial=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
   const input=await forceFlateTextStream(initial);
   const beforeDoc=await PDFDocument.load(input,{updateMetadata:false});
-  const contentObj=beforeDoc.context.lookup(beforeDoc.getPage(0).node.Contents() as PDFRef);
+  const contentValue=beforeDoc.getPage(0).node.Contents();
+  const contentRef=contentValue instanceof PDFArray?contentValue.get(0):contentValue;
+  assert.ok(contentRef instanceof PDFRef);
+  const contentObj=beforeDoc.context.lookup(contentRef);
   assert.ok(contentObj instanceof PDFRawStream);
   assert.equal(contentObj.dict.lookup(PDFName.of("Filter"))?.toString(),"/FlateDecode");
   const beforeHashes=await decodedPageHashes(input);
