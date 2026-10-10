@@ -72,7 +72,7 @@
         var message = event.data || {};
         if (message.id !== jobId) return;
         if (message.type === 'progress') {
-          onProgress(15, message.text || 'Compressing locally in your browser…');
+          onProgress(Math.max(5, Math.min(95, Number(message.percent) || 15)), message.text || 'Compressing locally in your browser…');
           return;
         }
         if (message.type === 'error') {
