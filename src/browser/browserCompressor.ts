@@ -3,7 +3,7 @@ import { Buffer } from "buffer";
 import {
   PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef, decodePDFRawStream,
 } from "pdf-lib";
-import { CUSTOM_QUALITY_LADDER, LIMITS, MODE_POLICY, type Mode } from "../shared/policy";
+import { LIMITS, MODE_POLICY, type Mode } from "../shared/policy";
 import { containsAscii, endsWithPdfEof, latin1, startsWithPdf } from "../shared/bytes";
 import { estimateJpegQuality, readJpegInfo } from "../shared/jpeg";
 import { boxResizeRGBA, computeUniformTarget } from "../shared/imageMath";
@@ -302,6 +302,7 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
   if (containsAscii(input, "/Encrypt")) return noChange(input, mode, "Encrypted PDF detected; it was not modified.");
   if (containsAscii(input, "/XFA")) return noChange(input, mode, "XFA PDF detected; it was not modified.");
   if (containsAscii(input, "/AcroForm")) return noChange(input, mode, "AcroForm detected; routing to the lossless QPDF-only path.", true, "interactive form requires the lossless QPDF route");
+  if (input.length > LIMITS.browserComfortBytes) return noChange(input, mode, "Light engine skipped due to memory safety; attempting the bounded deep route.", true, "file exceeds the light-engine memory budget");
   if (mode === "custom" && !(typeof opts.targetKB === "number" && Number.isFinite(opts.targetKB) && opts.targetKB > 0)) return fail(input, "Custom mode needs a target size greater than 0 KB.");
   let parsed: PDFDocument;
   try { parsed = await PDFDocument.load(input, { updateMetadata: false }); }
@@ -313,7 +314,7 @@ export async function compressInBrowser(rawInput: Uint8Array, opts: BrowserOptio
   if (hasIndirectDictionaryKey(parsed, "AcroForm")) return noChange(input, mode, "AcroForm detected after parsing; routing to lossless QPDF-only compression.", true, "interactive form requires the lossless QPDF route");
 
   const targetBytes = mode === "custom" ? Math.round(opts.targetKB! * 1024) : undefined;
-  const ladder: readonly number[] = targetBytes ? [MODE_POLICY[mode].jpegQuality] : [MODE_POLICY[mode].jpegQuality];
+  const ladder: readonly number[] = [MODE_POLICY[mode].jpegQuality];
   let best = input, bestImages: ImageReport[] = [], passes = 0, validationErrors: string[] = [];
   for (const quality of ladder.slice(0, 4)) {
     if (signal?.aborted) return fail(input, "Cancelled.");
