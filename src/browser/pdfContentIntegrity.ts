@@ -353,6 +353,8 @@ export async function hashProtectedStreams(jsonText: string, subtle: SubtleCrypt
     const stream = (entry as JsonObject).stream;
     if (!stream || typeof stream !== "object" || Array.isArray(stream)) continue;
     const record = stream as JsonObject;
+    const dict = record.dict;
+    if (dict && typeof dict === "object" && !Array.isArray(dict) && eligibleReencodedImage(dict as JsonObject)) continue;
     if (typeof record.data !== "string") throw new Error(`QPDF omitted raw bytes for protected stream ${key}.`);
     hashes[key] = await sha256(decodeBase64(record.data), subtle);
   }
