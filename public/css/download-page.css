@@ -1074,3 +1074,31 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms .ilpdf-plat
     aspect-ratio: auto !important;
   }
 }
+
+
+/* Platform band finish: remove edge haze and carry the band through the page's
+   bottom padding so it meets the footer without a pale gap. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+  margin-bottom: -48px !important;
+  padding-bottom: calc(clamp(34px, 4.5vw, 60px) + 48px) !important;
+  overflow: visible !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms::before {
+  left: 50% !important;
+  right: auto !important;
+  width: 100vw !important;
+  max-width: none !important;
+  transform: translate3d(-50%, 0, 0) !important;
+  filter: none !important;
+  opacity: 1 !important;
+  background: #f1f5ff !important;
+  border-top: 1px solid #e7eaf5 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+@media (max-width: 640px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms {
+    padding-bottom: calc(34px + 48px) !important;
+    margin-bottom: -48px !important;
+  }
+}
