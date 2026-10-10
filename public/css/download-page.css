@@ -397,18 +397,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .ilpdf-down
   height: auto !important;
   align-self: center !important;
 }
-
-/* Continue-to tools: two columns on tablet, laptop and desktop; mobile remains one column. */
-@media (min-width: 641px){
-  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .related-tools-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-}
-@media (max-width: 640px) {
-}
-
 /* FINAL SHARED DOWNLOAD-PAGE CONTRACT
-   Only Continue-to keeps a section/card surface. All other download sections
+   Popular Tools uses the shared Upload card system. All other download sections
    flow full-width on the page canvas; the actual download anchor remains intact. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-hero, body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card, body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms, body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad{
   width: 100% !important;
@@ -1234,8 +1224,6 @@ body:has(.ilpdf-download-page) footer.footer{
     padding-left: 8px !important;
     padding-right: 8px !important;
   }
-}
-@media (max-width: 640px) {
 }
 
 /* Wrapper activates the exact shared Upload Popular Tools rules without adding a layout box. */
