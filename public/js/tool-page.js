@@ -2633,6 +2633,25 @@ async function runAdvancedCompress(config = {}) {
 
     srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
     data = null;
+
+    // Page copying into a fresh PDFDocument can drop document-level navigation
+    // and embedded files. Query the parsed PDF.js catalog as well as raw tokens.
+    const [outline, attachments] = await Promise.all([
+      typeof srcPdf.getOutline === 'function' ? srcPdf.getOutline() : Promise.resolve(null),
+      typeof srcPdf.getAttachments === 'function' ? srcPdf.getAttachments() : Promise.resolve(null),
+    ]);
+    if (outline || attachments) {
+      hideProcessing();
+      showStatus(
+        'success',
+        'Compression safely skipped',
+        'This PDF contains bookmarks or embedded attachments. The original is preserved unchanged.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
+    }
+
     const total = srcPdf.numPages;
 
     // Conservative per-page classification: any selectable text (including
