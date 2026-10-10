@@ -64,9 +64,9 @@ export function loadWasmTool(engine: WasmEngine, locate: WasmLocate): Promise<Em
 
   const wasmUrl = engine === "qpdf" ? locate.qpdfWasmUrl : locate.ghostscriptWasmUrl;
   const pending = (async () => {
-    const factory = await importFactory(engine);
-    const logs = { stdout: [] as string[], stderr: [] as string[] };
     try {
+      const factory = await importFactory(engine);
+      const logs = { stdout: [] as string[], stderr: [] as string[] };
       const module = await factory({
         locateFile: (path) => path.endsWith(".wasm") ? wasmUrl : path,
         noInitialRun: true,
