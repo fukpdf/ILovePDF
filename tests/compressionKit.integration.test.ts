@@ -44,7 +44,7 @@ test("QPDF WASM lossless pass preserves decoded content streams in a 100-page PD
 test("AcroForm PDFs stay on the lossless QPDF-only route", async () => {
   const source=await PDFDocument.create(),page=source.addPage([612,792]),form=source.getForm();
   const field=form.createTextField("customer.name");field.setText("Ada Lovelace");field.addToPage(page,{x:48,y:700,width:240,height:24});
-  const input=new Uint8Array(await source.save({useObjectStreams:false,updateMetadata:false}));
+  const input=new Uint8Array(await source.save({useObjectStreams:false}));
   const result=await compressLosslessly(input,{
     mode:"deep",
     qpdfWasmUrl:resolve(process.cwd(),"node_modules/@neslinesli93/qpdf-wasm/dist/qpdf.wasm"),
