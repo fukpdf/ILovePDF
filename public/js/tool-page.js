@@ -800,7 +800,7 @@ function renderBrandedUploadStep(tool, config) {
       ${trustStripHtml()}
       ${renderSeoContent(tool)}
       ${learnMoreHtml(tool)}
-      ${popularToolsHtml(tool.id)}
+      <div class="ilpdf-branded-upload download-popular-tools-scope">${popularToolsHtml(tool.id)}</div>
     </div>`;
 
   const palette = brandedToolPalette(tool);
