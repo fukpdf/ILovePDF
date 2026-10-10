@@ -133,7 +133,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     module.FS.writeFile(inputPath, input);
     const exitCode = module.callMain(args);
     if (exitCode !== 0) {
-      throw new Error(`${engine} exited with code ${exitCode}: ${stderr.join("\n")}`);
+      throw new Error(`${engine} exited with code ${exitCode}: ${logs.stderr.join("\n")}`);
     }
     if (module.FS.analyzePath && !module.FS.analyzePath(outputPath).exists) {
       throw new Error(`${engine} exited successfully but produced no output file.`);
@@ -142,7 +142,7 @@ export function runTool(request: WasmCliRequest): WasmCliResult {
     try {
       output = module.FS.readFile(outputPath);
     } catch {
-      throw new Error(`${engine} did not create readable output at ${outputPath}: ${stderr.join("\n")}`);
+      throw new Error(`${engine} did not create readable output at ${outputPath}: ${logs.stderr.join("\n")}`);
     }
     if (!(output instanceof Uint8Array) || output.byteLength < 5 ||
         output[0] !== 0x25 || output[1] !== 0x50 ||
