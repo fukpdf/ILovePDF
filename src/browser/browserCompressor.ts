@@ -5,7 +5,7 @@ import {
 } from "pdf-lib";
 import { LIMITS, MODE_POLICY, type Mode } from "../shared/policy";
 import { containsAscii, endsWithPdfEof, latin1, startsWithPdf } from "../shared/bytes";
-import { estimateJpegQuality, readJpegInfo } from "../shared/jpeg";
+import { jpegQuantizationNoFiner, maxSafeJpegQuality, readJpegInfo } from "../shared/jpeg";
 import { boxResizeRGBA, computeUniformTarget } from "../shared/imageMath";
 import { parsePlacements } from "../shared/placements";
 
