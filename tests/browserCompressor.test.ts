@@ -92,6 +92,22 @@ test("RGB photo uses a uniform downscale and a lower-or-equal JPEG quality", asy
   assert.deepEqual(afterHashes,beforeHashes,"decoded page content streams must remain byte-identical by SHA-256");
 });
 
+test("dedupe requires exact image dictionary and bytes and redirects references safely",async()=>{
+  const jpg=await makeRgbPhoto(),doc=await PDFDocument.create(),page=doc.addPage([612,792]);
+  const first=await doc.embedJpg(jpg),second=await doc.embedJpg(jpg);
+  page.drawImage(first,{x:30,y:300,width:120,height:60});
+  page.drawImage(second,{x:250,y:300,width:180,height:90});
+  const input=new Uint8Array(await doc.save({useObjectStreams:false,updateMetadata:false}));
+  const before=await PDFDocument.load(input,{updateMetadata:false});
+  assert.ok(imageStreams(before).length>=2,"fixture must contain two distinct image objects");
+  const result=await compressInBrowser(input,{mode:"recommended"});
+  assert.ok(result.bytes.length<input.length,"duplicate image elimination should reduce this fixture");
+  assert.ok(result.images.some(image=>image.action==="deduplicated"),"dedupe should be visible in the report");
+  const after=await PDFDocument.load(result.bytes,{updateMetadata:false});
+  assert.equal(imageStreams(after).length,1,"unreferenced duplicate object should be removed");
+  assert.deepEqual(await decodedPageHashes(result.bytes),await decodedPageHashes(input));
+});
+
 test("real grayscale and CMYK JPEG streams are not re-encoded by the light engine",async()=>{
   for(const [b64,colorSpace] of [[GRAY_JPEG_B64,"/DeviceGray"],[CMYK_JPEG_B64,"/DeviceCMYK"]] as const){
     const input=await makePdfWithJpeg(Buffer.from(b64,"base64"),[{x:30,y:300,width:120,height:60}]);
