@@ -187,7 +187,7 @@ async function runPass(input: Uint8Array, mode: Mode, quality: number, images: I
     const rep: ImageReport = { ref: ref.tag, width, height, effectiveDpi: null, bytesBefore: bytes.length, bytesAfter: bytes.length, action: "skipped" };
     const skip = (reason: string) => { rep.reason = reason; images.push(rep); };
     if (dict.has(PDFName.of("SMask")) || dict.has(PDFName.of("Mask")) || dict.has(PDFName.of("ImageMask"))) { skip("transparency / image mask must remain byte-identical"); continue; }
-    if (dict.has(PDFName.of("Decode"))) { skip("custom /Decode array must remain byte-identical"); continue; }
+    if (dict.has(PDFName.of("Decode")) || dict.has(PDFName.of("DecodeParms"))) { skip("custom /Decode or /DecodeParms must remain byte-identical"); continue; }
     if (dict.lookup(PDFName.of("Filter")) !== PDFName.of("DCTDecode")) { skip("not a direct DCT JPEG; gray, CMYK, Indexed, Flate, CCITT and JBIG2 streams remain untouched"); continue; }
     if (mode === "lossless") { skip("lossless mode"); continue; }
     if (bytes.length < LIMITS.minImageBytesToTouch) { skip("already small"); continue; }
@@ -246,7 +246,7 @@ function eligibleImageStream(stream: PDFRawStream): boolean {
     dict.lookup(PDFName.of("Filter")) === PDFName.of("DCTDecode") &&
     colorSpaceIsRgb(dict) &&
     !dict.has(PDFName.of("SMask")) && !dict.has(PDFName.of("Mask")) &&
-    !dict.has(PDFName.of("Decode")) && !dict.has(PDFName.of("ImageMask"));
+    !dict.has(PDFName.of("Decode")) && !dict.has(PDFName.of("DecodeParms")) && !dict.has(PDFName.of("ImageMask"));
 }
 function dictFingerprint(dict: PDFDict, stripImageDimensions = false): string {
   const ignored = stripImageDimensions ? new Set(["/Width", "/Height", "/Length"]) : new Set<string>();
