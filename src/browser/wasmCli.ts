@@ -122,8 +122,8 @@ export interface WasmCliResult {
 }
 
 /**
- * Run a CLI against an in-memory PDF. The caller owns argument correctness and
- * must independently validate the resulting PDF and quality contract.
+ * Run a CLI against an in-memory PDF. Validate the path arguments and output
+ * signature here; the caller must still validate the document and quality contract.
  */
 export function runTool(request: WasmCliRequest): WasmCliResult {
   const { engine, input, args, tools } = request;
