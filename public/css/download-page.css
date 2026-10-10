@@ -623,3 +623,47 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--mac,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--ios { color: #111111 !important; }
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--android { color: #3ddc84 !important; }
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--windows { color: #0078d4 !important; }
+
+
+/* Keep the Download CTA first, with the back arrow and provider actions in one row directly beneath it. */
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-main {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .download-result {
+  flex: 0 1 auto !important;
+  width: min(100%, 460px) !important;
+  max-width: 460px !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-cloud-actions {
+  width: min(100%, 460px) !important;
+  max-width: 460px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  margin: 0 auto !important;
+}
+body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-provider-actions {
+  flex: 0 1 auto !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+}
+@media (max-width: 380px) {
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-cloud-actions,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-provider-actions {
+    gap: 5px !important;
+  }
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-download-circle,
+  body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-back {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    flex-basis: 40px !important;
+  }
+}
