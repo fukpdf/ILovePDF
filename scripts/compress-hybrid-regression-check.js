@@ -15,6 +15,7 @@ const browserCompressor = readFileSync(path.join(root, 'src/browser/browserCompr
 const deepEngine = readFileSync(path.join(root, 'src/browser/deepEngine.ts'), 'utf8');
 const browserQualityGate = readFileSync(path.join(root, 'src/browser/browserQualityGate.ts'), 'utf8');
 const gsParams = readFileSync(path.join(root, 'src/shared/gsParams.ts'), 'utf8');
+const jpegPolicy = readFileSync(path.join(root, 'src/shared/jpeg.ts'), 'utf8');
 const viteConfig = readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 const integrity = readFileSync(path.join(root, 'src/browser/pdfContentIntegrity.ts'), 'utf8');
 const wasmCli = readFileSync(path.join(root, 'src/browser/wasmCli.ts'), 'utf8');
@@ -71,6 +72,7 @@ const checks = [
   ['legacy pdf-worker compression rewrite is disabled', compressBody.includes('Legacy compression route disabled') && !compressBody.includes('PDFDocument.load(')],
   ['legacy worker returns an exact copy of original bytes', compressBody.includes('return original.slice();')],
   ['all re-encoded RGB image candidates are checked against source JPEG quantization', kit.includes('assertRgbImageQuantizationNotFiner(baseline.rgbImageSnapshot, outputRgbImageSnapshot)') && kit.includes('assertRgbImageStreamsUnchanged(baseline.rgbImageSnapshot, outputRgbImageSnapshot)') && integrity.includes('jpegQuantizationProfileNoFiner') && integrity.includes('selectEligibleRgbImageObjects')],
+  ['JPEG output is rejected if chroma-subsampled', jpegPolicy.includes('output.componentSamplingFactors.some(value => value !== 0x11)')],
 
 ];
 
