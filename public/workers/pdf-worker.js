@@ -5,7 +5,7 @@
 
 importScripts('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
 
-const { PDFDocument, StandardFonts, rgb, degrees } = self.PDFLib;
+const { PDFDocument, PDFName, StandardFonts, rgb, degrees } = self.PDFLib;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,15 @@ OPS.compress = async function (buffers) {
   const doc = await PDFDocument.load(original, {
     updateMetadata: false,
   });
+
+  // AcroForm/XFA dictionaries can be stored inside compressed object streams,
+  // so a raw byte-marker scan alone is not sufficient. Inspect the parsed
+  // catalog before any serialization and fail closed for every interactive form.
+  // This intentionally preserves AcroForm PDFs unchanged until the verified
+  // qpdf lossless route is integrated.
+  if (doc.catalog.get(PDFName.of('AcroForm'))) {
+    return original;
+  }
 
   // Do not strip or overwrite document metadata as a side effect of compression.
   // A content-preserving compressor must be conservative about unrelated data.
