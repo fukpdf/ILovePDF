@@ -6,6 +6,7 @@ on:
       - 'public/workers/pdf-worker.js'
       - 'public/js/tool-page.js'
       - 'scripts/compress-hybrid-regression-check.js'
+      - 'scripts/compress-wasm-cli-static-check.js'
       - 'docs/compression-kit-merge-status.md'
       - '.github/workflows/compression-regression.yml'
   push:
@@ -31,3 +32,5 @@ jobs:
         run: node --check scripts/compress-hybrid-regression-check.js
       - name: Run compression static regression checks
         run: node scripts/compress-hybrid-regression-check.js
+      - name: Run WASM CLI adapter static checks
+        run: node scripts/compress-wasm-cli-static-check.js
