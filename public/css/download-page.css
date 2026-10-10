@@ -24,8 +24,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-thanks-card,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms,
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-ad {
-  width: min(100%, 691.2px) !important;
-  max-width: 691.2px !important;
+  width: min(100%, 552.96px) !important;
+  max-width: 552.96px !important;
   margin-left: auto !important;
   margin-right: auto !important;
   box-sizing: border-box;
@@ -565,13 +565,13 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item {
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .ilpdf-download-primary,
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result a[download].ilpdf-download-primary,
 body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-trigger {
-  width: 72% !important;
-  max-width: 72% !important;
+  width: 86.4% !important;
+  max-width: 86.4% !important;
   min-height: 87.12px !important;
   height: auto !important;
   align-self: center !important;
 }
-/* Continue-to: 20% narrower than the previous 864px cap (now 691.2px); two columns on tablet/laptop/desktop, one on mobile. */
+/* Continue-to: 20% narrower than the previous 864px cap (now 552.96px); two columns on tablet/laptop/desktop, one on mobile. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card {
   width: min(100%, 1080px) !important;
   max-width: 1080px !important;
@@ -670,8 +670,8 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-provider-act
 
 /* Keep the provider/action row fully inside the Download button's width. */
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-cloud-actions {
-  width: 72% !important;
-  max-width: 72% !important;
+  width: 86.4% !important;
+  max-width: 86.4% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
   margin-inline: auto !important;
@@ -688,7 +688,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-back {
 @media (max-width: 420px) {
   body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-cloud-actions {
     width: 100% !important;
-    max-width: 72% !important;
+    max-width: 86.4% !important;
     gap: 4px !important;
   }
   body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-download-provider-actions .ilpdf-download-circle,
