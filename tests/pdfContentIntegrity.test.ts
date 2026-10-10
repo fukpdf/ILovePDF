@@ -90,3 +90,22 @@ test("eligibility gate rejects page annotations", () => {
   parsed.qpdf[1]["obj:3 0 R"].value["/Annots"] = [];
   assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /links or annotations/);
 });
+
+
+test("eligibility gate detects signature dictionaries hidden in object streams or unreachable objects", () => {
+  const parsed = JSON.parse(qpdfJson("q Q"));
+  parsed.qpdf[1]["obj:7 0 R"] = {
+    value: { "/Type": "/Sig", "/ByteRange": [0, 10, 20, 30] },
+  };
+  assert.throws(() => assertCompressionEligible(JSON.stringify(parsed)), /unsupported document structure.*ByteRange/);
+});
+
+test("eligibility gate rejects XFA and encrypted trailer dictionaries", () => {
+  const xfa = JSON.parse(qpdfJson("q Q"));
+  xfa.qpdf[1]["obj:7 0 R"] = { value: { "/XFA": "8 0 R" } };
+  assert.throws(() => assertCompressionEligible(JSON.stringify(xfa)), /unsupported document structure.*XFA/);
+
+  const encrypted = JSON.parse(qpdfJson("q Q"));
+  encrypted.qpdf[1].trailer.value["/Encrypt"] = "9 0 R";
+  assert.throws(() => assertCompressionEligible(JSON.stringify(encrypted)), /unsupported document structure.*Encrypt/);
+});
