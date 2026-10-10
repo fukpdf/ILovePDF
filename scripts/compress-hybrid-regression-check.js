@@ -23,12 +23,14 @@ const compressEnd = worker.indexOf('\nOPS.repair =', compressStart);
 const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
 
 const checks = [
-  ['compression UI invokes the dedicated module worker', toolPage.includes("new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'")],
-  ['canonical CompressWorkerAdapter also routes through the verified module worker', compressAdapter.includes("var WORKER_URL = '/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'") && !compressAdapter.includes("window.RuntimeWorkers.dispatch(")],
+  ['compression UI invokes the canonical cancellable CompressRuntime', toolPage.includes('window.CompressRuntime.execute(file, {') && toolPage.includes("window.CompressRuntime.cancelActive('user-cancel')")],
+  ['canonical CompressWorkerAdapter routes through the verified module worker', compressAdapter.includes("var WORKER_URL = '/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'") && !compressAdapter.includes("window.RuntimeWorkers.dispatch(")],
+  ['active UI no longer creates a duplicate uncancellable worker', !toolPage.includes("new Worker('/workers/compression-kit-worker.js?v=20261010-qpdf-lossless-kit-v1'")],
+  ['cancel button interrupts preflight and the active WASM worker', toolPage.includes('let preflightCancelled = false') && toolPage.includes('preflightCancelled = true') && toolPage.includes('removeEventListener(\'click\', onCompressionCancel)')],
   ['canonical adapter preserves Deep/Custom and rejects missing mode', compressAdapter.includes("mode === 'custom'") && compressAdapter.includes("mode === 'deep'") && compressAdapter.includes('no default mode was substituted')],
   ['canonical adapter supports cancellation by terminating its worker', compressAdapter.includes('setInterval(function ()') && compressAdapter.includes('worker.terminate()') && compressAdapter.includes('Compression cancelled.')],
   ['CompressRuntime forwards the quality/target report without removing legacy result fields', compressRuntime.includes('alreadyOptimized: alreadyOptimized') && compressRuntime.includes('report: result.report || null')],
-  ['compression transfers PDF bytes to the local worker, not a server', toolPage.includes("buffer: sourceBuffer") && toolPage.includes("}, [sourceBuffer])") && !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit)],
+  ['canonical adapter transfers PDF bytes to the local worker, not a server', compressAdapter.includes('buffer: buffer') && compressAdapter.includes('}, [buffer])') && !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit + compressAdapter)],
   ['legacy page-rasterization compression path is removed', !toolPage.includes('page.render({ canvasContext: ctx, viewport })') && !toolPage.includes('outDoc.embedJpg(jpgBytes)')],
   ['signed/encrypted/XFA/form markers are checked in the active UI compression path', toolPage.includes('const sensitivePdfReason = [') && toolPage.includes("['/ByteRange', 'Digitally signed PDFs") && toolPage.includes("['/Encrypt', 'Encrypted PDFs") && toolPage.includes("['/XFA', 'XFA forms") && toolPage.includes("['/AcroForm', 'Interactive forms")],
   ['active UI returns original file for sensitive PDF types', toolPage.includes("showStatus(\n        'success',\n        'Compression safely skipped'") && toolPage.includes('createStatusUrl(file)')],
