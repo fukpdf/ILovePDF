@@ -2548,8 +2548,8 @@ async function runAdvancedCompress(config = {}) {
   showProcessing(
     isCustom ? 'Applying custom compression…' : 'Applying deep compression…',
     isCustom
-      ? 'Trying a lossless compression pass against your target. The target will not be forced by degrading content.'
-      : 'Applying a lossless structural pass. Images and decoded page content will not be re-encoded.',
+      ? 'Trying a bounded, quality-gated compression pass against your target. The target will not be forced by degrading content.'
+      : 'Applying browser-only, quality-gated compression. Text, vectors and decoded page content stay unchanged; only eligible RGB images may be re-encoded.',
   );
 
   // Keep the source document outside the try so every exit path destroys it.
@@ -2569,27 +2569,11 @@ async function runAdvancedCompress(config = {}) {
   }
   try {
     const { PDFDocument, PDFName } = await window.BrowserTools._loadPdfLib();
-    let pdfjsLib = window.pdfjsLib;
-    if (!pdfjsLib) {
-      const _p = window.__pdfjsLibPromise ||
-        import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
-          const lib = m && (m.default || m);
-          lib.GlobalWorkerOptions.workerSrc =
-            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-          window.pdfjsLib = lib;
-          return lib;
-        });
-      window.__pdfjsLibPromise = _p;
-      pdfjsLib = await _p;
-    }
-
     const file = selectedFiles[0].file;
     let data = await file.arrayBuffer();
 
-    // Fail closed before any rewrite for signatures, encryption and form/XFA
-    // markers. The page-rendering implementation below is a legacy fallback,
-    // not the verified object-level kit; these document classes must remain
-    // byte-for-byte unchanged until the lossless qpdf path is wired in.
+    // Fail closed before any rewrite for signatures, encryption and XFA.
+    // AcroForm is handled below by the kit's lossless QPDF-only route.
     const rawPdfBytes = new Uint8Array(data);
     const hasAsciiToken = (token) => {
       outer: for (let i = 0; i <= rawPdfBytes.length - token.length; i++) {
@@ -2604,7 +2588,6 @@ async function runAdvancedCompress(config = {}) {
       ['/ByteRange', 'Digitally signed PDFs cannot be modified without invalidating their signature.'],
       ['/Encrypt', 'Encrypted PDFs are preserved unchanged until a verified lossless path is available.'],
       ['/XFA', 'XFA forms are preserved unchanged to avoid damaging form data.'],
-      ['/AcroForm', 'Interactive forms are preserved unchanged until form-safe compression is available.'],
       ['/Outlines', 'PDF bookmarks/outlines are preserved unchanged until document-structure preservation is verified.'],
       ['/EmbeddedFiles', 'PDF attachments are preserved unchanged until document-structure preservation is verified.'],
       ['/StructTreeRoot', 'Tagged-PDF structure is preserved unchanged until document-structure preservation is verified.'],
@@ -2629,69 +2612,71 @@ async function runAdvancedCompress(config = {}) {
       updateMetadata: false,
     });
 
-    // AcroForm can live in a compressed object stream, so raw marker scanning
-    // is not enough. Check the parsed catalog before the legacy page-rebuild path.
-    if (sourcePdfLib.catalog.get(PDFName.of('AcroForm'))) {
-      hideProcessing();
-      showStatus(
-        'success',
-        'Compression safely skipped',
-        'This PDF contains an interactive form. It is preserved unchanged until form-safe compression is available.',
-        createStatusUrl(file),
-        file.name,
-      );
-      return;
-    }
-
-    srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
-    data = null;
-
-    // Page copying into a fresh PDFDocument can drop document-level navigation
-    // and embedded files. Query the parsed PDF.js catalog as well as raw tokens.
-    const [outline, attachments] = await Promise.all([
-      typeof srcPdf.getOutline === 'function' ? srcPdf.getOutline() : Promise.resolve(null),
-      typeof srcPdf.getAttachments === 'function' ? srcPdf.getAttachments() : Promise.resolve(null),
-    ]);
-    if (outline || attachments) {
-      hideProcessing();
-      showStatus(
-        'success',
-        'Compression safely skipped',
-        'This PDF contains bookmarks or embedded attachments. The original is preserved unchanged.',
-        createStatusUrl(file),
-        file.name,
-      );
-      return;
-    }
-
-    const total = srcPdf.numPages;
-
-    // The previous UI path rasterized image-only pages into JPEGs. That can
-    // damage 1-bit scans, masks, image filters, and non-page objects, so it is
-    // deliberately removed from the active path. Until the full image-object
-    // optimizer passes its quality gates, use only a verified lossless QPDF
-    // structural pass and preserve the original on every failed check.
-    for (let i = 1; i <= srcPdf.numPages; i++) {
+    // AcroForm can live in a compressed object stream, so use the parsed
+    // catalog as well as raw markers. The kit itself then enforces QPDF-only.
+    const hasAcroForm = Boolean(sourcePdfLib.catalog.get(PDFName.of('AcroForm')));
+    if (hasAcroForm) {
       showProcessing(
-        'Checking PDF structure — page ' + i + ' of ' + srcPdf.numPages + '…',
-        'Checking for links and annotations before lossless compression.',
+        'Using lossless form-safe compression…',
+        'Interactive form detected. Only the QPDF structural route will be considered; field dictionaries and protected streams must remain unchanged.',
       );
-      const page = await srcPdf.getPage(i);
-      const annotations = await page.getAnnotations({ intent: 'display' });
-      page.cleanup();
-      if (preflightCancelled) {
-        throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+    } else {
+      let pdfjsLib = window.pdfjsLib;
+      if (!pdfjsLib) {
+        const _p = window.__pdfjsLibPromise ||
+          import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs').then(m => {
+            const lib = m && (m.default || m);
+            lib.GlobalWorkerOptions.workerSrc =
+              'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+            window.pdfjsLib = lib;
+            return lib;
+          });
+        window.__pdfjsLibPromise = _p;
+        pdfjsLib = await _p;
       }
-      if (annotations.length > 0) {
+
+      srcPdf = await pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
+      data = null;
+
+      // Page copying can drop document-level navigation and embedded files.
+      const [outline, attachments] = await Promise.all([
+        typeof srcPdf.getOutline === 'function' ? srcPdf.getOutline() : Promise.resolve(null),
+        typeof srcPdf.getAttachments === 'function' ? srcPdf.getAttachments() : Promise.resolve(null),
+      ]);
+      if (outline || attachments) {
         hideProcessing();
         showStatus(
           'success',
           'Compression safely skipped',
-          'This PDF contains links or annotations. The original is preserved unchanged.',
+          'This PDF contains bookmarks or embedded attachments. The original is preserved unchanged.',
           createStatusUrl(file),
           file.name,
         );
         return;
+      }
+
+      for (let i = 1; i <= srcPdf.numPages; i++) {
+        showProcessing(
+          'Checking PDF structure — page ' + i + ' of ' + srcPdf.numPages + '…',
+          'Checking for links and annotations before compression.',
+        );
+        const page = await srcPdf.getPage(i);
+        const annotations = await page.getAnnotations({ intent: 'display' });
+        page.cleanup();
+        if (preflightCancelled) {
+          throw new Error('Compression cancelled. The original PDF was preserved unchanged.');
+        }
+        if (annotations.length > 0) {
+          hideProcessing();
+          showStatus(
+            'success',
+            'Compression safely skipped',
+            'This PDF contains links or annotations. The original is preserved unchanged.',
+            createStatusUrl(file),
+            file.name,
+          );
+          return;
+        }
       }
     }
 
