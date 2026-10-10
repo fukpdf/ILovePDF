@@ -1485,3 +1485,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .contin
   body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-continue-card .continue-tool-card .popular-card-description { font-size: 12px !important; }
 }
 
+
+
+/* Wrapper activates the exact shared Upload Popular Tools rules without adding a layout box. */
+.ilpdf-download-page .download-popular-tools-scope { display: contents; }
