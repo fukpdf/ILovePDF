@@ -2573,6 +2573,39 @@ async function runAdvancedCompress(config = {}) {
 
     const file = selectedFiles[0].file;
     let data = await file.arrayBuffer();
+
+    // Fail closed before any rewrite for signatures, encryption and form/XFA
+    // markers. The page-rendering implementation below is a legacy fallback,
+    // not the verified object-level kit; these document classes must remain
+    // byte-for-byte unchanged until the lossless qpdf path is wired in.
+    const rawPdfBytes = new Uint8Array(data);
+    const hasAsciiToken = (token) => {
+      outer: for (let i = 0; i <= rawPdfBytes.length - token.length; i++) {
+        for (let j = 0; j < token.length; j++) {
+          if (rawPdfBytes[i + j] !== token.charCodeAt(j)) continue outer;
+        }
+        return true;
+      }
+      return false;
+    };
+    const sensitivePdfReason = [
+      ['/ByteRange', 'Digitally signed PDFs cannot be modified without invalidating their signature.'],
+      ['/Encrypt', 'Encrypted PDFs are preserved unchanged until a verified lossless path is available.'],
+      ['/XFA', 'XFA forms are preserved unchanged to avoid damaging form data.'],
+      ['/AcroForm', 'Interactive forms are preserved unchanged until form-safe compression is available.'],
+    ].find(([token]) => hasAsciiToken(token));
+    if (sensitivePdfReason) {
+      hideProcessing();
+      showStatus(
+        'success',
+        'Compression safely skipped',
+        sensitivePdfReason[1] + ' Your original PDF is ready to download unchanged.',
+        createStatusUrl(file),
+        file.name,
+      );
+      return;
+    }
+
     // Keep a PDF-Lib copy of the original so text/vector pages can be copied
     // into the output without flattening them into a JPEG page image.
     sourcePdfLib = await PDFDocument.load(data.slice(0), {
