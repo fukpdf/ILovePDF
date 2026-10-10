@@ -15,6 +15,9 @@ const integrity = readFileSync(path.join(root, 'src/browser/pdfContentIntegrity.
 const wasmCli = readFileSync(path.join(root, 'src/browser/wasmCli.ts'), 'utf8');
 const compressAdapter = readFileSync(path.join(root, 'public/js/compress-worker-adapter.js'), 'utf8');
 const compressRuntime = readFileSync(path.join(root, 'public/js/compress-runtime.js'), 'utf8');
+const buildScript = readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8');
+const fsShim = readFileSync(path.join(root, 'src/browser/node-fs-shim.cjs'), 'utf8');
+const pathShim = readFileSync(path.join(root, 'src/browser/node-path-shim.cjs'), 'utf8');
 const compressStart = worker.indexOf('OPS.compress = async function (buffers) {');
 const compressEnd = worker.indexOf('\nOPS.repair =', compressStart);
 const compressBody = compressStart >= 0 && compressEnd > compressStart ? worker.slice(compressStart, compressEnd) : '';
@@ -44,6 +47,9 @@ const checks = [
   ['worker loads only local same-origin WASM assets', compressionWorker.includes('"/vendor/compression/qpdf.wasm?v=20261010-qpdf-lossless-kit-v1"') && compressionWorker.includes('"/vendor/compression/gs.wasm?v=20261010-qpdf-lossless-kit-v1"')],
   ['Custom target remains mandatory', toolPage.includes('Custom target missing') && toolPage.includes("requestedMode !== 'deep' && requestedMode !== 'custom'")],
   ['root build creates the browser bundle and local WASM assets', readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/js/compression-kit.js') && readFileSync(path.join(root, 'scripts/build-compression-kit.js'), 'utf8').includes('public/vendor/compression')],
+  ['browser bundle splits dynamic engine chunks for lazy initialization', buildScript.includes('splitting: true') && buildScript.includes('chunkNames: "compression-chunks/[name]-[hash]"')],
+  ['Node-only builtins are shimmed instead of emitted as bare browser imports', buildScript.includes('node-fs-shim.cjs') && buildScript.includes('node-path-shim.cjs') && !buildScript.includes('external: ["fs", "path", "node:fs", "node:path"]')],
+  ['browser shims fail closed if Node-only APIs are unexpectedly called', fsShim.includes('Node filesystem APIs are unavailable in the browser compression bundle.') && pathShim.includes('Node path APIs are unavailable in the browser compression bundle.')],
   ['compression runtime does not call network APIs with PDF bytes', !/\b(fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(kit + integrity + wasmCli + compressionWorker)],
   ['legacy pdf-worker compression rewrite is disabled', compressBody.includes('Legacy compression route disabled') && !compressBody.includes('PDFDocument.load(')],
   ['legacy worker returns an exact copy of original bytes', compressBody.includes('return original.slice();')],
