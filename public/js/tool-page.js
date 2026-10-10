@@ -2588,9 +2588,6 @@ async function runAdvancedCompress(config = {}) {
       ['/ByteRange', 'Digitally signed PDFs cannot be modified without invalidating their signature.'],
       ['/Encrypt', 'Encrypted PDFs are preserved unchanged until a verified lossless path is available.'],
       ['/XFA', 'XFA forms are preserved unchanged to avoid damaging form data.'],
-      ['/Outlines', 'PDF bookmarks/outlines are preserved unchanged until document-structure preservation is verified.'],
-      ['/EmbeddedFiles', 'PDF attachments are preserved unchanged until document-structure preservation is verified.'],
-      ['/StructTreeRoot', 'Tagged-PDF structure is preserved unchanged until document-structure preservation is verified.'],
     ].find(([token]) => hasAsciiToken(token));
     if (sensitivePdfReason) {
       hideProcessing();
