@@ -68,6 +68,7 @@ console.log('SEO inventory: ' + JSON.stringify(seoInventory));
 
 const staticChecks = [
   ['homepage contains a viewport meta tag', /<meta\s+name=["']viewport["']/i.test(html)],
+  ['homepage has a substantive meta description', hasMetaDescription],
   ['homepage has a non-empty title', /<title>\s*[^<]+\s*<\/title>/i.test(html)],
   ['homepage contains universal chrome loader', /src=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
