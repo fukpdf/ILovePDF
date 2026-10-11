@@ -84,6 +84,7 @@ try {
   const initial = await page.evaluate(() => ({
     title: document.title,
     h1Count: document.querySelectorAll('h1').length,
+    ids: [...document.querySelectorAll('[id]')].map(element => element.id),
     links: [...document.querySelectorAll('a[href]')].map(a => ({
       href: a.getAttribute('href') || '',
       text: (a.innerText || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 90),
@@ -126,7 +127,7 @@ try {
 
   const emptyLinks = initial.links.filter(link => !link.href.trim());
   const placeholderLinks = initial.links.filter(link => link.href.trim() === '#');
-  const brokenHashLinks = initial.links.filter(link => link.href.startsWith('#') && link.href.length > 1 && !document.getElementById(link.href.slice(1)));
+  const brokenHashLinks = initial.links.filter(link => link.href.startsWith('#') && link.href.length > 1 && !initial.ids.includes(link.href.slice(1)));
   const unsafeBlankLinks = initial.links.filter(link => link.target === '_blank' && !/\b(?:noopener|noreferrer)\b/i.test(link.rel));
   if (emptyLinks.length) fail('anchors without href values: ' + emptyLinks.length);
   if (placeholderLinks.length) fail('placeholder href="#" links found: ' + placeholderLinks.length + ' (' + placeholderLinks.slice(0, 8).map(link => link.text || '(unnamed)').join(' | ') + ')');
