@@ -80,7 +80,39 @@
   <link rel="stylesheet" href="/css/responsive-ads.css">
   <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    var src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556";
+    var loaded = false;
+    function loadAds() {
+      if (loaded) return;
+      loaded = true;
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = src;
+      script.crossOrigin = 'anonymous';
+      script.onload = function () {
+        if (window.AdManager && typeof window.AdManager.activateAll === 'function') window.AdManager.activateAll();
+      };
+      document.head.appendChild(script);
+    }
+    function watchSlots() {
+      var slots = document.querySelectorAll('[data-ad-slot], .ad-slot, ins.adsbygoogle');
+      if (!('IntersectionObserver' in window) || !slots.length) return;
+      var observer = new IntersectionObserver(function (entries) {
+        if (entries.some(function (entry) { return entry.isIntersecting; })) {
+          observer.disconnect();
+          loadAds();
+        }
+      }, { rootMargin: '0px 0px 150px 0px' });
+      slots.forEach(function (slot) { observer.observe(slot); });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSlots, { once: true });
+    else watchSlots();
+    window.addEventListener('load', function () { setTimeout(loadAds, 4500); }, { once: true });
+    window.addEventListener('scroll', loadAds, { once: true, passive: true });
+  })();
+  </script>
 </head>
 <body>
 
