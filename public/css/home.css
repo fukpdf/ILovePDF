@@ -2221,8 +2221,15 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 }
 .footer-lang-link {
   display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #9aa3bd;
+  font: inherit;
   font-size: .76rem;
+  text-align: left;
+  cursor: pointer;
   margin: 3px 0;
   text-decoration: none;
   transition: .15s color;
