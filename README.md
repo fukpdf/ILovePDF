@@ -1,6 +1,6 @@
 # ILovePDF — Free Online PDF & Image Tools
 
-Production-ready PDF + image processing platform with **33 tools**, branded as **ILovePDF** (red theme `#E5322E`). Single-deploy Node/Express app — runs on Replit, Railway, or any Node host.
+Production-ready PDF + image processing platform with **41 registered tool IDs**, branded as **ILovePDF** (red theme `#E5322E`). Single-deploy Node/Express app — runs on Replit, Railway, or any Node host.
 
 ## Homepage performance and Laba removal
 
@@ -51,7 +51,7 @@ server.js                      Express entry (port 5000)
 | 6 | Add Page Numbers | **Browser** |
 | 7 | Watermark | **Browser** |
 | 8 | JPG/PNG → PDF | **Browser** |
-| 9–33 | All other PDF/image/AI tools | Server (Node + pdf-lib + sharp + HF) |
+| 9–41 | All other PDF/image/AI tools | Server (Node + pdf-lib + sharp + HF) |
 
 Browser-side tools never upload — files are processed locally with pdf-lib.js. The server-side path is still wired as a fallback if the client handler throws.
 
