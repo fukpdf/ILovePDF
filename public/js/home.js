@@ -208,10 +208,10 @@ function _renderOneCatSection(containerId, groupKeys, type) {
   // stable markup when its routes/count match the registry; only rebuild stale sections.
   const existingCards = [...el.querySelectorAll('a.tool')];
   const expectedHrefs = items.map(homeToolUrl);
-  const existingHrefs = existingCards.map(card => card.getAttribute('href') || '');
+  const existingHrefs = new Set(existingCards.map(card => card.getAttribute('href') || ''));
   if (existingCards.length === items.length &&
       existingCards.length > 0 &&
-      existingHrefs.every((href, index) => href === expectedHrefs[index])) {
+      expectedHrefs.every(href => existingHrefs.has(href))) {
     return;
   }
 
