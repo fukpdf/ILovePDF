@@ -379,7 +379,6 @@ try {
             }
             return columnStarts.length;
           })();
-      const vw = document.documentElement.clientWidth;
       const expectedColumns = vw <= 768 ? 2 : 3 + (vw > 1280 ? 1 : 0);
       const viewportCoverage = {
         pageFound: !!pageElement,
