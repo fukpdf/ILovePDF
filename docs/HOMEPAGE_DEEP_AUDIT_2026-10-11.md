@@ -2,7 +2,7 @@
 
 ## Status
 
-**Audit in progress — not certified complete.** This document records repository evidence inspected so far. It is not a substitute for browser, viewport, route, accessibility, or production measurements.
+**PASS WITH KNOWN ISSUES — verified 2026-10-11.** The dedicated homepage browser/source audit passed, the homepage implementation was merged to `main`, and the latest Firebase deployment workflow succeeded. The detailed implementation and verification log is maintained in the [root-level report](../HOMEPAGE_LOADING_AND_LABA_REMOVAL.md). Known issues: automated custom-domain requests receive HTTP 403 (not confirmed to be a user-facing outage); separate repo-wide Phase 5/i18n workflows fail because package scripts reference missing audit scripts; INP and official-site field performance were not measured.
 
 ## Scope and safety boundaries
 
@@ -73,18 +73,19 @@
 
 ## Validation status matrix
 
-| Area | Status | Evidence needed |
+| Area | Status | Evidence |
 |---|---|---|
-| Homepage build/assembly | Partial source inspection | Run assembler and validate output |
-| Critical-path script order | Static guard exists | Run guard against assembled artifact |
-| Heavy engine isolation | Not verified | Transitive import + browser network trace |
-| Tool cards and links | Not verified | Full inventory and destination checks |
-| Responsive viewports | Not measured | Browser screenshots/tests at all listed widths |
-| Accessibility | Not measured | Automated and manual keyboard/semantic checks |
-| Console/runtime errors | Not measured | Browser console and failed-request report |
-| Performance metrics | Not measured | Repeatable before/after browser measurements |
-| CI/Actions status | Not verified | Inspect actual workflow runs/checks |
-| Production deployment | Not performed by this audit | Verify only after an explicitly approved release |
+| Homepage build/assembly | PASS | Dedicated Homepage Deep Audit workflow passed on mainline implementation |
+| Critical-path script order | PASS | Static guard and production smoke checks passed |
+| Heavy engine isolation | PASS | Browser audit recorded zero homepage requests for tool-only processing/federation/worker scripts |
+| Tool cards and links | PASS | 41/41 cards/routes; 151 anchors and 53 unique internal destinations checked |
+| Responsive viewports | PASS | 15/15 required widths; zero horizontal overflow |
+| Accessibility | PASS | 0 axe violations |
+| Console/runtime errors | PASS | 0 uncaught browser errors; 0 failed same-origin assets |
+| Laba removal | PASS | 0 active application references and 0 homepage Laba requests; remaining references are historical/docs/test guards |
+| Performance metrics | PASS WITH LIMITS | Latest recorded local sample: FCP/LCP 356 ms, CLS 0.0319; INP and official-site field metrics NOT MEASURED |
+| CI/Actions status | PASS WITH KNOWN ISSUES | Homepage workflow passed; unrelated Phase 5/i18n workflows fail due missing audit scripts |
+| Production deployment | PASS WITH KNOWN ISSUES | Main deployment succeeded and canonical Firebase origin checks returned HTTP 200; automated custom-domain probe returns HTTP 403 |
 
 ## Completion rule
 
@@ -92,4 +93,4 @@ Final status must be exactly one of `PASS`, `PASS WITH KNOWN ISSUES`, or `BLOCKE
 
 ## Follow-up scope: first-render and Laba removal
 
-The active implementation plan and execution log now live at the repository root in [`HOMEPAGE_LOADING_AND_LABA_REMOVAL.md`](../HOMEPAGE_LOADING_AND_LABA_REMOVAL.md). A read-only inventory script (`scripts/laba-removal-audit.js`) is wired into the Homepage Deep Audit workflow to classify repository references before any Laba-specific deletion. Laba removal is not complete until that inventory is reviewed, the assembler and tests assert the widget is absent, and browser verification passes.
+The active implementation plan and execution log now live at the repository root in [`HOMEPAGE_LOADING_AND_LABA_REMOVAL.md`](../HOMEPAGE_LOADING_AND_LABA_REMOVAL.md). A read-only inventory script (`scripts/laba-removal-audit.js`) remains as a regression guard, not a product runtime dependency. The inventory and browser checks passed: 1,026 tracked text files scanned; zero dedicated Laba/lazy-loader implementation paths and zero active application-code references; zero homepage Laba UI/assets/network requests. Remaining textual references are limited to historical documentation, removal guards, and tests/workflows.
