@@ -231,7 +231,7 @@ function renderHeader(forceRefresh = false){
 
   // Preserve the server-rendered homepage header and hydrate only missing dropdown
   // panels. Replacing the whole nav causes a first-paint layout shift.
-  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
+  if (window.__ILOVE_PRESERVE_SERVER_NAV) {
     const organizeItem = nav.querySelector('#nav-organize');
     const convertItem = nav.querySelector('#nav-convert');
     const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
@@ -245,7 +245,7 @@ function renderHeader(forceRefresh = false){
       organizeItem.appendChild(panel);
     } else if (organizeItem) {
       const panel = organizeItem.querySelector('.dd');
-      if (panel && !panel.children.length) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
     }
     if (convertItem && !convertItem.querySelector('.dd')) {
       const panel = document.createElement('div');
@@ -257,7 +257,7 @@ function renderHeader(forceRefresh = false){
       convertItem.appendChild(panel);
     } else if (convertItem) {
       const panel = convertItem.querySelector('.dd');
-      if (panel && !panel.children.length) panel.innerHTML = ddLinks(CONVERT_ITEMS);
+      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(CONVERT_ITEMS);
     }
     if (allItem) {
       allItem.id = 'all-tools-item';
@@ -272,7 +272,7 @@ function renderHeader(forceRefresh = false){
         panel.setAttribute('aria-label', 'All tools');
         allItem.appendChild(panel);
       }
-      if (!panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
+      if (forceRefresh || !panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
     }
     if (!window.__ILOVE_NAV_WIRED) {
       wireSimpleDropdowns();
