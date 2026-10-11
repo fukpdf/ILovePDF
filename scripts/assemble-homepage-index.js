@@ -182,18 +182,18 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
 function injectStaticApiGuard(html) {
   if (html.includes('window.__ILOVE_STATIC_API_GUARD__')) return html;
   const guard = '<script>(function(){var host=String(location.hostname||"").toLowerCase();var staticHost=host.endsWith(".web.app")||host.endsWith(".firebaseapp.com")||host==="ilovepdf.cyou";if(!staticHost||typeof window.fetch!=="function"||window.__ILOVE_STATIC_API_GUARD__)return;window.__ILOVE_STATIC_API_GUARD__=true;var nativeFetch=window.fetch;window.fetch=function(input,init){var raw=typeof input==="string"?input:(input&&input.url)||"";try{var url=new URL(raw,location.href);if(url.origin===location.origin&&url.pathname.startsWith("/api/"))return Promise.resolve(new Response(JSON.stringify({available:false,error:"API backend unavailable on static hosting"}),{status:503,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}}));}catch(_){}return nativeFetch.call(this,input,init);};})();</script>';
-  if (!/<head\\b[^>]*>/i.test(html)) {
+  if (!/<head\b[^>]*>/i.test(html)) {
     fail('cannot inject the static-hosting API guard because the homepage head element is missing');
     return null;
   }
-  return html.replace(/<head\\b[^>]*>/i, head => head + '\\n' + guard);
+  return html.replace(/<head\b[^>]*>/i, head => head + '\n' + guard);
 }
 
 function deferHomepageAds(html) {
-  const pattern = /<script\\b(?=[^>]*\\bsrc=["']https?:\\/\\/pagead\\.googlesyndication\\.com\\/pagead\\/js\\/adsbygoogle\\.js[^"']*["'])[^>]*>\\s*<\\/script>/gi;
+  const pattern = /<script\b(?=[^>]*\bsrc=["']https?:\/\/pagead\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^"']*["'])[^>]*>\s*<\/script>/gi;
   let count = 0;
   html = html.replace(pattern, tag => {
-    const src = tag.match(/\\bsrc=["']([^"']+)["']/i)?.[1];
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1];
     if (!src) return tag;
     count++;
     // Preserve ad monetization, but don't fetch the large third-party runtime
