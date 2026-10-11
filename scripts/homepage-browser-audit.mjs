@@ -112,6 +112,7 @@ try {
   console.log('ACCESSIBILITY: violations=' + axe.violations.length + ', criticalOrSerious=' + severe.length);
   for (const violation of severe) {
     fail('accessibility ' + violation.impact + ': ' + violation.id + ' — ' + violation.help + ' (' + violation.nodes.length + ' nodes)');
+    violation.nodes.forEach(node => console.log('A11Y_TARGET ' + node.target.join(' ') + ' | ' + (node.failureSummary || node.html).replace(/\\s+/g, ' ').slice(0, 320)));
   }
   if (!severe.length) report('no critical/serious automated WCAG violations detected');
 
