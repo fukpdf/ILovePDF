@@ -48,6 +48,7 @@ jobs:
             exit 1
           fi
           echo '[assemble] public/index.html ready for hosting'
+          node scripts/homepage-deep-audit-check.js
 
       - name: Install dependencies
         shell: bash
