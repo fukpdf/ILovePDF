@@ -605,6 +605,8 @@ function bootHomePage() {
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootHomePage);
+  document.addEventListener('DOMContentLoaded', ensureHomepageToolCardIcons, { once: true });
 } else {
   bootHomePage();
+  setTimeout(ensureHomepageToolCardIcons, 0);
 }
