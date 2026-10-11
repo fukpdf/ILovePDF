@@ -108,7 +108,7 @@ const staticChecks = [
   ['assembled homepage enables server-nav preservation before deferred scripts', /window\\.__ILOVE_PRESERVE_SERVER_NAV\\s*=\\s*true/.test(html)],
   ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
   ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
-  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\\.googleapis\\.com\\/css2?[^"']*display=optional/i.test(html)]
+  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)]
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
