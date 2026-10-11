@@ -138,7 +138,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'organize', name: 'Organize PDF', icon: 'move',
+    id: 'organize', name: 'Organize PDF', icon: 'list-ordered',
     description: 'Reorder the pages of your PDF document',
     category: 'Organize PDFs', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/organize', acceptedFiles: '.pdf',
@@ -307,7 +307,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'word-to-excel', name: 'Word to Excel', icon: 'table',
+    id: 'word-to-excel', name: 'Word to Excel', icon: 'sheet',
     description: 'Extract tables and structured data from Word documents into Excel',
     category: 'Convert To PDF', group: 'pdf', badge: 'NEW',
     apiEndpoint: '/api/word-to-excel', acceptedFiles: '.docx',
@@ -414,7 +414,7 @@ const TOOLS = [
     ]
   },
   {
-    id: 'page-numbers', name: 'Add Page Numbers', icon: 'hash', clientSide: true,
+    id: 'page-numbers', name: 'Add Page Numbers', icon: 'list-numbers', clientSide: true,
     description: 'Insert page numbers into your document',
     category: 'Edit & Annotate', group: 'pdf', badge: 'PDF',
     apiEndpoint: '/api/page-numbers', acceptedFiles: '.pdf',
@@ -757,7 +757,7 @@ const TOOLS = [
     options: []
   },
   {
-    id: 'crop-image', name: 'Crop Image', icon: 'crop', clientSide: true,
+    id: 'crop-image', name: 'Crop Image', icon: 'image-crop', clientSide: true,
     description: 'Crop and trim your images with precision controls',
     category: 'Image Tools', group: 'image', badge: 'Image',
     apiEndpoint: '/api/crop-image', acceptedFiles: '.jpg,.jpeg,.png,.webp',
