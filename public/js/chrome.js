@@ -811,7 +811,7 @@ const SHARED_HEADER_HTML = `<header class="site-header">
       </a>
 
       <nav class="nav" id="nav" aria-label="Main">
-        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+        <!-- Fallback skeleton for pages without a complete server-rendered navigation. -->
         <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
@@ -1027,9 +1027,9 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
 
 async function initChrome() {
   ensureSharedShell();
-  renderHeader(); // Synchronous initial render to replace skeleton nav pills immediately
+  renderHeader(); // Preserve complete homepage nav; build only when the shell is missing.
   try { await ensureI18nAssets(); } catch (_) {}
-  renderHeader(); // Re-render with i18n assets if available
+  renderHeader(); // No-op for preserved homepage nav; refreshes fallback shell when needed.
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
