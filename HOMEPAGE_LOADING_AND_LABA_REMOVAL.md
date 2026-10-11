@@ -268,3 +268,25 @@ The homepage audit workflow now includes `scripts/homepage-live-comparison.mjs`.
 ### Live comparison limitation observed in CI
 
 The GitHub Actions headless browser received HTTP 403 and a Cloudflare “Just a moment…” challenge page for all ILovePDF.cyou samples, while the official iLovePDF homepage returned HTTP 200. The challenge-page FCP/LCP/byte numbers are **not** valid measurements of our homepage and must not be compared with the official site. The benchmark now reports this as an incomplete comparison rather than failing the core homepage regression suite. A fair live comparison still needs an environment where the c.you page loads normally (for example, a normal browser/network not challenged by Cloudflare) or a trusted PSI/Lighthouse report for both URLs.
+
+
+## Follow-up: live Firebase layout-shift root cause — 2026-10-11
+
+**Evidence source:** the live comparison workflow's 3-run desktop profile (1366×768) and its layout-shift attribution.
+
+### Confirmed cause
+
+The live browser trace showed the navigation links changing horizontal positions after first render (for example, `.nav-direct` elements moved from x≈512/610 to x≈362/460). The shared header code had a preservation path for the server-rendered navigation, but the `i18n:change` handler called `renderHeader(true)`; the `forceRefresh` flag bypassed that preservation path and replaced the entire nav DOM. That is a direct source-level explanation for the late navigation geometry change, rather than a generic guess about network speed.
+
+The same trace showed the hero buttons changing widths and the PDF category/Quick Access sections shifting vertically. The homepage imports Google Fonts with `display=swap`, which can change text metrics after the fallback font has painted. This is a plausible contributor to the button and section reflow; it must be re-measured after the patch rather than treated as proven by font status alone.
+
+### Fix on `perf/homepage-stable-first-paint-20261011`
+
+- The homepage assembler now enables `window.__ILOVE_PRESERVE_SERVER_NAV = true` in the document head when the expected server-rendered nav structure is present, before deferred `chrome.js` runs.
+- `chrome.js` now keeps the server-rendered nav even during language refreshes; it refreshes dropdown content without replacing the main navigation. This preserves the live nav's layout while keeping locale-dependent dropdown labels refreshable.
+- The assembler changes the Google Fonts `display=swap` policy to `display=optional` to reduce late font replacement/reflow on cold or slower visits.
+- The deep source audit now asserts the nav-preservation flag, stable refresh branch, assembler hook, and font-display policy so a future change cannot silently reintroduce this path.
+
+### Verification status
+
+These changes are committed to the review branch. The required next proof is a successful Homepage Deep Audit and a fresh live comparison run after the updated assembled artifact is deployed to the Firebase preview. Until that run records the new CLS and FCP/LCP values, no improvement percentage or “fully fixed” claim is made.
