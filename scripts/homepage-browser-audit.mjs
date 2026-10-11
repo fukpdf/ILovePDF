@@ -96,6 +96,7 @@ try {
 
   const loadInventory = await page.evaluate(() => ({
     htmlBytes: new TextEncoder().encode(document.documentElement.outerHTML).length,
+    runtimeLoaderPresent: [...document.scripts].some(script => script.textContent.includes('DecompressionStream')),
     stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')].map(link => ({ href: link.href, media: link.media || 'all', disabled: link.disabled })),
     inlineStyleBlocks: document.querySelectorAll('style').length,
     scripts: [...document.scripts].map(script => ({ src: script.src || '(inline)', defer: script.defer, async: script.async, type: script.type || 'classic' })),
@@ -103,10 +104,8 @@ try {
     images: [...document.images].map(image => ({ src: image.currentSrc || image.src, loading: image.loading, width: image.naturalWidth, height: image.naturalHeight }))
   }));
   console.log('FIRST-RENDER INVENTORY: ' + JSON.stringify(loadInventory));
-  if (document.querySelector('script')?.textContent.includes('DecompressionStream') ||
-      [...document.scripts].some(script => script.textContent.includes('DecompressionStream'))) {
-    fail('served homepage still contains the runtime chunk/decompression loader');
-  } else report('served homepage is not using the four-chunk runtime document-replacement loader');
+  if (loadInventory.runtimeLoaderPresent) fail('served homepage still contains the runtime chunk/decompression loader');
+  else report('served homepage is not using the four-chunk runtime document-replacement loader');
 
   const initial = await page.evaluate(() => ({
     title: document.title,
