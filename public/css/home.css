@@ -3293,3 +3293,10 @@ body.mo-lock{ overflow:hidden;touch-action:none }
     pointer-events: none !important;
   }
 }
+
+/* Accessibility contrast repairs — homepage calculator and featured guides. */
+p[data-i18n="calc.n2w_desc"],
+p[data-i18n="calc.fx_desc"] { color: #475569 !important; }
+#fx-rate { color: #475569 !important; }
+span[data-i18n="hls.blog2_tag"] { color: #047857 !important; }
+a[href$="compress-pdf-guide"] > span[data-i18n="hls.blog_read"] { color: #047857 !important; }
