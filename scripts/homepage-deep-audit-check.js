@@ -90,6 +90,14 @@ else fail('optional Laba widget is delaying homepage renderer execution');
 const i18nExtAt = scriptIndex('i18n-ext.js');
 if (homeAt >= 0 && i18nExtAt >= 0 && homeAt < i18nExtAt) pass('homepage renderer executes before extended translation payload');
 else fail('extended translation payload is still ahead of homepage renderer');
+const homepageLazyLoader = read('public/js/homepage-lazy-loader.js');
+if (homepageLazyLoader.includes("document.addEventListener('click', _interactionHandler, true)") &&
+    !homepageLazyLoader.includes('requestIdleCallback') &&
+    !homepageLazyLoader.includes('Load the heavy stack 4 seconds')) {
+  pass('heavy AI/Laba stack waits for explicit user interaction');
+} else {
+  fail('homepage AI/Laba stack still has an automatic idle-load trigger');
+}
 
 // Static asset references in the assembled HTML must resolve within public/.
 const assetRefs = new Set();
