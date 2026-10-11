@@ -136,10 +136,6 @@
       var ai = G.AIRuntime;
       if (ai && ai.reset) { ai.reset(); recovered++; }
     });
-    _s(function () {
-      var lba = G.LabaAiChat;
-      if (lba && lba.clearQueue) { lba.clearQueue(); recovered++; }
-    });
     _record('ai-recovered', { systems: recovered });
     return Promise.resolve(recovered > 0);
   }
