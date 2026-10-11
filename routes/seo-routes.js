@@ -248,7 +248,6 @@ Allow: /js/
 Allow: /css/
 Allow: /core/
 Allow: /locales/
-Allow: /laba/
 Allow: /images/
 Allow: /fonts/
 Allow: /favicon.svg
