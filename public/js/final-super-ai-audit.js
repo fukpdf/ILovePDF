@@ -404,17 +404,6 @@
   // ═══════════════════════════════════════════════════════════════════════════
   async function _auditCheckpoints() {
     var results = [];
-    var LAOS = sys('LabaAiOperatingSystem');
-    if (LAOS && LAOS.UnifiedRecovery) {
-      results.push(pass('UnifiedRecovery.loaded'));
-      var testId = 'audit_ckpt_' + now();
-      LAOS.checkpoint(testId, { test: true, ts: now() });
-      var restored = LAOS.restore(testId);
-      results.push(restored && restored.state && restored.state.test ? pass('checkpoint.store_restore') : fail('checkpoint.store_restore'));
-      LAOS.UnifiedRecovery.clearCheckpoint(testId);
-    } else {
-      results.push(skip('checkpoint.store_restore', 'LAOS not loaded'));
-    }
     var RGI = sys('RealGenerativeIntelligence');
     if (RGI && RGI.StreamingTokenEngine) {
       results.push(pass('streaming.checkpoints_every_200chars', 'StreamingTokenEngine checkpoints via IDB'));
@@ -451,16 +440,6 @@
   // ═══════════════════════════════════════════════════════════════════════════
   async function _auditRecovery() {
     var results = [];
-    var LAOS = sys('LabaAiOperatingSystem');
-    if (LAOS) {
-      results.push(pass('LAOS.UnifiedRecovery'));
-      await safe(async function(){
-        var r = await LAOS.UnifiedRecovery.emergencyRecovery();
-        results.push(pass('LAOS.emergencyRecovery', 'triggered: ' + (r.recovered||[]).length + ' systems'));
-      });
-    } else {
-      results.push(skip('LAOS.UnifiedRecovery', 'LAOS not loaded'));
-    }
     var ER = sys('EnterpriseRecoveryV2');
     results.push(ER ? pass('EnterpriseRecoveryV2.loaded') : warn_('EnterpriseRecoveryV2', 'Phase 36 not loaded'));
     var DR = sys('DistributedRecovery');

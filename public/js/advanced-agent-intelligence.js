@@ -157,7 +157,7 @@
       // Generate steps via RGI or fallback
       var steps = [];
       try {
-        var RGI = sys('RealGenerativeIntelligence') || sys('LabaAiEvolutionOS') && sys('LabaAiEvolutionOS').UnifiedAiRouter;
+        var RGI = sys('RealGenerativeIntelligence');
         if (RGI && RGI.reason) {
           var res = await RGI.reason(
             'Break this goal into 3-5 ordered steps. Return as numbered list.\nGoal: '+goal.slice(0,400),

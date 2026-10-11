@@ -1,5 +1,8 @@
 # Task 13 Tool Catalog Correction & Verification
 
+
+> Historical record note (2026-10-11): this report predates the removal of the Laba chatbot. Any Laba-related implementation references in this report are historical and must not be treated as active product dependencies. Current status: `HOMEPAGE_LOADING_AND_LABA_REMOVAL.md` at repository root.
+
 ## Authoritative counts
 - `public/js/tools-config.js` defines **41 unique working tool IDs**.
 - `public/js/tools-config.js` `SLUG_MAP` contains **41 unique tool slugs**.

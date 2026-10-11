@@ -457,3 +457,11 @@ body:has(.site-header){
     pointer-events: none !important;
   }
 }
+
+/* Keep header disclosure contrast compliant in hover/focus states. */
+.site-header .nav .all-tools:hover,
+.site-header .nav .all-tools:focus-visible {
+  background: var(--ilpdf-header-grad);
+  color: #fff;
+}
+.site-header .mega-col > h5 { color: var(--ilpdf-header-soft); }

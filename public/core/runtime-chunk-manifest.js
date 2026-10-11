@@ -87,10 +87,9 @@
     { id: 'savings-animation',   path: '/js/savings-animation.js',           version: '1.0', critical: false, lazy: true,  hash: null },
     { id: 'community-economy',   path: '/js/community-economy.js',           version: '1.0', critical: false, lazy: true,  hash: null },
 
-    // ── AI/Laba (lazy) ────────────────────────────────────────────────────────
+    // ── Optional AI and image-processing modules ───────────────────────────────
     { id: 'bg-ai-engine',        path: '/js/bg-ai-engine.js',                version: '1.0', critical: false, lazy: true,  hash: null },
     { id: 'bg-remover-pro',      path: '/js/bg-remover-pro.js',              version: '1.0', critical: false, lazy: true,  hash: null },
-    { id: 'laba-widget',         path: '/laba/laba-widget.js',               version: '1.0', critical: false, lazy: true,  hash: null },
 
     // ── Workers (spawned on demand, not preloaded) ────────────────────────────
     { id: 'w-compress',          path: '/workers/compress-worker.js',        version: '1.0', critical: false, lazy: true,  hash: null },

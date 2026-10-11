@@ -10,7 +10,7 @@
  * 56F PromptSafetyLayer    — injection filter, token budget, runaway-token guard
  *
  * Purely additive. Integrates with GenerativeAiEngine, VectorMemoryEngine,
- * EnterpriseMemoryFabric, WebGpuAiExpansion, LabaAiFoundation. Zero changes
+ * EnterpriseMemoryFabric, WebGpuAiExpansion, and generic runtime adapters. Zero changes
  * to any existing module.
  */
 (function () {

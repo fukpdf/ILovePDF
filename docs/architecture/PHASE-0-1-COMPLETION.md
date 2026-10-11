@@ -1,5 +1,8 @@
 # Phase 0–1 Completion and Governance Audit
 
+
+> Historical record note (2026-10-11): this phase report reflects the repository state at its original audit date. The separate Laba chatbot and dedicated modules described in earlier material were later retired; see the current root-level `HOMEPAGE_LOADING_AND_LABA_REMOVAL.md` for the authoritative current state.
+
 Status: source-level completion record
 Repository: fukpdf/ILovePDF
 

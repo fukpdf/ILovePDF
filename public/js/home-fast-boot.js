@@ -30,6 +30,7 @@
     try {
       if (typeof G.renderCategorySections === 'function') G.renderCategorySections();
       if (typeof G.renderRecentUse === 'function') G.renderRecentUse();
+      if (typeof G.ensureHomepageToolCardIcons === 'function') G.ensureHomepageToolCardIcons();
     } catch (_) {}
 
     try {

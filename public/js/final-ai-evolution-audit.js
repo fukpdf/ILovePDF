@@ -406,48 +406,15 @@
   // ── 18  GIANT-FILE SURVIVAL ─────────────────────────────────────────────────
   async function _auditGiantFileSurvival() {
     var r=[];
-    var LAEOS=sys('LabaAiEvolutionOS');
-    if(!LAEOS){ r.push(skip('LabaAiEvolutionOS','Phase 70 not loaded')); return r; }
-    r.push(pass('LabaAiEvolutionOS.loaded'));
-    await safe(async function(){
-      var result=await LAEOS.generate('summarize',{giantFile:true,fileSizeBytes:200*1024*1024});
-      r.push(result&&result.result?pass('LAEOS.giant_file_generate','provider:'+result.provider):warn_('LAEOS.giant_file_generate','no result'));
-    });
     var BT=sys('BrowserTools');
     r.push(BT&&BT.process?pass('BrowserTools.process_intact'):fail('BrowserTools.process_intact','CRITICAL: missing!'));
     return r;
   }
 
   // ── 19  RECOVERY SYSTEMS ────────────────────────────────────────────────────
-  async function _auditRecoverySystems() {
-    var r=[];
-    var LAEOS=sys('LabaAiEvolutionOS');
-    if(LAEOS){
-      await safe(async function(){
-        var rec=await LAEOS.recover();
-        r.push(pass('LAEOS.recover','systems:'+rec.recovered.length));
-      });
-      await safe(function(){
-        var id='_ckpt_audit_'+Date.now();
-        LAEOS.checkpoint(id,{test:true,ts:now()});
-        var restored=LAEOS.restore(id);
-        r.push(restored&&restored.test?pass('LAEOS.checkpoint_restore'):fail('LAEOS.checkpoint_restore'));
-        LAEOS.UnifiedCheckpointRouter.clear(id);
-      });
-    } else { r.push(skip('LAEOS.recover','Phase 70 not loaded')); }
-    return r;
-  }
-
   // ── 20  FALLBACK CHAINS ─────────────────────────────────────────────────────
   async function _auditFallbackChains() {
     var r=[];
-    var LAEOS=sys('LabaAiEvolutionOS');
-    if(LAEOS){
-      await safe(async function(){
-        var result=await LAEOS.generate('test fallback chain',{});
-        r.push(result&&result.result?pass('LAEOS.fallback_chain','via:'+result.provider):fail('LAEOS.fallback_chain'));
-      });
-    }
     var RLLE=sys('RealLocalLlmEngine');
     if(RLLE){
       await safe(function(){
@@ -488,10 +455,6 @@
     var PCM=sys('ProductionComputeMesh');
     if(PCM){
       r.push(info('PCM.mobile_limits',PCM.BandwidthEconomicsEngine.shouldUseLowBandwidth()?'low-BW active':'normal'));
-    }
-    var LAEOS=sys('LabaAiEvolutionOS');
-    if(LAEOS&&LAEOS.UnifiedDistributedRuntime){
-      r.push(info('distributed.p2p_off',String(!LAEOS.UnifiedDistributedRuntime.isEnabled())));
     }
     return r;
   }
@@ -534,25 +497,6 @@
   }
 
   // ── PHASE 70 SYSTEMS AUDIT ──────────────────────────────────────────────────
-  async function _auditPhase70() {
-    var r=[];
-    var LAEOS=sys('LabaAiEvolutionOS');
-    if(!LAEOS){ r.push(skip('LabaAiEvolutionOS','Phase 70 not loaded')); return r; }
-    r.push(pass('LabaAiEvolutionOS.loaded'));
-    r.push(LAEOS.UnifiedLlmOrchestration?pass('LAEOS.UnifiedLlmOrchestration'):fail('LAEOS.UnifiedLlmOrchestration','missing'));
-    r.push(LAEOS.UnifiedVectorRouting?pass('LAEOS.UnifiedVectorRouting'):fail('LAEOS.UnifiedVectorRouting','missing'));
-    r.push(LAEOS.UnifiedDistributedRuntime?pass('LAEOS.UnifiedDistributedRuntime'):fail('LAEOS.UnifiedDistributedRuntime','missing'));
-    r.push(LAEOS.UnifiedWorkerManagement?pass('LAEOS.UnifiedWorkerManagement'):fail('LAEOS.UnifiedWorkerManagement','missing'));
-    r.push(LAEOS.UnifiedCheckpointRouter?pass('LAEOS.UnifiedCheckpointRouter'):fail('LAEOS.UnifiedCheckpointRouter','missing'));
-    r.push(LAEOS.UnifiedRecovery?pass('LAEOS.UnifiedRecovery'):fail('LAEOS.UnifiedRecovery','missing'));
-    r.push(LAEOS.UnifiedAudit?pass('LAEOS.UnifiedAudit'):fail('LAEOS.UnifiedAudit','missing'));
-    var status=LAEOS.status();
-    r.push(info('LAEOS.systems',status.loaded+'/'+status.total));
-    // Verify P2P is off
-    r.push(!LAEOS.UnifiedDistributedRuntime.isEnabled()?pass('LAEOS.p2p_off_by_default'):fail('LAEOS.p2p_off_by_default','P2P should be off!'));
-    return r;
-  }
-
   // ═══════════════════════════════════════════════════════════════════════════
   // § MASTER RUN
   // ═══════════════════════════════════════════════════════════════════════════
@@ -579,13 +523,11 @@
       {name:'Trust Systems',         fn:_auditTrustSystems},
       {name:'Bandwidth Economics',   fn:_auditBandwidthEconomics},
       {name:'Giant-File Survival',   fn:_auditGiantFileSurvival},
-      {name:'Recovery Systems',      fn:_auditRecoverySystems},
       {name:'Fallback Chains',       fn:_auditFallbackChains},
       {name:'Low-RAM Survival',      fn:_auditLowRam},
       {name:'Mobile Compatibility',  fn:_auditMobileCompat},
       {name:'Safari Compatibility',  fn:_auditSafariCompat},
       {name:'WebGPU Fallback',       fn:_auditWebGpuFallback},
-      {name:'Phase 70 Systems',      fn:_auditPhase70},
     ];
 
     var all=[]; var report={ts:t0,sections:[]};
@@ -632,16 +574,14 @@
     auditTrust:         _auditTrustSystems,
     auditBandwidth:     _auditBandwidthEconomics,
     auditGiantFile:     _auditGiantFileSurvival,
-    auditRecovery:      _auditRecoverySystems,
     auditFallback:      _auditFallbackChains,
     auditLowRam:        _auditLowRam,
     auditMobile:        _auditMobileCompat,
     auditSafari:        _auditSafariCompat,
     auditWebGpu:        _auditWebGpuFallback,
-    auditPhase70:       _auditPhase70,
   };
   window.runFinalAiEvolutionAudit = function(){ return run(); };
 
-  log('v'+VERSION+' ready — call runFinalAiEvolutionAudit() to audit all 25 categories');
+  log('v'+VERSION+' ready — call runFinalAiEvolutionAudit() to audit active generic AI categories');
 
 })();

@@ -48,7 +48,7 @@ This gives the performance of a static site with the per-page dynamism of an SPA
 
 ### Homepage (`public/index.html`)
 
-Separate file, served by the pre-built `__HOME_HTML` with `buildHomeHtml()`. Has its own JS (`home.js`, `homepage-lazy-loader.js`).
+Separate file, served by the pre-built `__HOME_HTML` with `buildHomeHtml()`. Uses the homepage renderer (`public/js/home.js`) and card-paint accelerator (`public/js/home-fast-boot.js`). The retired Laba lazy loader is not part of the delivered homepage.
 
 ---
 

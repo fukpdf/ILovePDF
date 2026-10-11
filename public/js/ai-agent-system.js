@@ -5,7 +5,7 @@
  * Autonomous document workflow agents.
  * Multi-step planning, adaptive execution, checkpoint recovery.
  * Purely additive. Integrates with WorkflowChainEngine, DistributedAiOrchestrator,
- * VectorMemoryEngine, LabaAiFoundation. Degrades gracefully.
+ * VectorMemoryEngine and generic document-processing adapters. Degrades gracefully.
  */
 (function () {
   'use strict';
@@ -143,11 +143,6 @@
 
   var DocumentAnalysisAgent = (function () {
     async function run(step, ctx) {
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.UnifiedDocumentContext && ctx.docId) {
-        var docCtx = LAF.UnifiedDocumentContext.get(ctx.docId);
-        if (docCtx) return { analysis: { textLength: docCtx.ocrText.length, tables: docCtx.tables.length, hasTranslation: !!docCtx.translated }, docCtx: docCtx };
-      }
       return { analysis: { textLength: 0, tables: 0, hasTranslation: false } };
     }
     return { run: run };
@@ -188,10 +183,6 @@
           var result = await GAE.generate(ctx.text, { intent: 'summarize', docContext: ctx.text });
           return { summary: result };
         } catch (e) {}
-      }
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.AiReasoningRouter && ctx.docId) {
-        try { return { summary: await LAF.AiReasoningRouter.summarize(ctx.docId) }; } catch (_) {}
       }
       return { summary: 'Summary unavailable. Use the AI Summarizer tool for full summarization.' };
     }

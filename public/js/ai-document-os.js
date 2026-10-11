@@ -101,17 +101,12 @@
     }
 
     async function _runSummarize({ docId, text }) {
-      const laba = sys('LabaAiFoundation');
-      if (laba && docId) return laba.summarize(docId);
-      if (laba && text)  return laba.AiReasoningRouter.summarize(text);
       // Extractive fallback
       const sentences = (text||'').split(/[.!?]\s+/).slice(0,5);
       return { summary: sentences.join('. ') };
     }
 
     async function _runCompare({ textA, textB }) {
-      const laba = sys('LabaAiFoundation');
-      if (laba) return laba.AiReasoningRouter.compare(textA, textB);
       const a = new Set((textA||'').toLowerCase().split(/\W+/));
       const b = new Set((textB||'').toLowerCase().split(/\W+/));
       const common = [...a].filter(w=>b.has(w)).length;
@@ -119,8 +114,7 @@
     }
 
     async function _runExtract({ docId, entity }) {
-      const laba = sys('LabaAiFoundation');
-      return laba ? laba.AiReasoningRouter.extract(entity, docId) : { extractions: [] };
+      return { extractions: [] };
     }
 
     async function _runWorkflow({ workflow, onStepComplete }) {
@@ -302,7 +296,7 @@
       const results = {};
       const checks = {
         ocr:         () => !!(sys('BrowserTools') || sys('AiOcrEnhancement')),
-        ai:          () => !!(sys('OnnxRuntimeManager') || sys('LabaAiFoundation')),
+        ai:          () => !!sys('OnnxRuntimeManager'),
         translation: () => !!(sys('RealAiTranslationModels') || sys('UniversalTranslationPipeline')),
         distributed: () => !!(sys('DistributedAiOrchestrator')),
         gpu:         () => !!(navigator.gpu || sys('WebGPUAiPipelines')),
@@ -439,8 +433,7 @@
           tcu:  !!(sys('TranslationConfidenceUI')),
           wce:  !!(sys('WorkflowChainEngine')),
           dao:  !!(sys('DistributedAiOrchestrator')),
-          laba: !!(sys('LabaAiFoundation')),
-        },
+            },
         resources: res,
         tasks: { total: UnifiedAiTaskManager.list().length },
       };

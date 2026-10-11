@@ -42,7 +42,7 @@
 
   // ── 1. Trusted CDN registry ────────────────────────────────────────────────
   // Origin allowlist for external script resources.
-  // Same-origin scripts (/js/*, /core/*, /laba/*) are implicitly trusted.
+  // Same-origin scripts under /js/* and /core/* are implicitly trusted.
   var TRUSTED_ORIGINS = [
     'https://unpkg.com',
     'https://cdn.jsdelivr.net',

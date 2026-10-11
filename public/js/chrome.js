@@ -186,7 +186,7 @@ function tBand(key, fallback) {
   return v;
 }
 
-function renderHeader(){
+function renderHeader(forceRefresh = false){
   const nav = document.getElementById('nav');
   if (!nav) return;
 
@@ -229,40 +229,99 @@ function renderHeader(){
        <span>${tTool(i.tid, 'title', i.name)}</span>
      </a>`).join('');
 
+  // Preserve the server-rendered homepage header and hydrate only missing dropdown
+  // panels. Replacing the whole nav causes a first-paint layout shift.
+  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
+    const organizeItem = nav.querySelector('#nav-organize');
+    const convertItem = nav.querySelector('#nav-convert');
+    const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
+    if (organizeItem && !organizeItem.querySelector('.dd')) {
+      const panel = document.createElement('div');
+      panel.className = 'dd';
+      panel.id = 'organize-menu';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', 'Organize tools');
+      panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+      organizeItem.appendChild(panel);
+    } else if (organizeItem) {
+      const panel = organizeItem.querySelector('.dd');
+      if (panel && !panel.children.length) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+    }
+    if (convertItem && !convertItem.querySelector('.dd')) {
+      const panel = document.createElement('div');
+      panel.className = 'dd';
+      panel.id = 'convert-menu';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', 'Convert tools');
+      panel.innerHTML = ddLinks(CONVERT_ITEMS);
+      convertItem.appendChild(panel);
+    } else if (convertItem) {
+      const panel = convertItem.querySelector('.dd');
+      if (panel && !panel.children.length) panel.innerHTML = ddLinks(CONVERT_ITEMS);
+    }
+    if (allItem) {
+      allItem.id = 'all-tools-item';
+      const button = allItem.querySelector('#all-tools-btn') || allItem.querySelector('.nav-btn');
+      if (button) button.setAttribute('aria-controls', 'all-tools-menu');
+      let panel = allItem.querySelector('#all-tools-menu');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'mega';
+        panel.id = 'all-tools-menu';
+        panel.setAttribute('role', 'region');
+        panel.setAttribute('aria-label', 'All tools');
+        allItem.appendChild(panel);
+      }
+      if (!panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
+    }
+    if (!window.__ILOVE_NAV_WIRED) {
+      wireSimpleDropdowns();
+      wireAllToolsToggle();
+      wireHoverPrefetch(nav);
+      window.__ILOVE_NAV_WIRED = true;
+    }
+    return;
+  }
+
   nav.innerHTML = `
     <a class="nav-direct" href="/merge-pdf" data-i18n="nav.merge">Merge PDF</a>
     <a class="nav-direct" href="/split-pdf" data-i18n="nav.split">Split PDF</a>
 
     <div class="nav-item has-dd" id="nav-organize">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="organize-menu">
         <span data-i18n="nav.organize">Organize</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="dd" role="menu">${ddLinks(ORGANIZE_ITEMS)}</div>
+      <div class="dd" id="organize-menu" role="region" aria-label="Organize tools">${ddLinks(ORGANIZE_ITEMS)}</div>
     </div>
 
     <div class="nav-item has-dd" id="nav-convert">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="convert-menu">
         <span data-i18n="nav.convert">Convert</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
+      <div class="dd" id="convert-menu" role="region" aria-label="Convert tools">${ddLinks(CONVERT_ITEMS)}</div>
     </div>
 
     <div class="nav-item has-dd has-mega" id="all-tools-item">
       <button class="nav-btn all-tools" id="all-tools-btn" type="button"
-              aria-expanded="false" aria-haspopup="true">
+              aria-expanded="false" aria-controls="all-tools-menu">
         <span data-i18n="nav.all_tools">All Tools</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
+      <div class="mega" id="all-tools-menu" role="region" aria-label="All tools"><div class="mega-grid">${megaCols}</div></div>
     </div>
 
   `;
 
+  window.__ILOVE_PRESERVE_SERVER_NAV = false;
+  window.__ILOVE_NAV_WIRED = false;
   const allItem = document.getElementById('all-tools-item');
   if (allItem) allItem.classList.remove('is-open');
 
-  wireSimpleDropdowns();
-  wireAllToolsToggle();
-  wireHoverPrefetch(nav);
+  if (!window.__ILOVE_NAV_WIRED) {
+    wireSimpleDropdowns();
+    wireAllToolsToggle();
+    wireHoverPrefetch(nav);
+    window.__ILOVE_NAV_WIRED = true;
+  }
 }
 
 /* SPA navigation helper — navigates to a tool URL without a full page reload
@@ -794,7 +853,7 @@ const SHARED_HEADER_HTML = `<header class="site-header">
       </a>
 
       <nav class="nav" id="nav" aria-label="Main">
-        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
+        <!-- Fallback skeleton for pages without a complete server-rendered navigation. -->
         <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
@@ -848,7 +907,7 @@ const SHARED_FOOTER_HTML = `
           <svg class="footer-lang-chev" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
         <div class="footer-lang-panel" id="footer-lang-panel" hidden>
-          <a href="#" class="footer-lang-link" data-lang="en">🇬🇧 English</a><a href="#" class="footer-lang-link" data-lang="ar">🇸🇦 العربية</a><a href="#" class="footer-lang-link" data-lang="ur">🇵🇰 اردو</a><a href="#" class="footer-lang-link" data-lang="fa">🇮🇷 فارسی</a><a href="#" class="footer-lang-link" data-lang="hi">🇮🇳 हिन्दी</a><a href="#" class="footer-lang-link" data-lang="bn">🇧🇩 বাংলা</a><a href="#" class="footer-lang-link" data-lang="zh">🇨🇳 中文</a><a href="#" class="footer-lang-link" data-lang="ja">🇯🇵 日本語</a><a href="#" class="footer-lang-link" data-lang="ko">🇰🇷 한국어</a><a href="#" class="footer-lang-link" data-lang="tr">🇹🇷 Türkçe</a><a href="#" class="footer-lang-link" data-lang="id">🇮🇩 Indonesia</a><a href="#" class="footer-lang-link" data-lang="ru">🇷🇺 Русский</a><a href="#" class="footer-lang-link" data-lang="fr">🇫🇷 Français</a><a href="#" class="footer-lang-link" data-lang="de">🇩🇪 Deutsch</a><a href="#" class="footer-lang-link" data-lang="es">🇪🇸 Español</a><a href="#" class="footer-lang-link" data-lang="pt">🇧🇷 Português</a><a href="#" class="footer-lang-link" data-lang="it">🇮🇹 Italiano</a><a href="#" class="footer-lang-link" data-lang="nl">🇳🇱 Nederlands</a><a href="#" class="footer-lang-link" data-lang="pl">🇵🇱 Polski</a>
+          <button type="button" class="footer-lang-link" data-lang="en">🇬🇧 English</button><button type="button" class="footer-lang-link" data-lang="ar">🇸🇦 العربية</button><button type="button" class="footer-lang-link" data-lang="ur">🇵🇰 اردو</button><button type="button" class="footer-lang-link" data-lang="fa">🇮🇷 فارسی</button><button type="button" class="footer-lang-link" data-lang="hi">🇮🇳 हिन्दी</button><button type="button" class="footer-lang-link" data-lang="bn">🇧🇩 বাংলা</button><button type="button" class="footer-lang-link" data-lang="zh">🇨🇳 中文</button><button type="button" class="footer-lang-link" data-lang="ja">🇯🇵 日本語</button><button type="button" class="footer-lang-link" data-lang="ko">🇰🇷 한국어</button><button type="button" class="footer-lang-link" data-lang="tr">🇹🇷 Türkçe</button><button type="button" class="footer-lang-link" data-lang="id">🇮🇩 Indonesia</button><button type="button" class="footer-lang-link" data-lang="ru">🇷🇺 Русский</button><button type="button" class="footer-lang-link" data-lang="fr">🇫🇷 Français</button><button type="button" class="footer-lang-link" data-lang="de">🇩🇪 Deutsch</button><button type="button" class="footer-lang-link" data-lang="es">🇪🇸 Español</button><button type="button" class="footer-lang-link" data-lang="pt">🇧🇷 Português</button><button type="button" class="footer-lang-link" data-lang="it">🇮🇹 Italiano</button><button type="button" class="footer-lang-link" data-lang="nl">🇳🇱 Nederlands</button><button type="button" class="footer-lang-link" data-lang="pl">🇵🇱 Polski</button>
         </div>
       </div>
     </div>
@@ -874,7 +933,11 @@ function ensureSharedShell() {
     link.dataset.sharedHeaderCss = '1';
     document.head.appendChild(link);
   }
-  if (!document.querySelector('link[data-shared-footer-css]')) {
+  const footerCssAlreadyLinked = [...document.querySelectorAll('link[rel="stylesheet"][href]')].some(link => {
+    try { return new URL(link.href, document.baseURI).pathname === '/css/home-footer-v2.css'; }
+    catch (_) { return false; }
+  });
+  if (!document.querySelector('link[data-shared-footer-css]') && !footerCssAlreadyLinked) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-footer-v2.css?v=20260924';
@@ -882,12 +945,32 @@ function ensureSharedShell() {
     document.head.appendChild(link);
   }
 
-  /* Replace every page header with the exact canonical homepage header. */
+  /* Preserve a complete server-rendered homepage header to avoid a skeleton flash. */
   const headerHolder = document.createElement('div');
   headerHolder.innerHTML = SHARED_HEADER_HTML.trim();
   const canonicalHeader = headerHolder.firstElementChild;
-  const currentHeaders = document.querySelectorAll('header.site-header');
-  if (currentHeaders.length) {
+  const currentHeaders = [...document.querySelectorAll('header.site-header')];
+  const path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+  const isHomepage = path === '/' || path === '/index.html';
+  const existingHeader = currentHeaders[0];
+  const existingNav = existingHeader && existingHeader.querySelector('#nav');
+  const preserveHomepageHeader = !!(isHomepage && existingHeader && existingNav);
+  const preserveHomepageNav = !!(
+    preserveHomepageHeader &&
+    existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
+    existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
+    existingNav.querySelector('#nav-organize .nav-btn') &&
+    existingNav.querySelector('#nav-convert .nav-btn') &&
+    existingNav.querySelector('#all-tools-btn') &&
+    existingNav.querySelector('#all-tools-btn').closest('.nav-item')
+  );
+  window.__ILOVE_PRESERVE_SERVER_HEADER = preserveHomepageHeader;
+  window.__ILOVE_PRESERVE_SERVER_NAV = preserveHomepageNav;
+  window.__ILOVE_NAV_WIRED = false;
+  if (preserveHomepageHeader) {
+    // Preserve the visible server-rendered header. Remove only extra duplicate shells.
+    currentHeaders.slice(1).forEach(current => current.remove());
+  } else if (currentHeaders.length) {
     currentHeaders.forEach((current, index) => {
       if (index === 0) current.replaceWith(canonicalHeader);
       else current.remove();
@@ -899,12 +982,12 @@ function ensureSharedShell() {
   }
 
   /* Replace every page footer with the canonical homepage footer. */
-  const currentFooter = document.querySelector('footer.footer');
+  const currentFooters = [...document.querySelectorAll('footer.footer')];
   const holder = document.createElement('div');
   holder.innerHTML = SHARED_FOOTER_HTML.trim();
   const canonicalFooter = holder.firstElementChild;
-  if (currentFooter) currentFooter.replaceWith(canonicalFooter);
-  else document.body.appendChild(canonicalFooter);
+  currentFooters.forEach(footer => footer.remove());
+  document.body.appendChild(canonicalFooter);
 
   window.__ILOVE_SHARED_SHELL_READY = true;
   return canonicalFooter;
@@ -961,6 +1044,7 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
     const lang = link.dataset.lang;
     close();
     if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+      if (typeof window.loadExtendedI18n === 'function') { try { await window.loadExtendedI18n(); } catch (_) {} }
       await window.RuntimeI18n.setLanguage(lang);
     }
   });
@@ -985,9 +1069,9 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
 
 async function initChrome() {
   ensureSharedShell();
-  renderHeader(); // Synchronous initial render to replace skeleton nav pills immediately
+  renderHeader(); // Preserve complete homepage nav; build only when the shell is missing.
   try { await ensureI18nAssets(); } catch (_) {}
-  renderHeader(); // Re-render with i18n assets if available
+  renderHeader(); // No-op for preserved homepage nav; refreshes fallback shell when needed.
   wireAuth();
   startAuthStateObserver();
   loadMobileNav();
@@ -1007,7 +1091,7 @@ async function initChrome() {
   } catch(_) {}
   /* Re-render header (mega-menu names + badges) whenever language changes. */
   window.addEventListener('i18n:change', function () {
-    renderHeader();
+    renderHeader(true);
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   });
   const tryIcons = () => {

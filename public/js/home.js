@@ -79,10 +79,63 @@ function renderToolStickerIcon(iconKey) {
   return `<span class="tool-name-sticker" aria-hidden="true" data-icon="${iconKey}">${svg}</span>`;
 }
 
+/* Repair legacy/static homepage cards that have route metadata but no icon node.
+   This is idempotent and uses only the trusted built-in SVG icon map. */
+function ensureHomepageToolCardIcons() {
+  const tMap = buildToolMap();
+  document.querySelectorAll('a.tool').forEach(card => {
+    const title = card.querySelector('.tool-name, .tool-title, h3, h4');
+    if (!title || title.querySelector('.tool-name-sticker, [data-icon], svg, img, i[data-lucide]')) return;
+    const href = (card.getAttribute('href') || '').split(/[?#]/, 1)[0].replace(/^\/+/, '');
+    const tool = tMap[card.dataset.tid] || tMap[href] || {};
+    const iconKey = tool.icon || 'file-text';
+    const source = TOOL_ICON_SVGS[iconKey] || TOOL_ICON_SVGS['file-text'];
+    const sticker = document.createElement('span');
+    sticker.className = 'tool-name-sticker';
+    sticker.setAttribute('aria-hidden', 'true');
+    sticker.dataset.icon = iconKey;
+    try {
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      if (parsed.documentElement && parsed.documentElement.localName === 'svg') {
+        sticker.appendChild(document.importNode(parsed.documentElement, true));
+      } else {
+        sticker.textContent = '📄';
+      }
+    } catch (_) {
+      sticker.textContent = '📄';
+    }
+    title.insertBefore(sticker, title.firstChild);
+  });
+}
+
+window.ensureHomepageToolCardIcons = ensureHomepageToolCardIcons;
+
+/* Some legacy homepage sections are inserted after the initial boot pass.
+   Observe the real DOM until every registered tool card has an icon. */
+function observeHomepageToolCardIcons() {
+  let observer;
+  const repair = () => {
+    ensureHomepageToolCardIcons();
+    const cards = [...document.querySelectorAll('a.tool')];
+    const expected = (window.TOOL_GROUPS || []).reduce((total, group) =>
+      total + (Array.isArray(group.items) ? group.items.length : 0), 0);
+    const complete = expected > 0 && cards.length >= expected &&
+      cards.every(card => card.querySelector('.tool-name-sticker, [data-icon], svg, img, i[data-lucide]'));
+    if (complete && observer) observer.disconnect();
+  };
+  observer = new MutationObserver(repair);
+  if (document.documentElement) observer.observe(document.documentElement, { childList: true, subtree: true });
+  repair();
+  setTimeout(() => {
+    repair();
+    if (observer) observer.disconnect();
+  }, 10000);
+}
+
+
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
   const section = document.getElementById('recent-use-section');
-  const root    = document.getElementById('tools-root');
   if (!section) return;
 
   const recent = getRecentTools();
@@ -91,25 +144,33 @@ function renderRecentUse() {
 
   const tMap  = buildToolMap();
   const badge = (window.toolBadgeHtml || (() => ''));
+  const markup = recent.map(r => {
+    const t = tMap[r.id];
+    if (!t) return '';
+    const tid      = t.tid || r.id;
+    const titleKey = `tools.${tid}.title`;
+    const descKey  = `tools.${tid}.desc`;
+    const sticker  = renderToolStickerIcon(t.icon || 'file-text');
+    return `
+      <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
+        <div class="tool-text">
+          <h4 class="tool-name">${sticker}<span class="tool-name-label" data-i18n="${titleKey}">${t18(titleKey, t.name)}</span></h4>
+          <p data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
+        </div>
+        ${badge(t.prio)}
+      </a>`;
+  }).filter(Boolean).join('');
 
-  if (root) {
-    root.innerHTML = recent.map(r => {
-      const t = tMap[r.id];
-      if (!t) return '';
-      const tid      = t.tid || r.id;
-      const titleKey = `tools.${tid}.title`;
-      const descKey  = `tools.${tid}.desc`;
-      const sticker  = renderToolStickerIcon(t.icon || 'file-text');
-      return `
-        <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
-          <div class="tool-text">
-            <h4 class="tool-name">${sticker}<span class="tool-name-label" data-i18n="${titleKey}">${t18(titleKey, t.name)}</span></h4>
-            <p data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
-          </div>
-          ${badge(t.prio)}
-        </a>`;
-    }).filter(Boolean).join('');
+  // Never replace #tools-root: it owns the server-rendered category sections.
+  // A recent-tools render must be scoped to its own section to avoid removing
+  // Image Tools and Utilities after first paint (a major CLS/regression source).
+  let container = section.querySelector('.recent-use-items');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'tools-grid recent-use-items';
+    section.appendChild(container);
   }
+  container.innerHTML = markup;
 }
 
 /* ─── CATEGORY SECTION CONFIG ───────────────────────────────────────────── */
@@ -148,7 +209,21 @@ function _renderOneCatSection(containerId, groupKeys, type) {
     .filter(g => groupKeys.includes(g.key))
     .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)));
 
-  if (!items.length) { el.style.display = 'none'; return; }
+  if (!items.length) {
+    // Keep existing category shells visible during any transient registry delay.
+    return;
+  }
+
+  // The deployed homepage already contains server-rendered cards. Preserve that
+  // stable markup when its routes/count match the registry; only rebuild stale sections.
+  const existingCards = [...el.querySelectorAll('a.tool')];
+  const expectedHrefs = items.map(homeToolUrl);
+  const existingHrefs = new Set(existingCards.map(card => card.getAttribute('href') || ''));
+  if (existingCards.length === items.length &&
+      existingCards.length > 0 &&
+      expectedHrefs.every(href => existingHrefs.has(href))) {
+    return;
+  }
 
   const toolCards = items.map(t => {
     const tid      = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
@@ -536,6 +611,7 @@ function waitForToolGroupsAndRender(){
     if (ready) {
       renderRecentUse();
       renderCategorySections();
+      ensureHomepageToolCardIcons();
       if (typeof requestAnimationFrame === 'function') {
         requestAnimationFrame(function () { refreshHomeIcons(); });
       } else {
@@ -554,6 +630,8 @@ window.renderRecentUse = renderRecentUse;
 function bootHomePage() {
   renderSessionContinue();
   waitForToolGroupsAndRender();
+  ensureHomepageToolCardIcons();
+  observeHomepageToolCardIcons();
   wireCalc();
   wireCalcToggle();
   wireFx();
@@ -573,6 +651,8 @@ function bootHomePage() {
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootHomePage);
+  document.addEventListener('DOMContentLoaded', ensureHomepageToolCardIcons, { once: true });
 } else {
   bootHomePage();
+  setTimeout(ensureHomepageToolCardIcons, 0);
 }

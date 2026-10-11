@@ -1,0 +1,107 @@
+name: Homepage Deep Audit
+
+on:
+  pull_request:
+    paths:
+      - 'public/index-chunks/**'
+      - 'public/index.html'
+      - 'public/css/**'
+      - 'public/core/**'
+      - 'public/js/**'
+      - 'public/tool.html'
+      - 'routes/seo-routes.js'
+      - 'server.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/js/chrome.js'
+      - 'public/js/home.js'
+      - 'public/js/tools-config.js'
+      - 'public/js/home-fast-boot.js'
+      - 'public/js/homepage-lazy-loader.js'
+      - 'public/js/laba-*.js'
+      - 'public/laba/**'
+      - 'scripts/laba-removal-audit.js'
+      - 'scripts/assemble-homepage-index.js'
+      - 'scripts/homepage-deep-audit-check.js'
+      - 'scripts/homepage-browser-audit.mjs'
+      - 'scripts/homepage-test-server.js'
+      - 'scripts/homepage-node-server-smoke.mjs'
+      - '.github/workflows/homepage-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  homepage-source-audit:
+    name: Homepage source, assets, and routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check audit script syntax
+        run: |
+          node --check scripts/homepage-deep-audit-check.js
+          node --check scripts/laba-removal-audit.js
+          node --check server.js
+          node --check scripts/homepage-node-server-smoke.mjs
+
+      - name: Inventory Laba dependencies before removal
+        run: node scripts/laba-removal-audit.js --assert-clean
+
+      - name: Build the production homepage artifact
+        run: |
+          node scripts/assemble-homepage-index.js
+          if grep -q 'DecompressionStream' public/index.html; then
+            echo '::error::assembled homepage still contains the runtime chunk loader'
+            exit 1
+          fi
+          grep -q 'home-fast-boot.js' public/index.html
+
+      - name: Audit homepage cards, routes, and source assets
+        run: node scripts/homepage-deep-audit-check.js
+
+      - name: Install isolated browser QA tools
+        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2
+
+      - name: Smoke-test the real Node server homepage bootstrap
+        run: node scripts/homepage-node-server-smoke.mjs
+
+      - name: Run the same regression and security gates used by deployment
+        run: |
+          npm test
+          npm run audit:security
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local hosting-compatible test server
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/homepage-test-server.js > /tmp/homepage-test-server.log 2>&1 &
+          echo $! > /tmp/homepage-test-server.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo 'Homepage test server ready'
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/homepage-test-server.log
+          echo '::error::Homepage test server did not start'
+          exit 1
+
+      - name: Browser viewport, route, and accessibility audit
+        run: node scripts/homepage-browser-audit.mjs
+
+      - name: Stop local hosting-compatible test server
+        if: always()
+        run: if [ -f /tmp/homepage-test-server.pid ]; then kill "$(cat /tmp/homepage-test-server.pid)" || true; fi

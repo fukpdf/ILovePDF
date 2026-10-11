@@ -44,7 +44,6 @@
     '/js/',
     '/core/',
     '/workers/',
-    '/laba/',
     '/locales/',
   ]);
 
@@ -109,7 +108,6 @@
     'about-contact-form.js',
     'savings-animation.js',
     'community-economy.js',
-    'homepage-lazy-loader.js',
   ]);
 
   // ── Trusted Module Manifest (Task 3) ─────────────────────────────────────────

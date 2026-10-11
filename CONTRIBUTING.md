@@ -27,7 +27,7 @@ The pull request must describe the affected architecture/tool boundary and list 
 - Lazy-load tool engines and large dependencies; do not preload every engine.
 - Treat static dependency caches separately from temporary user-file/result lifecycle.
 - Release object URLs, workers, buffers, and temporary browser storage after processing.
-- Laba AI is a separate chatbot surface and is not part of the document-tool registry or processing engines.
+- Do not add global chatbot widgets or preload tool-only AI engines on the homepage; keep optional tool runtimes behind explicit workflow boundaries.
 - Secrets belong in the deployment/provider secret store, never in source or browser-delivered configuration.
 
 ## Branch and release policy

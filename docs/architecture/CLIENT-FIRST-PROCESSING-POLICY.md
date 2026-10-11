@@ -1,7 +1,7 @@
 # Client-First Processing & AI Isolation Policy
 
 Status: Phase 1 architectural requirement
-Scope: all ILovePDF web tools and the optional Laba AI chatbot integration
+Scope: all ILovePDF web tools; no global chatbot surface is shipped
 
 ## 1. Browser-first processing
 
@@ -51,16 +51,11 @@ GitHub is source control only. The application must never send user PDF files, i
 
 Runtime user data must not be written into source files, generated commits, issues, pull requests, or repository logs.
 
-## 7. Laba AI boundary
+## 7. No global chatbot surface
 
-Laba AI is a separate chatbot surface, not an ILovePDF document-processing engine and not part of the tool-module registry.
+The Laba chatbot and its dedicated UI/runtime modules have been removed from the product. AI capability, if provided by an individual tool, must remain scoped to that explicit workflow and load only when the selected tool needs it.
 
-The chatbot may call an AI provider only when an explicitly configured provider/API credential is available. There is no hidden AI provider, fabricated response mode, or automatic provider substitution.
-
-If no valid AI provider is configured, the chatbot must report that AI service is unavailable rather than silently sending data to another provider.
-
-Document files and extracted document text must not be sent to an AI provider unless the user-facing feature explicitly requires it and the configured provider path is available.
-
+No global chatbot may silently ingest document content. Any future AI feature must document its provider path, user consent, data handling, and unavailable-provider behavior before implementation.
 ## 8. Secrets
 
 AI keys, storage credentials, signing secrets, and other server credentials belong in deployment/provider secret storage or GitHub Actions Secrets. They must never be embedded in frontend JavaScript or committed source.

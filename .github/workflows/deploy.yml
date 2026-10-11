@@ -48,11 +48,20 @@ jobs:
             exit 1
           fi
           echo '[assemble] public/index.html ready for hosting'
+          node scripts/homepage-deep-audit-check.js
 
       - name: Install dependencies
         shell: bash
         run: |
           npm ci --omit=dev || npm install --omit=dev --no-audit
+
+      - name: Run project regression tests before deployment
+        shell: bash
+        run: npm test
+
+      - name: Run security and file-lifecycle audit before deployment
+        shell: bash
+        run: npm run audit:security
 
       - name: Syntax check
         shell: bash

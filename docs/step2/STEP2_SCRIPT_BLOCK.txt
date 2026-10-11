@@ -30,7 +30,6 @@
   <script src="/js/runtime-foreign-deploy.js" defer></script>
   <script src="/js/app-router.js" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
-  <script src="/laba/laba-widget.js" defer></script>
   <script src="/core/core-manifest.js" defer></script>
   <script src="/core/shared-constants.js" defer></script>
   <script src="/core/runtime-contracts.js" defer></script>
@@ -56,7 +55,6 @@
   <script src="/js/runtime-recovery.js" defer></script>
   <script src="/js/runtime-ai-scheduler.js" defer></script>
   <script src="/js/runtime-perf.js" defer></script>
-  <script src="/js/homepage-lazy-loader.js" defer></script>
   <script src="/js/savings-animation.js" defer></script>
   <script src="/js/live-stats-sim.js" defer></script>
   <script src="/js/community-economy.js" defer></script>

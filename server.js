@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { assembleHomepageIndex } from './scripts/assemble-homepage-index.js';
 
 // Utility imports
 import { generateNonce, injectNonce } from './utils/csp-nonce.js';
@@ -41,6 +42,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+
+// The source index is a compact chunk loader. Assemble the full homepage before
+// Express can serve static files, so Node-hosted environments never show a staged
+// loading page or require a second client-side document replacement.
+if (!assembleHomepageIndex()) {
+  throw new Error('[server] Homepage assembly failed; refusing to serve the runtime loader.');
+}
 
 const app = express();
 app.set('trust proxy', 1);

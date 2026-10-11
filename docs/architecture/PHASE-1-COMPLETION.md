@@ -1,5 +1,8 @@
 # Phase 1 — Target Architecture Completion Record
 
+
+> Historical record note (2026-10-11): statements about the former Laba chatbot reflect the state at the time of this phase audit. The chatbot and dedicated modules have since been removed; the current root-level `HOMEPAGE_LOADING_AND_LABA_REMOVAL.md` is authoritative for the current state.
+
 Date: 2026-09-29
 Repository: fukpdf/ILovePDF
 

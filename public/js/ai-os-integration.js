@@ -171,18 +171,6 @@
         }
       }
 
-      // Wire LabaAiChat to use RealLlmRouting for responses
-      var LAC = sys('LabaAiChat');
-      var RLR2 = sys('RealLlmRouting');
-      if (LAC && RLR2 && !LAC._rlrBound) {
-        // Override the query path in AiQueryEngine (if exposed)
-        if (window.LabaAiChat && window.LabaAiChat._AiQueryEngine) {
-          // Already patched at construction time
-        }
-        LAC._rlrBound = true;
-        log('LabaAiChat will route through RealLlmRouting');
-      }
-
       // Wire AutonomousAgentSystem into AiAgentSystem (Phase 49) as v2 executor
       var AAS1 = sys('AiAgentSystem');
       var AAS2b = sys('AutonomousAgentSystem');
@@ -226,25 +214,6 @@
 
     function install() {
       if (_hooked) return;
-
-      // Hook into LabaAiFoundation UnifiedDocumentContext if available
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.UnifiedDocumentContext && LAF.UnifiedDocumentContext.set) {
-        var _orig = LAF.UnifiedDocumentContext.set;
-        LAF.UnifiedDocumentContext.set = function(docId, data) {
-          var result = _orig.apply(this, arguments);
-          // Auto-index new document into PVD
-          var PVD = sys('PersistentVectorDatabase');
-          if (PVD && data && (data.ocrText || data.translated)) {
-            var text = data.ocrText || data.translated || '';
-            if (text.length > 50) {
-              setTimeout(function() { PVD.index(docId, text, data.lang || 'en').catch(function(){}); }, 100);
-            }
-          }
-          return result;
-        };
-        log('UnifiedDocumentContext.set hooked for auto-indexing');
-      }
 
       // Hook into BrowserTools.process result to auto-summarize long docs
       var BT = sys('BrowserTools');
@@ -555,7 +524,7 @@
     var icon = { ok:'✓', warn:'⚠', fail:'✗', info:'ℹ', skip:'—' };
     var lines = [
       '╔══════════════════════════════════════════════════════════════════════╗',
-      '║        LABA AI DOCUMENT OS — NEXT AI EVOLUTION AUDIT REPORT         ║',
+      '║        AI DOCUMENT OS — NEXT AI EVOLUTION AUDIT REPORT         ║',
       '╚══════════════════════════════════════════════════════════════════════╝',
       '',
       '  Timestamp: ' + new Date(report.ts).toLocaleString(),

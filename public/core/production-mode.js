@@ -85,7 +85,7 @@
   }
 
   /* ── Production: silence Phase-tagged console spam ─────────────────────── */
-  var PHASE_TAG = /^\[(?:DASH17|JD|AOSU|RT|KRN|FED|AI|WRK|MEM|STR|RTDB|LABA|P\d+)\]/;
+  var PHASE_TAG = /^\[(?:DASH17|JD|AOSU|RT|KRN|FED|AI|WRK|MEM|STR|RTDB|P\d+)\]/;
   var noop      = function () {};
 
   /* debug / trace — always silent in production */

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -33,8 +34,20 @@ for (const rel of requiredFiles) {
 }
 if (process.exitCode) process.exit(1);
 
-const index = read('public/index.html');
+const index = (() => {
+  const chunks = [];
+  for (let i = 0; i < 4; i++) {
+    const chunkPath = path.join(PUBLIC, 'index-chunks', 'z' + i + '.b64');
+    if (!fs.existsSync(chunkPath)) throw new Error('Missing homepage source chunk: ' + chunkPath);
+    chunks.push(fs.readFileSync(chunkPath, 'utf8').replace(/\s+/g, ''));
+  }
+  const assembled = zlib.inflateSync(Buffer.from(chunks.join(''), 'base64')).toString('utf8');
+  if (!/<!doctype\s+html/i.test(assembled)) throw new Error('Homepage chunks did not inflate to full HTML');
+  return assembled;
+})();
 const tool = read('public/tool.html');
+const homepageFile = path.join(PUBLIC, 'index.html');
+const readShellHtml = (file) => file === homepageFile ? index : fs.readFileSync(file, 'utf8');
 const chrome = read('public/js/chrome.js');
 const headerCss = read('public/css/home-header-v2.css');
 const footerCss = read('public/css/home-footer-v2.css');
@@ -75,7 +88,7 @@ const publicShellPages = htmlFiles.filter(p => !excludedPrefixes.some(x => p ===
 let missingChrome = 0;
 for (const file of publicShellPages) {
   const rel = path.relative(ROOT, file).replaceAll(path.sep, '/');
-  const html = fs.readFileSync(file, 'utf8');
+  const html = readShellHtml(file);
   if (!html.includes('/js/chrome.js')) {
     fail(rel + ': missing universal shared chrome loader');
     missingChrome++;
@@ -102,15 +115,15 @@ else fail('registered Phase 2 closure npm command');
 const workflow = read('.github/workflows/phase2-shared-design-platform-closure.yml');
 if (workflow.includes('scripts/phase2-shared-design-platform-closure-check.js') && workflow.includes('pull_request')) pass('dedicated Phase 2 closure CI invokes the executable audit');
 else fail('dedicated Phase 2 closure CI contract incomplete');
-if (chrome.includes('SHARED_HEADER_HTML') && chrome.includes('SHARED_FOOTER_HTML') && chrome.includes('replaceWith(canonicalHeader)') && chrome.includes('replaceWith(canonicalFooter)')) pass('canonical chrome replaces page chrome rather than creating parallel shells');
-else fail('canonical chrome replacement contract incomplete');
+if (chrome.includes('SHARED_HEADER_HTML') && chrome.includes('SHARED_FOOTER_HTML') && chrome.includes('replaceWith(canonicalHeader)') && chrome.includes('currentFooters.forEach(footer => footer.remove())') && chrome.includes('document.body.appendChild(canonicalFooter)')) pass('canonical chrome replaces page chrome, removes duplicate footers, and appends one footer after lower content');
+else fail('canonical chrome replacement/order contract incomplete');
 if (chrome.includes('footer-lang-btn') && chrome.includes('footer-lang-panel') && chrome.includes('RuntimeI18n.setLanguage')) pass('language selector has runtime application path');
 else fail('language selector runtime application path incomplete');
 if (headerCss.includes('@media') && footerCss.includes('@media') && a11yCss.includes('font-size')) pass('responsive and readability CSS contracts present');
 else fail('responsive/readability CSS contract incomplete');
 const pageShellViolations=[];
 for (const file of publicShellPages) {
-  const html=fs.readFileSync(file,'utf8');
+  const html=readShellHtml(file);
   const rel=path.relative(ROOT,file).replaceAll(path.sep,'/');
   if ((html.match(/home-footer-v2\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate footer css');
   if ((html.match(/shared-a11y\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate a11y css');

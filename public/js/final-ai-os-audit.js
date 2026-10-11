@@ -42,7 +42,7 @@
     var tools = [
       'BrowserTools','AdvancedEngine','LivePreview','PdfPreview',
       'WorkflowChainEngine','DistributedAiOrchestrator',
-      'LabaAiFoundation','AiDocumentOS',
+      'AiDocumentOS',
     ];
     tools.forEach(function (t) {
       var m = sys(t);
@@ -65,14 +65,6 @@
         ? _pass('AI Providers', active.map(function (p){return p.id;}).join(', '))
         : _info('AI Providers', 'none configured — heuristic mode active'));
     }
-
-    var LAF = sys('LabaAiFoundation');
-    if (!LAF) results.push(_warn('LabaAiFoundation', 'not loaded'));
-    else       results.push(_pass('LabaAiFoundation', 'loaded'));
-
-    var LAC = sys('LabaAiChat');
-    if (!LAC) results.push(_warn('LabaAiChat', 'not loaded'));
-    else       results.push(_pass('LabaAiChat', 'v' + LAC.version + ' — sessions: ' + LAC.SessionManager.list().length));
 
     var AAS = sys('AiAgentSystem');
     if (!AAS) results.push(_warn('AiAgentSystem', 'not loaded'));
@@ -259,9 +251,6 @@
       results.push(_pass('AiDocumentOSUI', 'v' + ai.version));
       results.push(ai.previewsDisabled ? _pass('Preview Systems', 'disabled (AI OS mode)') : _info('Preview Systems', 'active (normal mode)'));
     }
-
-    var LAC = sys('LabaAiChat');
-    results.push(LAC ? _pass('LabaAiChat Panel', 'v' + LAC.version) : _warn('LabaAiChat', 'not loaded'));
 
     var JD = sys('JobDashboard');
     results.push(JD ? _pass('Job Dashboard', 'loaded') : _info('JobDashboard', 'not loaded'));
@@ -514,7 +503,7 @@
     var icon = { pass:'✓', warn:'⚠', fail:'✗', info:'ℹ', skip:'—' };
     var lines = [
       '╔═══════════════════════════════════════════════════════════════╗',
-      '║           LABA AI DOCUMENT OS — FINAL AUDIT REPORT           ║',
+      '║           AI DOCUMENT OS — FINAL AUDIT REPORT           ║',
       '╚═══════════════════════════════════════════════════════════════╝',
       '',
       '  Timestamp: ' + new Date(report.ts).toLocaleString(),

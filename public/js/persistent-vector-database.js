@@ -448,10 +448,6 @@
   var RetrievalEngine = (function () {
 
     async function _getQueryVector(query) {
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.EmbeddingEngine && LAF.EmbeddingEngine.embed) {
-        try { return await LAF.EmbeddingEngine.embed(query); } catch(_){}
-      }
       var VME = sys('VectorMemoryEngine');
       if (VME && VME.ShardManager) {
         // Use heuristic embedding from VectorMemoryEngine
@@ -556,11 +552,17 @@
       CrossDocumentGraph.indexDoc(docId, text, embedding||null);
 
       for (var i = 0; i < chunks.length; i++) {
-        var vec = null;
-        var LAF = sys('LabaAiFoundation');
-        if (LAF && LAF.EmbeddingEngine) {
-          try { vec = await LAF.EmbeddingEngine.embed(chunks[i]); } catch(_){}
-        }
+        var words = chunks[i].toLowerCase().split(/\W+/).filter(Boolean);
+        var vec = new Float32Array(384).fill(0);
+        words.forEach(function(word) {
+          var hash = 5381;
+          for (var j = 0; j < word.length; j++) hash = ((hash << 5) + hash) ^ word.charCodeAt(j);
+          vec[Math.abs(hash) % 384] += 1;
+        });
+        var norm = 0;
+        for (var k = 0; k < vec.length; k++) norm += vec[k] * vec[k];
+        norm = Math.sqrt(norm) || 1;
+        vec = vec.map(function(value) { return value / norm; });
         var id = await PersistentEmbeddingStore.add(docId, chunks[i], vec, lang);
         if (vec && id) AnnVectorIndex.insert(id, vec);
         if (i % 20 === 0) await new Promise(function(r){setTimeout(r,20);}); // yield + respect memory
