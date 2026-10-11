@@ -83,6 +83,10 @@ const runtimeAt = scriptIndex('/js/runtime-protection.js');
 if (chromeAt < 0) fail('chrome.js script is absent from assembled homepage');
 else if (runtimeAt >= 0 && chromeAt > runtimeAt) fail('chrome.js appears after runtime-protection.js');
 else pass('critical script order keeps chrome before runtime protection');
+const homeAt = scriptIndex('/js/home.js');
+const labaAt = scriptIndex('laba-widget.js');
+if (homeAt >= 0 && labaAt >= 0 && homeAt < labaAt) pass('homepage renderer runs before the optional Laba widget');
+else fail('optional Laba widget is delaying homepage renderer execution');
 
 // Static asset references in the assembled HTML must resolve within public/.
 const assetRefs = new Set();
