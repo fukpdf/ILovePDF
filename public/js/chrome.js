@@ -993,6 +993,43 @@ function ensureSharedShell() {
   return canonicalFooter;
 }
 
+/* Load the supplemental locale pack only when a non-English locale needs it.
+   Keep one in-flight request and preserve base locale fallback if it fails. */
+function loadExtendedI18n() {
+  if (window.__ILOVE_I18N_EXT_READY) return Promise.resolve(true);
+  if (window.__ILOVE_I18N_EXT_PROMISE) return window.__ILOVE_I18N_EXT_PROMISE;
+
+  const existing = document.querySelector('script[src*="/js/i18n-ext.js"]');
+  if (existing) {
+    window.__ILOVE_I18N_EXT_PROMISE = new Promise(resolve => {
+      existing.addEventListener('load', () => resolve(!!window.__ILOVE_I18N_EXT_READY), { once: true });
+      existing.addEventListener('error', () => { window.__ILOVE_I18N_EXT_PROMISE = null; resolve(false); }, { once: true });
+    });
+    return window.__ILOVE_I18N_EXT_PROMISE;
+  }
+
+  window.__ILOVE_I18N_EXT_PROMISE = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = '/js/i18n-ext.js?v=lazy-locale';
+    script.defer = true;
+    script.onload = () => resolve(!!window.__ILOVE_I18N_EXT_READY);
+    script.onerror = () => { window.__ILOVE_I18N_EXT_PROMISE = null; resolve(false); };
+    document.head.appendChild(script);
+  });
+  return window.__ILOVE_I18N_EXT_PROMISE;
+}
+window.loadExtendedI18n = loadExtendedI18n;
+
+window.addEventListener('i18n:change', event => {
+  const lang = event.detail && event.detail.lang;
+  if (!lang || lang === 'en') return;
+  loadExtendedI18n().then(loaded => {
+    if (loaded && window.RuntimeI18n && typeof window.RuntimeI18n.rerender === 'function') {
+      window.RuntimeI18n.rerender();
+    }
+  });
+});
+
 function ensureI18nAssets() {
   const hasI18n = !!document.querySelector('script[src^="/js/i18n.js"]');
   if (hasI18n || window.RuntimeI18n) return Promise.resolve();
@@ -1044,7 +1081,9 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
     const lang = link.dataset.lang;
     close();
     if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
-      if (typeof window.loadExtendedI18n === 'function') { try { await window.loadExtendedI18n(); } catch (_) {} }
+      if (lang !== 'en' && typeof window.loadExtendedI18n === 'function') {
+        try { await window.loadExtendedI18n(); } catch (_) {}
+      }
       await window.RuntimeI18n.setLanguage(lang);
     }
   });
