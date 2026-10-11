@@ -54,6 +54,28 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   '/js/runtime-failed-log.js',
 ]);
 
+function dedupeLocalStylesheets(html) {
+  const tags = [...html.matchAll(/<link\b[^>]*>/gi)].filter(match => {
+    const tag = match[0];
+    return /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag) &&
+      /\bhref=["']\/css\//i.test(tag);
+  });
+  const lastByPath = new Map();
+  for (const match of tags) {
+    const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
+    if (!href) continue;
+    lastByPath.set(href.split(/[?#]/, 1)[0], match.index);
+  }
+  const duplicates = tags.filter(match => {
+    const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
+    return href && lastByPath.get(href.split(/[?#]/, 1)[0]) !== match.index;
+  }).sort((left, right) => right.index - left.index);
+  for (const match of duplicates) {
+    html = html.slice(0, match.index) + html.slice(match.index + match[0].length);
+  }
+  return { html, removed: duplicates.length };
+}
+
 function removeHomepageOnlyOverlaysAndLaba(html) {
   const before = html;
   // Keep tool-runtime/federation/worker modules on tool routes. The homepage
@@ -150,6 +172,13 @@ export function assembleHomepageIndex() {
   const cleanup = removeHomepageOnlyOverlaysAndLaba(html);
   if (!cleanup) return false;
   html = cleanup.html;
+
+  // Repeated local CSS paths with different query strings still download the same stylesheet.
+  const stylesheetCleanup = dedupeLocalStylesheets(html);
+  html = stylesheetCleanup.html;
+  if (stylesheetCleanup.removed) {
+    console.log('[assemble-index] removed ' + stylesheetCleanup.removed + ' duplicate local stylesheet link(s)');
+  }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.
   const homeMove = moveExternalScriptAfter(

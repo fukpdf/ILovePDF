@@ -113,3 +113,12 @@ Compare the **actual served page** at the same viewport and browser conditions, 
 **Implementation:** The existing assembler is now exported as a reusable function and is called by `server.js` before static middleware can serve files. If assembly fails, startup fails rather than serving a misleading loader page. The PDF/tool engines and their routes are unchanged. The source chunks remain the source of truth, and the existing assembler still owns homepage-only cleanup.
 
 **Verification required:** production artifact assembly, Node server startup, HTTP response contains full HTML and no `DecompressionStream` loader, all homepage browser tests, and regression checks. This chunk is not considered complete until those checks pass.
+
+
+## Chunk G — Remove duplicate CSS downloads
+
+**Measured finding:** The browser resource inventory found `/css/home-footer-v2.css` referenced twice (once without a query and once with a cache-busting query). Both URLs target the same local stylesheet path, so the browser can download and parse the same CSS twice.
+
+**Implementation:** The homepage assembler now deduplicates repeated local `/css/*.css` stylesheet paths while preserving the last occurrence to retain the existing cascade position and cache-busting URL. A source-level assertion blocks duplicate local stylesheet paths from returning. No CSS content, tool engines, or tool-page markup is changed.
+
+**Verification required:** browser resource inventory confirms one request for each local CSS path; compare FCP/LCP/CLS and rerun all viewport, route, accessibility, and Laba checks.

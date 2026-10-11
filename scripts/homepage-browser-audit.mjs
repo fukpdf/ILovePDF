@@ -100,7 +100,7 @@ try {
     stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')].map(link => ({ href: link.href, media: link.media || 'all', disabled: link.disabled })),
     inlineStyleBlocks: document.querySelectorAll('style').length,
     scripts: [...document.scripts].map(script => ({ src: script.src || '(inline)', defer: script.defer, async: script.async, type: script.type || 'classic' })),
-    fontFaces: [...document.fonts].size,
+    fontFaces: [...document.fonts].length,
     images: [...document.images].map(image => ({ src: image.currentSrc || image.src, loading: image.loading, width: image.naturalWidth, height: image.naturalHeight }))
   }));
   console.log('FIRST-RENDER INVENTORY: ' + JSON.stringify(loadInventory));
@@ -272,17 +272,17 @@ try {
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
     if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
-    console.log('VIEWPORT ' + width + 'px: ' + (layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.overlaps ? 'PASS' : 'FAIL') +
+    console.log('VIEWPORT ' + width + 'px: ' + (layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.hidden && !layout.overlaps ? 'PASS' : 'FAIL') +
       ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
   }
 
   // Verify the 140 KB extended locale bundle is requested only after a language change.
-  const langButton = page.locator('#lang-btn');
+  const langButton = page.locator('#footer-lang-btn');
   if (!(await langButton.count()) || !(await langButton.isVisible())) {
     fail('header language selector is missing');
   } else {
     await langButton.click();
-    const urOption = page.locator('#lang-list [data-code="ur"]');
+    const urOption = page.locator('#footer-lang-panel [data-lang="ur"]');
     if (!(await urOption.count())) {
       fail('Urdu option is missing from the language selector');
     } else {
