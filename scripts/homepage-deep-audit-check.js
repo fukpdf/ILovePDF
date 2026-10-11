@@ -171,7 +171,7 @@ if (!groupsMatch) {
     .filter(source => /\bname\s*:/.test(source) && /\bicon\s*:/.test(source));
 }
 const readField = (source, field) => {
-  const match = source.match(new RegExp("\\b" + field + "\\s*:\\s*(['\"])(.*?)\\1"));
+  const match = source.match(new RegExp("\\b" + field + "\s*:\s*(['\"])(.*?)\\1"));
   return match?.[2] ?? null;
 };
 if (!cardObjects.length) fail('no tool cards found in TOOL_GROUPS');
@@ -211,8 +211,8 @@ else pass('all ' + cardObjects.length + ' homepage cards have matching route met
 if (iconProblems.length) iconProblems.forEach(problem => fail(problem));
 else pass('all ' + cardObjects.length + ' homepage cards define icons');
 
-const iconMapMatch = homeSource.match(/const TOOL_ICON_SVGS\\s*=\\s*\\{([\\s\\S]*?)\\n\\};/);
-const availableIcons = new Set(iconMapMatch ? [...iconMapMatch[1].matchAll(/'([^']+)'\\s*:/g)].map(match => match[1]) : []);
+const iconMapMatch = homeSource.match(/const TOOL_ICON_SVGS\s*=\s*\{([\s\S]*?)\n\\};/);
+const availableIcons = new Set(iconMapMatch ? [...iconMapMatch[1].matchAll(/'([^']+)'\s*:/g)].map(match => match[1]) : []);
 if (!availableIcons.size) fail('cannot read inline homepage SVG icon map');
 const missingCardIcons = cardObjects.map(source => ({ name: readField(source, 'name'), icon: readField(source, 'icon') }))
   .filter(item => item.icon && !availableIcons.has(item.icon));
