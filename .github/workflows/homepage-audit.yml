@@ -23,6 +23,7 @@ on:
       - 'scripts/laba-removal-audit.js'
       - 'scripts/assemble-homepage-index.js'
       - 'scripts/homepage-deep-audit-check.js'
+      - 'scripts/homepage-fast-boot-check.js'
       - 'scripts/homepage-browser-audit.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
@@ -49,6 +50,7 @@ jobs:
       - name: Check audit script syntax
         run: |
           node --check scripts/homepage-deep-audit-check.js
+          node --check scripts/homepage-fast-boot-check.js
           node --check scripts/laba-removal-audit.js
           node --check server.js
           node --check scripts/homepage-node-server-smoke.mjs
@@ -64,6 +66,9 @@ jobs:
             exit 1
           fi
           grep -q 'home-fast-boot.js' public/index.html
+
+      - name: Audit first-paint bootstrap for duplicate rendering
+        run: node scripts/homepage-fast-boot-check.js
 
       - name: Audit homepage cards, routes, and source assets
         run: node scripts/homepage-deep-audit-check.js
