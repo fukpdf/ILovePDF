@@ -107,6 +107,7 @@ function ensureHomepageToolCardIcons() {
     title.insertBefore(sticker, title.firstChild);
   });
 }
+window.ensureHomepageToolCardIcons = ensureHomepageToolCardIcons;
 
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
