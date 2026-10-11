@@ -24,7 +24,10 @@ for (const relative of files) {
   const lines = content.split(/\r?\n/);
   const matches = [];
   lines.forEach((line, index) => {
-    if (/style\\.display\\s*=\\s*['\"]none|hidden\\s*=\\s*true|setAttribute\\(['\"]hidden|querySelectorAll\\(['\"](?:section|\\.home-cat-section)/i.test(line)) {\n      hideRefs.push({ path: relative, line: index + 1, text: line.trim().slice(0, 180) });\n    }\n    if (/cat-image-tools|cat-utilities|home-cat-section|ilpdf-announcement-intro/.test(line)) {
+    if (/style\.display\s*=\s*['"]none|hidden\s*=\s*true|setAttribute\(['"]hidden|querySelectorAll\(['"](?:section|\.home-cat-section)/i.test(line)) {
+      hideRefs.push({ path: relative, line: index + 1, text: line.trim().slice(0, 180) });
+    }
+    if (/cat-image-tools|cat-utilities|home-cat-section|ilpdf-announcement-intro/.test(line)) {
       layoutRefs.push({ path: relative, line: index + 1, text: line.trim().slice(0, 180) });
     }
     if (/laba|homepage-lazy-loader/i.test(line)) {
@@ -53,5 +56,7 @@ for (const item of externalRefs) {
   for (const example of item.examples) console.log('  L' + example.line + ': ' + example.text);
 }
 console.log('\nHomepage category/layout references (for CLS diagnosis):');
-for (const item of layoutRefs) console.log('LAYOUT ' + item.path + ':L' + item.line + ': ' + item.text);\nconsole.log('\\nPotential generic section-hiding code (first 120 matches):');\nfor (const item of hideRefs.slice(0, 120)) console.log('HIDE ' + item.path + ':L' + item.line + ': ' + item.text);
+for (const item of layoutRefs) console.log('LAYOUT ' + item.path + ':L' + item.line + ': ' + item.text);
+console.log('\nPotential generic section-hiding code (first 120 matches):');
+for (const item of hideRefs.slice(0, 120)) console.log('HIDE ' + item.path + ':L' + item.line + ': ' + item.text);
 console.log('\nThis report is an inventory only. Do not delete shared files until each external reference is classified.');
