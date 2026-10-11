@@ -232,6 +232,18 @@ The assembled homepage already contains all tool cards, and `home.js` is the aut
 - No post-change FCP/LCP/CLS improvement is claimed yet. Capture before/after lab results under the same viewport, throttling, browser and cache conditions. Confirm first-viewport screenshots and geometry remain stable; verify all 41 cards/routes, language switching, recent-tools behavior, mobile menu, axe, console, and asset checks.
 - Reference guidance used: [web.dev — Optimize LCP](https://web.dev/articles/optimize-lcp) and [web.dev — Optimize CLS](https://web.dev/articles/optimize-cls). These recommend exposing critical content early and preventing unexpected shifts; they do not substitute for measurements on this project.
 
+### Follow-up: full-viewport and dense responsive coverage — 2026-10-11
+
+**User requirement:** the page should use the available screen width correctly, leave no accidental side gaps, and be checked across window sizes without unrelated visual redesign.
+
+**Audit improvement:**
+- Expanded width checks from 15 preset widths to a dense 40px sweep from 320px through 1920px, plus breakpoint edges and wide displays up to 2880px.
+- At every tested width, the browser audit now checks the .page shell reaches both viewport edges, the tools grid uses a sensible share of available width, the responsive column count matches the intended breakpoints (2 columns through 768px, 3 through 1280px, 4 above 1280px), and no cards are clipped, hidden, overlapping, or horizontally overflowing.
+- Added mixed viewport width/height profiles for short laptop windows, tablet portrait/landscape, mobile portrait, standard desktop and ultrawide screens. These assert full-width header/page coverage and that hero text remains inside its visual container.
+- This is a test-first change: it does not globally force every child section to 100% width. Centered content and internal spacing are preserved where intentional; only measured unintended gaps or clipping should be corrected.
+
+**Verification:** the new width/height checks are committed in scripts/homepage-browser-audit.mjs. The Homepage Deep Audit workflow must pass these new assertions before the pull request is eligible to merge. If any profile fails, use the reported width, geometry and offending selector to make a minimal targeted fix, then rerun the same full workflow. No claim is made that the expanded matrix has passed until CI reports success.
+
 ### Final status
 **PASS WITH KNOWN ISSUES**
 
