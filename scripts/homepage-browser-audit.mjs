@@ -94,6 +94,20 @@ try {
   if (heavyStackLoaded.length) fail('homepage auto-loaded heavy AI/Laba scripts without interaction: ' + heavyStackLoaded.join(', '));
   else report('heavy AI/processing stack remains unloaded during an idle homepage visit');
 
+  const loadInventory = await page.evaluate(() => ({
+    htmlBytes: new TextEncoder().encode(document.documentElement.outerHTML).length,
+    stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')].map(link => ({ href: link.href, media: link.media || 'all', disabled: link.disabled })),
+    inlineStyleBlocks: document.querySelectorAll('style').length,
+    scripts: [...document.scripts].map(script => ({ src: script.src || '(inline)', defer: script.defer, async: script.async, type: script.type || 'classic' })),
+    fontFaces: [...document.fonts].size,
+    images: [...document.images].map(image => ({ src: image.currentSrc || image.src, loading: image.loading, width: image.naturalWidth, height: image.naturalHeight }))
+  }));
+  console.log('FIRST-RENDER INVENTORY: ' + JSON.stringify(loadInventory));
+  if (document.querySelector('script')?.textContent.includes('DecompressionStream') ||
+      [...document.scripts].some(script => script.textContent.includes('DecompressionStream'))) {
+    fail('served homepage still contains the runtime chunk/decompression loader');
+  } else report('served homepage is not using the four-chunk runtime document-replacement loader');
+
   const initial = await page.evaluate(() => ({
     title: document.title,
     h1Count: document.querySelectorAll('h1').length,

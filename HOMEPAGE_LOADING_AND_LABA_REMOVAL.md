@@ -85,3 +85,22 @@ Earlier CI measurements on this branch recorded the following before/after sampl
 
 - 2026-10-11: Added a read-only repository Laba-reference inventory script and wired it into the homepage audit workflow. Awaiting CI output before any Laba implementation deletion.
 - 2026-10-11: The latest browser audit exposed a test-script bug (a Node-side check referenced the browser-only `document` global). The script now uses IDs captured in the browser snapshot; rerun is required to confirm the fix.
+
+
+## First-render resource inventory — implementation evidence
+
+The browser audit now records the served document’s byte length, linked stylesheets and media attributes, inline style-block count, script order/type/defer/async flags, font-face count, and image source/loading/intrinsic dimensions. It also fails if the actual served homepage still contains the four-chunk `DecompressionStream` document-replacement loader. This inventory is evidence for the implementation, not a claim that all resources are delivered simultaneously.
+
+### Planned loading order
+
+1. **HTML response:** complete homepage document, semantic header/hero/tool catalogue skeleton and stylesheet references.
+2. **Critical CSS:** layout, typography, logo/header, hero and first visible card grid; avoid post-paint style injection that causes an unstyled flash.
+3. **Critical assets:** logo and only genuinely required first-viewport assets with reserved dimensions; no blanket lazy-loading of above-fold assets.
+4. **Shared shell and registry:** shared navigation/tool metadata in a deterministic execution order before the homepage renderer needs it.
+5. **Homepage interactions:** category filtering, recent tools and mobile navigation, without importing PDF/OCR/WASM/worker processing engines.
+6. **Non-critical enhancements:** translations not required for initial geometry, auth initialization, analytics/ads where applicable, and below-fold media deferred only when behavior remains intact.
+7. **Tool-only runtime:** loaded only after navigating to the corresponding tool workflow.
+
+### Comparison method
+
+Compare the **actual served page** at the same viewport and browser conditions, not only source files. Capture the resource inventory, first-paint screenshots, FCP/LCP/CLS, request/byte counts, browser console, all 41 cards and links, and axe results. The official iLovePDF homepage is a UX reference; this work does not assume access to its private source or copy its proprietary implementation. INP is reported as `NOT MEASURED` unless a genuine interaction metric is captured.
