@@ -89,7 +89,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Compare live homepage load performance against official iLovePDF
+      - name: Compare Firebase preview, live homepage, and official iLovePDF performance
         run: node scripts/homepage-live-comparison.mjs
 
       - name: Start local hosting-compatible test server
