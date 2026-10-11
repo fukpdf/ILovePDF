@@ -44,7 +44,7 @@ const checks=[
 ['output validation boundary implemented',contract.includes('OUTPUT_VALIDATION_FAILED')&&toolPage.includes('OutputValidator')],
 ['runtime-only secrets documented',arch.includes('Secrets are runtime configuration')&&policy.includes('never be embedded in frontend JavaScript')],
 ['deployment isolation not falsely claimed current',arch.includes('current repository is a single Node/Express deployment')],
-['Laba AI outside document registry documented',arch.includes('Laba AI remains a separate chatbot surface')],
+['global chatbot retirement documented',arch.includes('global Laba chatbot surface and its dedicated runtime modules have been removed')],
 ['GitHub source-control-only boundary documented',policy.includes('GitHub is source control only')],
 ['tool module isolation contract documented',contract.includes('modify another tool\'s processing state')&&contract.includes('import another tool\'s private engine')],
 ['browser cache is not cleared wholesale',arch.includes('Do not clear the entire browser cache')&&policy.includes('must not clear the user\'s entire browser cache')],
