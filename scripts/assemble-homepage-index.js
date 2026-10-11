@@ -19,6 +19,23 @@ function fail(message) {
   process.exitCode = 1;
 }
 
+function moveExternalScriptAfter(html, targetPattern, anchorPattern) {
+  const tags = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)];
+  const target = tags.find(match => targetPattern.test(match[0]));
+  const anchor = tags.find(match => anchorPattern.test(match[0]));
+  if (!target || !anchor || target.index > anchor.index) return { html, moved: false };
+
+  html = html.slice(0, target.index) + html.slice(target.index + target[0].length);
+  const updatedTags = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)];
+  const updatedAnchor = updatedTags.find(match => anchorPattern.test(match[0]));
+  if (!updatedAnchor) return { html, moved: false };
+  const insertAt = updatedAnchor.index + updatedAnchor[0].length;
+  return {
+    html: html.slice(0, insertAt) + '\n' + target[0] + html.slice(insertAt),
+    moved: true
+  };
+}
+
 function main() {
   const parts = [];
   for (let i = 0; i < 4; i++) {
@@ -65,6 +82,15 @@ function main() {
     return;
   }
 
+  // The homepage renderer does not depend on the optional Laba chat widget.
+  // Keep the widget, but let the tool grid render before the widget script executes.
+  const labaMove = moveExternalScriptAfter(
+    html,
+    /laba-widget[.]js/i,
+    /\/js\/home[.]js(?:[?#]|["'])/i
+  );
+  html = labaMove.html;
+
   // firebase-init.js already schedules Firebase SDK initialization during idle time.
   // Making its external script deferred removes the only parser-blocking script while
   // preserving classic-script execution order and the existing auth readiness promise.
@@ -88,6 +114,7 @@ function main() {
   console.log('[assemble-index] wrote ' + OUT + ' (' + Buffer.byteLength(html, 'utf8') + ' bytes)');
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
   console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
+  if (labaMove.moved) console.log('[assemble-index] homepage renderer now executes before the optional Laba widget');
 }
 
 main();
