@@ -1079,7 +1079,7 @@
     // AI subsystems detected on window (loaded by chrome.js / advanced scripts)
     var aiGlobals = [
       'GenerativeAiEngine', 'VectorMemoryEngine', 'AiAgentSystem',
-      'WebGpuAiExpansion', 'LabaAgentSystem', 'LCB',
+      'WebGpuAiExpansion', 'LCB',
     ];
     aiGlobals.forEach(function (key) {
       report.subsystems[key] = !!(global[key]);
