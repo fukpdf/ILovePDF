@@ -30,7 +30,7 @@ try {
     .catch(() => fail('homepage tool cards did not render within 30 seconds'));
   await page.waitForFunction(() => {
     const cards = [...document.querySelectorAll('a.tool')];
-    return cards.length >= 41 && cards.every(card => card.querySelector('svg, img, [data-icon], i[data-lucide]'));
+    return cards.length >= 41 && cards.every(card => card.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]'));
   }, null, { timeout: 10000 }).catch(() => fail('homepage cards did not all expose icon markup after render stabilization'));
 
   const initial = await page.evaluate(() => ({
@@ -39,7 +39,15 @@ try {
     cards: [...document.querySelectorAll('a.tool')].map(a => ({
       text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
       href: a.getAttribute('href'),
-      icon: !!a.querySelector('svg, img, [data-icon]')
+      icon: (() => {
+        const element = a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]');
+        if (!element) return false;
+        const style = getComputedStyle(element);
+        const pseudo = getComputedStyle(element, '::before').content;
+        return style.display !== 'none' && style.visibility !== 'hidden' &&
+          (element.childElementCount > 0 || !!element.textContent.trim() || (pseudo && pseudo !== 'none' && pseudo !== 'normal'));
+      })(),
+      iconMarkup: a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]')?.outerHTML.slice(0, 160) || ''
     })),
     header: !!document.querySelector('.site-header, header'),
     footer: !!document.querySelector('footer'),
@@ -56,7 +64,7 @@ try {
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
   const missingIcons = initial.cards.filter(card => !card.icon);
   if (missingIcons.length) {
-    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.map(card => card.text || '(unnamed)').join(' | '));
+    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.map(card => (card.text || '(unnamed)') + ' :: ' + card.iconMarkup).join(' | '));
     fail('tool cards with missing visible icon markup: ' + missingIcons.length);
   }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
