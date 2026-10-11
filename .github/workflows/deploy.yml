@@ -33,6 +33,22 @@ jobs:
         shell: bash
         run: printf '%s\n' "$GITHUB_SHA" > public/deploy-version.txt
 
+      - name: Assemble homepage index (Step-2 critical path)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/assemble-homepage-index.js
+          # Prove production artifact is full HTML, not the runtime loader
+          if grep -q 'DecompressionStream' public/index.html; then
+            echo '::error::index.html still looks like the chunk loader'
+            exit 1
+          fi
+          if ! grep -q 'home-fast-boot' public/index.html; then
+            echo '::error::assembled index missing home-fast-boot'
+            exit 1
+          fi
+          echo '[assemble] public/index.html ready for hosting'
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -51,6 +67,7 @@ jobs:
           node scripts/compress-hybrid-regression-check.js
           node --check public/script.js || true
           node --check public/sw.js || true
+          node --check scripts/assemble-homepage-index.js
 
       - name: Deploy to Firebase Hosting
         shell: bash
@@ -134,7 +151,28 @@ jobs:
           smoke_check "$origin/compress-pdf"
           smoke_check "$origin/js/tools-config.js"
           smoke_check "$origin/js/tool-page.js?v=20261009-hybrid-150dpi-v2"
+          smoke_check "$origin/js/home.js"
+          smoke_check "$origin/js/home-fast-boot.js"
           smoke_check "$base/compress-pdf"
+
+          # Homepage must be full HTML with Step-2 order (not loader)
+          html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/")"
+          if echo "$html" | grep -q 'DecompressionStream'; then
+            echo '::error::Deployed homepage still uses chunk loader'
+            exit 1
+          fi
+          if ! echo "$html" | grep -q 'home-fast-boot'; then
+            echo '::error::Deployed homepage missing home-fast-boot'
+            exit 1
+          fi
+          chrome_line="$(echo "$html" | grep -n 'chrome.js' | head -1 | cut -d: -f1)"
+          runtime_line="$(echo "$html" | grep -n 'runtime-protection' | head -1 | cut -d: -f1)"
+          if [ -n "$chrome_line" ] && [ -n "$runtime_line" ] && [ "$chrome_line" -gt "$runtime_line" ]; then
+            echo '::error::chrome.js still after runtime-protection on deployed homepage'
+            exit 1
+          fi
+          echo "Homepage critical-path order OK (chrome line $chrome_line, runtime line $runtime_line)"
+
           deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
           if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
             echo "::error::Deployment version mismatch. Expected $GITHUB_SHA, got $deployed_sha"
