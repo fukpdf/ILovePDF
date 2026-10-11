@@ -18,7 +18,7 @@
 
 The official reference is [https://www.ilovepdf.com/](https://www.ilovepdf.com/). Its homepage exposes the main tool catalogue, navigation, category filters, and footer as a cohesive page. This is a behavior and information-architecture reference, not permission to copy proprietary implementation or assume all resources arrive simultaneously.
 
-The repository's existing source loader `public/index.html` fetches four base64 chunks, concatenates them, decompresses with `DecompressionStream('deflate')`, then replaces the document. The deploy assembler `scripts/assemble-homepage-index.js` inflates those chunks at build time so production can serve full HTML. Validate both the production artifact and the actual initial render: source-loader behavior alone does not prove what production users receive.
+The source-only `public/index.html` loader fetches four base64 chunks and replaces the document, but `.github/workflows/deploy.yml` runs `scripts/assemble-homepage-index.js` before every production deployment and rejects a loader artifact. Production should therefore serve full HTML, not the four-request loader. The assembler also removes retired Laba/announcement tags and tool-only scripts. Validate both the assembled artifact and browser behavior on every change.
 
 Earlier CI measurements on this branch recorded the following before/after sample: same-origin JS resources 114 → 64; JS bytes observed in the first 4.5 seconds 2,098,540 → 1,044,568; total requests 156 → 105; CLS 0.5193 → 0.0352; FCP 300 ms → 224 ms; LCP 1,728 ms → 1,564 ms. These were unthrottled local CI measurements, not production field data. Re-run after changes; INP remains unmeasured unless a valid interaction measurement is added.
 
@@ -30,29 +30,29 @@ Earlier CI measurements on this branch recorded the following before/after sampl
 - Chunk assembler: `scripts/assemble-homepage-index.js`
 - Homepage source integrity checks: `scripts/homepage-deep-audit-check.js`
 - Browser/viewport/a11y/performance checks: `scripts/homepage-browser-audit.mjs`
-- Laba-specific assets/modules are present under `public/laba/` and `public/js/laba-*.js`.
-- `public/js/homepage-lazy-loader.js` is dedicated to deferring Laba's AI stack; it must be removed from the served homepage and deleted only after references are audited.
-- The assembler currently moves the Laba widget script after the homepage renderer rather than removing it. This is not sufficient for the requested total removal.
+- All dedicated Laba widget assets/modules and `public/js/homepage-lazy-loader.js` have been deleted from the working branch after the repository scan. Active runtime manifests, tool-page HTML, SEO allowlists, and AI fallback integrations have been cleaned. Historical phase records are marked as historical instead of rewriting past claims.
+- `scripts/assemble-homepage-index.js` removes any legacy Laba/announcement tags from the compressed source before serving the full production HTML. It also strips an explicit allowlist of tool-only runtime/federation/worker scripts from the homepage while leaving `public/tool.html` and engine source files intact.
+- `public/js/home.js` and the duplicate root `home.js` now render recent tools inside their own section; neither may replace the `#tools-root` category container.
 
 ## Controlled implementation chunks
 
-### Chunk A — Read-only dependency inventory
+### Chunk A — Read-only dependency inventory — COMPLETE
 1. Scan tracked text files for Laba/widget/lazy-loader references.
-2. Classify each reference as homepage HTML, build script, audit/test, documentation, Laba-only implementation, or shared/non-Laba functionality.
-3. Do not delete shared modules based only on a filename or keyword.
-4. Record every candidate file and all external references before removal.
+2. Classify references as homepage HTML, build script, audit/test, documentation, Laba-only implementation, or shared/non-Laba functionality.
+3. Delete only dedicated Laba modules and remove Laba-specific integration points from shared code; preserve generic engines and tool-page processing boundaries.
+4. Keep the scanner and final re-scan as verification evidence.
 
-### Chunk B — Remove Laba from the homepage output
-1. Remove Laba widget script and stylesheet references and the Laba-only lazy loader from the assembled HTML.
-2. Remove any static Laba widget markup/initialization if present, after confirming its exact boundaries.
-3. Keep the homepage renderer, tool registry, navigation, and translations intact.
-4. Add build-time assertions that the assembled homepage contains no Laba widget, Laba stylesheet, or Laba lazy-loader reference.
+### Chunk B — Remove Laba from the homepage output — IMPLEMENTED, RE-TESTED
+1. Remove Laba widget script and stylesheet references and the Laba-only lazy loader from assembled HTML.
+2. Remove the delayed announcement modal assets that displaced the actual homepage as the measured LCP element.
+3. Keep the homepage renderer, tool registry, navigation, translations, auth, ads, and PDF tool routes intact.
+4. Add build-time and browser assertions that the assembled homepage contains no Laba widget, Laba stylesheet, or Laba lazy-loader request.
 
-### Chunk C — Remove dedicated Laba implementation
-1. Remove only Laba-specific scripts/assets after the repository scan shows no live non-Laba consumer.
-2. Update homepage tests so they assert Laba is absent instead of expecting the Laba widget or its AI modules.
-3. Remove Laba-only files and references; do not remove shared PDF engines or general AI dependencies without evidence they are exclusively Laba-owned.
-4. Re-run the repository reference scan and explain any remaining historical documentation references.
+### Chunk C — Remove dedicated Laba implementation — IN PROGRESS
+1. Dedicated widget, stylesheet, knowledge JSON, lazy loader, and Laba-only JS modules have been deleted.
+2. Active shared AI integrations and audit scripts no longer use Laba as a fallback; generic vector operations retain deterministic local fallback behavior.
+3. Runtime manifests, security allowlists, SEO path allowlists, tool-page markup, and active architecture docs have been updated.
+4. Remaining references must be classified as historical documentation, removal tests/scanners, or any unexpected active code before final sign-off.
 
 ### Chunk D — First-render stabilization
 1. Ensure the delivered HTML already contains the primary heading, hero, categories, cards, and layout skeleton before non-critical scripts execute.
