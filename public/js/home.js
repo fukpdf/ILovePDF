@@ -203,8 +203,7 @@ function _renderOneCatSection(containerId, groupKeys, type) {
     .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)));
 
   if (!items.length) {
-    // Do not hide server-rendered sections merely because a registry group is unavailable.
-    if (!el.querySelector('a.tool')) el.style.display = 'none';
+    // Keep existing category shells visible during any transient registry delay.
     return;
   }
 
