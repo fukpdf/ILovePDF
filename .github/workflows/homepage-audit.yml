@@ -25,6 +25,7 @@ on:
       - 'scripts/homepage-deep-audit-check.js'
       - 'scripts/homepage-fast-boot-check.js'
       - 'scripts/homepage-browser-audit.mjs'
+      - 'scripts/homepage-live-comparison.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
       - '.github/workflows/homepage-audit.yml'
@@ -37,7 +38,7 @@ jobs:
   homepage-source-audit:
     name: Homepage source, assets, and routes
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,6 +55,7 @@ jobs:
           node --check scripts/laba-removal-audit.js
           node --check server.js
           node --check scripts/homepage-node-server-smoke.mjs
+          node --check scripts/homepage-live-comparison.mjs
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
@@ -86,6 +88,9 @@ jobs:
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Compare live homepage load performance against official iLovePDF
+        run: node scripts/homepage-live-comparison.mjs
 
       - name: Start local hosting-compatible test server
         shell: bash
