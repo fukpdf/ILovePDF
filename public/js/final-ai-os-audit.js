@@ -503,7 +503,7 @@
     var icon = { pass:'✓', warn:'⚠', fail:'✗', info:'ℹ', skip:'—' };
     var lines = [
       '╔═══════════════════════════════════════════════════════════════╗',
-      '║           LABA AI DOCUMENT OS — FINAL AUDIT REPORT           ║',
+      '║           AI DOCUMENT OS — FINAL AUDIT REPORT           ║',
       '╚═══════════════════════════════════════════════════════════════╝',
       '',
       '  Timestamp: ' + new Date(report.ts).toLocaleString(),
