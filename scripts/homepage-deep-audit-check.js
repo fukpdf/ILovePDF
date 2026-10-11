@@ -58,6 +58,16 @@ const staticChecks = [
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
+const allScriptTags = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+const inlineScripts = allScriptTags.filter(match => !/\bsrc\s*=/i.test(match[1]));
+const headEnd = html.toLowerCase().indexOf('</head>');
+const headScripts = allScriptTags.filter(match => headEnd >= 0 && (match.index ?? 0) < headEnd);
+console.log('Script structure: total=' + allScriptTags.length + ', inline=' + inlineScripts.length + ', beforeHeadClose=' + headScripts.length);
+inlineScripts.forEach((match, index) => {
+  const snippet = (match[2] || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+  console.log('INLINE SCRIPT ' + (index + 1) + ': ' + snippet);
+});
+
 const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
   .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: match[0].toLowerCase().includes(' defer'), async: match[0].toLowerCase().includes(' async') }));
 const scriptIndex = (needle) => scriptSources.find(item => item.src.includes(needle))?.index ?? -1;
