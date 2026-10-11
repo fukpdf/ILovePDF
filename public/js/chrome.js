@@ -190,18 +190,6 @@ function renderHeader(forceRefresh = false){
   const nav = document.getElementById('nav');
   if (!nav) return;
 
-  // Preserve a complete server-rendered homepage nav through first paint.
-  // Replacing it with a skeleton and rebuilding it causes visible layout shift.
-  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
-    if (!window.__ILOVE_NAV_WIRED) {
-      wireSimpleDropdowns();
-      wireAllToolsToggle();
-      wireHoverPrefetch(nav);
-      window.__ILOVE_NAV_WIRED = true;
-    }
-    return;
-  }
-
   // "All Tools" mega-menu columns. Order reflects new priority: instant-heavy
   // categories first (organize, security, image, edit, utilities), then convert
   // and the heavy advanced bucket last.
@@ -240,6 +228,60 @@ function renderHeader(forceRefresh = false){
        <span class="mi"><i data-lucide="${i.icon}"></i></span>
        <span>${tTool(i.tid, 'title', i.name)}</span>
      </a>`).join('');
+
+  // Preserve the server-rendered homepage header and hydrate only missing dropdown
+  // panels. Replacing the whole nav causes a first-paint layout shift.
+  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
+    const organizeItem = nav.querySelector('#nav-organize');
+    const convertItem = nav.querySelector('#nav-convert');
+    const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
+    if (organizeItem && !organizeItem.querySelector('.dd')) {
+      const panel = document.createElement('div');
+      panel.className = 'dd';
+      panel.id = 'organize-menu';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', 'Organize tools');
+      panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+      organizeItem.appendChild(panel);
+    } else if (organizeItem) {
+      const panel = organizeItem.querySelector('.dd');
+      if (panel && !panel.children.length) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+    }
+    if (convertItem && !convertItem.querySelector('.dd')) {
+      const panel = document.createElement('div');
+      panel.className = 'dd';
+      panel.id = 'convert-menu';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', 'Convert tools');
+      panel.innerHTML = ddLinks(CONVERT_ITEMS);
+      convertItem.appendChild(panel);
+    } else if (convertItem) {
+      const panel = convertItem.querySelector('.dd');
+      if (panel && !panel.children.length) panel.innerHTML = ddLinks(CONVERT_ITEMS);
+    }
+    if (allItem) {
+      allItem.id = 'all-tools-item';
+      const button = allItem.querySelector('#all-tools-btn') || allItem.querySelector('.nav-btn');
+      if (button) button.setAttribute('aria-controls', 'all-tools-menu');
+      let panel = allItem.querySelector('#all-tools-menu');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'mega';
+        panel.id = 'all-tools-menu';
+        panel.setAttribute('role', 'region');
+        panel.setAttribute('aria-label', 'All tools');
+        allItem.appendChild(panel);
+      }
+      if (!panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
+    }
+    if (!window.__ILOVE_NAV_WIRED) {
+      wireSimpleDropdowns();
+      wireAllToolsToggle();
+      wireHoverPrefetch(nav);
+      window.__ILOVE_NAV_WIRED = true;
+    }
+    return;
+  }
 
   nav.innerHTML = `
     <a class="nav-direct" href="/merge-pdf" data-i18n="nav.merge">Merge PDF</a>
@@ -921,7 +963,7 @@ function ensureSharedShell() {
     existingNav.querySelector('#nav-organize .nav-btn') &&
     existingNav.querySelector('#nav-convert .nav-btn') &&
     existingNav.querySelector('#all-tools-btn') &&
-    existingNav.querySelector('#all-tools-menu')
+    existingNav.querySelector('#all-tools-btn').closest('.nav-item')
   );
   window.__ILOVE_PRESERVE_SERVER_NAV = hasCompleteHomepageNav;
   window.__ILOVE_NAV_WIRED = false;
