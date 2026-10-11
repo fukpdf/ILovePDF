@@ -155,7 +155,7 @@ The browser audit found the footer language menu could be covered by the homepag
 
 ## Latest verification after responsive/menu remediation — 2026-10-11
 
-**Current implementation result:** the dedicated Homepage Deep Audit workflow passed on commit 03146e4636572b2a1f4a0eac5e30e1ca8264ce32.
+**Current implementation result:** the dedicated Homepage Deep Audit workflow passed on commit e379412f61e73b6aa250837f9264b0478dbb0260.
 
 ### Laba removal scan
 - Tracked text files scanned: **1,026**.
@@ -179,20 +179,21 @@ The browser audit found the footer language menu could be covered by the homepag
 
 ### Latest performance sample
 Unthrottled local Chromium CI; not production field data:
-- FCP: **308 ms**
-- LCP: **308 ms** (hero paragraph was the measured LCP element)
-- CLS: **0.0765**
-- Requests: **85**
-- Same-origin scripts: **48**, encoded bytes **846,340**
+- FCP: **356 ms**
+- LCP: **356 ms** (hero paragraph was the measured LCP element)
+- CLS: **0.0319**
+- Requests: **86**
+- Same-origin scripts: **48**, encoded bytes **850,146**
 - CSS files: **9**, encoded bytes **209,860**
 - INP: **NOT MEASURED**
 
-A separate successful run on the same implementation measured FCP/LCP **352 ms** and CLS **0.0387**, demonstrating normal run-to-run variance. Both samples meet the CLS target of less than 0.1; the FCP/LCP values are local lab measurements only.
+A second successful run measured FCP/LCP **372 ms** and CLS **0.0318**. An earlier intermittent run exposed CLS **0.319**; the DOM trace identified the shared shell replacing the existing header with a skeleton and rebuilding the nav. The header is now preserved on the homepage and only missing dropdown panels are hydrated in place. The final browser test explicitly asserts the server-rendered header remains mounted at boot. The final samples meet the CLS target of less than 0.1; all timings are local lab measurements only.
 
 ### Fixes from the failed viewport run
 - The root scrollport is clipped to the viewport to eliminate the measured 2–3 px horizontal overflow.
 - The desktop All Tools menu is anchored to the viewport rather than the narrow navigation item, preventing the panel from extending beyond the right edge.
-- The browser audit now captures root/body/pseudo-element overflow diagnostics and asserts the opened desktop menu remains within viewport bounds.
+- The shared shell preserves the existing homepage header and hydrates only missing dropdown panels in place; it no longer replaces the visible header with a skeleton on the homepage.
+- The browser audit now asserts header preservation, captures root/body/pseudo-element overflow diagnostics, and verifies the opened desktop menu remains within viewport bounds.
 
 ### Broader repository CI note
 The dedicated homepage workflow passes, including the project regression/security gates. Other existing Phase 5 workflows on the same branch still fail for missing audit scripts referenced by the repository's package scripts, and the global i18n check expects script tags directly in the source public/index.html even though production assembly generates the full HTML from chunks. These are broader pre-existing repository/CI contract issues, not homepage browser failures; they must not be “fixed” by editing unrelated processing engines as part of this homepage task. The PR must be reviewed against required checks and the deployment workflow before merging.
