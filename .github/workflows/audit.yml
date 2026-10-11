@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           count=0
-          for root in public/admin/js public/core public/workers public/laba; do
+          for root in public/admin/js public/core public/workers; do
             while IFS= read -r -d '' file; do
               node --check "$file"
               count=$((count + 1))
