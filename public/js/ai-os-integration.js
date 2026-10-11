@@ -524,7 +524,7 @@
     var icon = { ok:'✓', warn:'⚠', fail:'✗', info:'ℹ', skip:'—' };
     var lines = [
       '╔══════════════════════════════════════════════════════════════════════╗',
-      '║        LABA AI DOCUMENT OS — NEXT AI EVOLUTION AUDIT REPORT         ║',
+      '║        AI DOCUMENT OS — NEXT AI EVOLUTION AUDIT REPORT         ║',
       '╚══════════════════════════════════════════════════════════════════════╝',
       '',
       '  Timestamp: ' + new Date(report.ts).toLocaleString(),
