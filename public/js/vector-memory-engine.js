@@ -282,8 +282,6 @@
     var _paused  = false;
 
     function _embed(text) {
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.EmbeddingEngine && LAF.EmbeddingEngine.embed) return LAF.EmbeddingEngine.embed(text);
       // Heuristic fallback
       var words = text.toLowerCase().split(/\W+/).filter(Boolean);
       var vec   = new Float32Array(DIM).fill(0);
@@ -366,8 +364,7 @@
   // ═══════════════════════════════════════════════════════════════════════════
   var CrossDocumentReasoner = (function () {
     async function findSimilarAcross(text, docIds, topK) {
-      var LAF = sys('LabaAiFoundation');
-      var qVec = LAF && LAF.EmbeddingEngine ? await LAF.EmbeddingEngine.embed(text) : null;
+      var qVec = null;
       var all  = [];
       for (var i = 0; i < docIds.length; i++) {
         var results = await HybridRetriever.search(qVec, text, docIds[i], topK || 3);
@@ -385,8 +382,7 @@
   var ContextWindowBuilder = (function () {
     async function build(query, docId, maxTokens) {
       maxTokens = maxTokens || 2048;
-      var LAF  = sys('LabaAiFoundation');
-      var qVec = LAF && LAF.EmbeddingEngine ? await LAF.EmbeddingEngine.embed(query) : null;
+      var qVec = null;
       var results = await HybridRetriever.search(qVec, query, docId, 12);
       var window = []; var tokens = 0;
       for (var i = 0; i < results.length; i++) {
@@ -460,8 +456,7 @@
 
     // Async semantic search (uses vector similarity)
     searchAsync: function (query, docId, topK) {
-      var LAF = sys('LabaAiFoundation');
-      var qVecP = LAF && LAF.EmbeddingEngine ? LAF.EmbeddingEngine.embed(query) : Promise.resolve(null);
+      var qVecP = Promise.resolve(null);
       return qVecP.then(function (qVec) { return HybridRetriever.search(qVec, query, docId, topK || 5); });
     },
 
