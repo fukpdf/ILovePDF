@@ -54,6 +54,18 @@ const chrome = read('public/js/chrome.js');
 const config = read('public/js/tools-config.js');
 const assembler = read('scripts/assemble-homepage-index.js');
 
+const metaDescriptionTag = [...html.matchAll(/<meta\\b[^>]*>/gi)].map(match => match[0]).find(tag => /\\bname=["']description["']/i.test(tag));
+const hasMetaDescription = !!metaDescriptionTag && /\\bcontent=["'][^"']{20,}["']/i.test(metaDescriptionTag);
+const seoInventory = {
+  metaDescription: hasMetaDescription,
+  canonical: /<link\\b[^>]*\\brel=["']canonical["']/i.test(html),
+  robots: /<meta\\b[^>]*\\bname=["']robots["']/i.test(html),
+  ogTitle: /<meta\\b[^>]*\\bproperty=["']og:title["']/i.test(html),
+  ogDescription: /<meta\\b[^>]*\\bproperty=["']og:description["']/i.test(html),
+  jsonLdBlocks: (html.match(/type=["']application\\/ld\\+json["']/gi) || []).length
+};
+console.log('SEO inventory: ' + JSON.stringify(seoInventory));
+
 const staticChecks = [
   ['homepage contains a viewport meta tag', /<meta\s+name=["']viewport["']/i.test(html)],
   ['homepage has a non-empty title', /<title>\s*[^<]+\s*<\/title>/i.test(html)],
