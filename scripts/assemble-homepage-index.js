@@ -82,6 +82,14 @@ function main() {
     return;
   }
 
+  // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.
+  const homeMove = moveExternalScriptAfter(
+    html,
+    /\/js\/home[.]js(?:[?#]|["'])/i,
+    /\/js\/chrome[.]js(?:[?#]|["'])/i
+  );
+  html = homeMove.html;
+
   // The homepage renderer does not depend on the optional Laba chat widget.
   // Keep the widget, but let the tool grid render before the widget script executes.
   const labaMove = moveExternalScriptAfter(
@@ -123,6 +131,7 @@ function main() {
   console.log('[assemble-index] wrote ' + OUT + ' (' + Buffer.byteLength(html, 'utf8') + ' bytes)');
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
   console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
+  if (homeMove.moved) console.log('[assemble-index] chrome.js now executes before the homepage renderer');
   if (labaMove.moved) console.log('[assemble-index] homepage renderer now executes before the optional Laba widget');
   if (i18nExtMove.moved) console.log('[assemble-index] homepage renderer now executes before the extended translation payload');
 }
