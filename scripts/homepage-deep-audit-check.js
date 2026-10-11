@@ -105,7 +105,7 @@ const staticChecks = [
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
   ['homepage short-circuits missing Firebase API routes instead of downloading tool.html', html.includes('__ILOVE_STATIC_API_GUARD__') && assembler.includes('injectStaticApiGuard')],
-  ['homepage defers AdSense loading until an ad slot is near view or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,4500)')],
+  ['homepage defers AdSense loading until an ad slot is near view or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,4500)')],
   ['homepage excludes tool-only analytics and identity scripts', !/src=["'][^"']*\/js\/runtime-analytics\.js/i.test(html) && !/src=["'][^"']*\/js\/runtime-identity\.js/i.test(html)],
   ['tool page has the same static-hosting API guard', read('public/tool.html').includes('__ILOVE_STATIC_API_GUARD__')],
   ['below-fold catalogues defer offscreen rendering with intrinsic size', read('public/css/home.css').includes('content-visibility: auto') && read('public/css/home.css').includes('contain-intrinsic-size: auto')],
