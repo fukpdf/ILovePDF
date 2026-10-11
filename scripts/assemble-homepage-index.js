@@ -131,6 +131,7 @@ function stabilizeHomepageFirstRender(html) {
   );
   const fontDisplayAdjusted = html !== beforeFontPolicy;
   let fontStylesheetDeferred = false;
+  let nonCriticalStylesheetsDeferred = 0;
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
@@ -141,9 +142,14 @@ function stabilizeHomepageFirstRender(html) {
       fontStylesheetDeferred = true;
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
+    if (rel.split(/\s+/).includes('stylesheet') &&
+        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
+      nonCriticalStylesheetsDeferred += 1;
+      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+    }
     return tag;
   });
-  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred };
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -453,6 +459,9 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.fontStylesheetDeferred) {
     console.log('[assemble-index] made Google Fonts stylesheet non-blocking so system fallback can paint first');
+  }
+  if (firstRender.nonCriticalStylesheetsDeferred) {
+    console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.

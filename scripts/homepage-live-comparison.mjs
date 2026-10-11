@@ -68,6 +68,7 @@ try {
         let documentHeaders = null;
         let navigationError = null;
         const started = Date.now();
+        let blockingStylesheetCountAtDOMContentLoaded = null;
         try {
           const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           status = response?.status() ?? null;
@@ -81,6 +82,7 @@ try {
               server: headers['server'] || null
             };
           }
+          blockingStylesheetCountAtDOMContentLoaded = await page.evaluate(() => Array.from(document.querySelectorAll('link[rel~="stylesheet"]')).filter(link => link.getAttribute('fetchpriority') !== 'low').length);
           // Give post-load scripts and the LCP observer the same short settling window.
           await page.waitForTimeout(2500);
         } catch (error) {
@@ -136,6 +138,7 @@ try {
             stylesheetTags: Array.from(document.querySelectorAll('link[rel~="stylesheet"], link[rel="preload"][as="style"]')).map(link => ({ href: link.href, rel: link.rel, media: link.media }))
           };
         }).catch(error => ({ measurementError: String(error) }));
+        metrics.blockingStylesheetCount = blockingStylesheetCountAtDOMContentLoaded;
         const includeInventory = target.name === 'Local candidate build' && profile.name === 'mobile' && run === 1;
         if (!includeInventory) {
           delete metrics.scriptUrls;
@@ -177,6 +180,7 @@ for (const profile of profiles) {
       domContentLoadedMs: median('domContentLoadedMs'), loadEventMs: median('loadEventMs'),
       totalTransferBytes: median('totalTransferBytes'), resourceCount: median('resourceCount'),
       scriptCount: median('scriptCount'), stylesheetCount: median('stylesheetCount'),
+      blockingStylesheetCount: median('blockingStylesheetCount'),
       apiRequestCount: median('apiRequestCount'), apiTransferBytes: median('apiTransferBytes'),
       adScriptCount: median('adScriptCount'), adTransferBytes: median('adTransferBytes'),
       cls: median('cls')
@@ -198,6 +202,7 @@ for (const profile of profiles) {
   if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the initial-view measurement ended');
   if (median('totalTransferBytes') > 320 * 1024) candidateFailures.push(profile.name + ': initial-view transfer exceeded 320 KiB (' + median('totalTransferBytes') + ' bytes)');
   if (median('scriptCount') > 35) candidateFailures.push(profile.name + ': initial-view script count exceeded 35 (' + median('scriptCount') + ')');
+  if (median('blockingStylesheetCount') > 5) candidateFailures.push(profile.name + ': blocking stylesheet count exceeded 5 (' + median('blockingStylesheetCount') + ')');
   if (median('fcpMs') > 300) candidateFailures.push(profile.name + ': local candidate FCP exceeded 300 ms (' + median('fcpMs') + ' ms)');
   if (median('lcpMs') > 300) candidateFailures.push(profile.name + ': local candidate LCP exceeded 300 ms (' + median('lcpMs') + ' ms)');
   if (median('cls') > 0.1) candidateFailures.push(profile.name + ': local candidate CLS exceeded 0.1 (' + median('cls') + ')');

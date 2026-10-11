@@ -77,7 +77,8 @@ const seoInventory = {
 };
 console.log('SEO inventory: ' + JSON.stringify(seoInventory));
 
-const localStylesheetPaths = [...html.matchAll(/<link\b[^>]*>/gi)]
+const stylesheetAuditHtml = html.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, '');
+const localStylesheetPaths = [...stylesheetAuditHtml.matchAll(/<link\b[^>]*>/gi)]
   .map(match => match[0])
   .filter(tag => /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag))
   .map(tag => tag.match(/\bhref=["']([^"']+)["']/i)?.[1])
@@ -122,6 +123,7 @@ const staticChecks = [
   ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
   ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)],
   ['Google Fonts stylesheet is non-blocking and does not preconnect during first paint', (() => { const visibleHtml = html.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ''); return /<link\b(?=[^>]*\brel=["']preload["'])(?=[^>]*\bas=["']style["'])(?=[^>]*\bfetchpriority=["']low["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\srel=["']stylesheet["'])(?=[^>]*\shref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\srel=["'](?:preconnect|dns-prefetch)["'])(?=[^>]*\shref=["'](?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com)[^>]*>/i.test(visibleHtml); })()],
+  ['below-fold SEO, footer, and ad stylesheets are non-blocking', (() => { return ['/css/seo-extended.css', '/css/home-footer-v2.css', '/css/ads.css', '/css/responsive-ads.css'].every(path => { const tag = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).find(candidate => candidate.includes(path) && /\srel=["']preload["']/.test(candidate)); return !!tag && /\sas=["']style["']/.test(tag) && /\sfetchpriority=["']low["']/.test(tag); }); })()],
   ['tool page Google Fonts stylesheet is non-blocking', read('public/tool.html').includes('fetchpriority="low"') && read('public/tool.html').includes("this.rel='stylesheet'")],
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
