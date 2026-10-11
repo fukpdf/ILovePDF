@@ -41,18 +41,18 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
   // These scripts/styles belong to the optional Laba chatbot or the one-off
   // announcement modal. Neither is required to render the homepage tool catalogue.
   html = html.replace(
-    /<script\\b(?=[^>]*\\bsrc=["'][^"']*(?:\\/laba\\/|laba-widget|laba-ai-|homepage-lazy-loader\\.js|site-announcement\\.js)[^"']*["'])[^>]*>[\\s\\S]*?<\\/script>\\s*/gi,
+    /<script\b(?=[^>]*\bsrc=["'][^"']*(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-loader\.js|site-announcement\.js)[^"']*["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
     ''
   );
   html = html.replace(
-    /<link\\b(?=[^>]*\\bhref=["'][^"']*(?:\\/laba\\/|laba-widget|site-announcement\\.css)[^"']*["'])[^>]*>\\s*/gi,
+    /<link\b(?=[^>]*\bhref=["'][^"']*(?:\/laba\/|laba-widget|site-announcement\.css)[^"']*["'])[^>]*>\s*/gi,
     ''
   );
-  html = html.replace(/<!--\\s*Laba AI Assistant[\\s\\S]*?-->/gi, '');
-  html = html.replace(/<!--\\s*Phase 13\\/14: AI\\/Laba stack[\\s\\S]*?-->/gi, '');
-  html = html.replace(/<!--\\s*Site announcement[\\s\\S]*?-->/gi, '');
+  html = html.replace(/<!--\s*Laba AI Assistant[\s\S]*?-->/gi, '');
+  html = html.replace(/<!--\s*Phase 13\/14: AI\/Laba stack[\s\S]*?-->/gi, '');
+  html = html.replace(/<!--\s*Site announcement[\s\S]*?-->/gi, '');
 
-  const forbidden = /(?:\\/laba\\/|laba-widget|laba-ai-|homepage-lazy-loader\\.js|site-announcement\\.(?:js|css))/i;
+  const forbidden = /(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-loader\.js|site-announcement\.(?:js|css))/i;
   if (forbidden.test(html)) {
     fail('homepage still contains a Laba or delayed announcement asset reference after cleanup');
     return null;
