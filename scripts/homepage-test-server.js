@@ -2,6 +2,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createGzip } from 'node:zlib';
 
 const ROOT = path.resolve(process.cwd(), 'public');
 const PORT = Number(process.env.PORT || 4173);
@@ -54,11 +55,21 @@ const server = http.createServer((req, res) => {
     res.writeHead(404).end('Not Found');
     return;
   }
-  res.writeHead(200, {
-    'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
-    'Cache-Control': 'no-store'
-  });
-  fs.createReadStream(file).pipe(res);
+  const contentType = MIME[path.extname(file).toLowerCase()] || 'application/octet-stream';
+  const headers = {
+    'Content-Type': contentType,
+    'Cache-Control': 'no-store',
+    'Vary': 'Accept-Encoding'
+  };
+  const acceptsGzip = /\\bgzip\\b/i.test(req.headers['accept-encoding'] || '');
+  const compressible = /^(?:text\\/|application\\/(?:javascript|json|xml)|image\\/svg\\+xml)/i.test(contentType);
+  if (acceptsGzip && compressible) {
+    res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip' });
+    fs.createReadStream(file).pipe(createGzip({ level: 6 })).pipe(res);
+  } else {
+    res.writeHead(200, headers);
+    fs.createReadStream(file).pipe(res);
+  }
 });
 
 server.listen(PORT, '127.0.0.1', () => console.log('Homepage test server listening on http://127.0.0.1:' + PORT));
