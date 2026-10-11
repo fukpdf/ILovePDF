@@ -79,6 +79,28 @@ function renderToolStickerIcon(iconKey) {
   return `<span class="tool-name-sticker" aria-hidden="true" data-icon="${iconKey}">${svg}</span>`;
 }
 
+/* Repair legacy/static homepage cards that have route metadata but no icon node.
+   This is idempotent and uses only the trusted built-in SVG icon map. */
+function ensureHomepageToolCardIcons() {
+  const tMap = buildToolMap();
+  document.querySelectorAll('a.tool').forEach(card => {
+    const title = card.querySelector('.tool-name, .tool-title, h3, h4');
+    if (!title || title.querySelector('.tool-name-sticker, [data-icon], svg, img, i[data-lucide]')) return;
+    const tool = tMap[card.dataset.tid] || {};
+    const iconKey = tool.icon || 'file-text';
+    const source = TOOL_ICON_SVGS[iconKey] || TOOL_ICON_SVGS['file-text'];
+    const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+    if (!parsed.documentElement || parsed.documentElement.localName !== 'svg') return;
+    const sticker = document.createElement('span');
+    sticker.className = 'tool-name-sticker';
+    sticker.setAttribute('aria-hidden', 'true');
+    sticker.dataset.icon = iconKey;
+    sticker.appendChild(document.importNode(parsed.documentElement, true));
+    title.insertBefore(sticker, title.firstChild);
+  });
+}
+
+
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
   const section = document.getElementById('recent-use-section');
@@ -536,6 +558,7 @@ function waitForToolGroupsAndRender(){
     if (ready) {
       renderRecentUse();
       renderCategorySections();
+      ensureHomepageToolCardIcons();
       if (typeof requestAnimationFrame === 'function') {
         requestAnimationFrame(function () { refreshHomeIcons(); });
       } else {
