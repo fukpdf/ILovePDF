@@ -148,3 +148,52 @@ The browser audit found the footer language menu could be covered by the homepag
 **Measured finding:** The layout-shift trace showed the three category shells initially arriving without their cards; `home.js` inserted the card markup roughly a quarter-second later. The PDF category expanded and the image/utility sections collapsed during that render, producing a CLS spike of 0.372 in one run. This was the real “HTML/CSS arriving in stages” behavior the user reported.
 
 **Implementation:** The existing `TOOL_GROUPS`, `TOOL_ICON_SVGS`, and `CAT_CONFIG` data are now read by the build-time assembler to render the same 41 cards, descriptions, routes, badges, and inline SVG icons into the assembled HTML. The renderer is data-driven from the existing source files; it does not duplicate the registry or modify tool engines. At runtime, `home.js` recognizes matching cards and leaves them untouched. A static audit now fails if all 41 cards are not present in the initial HTML. Responsive overflow diagnostics also report the exact elements exceeding the viewport.
+
+## Latest verification after responsive/menu remediation — 2026-10-11
+
+**Current implementation result:** the dedicated Homepage Deep Audit workflow passed on commit 03146e4636572b2a1f4a0eac5e30e1ca8264ce32.
+
+### Laba removal scan
+- Tracked text files scanned: **1,026**.
+- Dedicated Laba/lazy-loader paths remaining: **0**.
+- Laba-specific files with references remaining: **0**.
+- Other references: **16 files**, all classified by the scanner as documentation, historical records, removal guards, or test/workflow references.
+- Active application-code references: **0**.
+- Homepage Laba UI/assets/network requests: **0**.
+
+### Browser verification
+- Viewports checked: **15/15 pass** at 320, 360, 375, 390, 414, 430, 600, 768, 820, 1024, 1280, 1366, 1440, 1600, and 1920 px.
+- Homepage cards: **41 present, visible, titled, described, and iconed**.
+- Card routes checked: **41/41**.
+- Homepage anchors: **151** with usable targets; **53 unique internal navigation/footer destinations** checked.
+- Accessibility: **0 axe violations**, including **0 critical/serious**.
+- Uncaught browser errors: **0**.
+- Failed same-origin assets: **0**.
+- Tool-only processing/federation/worker scripts requested by homepage: **0**.
+- Desktop All Tools menu bounds: contained within the viewport after opening.
+- Horizontal overflow: **0** at every required viewport.
+
+### Latest performance sample
+Unthrottled local Chromium CI; not production field data:
+- FCP: **308 ms**
+- LCP: **308 ms** (hero paragraph was the measured LCP element)
+- CLS: **0.0765**
+- Requests: **85**
+- Same-origin scripts: **48**, encoded bytes **846,340**
+- CSS files: **9**, encoded bytes **209,860**
+- INP: **NOT MEASURED**
+
+A separate successful run on the same implementation measured FCP/LCP **352 ms** and CLS **0.0387**, demonstrating normal run-to-run variance. Both samples meet the CLS target of less than 0.1; the FCP/LCP values are local lab measurements only.
+
+### Fixes from the failed viewport run
+- The root scrollport is clipped to the viewport to eliminate the measured 2–3 px horizontal overflow.
+- The desktop All Tools menu is anchored to the viewport rather than the narrow navigation item, preventing the panel from extending beyond the right edge.
+- The browser audit now captures root/body/pseudo-element overflow diagnostics and asserts the opened desktop menu remains within viewport bounds.
+
+### Broader repository CI note
+The dedicated homepage workflow passes, including the project regression/security gates. Other existing Phase 5 workflows on the same branch still fail for missing audit scripts referenced by the repository's package scripts, and the global i18n check expects script tags directly in the source public/index.html even though production assembly generates the full HTML from chunks. These are broader pre-existing repository/CI contract issues, not homepage browser failures; they must not be “fixed” by editing unrelated processing engines as part of this homepage task. The PR must be reviewed against required checks and the deployment workflow before merging.
+
+### Merge gate
+**Implementation and dedicated homepage verification: PASS.**  
+**Overall task: NOT YET COMPLETE until the final changed-file/deployment review, PR merge to main, and post-merge verification are recorded.**
+
