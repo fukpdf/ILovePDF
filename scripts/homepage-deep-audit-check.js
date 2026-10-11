@@ -93,7 +93,7 @@ if (!groupsMatch) {
 }
 const readField = (source, field) => {
   const match = source.match(new RegExp("\\b" + field + "\\s*:\\s*(['\"])(.*?)\\1"));
-  return match?.[1] ?? null;
+  return match?.[2] ?? null;
 };
 if (!cardObjects.length) fail('no tool cards found in TOOL_GROUPS');
 const names = cardObjects.map(source => readField(source, 'name')).filter(Boolean);
