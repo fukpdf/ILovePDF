@@ -34,5 +34,14 @@ jobs:
       - name: Check audit script syntax
         run: node --check scripts/homepage-deep-audit-check.js
 
-      - name: Audit assembled homepage without rewriting source
+      - name: Build the production homepage artifact
+        run: |
+          node scripts/assemble-homepage-index.js
+          if grep -q 'DecompressionStream' public/index.html; then
+            echo '::error::assembled homepage still contains the runtime chunk loader'
+            exit 1
+          fi
+          grep -q 'home-fast-boot.js' public/index.html
+
+      - name: Audit homepage cards, routes, and source assets
         run: node scripts/homepage-deep-audit-check.js
