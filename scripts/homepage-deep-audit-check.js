@@ -168,12 +168,18 @@ const initialScriptBytes = scriptSources.reduce((total, item) => {
   const file = path.join(PUBLIC, pathname.slice(1));
   return fs.existsSync(file) ? total + fs.statSync(file).size : total;
 }, 0);
+const cssAssets = [...assetRefs].filter(asset => asset.split('?')[0].split('#')[0].toLowerCase().endsWith('.css'));
+const initialCssBytes = cssAssets.reduce((total, asset) => {
+  const pathname = asset.split('?')[0].split('#')[0];
+  const file = path.join(PUBLIC, pathname.startsWith('/') ? pathname.slice(1) : pathname);
+  return fs.existsSync(file) ? total + fs.statSync(file).size : total;
+}, 0);
 const sizedScripts = scriptSources.map(item => {
   const pathname = item.src.split(/[?#]/, 1)[0];
   const file = pathname.startsWith('/') ? path.join(PUBLIC, pathname.slice(1)) : null;
   return { src: item.src, bytes: file && fs.existsSync(file) ? fs.statSync(file).size : 0 };
 }).sort((a, b) => b.bytes - a.bytes);
-console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
+console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', cssFiles=' + cssAssets.length + ', initialCssBytes=' + initialCssBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
 const blockingScripts = scriptSources.filter(item => !item.defer && !item.async);
 console.log('Initial script scheduling: blocking=' + blockingScripts.length + ', defer=' + scriptSources.filter(item => item.defer).length + ', async=' + scriptSources.filter(item => item.async).length);
 if (blockingScripts.length) fail('homepage contains parser-blocking external scripts: ' + blockingScripts.map(item => item.src).join(', '));
