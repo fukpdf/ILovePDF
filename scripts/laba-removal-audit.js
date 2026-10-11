@@ -30,7 +30,7 @@ for (const relative of files) {
     if (/cat-image-tools|cat-utilities|home-cat-section|ilpdf-announcement-intro/.test(line)) {
       layoutRefs.push({ path: relative, line: index + 1, text: line.trim().slice(0, 180) });
     }
-    if (/laba|homepage-lazy-loader/i.test(line)) {
+    if (/\blaba\b|laba[-/]|homepage-lazy-loader/i.test(line)) {
       matches.push({ line: index + 1, text: line.trim().slice(0, 200) });
     }
   });
