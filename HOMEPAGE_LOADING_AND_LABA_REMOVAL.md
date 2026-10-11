@@ -209,8 +209,30 @@ A second successful run measured FCP/LCP **372 ms** and CLS **0.0318**. An earli
 ### Broader repository CI note
 The dedicated homepage workflow, source audit, project regression tests, security/file-lifecycle audit, syntax checks, and deployment-origin smoke checks passed. Some separate Phase 5 workflows still report missing audit scripts referenced by repository package scripts, and the global i18n workflow inspects the unassembled source loader instead of the production HTML artifact. These broader repository/CI contract issues are documented and were not “fixed” by editing unrelated PDF/image processing engines.
 
+## Follow-up: stable first-paint bootstrap — 2026-10-11
+
+**Branch:** `perf/homepage-stable-first-paint-20261011`
+
+### Finding
+
+The assembled homepage already contains all tool cards, and `home.js` is the authoritative owner of homepage rendering. However, `home-fast-boot.js` also called the category renderer, recent-tools renderer, icon-repair hook, and Lucide's DOM replacement. At the same time, `home.js` runs its own `bootHomePage()` path and calls `renderRecentUse()`, `renderCategorySections()`, and icon repair. The fast-boot helper also had overlapping readiness starts (DOMContentLoaded plus an independent zero-delay timeout), which could invoke its paint path twice. This duplicated work after the browser had begun painting and could cause avoidable main-thread work or movement in the Recent Tools section when it contains saved entries.
+
+### Implementation
+
+- Replaced the fast-boot paint hooks with a one-shot, idempotent `ilovepdf:tool-groups-ready` signal.
+- Removed DOM rendering, icon replacement, and duplicate polling starts from `home-fast-boot.js`. `home.js` remains the single authoritative owner of rendering and icon repair; pre-rendered category cards remain in place.
+- Added `scripts/homepage-fast-boot-check.js`, a regression guard that rejects reintroduction of render calls, Lucide DOM replacement, interval polling, or duplicate readiness-dispatch sites.
+- Wired the new guard into `.github/workflows/homepage-audit.yml` so it runs after production HTML assembly and before the full homepage browser audit.
+- Kept the change scoped to homepage boot behavior; PDF/image processing engines and tool routes are untouched.
+
+### Verification status
+
+- Static implementation and workflow changes are committed on the follow-up branch.
+- The new regression check and full browser/a11y/viewport suite must run in CI before merge.
+- No post-change FCP/LCP/CLS improvement is claimed yet. Capture before/after lab results under the same viewport, throttling, browser and cache conditions. Confirm first-viewport screenshots and geometry remain stable; verify all 41 cards/routes, language switching, recent-tools behavior, mobile menu, axe, console, and asset checks.
+- Reference guidance used: [web.dev — Optimize LCP](https://web.dev/articles/optimize-lcp) and [web.dev — Optimize CLS](https://web.dev/articles/optimize-cls). These recommend exposing critical content early and preventing unexpected shifts; they do not substitute for measurements on this project.
+
 ### Final status
 **PASS WITH KNOWN ISSUES**
 
 The homepage implementation is merged and deployed. Its required browser matrix passes with 41 cards/routes, 0 axe violations, 0 page errors, 0 failed assets, 0 Laba requests, no horizontal overflow, and CLS 0.0319 in local unthrottled CI. INP and official-site field performance remain NOT MEASURED. The remaining operational caveat is the custom-domain HTTP 403 from automated smoke requests; validate the route in a real browser or review the domain's bot/security policy separately.
-
