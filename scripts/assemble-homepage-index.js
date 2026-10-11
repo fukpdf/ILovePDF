@@ -47,17 +47,11 @@ function main() {
     fail('decompressed output is not a full HTML document');
     return;
   }
-  if (!html.includes('/js/chrome.js')) {
-    fail('missing chrome.js reference');
-    return;
-  }
-  if (!html.includes('/js/home.js')) {
-    fail('missing home.js reference');
-    return;
-  }
-  if (!html.includes('home-fast-boot.js')) {
-    fail('missing home-fast-boot.js reference');
-    return;
+  for (const required of ['/js/chrome.js', '/js/home.js', 'home-fast-boot.js']) {
+    if (!html.includes(required)) {
+      fail('missing required homepage reference: ' + required);
+      return;
+    }
   }
   if (html.includes('DecompressionStream')) {
     fail('decompressed output still contains the runtime chunk loader');
@@ -71,9 +65,29 @@ function main() {
     return;
   }
 
+  // firebase-init.js already schedules Firebase SDK initialization during idle time.
+  // Making its external script deferred removes the only parser-blocking script while
+  // preserving classic-script execution order and the existing auth readiness promise.
+  let firebaseDeferred = false;
+  html = html.replace(
+    /<script\b(?![^>]*\b(?:defer|async)\b)([^>]*\bsrc=["'][^"']*\/js\/firebase-init\.js(?:[?#][^"']*)?["'][^>]*)>/i,
+    (_tag, attrs) => {
+      firebaseDeferred = true;
+      return '<script defer' + attrs + '>';
+    }
+  );
+
+  const blockingScripts = [...html.matchAll(/<script\b([^>]*)\bsrc=["'][^"']+["'][^>]*>/gi)]
+    .filter(match => !/\bdefer\b/i.test(match[1]) && !/\basync\b/i.test(match[1]));
+  if (blockingScripts.length) {
+    fail('homepage still has parser-blocking external scripts: ' + blockingScripts.length);
+    return;
+  }
+
   fs.writeFileSync(OUT, html, 'utf8');
   console.log('[assemble-index] wrote ' + OUT + ' (' + Buffer.byteLength(html, 'utf8') + ' bytes)');
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
+  console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
 }
 
 main();
