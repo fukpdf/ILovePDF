@@ -92,7 +92,7 @@ if (!groupsMatch) {
     .filter(source => /\bname\s*:/.test(source) && /\bicon\s*:/.test(source));
 }
 const readField = (source, field) => {
-  const match = source.match(new RegExp('\\b' + field + '\\s*:\\s*[\'"]([^\'"]+)[\'"]'));
+  const match = source.match(new RegExp("\\b" + field + "\\s*:\\s*(['"])(.*?)\\1"));
   return match?.[1] ?? null;
 };
 if (!cardObjects.length) fail('no tool cards found in TOOL_GROUPS');
