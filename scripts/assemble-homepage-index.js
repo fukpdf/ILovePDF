@@ -92,27 +92,23 @@ function dedupeLocalStylesheets(html) {
  */
 function stabilizeHomepageFirstRender(html) {
   const hasCompleteServerNav =
-    /class=["'][^"']*\\bsite-header\\b[^"']*["']/i.test(html) &&
+    /class=["'][^"']*\bsite-header\b[^"']*["']/i.test(html) &&
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
     /id=["']nav-convert["']/i.test(html) &&
     /id=["']all-tools-btn["']/i.test(html);
   let navPreservationEnabled = false;
 
-  if (hasCompleteServerNav) {
+  if (hasCompleteServerNav && /<\/head>/i.test(html)) {
     // Place the flag in <head> so it exists before deferred chrome.js executes.
-    // Injecting it early is intentional: chrome.js otherwise replaces the
-    // server-rendered navigation with a wider client-rendered version.
-    if (/<\\/head>/i.test(html)) {
-      html = html.replace(/<\\/head>/i,
-        '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\\n</head>');
-      navPreservationEnabled = true;
-    }
+    html = html.replace(/<\/head>/i,
+      '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\n</head>');
+    navPreservationEnabled = true;
   }
 
   const beforeFontPolicy = html;
   html = html.replace(
-    /(https?:)?\\/\\/fonts\\.googleapis\\.com\\/css2?\\?[^"'<>]*?display=)swap/gi,
+    /(https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
     '$1optional'
   );
 
