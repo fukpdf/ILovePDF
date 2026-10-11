@@ -66,6 +66,11 @@ jobs:
       - name: Smoke-test the real Node server homepage bootstrap
         run: node scripts/homepage-node-server-smoke.mjs
 
+      - name: Run the same regression and security gates used by deployment
+        run: |
+          npm test
+          npm run audit:security
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
