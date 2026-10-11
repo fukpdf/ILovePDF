@@ -195,7 +195,7 @@ function injectStaticApiGuard(html) {
 }
 
 function deferHomepageAds(html) {
-  const pattern = /<script\b(?=[^>]*\bsrc=["']https?:\/\/pagead\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^"']*["'])[^>]*>\s*<\/script>/gi;
+  const pattern = /<script\b(?=[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^"']*["'])[^>]*>\s*<\/script>/gi;
   let count = 0;
   html = html.replace(pattern, tag => {
     const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1];
