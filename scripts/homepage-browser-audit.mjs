@@ -7,6 +7,7 @@ const WIDTHS = [320, 360, 375, 390, 414, 430, 600, 768, 820, 1024, 1280, 1366, 1
 const failures = [];
 const pageErrors = [];
 const failedLocalAssets = [];
+const labaRequests = [];
 const report = (message) => console.log('PASS:', message);
 const fail = (message) => { failures.push(message); console.error('FAIL:', message); };
 
@@ -15,6 +16,14 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('request', request => {
+    try {
+      const url = new URL(request.url());
+      if (url.origin === new URL(BASE).origin && /(?:\\/laba\\/|\\/js\\/laba-|homepage-lazy-loader\\.js)/i.test(url.pathname)) {
+        labaRequests.push(url.pathname);
+      }
+    } catch {}
+  });
   page.on('requestfailed', request => {
     try {
       const url = new URL(request.url());
@@ -70,16 +79,16 @@ try {
     return cards.length >= 41 && cards.every(card => card.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]'));
   }, null, { timeout: 10000 }).catch(() => fail('homepage cards did not all expose icon markup after render stabilization'));
 
-  // Wait past the old 4-second idle threshold to prove the heavy AI/Laba stack stays unloaded.
+  // Observe the full idle window and verify the homepage never requests tool-only AI engines.
   await page.waitForTimeout(4500);
   const heavyStackLoaded = await page.evaluate(() => {
-    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/laba-ai-chat.js', '/js/runtime-global-certification.js'];
+    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/runtime-global-certification.js'];
     return performance.getEntriesByType('resource').map(entry => {
       try { return new URL(entry.name).pathname; } catch { return ''; }
     }).filter(path => sentinels.some(sentinel => path.endsWith(sentinel)));
   });
   if (heavyStackLoaded.length) fail('homepage auto-loaded heavy AI/Laba scripts without interaction: ' + heavyStackLoaded.join(', '));
-  else report('heavy AI/Laba stack remains unloaded after 4.5 seconds without chat interaction');
+  else report('heavy AI/processing stack remains unloaded during an idle homepage visit');
 
   const initial = await page.evaluate(() => ({
     title: document.title,
@@ -108,6 +117,8 @@ try {
     })),
     header: !!document.querySelector('.site-header, header'),
     footer: !!document.querySelector('footer'),
+    labaUi: !!document.querySelector('#laba-widget-toggle, #laba-ai-chat-panel, .laba-toggle, .laba-fab, [data-laba]'),
+    announcementUi: !!document.querySelector('#ilpdf-announcement-overlay'),
     htmlWidth: document.documentElement.scrollWidth,
     viewportWidth: window.innerWidth
   }));
@@ -116,6 +127,10 @@ try {
   if (initial.h1Count < 1) fail('homepage has no H1 heading');
   if (!initial.header) fail('homepage header is missing');
   if (!initial.footer) fail('homepage footer is missing');
+  if (initial.labaUi || labaRequests.length) fail('Laba UI or assets are still present: UI=' + initial.labaUi + ', requests=' + [...new Set(labaRequests)].join(', '));
+  else report('no Laba widget UI or Laba asset requests on homepage');
+  if (initial.announcementUi) fail('delayed announcement overlay still appears on the homepage');
+  else report('no delayed announcement overlay competes with the homepage first render');
   if (initial.cards.length !== 41) fail('expected 41 rendered tool cards, found ' + initial.cards.length);
   if (initial.h1Count !== 1) fail('homepage should have exactly one H1; found ' + initial.h1Count);
   const missingCardTitles = initial.cards.filter(card => !card.title);
@@ -301,7 +316,7 @@ try {
 
   console.log('BROWSER QA SUMMARY: widths=' + WIDTHS.length + ', cards=' + initial.cards.length +
     ', internalRoutes=' + seenHrefs.size + ', axeViolations=' + axe.violations.length +
-    ', pageErrors=' + pageErrors.length + ', failedAssets=' + failedLocalAssets.length +
+    ', pageErrors=' + pageErrors.length + ', failedAssets=' + failedLocalAssets.length + ', labaRequests=' + labaRequests.length +
     ', failures=' + failures.length);
   if (failures.length) process.exitCode = 1;
 } finally {
