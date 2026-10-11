@@ -76,6 +76,8 @@ try {
     cards: [...document.querySelectorAll('a.tool')].map(a => ({
       text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
       href: a.getAttribute('href'),
+      title: (a.querySelector('.tool-name, .tool-title, h3, h4')?.textContent || '').trim(),
+      description: (a.querySelector('.tool-desc, .tool-description, p')?.textContent || '').trim(),
       visible: (() => { const rect = a.getBoundingClientRect(); const style = getComputedStyle(a); return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; })(),
       icon: (() => {
         const element = a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]');
