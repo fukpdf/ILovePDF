@@ -127,3 +127,12 @@ Compare the **actual served page** at the same viewport and browser conditions, 
 ## Chunk H — Node server smoke verification
 
 A dedicated CI smoke test now starts the real Express server on an isolated local port and checks the actual HTTP response for a full HTML document, no chunk/decompression loader, a real homepage H1, working homepage CSS, and no duplicate local stylesheet paths. The test shuts down its child process and never deploys or contacts production. This verifies the Node-hosted path in addition to the static assembler and browser test server.
+
+
+## Chunk I — Prevent late duplicate footer CSS injection
+
+**Measured finding:** The static page includes the footer stylesheet in the head, but `chrome.js` was checking only for a custom data attribute before injecting the same stylesheet again. The dynamically appended URL had a cache-busting query, so static deduplication alone could not detect the runtime duplicate. This can trigger redundant CSS parsing and late style recalculation.
+
+**Implementation:** The shared chrome now checks existing stylesheet URLs by resolved pathname before appending the footer CSS. If the page already has `/css/home-footer-v2.css`, the static stylesheet is reused. The assembler and static audit normalize relative and absolute local CSS URLs so duplicate paths are detected consistently. The language-selector browser test resets to a known desktop viewport before interaction.
+
+**Verification required:** the post-load resource inventory must show one request per local CSS path; CLS and footer language interaction must pass again.

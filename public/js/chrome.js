@@ -874,7 +874,11 @@ function ensureSharedShell() {
     link.dataset.sharedHeaderCss = '1';
     document.head.appendChild(link);
   }
-  if (!document.querySelector('link[data-shared-footer-css]')) {
+  const footerCssAlreadyLinked = [...document.querySelectorAll('link[rel="stylesheet"][href]')].some(link => {
+    try { return new URL(link.href, document.baseURI).pathname === '/css/home-footer-v2.css'; }
+    catch (_) { return false; }
+  });
+  if (!document.querySelector('link[data-shared-footer-css]') && !footerCssAlreadyLinked) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-footer-v2.css?v=20260924';

@@ -71,12 +71,16 @@ const localStylesheetPaths = [...html.matchAll(/<link\b[^>]*>/gi)]
   .map(match => match[0])
   .filter(tag => /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag))
   .map(tag => tag.match(/\bhref=["']([^"']+)["']/i)?.[1])
-  .filter(href => href && href.startsWith('/css/'))
-  .map(href => href.split(/[?#]/, 1)[0]);
+  .filter(href => {
+    try {
+      const parsed = new URL(href, 'https://homepage.invalid');
+      return parsed.origin === 'https://homepage.invalid' && parsed.pathname.startsWith('/css/');
+    } catch (_) { return false; }
+  })
+  .map(href => new URL(href, 'https://homepage.invalid').pathname);
 const duplicateStylesheets = localStylesheetPaths.filter((href, index) => localStylesheetPaths.indexOf(href) !== index);
 if (duplicateStylesheets.length) fail('duplicate local stylesheet requests remain: ' + [...new Set(duplicateStylesheets)].join(', '));
 else pass('no duplicate local stylesheet URLs remain in assembled homepage');
-
 const staticChecks = [
   ['homepage contains a viewport meta tag', /<meta\s+name=["']viewport["']/i.test(html)],
   ['homepage has a substantive meta description', hasMetaDescription],

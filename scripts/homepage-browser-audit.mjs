@@ -277,6 +277,7 @@ try {
   }
 
   // Verify the 140 KB extended locale bundle is requested only after a language change.
+  await page.setViewportSize({ width: 1280, height: 900 });
   const langButton = page.locator('#footer-lang-btn');
   if (!(await langButton.count()) || !(await langButton.isVisible())) {
     fail('header language selector is missing');

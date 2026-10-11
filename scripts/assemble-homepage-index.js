@@ -55,20 +55,27 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
 ]);
 
 function dedupeLocalStylesheets(html) {
-  const tags = [...html.matchAll(/<link\b[^>]*>/gi)].filter(match => {
-    const tag = match[0];
-    return /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag) &&
-      /\bhref=["']\/css\//i.test(tag);
-  });
+  const localPath = href => {
+    try {
+      const parsed = new URL(href, 'https://homepage.invalid');
+      return parsed.origin === 'https://homepage.invalid' && parsed.pathname.startsWith('/css/')
+        ? parsed.pathname : null;
+    } catch (_) { return null; }
+  };
+  const tags = [...html.matchAll(/<link\b[^>]*>/gi)].filter(match =>
+    /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(match[0]) &&
+    localPath(match[0].match(/\bhref=["']([^"']+)["']/i)?.[1] || '')
+  );
   const lastByPath = new Map();
   for (const match of tags) {
     const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
-    if (!href) continue;
-    lastByPath.set(href.split(/[?#]/, 1)[0], match.index);
+    const pathname = href ? localPath(href) : null;
+    if (pathname) lastByPath.set(pathname, match.index);
   }
   const duplicates = tags.filter(match => {
     const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
-    return href && lastByPath.get(href.split(/[?#]/, 1)[0]) !== match.index;
+    const pathname = href ? localPath(href) : null;
+    return pathname && lastByPath.get(pathname) !== match.index;
   }).sort((left, right) => right.index - left.index);
   for (const match of duplicates) {
     html = html.slice(0, match.index) + html.slice(match.index + match[0].length);
