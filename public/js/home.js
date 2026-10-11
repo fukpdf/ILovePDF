@@ -107,7 +107,31 @@ function ensureHomepageToolCardIcons() {
     title.insertBefore(sticker, title.firstChild);
   });
 }
+
 window.ensureHomepageToolCardIcons = ensureHomepageToolCardIcons;
+
+/* Some legacy homepage sections are inserted after the initial boot pass.
+   Observe the real DOM until every registered tool card has an icon. */
+function observeHomepageToolCardIcons() {
+  let observer;
+  const repair = () => {
+    ensureHomepageToolCardIcons();
+    const cards = [...document.querySelectorAll('a.tool')];
+    const expected = (window.TOOL_GROUPS || []).reduce((total, group) =>
+      total + (Array.isArray(group.items) ? group.items.length : 0), 0);
+    const complete = expected > 0 && cards.length >= expected &&
+      cards.every(card => card.querySelector('.tool-name-sticker, [data-icon], svg, img, i[data-lucide]'));
+    if (complete && observer) observer.disconnect();
+  };
+  observer = new MutationObserver(repair);
+  if (document.documentElement) observer.observe(document.documentElement, { childList: true, subtree: true });
+  repair();
+  setTimeout(() => {
+    repair();
+    if (observer) observer.disconnect();
+  }, 10000);
+}
+
 
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
@@ -586,6 +610,7 @@ function bootHomePage() {
   renderSessionContinue();
   waitForToolGroupsAndRender();
   ensureHomepageToolCardIcons();
+  observeHomepageToolCardIcons();
   wireCalc();
   wireCalcToggle();
   wireFx();
