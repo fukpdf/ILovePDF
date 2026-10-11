@@ -73,6 +73,12 @@ try {
   const initial = await page.evaluate(() => ({
     title: document.title,
     h1Count: document.querySelectorAll('h1').length,
+    links: [...document.querySelectorAll('a[href]')].map(a => ({
+      href: a.getAttribute('href') || '',
+      text: (a.innerText || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 90),
+      target: a.getAttribute('target') || '',
+      rel: a.getAttribute('rel') || ''
+    })),
     cards: [...document.querySelectorAll('a.tool')].map(a => ({
       text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
       href: a.getAttribute('href'),
@@ -99,6 +105,35 @@ try {
   if (!initial.header) fail('homepage header is missing');
   if (!initial.footer) fail('homepage footer is missing');
   if (initial.cards.length !== 41) fail('expected 41 rendered tool cards, found ' + initial.cards.length);
+  if (initial.h1Count !== 1) fail('homepage should have exactly one H1; found ' + initial.h1Count);
+  const missingCardTitles = initial.cards.filter(card => !card.title);
+  const missingCardDescriptions = initial.cards.filter(card => !card.description);
+  if (missingCardTitles.length) fail('tool cards missing titles: ' + missingCardTitles.length);
+  else report('all ' + initial.cards.length + ' tool cards have titles');
+  if (missingCardDescriptions.length) fail('tool cards missing descriptions: ' + missingCardDescriptions.length + ' (' + missingCardDescriptions.slice(0, 8).map(card => card.title || card.text).join(' | ') + ')');
+  else report('all ' + initial.cards.length + ' tool cards have descriptions');
+
+  const emptyLinks = initial.links.filter(link => !link.href.trim());
+  const placeholderLinks = initial.links.filter(link => link.href.trim() === '#');
+  const brokenHashLinks = initial.links.filter(link => link.href.startsWith('#') && link.href.length > 1 && !document.getElementById(link.href.slice(1)));
+  const unsafeBlankLinks = initial.links.filter(link => link.target === '_blank' && !/\b(?:noopener|noreferrer)\b/i.test(link.rel));
+  if (emptyLinks.length) fail('anchors without href values: ' + emptyLinks.length);
+  if (placeholderLinks.length) fail('placeholder href="#" links found: ' + placeholderLinks.length + ' (' + placeholderLinks.slice(0, 8).map(link => link.text || '(unnamed)').join(' | ') + ')');
+  if (brokenHashLinks.length) fail('hash links without matching targets: ' + brokenHashLinks.map(link => link.href).join(', '));
+  if (unsafeBlankLinks.length) fail('target="_blank" links missing noopener/noreferrer: ' + unsafeBlankLinks.length);
+  if (!emptyLinks.length && !placeholderLinks.length && !brokenHashLinks.length && !unsafeBlankLinks.length) report('all ' + initial.links.length + ' homepage anchors have usable targets and safe new-tab attributes');
+
+  const internalLinkPaths = [...new Set(initial.links
+    .map(link => link.href.trim())
+    .filter(href => href.startsWith('/') && href !== '#' && !href.startsWith('//'))
+    .map(href => href.split('#')[0]))]
+    .filter(href => href && !/^\/(?:js|css|assets|images|img|fonts|locales|index-chunks)\//i.test(href));
+  for (const href of internalLinkPaths) {
+    const linkResponse = await page.request.get(new URL(href, BASE).href, { timeout: 15000 }).catch(() => null);
+    if (!linkResponse || linkResponse.status() >= 400) fail('homepage internal link returned an unsuccessful response: ' + href);
+  }
+  report('checked ' + internalLinkPaths.length + ' unique internal navigation/footer destinations');
+
   const missingNames = initial.cards.filter(card => !card.text);
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
   const hiddenCards = initial.cards.filter(card => !card.visible);
