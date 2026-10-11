@@ -146,7 +146,7 @@ const toolOnlyHomepageScripts = new Set([
   '/js/runtime-wasm-registry.js', '/js/runtime-compression-presets.js',
   '/js/runtime-pinned-tools.js', '/js/runtime-tool-engagement.js',
   '/js/runtime-failed-log.js',
-  '/js/analytics-sync.js', '/js/runtime-recovery.js', '/js/runtime-perf-safety.js'
+  '/js/analytics-sync.js', '/js/runtime-recovery.js', '/js/runtime-perf-safety.js',
   '/js/n2w-converter.js',
   '/js/runtime-protection.js',
   '/js/runtime-shield-core.js',
