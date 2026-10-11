@@ -181,13 +181,16 @@ jobs:
             echo '::error::Deployed homepage missing home-fast-boot'
             exit 1
           fi
-          chrome_line="$(echo "$html" | grep -n 'chrome.js' | head -1 | cut -d: -f1)"
-          runtime_line="$(echo "$html" | grep -n 'runtime-protection' | head -1 | cut -d: -f1)"
-          if [ -n "$chrome_line" ] && [ -n "$runtime_line" ] && [ "$chrome_line" -gt "$runtime_line" ]; then
-            echo '::error::chrome.js still after runtime-protection on deployed homepage'
+          if echo "$html" | grep -q 'runtime-protection'; then
+            echo '::error::Homepage should not load the PDF-tool runtime protection stack'
             exit 1
           fi
-          echo "Homepage critical-path order OK (chrome line $chrome_line, runtime line $runtime_line)"
+          tool_html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/tool.html")"
+          if ! echo "$tool_html" | grep -q 'runtime-protection'; then
+            echo '::error::Tool page is missing the runtime protection stack'
+            exit 1
+          fi
+          echo "Homepage excludes tool-only runtime; tool page retains runtime protection"
 
           deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
           if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
