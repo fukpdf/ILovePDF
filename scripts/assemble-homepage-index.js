@@ -182,7 +182,7 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
 function injectStaticApiGuard(html) {
   if (html.includes('window.__ILOVE_STATIC_API_GUARD__')) return html;
   const guard = '<script>(function(){var host=String(location.hostname||"").toLowerCase();var testStaticHost=(host==="localhost"||host==="127.0.0.1")&&new URLSearchParams(location.search).get("static-hosting-test")==="1";var staticHost=host.endsWith(".web.app")||host.endsWith(".firebaseapp.com")||host==="ilovepdf.cyou"||testStaticHost;if(!staticHost||typeof window.fetch!=="function"||window.__ILOVE_STATIC_API_GUARD__)return;window.__ILOVE_STATIC_API_GUARD__=true;var nativeFetch=window.fetch;window.fetch=function(input,init){var raw=typeof input==="string"?input:(input&&input.url)||"";try{var url=new URL(raw,location.href);if(url.origin===location.origin&&url.pathname.startsWith("/api/"))return Promise.resolve(new Response(JSON.stringify({available:false,error:"API backend unavailable on static hosting"}),{status:503,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}}));}catch(_){}return nativeFetch.call(this,input,init);};})();</script>';
-  const charset = /<meta\b[^>]*\bcharset\s*=/i.exec(html);
+  const charset = /<meta\b(?=[^>]*\bcharset\s*=)[^>]*>/i.exec(html);
   if (charset) {
     const insertAt = charset.index + charset[0].length;
     return html.slice(0, insertAt) + '\n' + guard + html.slice(insertAt);
