@@ -3331,3 +3331,34 @@ a.tool .tool-name-label { flex: 1; min-width: 0; }
     min-height: 30px;
   }
 }
+
+/* Homepage QA remediation — keep the root scrollport clipped to the viewport.
+   The browser audit found a 2–3px document overflow at every tested width even
+   though no regular card element was outside the viewport. */
+html {
+  overflow-x: clip !important;
+}
+
+/* Anchor the mega-menu to the viewport, not the narrow nav-item containing it.
+   This prevents the open desktop panel from extending past the right edge. */
+@media (min-width: 1024px) {
+  .site-header .nav-item.has-mega .mega {
+    position: fixed !important;
+    top: calc(var(--ilpdf-header-h, 68px) + 10px) !important;
+    right: clamp(10px, calc((100vw - 1240px) / 2), 28px) !important;
+    left: auto !important;
+    width: min(1240px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - var(--ilpdf-header-h, 68px) - 24px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    transform: translateY(-6px) !important;
+  }
+  .site-header .nav-item.has-mega:hover .mega,
+  .site-header .nav-item.has-mega:focus-within .mega,
+  .site-header .nav-item.has-mega.is-open .mega {
+    transform: translateY(0) !important;
+  }
+}
+
