@@ -11,6 +11,7 @@ const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0').filter(Boolean);
 const directFiles = [];
 const externalRefs = [];
+const layoutRefs = [];
 let scanned = 0;
 
 for (const relative of files) {
@@ -22,10 +23,14 @@ for (const relative of files) {
   const lines = content.split(/\r?\n/);
   const matches = [];
   lines.forEach((line, index) => {
+    if (/cat-image-tools|cat-utilities|home-cat-section|ilpdf-announcement-intro/.test(line)) {
+      layoutRefs.push({ path: relative, line: index + 1, text: line.trim().slice(0, 180) });
+    }
     if (/laba|homepage-lazy-loader/i.test(line)) {
       matches.push({ line: index + 1, text: line.trim().slice(0, 200) });
     }
   });
+  if (relative === 'scripts/laba-removal-audit.js') continue;
   if (!matches.length) continue;
   const dedicated = /(^|\/)laba([-/]|\.)|laba-/i.test(relative) ||
     /(^|\/)laba\//i.test(relative) ||
