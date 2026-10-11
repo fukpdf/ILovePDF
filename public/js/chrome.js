@@ -954,10 +954,9 @@ function ensureSharedShell() {
   const isHomepage = path === '/' || path === '/index.html';
   const existingHeader = currentHeaders[0];
   const existingNav = existingHeader && existingHeader.querySelector('#nav');
-  const hasCompleteHomepageNav = !!(
-    isHomepage &&
-    currentHeaders.length === 1 &&
-    existingNav &&
+  const preserveHomepageHeader = !!(isHomepage && existingHeader && existingNav);
+  const preserveHomepageNav = !!(
+    preserveHomepageHeader &&
     existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
     existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
     existingNav.querySelector('#nav-organize .nav-btn') &&
@@ -965,11 +964,12 @@ function ensureSharedShell() {
     existingNav.querySelector('#all-tools-btn') &&
     existingNav.querySelector('#all-tools-btn').closest('.nav-item')
   );
-  window.__ILOVE_PRESERVE_SERVER_NAV = hasCompleteHomepageNav;
+  window.__ILOVE_PRESERVE_SERVER_HEADER = preserveHomepageHeader;
+  window.__ILOVE_PRESERVE_SERVER_NAV = preserveHomepageNav;
   window.__ILOVE_NAV_WIRED = false;
-  if (hasCompleteHomepageNav) {
-    // The current server-rendered navigation already contains the complete
-    // canonical controls; keep it in place and only wire its interactions.
+  if (preserveHomepageHeader) {
+    // Preserve the visible server-rendered header. Remove only extra duplicate shells.
+    currentHeaders.slice(1).forEach(current => current.remove());
   } else if (currentHeaders.length) {
     currentHeaders.forEach((current, index) => {
       if (index === 0) current.replaceWith(canonicalHeader);
