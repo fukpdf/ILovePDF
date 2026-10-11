@@ -347,19 +347,54 @@ try {
       })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8) : [];
       const pageElement = document.querySelector('.page');
       const pageRect = pageElement?.getBoundingClientRect();
-      const toolsGrid = document.querySelector('.tools-grid');
-      const gridRect = toolsGrid?.getBoundingClientRect();
-      const gridColumns = toolsGrid ? getComputedStyle(toolsGrid).gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0;
+      // Multiple templates can contain a hidden/empty .tools-grid. Select the
+      // widest grid that actually contains visible tool cards; fall back to the
+      // visible content shell and infer columns from real card positions.
+      const gridCandidates = [...document.querySelectorAll('.tools-grid')]
+        .map(element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return { element, rect, style, cardCount: element.querySelectorAll('a.tool').length };
+        })
+        .filter(item => item.cardCount > 0 && item.rect.width > 0 && item.style.display !== 'none' && item.style.visibility !== 'hidden');
+      gridCandidates.sort((a, b) => b.rect.width - a.rect.width);
+      const chosenGrid = gridCandidates[0] || null;
+      const contentShell = [...document.querySelectorAll('.home-cat-inner, .content, #tools-root')]
+        .map(element => ({ element, rect: element.getBoundingClientRect() }))
+        .filter(item => item.rect.width > 0)
+        .sort((a, b) => b.rect.width - a.rect.width)[0];
+      const gridRect = chosenGrid?.rect || contentShell?.rect || null;
+      const gridColumns = chosenGrid
+        ? chosenGrid.style.gridTemplateColumns.split(/\s+/).filter(Boolean).length
+        : (() => {
+            const cards = [...document.querySelectorAll('#cat-pdf-tools a.tool')].filter(element => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+            });
+            const columnStarts = [];
+            for (const card of cards) {
+              const left = Math.round(card.getBoundingClientRect().left);
+              if (!columnStarts.some(value => Math.abs(value - left) <= 4)) columnStarts.push(left);
+            }
+            return columnStarts.length;
+          })();
+      const vw = document.documentElement.clientWidth;
       const expectedColumns = vw <= 768 ? 2 : 3 + (vw > 1280 ? 1 : 0);
       const viewportCoverage = {
         pageFound: !!pageElement,
         pageLeft: pageRect ? Math.round(pageRect.left * 10) / 10 : null,
         pageRight: pageRect ? Math.round(pageRect.right * 10) / 10 : null,
         pageWidth: pageRect ? Math.round(pageRect.width * 10) / 10 : null,
-        gridFound: !!toolsGrid,
+        gridFound: !!gridRect,
         gridWidth: gridRect ? Math.round(gridRect.width * 10) / 10 : null,
         gridCoverage: gridRect && vw ? Math.round(gridRect.width / vw * 1000) / 1000 : 0,
         gridColumns,
+        gridCandidates: gridCandidates.slice(0, 3).map(item => ({
+          width: Math.round(item.rect.width * 10) / 10,
+          display: item.style.display,
+          cards: item.cardCount
+        })),
         expectedColumns
       };
       return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow, viewportCoverage };
