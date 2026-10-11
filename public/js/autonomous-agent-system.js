@@ -335,11 +335,6 @@
     // ── Step executors ──────────────────────────────────────────────────────
     var _executors = {
       analyze: async function(step, ctx) {
-        var LAF = sys('LabaAiFoundation');
-        if (LAF && LAF.UnifiedDocumentContext && ctx.docId) {
-          var doc = LAF.UnifiedDocumentContext.get(ctx.docId);
-          if (doc) return { pageCount: doc.pages||0, textLen: (doc.ocrText||'').length, tables: (doc.tables||[]).length };
-        }
         return { analyzed: true };
       },
       ocr: async function(step, ctx) {
