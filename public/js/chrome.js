@@ -908,7 +908,7 @@ function ensureSharedShell() {
   headerHolder.innerHTML = SHARED_HEADER_HTML.trim();
   const canonicalHeader = headerHolder.firstElementChild;
   const currentHeaders = [...document.querySelectorAll('header.site-header')];
-  const path = (window.location.pathname || '/').replace(/\\/+$/, '') || '/';
+  const path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
   const isHomepage = path === '/' || path === '/index.html';
   const existingHeader = currentHeaders[0];
   const existingNav = existingHeader && existingHeader.querySelector('#nav');
