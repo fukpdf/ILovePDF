@@ -70,6 +70,17 @@ try {
     return cards.length >= 41 && cards.every(card => card.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]'));
   }, null, { timeout: 10000 }).catch(() => fail('homepage cards did not all expose icon markup after render stabilization'));
 
+  // Wait past the old 4-second idle threshold to prove the heavy AI/Laba stack stays unloaded.
+  await page.waitForTimeout(4500);
+  const heavyStackLoaded = await page.evaluate(() => {
+    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/laba-ai-chat.js', '/js/runtime-global-certification.js'];
+    return performance.getEntriesByType('resource').map(entry => {
+      try { return new URL(entry.name).pathname; } catch { return ''; }
+    }).filter(path => sentinels.some(sentinel => path.endsWith(sentinel)));
+  });
+  if (heavyStackLoaded.length) fail('homepage auto-loaded heavy AI/Laba scripts without interaction: ' + heavyStackLoaded.join(', '));
+  else report('heavy AI/Laba stack remains unloaded after 4.5 seconds without chat interaction');
+
   const initial = await page.evaluate(() => ({
     title: document.title,
     h1Count: document.querySelectorAll('h1').length,
@@ -146,16 +157,7 @@ try {
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
 
 
-  // Wait past the old 4-second idle threshold to prove the heavy AI/Laba stack stays unloaded.
-  await page.waitForTimeout(4500);
-  const heavyStackLoaded = await page.evaluate(() => {
-    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/laba-ai-chat.js', '/js/runtime-global-certification.js'];
-    return performance.getEntriesByType('resource').map(entry => {
-      try { return new URL(entry.name).pathname; } catch { return ''; }
-    }).filter(path => sentinels.some(sentinel => path.endsWith(sentinel)));
-  });
-  if (heavyStackLoaded.length) fail('homepage auto-loaded heavy AI/Laba scripts without interaction: ' + heavyStackLoaded.join(', '));
-  else report('heavy AI/Laba stack remains unloaded after 4.5 seconds without chat interaction');
+
 
   const labMetrics = await page.evaluate(() => {
     const paints = performance.getEntriesByType('paint');
