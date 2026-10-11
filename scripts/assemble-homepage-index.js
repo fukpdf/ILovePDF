@@ -96,7 +96,7 @@ function main() {
   const i18nExtMove = moveExternalScriptAfter(
     html,
     /i18n-ext[.]js/i,
-    /\\/js\\/home[.]js(?:[?#]|["'])/i
+    /\/js\/home[.]js(?:[?#]|["'])/i
   );
   html = i18nExtMove.html;
 
