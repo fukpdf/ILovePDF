@@ -141,3 +141,10 @@ A dedicated CI smoke test now starts the real Express server on an isolated loca
 ## Chunk K — Canonical footer ordering and interaction
 
 The browser audit found the footer language menu could be covered by the homepage blog section when opened upward. The shared shell previously replaced only the first footer in its existing location. It now removes any existing footer copies and appends exactly one canonical footer after all lower-page content. The browser audit checks one footer and verifies it follows the lower sections before exercising the language selector. The footer also gets an explicit stacking level. A second `.footer` rule had `overflow:hidden`, which clipped the upward-opening language panel despite its z-index; that clipping is now removed from the footer itself and constrained to the decorative watermark pseudo-element instead.
+
+
+## Chunk L — Pre-render all homepage cards into the initial HTML
+
+**Measured finding:** The layout-shift trace showed the three category shells initially arriving without their cards; `home.js` inserted the card markup roughly a quarter-second later. The PDF category expanded and the image/utility sections collapsed during that render, producing a CLS spike of 0.372 in one run. This was the real “HTML/CSS arriving in stages” behavior the user reported.
+
+**Implementation:** The existing `TOOL_GROUPS`, `TOOL_ICON_SVGS`, and `CAT_CONFIG` data are now read by the build-time assembler to render the same 41 cards, descriptions, routes, badges, and inline SVG icons into the assembled HTML. The renderer is data-driven from the existing source files; it does not duplicate the registry or modify tool engines. At runtime, `home.js` recognizes matching cards and leaves them untouched. A static audit now fails if all 41 cards are not present in the initial HTML. Responsive overflow diagnostics also report the exact elements exceeding the viewport.

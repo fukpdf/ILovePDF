@@ -79,7 +79,8 @@ try {
         tag: node.tagName || '',
         id: node.id || '',
         className: typeof node.className === 'string' ? node.className : '',
-        text: (node.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 45)
+        text: (node.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 45),
+        toolCards: node.querySelectorAll ? node.querySelectorAll('a.tool').length : 0
       };
     };
     const watchedNode = node => {
@@ -300,6 +301,14 @@ try {
         return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
       });
       const outside = cards.filter(r => r.width <= 0 || r.left < -1 || r.right > vw + 1);
+      const overflowElements = [...document.querySelectorAll('body *')].map(element => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return { tag: element.tagName, id: element.id || '', className: typeof element.className === 'string' ? element.className : '',
+          left: Math.round(rect.left * 10) / 10, right: Math.round(rect.right * 10) / 10, width: Math.round(rect.width * 10) / 10,
+          position: style.position, overflowX: style.overflowX };
+      }).filter(item => item.width > 0 && (item.left < -1 || item.right > vw + 1))
+        .sort((left, right) => (right.right - vw) - (left.right - vw)).slice(0, 8);
       const hidden = cards.filter(r => !r.visible).length;
       let overlaps = 0;
       for (let i = 0; i < cards.length; i++) {
@@ -309,7 +318,7 @@ try {
               Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) overlaps++;
         }
       }
-      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length };
+      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements };
     });
     if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport)');
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
