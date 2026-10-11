@@ -172,6 +172,27 @@ for (const profile of profiles) {
     }));
   }
 }
+const candidateFailures = [];
+for (const profile of profiles) {
+  const rows = results.filter(row => row.profile === profile.name && row.target === 'Local candidate build' && row.status === 200);
+  const median = key => {
+    const values = rows.map(row => row[key]).filter(value => typeof value === 'number' && Number.isFinite(value)).sort((a, b) => a - b);
+    return values.length ? values[Math.floor(values.length / 2)] : null;
+  };
+  if (!rows.length) {
+    candidateFailures.push(profile.name + ': no successful local candidate samples');
+    continue;
+  }
+  if (median('apiRequestCount') !== 0) candidateFailures.push(profile.name + ': static candidate still makes ' + median('apiRequestCount') + ' same-origin API request(s)');
+  if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the benchmark's first-view window ended');
+}
+if (candidateFailures.length) {
+  console.error('LOCAL_CANDIDATE_PERFORMANCE_REGRESSION: ' + candidateFailures.join('; '));
+  process.exitCode = 1;
+} else {
+  console.log('LOCAL_CANDIDATE_PERFORMANCE_GUARD: no same-origin API traffic or AdSense transfer during initial-view measurement');
+}
+
 const incompleteComparisons = profiles.some(profile => targets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200)));
 if (incompleteComparisons) {
   console.warn('LIVE_BENCHMARK_INCOMPLETE: at least one site/profile had no successful navigation. Do not compare its challenge/error page metrics with the other site. External bot protection or availability can block live lab tests; this diagnostic does not fail the homepage regression gate.');
