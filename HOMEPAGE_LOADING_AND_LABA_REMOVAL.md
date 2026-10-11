@@ -48,27 +48,27 @@ Earlier CI measurements on this branch recorded the following before/after sampl
 3. Keep the homepage renderer, tool registry, navigation, translations, auth, ads, and PDF tool routes intact.
 4. Add build-time and browser assertions that the assembled homepage contains no Laba widget, Laba stylesheet, or Laba lazy-loader request.
 
-### Chunk C — Remove dedicated Laba implementation — IN PROGRESS
+### Chunk C — Remove dedicated Laba implementation — IMPLEMENTED, RE-AUDITED
 1. Dedicated widget, stylesheet, knowledge JSON, lazy loader, and Laba-only JS modules have been deleted.
 2. Active shared AI integrations and audit scripts no longer use Laba as a fallback; generic vector operations retain deterministic local fallback behavior.
 3. Runtime manifests, security allowlists, SEO path allowlists, tool-page markup, and active architecture docs have been updated.
 4. Remaining references must be classified as historical documentation, removal tests/scanners, or any unexpected active code before final sign-off.
 
-### Chunk D — First-render stabilization
+### Chunk D — First-render stabilization — IMPLEMENTED, BROWSER VERIFIED
 1. Ensure the delivered HTML already contains the primary heading, hero, categories, cards, and layout skeleton before non-critical scripts execute.
 2. Make critical CSS/layout available before first paint; defer non-critical CSS/JS only when this does not create a flash of unstyled content.
 3. Preserve image/font dimensions and reserve space for dynamic content.
 4. Avoid an extra client-side fetch/decompress/document-replacement step on the production path.
 5. Compare first paint, FCP/LCP/CLS, resource requests, initial JS/CSS bytes, and screenshots against the current baseline.
 
-### Chunk E — Full verification and documentation
+### Chunk E — Full verification and documentation — DEDICATED WORKFLOW PASSED; MERGE/POST-MERGE VERIFICATION PENDING
 1. Build/assemble from a clean checkout.
 2. Run static/source, route/link, and asset checks.
 3. Run Chromium browser tests at 320, 360, 375, 390, 414, 430, 600, 768, 820, 1024, 1280, 1366, 1440, 1600, and 1920 px.
 4. Run axe accessibility checks; fix real violations instead of suppressing them.
 5. Verify header/mobile menu, every tool card/link, footer, no horizontal overflow, no hidden cards, no Laba UI/network requests, no console errors, and no engine regressions.
 6. Repeat the checks after fixes and update this root-level document and the existing audit log.
-7. Keep the PR draft and do not merge to `main` until evidence is complete. The deployment workflow can deploy Firebase Hosting on a push to `main`.
+7. The dedicated homepage workflow has passed. Review the unrelated existing CI failures and deployment consequences, then merge the reviewed PR to `main` and repeat the smoke/browser checks against the merged revision.
 
 ## Definition of done
 
@@ -83,8 +83,8 @@ Earlier CI measurements on this branch recorded the following before/after sampl
 
 ## Execution log
 
-- 2026-10-11: Added a read-only repository Laba-reference inventory script and wired it into the homepage audit workflow. Awaiting CI output before any Laba implementation deletion.
-- 2026-10-11: The latest browser audit exposed a test-script bug (a Node-side check referenced the browser-only `document` global). The script now uses IDs captured in the browser snapshot; rerun is required to confirm the fix.
+- 2026-10-11: Read-only scan and dedicated homepage workflow passed: 1,026 tracked text files scanned; no dedicated Laba paths or active application references remain. All remaining references are documented historical records, test/removal guards, or workflow references.
+- 2026-10-11: Fixed the browser audit's Node/browser scope error by using IDs captured in the browser DOM snapshot. Subsequent static, route, responsive, accessibility, and Laba checks passed.
 
 
 ## First-render resource inventory — implementation evidence
