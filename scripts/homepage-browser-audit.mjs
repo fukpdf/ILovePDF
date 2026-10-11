@@ -172,7 +172,7 @@ try {
       rel: a.getAttribute('rel') || ''
     })),
     cards: [...document.querySelectorAll('a.tool')].map(a => ({
-      text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
+      text: (a.innerText || a.getAttribute('aria-label') || a.textContent || '').trim(),
       href: a.getAttribute('href'),
       title: (a.querySelector('.tool-name, .tool-title, h3, h4')?.textContent || '').trim(),
       description: (a.querySelector('.tool-desc, .tool-description, p')?.textContent || '').trim(),
