@@ -53,7 +53,7 @@ const staticChecks = [
   ['homepage contains universal chrome loader', /src=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
-  ['assembler validates the full HTML output', assembler.includes('decompressed output is not HTML')],
+  ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
   ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)]
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
@@ -133,7 +133,7 @@ if (iconProblems.length) iconProblems.forEach(problem => fail(problem));
 else pass('all ' + cardObjects.length + ' homepage cards define icons');
 
 // Only inspect initial script URLs; no engine files are modified by this audit.
-const heavyPattern = /(?:pdf(?:\\.min)?\\.js|pdfjs|pdf[-_.]?lib|pdfium|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/])/i;
+const heavyPattern = /(?:pdf([.]min)?[.]js|pdfjs|pdf[-_.]?lib|pdfium|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/])/i;
 const heavyInitialScripts = scriptSources.filter(item => heavyPattern.test(item.src));
 if (heavyInitialScripts.length) heavyInitialScripts.forEach(item => fail('heavy processing resource is in initial homepage script list: ' + item.src));
 else pass('no known heavy PDF/OCR/conversion engine appears in initial homepage script URLs');
