@@ -56,6 +56,9 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   // The Firebase static homepage has no API backend to receive their events.
   '/js/runtime-analytics.js',
   '/js/runtime-identity.js',
+  '/js/analytics-sync.js',
+  '/js/runtime-recovery.js',
+  '/js/runtime-perf-safety.js',
 ]);
 
 function dedupeLocalStylesheets(html) {
@@ -95,8 +98,6 @@ function dedupeLocalStylesheets(html) {
  *   homepage sections around on slower or cold-cache visits.
  */
 function stabilizeHomepageFirstRender(html) {
-  // Match the actual nav structure rather than requiring a particular wrapper
-  // class: server-rendered header wrappers differ across assembled homepage revisions.
   const hasCompleteServerNav =
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
@@ -104,26 +105,31 @@ function stabilizeHomepageFirstRender(html) {
     /id=["']all-tools-btn["']/i.test(html) &&
     /class=["'][^"']*\bnav-direct\b[^"']*["']/i.test(html);
   let navPreservationEnabled = false;
-
   if (hasCompleteServerNav && /<\/head>/i.test(html)) {
-    // Place the flag in <head> so it exists before deferred chrome.js executes.
     html = html.replace(/<\/head>/i,
       '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\n</head>');
     navPreservationEnabled = true;
   }
-
   const beforeFontPolicy = html;
   html = html.replace(
     /((?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
     '$1optional'
   );
-
-  return {
-    html,
-    serverNavFound: hasCompleteServerNav,
-    navPreservationEnabled,
-    fontDisplayAdjusted: html !== beforeFontPolicy
-  };
+  const fontDisplayAdjusted = html !== beforeFontPolicy;
+  let fontStylesheetDeferred = false;
+  html = html.replace(/<link\b[^>]*>/gi, tag => {
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
+    const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+    if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
+        /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href)) return '';
+    if (rel.split(/\s+/).includes('stylesheet') &&
+        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
+      fontStylesheetDeferred = true;
+      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+    }
+    return tag;
+  });
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -430,6 +436,9 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.fontDisplayAdjusted) {
     console.log('[assemble-index] changed Google Fonts display=swap to display=optional to reduce late font reflow');
+  }
+  if (firstRender.fontStylesheetDeferred) {
+    console.log('[assemble-index] made Google Fonts stylesheet non-blocking so system fallback can paint first');
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.

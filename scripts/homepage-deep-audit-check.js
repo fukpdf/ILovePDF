@@ -120,7 +120,9 @@ const staticChecks = [
   ['homepage navigation preservation is enabled before paint or immediately after first render', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*!!\(/.test(chrome)],
   ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
   ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
-  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)]
+  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)],
+  ['Google Fonts stylesheet is non-blocking and does not preconnect during first paint', (() => { const visibleHtml = html.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ''); return /<link\b(?=[^>]*\brel=["']preload["'])(?=[^>]*\bas=["']style["'])(?=[^>]*\bfetchpriority=["']low["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\brel=["']stylesheet["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\brel=["'](?:preconnect|dns-prefetch)["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com)[^>]*>/i.test(visibleHtml); })()],
+  ['tool page Google Fonts stylesheet is non-blocking', read('public/tool.html').includes('fetchpriority="low"') && read('public/tool.html').includes("this.rel='stylesheet'")],
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
@@ -143,7 +145,8 @@ const toolOnlyHomepageScripts = new Set([
   '/js/runtime-ai-scheduler.js', '/js/runtime-worker-factory.js',
   '/js/runtime-wasm-registry.js', '/js/runtime-compression-presets.js',
   '/js/runtime-pinned-tools.js', '/js/runtime-tool-engagement.js',
-  '/js/runtime-failed-log.js'
+  '/js/runtime-failed-log.js',
+  '/js/analytics-sync.js', '/js/runtime-recovery.js', '/js/runtime-perf-safety.js'
 ]);
 const toolOnlyScriptRefs = scriptSources
   .map(item => item.src.split(/[?#]/, 1)[0])

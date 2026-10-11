@@ -55,11 +55,9 @@
   <link rel="stylesheet" href="/css/economy.css">
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
-  <!-- Resource hints: preconnect for fonts, prefetch most-used workers -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="//fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Worker prefetch remains; Google Fonts is loaded non-blocking below. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
   <!-- Worker prefetch: browser downloads these during idle so the first tool
        dispatch hits cache instead of the network cold-start.
        ?v=__BUILD_ID__ ensures stale worker scripts are never served after a deploy. -->
