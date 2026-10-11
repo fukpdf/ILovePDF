@@ -305,13 +305,6 @@
         return '<div class="aosu-search-result" title="' + _esc(r.docId || '') + '"><span class="asr-score">' + (r.score * 100).toFixed(0) + '%</span>' + _esc((r.chunk || '').slice(0, 90)) + '…</div>';
       }).join('');
 
-      // Click handler — open Laba AI chat with the result
-      container.querySelectorAll('.aosu-search-result').forEach(function (el, i) {
-        el.addEventListener('click', function () {
-          var LAC = sys('LabaAiChat');
-          if (LAC) { LAC.send('Tell me more about: ' + results[i].chunk.slice(0, 80)); }
-        });
-      });
     }
 
     return { build: build };
@@ -494,12 +487,8 @@
   // ═══════════════════════════════════════════════════════════════════════════
   var DocumentNavigator = (function () {
     function getActiveDoc() {
-      // Try to find from LabaAiFoundation context
-      var LAF = sys('LabaAiFoundation');
-      if (LAF && LAF.UnifiedDocumentContext) {
-        var ids = LAF.UnifiedDocumentContext.list();
-        return ids.length ? ids[ids.length - 1] : null;
-      }
+      // Active document identity is supplied by the owning tool workflow.
+      // This shared UI must not depend on a global chatbot-specific context.
       return null;
     }
     return { getActiveDoc: getActiveDoc };
@@ -516,10 +505,6 @@
           WorkspaceManager.expand('search-panel');
           setTimeout(function () { var inp = document.getElementById('aosu-search-input'); if (inp) inp.focus(); }, 100);
           e.preventDefault();
-          break;
-        case "'":  // Ctrl+' → open AI chat
-          var LAC = sys('LabaAiChat');
-          if (LAC) { LAC.toggle(); e.preventDefault(); }
           break;
         case 'w':  // Ctrl+W → toggle workflow panel
           WorkspaceManager.toggle('workflow-panel');
@@ -552,12 +537,12 @@
     // AiMemoryExplorer.build();   — developer memory panel removed
     // ─────────────────────────────────────────────────────────────────
 
-    // Keyboard shortcuts (Ctrl+' still opens Laba AI chat)
+    // Keyboard shortcuts remain limited to the generic search and workflow panels.
     _bindShortcuts();
 
     // No body padding offset needed (status bar not mounted)
 
-    log('AiDocumentOSUI v' + VERSION + ' ready — Ctrl+/ for search, Ctrl+\' for AI chat, Ctrl+W for workflow');
+    log('AiDocumentOSUI v' + VERSION + ' ready — Ctrl+/ for search, Ctrl+W for workflow');
   }
 
   if (document.readyState === 'loading') {
