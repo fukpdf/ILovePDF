@@ -85,6 +85,13 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
     fail('homepage still contains a Laba or delayed announcement asset reference after cleanup');
     return null;
   }
+  const remainingToolOnly = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
+    .map(match => match[1].split(/[?#]/, 1)[0])
+    .filter(path => TOOL_ONLY_HOMEPAGE_SCRIPTS.has(path));
+  if (remainingToolOnly.length) {
+    fail('homepage still includes tool-only runtime scripts: ' + remainingToolOnly.join(', '));
+    return null;
+  }
   return { html, changed: html !== before };
 }
 
