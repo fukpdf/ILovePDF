@@ -104,3 +104,12 @@ The browser audit now records the served document’s byte length, linked styles
 ### Comparison method
 
 Compare the **actual served page** at the same viewport and browser conditions, not only source files. Capture the resource inventory, first-paint screenshots, FCP/LCP/CLS, request/byte counts, browser console, all 41 cards and links, and axe results. The official iLovePDF homepage is a UX reference; this work does not assume access to its private source or copy its proprietary implementation. INP is reported as `NOT MEASURED` unless a genuine interaction metric is captured.
+
+
+## Chunk F — Remove the source-loader flash from Node-hosted deployments
+
+**Finding:** The Node/Express server served `public/index.html` directly from `express.static`, while the committed file was the four-chunk runtime loader. Firebase deploy already runs the assembler, but Node/Replit/Railway startup did not guarantee that step. That made the user-visible loading sequence depend on which hosting path was used.
+
+**Implementation:** The existing assembler is now exported as a reusable function and is called by `server.js` before static middleware can serve files. If assembly fails, startup fails rather than serving a misleading loader page. The PDF/tool engines and their routes are unchanged. The source chunks remain the source of truth, and the existing assembler still owns homepage-only cleanup.
+
+**Verification required:** production artifact assembly, Node server startup, HTTP response contains full HTML and no `DecompressionStream` loader, all homepage browser tests, and regression checks. This chunk is not considered complete until those checks pass.

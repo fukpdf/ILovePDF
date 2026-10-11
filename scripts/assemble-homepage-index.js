@@ -101,18 +101,18 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
   return { html, changed: html !== before };
 }
 
-function main() {
+export function assembleHomepageIndex() {
   const parts = [];
   for (let i = 0; i < 4; i++) {
     const chunkPath = path.join(CHUNK_DIR, 'z' + i + '.b64');
     if (!fs.existsSync(chunkPath)) {
       fail('missing chunk: ' + chunkPath);
-      return;
+      return false;
     }
     const chunk = fs.readFileSync(chunkPath, 'utf8').replace(/\s+/g, '');
     if (!chunk || !/^[A-Za-z0-9+/]*={0,2}$/.test(chunk)) {
       fail('chunk is empty or invalid base64: ' + chunkPath);
-      return;
+      return false;
     }
     parts.push(chunk);
   }
@@ -122,33 +122,33 @@ function main() {
     html = zlib.inflateSync(Buffer.from(parts.join(''), 'base64')).toString('utf8');
   } catch (error) {
     fail('zlib decompress failed: ' + error.message);
-    return;
+    return false;
   }
 
   if (!/<!doctype\s+html/i.test(html)) {
     fail('decompressed output is not a full HTML document');
-    return;
+    return false;
   }
   for (const required of ['/js/chrome.js', '/js/home.js', 'home-fast-boot.js']) {
     if (!html.includes(required)) {
       fail('missing required homepage reference: ' + required);
-      return;
+      return false;
     }
   }
   if (html.includes('DecompressionStream')) {
     fail('decompressed output still contains the runtime chunk loader');
-    return;
+    return false;
   }
 
   const chromeAt = html.indexOf('/js/chrome.js');
   const runtimeAt = html.indexOf('/js/runtime-protection.js');
   if (runtimeAt !== -1 && chromeAt > runtimeAt) {
     fail('critical-path order invalid: chrome.js appears after runtime-protection.js');
-    return;
+    return false;
   }
 
   const cleanup = removeHomepageOnlyOverlaysAndLaba(html);
-  if (!cleanup) return;
+  if (!cleanup) return false;
   html = cleanup.html;
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.
@@ -184,7 +184,7 @@ function main() {
     .filter(match => !/\bdefer\b/i.test(match[0]) && !/\basync\b/i.test(match[0]));
   if (blockingScripts.length) {
     fail('homepage still has parser-blocking external scripts: ' + blockingScripts.length);
-    return;
+    return false;
   }
 
   fs.writeFileSync(OUT, html, 'utf8');
@@ -194,6 +194,9 @@ function main() {
   if (homeMove.moved) console.log('[assemble-index] chrome.js now executes before the homepage renderer');
   if (cleanup.changed) console.log('[assemble-index] removed homepage-only Laba/announcement assets and tool-only runtime modules');
   if (i18nExtMove.moved) console.log('[assemble-index] homepage renderer now executes before the extended translation payload');
+  return true;
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (!assembleHomepageIndex()) process.exitCode = 1;
+}

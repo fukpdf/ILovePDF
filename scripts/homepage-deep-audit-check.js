@@ -53,6 +53,7 @@ try {
 const chrome = read('public/js/chrome.js');
 const config = read('public/js/tools-config.js');
 const assembler = read('scripts/assemble-homepage-index.js');
+const serverSource = read('server.js');
 
 const metaDescriptionTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]).find(tag => /\bname=["']description["']/i.test(tag));
 const hasMetaDescription = !!metaDescriptionTag && /\bcontent=["'][^"']{20,}["']/i.test(metaDescriptionTag);
@@ -74,6 +75,7 @@ const staticChecks = [
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
   ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
+  ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
   ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)]
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
