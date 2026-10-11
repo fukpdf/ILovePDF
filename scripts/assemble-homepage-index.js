@@ -83,6 +83,45 @@ function dedupeLocalStylesheets(html) {
   return { html, removed: duplicates.length };
 }
 
+/**
+ * Stabilize the first render before the assembled HTML is written:
+ * - Keep the server-rendered nav in place and hydrate its dropdowns. Rebuilding
+ *   the nav in chrome.js changes link widths/positions after first paint.
+ * - Avoid a late Google-font swap changing nav/button widths and pushing the
+ *   homepage sections around on slower or cold-cache visits.
+ */
+function stabilizeHomepageFirstRender(html) {
+  // Match the actual nav structure rather than requiring a particular wrapper
+  // class: server-rendered header wrappers differ across assembled homepage revisions.
+  const hasCompleteServerNav =
+    /id=["']nav["']/i.test(html) &&
+    /id=["']nav-organize["']/i.test(html) &&
+    /id=["']nav-convert["']/i.test(html) &&
+    /id=["']all-tools-btn["']/i.test(html) &&
+    /class=["'][^"']*\bnav-direct\b[^"']*["']/i.test(html);
+  let navPreservationEnabled = false;
+
+  if (hasCompleteServerNav && /<\/head>/i.test(html)) {
+    // Place the flag in <head> so it exists before deferred chrome.js executes.
+    html = html.replace(/<\/head>/i,
+      '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\n</head>');
+    navPreservationEnabled = true;
+  }
+
+  const beforeFontPolicy = html;
+  html = html.replace(
+    /((?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
+    '$1optional'
+  );
+
+  return {
+    html,
+    serverNavFound: hasCompleteServerNav,
+    navPreservationEnabled,
+    fontDisplayAdjusted: html !== beforeFontPolicy
+  };
+}
+
 function removeHomepageOnlyOverlaysAndLaba(html) {
   const before = html;
   // Keep tool-runtime/federation/worker modules on tool routes. The homepage
@@ -99,6 +138,12 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
   // standalone handler would duplicate events on the homepage.
   html = html.replace(
     /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/footer-lang\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
+    ''
+  );
+  // The supplemental locale extension is a ~140KB payload. Base locale JSON
+  // already renders the homepage; load this extension only for non-English use.
+  html = html.replace(
+    /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/i18n-ext\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
     ''
   );
   // These scripts/styles belong to the optional Laba chatbot or the one-off
@@ -325,6 +370,20 @@ export function assembleHomepageIndex() {
   html = stylesheetCleanup.html;
   if (stylesheetCleanup.removed) {
     console.log('[assemble-index] removed ' + stylesheetCleanup.removed + ' duplicate local stylesheet link(s)');
+  }
+
+  // Prevent post-paint navigation replacement and late font-swap reflow.
+  const firstRender = stabilizeHomepageFirstRender(html);
+  html = firstRender.html;
+  if (firstRender.serverNavFound && !firstRender.navPreservationEnabled) {
+    fail('server-rendered homepage nav found but preservation flag could not be injected');
+    return false;
+  }
+  if (firstRender.navPreservationEnabled) {
+    console.log('[assemble-index] enabled server-nav preservation before deferred chrome.js');
+  }
+  if (firstRender.fontDisplayAdjusted) {
+    console.log('[assemble-index] changed Google Fonts display=swap to display=optional to reduce late font reflow');
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.

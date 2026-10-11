@@ -44,6 +44,13 @@ try {
     throw new Error('public/index.html is still the runtime loader instead of the assembled production artifact');
   }
   pass('public/index.html is the assembled production artifact, not the runtime loader');
+  if (/<script\b[^>]*\bsrc=["'][^"']*\/js\/i18n-ext\.js/i.test(html)) {
+    fail('supplemental locale payload is still in the homepage initial script list');
+  } else if (!/function loadExtendedI18n\s*\(/.test(fs.readFileSync(path.join(PUBLIC, 'js/chrome.js'), 'utf8'))) {
+    fail('homepage locale payload was removed without a lazy loader');
+  } else {
+    pass('supplemental locale payload is lazy-loaded, not part of initial homepage requests');
+  }
 } catch (error) {
   fail(error.message);
   console.error('Homepage deep audit: BLOCKED (cannot inspect assembled artifact)');
@@ -51,9 +58,12 @@ try {
 }
 
 const chrome = read('public/js/chrome.js');
+const homeSource = read('public/js/home.js');
 const config = read('public/js/tools-config.js');
 const assembler = read('scripts/assemble-homepage-index.js');
 const serverSource = read('server.js');
+const firebaseConfig = JSON.parse(read('firebase.json'));
+const packageConfig = JSON.parse(read('package.json'));
 
 const metaDescriptionTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]).find(tag => /\bname=["']description["']/i.test(tag));
 const hasMetaDescription = !!metaDescriptionTag && /\bcontent=["'][^"']{20,}["']/i.test(metaDescriptionTag);
@@ -95,8 +105,14 @@ const staticChecks = [
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
   ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
+  ['Firebase Hosting assembles the static homepage before deployment', String(firebaseConfig.hosting?.predeploy || '').includes('npm run build')],
+  ['npm build runs the homepage assembler rather than a placeholder command', packageConfig.scripts?.build === 'npm run build:homepage' && String(packageConfig.scripts?.['build:homepage'] || '').includes('assemble-homepage-index.js')],
   ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
-  ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)]
+  ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)],
+  ['homepage navigation preservation is enabled before paint or immediately after first render', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*!!\(/.test(chrome)],
+  ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
+  ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
+  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)]
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
@@ -140,8 +156,11 @@ const forbiddenHomepageRefs = /(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-lo
 if (forbiddenHomepageRefs.test(html)) fail('assembled homepage still references Laba assets or delayed announcement modal');
 else pass('assembled homepage contains no Laba widget, Laba lazy loader, or delayed announcement assets');
 const i18nExtAt = scriptIndex('i18n-ext.js');
-if (homeAt >= 0 && i18nExtAt >= 0 && homeAt < i18nExtAt) pass('homepage renderer executes before extended translation payload');
-else fail('extended translation payload is ahead of the homepage renderer or missing');
+if (i18nExtAt === -1 && /function\s+loadExtendedI18n\s*\(/.test(chrome)) {
+  pass('supplemental locale payload is excluded from initial HTML and loaded on demand');
+} else {
+  fail('supplemental locale payload must be lazy-loaded outside the initial script list');
+}
 if (scriptIndex('footer-lang.js') < 0) pass('duplicate footer language handler is excluded from homepage');
 else fail('duplicate footer language handler remains on homepage');
 
@@ -170,7 +189,7 @@ if (!groupsMatch) {
     .filter(source => /\bname\s*:/.test(source) && /\bicon\s*:/.test(source));
 }
 const readField = (source, field) => {
-  const match = source.match(new RegExp("\\b" + field + "\\s*:\\s*(['\"])(.*?)\\1"));
+  const match = source.match(new RegExp("\\b" + field + "\s*:\s*(['\"])(.*?)\\1"));
   return match?.[2] ?? null;
 };
 if (!cardObjects.length) fail('no tool cards found in TOOL_GROUPS');
@@ -210,6 +229,26 @@ else pass('all ' + cardObjects.length + ' homepage cards have matching route met
 if (iconProblems.length) iconProblems.forEach(problem => fail(problem));
 else pass('all ' + cardObjects.length + ' homepage cards define icons');
 
+const iconMapMatch = homeSource.match(/const TOOL_ICON_SVGS\s*=\s*\{([\s\S]*?)\n\};/);
+const availableIcons = new Set(iconMapMatch ? [...iconMapMatch[1].matchAll(/'([^']+)'\s*:/g)].map(match => match[1]) : []);
+if (!availableIcons.size) fail('cannot read inline homepage SVG icon map');
+const missingCardIcons = cardObjects.map(source => ({ name: readField(source, 'name'), icon: readField(source, 'icon') }))
+  .filter(item => item.icon && !availableIcons.has(item.icon));
+if (missingCardIcons.length) missingCardIcons.forEach(item => fail(item.name + ': icon has no inline SVG (' + item.icon + ')'));
+else pass('all ' + cardObjects.length + ' homepage card icons resolve to real inline SVGs');
+
+const iconsByTool = new Map();
+for (const source of cardObjects) {
+  const name = readField(source, 'name') || '(unnamed card)';
+  const icon = readField(source, 'icon');
+  if (!icon) continue;
+  if (!iconsByTool.has(icon)) iconsByTool.set(icon, []);
+  iconsByTool.get(icon).push(name);
+}
+const duplicateToolIcons = [...iconsByTool.entries()].filter(([, toolNames]) => toolNames.length > 1);
+if (duplicateToolIcons.length) duplicateToolIcons.forEach(([icon, toolNames]) => fail('duplicate homepage tool icon "' + icon + '": ' + toolNames.join(', ')));
+else pass('all ' + cardObjects.length + ' homepage tools use distinct icon identities');
+
 // Only inspect initial script URLs; no engine files are modified by this audit.
 const heavyPattern = /(?:pdf([.]min)?[.]js|pdfjs|pdf[-_.]?lib|pdfium|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/])/i;
 const heavyInitialScripts = scriptSources.filter(item => heavyPattern.test(item.src));
@@ -234,6 +273,8 @@ const sizedScripts = scriptSources.map(item => {
   return { src: item.src, bytes: file && fs.existsSync(file) ? fs.statSync(file).size : 0 };
 }).sort((a, b) => b.bytes - a.bytes);
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', cssFiles=' + cssAssets.length + ', initialCssBytes=' + initialCssBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
+if (initialScriptBytes > 720000) fail('homepage initial JS budget exceeded: ' + initialScriptBytes + ' bytes (budget 720000)');
+else pass('homepage initial JS payload is within the 720KB performance budget (' + initialScriptBytes + ' bytes)');
 const blockingScripts = scriptSources.filter(item => !item.defer && !item.async);
 console.log('Initial script scheduling: blocking=' + blockingScripts.length + ', defer=' + scriptSources.filter(item => item.defer).length + ', async=' + scriptSources.filter(item => item.async).length);
 if (blockingScripts.length) fail('homepage contains parser-blocking external scripts: ' + blockingScripts.map(item => item.src).join(', '));

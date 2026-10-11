@@ -1,79 +1,49 @@
 /**
- * home-fast-boot.js — Homepage tool-card paint accelerator
+ * home-fast-boot.js — one-shot homepage registry readiness signal.
  *
- * PROBLEM: home.js waits up to 50ms × N for TOOL_GROUPS, then blocks on Lucide
- * before cards feel "done". Header/footer paint first; cards lag.
- *
- * FIX (non-breaking):
- *  1. Poll TOOL_GROUPS every ~16ms once chrome.js has defined it
- *  2. Dispatch a custom event so any listener can react immediately
- *  3. If home.js has already exposed paint helpers on window, call them early
- *  4. Never touch tool engines / workers / tool pages
- *
- * SAFE: Does not replace home.js logic. Only speeds discovery + optional hooks.
+ * The production homepage already ships all tool cards in its HTML. home.js
+ * owns rendering and icon repair. This helper must not re-render the catalogue
+ * or rebuild cards: doing so duplicates work and can make widgets move after
+ * the first paint, especially when the Recent Tools section has saved items.
  */
 (function (G) {
   'use strict';
+
   if (G.__HOME_FAST_BOOT__) return;
   G.__HOME_FAST_BOOT__ = true;
 
-  var LOG = '[HomeFastBoot]';
-  var MAX = 150;
+  var signalled = false;
   var attempts = 0;
+  var MAX_ATTEMPTS = 150;
 
   function ready() {
     return Array.isArray(G.TOOL_GROUPS) && G.TOOL_GROUPS.length > 0;
   }
 
-  function tryPaint() {
-    // Optional hooks if future home.js exposes them
-    try {
-      if (typeof G.renderCategorySections === 'function') G.renderCategorySections();
-      if (typeof G.renderRecentUse === 'function') G.renderRecentUse();
-      if (typeof G.ensureHomepageToolCardIcons === 'function') G.ensureHomepageToolCardIcons();
-    } catch (_) {}
+  function signalReady() {
+    if (signalled || !ready()) return false;
+    signalled = true;
 
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-groups-ready', {
-        detail: { count: G.TOOL_GROUPS.length, ts: Date.now() }
+        detail: { count: G.TOOL_GROUPS.reduce(function (total, group) {
+          return total + (Array.isArray(group.items) ? group.items.length : 0);
+        }, 0) }
       }));
-    } catch (_) {}
-
-    // Defer Lucide-only refresh so first paint is not blocked
-    var refresh = function () {
-      try {
-        if (G.lucide && typeof G.lucide.createIcons === 'function') {
-          G.lucide.createIcons();
-        }
-      } catch (_) {}
-    };
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(refresh);
-    } else {
-      setTimeout(refresh, 0);
+    } catch (_) {
+      // The event is an optional integration hook; the homepage remains usable
+      // if a legacy browser does not support CustomEvent.
     }
+    return true;
   }
 
-  function tick() {
-    if (ready()) {
-      tryPaint();
-      console.debug(LOG, 'TOOL_GROUPS ready in', attempts, 'polls');
-      return;
-    }
-    if (++attempts < MAX) {
-      setTimeout(tick, 16);
-    }
+  function waitForRegistry() {
+    if (signalReady()) return;
+    attempts += 1;
+    if (attempts < MAX_ATTEMPTS) setTimeout(waitForRegistry, 16);
   }
 
-  // Start as early as possible
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tick, { once: true });
-  } else {
-    tick();
-  }
-
-  // Also start immediately in case chrome.js already ran (defer order)
-  if (ready()) tryPaint();
-  else setTimeout(tick, 0);
-
+  // One start path only. Do not also poll from DOMContentLoaded and a separate
+  // zero-delay timeout: those paths used to race and invoke render hooks twice.
+  if (!signalReady()) setTimeout(waitForRegistry, 0);
 }(window));

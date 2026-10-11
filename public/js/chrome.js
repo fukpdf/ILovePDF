@@ -35,7 +35,7 @@ window.TOOL_GROUPS = [
   {
     key:'image', title:'Image',
     items:[
-      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',       desc:'Trim images precisely',          prio:'instant'  },
+      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'image-crop',       desc:'Trim images precisely',          prio:'instant'  },
       { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',   desc:'Change image dimensions',        prio:'instant'  },
       { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',    desc:'Apply photo filters',            prio:'instant'  },
       { url:'/image-compressor',  name:'Image Compressor',   icon:'minimize-2',         desc:'Compress JPG/PNG/WebP images',   prio:'instant'  },
@@ -46,14 +46,14 @@ window.TOOL_GROUPS = [
   {
     key:'convert', title:'Convert',
     items:[
-      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF',          prio:'instant'  },
+      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'file-image',        desc:'Combine images into PDF',          prio:'instant'  },
       { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images',           prio:'instant'  },
       { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx',    prio:'advanced' },
       { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides',      prio:'advanced' },
       { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx',          prio:'advanced' },
-      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
-      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
-      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
+      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-up',    desc:'Convert .docx into PDF',           prio:'advanced' },
+      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'monitor', desc:'Convert .pptx into PDF',           prio:'advanced' },
+      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'grid',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
       { tid:'word-to-excel',     slug:'word-to-excel',     name:'Word to Excel',     icon:'table',        desc:'Extract Word tables into .xlsx',   prio:'advanced' },
       { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
     ]
@@ -231,7 +231,7 @@ function renderHeader(forceRefresh = false){
 
   // Preserve the server-rendered homepage header and hydrate only missing dropdown
   // panels. Replacing the whole nav causes a first-paint layout shift.
-  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
+  if (window.__ILOVE_PRESERVE_SERVER_NAV) {
     const organizeItem = nav.querySelector('#nav-organize');
     const convertItem = nav.querySelector('#nav-convert');
     const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
@@ -245,7 +245,7 @@ function renderHeader(forceRefresh = false){
       organizeItem.appendChild(panel);
     } else if (organizeItem) {
       const panel = organizeItem.querySelector('.dd');
-      if (panel && !panel.children.length) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
+      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
     }
     if (convertItem && !convertItem.querySelector('.dd')) {
       const panel = document.createElement('div');
@@ -257,7 +257,7 @@ function renderHeader(forceRefresh = false){
       convertItem.appendChild(panel);
     } else if (convertItem) {
       const panel = convertItem.querySelector('.dd');
-      if (panel && !panel.children.length) panel.innerHTML = ddLinks(CONVERT_ITEMS);
+      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(CONVERT_ITEMS);
     }
     if (allItem) {
       allItem.id = 'all-tools-item';
@@ -272,7 +272,7 @@ function renderHeader(forceRefresh = false){
         panel.setAttribute('aria-label', 'All tools');
         allItem.appendChild(panel);
       }
-      if (!panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
+      if (forceRefresh || !panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
     }
     if (!window.__ILOVE_NAV_WIRED) {
       wireSimpleDropdowns();
@@ -311,7 +311,15 @@ function renderHeader(forceRefresh = false){
 
   `;
 
-  window.__ILOVE_PRESERVE_SERVER_NAV = false;
+  // The first render has now built the full navigation. Keep it mounted on later
+  // locale changes so translated menu content updates in place instead of shifting links.
+  window.__ILOVE_PRESERVE_SERVER_NAV = !!(
+    nav.querySelector('.nav-direct[href="/merge-pdf"]') &&
+    nav.querySelector('.nav-direct[href="/split-pdf"]') &&
+    nav.querySelector('#nav-organize .nav-btn') &&
+    nav.querySelector('#nav-convert .nav-btn') &&
+    nav.querySelector('#all-tools-btn')
+  );
   window.__ILOVE_NAV_WIRED = false;
   const allItem = document.getElementById('all-tools-item');
   if (allItem) allItem.classList.remove('is-open');
@@ -993,6 +1001,43 @@ function ensureSharedShell() {
   return canonicalFooter;
 }
 
+/* Load the supplemental locale pack only when a non-English locale needs it.
+   Keep one in-flight request and preserve base locale fallback if it fails. */
+function loadExtendedI18n() {
+  if (window.__ILOVE_I18N_EXT_READY) return Promise.resolve(true);
+  if (window.__ILOVE_I18N_EXT_PROMISE) return window.__ILOVE_I18N_EXT_PROMISE;
+
+  const existing = document.querySelector('script[src*="/js/i18n-ext.js"]');
+  if (existing) {
+    window.__ILOVE_I18N_EXT_PROMISE = new Promise(resolve => {
+      existing.addEventListener('load', () => resolve(!!window.__ILOVE_I18N_EXT_READY), { once: true });
+      existing.addEventListener('error', () => { window.__ILOVE_I18N_EXT_PROMISE = null; resolve(false); }, { once: true });
+    });
+    return window.__ILOVE_I18N_EXT_PROMISE;
+  }
+
+  window.__ILOVE_I18N_EXT_PROMISE = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = '/js/i18n-ext.js?v=lazy-locale';
+    script.defer = true;
+    script.onload = () => resolve(!!window.__ILOVE_I18N_EXT_READY);
+    script.onerror = () => { window.__ILOVE_I18N_EXT_PROMISE = null; resolve(false); };
+    document.head.appendChild(script);
+  });
+  return window.__ILOVE_I18N_EXT_PROMISE;
+}
+window.loadExtendedI18n = loadExtendedI18n;
+
+window.addEventListener('i18n:change', event => {
+  const lang = event.detail && event.detail.lang;
+  if (!lang || lang === 'en') return;
+  loadExtendedI18n().then(loaded => {
+    if (loaded && window.RuntimeI18n && typeof window.RuntimeI18n.rerender === 'function') {
+      window.RuntimeI18n.rerender();
+    }
+  });
+});
+
 function ensureI18nAssets() {
   const hasI18n = !!document.querySelector('script[src^="/js/i18n.js"]');
   if (hasI18n || window.RuntimeI18n) return Promise.resolve();
@@ -1044,7 +1089,9 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
     const lang = link.dataset.lang;
     close();
     if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
-      if (typeof window.loadExtendedI18n === 'function') { try { await window.loadExtendedI18n(); } catch (_) {} }
+      if (lang !== 'en' && typeof window.loadExtendedI18n === 'function') {
+        try { await window.loadExtendedI18n(); } catch (_) {}
+      }
       await window.RuntimeI18n.setLanguage(lang);
     }
   });
@@ -1101,12 +1148,14 @@ async function initChrome() {
     }
     return false;
   };
-  tryIcons();
-  let iconTries = 0;
-  const iconTimer = setInterval(() => {
-    iconTries++;
-    if (tryIcons() || iconTries > 30) clearInterval(iconTimer);
-  }, 100);
+  // Do not rescan the entire DOM every 100ms while the Lucide bundle loads.
+  // Retry a few times, then make one final attempt at window load.
+  const retryIcons = attempt => {
+    if (tryIcons() || attempt >= 3) return;
+    const delays = [100, 250, 600];
+    setTimeout(() => retryIcons(attempt + 1), delays[attempt]);
+  };
+  retryIcons(0);
   window.addEventListener('load', tryIcons, { once: true });
 }
 

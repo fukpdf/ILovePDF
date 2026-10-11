@@ -23,7 +23,10 @@ on:
       - 'scripts/laba-removal-audit.js'
       - 'scripts/assemble-homepage-index.js'
       - 'scripts/homepage-deep-audit-check.js'
+      - 'scripts/homepage-fast-boot-check.js'
       - 'scripts/homepage-browser-audit.mjs'
+      - 'scripts/homepage-stability-audit.mjs'
+      - 'scripts/homepage-live-comparison.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
       - '.github/workflows/homepage-audit.yml'
@@ -36,7 +39,7 @@ jobs:
   homepage-source-audit:
     name: Homepage source, assets, and routes
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,9 +52,12 @@ jobs:
       - name: Check audit script syntax
         run: |
           node --check scripts/homepage-deep-audit-check.js
+          node --check scripts/homepage-fast-boot-check.js
           node --check scripts/laba-removal-audit.js
           node --check server.js
           node --check scripts/homepage-node-server-smoke.mjs
+          node --check scripts/homepage-live-comparison.mjs
+          node --check scripts/homepage-stability-audit.mjs
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
@@ -64,6 +70,9 @@ jobs:
             exit 1
           fi
           grep -q 'home-fast-boot.js' public/index.html
+
+      - name: Audit first-paint bootstrap for duplicate rendering
+        run: node scripts/homepage-fast-boot-check.js
 
       - name: Audit homepage cards, routes, and source assets
         run: node scripts/homepage-deep-audit-check.js
@@ -81,6 +90,9 @@ jobs:
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Compare Firebase preview, live homepage, and official iLovePDF performance
+        run: node scripts/homepage-live-comparison.mjs
 
       - name: Start local hosting-compatible test server
         shell: bash
@@ -101,6 +113,9 @@ jobs:
 
       - name: Browser viewport, route, and accessibility audit
         run: node scripts/homepage-browser-audit.mjs
+
+      - name: Repeat cold-load CLS stability checks
+        run: node scripts/homepage-stability-audit.mjs
 
       - name: Stop local hosting-compatible test server
         if: always()

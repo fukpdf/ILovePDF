@@ -26,6 +26,13 @@ The source-only `public/index.html` loader fetches four base64 chunks and replac
 
 Earlier CI measurements on this branch recorded the following before/after sample: same-origin JS resources 114 → 64; JS bytes observed in the first 4.5 seconds 2,098,540 → 1,044,568; total requests 156 → 105; CLS 0.5193 → 0.0352; FCP 300 ms → 224 ms; LCP 1,728 ms → 1,564 ms. These were unthrottled local CI measurements, not production field data. Re-run after changes; INP remains unmeasured unless a valid interaction measurement is added.
 
+## Homepage icon consistency and initial-JS optimization
+
+- The shared homepage catalogue uses a distinct icon identity for each of its 41 tool cards; repeated icons that previously blurred conversion directionality (PDF ↔ Office and PDF ↔ image) were assigned purpose-specific inline SVGs.
+- The inline SVG catalogue covers icon keys used by the tool registry and navigation. The source audit fails if a homepage card references an icon without an SVG or if two tool cards reuse the same icon identity.
+- The supplemental locale extension (about 140KB) is omitted from the initial homepage script list. Core locale JSON and `i18n.js` remain available immediately; the extension loads on demand for non-English use, with a single-flight loader and rerender after load.
+- The source audit enforces a 720KB initial JavaScript budget. This is a payload guard, not a claim that lab and field Core Web Vitals will be identical.
+
 ## Current known implementation
 
 - Homepage renderer: `public/js/home.js`
@@ -209,8 +216,77 @@ A second successful run measured FCP/LCP **372 ms** and CLS **0.0318**. An earli
 ### Broader repository CI note
 The dedicated homepage workflow, source audit, project regression tests, security/file-lifecycle audit, syntax checks, and deployment-origin smoke checks passed. Some separate Phase 5 workflows still report missing audit scripts referenced by repository package scripts, and the global i18n workflow inspects the unassembled source loader instead of the production HTML artifact. These broader repository/CI contract issues are documented and were not “fixed” by editing unrelated PDF/image processing engines.
 
+## Follow-up: stable first-paint bootstrap — 2026-10-11
+
+**Branch:** `perf/homepage-stable-first-paint-20261011`
+
+### Finding
+
+The assembled homepage already contains all tool cards, and `home.js` is the authoritative owner of homepage rendering. However, `home-fast-boot.js` also called the category renderer, recent-tools renderer, icon-repair hook, and Lucide's DOM replacement. At the same time, `home.js` runs its own `bootHomePage()` path and calls `renderRecentUse()`, `renderCategorySections()`, and icon repair. The fast-boot helper also had overlapping readiness starts (DOMContentLoaded plus an independent zero-delay timeout), which could invoke its paint path twice. This duplicated work after the browser had begun painting and could cause avoidable main-thread work or movement in the Recent Tools section when it contains saved entries.
+
+### Implementation
+
+- Replaced the fast-boot paint hooks with a one-shot, idempotent `ilovepdf:tool-groups-ready` signal.
+- Removed DOM rendering, icon replacement, and duplicate polling starts from `home-fast-boot.js`. `home.js` remains the single authoritative owner of rendering and icon repair; pre-rendered category cards remain in place.
+- Added `scripts/homepage-fast-boot-check.js`, a regression guard that rejects reintroduction of render calls, Lucide DOM replacement, interval polling, or duplicate readiness-dispatch sites.
+- Wired the new guard into `.github/workflows/homepage-audit.yml` so it runs after production HTML assembly and before the full homepage browser audit.
+- Kept the change scoped to homepage boot behavior; PDF/image processing engines and tool routes are untouched.
+
+### Verification status
+
+- Static implementation and workflow changes are committed on the follow-up branch.
+- The new regression check and full browser/a11y/viewport suite must run in CI before merge.
+- No post-change FCP/LCP/CLS improvement is claimed yet. Capture before/after lab results under the same viewport, throttling, browser and cache conditions. Confirm first-viewport screenshots and geometry remain stable; verify all 41 cards/routes, language switching, recent-tools behavior, mobile menu, axe, console, and asset checks.
+- Reference guidance used: [web.dev — Optimize LCP](https://web.dev/articles/optimize-lcp) and [web.dev — Optimize CLS](https://web.dev/articles/optimize-cls). These recommend exposing critical content early and preventing unexpected shifts; they do not substitute for measurements on this project.
+
+### Follow-up: full-viewport and dense responsive coverage — 2026-10-11
+
+**User requirement:** the page should use the available screen width correctly, leave no accidental side gaps, and be checked across window sizes without unrelated visual redesign.
+
+**Audit improvement:**
+- Expanded width checks from 15 preset widths to a dense 40px sweep from 320px through 1920px, plus breakpoint edges and wide displays up to 2880px.
+- At every tested width, the browser audit now checks the .page shell reaches both viewport edges, the tools grid uses a sensible share of available width, the responsive column count matches the intended breakpoints (2 columns through 768px, 3 through 1280px, 4 above 1280px), and no cards are clipped, hidden, overlapping, or horizontally overflowing.
+- Added mixed viewport width/height profiles for short laptop windows, tablet portrait/landscape, mobile portrait, standard desktop and ultrawide screens. These assert full-width header/page coverage and that hero text remains inside its visual container.
+- Corrected the browser audit's whitespace-splitting regular expressions so computed grid tracks and diagnostic class names are actually parsed; syntax-only checks would not catch this logic error.
+- First expanded-matrix run exposed a test-selector false negative: `document.querySelector('.tools-grid')` selected an empty/hidden grid (width 0) even though all 41 real cards were visible. The audit now selects the widest visible grid containing actual tool cards and falls back to the visible content shell plus measured card-column positions. The original failure was a test instrumentation issue, not evidence of a user-facing width defect; the corrected full suite is being rerun.
+- The next verification caught a duplicate `vw` declaration in the newly expanded browser audit before any viewport assertions ran. Removed the duplicate declaration; CI must re-run the browser suite against this exact revision before the change can be considered verified.
+- This is a test-first change: it does not globally force every child section to 100% width. Centered content and internal spacing are preserved where intentional; only measured unintended gaps or clipping should be corrected.
+
+**Verification:** the new width/height checks are committed in scripts/homepage-browser-audit.mjs. The Homepage Deep Audit workflow must pass these new assertions before the pull request is eligible to merge. If any profile fails, use the reported width, geometry and offending selector to make a minimal targeted fix, then rerun the same full workflow. No claim is made that the expanded matrix has passed until CI reports success.
+
 ### Final status
 **PASS WITH KNOWN ISSUES**
 
 The homepage implementation is merged and deployed. Its required browser matrix passes with 41 cards/routes, 0 axe violations, 0 page errors, 0 failed assets, 0 Laba requests, no horizontal overflow, and CLS 0.0319 in local unthrottled CI. INP and official-site field performance remain NOT MEASURED. The remaining operational caveat is the custom-domain HTTP 403 from automated smoke requests; validate the route in a real browser or review the domain's bot/security policy separately.
 
+
+## Matched live homepage comparison
+
+The homepage audit workflow now includes `scripts/homepage-live-comparison.mjs`. It loads the currently deployed `https://ilovepdf.cyou/` and the official `https://www.ilovepdf.com/` in fresh browser contexts, on mobile (390×844) and desktop (1366×768), with three runs per site/profile. It records median FCP, LCP, response-start, DOMContentLoaded, load-event, transfer-size estimate, resource/script/CSS counts, CLS, and failed navigation status. This is a same-runner lab comparison, not field Core Web Vitals; cross-origin resource transfer sizes may be unavailable where the server does not expose Resource Timing data. Because this benchmark targets the public URLs, it measures the deployed c.you version, not unmerged PR code.
+
+
+### Live comparison limitation observed in CI
+
+The GitHub Actions headless browser received HTTP 403 and a Cloudflare “Just a moment…” challenge page for all ILovePDF.cyou samples, while the official iLovePDF homepage returned HTTP 200. The challenge-page FCP/LCP/byte numbers are **not** valid measurements of our homepage and must not be compared with the official site. The benchmark now reports this as an incomplete comparison rather than failing the core homepage regression suite. A fair live comparison still needs an environment where the c.you page loads normally (for example, a normal browser/network not challenged by Cloudflare) or a trusted PSI/Lighthouse report for both URLs.
+
+
+## Follow-up: live Firebase layout-shift root cause — 2026-10-11
+
+**Evidence source:** the live comparison workflow's 3-run desktop profile (1366×768) and its layout-shift attribution.
+
+### Confirmed cause
+
+The live browser trace showed the navigation links changing horizontal positions after first render (for example, `.nav-direct` elements moved from x≈512/610 to x≈362/460). The shared header code had a preservation path for the server-rendered navigation, but the `i18n:change` handler called `renderHeader(true)`; the `forceRefresh` flag bypassed that preservation path and replaced the entire nav DOM. That is a direct source-level explanation for the late navigation geometry change, rather than a generic guess about network speed.
+
+The same trace showed the hero buttons changing widths and the PDF category/Quick Access sections shifting vertically. The homepage imports Google Fonts with `display=swap`, which can change text metrics after the fallback font has painted. This is a plausible contributor to the button and section reflow; it must be re-measured after the patch rather than treated as proven by font status alone.
+
+### Fix on `perf/homepage-stable-first-paint-20261011`
+
+- The homepage assembler now enables `window.__ILOVE_PRESERVE_SERVER_NAV = true` in the document head when the expected server-rendered nav structure is present, before deferred `chrome.js` runs.
+- `chrome.js` now keeps the server-rendered nav even during language refreshes; it refreshes dropdown content without replacing the main navigation. This preserves the live nav's layout while keeping locale-dependent dropdown labels refreshable.
+- The assembler changes the Google Fonts `display=swap` policy to `display=optional` to reduce late font replacement/reflow on cold or slower visits.
+- The deep source audit now asserts the nav-preservation flag, stable refresh branch, assembler hook, and font-display policy so a future change cannot silently reintroduce this path.
+
+### Verification status
+
+These changes are committed to the review branch. The required next proof is a successful Homepage Deep Audit and a fresh live comparison run after the updated assembled artifact is deployed to the Firebase preview. Until that run records the new CLS and FCP/LCP values, no improvement percentage or “fully fixed” claim is made.
