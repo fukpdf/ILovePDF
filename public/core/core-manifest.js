@@ -128,9 +128,8 @@
     /* ── AI LAYER ────────────────────────────────────────────────────────── */
     ai: {
       label: 'AI Layer',
-      description: 'Laba assistant, vector memory, generative engine, local LLM, AI agents.',
+      description: 'Vector memory, generative inference, local LLM, and AI agent runtimes.',
       globals: [
-        'LabaWidget', 'LabaAiChat', 'LabaMemory',
         'VectorMemoryEngine', 'GenerativeAiEngine', 'AiAgentSystem',
         'WebGpuAiExpansion', 'EnterpriseMemoryFabric',
         'HyperscaleVectorMemory', 'HyperscaleVectorFabric',
@@ -138,7 +137,6 @@
         'AutonomousAgentSystem', 'AutonomousAiWorkers',
         'LocalAiRuntime', 'RealLocalLlmEngine',
         'AdvancedAgentIntelligence',
-        'LabaAiEvolutionOs', 'LabaAiOperatingSystem',
       ],
     },
 
@@ -160,16 +158,15 @@
   /* ─────────────────────────────────────────────────────────────────────────
    * LAZY-LOAD GROUPS
    * Declarative lists of JS paths by load priority.
-   * Used by homepage-lazy-loader.js and future module federation.
+   * Generic on-demand AI tool runtimes; tool-specific consumers may request these modules.
    * ───────────────────────────────────────────────────────────────────────── */
   var LAZY_GROUPS = {
 
     /**
-     * HOMEPAGE_AI — heavy AI/Laba stack NOT needed for initial render.
-     * Lazy-loaded by homepage-lazy-loader.js after idle or first Laba interaction.
-     * Order must be preserved (each file may depend on the previous one).
+     * TOOL_AI_ON_DEMAND — generic AI tool runtimes, never loaded by the homepage.
+     * Order must be preserved when an explicit tool workflow requests this group.
      */
-    HOMEPAGE_AI: [
+    TOOL_AI_ON_DEMAND: [
       '/js/vector-memory-engine.js',
       '/js/generative-ai-engine.js',
       '/js/ai-agent-system.js',
@@ -177,29 +174,6 @@
       '/js/webgpu-ai-expansion.js',
       '/js/enterprise-memory-fabric.js',
       '/js/ai-document-os-ui.js',
-      '/js/laba-ai-chat.js',
-      '/js/laba-tool-orchestrator.js',
-      '/js/laba-conversational-intelligence.js',
-      '/js/laba-memory-system.js',
-      '/js/laba-semantic-memory.js',
-      '/js/laba-agent-system.js',
-      '/js/laba-workflow-engine.js',
-      '/js/laba-session-recovery.js',
-      '/js/laba-smart-suggestions.js',
-      '/js/laba-cognitive-brain.js',
-      '/js/laba-personality-engine.js',
-      '/js/laba-admin-core.js',
-      '/js/laba-dev-copilot.js',
-      '/js/laba-safe-executor.js',
-      '/js/laba-autonomous-agents.js',
-      '/js/laba-context-engine.js',
-      '/js/laba-task-queue.js',
-      '/js/laba-tool-healing.js',
-      '/js/laba-humanizer.js',
-      '/js/laba-deep-memory-ext.js',
-      '/js/laba-workflow-planner.js',
-      '/js/laba-predictive-engine.js',
-      '/js/laba-tool-learning.js',
       '/js/final-ai-os-audit.js',
       '/js/real-llm-routing.js',
       '/js/persistent-vector-database.js',
@@ -211,13 +185,11 @@
       '/js/local-ai-runtime.js',
       '/js/browser-compute-cloud.js',
       '/js/hyperscale-vector-memory.js',
-      '/js/laba-ai-operating-system.js',
       '/js/final-super-ai-audit.js',
       '/js/real-local-llm-engine.js',
       '/js/advanced-agent-intelligence.js',
       '/js/hyperscale-vector-fabric.js',
       '/js/production-compute-mesh.js',
-      '/js/laba-ai-evolution-os.js',
       '/js/final-ai-evolution-audit.js',
       '/js/runtime-global-certification.js',
     ],
