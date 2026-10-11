@@ -3,7 +3,6 @@ import { chromium } from 'playwright';
 
 const targets = [
   { name: 'Firebase preview', url: 'https://ilovepdf-web.web.app/' },
-  { name: 'ILovePDF.cyou', url: 'https://ilovepdf.cyou/' },
   { name: 'Official iLovePDF', url: 'https://www.ilovepdf.com/' }
 ];
 const profiles = [
@@ -26,7 +25,7 @@ try {
         });
         const page = await context.newPage();
         await page.addInitScript(() => {
-          window.__livePerf = { lcp: null, cls: 0 };
+          window.__livePerf = { lcp: null, cls: 0, shifts: [], longTasks: [] };
           try {
             new PerformanceObserver(list => {
               for (const entry of list.getEntries()) {
@@ -37,9 +36,29 @@ try {
           try {
             new PerformanceObserver(list => {
               for (const entry of list.getEntries()) {
-                if (!entry.hadRecentInput) window.__livePerf.cls += entry.value;
+                if (!entry.hadRecentInput) {
+                  window.__livePerf.cls += entry.value;
+                  window.__livePerf.shifts.push({
+                    value: entry.value,
+                    startTime: entry.startTime,
+                    sources: (entry.sources || []).slice(0, 3).map(source => ({
+                      node: source.node?.tagName || null,
+                      id: source.node?.id || null,
+                      className: typeof source.node?.className === 'string' ? source.node.className.slice(0, 120) : '',
+                      previousRect: source.previousRect ? { x: source.previousRect.x, y: source.previousRect.y, width: source.previousRect.width, height: source.previousRect.height } : null,
+                      currentRect: source.currentRect ? { x: source.currentRect.x, y: source.currentRect.y, width: source.currentRect.width, height: source.currentRect.height } : null
+                    }))
+                  });
+                }
               }
             }).observe({ type: 'layout-shift', buffered: true });
+          } catch {}
+          try {
+            new PerformanceObserver(list => {
+              for (const entry of list.getEntries()) {
+                window.__livePerf.longTasks.push({ startTime: entry.startTime, duration: entry.duration });
+              }
+            }).observe({ type: 'longtask', buffered: true });
           } catch {}
         });
         const failedRequests = [];
@@ -74,7 +93,11 @@ try {
             documentWidth: html?.scrollWidth ?? null,
             viewportWidth: html?.clientWidth ?? null,
             lcpMs: window.__livePerf?.lcp ?? null,
-            cls: window.__livePerf?.cls ?? null
+            cls: window.__livePerf?.cls ?? null,
+            layoutShifts: (window.__livePerf?.shifts || []).slice(0, 5),
+            longTaskCount: (window.__livePerf?.longTasks || []).length,
+            longTaskDurationMs: Math.round((window.__livePerf?.longTasks || []).reduce((sum, task) => sum + task.duration, 0) * 10) / 10,
+            fontStatus: document.fonts?.status || 'unsupported'
           };
         }).catch(error => ({ measurementError: String(error) }));
         results.push({
