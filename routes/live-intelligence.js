@@ -101,7 +101,7 @@ router.get('/search', async (req, res) => {
   try {
     // DuckDuckGo instant answers (free, no auth)
     const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&skip_disambig=1`;
-    const resp   = await withTimeout(fetch(ddgUrl, { headers: { 'User-Agent': 'LabaAI/3.0' } }), 8000);
+    const resp   = await withTimeout(fetch(ddgUrl, { headers: { 'User-Agent': 'ILovePDF/3.0' } }), 8000);
     if (!resp.ok) throw new Error('DDG error ' + resp.status);
     const data = await resp.json();
 
@@ -135,7 +135,7 @@ router.get('/trends', async (req, res) => {
   try {
     // GitHub trending (public API proxy)
     const url  = 'https://api.github.com/search/repositories?q=created:>2024-01-01&sort=stars&order=desc&per_page=5';
-    const resp = await withTimeout(fetch(url, { headers: { 'User-Agent': 'LabaAI/3.0', 'Accept': 'application/vnd.github.v3+json' } }), 7000);
+    const resp = await withTimeout(fetch(url, { headers: { 'User-Agent': 'ILovePDF/3.0', 'Accept': 'application/vnd.github.v3+json' } }), 7000);
     if (!resp.ok) throw new Error('GitHub API error ' + resp.status);
     const data = await resp.json();
     const trends = (data.items || []).map(r => ({ name: r.full_name, desc: r.description, stars: r.stargazers_count, url: r.html_url }));
