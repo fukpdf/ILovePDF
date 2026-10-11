@@ -89,3 +89,7 @@
 ## Completion rule
 
 Final status must be exactly one of `PASS`, `PASS WITH KNOWN ISSUES`, or `BLOCKED`, based on observed test evidence. A successful build alone is insufficient.
+
+## Follow-up scope: first-render and Laba removal
+
+The active implementation plan and execution log now live at the repository root in [`HOMEPAGE_LOADING_AND_LABA_REMOVAL.md`](../HOMEPAGE_LOADING_AND_LABA_REMOVAL.md). A read-only inventory script (`scripts/laba-removal-audit.js`) is wired into the Homepage Deep Audit workflow to classify repository references before any Laba-specific deletion. Laba removal is not complete until that inventory is reviewed, the assembler and tests assert the widget is absent, and browser verification passes.
