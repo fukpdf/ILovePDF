@@ -314,14 +314,14 @@ try {
         return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
       });
       const outside = cards.filter(r => r.width <= 0 || r.left < -1 || r.right > vw + 1);
-      const overflowElements = [...document.querySelectorAll('body *')].map(element => {
+      const overflowElements = (docWidth > vw + 1 || outside.length) ? [...document.querySelectorAll('body *')].map(element => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
         return { tag: element.tagName, id: element.id || '', className: typeof element.className === 'string' ? element.className : '',
           left: Math.round(rect.left * 10) / 10, right: Math.round(rect.right * 10) / 10, width: Math.round(rect.width * 10) / 10,
           position: style.position, overflowX: style.overflowX };
       }).filter(item => item.width > 0 && (item.left < -1 || item.right > vw + 1))
-        .sort((left, right) => (right.right - vw) - (left.right - vw)).slice(0, 8);
+        .sort((left, right) => (right.right - vw) - (left.right - vw)).slice(0, 8) : [];
       const hidden = cards.filter(r => !r.visible).length;
       let overlaps = 0;
       for (let i = 0; i < cards.length; i++) {
@@ -338,13 +338,13 @@ try {
         bodyScrollWidth: document.body.scrollWidth,
         bodyRect: (() => { const r = document.body.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width }; })()
       };
-      const pseudoOverflow = [...document.querySelectorAll('body, body *')].flatMap(element => ['::before', '::after'].map(pseudo => {
+      const pseudoOverflow = (docWidth > vw + 1 || outside.length) ? [...document.querySelectorAll('body, body *')].flatMap(element => ['::before', '::after'].map(pseudo => {
         const style = getComputedStyle(element, pseudo);
         const rect = element.getBoundingClientRect();
         const width = parseFloat(style.width);
         const left = style.position === 'fixed' ? (style.left === 'auto' ? rect.right - width : parseFloat(style.left)) : rect.left + (parseFloat(style.left) || 0);
         return { selector: (element.id ? '#' + element.id : element.tagName.toLowerCase() + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\s+/).join('.') : '')) + pseudo, content: style.content, position: style.position, left, right: left + width, width };
-      })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8);
+      })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8) : [];
       const pageElement = document.querySelector('.page');
       const pageRect = pageElement?.getBoundingClientRect();
       const toolsGrid = document.querySelector('.tools-grid');
