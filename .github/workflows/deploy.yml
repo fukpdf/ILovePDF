@@ -147,7 +147,7 @@ jobs:
           smoke_check() {
             local url="$1"
             local code
-            code="$(curl -L --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
+            code="$(curl -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -L --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
             echo "Status $code -> $url"
             if [ "$code" != "200" ]; then
               echo "::error::Smoke verification failed for $url (HTTP $code)"
