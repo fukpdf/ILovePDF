@@ -82,19 +82,20 @@ try {
         text: (node.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 45)
       };
     };
-    const relevantNode = node => {
+    const watchedNode = node => {
       if (!node || node.nodeType !== 1) return false;
       if (['tools-root','recent-use-section','cat-pdf-tools','cat-image-tools','cat-utilities'].includes(node.id)) return true;
       if (node.tagName === 'FOOTER') return true;
-      if (node.classList?.contains('home-lower') || node.classList?.contains('home-cat-section') || node.classList?.contains('hls-blog-section')) return true;
-      return !!node.querySelector?.('#tools-root,#recent-use-section,#cat-pdf-tools,#cat-image-tools,#cat-utilities,footer.footer,.home-cat-section,.hls-blog-section');
+      return !!(node.classList?.contains('home-lower') || node.classList?.contains('home-cat-section') || node.classList?.contains('hls-blog-section') || node.classList?.contains('hls-viewall-wrap'));
     };
+    const containsWatchedNode = node => watchedNode(node) ||
+      !!node?.querySelector?.('#tools-root,#recent-use-section,#cat-pdf-tools,#cat-image-tools,#cat-utilities,footer.footer,.home-cat-section,.hls-blog-section,.hls-viewall-wrap');
     try {
       new MutationObserver(records => {
         for (const record of records) {
-          const targetRelevant = relevantNode(record.target);
-          const added = [...(record.addedNodes || [])].filter(relevantNode).map(describeNode);
-          const removed = [...(record.removedNodes || [])].filter(relevantNode).map(describeNode);
+          const targetRelevant = watchedNode(record.target);
+          const added = [...(record.addedNodes || [])].filter(containsWatchedNode).map(describeNode);
+          const removed = [...(record.removedNodes || [])].filter(containsWatchedNode).map(describeNode);
           if (!targetRelevant && !added.length && !removed.length) continue;
           window.__homepageDomAudit.push({
             t: Math.round(performance.now()),
@@ -320,24 +321,53 @@ try {
 
   // Verify the 140 KB extended locale bundle is requested only after a language change.
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 1280, height: 900 });
   const langButton = page.locator('#footer-lang-btn');
   if (!(await langButton.count()) || !(await langButton.isVisible())) {
-    fail('header language selector is missing');
+    fail('footer language selector is missing');
   } else {
+    await langButton.scrollIntoViewIfNeeded();
     await langButton.click();
+    const languageHitTest = await page.evaluate(() => {
+      const option = document.querySelector('#footer-lang-panel [data-lang="ur"]');
+      const footer = option?.closest('footer.footer');
+      const panel = document.querySelector('#footer-lang-panel');
+      if (!option || !footer || !panel) return { found: false };
+      const rect = option.getBoundingClientRect();
+      const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const stack = element => {
+        const result = [];
+        for (let node = element; node && result.length < 6; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          result.push({ tag: node.tagName, id: node.id || '', className: typeof node.className === 'string' ? node.className : '', position: style.position, zIndex: style.zIndex, isolation: style.isolation, overflow: style.overflow });
+        }
+        return result;
+      };
+      return {
+        found: true,
+        optionRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        footerStyle: { position: getComputedStyle(footer).position, zIndex: getComputedStyle(footer).zIndex, overflow: getComputedStyle(footer).overflow },
+        panelStyle: { position: getComputedStyle(panel).position, zIndex: getComputedStyle(panel).zIndex, display: getComputedStyle(panel).display },
+        topElement: top ? { tag: top.tagName, id: top.id || '', className: typeof top.className === 'string' ? top.className : '' } : null,
+        topIsOption: !!top && (top === option || option.contains(top)),
+        footerStack: stack(footer),
+        blockerStack: stack(top)
+      };
+    });
+    console.log('FOOTER LANGUAGE HIT TEST: ' + JSON.stringify(languageHitTest));
+    if (!languageHitTest.topIsOption) fail('footer language dropdown is covered by another element: ' + JSON.stringify(languageHitTest.topElement));
     const urOption = page.locator('#footer-lang-panel [data-lang="ur"]');
-    if (!(await urOption.count())) {
-      fail('Urdu option is missing from the language selector');
-    } else {
-      await urOption.click();
-      await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'ur', null, { timeout: 10000 });
-      const localeExtensionPresent = await page.evaluate(() => !!document.querySelector('script[src*="i18n-ext.js"]'));
-      if (!localeExtensionPresent) fail('extended locale bundle is missing from the homepage translation path');
-      await langButton.click();
-      await page.locator('#lang-list [data-code="en"]').click();
-      await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'en', null, { timeout: 10000 });
-      report('language switching uses extended locale data and returns to English');
-    }
+    if (languageHitTest.topIsOption) await urOption.click({ timeout: 5000 });
+    else await urOption.evaluate(element => element.click());
+    await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'ur', null, { timeout: 10000 })
+      .catch(() => fail('footer language selector did not switch to Urdu'));
+    const localeExtensionPresent = await page.evaluate(() => !!document.querySelector('script[src*="i18n-ext.js"]'));
+    if (!localeExtensionPresent) fail('extended locale bundle is missing from the homepage translation path');
+    await langButton.click();
+    await page.locator('#footer-lang-panel [data-lang="en"]').click();
+    await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'en', null, { timeout: 10000 })
+      .catch(() => fail('footer language selector did not return to English'));
+    report('language switching uses extended locale data and returns to English');
   }
 
   // Dismiss the intentional first-visit announcement modal before testing underlying navigation.
