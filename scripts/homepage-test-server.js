@@ -62,7 +62,7 @@ const server = http.createServer((req, res) => {
     'Vary': 'Accept-Encoding'
   };
   const acceptsGzip = /\bgzip\b/i.test(req.headers['accept-encoding'] || '');
-  const compressible = /^(?:text\/|application\/(?:javascript|json|xml)|image\/svg\\+xml)/i.test(contentType);
+  const compressible = /^(?:text\/|application\/(?:javascript|json|xml)|image\/svg\+xml)/i.test(contentType);
   if (acceptsGzip && compressible) {
     res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip' });
     fs.createReadStream(file).pipe(createGzip({ level: 6 })).pipe(res);
