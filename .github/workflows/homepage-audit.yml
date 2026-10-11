@@ -25,6 +25,7 @@ on:
       - 'scripts/homepage-deep-audit-check.js'
       - 'scripts/homepage-fast-boot-check.js'
       - 'scripts/homepage-browser-audit.mjs'
+      - 'scripts/homepage-stability-audit.mjs'
       - 'scripts/homepage-live-comparison.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
@@ -56,6 +57,7 @@ jobs:
           node --check server.js
           node --check scripts/homepage-node-server-smoke.mjs
           node --check scripts/homepage-live-comparison.mjs
+          node --check scripts/homepage-stability-audit.mjs
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
@@ -111,6 +113,9 @@ jobs:
 
       - name: Browser viewport, route, and accessibility audit
         run: node scripts/homepage-browser-audit.mjs
+
+      - name: Repeat cold-load CLS stability checks
+        run: node scripts/homepage-stability-audit.mjs
 
       - name: Stop local hosting-compatible test server
         if: always()
