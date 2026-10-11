@@ -11,6 +11,8 @@ on:
       - 'public/js/home-fast-boot.js'
       - 'scripts/assemble-homepage-index.js'
       - 'scripts/homepage-deep-audit-check.js'
+      - 'scripts/homepage-browser-audit.mjs'
+      - 'scripts/homepage-test-server.js'
       - '.github/workflows/homepage-audit.yml'
   workflow_dispatch:
 
@@ -45,3 +47,33 @@ jobs:
 
       - name: Audit homepage cards, routes, and source assets
         run: node scripts/homepage-deep-audit-check.js
+
+      - name: Install isolated browser QA tools
+        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local hosting-compatible test server
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/homepage-test-server.js > /tmp/homepage-test-server.log 2>&1 &
+          echo $! > /tmp/homepage-test-server.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo 'Homepage test server ready'
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/homepage-test-server.log
+          echo '::error::Homepage test server did not start'
+          exit 1
+
+      - name: Browser viewport, route, and accessibility audit
+        run: node scripts/homepage-browser-audit.mjs
+
+      - name: Stop local hosting-compatible test server
+        if: always()
+        run: if [ -f /tmp/homepage-test-server.pid ]; then kill "$(cat /tmp/homepage-test-server.pid)" || true; fi
