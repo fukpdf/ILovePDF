@@ -106,7 +106,7 @@
           loadAds();
         }
       }, { rootMargin: '0px 0px 150px 0px' });
-      slots.forEach(function (slot) { observer.observe(slot); });
+      slots.forEach(function (slot) { if (slot.getBoundingClientRect().top >= window.innerHeight) observer.observe(slot); });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSlots, { once: true });
     else watchSlots();
