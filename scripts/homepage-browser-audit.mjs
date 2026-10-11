@@ -69,6 +69,7 @@ try {
     cards: [...document.querySelectorAll('a.tool')].map(a => ({
       text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
       href: a.getAttribute('href'),
+      visible: (() => { const rect = a.getBoundingClientRect(); const style = getComputedStyle(a); return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; })(),
       icon: (() => {
         const element = a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]');
         if (!element) return false;
@@ -91,6 +92,8 @@ try {
   if (initial.cards.length !== 41) fail('expected 41 rendered tool cards, found ' + initial.cards.length);
   const missingNames = initial.cards.filter(card => !card.text);
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
+  const hiddenCards = initial.cards.filter(card => !card.visible);
+  if (hiddenCards.length) fail('homepage contains hidden tool cards: ' + hiddenCards.length + ' (' + hiddenCards.slice(0, 8).map(card => card.text).join(' | ') + ')');
   const missingIcons = initial.cards.filter(card => !card.icon);
   if (missingIcons.length) {
     console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.slice(0, 10).map(card => card.text || '(unnamed)').join(' | '));
@@ -167,9 +170,11 @@ try {
       const docWidth = document.documentElement.scrollWidth;
       const cards = [...document.querySelectorAll('a.tool')].map(element => {
         const r = element.getBoundingClientRect();
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+        const style = getComputedStyle(element);
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
       });
       const outside = cards.filter(r => r.width <= 0 || r.left < -1 || r.right > vw + 1);
+      const hidden = cards.filter(r => !r.visible).length;
       let overlaps = 0;
       for (let i = 0; i < cards.length; i++) {
         for (let j = i + 1; j < cards.length; j++) {
@@ -178,13 +183,14 @@ try {
               Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) overlaps++;
         }
       }
-      return { vw, docWidth, outside: outside.length, overlaps, cards: cards.length };
+      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length };
     });
     if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport)');
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
+    if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
     console.log('VIEWPORT ' + width + 'px: ' + (layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.overlaps ? 'PASS' : 'FAIL') +
-      ' cards=' + layout.cards + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
+      ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
   }
 
   // Dismiss the intentional first-visit announcement modal before testing underlying navigation.
