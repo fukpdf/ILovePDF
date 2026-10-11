@@ -9,6 +9,10 @@ on:
       - 'public/js/home.js'
       - 'public/js/tools-config.js'
       - 'public/js/home-fast-boot.js'
+      - 'public/js/homepage-lazy-loader.js'
+      - 'public/js/laba-*.js'
+      - 'public/laba/**'
+      - 'scripts/laba-removal-audit.js'
       - 'scripts/assemble-homepage-index.js'
       - 'scripts/homepage-deep-audit-check.js'
       - 'scripts/homepage-browser-audit.mjs'
@@ -34,7 +38,12 @@ jobs:
           node-version: 20
 
       - name: Check audit script syntax
-        run: node --check scripts/homepage-deep-audit-check.js
+        run: |
+          node --check scripts/homepage-deep-audit-check.js
+          node --check scripts/laba-removal-audit.js
+
+      - name: Inventory Laba dependencies before removal
+        run: node scripts/laba-removal-audit.js
 
       - name: Build the production homepage artifact
         run: |
