@@ -104,7 +104,11 @@ const staticChecks = [
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
   ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
   ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
-  ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)]
+  ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)],
+  ['assembled homepage enables server-nav preservation before deferred scripts', /window\\.__ILOVE_PRESERVE_SERVER_NAV\\s*=\\s*true/.test(html)],
+  ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
+  ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
+  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\\.googleapis\\.com\\/css2?[^"']*display=optional/i.test(html)]
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
