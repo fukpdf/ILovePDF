@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 
 const targets = [
+  { name: 'Firebase preview', url: 'https://ilovepdf-web.web.app/' },
   { name: 'ILovePDF.cyou', url: 'https://ilovepdf.cyou/' },
   { name: 'Official iLovePDF', url: 'https://www.ilovepdf.com/' }
 ];
