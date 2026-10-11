@@ -202,7 +202,11 @@ function _renderOneCatSection(containerId, groupKeys, type) {
     .filter(g => groupKeys.includes(g.key))
     .flatMap(g => (g.items || []).map(t => Object.assign({ _cat: g.key }, t)));
 
-  if (!items.length) { el.style.display = 'none'; return; }
+  if (!items.length) {
+    // Do not hide server-rendered sections merely because a registry group is unavailable.
+    if (!el.querySelector('a.tool')) el.style.display = 'none';
+    return;
+  }
 
   // The deployed homepage already contains server-rendered cards. Preserve that
   // stable markup when its routes/count match the registry; only rebuild stale sections.
