@@ -99,7 +99,7 @@ else pass('critical script order keeps chrome before runtime protection');
 const homeAt = scriptIndex('/js/home.js');
 if (chromeAt >= 0 && homeAt >= 0 && chromeAt < homeAt) pass('tool registry source executes before homepage renderer');
 else fail('homepage renderer executes before chrome.js tool registry');
-const forbiddenHomepageRefs = /(?:\\/laba\\/|laba-widget|laba-ai-|homepage-lazy-loader\\.js|site-announcement\\.(?:js|css))/i;
+const forbiddenHomepageRefs = /(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-loader\.js|site-announcement\.(?:js|css))/i;
 if (forbiddenHomepageRefs.test(html)) fail('assembled homepage still references Laba assets or delayed announcement modal');
 else pass('assembled homepage contains no Laba widget, Laba lazy loader, or delayed announcement assets');
 const i18nExtAt = scriptIndex('i18n-ext.js');
