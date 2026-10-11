@@ -72,6 +72,44 @@ try {
         }
       }).observe({ type: 'layout-shift', buffered: true });
     } catch {}
+    window.__homepageDomAudit = [];
+    const describeNode = node => {
+      if (!node || node.nodeType !== 1) return { nodeType: node?.nodeType || 0 };
+      return {
+        tag: node.tagName || '',
+        id: node.id || '',
+        className: typeof node.className === 'string' ? node.className : '',
+        text: (node.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 45)
+      };
+    };
+    const relevantNode = node => {
+      if (!node || node.nodeType !== 1) return false;
+      if (['tools-root','recent-use-section','cat-pdf-tools','cat-image-tools','cat-utilities'].includes(node.id)) return true;
+      if (node.tagName === 'FOOTER') return true;
+      if (node.classList?.contains('home-lower') || node.classList?.contains('home-cat-section') || node.classList?.contains('hls-blog-section')) return true;
+      return !!node.querySelector?.('#tools-root,#recent-use-section,#cat-pdf-tools,#cat-image-tools,#cat-utilities,footer.footer,.home-cat-section,.hls-blog-section');
+    };
+    try {
+      new MutationObserver(records => {
+        for (const record of records) {
+          const targetRelevant = relevantNode(record.target);
+          const added = [...(record.addedNodes || [])].filter(relevantNode).map(describeNode);
+          const removed = [...(record.removedNodes || [])].filter(relevantNode).map(describeNode);
+          if (!targetRelevant && !added.length && !removed.length) continue;
+          window.__homepageDomAudit.push({
+            t: Math.round(performance.now()),
+            type: record.type,
+            target: describeNode(record.target),
+            attribute: record.attributeName || '',
+            oldValue: record.oldValue || '',
+            newValue: record.attributeName && record.target.getAttribute ? record.target.getAttribute(record.attributeName) : '',
+            added,
+            removed
+          });
+          if (window.__homepageDomAudit.length > 120) window.__homepageDomAudit.shift();
+        }
+      }).observe(document, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['style','hidden','class'] });
+    } catch {}
   });
 
   const response = await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -104,6 +142,7 @@ try {
     images: [...document.images].map(image => ({ src: image.currentSrc || image.src, loading: image.loading, width: image.naturalWidth, height: image.naturalHeight }))
   }));
   console.log('FIRST-RENDER INVENTORY: ' + JSON.stringify(loadInventory));
+  console.log('HOMEPAGE DOM MUTATION TRACE: ' + JSON.stringify(await page.evaluate(() => window.__homepageDomAudit || [])));
   if (loadInventory.runtimeLoaderPresent) fail('served homepage still contains the runtime chunk/decompression loader');
   else report('served homepage is not using the four-chunk runtime document-replacement loader');
 
@@ -226,6 +265,7 @@ try {
     ', scriptEncodedBytes=' + labMetrics.scriptBytes + ', cssFiles=' + labMetrics.cssCount + ', cssEncodedBytes=' + labMetrics.cssBytes);
   console.log('LCP ELEMENT: ' + JSON.stringify(labMetrics.lcpElement));
   console.log('CLS SHIFT DETAILS: ' + JSON.stringify(labMetrics.shifts));
+  if (labMetrics.cls !== null && labMetrics.cls > 0.1) fail('CLS exceeds the 0.1 target: ' + labMetrics.cls.toFixed(4));
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
