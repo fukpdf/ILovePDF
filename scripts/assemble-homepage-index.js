@@ -54,47 +54,8 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   '/js/runtime-failed-log.js',
 ]);
 
-function addOnDemandExtendedTranslations(html) {
-  // English is already rendered by default. Load the 140 KB extension only for
-  // a saved non-English locale or when a visitor explicitly changes language.
-  html = html.replace(
-    /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/i18n-ext\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
-    ''
-  );
-  html = html.replace(
-    /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/footer-lang\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
-    ''
-  );
-  const loader = [
-    "<script>",
-    "(function () {",
-    "  var promise = null;",
-    "  function loadExtendedI18n() {",
-    "    if (window.__ILOVE_I18N_EXT_LOADED) return Promise.resolve();",
-    "    if (promise) return promise;",
-    "    promise = new Promise(function (resolve, reject) {",
-    "      var script = document.createElement('script');",
-    "      script.src = '/js/i18n-ext.js?v=23';",
-    "      script.async = true;",
-    "      script.onload = function () { window.__ILOVE_I18N_EXT_LOADED = true; resolve(); };",
-    "      script.onerror = function () { promise = null; reject(new Error('Extended translations unavailable')); };",
-    "      document.head.appendChild(script);",
-    "    });",
-    "    return promise;",
-    "  }",
-    "  window.loadExtendedI18n = loadExtendedI18n;",
-    "  var language = 'en';",
-    "  try { language = (localStorage.getItem('ilovepdf_lang') || 'en').toLowerCase(); } catch (_) {}",
-    "  if (language && language !== 'en') loadExtendedI18n().catch(function () {});",
-    "})();",
-    "</script>"
-  ].join('\n');
-  return html.replace(/<\/body>/i, loader + '\n</body>');
-}
-
 function removeHomepageOnlyOverlaysAndLaba(html) {
   const before = html;
-  html = addOnDemandExtendedTranslations(html);
   // Keep tool-runtime/federation/worker modules on tool routes. The homepage
   // only needs marketing UI, shared chrome, language support, and explicit
   // homepage interactions; these modules remain available in public/tool.html.
@@ -104,6 +65,12 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
       const path = src.split(/[?#]/, 1)[0];
       return TOOL_ONLY_HOMEPAGE_SCRIPTS.has(path) ? '' : tag;
     }
+  );
+  // The shared chrome already owns the footer language selector; the old
+  // standalone handler would duplicate events on the homepage.
+  html = html.replace(
+    /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/footer-lang\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
+    ''
   );
   // These scripts/styles belong to the optional Laba chatbot or the one-off
   // announcement modal. Neither is required to render the homepage tool catalogue.
