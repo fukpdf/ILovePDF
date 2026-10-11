@@ -2,6 +2,10 @@
 
 Production-ready PDF + image processing platform with **33 tools**, branded as **ILovePDF** (red theme `#E5322E`). Single-deploy Node/Express app — runs on Replit, Railway, or any Node host.
 
+## Homepage performance and Laba removal
+
+The controlled first-render optimization, official-reference comparison, Laba dependency audit, validation gates, and implementation log are tracked in [`HOMEPAGE_LOADING_AND_LABA_REMOVAL.md`](./HOMEPAGE_LOADING_AND_LABA_REMOVAL.md). This work is isolated to the homepage and Laba-specific code; PDF processing engines and unrelated tool workflows are out of scope. The change is not considered complete until the browser/viewport/accessibility re-audit passes.
+
 ## Architecture (current)
 
 ```
