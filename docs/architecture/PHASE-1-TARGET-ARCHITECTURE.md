@@ -149,4 +149,4 @@ Large dependencies are lazy-loaded per selected tool. Static dependency assets m
 
 GitHub remains source control only. Runtime user files, screenshots, extracted text, generated results, prompts, credentials, and secrets are prohibited from being written to repository content, commits, issues, pull requests, or logs.
 
-Laba AI remains a separate chatbot surface and is not part of the document-tool registry or processing engines. It may use an AI provider only when an explicit valid provider configuration is present; there is no hidden provider substitution or fabricated AI fallback. If no provider is configured, the chatbot reports that AI service is unavailable.
+The global Laba chatbot surface and its dedicated runtime modules have been removed. Any future AI capability must be owned by an explicit tool workflow, loaded on demand, and document provider configuration, user consent, and data handling before implementation.
