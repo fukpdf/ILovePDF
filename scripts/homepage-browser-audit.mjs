@@ -28,6 +28,10 @@ try {
   if (!response || response.status() !== 200) fail('homepage did not return HTTP 200');
   await page.waitForFunction(() => document.querySelectorAll('a.tool').length >= 30, null, { timeout: 30000 })
     .catch(() => fail('homepage tool cards did not render within 30 seconds'));
+  await page.waitForFunction(() => {
+    const cards = [...document.querySelectorAll('a.tool')];
+    return cards.length >= 41 && cards.every(card => card.querySelector('svg, img, [data-icon], i[data-lucide]'));
+  }, null, { timeout: 10000 }).catch(() => fail('homepage cards did not all expose icon markup after render stabilization'));
 
   const initial = await page.evaluate(() => ({
     title: document.title,
