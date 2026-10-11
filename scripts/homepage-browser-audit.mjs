@@ -150,7 +150,7 @@ try {
 
   const initial = await page.evaluate(() => ({
     title: document.title,
-    preservedServerNav: window.__ILOVE_PRESERVE_SERVER_NAV === true,
+    preservedServerHeader: window.__ILOVE_PRESERVE_SERVER_HEADER === true,
     h1Count: document.querySelectorAll('h1').length,
     footerCount: document.querySelectorAll('footer.footer').length,
     footerAfterLower: (() => { const footer = document.querySelector('footer.footer'); const lower = document.querySelector('.home-lower'); return !footer || !lower || !!(lower.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING); })(),
@@ -185,8 +185,8 @@ try {
   }));
 
   if (!initial.title.trim()) fail('homepage document title is empty');
-  if (!initial.preservedServerNav) fail('homepage did not preserve its complete server-rendered header/navigation at boot');
-  else report('complete server-rendered homepage navigation is preserved at boot');
+  if (!initial.preservedServerHeader) fail('homepage did not preserve its server-rendered header at boot');
+  else report('server-rendered homepage header is preserved at boot');
   if (initial.h1Count < 1) fail('homepage has no H1 heading');
   if (!initial.header) fail('homepage header is missing');
   if (!initial.footer) fail('homepage footer is missing');
