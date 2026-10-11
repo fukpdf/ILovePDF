@@ -903,12 +903,12 @@ function ensureSharedShell() {
   }
 
   /* Replace every page footer with the canonical homepage footer. */
-  const currentFooter = document.querySelector('footer.footer');
+  const currentFooters = [...document.querySelectorAll('footer.footer')];
   const holder = document.createElement('div');
   holder.innerHTML = SHARED_FOOTER_HTML.trim();
   const canonicalFooter = holder.firstElementChild;
-  if (currentFooter) currentFooter.replaceWith(canonicalFooter);
-  else document.body.appendChild(canonicalFooter);
+  currentFooters.forEach(footer => footer.remove());
+  document.body.appendChild(canonicalFooter);
 
   window.__ILOVE_SHARED_SHELL_READY = true;
   return canonicalFooter;

@@ -136,3 +136,8 @@ A dedicated CI smoke test now starts the real Express server on an isolated loca
 **Implementation:** The shared chrome now checks existing stylesheet URLs by resolved pathname before appending the footer CSS. If the page already has `/css/home-footer-v2.css`, the static stylesheet is reused. The assembler and static audit normalize relative and absolute local CSS URLs so duplicate paths are detected consistently. The language-selector browser test resets to a known desktop viewport before interaction.
 
 **Verification required:** the post-load resource inventory must show one request per local CSS path; CLS and footer language interaction must pass again.
+
+
+## Chunk K — Canonical footer ordering and interaction
+
+The browser audit found the footer language menu could be covered by the homepage blog section when opened upward. The shared shell previously replaced only the first footer in its existing location. It now removes any existing footer copies and appends exactly one canonical footer after all lower-page content. The browser audit checks one footer and verifies it follows the lower sections before exercising the language selector.
