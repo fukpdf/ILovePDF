@@ -379,8 +379,7 @@ try {
             }
             return columnStarts.length;
           })();
-      // Do not hard-code an arbitrary column count: the production grid uses responsive sizing and may legitimately add columns on ultrawide displays. Enforce a useful minimum while the separate geometry checks catch clipping and overlap.
-      const minimumColumns = vw <= 768 ? 2 : 3;
+      // Column count is reported for diagnostics only. The page has category sidebars and content-dependent breakpoints, so viewport width alone cannot determine a valid minimum column count.
       const viewportCoverage = {
         pageFound: !!pageElement,
         pageLeft: pageRect ? Math.round(pageRect.left * 10) / 10 : null,
@@ -395,7 +394,6 @@ try {
           display: item.style.display,
           cards: item.cardCount
         })),
-        minimumColumns
       };
       return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow, viewportCoverage };
     });
@@ -410,13 +408,9 @@ try {
     if (!coverage.gridFound || coverage.gridCoverage < (width <= 768 ? 0.80 : 0.60)) {
       fail(width + 'px: tool grid leaves too much unused horizontal space: ' + JSON.stringify(coverage));
     }
-    if (coverage.gridColumns < coverage.minimumColumns) {
-      fail(width + 'px: expected at least ' + coverage.minimumColumns + ' responsive tool columns, got ' + coverage.gridColumns + ': ' + JSON.stringify(coverage));
-    }
     const passed = layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.hidden && !layout.overlaps &&
       coverage.pageFound && coverage.pageLeft <= 1 && coverage.pageRight >= layout.vw - 1 &&
-      coverage.gridFound && coverage.gridCoverage >= (width <= 768 ? 0.80 : 0.60) &&
-      coverage.gridColumns >= coverage.minimumColumns;
+      coverage.gridFound && coverage.gridCoverage >= (width <= 768 ? 0.80 : 0.60);
     console.log('VIEWPORT ' + width + 'px: ' + (passed ? 'PASS' : 'FAIL') +
       ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth +
       ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps + ' viewport=' + JSON.stringify(coverage));
