@@ -19,7 +19,7 @@ try {
   page.on('request', request => {
     try {
       const url = new URL(request.url());
-      if (url.origin === new URL(BASE).origin && /(?:\\/laba\\/|\\/js\\/laba-|homepage-lazy-loader\\.js)/i.test(url.pathname)) {
+      if (url.origin === new URL(BASE).origin && /(?:\/laba\/|\/js\/laba-|homepage-lazy-loader\.js)/i.test(url.pathname)) {
         labaRequests.push(url.pathname);
       }
     } catch {}
