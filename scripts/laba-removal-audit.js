@@ -62,17 +62,17 @@ console.log('\nHomepage category/layout references (for CLS diagnosis):');
 for (const item of layoutRefs) console.log('LAYOUT ' + item.path + ':L' + item.line + ': ' + item.text);
 console.log('\nPotential generic section-hiding code (first 120 matches):');
 for (const item of hideRefs.slice(0, 120)) console.log('HIDE ' + item.path + ':L' + item.line + ': ' + item.text);
-console.log('\\nActive application-code references:');
+console.log('\nActive application-code references:');
 const historicalOrTestPath = relative =>
   relative.startsWith('docs/') ||
   relative.startsWith('scripts/') ||
   relative.startsWith('.github/workflows/') ||
-  /\\.(?:md|txt)$/i.test(relative) ||
+  /\.(?:md|txt)$/i.test(relative) ||
   relative === 'README.md' ||
   relative === 'CONTRIBUTING.md';
 const activeRefs = externalRefs.filter(item => !historicalOrTestPath(item.path));
 for (const item of activeRefs) console.log('ACTIVE REFERENCE ' + item.path + ' (' + item.matches + ' refs)');
-console.log('\\nRemaining references in docs/tests/removal guards are historical or intentional and should be reviewed separately.');
+console.log('\nRemaining references in docs/tests/removal guards are historical or intentional and should be reviewed separately.');
 if (process.argv.includes('--assert-clean')) {
   if (remainingDedicatedPaths.length || directFiles.length || activeRefs.length) {
     console.error('FAIL: retired Laba files or active application references remain');
