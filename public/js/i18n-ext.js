@@ -1964,4 +1964,6 @@
   } else {
     setTimeout(hookI18n, 30);
   }
+
+  window.__ILOVE_I18N_EXT_READY = true;
 })();
