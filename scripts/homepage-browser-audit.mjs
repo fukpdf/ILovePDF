@@ -86,7 +86,7 @@ try {
   // Observe the full idle window and verify the homepage never requests tool-only AI engines.
   await page.waitForTimeout(4500);
   const heavyStackLoaded = await page.evaluate(() => {
-    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/runtime-global-certification.js'];
+    const sentinels = ['/js/vector-memory-engine.js', '/js/generative-ai-engine.js', '/js/runtime-global-certification.js', '/js/pdf-lib', '/js/pdf-engine', '/js/merge-pdf', '/js/compress-pdf', '/js/ocr-engine', '/js/tesseract', '/wasm/', '/workers/'];
     return performance.getEntriesByType('resource').map(entry => {
       try { return new URL(entry.name).pathname; } catch { return ''; }
     }).filter(path => sentinels.some(sentinel => path.endsWith(sentinel)));
