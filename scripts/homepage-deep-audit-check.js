@@ -59,7 +59,7 @@ const staticChecks = [
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
 const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
-  .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: /\\bdefer\\b/i.test(match[0]), async: /\\basync\\b/i.test(match[0]) }));
+  .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: match[0].toLowerCase().includes(' defer'), async: match[0].toLowerCase().includes(' async') }));
 const scriptIndex = (needle) => scriptSources.find(item => item.src.includes(needle))?.index ?? -1;
 const chromeAt = scriptIndex('/js/chrome.js');
 const runtimeAt = scriptIndex('/js/runtime-protection.js');
