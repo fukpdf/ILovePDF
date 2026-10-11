@@ -185,12 +185,16 @@ jobs:
             echo '::error::Homepage should not load the PDF-tool runtime protection stack'
             exit 1
           fi
-          tool_html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/tool.html")"
-          if ! echo "$tool_html" | grep -q 'runtime-protection'; then
-            echo '::error::Tool page is missing the runtime protection stack'
+          if ! grep -q 'runtime-protection' public/tool.html; then
+            echo '::error::Source tool.html is missing the runtime protection stack'
             exit 1
           fi
-          echo "Homepage excludes tool-only runtime; tool page retains runtime protection"
+          tool_html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/tool.html")"
+          if ! echo "$tool_html" | grep -q 'id="tool-content"'; then
+            echo '::error::Deployed tool page did not return the expected tool workspace HTML'
+            exit 1
+          fi
+          echo "Homepage excludes tool-only runtime; source retains protection and deployed tool workspace responds"
 
           deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
           if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
