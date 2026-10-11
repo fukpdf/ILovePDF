@@ -64,11 +64,22 @@ try {
         const failedRequests = [];
         page.on('requestfailed', request => failedRequests.push({ url: request.url(), reason: request.failure()?.errorText || 'failed' }));
         let status = null;
+        let documentHeaders = null;
         let navigationError = null;
         const started = Date.now();
         try {
           const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           status = response?.status() ?? null;
+          if (response) {
+            const headers = await response.allHeaders();
+            documentHeaders = {
+              contentEncoding: headers['content-encoding'] || null,
+              contentLength: headers['content-length'] || null,
+              cacheControl: headers['cache-control'] || null,
+              contentType: headers['content-type'] || null,
+              server: headers['server'] || null
+            };
+          }
           // Give post-load scripts and the LCP observer the same short settling window.
           await page.waitForTimeout(2500);
         } catch (error) {
@@ -90,6 +101,18 @@ try {
             resourceCount: resources.length,
             scriptCount: resources.filter(entry => /script/i.test(entry.initiatorType)).length,
             stylesheetCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
+            topTransferredResources: resources
+              .filter(entry => entry.transferSize > 0)
+              .sort((a, b) => b.transferSize - a.transferSize)
+              .slice(0, 12)
+              .map(entry => ({
+                url: entry.name,
+                initiatorType: entry.initiatorType,
+                transferBytes: entry.transferSize,
+                encodedBodyBytes: entry.encodedBodySize,
+                decodedBodyBytes: entry.decodedBodySize,
+                durationMs: Math.round(entry.duration * 10) / 10
+              })),
             documentWidth: html?.scrollWidth ?? null,
             viewportWidth: html?.clientWidth ?? null,
             lcpMs: window.__livePerf?.lcp ?? null,
@@ -108,6 +131,7 @@ try {
           status,
           wallMs: Date.now() - started,
           navigationError,
+          documentHeaders,
           failedRequestCount: failedRequests.length,
           failedRequestExamples: failedRequests.slice(0, 3),
           ...metrics
