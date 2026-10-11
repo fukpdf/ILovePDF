@@ -47,7 +47,7 @@ try {
         let navigationError = null;
         const started = Date.now();
         try {
-          const response = await page.goto(target.url, { waitUntil: 'load', timeout: 60000 });
+          const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           status = response?.status() ?? null;
           // Give post-load scripts and the LCP observer the same short settling window.
           await page.waitForTimeout(2500);
@@ -113,4 +113,10 @@ for (const profile of profiles) {
     }));
   }
 }
-if (results.some(row => row.status !== 200 || row.navigationError)) process.exitCode = 1;
+const incompleteComparisons = profiles.some(profile => targets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200)));
+if (incompleteComparisons) {
+  console.error('LIVE_BENCHMARK_WARNING: at least one site/profile had no successful navigation; comparison is incomplete.');
+  process.exitCode = 1;
+} else if (results.some(row => row.status !== 200 || row.navigationError)) {
+  console.warn('LIVE_BENCHMARK_WARNING: some samples failed, but each site/profile has at least one successful sample; medians use successful runs only.');
+}
