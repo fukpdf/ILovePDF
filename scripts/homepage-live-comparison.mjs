@@ -101,6 +101,14 @@ try {
             resourceCount: resources.length,
             scriptCount: resources.filter(entry => /script/i.test(entry.initiatorType)).length,
             stylesheetCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
+            apiRequestCount: resources.filter(entry => {
+              try { const url = new URL(entry.name); return url.origin === location.origin && url.pathname.startsWith('/api/'); } catch { return false; }
+            }).length,
+            apiTransferBytes: resources.filter(entry => {
+              try { const url = new URL(entry.name); return url.origin === location.origin && url.pathname.startsWith('/api/'); } catch { return false; }
+            }).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
+            adScriptCount: resources.filter(entry => /pagead\\.googlesyndication\\.com/i.test(entry.name)).length,
+            adTransferBytes: resources.filter(entry => /pagead\\.googlesyndication\\.com/i.test(entry.name)).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
             topTransferredResources: resources
               .filter(entry => entry.transferSize > 0)
               .sort((a, b) => b.transferSize - a.transferSize)
@@ -157,6 +165,8 @@ for (const profile of profiles) {
       domContentLoadedMs: median('domContentLoadedMs'), loadEventMs: median('loadEventMs'),
       totalTransferBytes: median('totalTransferBytes'), resourceCount: median('resourceCount'),
       scriptCount: median('scriptCount'), stylesheetCount: median('stylesheetCount'),
+      apiRequestCount: median('apiRequestCount'), apiTransferBytes: median('apiTransferBytes'),
+      adScriptCount: median('adScriptCount'), adTransferBytes: median('adTransferBytes'),
       cls: median('cls')
     }));
   }
