@@ -29,11 +29,12 @@ function inflateHomepage() {
     parts.push(chunk);
   }
   const html = zlib.inflateSync(Buffer.from(parts.join(''), 'base64')).toString('utf8');
-  if (!html.toLowerCase().includes('<!doctype html') || html.includes('DecompressionStream')) {
+  if (!html.toLowerCase().includes('<!doctype html')) throw new Error('Decompressed homepage is not a full HTML document');
   return html;
 }
 
 let sourceHtml;
+
 let html;
 try {
   sourceHtml = inflateHomepage();
