@@ -1,6 +1,7 @@
 /* Homepage Footer v2 — bold, distinctive, professional */
 .footer {
   position: relative;
+  z-index: 20;
   margin-top: 56px;
   background:
     radial-gradient(circle at 8% 0%, rgba(99,102,241,.18), transparent 28%),
