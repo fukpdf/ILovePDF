@@ -1140,12 +1140,14 @@ async function initChrome() {
     }
     return false;
   };
-  tryIcons();
-  let iconTries = 0;
-  const iconTimer = setInterval(() => {
-    iconTries++;
-    if (tryIcons() || iconTries > 30) clearInterval(iconTimer);
-  }, 100);
+  // Do not rescan the entire DOM every 100ms while the Lucide bundle loads.
+  // Retry a few times, then make one final attempt at window load.
+  const retryIcons = attempt => {
+    if (tryIcons() || attempt >= 3) return;
+    const delays = [100, 250, 600];
+    setTimeout(() => retryIcons(attempt + 1), delays[attempt]);
+  };
+  retryIcons(0);
   window.addEventListener('load', tryIcons, { once: true });
 }
 
