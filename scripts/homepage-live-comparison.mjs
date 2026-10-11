@@ -115,8 +115,7 @@ for (const profile of profiles) {
 }
 const incompleteComparisons = profiles.some(profile => targets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200)));
 if (incompleteComparisons) {
-  console.error('LIVE_BENCHMARK_WARNING: at least one site/profile had no successful navigation; comparison is incomplete.');
-  process.exitCode = 1;
+  console.warn('LIVE_BENCHMARK_INCOMPLETE: at least one site/profile had no successful navigation. Do not compare its challenge/error page metrics with the other site. External bot protection or availability can block live lab tests; this diagnostic does not fail the homepage regression gate.');
 } else if (results.some(row => row.status !== 200 || row.navigationError)) {
   console.warn('LIVE_BENCHMARK_WARNING: some samples failed, but each site/profile has at least one successful sample; medians use successful runs only.');
 }
