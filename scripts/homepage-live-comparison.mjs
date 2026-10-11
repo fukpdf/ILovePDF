@@ -129,9 +129,20 @@ try {
             layoutShifts: (window.__livePerf?.shifts || []).slice(0, 5),
             longTaskCount: (window.__livePerf?.longTasks || []).length,
             longTaskDurationMs: Math.round((window.__livePerf?.longTasks || []).reduce((sum, task) => sum + task.duration, 0) * 10) / 10,
-            fontStatus: document.fonts?.status || 'unsupported'
+            fontStatus: document.fonts?.status || 'unsupported',
+            scriptUrls: resources.filter(entry => /script/i.test(entry.initiatorType)).map(entry => entry.name),
+            stylesheetUrls: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).map(entry => entry.name),
+            scriptTags: Array.from(document.scripts).filter(script => script.src).map(script => ({ url: script.src, async: script.async, defer: script.defer })),
+            stylesheetTags: Array.from(document.querySelectorAll('link[rel~="stylesheet"], link[rel="preload"][as="style"]')).map(link => ({ href: link.href, rel: link.rel, media: link.media }))
           };
         }).catch(error => ({ measurementError: String(error) }));
+        const includeInventory = target.name === 'Local candidate build' && profile.name === 'mobile' && run === 1;
+        if (!includeInventory) {
+          delete metrics.scriptUrls;
+          delete metrics.stylesheetUrls;
+          delete metrics.scriptTags;
+          delete metrics.stylesheetTags;
+        }
         results.push({
           target: target.name,
           url: target.url,
