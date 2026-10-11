@@ -114,6 +114,7 @@ function stabilizeHomepageFirstRender(html) {
 
   return {
     html,
+    serverNavFound: hasCompleteServerNav,
     navPreservationEnabled,
     fontDisplayAdjusted: html !== beforeFontPolicy
   };
@@ -372,6 +373,10 @@ export function assembleHomepageIndex() {
   // Prevent post-paint navigation replacement and late font-swap reflow.
   const firstRender = stabilizeHomepageFirstRender(html);
   html = firstRender.html;
+  if (firstRender.serverNavFound && !firstRender.navPreservationEnabled) {
+    fail('server-rendered homepage nav found but preservation flag could not be injected');
+    return false;
+  }
   if (firstRender.navPreservationEnabled) {
     console.log('[assemble-index] enabled server-nav preservation before deferred chrome.js');
   }
