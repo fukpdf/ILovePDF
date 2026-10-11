@@ -800,9 +800,6 @@
   <script src="/js/shared.js?v=__BUILD_ID__" defer></script>
   <script src="/js/auth-ui.js?v=__BUILD_ID__" defer></script>
   <script src="/js/tool-i18n-bridge.js?v=__BUILD_ID__" defer></script>
-  <!-- Laba AI Assistant — widget CSS + button UI load eagerly for instant chat bubble -->
-  <link rel="stylesheet" href="/laba/laba-widget.css">
-  <script src="/laba/laba-widget.js" defer></script>
 
   <!-- Phase 12: Shared Core Architecture (additive — safe on every page) -->
   <script src="/core/core-manifest.js" defer></script>
@@ -828,10 +825,6 @@
        Applies mobile resilience limits. Activates production safety guards. -->
   <script src="/core/runtime-governor.js" defer></script>
 
-  <!-- Phase 13/14: AI/Laba stack lazy-loaded after 4s idle or first Laba interaction.
-       Replaces 50+ eager-deferred AI/Laba script tags.
-       Crawlers skip entirely (SEO/tools unaffected).
-       All 50 modules load in original order via sequential await. -->
   <!-- Phase 18/20: Production mode guard.
        Detects environment, suppresses Phase-tagged console noise in production,
        and blocks public activation of admin-only debug APIs (runtime dashboard
@@ -854,7 +847,6 @@
   <!-- Phase Community: enhanced savings animation + community header widget -->
   <script src="/js/savings-animation.js" defer></script>
   <script src="/js/community-economy.js" defer></script>
-  <script src="/js/homepage-lazy-loader.js" defer></script>
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
   <script src="/js/pwa-register.js" defer></script>
