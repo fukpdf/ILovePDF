@@ -36,8 +36,36 @@ function moveExternalScriptAfter(html, targetPattern, anchorPattern) {
   };
 }
 
+const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
+  '/core/core-manifest.js',
+  '/core/shared-constants.js',
+  '/core/runtime-contracts.js',
+  '/core/runtime-federation.js',
+  '/core/ai-runtime.js',
+  '/core/runtime-governor.js',
+  '/core/runtime-chunk-manifest.js',
+  '/js/tool-i18n-bridge.js',
+  '/js/runtime-ai-scheduler.js',
+  '/js/runtime-worker-factory.js',
+  '/js/runtime-wasm-registry.js',
+  '/js/runtime-compression-presets.js',
+  '/js/runtime-pinned-tools.js',
+  '/js/runtime-tool-engagement.js',
+  '/js/runtime-failed-log.js',
+]);
+
 function removeHomepageOnlyOverlaysAndLaba(html) {
   const before = html;
+  // Keep tool-runtime/federation/worker modules on tool routes. The homepage
+  // only needs marketing UI, shared chrome, language support, and explicit
+  // homepage interactions; these modules remain available in public/tool.html.
+  html = html.replace(
+    /<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>\s*/gi,
+    (tag, src) => {
+      const path = src.split(/[?#]/, 1)[0];
+      return TOOL_ONLY_HOMEPAGE_SCRIPTS.has(path) ? '' : tag;
+    }
+  );
   // These scripts/styles belong to the optional Laba chatbot or the one-off
   // announcement modal. Neither is required to render the homepage tool catalogue.
   html = html.replace(
@@ -151,7 +179,7 @@ function main() {
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
   console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
   if (homeMove.moved) console.log('[assemble-index] chrome.js now executes before the homepage renderer');
-  if (cleanup.changed) console.log('[assemble-index] removed homepage-only Laba widget/lazy-loader and delayed announcement assets');
+  if (cleanup.changed) console.log('[assemble-index] removed homepage-only Laba/announcement assets and tool-only runtime modules');
   if (i18nExtMove.moved) console.log('[assemble-index] homepage renderer now executes before the extended translation payload');
 }
 
