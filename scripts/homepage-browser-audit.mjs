@@ -359,7 +359,7 @@ try {
         .filter(item => item.cardCount > 0 && item.rect.width > 0 && item.style.display !== 'none' && item.style.visibility !== 'hidden');
       gridCandidates.sort((a, b) => b.rect.width - a.rect.width);
       const chosenGrid = gridCandidates[0] || null;
-      const contentShell = [...document.querySelectorAll('.home-cat-inner, .content, #tools-root')]
+      const contentShell = [...document.querySelectorAll('.home-cat-inner, .content, #tools-root, #cat-pdf-tools')]
         .map(element => ({ element, rect: element.getBoundingClientRect() }))
         .filter(item => item.rect.width > 0)
         .sort((a, b) => b.rect.width - a.rect.width)[0];
