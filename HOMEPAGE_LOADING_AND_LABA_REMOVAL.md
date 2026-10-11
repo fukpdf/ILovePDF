@@ -122,3 +122,8 @@ Compare the **actual served page** at the same viewport and browser conditions, 
 **Implementation:** The homepage assembler now deduplicates repeated local `/css/*.css` stylesheet paths while preserving the last occurrence to retain the existing cascade position and cache-busting URL. A source-level assertion blocks duplicate local stylesheet paths from returning. No CSS content, tool engines, or tool-page markup is changed.
 
 **Verification required:** browser resource inventory confirms one request for each local CSS path; compare FCP/LCP/CLS and rerun all viewport, route, accessibility, and Laba checks.
+
+
+## Chunk H — Node server smoke verification
+
+A dedicated CI smoke test now starts the real Express server on an isolated local port and checks the actual HTTP response for a full HTML document, no chunk/decompression loader, a real homepage H1, working homepage CSS, and no duplicate local stylesheet paths. The test shuts down its child process and never deploys or contacts production. This verifies the Node-hosted path in addition to the static assembler and browser test server.
