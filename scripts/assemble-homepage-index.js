@@ -52,6 +52,10 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   '/js/runtime-pinned-tools.js',
   '/js/runtime-tool-engagement.js',
   '/js/runtime-failed-log.js',
+  // These modules are for tool/runtime telemetry, not the marketing homepage.
+  // The Firebase static homepage has no API backend to receive their events.
+  '/js/runtime-analytics.js',
+  '/js/runtime-identity.js',
 ]);
 
 function dedupeLocalStylesheets(html) {
@@ -173,6 +177,31 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
     return null;
   }
   return { html, changed: html !== before };
+}
+
+function injectStaticApiGuard(html) {
+  if (html.includes('window.__ILOVE_STATIC_API_GUARD__')) return html;
+  const guard = '<script>(function(){var host=String(location.hostname||"").toLowerCase();var staticHost=host.endsWith(".web.app")||host.endsWith(".firebaseapp.com")||host==="ilovepdf.cyou";if(!staticHost||typeof window.fetch!=="function"||window.__ILOVE_STATIC_API_GUARD__)return;window.__ILOVE_STATIC_API_GUARD__=true;var nativeFetch=window.fetch;window.fetch=function(input,init){var raw=typeof input==="string"?input:(input&&input.url)||"";try{var url=new URL(raw,location.href);if(url.origin===location.origin&&url.pathname.startsWith("/api/"))return Promise.resolve(new Response(JSON.stringify({available:false,error:"API backend unavailable on static hosting"}),{status:503,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}}));}catch(_){}return nativeFetch.call(this,input,init);};})();</script>';
+  if (!/<head\\b[^>]*>/i.test(html)) {
+    fail('cannot inject the static-hosting API guard because the homepage head element is missing');
+    return null;
+  }
+  return html.replace(/<head\\b[^>]*>/i, head => head + '\\n' + guard);
+}
+
+function deferHomepageAds(html) {
+  const pattern = /<script\\b(?=[^>]*\\bsrc=["']https?:\\/\\/pagead\\.googlesyndication\\.com\\/pagead\\/js\\/adsbygoogle\\.js[^"']*["'])[^>]*>\\s*<\\/script>/gi;
+  let count = 0;
+  html = html.replace(pattern, tag => {
+    const src = tag.match(/\\bsrc=["']([^"']+)["']/i)?.[1];
+    if (!src) return tag;
+    count++;
+    // Preserve ad monetization, but don't fetch the large third-party runtime
+    // until an ad slot is near the viewport, the visitor scrolls, or a post-load
+    // fallback fires. The original tag is removed from the critical request path.
+    return '<script>(function(){var src=' + JSON.stringify(src) + ';var loaded=false;function load(){if(loaded)return;loaded=true;var s=document.createElement("script");s.async=true;s.src=src;s.crossOrigin="anonymous";document.head.appendChild(s);}var slots=document.querySelectorAll("[data-ad-slot],.ad-slot,ins.adsbygoogle");if("IntersectionObserver" in window&&slots.length){var observer=new IntersectionObserver(function(entries){if(entries.some(function(e){return e.isIntersecting;})){observer.disconnect();load();}},{rootMargin:"0px 0px 150px 0px"});slots.forEach(function(slot){observer.observe(slot);});}window.addEventListener("load",function(){setTimeout(load,4500);},{once:true});window.addEventListener("scroll",load,{once:true,passive:true});})();</script>';
+  });
+  return { html, count };
 }
 
 function escapeHtml(value) {
@@ -364,6 +393,18 @@ export function assembleHomepageIndex() {
   const cleanup = removeHomepageOnlyOverlaysAndLaba(html);
   if (!cleanup) return false;
   html = cleanup.html;
+
+  // Static Firebase Hosting has no /api/* backend route. Short-circuit those
+  // requests locally instead of downloading tool.html as the wildcard fallback.
+  html = injectStaticApiGuard(html);
+  if (!html) return false;
+
+  // Ads remain enabled but are activated only when useful, not as a startup cost.
+  const adsCleanup = deferHomepageAds(html);
+  html = adsCleanup.html;
+  if (adsCleanup.count) {
+    console.log('[assemble-index] deferred ' + adsCleanup.count + ' AdSense script(s) until a slot approaches view or post-load fallback');
+  }
 
   // Repeated local CSS paths with different query strings still download the same stylesheet.
   const stylesheetCleanup = dedupeLocalStylesheets(html);
