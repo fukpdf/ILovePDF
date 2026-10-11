@@ -39,10 +39,10 @@ const index = (() => {
   for (let i = 0; i < 4; i++) {
     const chunkPath = path.join(PUBLIC, 'index-chunks', 'z' + i + '.b64');
     if (!fs.existsSync(chunkPath)) throw new Error('Missing homepage source chunk: ' + chunkPath);
-    chunks.push(fs.readFileSync(chunkPath, 'utf8').replace(/\\s+/g, ''));
+    chunks.push(fs.readFileSync(chunkPath, 'utf8').replace(/\s+/g, ''));
   }
   const assembled = zlib.inflateSync(Buffer.from(chunks.join(''), 'base64')).toString('utf8');
-  if (!/<!doctype\\s+html/i.test(assembled)) throw new Error('Homepage chunks did not inflate to full HTML');
+  if (!/<!doctype\s+html/i.test(assembled)) throw new Error('Homepage chunks did not inflate to full HTML');
   return assembled;
 })();
 const tool = read('public/tool.html');
