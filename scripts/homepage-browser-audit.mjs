@@ -47,12 +47,16 @@ try {
         return style.display !== 'none' && style.visibility !== 'hidden' &&
           (element.childElementCount > 0 || !!element.textContent.trim() || (pseudo && pseudo !== 'none' && pseudo !== 'normal'));
       })(),
-      iconMarkup: a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]')?.outerHTML.slice(0, 160) || ''
+      iconMarkup: a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]')?.outerHTML.slice(0, 160) || '',
+      outer: a.outerHTML.slice(0, 500)
     })),
     header: !!document.querySelector('.site-header, header'),
     footer: !!document.querySelector('footer'),
     htmlWidth: document.documentElement.scrollWidth,
-    viewportWidth: window.innerWidth
+    viewportWidth: window.innerWidth,
+    toolGroupsCount: Array.isArray(window.TOOL_GROUPS) ? window.TOOL_GROUPS.length : -1,
+    renderCategorySectionsType: typeof window.renderCategorySections,
+    fastBoot: !!window.__HOME_FAST_BOOT__
   }));
 
   if (!initial.title.trim()) fail('homepage document title is empty');
@@ -64,10 +68,11 @@ try {
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
   const missingIcons = initial.cards.filter(card => !card.icon);
   if (missingIcons.length) {
-    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.map(card => (card.text || '(unnamed)') + ' :: ' + card.iconMarkup).join(' | '));
+    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.slice(0, 5).map(card => (card.text || '(unnamed)') + ' :: icon=' + card.iconMarkup + ' :: outer=' + card.outer).join(' | '));
     fail('tool cards with missing visible icon markup: ' + missingIcons.length);
   }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
+  console.log('RENDER DIAGNOSTICS: toolGroups=' + initial.toolGroupsCount + ', renderCategorySections=' + initial.renderCategorySectionsType + ', fastBoot=' + initial.fastBoot);
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
