@@ -148,7 +148,7 @@ const forbiddenHomepageRefs = /(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-lo
 if (forbiddenHomepageRefs.test(html)) fail('assembled homepage still references Laba assets or delayed announcement modal');
 else pass('assembled homepage contains no Laba widget, Laba lazy loader, or delayed announcement assets');
 const i18nExtAt = scriptIndex('i18n-ext.js');
-if (i18nExtAt === -1 && /function\\s+loadExtendedI18n\\s*\\(/.test(chrome)) {
+if (i18nExtAt === -1 && /function\s+loadExtendedI18n\s*\(/.test(chrome)) {
   pass('supplemental locale payload is excluded from initial HTML and loaded on demand');
 } else {
   fail('supplemental locale payload must be lazy-loaded outside the initial script list');
