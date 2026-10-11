@@ -318,9 +318,23 @@ try {
               Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) overlaps++;
         }
       }
-      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements };
+      const rootMetrics = {
+        htmlClientWidth: document.documentElement.clientWidth,
+        htmlScrollWidth: document.documentElement.scrollWidth,
+        bodyClientWidth: document.body.clientWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+        bodyRect: (() => { const r = document.body.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width }; })()
+      };
+      const pseudoOverflow = [...document.querySelectorAll('body, body *')].flatMap(element => ['::before', '::after'].map(pseudo => {
+        const style = getComputedStyle(element, pseudo);
+        const rect = element.getBoundingClientRect();
+        const width = parseFloat(style.width);
+        const left = style.position === 'fixed' ? (style.left === 'auto' ? rect.right - width : parseFloat(style.left)) : rect.left + (parseFloat(style.left) || 0);
+        return { selector: (element.id ? '#' + element.id : element.tagName.toLowerCase() + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\\s+/).join('.') : '')) + pseudo, content: style.content, position: style.position, left, right: left + width, width };
+      })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8);
+      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow };
     });
-    if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport); offenders=' + JSON.stringify(layout.overflowElements));
+    if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport); root=' + JSON.stringify(layout.rootMetrics) + '; offenders=' + JSON.stringify(layout.overflowElements) + '; pseudo=' + JSON.stringify(layout.pseudoOverflow));
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
     if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
@@ -417,6 +431,14 @@ try {
     const expanded = (await allToolsButton.getAttribute('aria-expanded')) === 'true';
     if (!expanded) fail('desktop All Tools dropdown did not set aria-expanded=true');
     else report('desktop All Tools dropdown opens with correct ARIA state');
+    const menuBounds = await page.locator('.site-header .nav-item.has-mega .mega').evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, viewportWidth: document.documentElement.clientWidth, visible: getComputedStyle(element).visibility === 'visible' };
+    });
+    console.log('DESKTOP MEGA MENU BOUNDS: ' + JSON.stringify(menuBounds));
+    if (menuBounds.visible && (menuBounds.left < -1 || menuBounds.right > menuBounds.viewportWidth + 1 || menuBounds.width > menuBounds.viewportWidth)) {
+      fail('desktop All Tools menu extends outside viewport: ' + JSON.stringify(menuBounds));
+    } else if (menuBounds.visible) report('desktop All Tools menu stays within viewport bounds');
     await allToolsButton.click();
   }
 
