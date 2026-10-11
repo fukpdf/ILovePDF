@@ -343,13 +343,13 @@ try {
         const rect = element.getBoundingClientRect();
         const width = parseFloat(style.width);
         const left = style.position === 'fixed' ? (style.left === 'auto' ? rect.right - width : parseFloat(style.left)) : rect.left + (parseFloat(style.left) || 0);
-        return { selector: (element.id ? '#' + element.id : element.tagName.toLowerCase() + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\\s+/).join('.') : '')) + pseudo, content: style.content, position: style.position, left, right: left + width, width };
+        return { selector: (element.id ? '#' + element.id : element.tagName.toLowerCase() + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\s+/).join('.') : '')) + pseudo, content: style.content, position: style.position, left, right: left + width, width };
       })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8);
       const pageElement = document.querySelector('.page');
       const pageRect = pageElement?.getBoundingClientRect();
       const toolsGrid = document.querySelector('.tools-grid');
       const gridRect = toolsGrid?.getBoundingClientRect();
-      const gridColumns = toolsGrid ? getComputedStyle(toolsGrid).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+      const gridColumns = toolsGrid ? getComputedStyle(toolsGrid).gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0;
       const expectedColumns = vw <= 768 ? 2 : 3 + (vw > 1280 ? 1 : 0);
       const viewportCoverage = {
         pageFound: !!pageElement,
@@ -527,7 +527,7 @@ try {
   console.log('ACCESSIBILITY: violations=' + axe.violations.length + ', criticalOrSerious=' + severe.length);
   for (const violation of severe) {
     fail('accessibility ' + violation.impact + ': ' + violation.id + ' — ' + violation.help + ' (' + violation.nodes.length + ' nodes)');
-    violation.nodes.forEach(node => console.log('A11Y_TARGET ' + node.target.join(' ') + ' | ' + (node.failureSummary || node.html).replace(/\\s+/g, ' ').slice(0, 320)));
+    violation.nodes.forEach(node => console.log('A11Y_TARGET ' + node.target.join(' ') + ' | ' + (node.failureSummary || node.html).replace(/\s+/g, ' ').slice(0, 320)));
   }
   if (!severe.length) report('no critical/serious automated WCAG violations detected');
 
