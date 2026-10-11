@@ -87,6 +87,9 @@ const homeAt = scriptIndex('/js/home.js');
 const labaAt = scriptIndex('laba-widget.js');
 if (homeAt >= 0 && labaAt >= 0 && homeAt < labaAt) pass('homepage renderer runs before the optional Laba widget');
 else fail('optional Laba widget is delaying homepage renderer execution');
+const i18nExtAt = scriptIndex('i18n-ext.js');
+if (homeAt >= 0 && i18nExtAt >= 0 && homeAt < i18nExtAt) pass('homepage renderer executes before extended translation payload');
+else fail('extended translation payload is still ahead of homepage renderer');
 
 // Static asset references in the assembled HTML must resolve within public/.
 const assetRefs = new Set();
