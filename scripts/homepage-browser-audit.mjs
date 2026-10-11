@@ -75,6 +75,13 @@ try {
   }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
   console.log('RENDER DIAGNOSTICS: toolGroups=' + initial.toolGroupsCount + ', renderCategorySections=' + initial.renderCategorySectionsType + ', fastBoot=' + initial.fastBoot + ', iconRepair=' + initial.iconRepairType + ', stickers=' + initial.stickerCount);
+  const iconRepairProbe = await page.evaluate(() => {
+    const count = () => document.querySelectorAll('a.tool .tool-name-sticker, a.tool [data-icon], a.tool svg, a.tool img').length;
+    const before = count();
+    if (typeof window.ensureHomepageToolCardIcons === 'function') window.ensureHomepageToolCardIcons();
+    return { before, after: count(), hook: typeof window.ensureHomepageToolCardIcons };
+  }).catch(error => ({ error: error.message }));
+  console.log('ICON REPAIR PROBE: ' + JSON.stringify(iconRepairProbe));
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
