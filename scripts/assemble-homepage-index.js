@@ -130,6 +130,141 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
   return { html, changed: html !== before };
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function readLiteralFields(block) {
+  const fields = {};
+  const pairPattern = /([A-Za-z_$][\w$]*)\s*:\s*'((?:\\.|[^'])*)'/g;
+  for (const match of block.matchAll(pairPattern)) {
+    fields[match[1]] = match[2].replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  }
+  return fields;
+}
+
+function parseHomepageRegistry(chromeSource, homeSource) {
+  const registry = chromeSource.match(/window\.TOOL_GROUPS\s*=\s*\[([\s\S]*?)\n\];/);
+  const iconSource = homeSource.match(/const TOOL_ICON_SVGS\s*=\s*\{([\s\S]*?)\n\};/);
+  const configSource = homeSource.match(/const CAT_CONFIG\s*=\s*\{([\s\S]*?)\n\};/);
+  if (!registry || !iconSource || !configSource) throw new Error('homepage registry/icon/config source is incomplete');
+
+  const groups = [];
+  const groupPattern = /\{\s*key\s*:\s*'([^']+)'\s*,\s*title\s*:\s*'[^']*'\s*,\s*items\s*:\s*\[([\s\S]*?)\]\s*\}/g;
+  for (const groupMatch of registry[1].matchAll(groupPattern)) {
+    const group = { key: groupMatch[1], items: [] };
+    for (const itemMatch of groupMatch[2].matchAll(/\{([^{}]*)\}/g)) {
+      const item = readLiteralFields(itemMatch[1]);
+      if (!item.name || !item.icon || !item.desc) throw new Error('incomplete homepage tool entry in ' + group.key);
+      group.items.push(item);
+    }
+    if (group.items.length) groups.push(group);
+  }
+
+  const icons = {};
+  for (const match of iconSource[1].matchAll(/'([^']+)'\s*:\s*'((?:\\.|[^'])*)'/g)) {
+    icons[match[1]] = match[2].replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  }
+  const config = {};
+  for (const match of configSource[1].matchAll(/(pdf|image|utilities)\s*:\s*\{([^{}]*)\}/g)) {
+    config[match[1]] = readLiteralFields(match[2]);
+  }
+  return { groups, icons, config };
+}
+
+function renderHomepageCards(html) {
+  const chromePath = path.join(ROOT, 'public', 'js', 'chrome.js');
+  const homePath = path.join(ROOT, 'public', 'js', 'home.js');
+  if (!fs.existsSync(chromePath) || !fs.existsSync(homePath)) {
+    fail('homepage card pre-render requires public/js/chrome.js and public/js/home.js');
+    return null;
+  }
+  let registry;
+  try {
+    registry = parseHomepageRegistry(fs.readFileSync(chromePath, 'utf8'), fs.readFileSync(homePath, 'utf8'));
+  } catch (error) {
+    fail('homepage card pre-render could not read the existing tool registry: ' + error.message);
+    return null;
+  }
+
+  const urlFor = tool => tool.url || (tool.slug ? '/' + tool.slug : '/tool.html?id=' + (tool.tid || ''));
+  const badge = prio => {
+    const instant = '<span class="tool-badge tool-badge--instant" aria-label="⚡ Instant">⚡ <span data-i18n="badge.instant">Instant</span></span>';
+    const advanced = '<span class="tool-badge tool-badge--advanced" aria-label="☁️ Advanced">☁️ <span data-i18n="badge.advanced">Advanced</span></span>';
+    if (!prio) return '';
+    if (prio === 'compress') return '<span class="tool-badges">' + instant + advanced + '</span>';
+    return prio === 'instant' ? instant : advanced;
+  };
+
+  const renderSection = (id, groupKeys, type) => {
+    const items = registry.groups.filter(group => groupKeys.includes(group.key))
+      .flatMap(group => group.items.map(tool => ({ ...tool, _cat: group.key })));
+    const cfg = registry.config[type];
+    if (!items.length || !cfg?.title) throw new Error('empty tool group or missing category config for ' + id);
+
+    const toolCards = items.map(tool => {
+      const tid = tool.tid || (tool.url ? tool.url.replace(/^\/+/, '') : '');
+      const titleKey = tid ? 'tools.' + tid + '.title' : '';
+      const descKey = tid ? 'tools.' + tid + '.desc' : '';
+      const iconKey = tool.icon || 'file-text';
+      const sticker = '<span class="tool-name-sticker" aria-hidden="true" data-icon="' + escapeHtml(iconKey) + '">' +
+        (registry.icons[iconKey] || registry.icons['file-text'] || '') + '</span>';
+      return '<a class="tool" data-cat="' + escapeHtml(tool._cat) + '" data-prio="' + escapeHtml(tool.prio || 'instant') +
+        '"' + (tid ? ' data-tid="' + escapeHtml(tid) + '"' : '') + ' href="' + escapeHtml(urlFor(tool)) +
+        '"><div class="tool-text"><h4 class="tool-name">' + sticker + '<span class="tool-name-label"' +
+        (titleKey ? ' data-i18n="' + escapeHtml(titleKey) + '"' : '') + '>' + escapeHtml(tool.name) +
+        '</span></h4><p' + (descKey ? ' data-i18n="' + escapeHtml(descKey) + '"' : '') + '>' +
+        escapeHtml(tool.desc) + '</p></div>' + badge(tool.prio) + '</a>';
+    }).join('');
+
+    const sectionHtml = '<div class="home-cat-inner"><div class="home-cat-head"><span class="home-cat-ico" style="background:' +
+      escapeHtml(cfg.bg) + ';color:' + escapeHtml(cfg.color) + '"><i data-lucide="' + escapeHtml(cfg.icon) +
+      '"></i></span><div><h2 class="home-cat-title" id="' + id + '-title">' + escapeHtml(cfg.title) +
+      '</h2><p class="home-cat-sub">' + escapeHtml(cfg.sub) + '</p></div></div><div class="tools-grid">' +
+      toolCards + '</div></div>';
+
+    const opening = [...html.matchAll(/<section\b[^>]*>/gi)].find(entry =>
+      entry[0].includes('id="' + id + '"') || entry[0].includes("id='" + id + "'"));
+    if (!opening) throw new Error('homepage section not found: ' + id);
+    const closeIndex = html.indexOf('</section>', opening.index + opening[0].length);
+    if (closeIndex < 0) throw new Error('homepage section close tag not found: ' + id);
+    const sectionEnd = closeIndex + '</section>'.length;
+    const existingSection = html.slice(opening.index, sectionEnd);
+    const anchors = [...existingSection.matchAll(/<a\b[^>]*>/gi)].map(entry => entry[0])
+      .filter(tag => /\bclass=["'][^"']*\btool\b[^"']*["']/i.test(tag));
+    const hrefs = new Set(anchors.map(tag => tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || ''));
+    const expected = items.map(urlFor);
+    if (anchors.length === items.length && expected.every(href => hrefs.has(href))) {
+      return { html, count: items.length, changed: false };
+    }
+    html = html.slice(0, opening.index) + opening[0] + sectionHtml + '</section>' + html.slice(sectionEnd);
+    return { html, count: items.length, changed: true };
+  };
+
+  try {
+    let changed = false;
+    let total = 0;
+    for (const [id, keys, type] of [
+      ['cat-pdf-tools', ['organize','security','edit','convert','advanced'], 'pdf'],
+      ['cat-image-tools', ['image'], 'image'],
+      ['cat-utilities', ['utilities'], 'utilities']
+    ]) {
+      const result = renderSection(id, keys, type);
+      html = result.html;
+      total += result.count;
+      changed = changed || result.changed;
+    }
+    if (total !== registry.groups.reduce((sum, group) => sum + group.items.length, 0)) {
+      throw new Error('rendered card count differs from registry count');
+    }
+    return { html, total, changed };
+  } catch (error) {
+    fail('homepage card pre-render failed: ' + error.message);
+    return null;
+  }
+}
+
 export function assembleHomepageIndex() {
   const parts = [];
   for (let i = 0; i < 4; i++) {
@@ -175,6 +310,11 @@ export function assembleHomepageIndex() {
     fail('critical-path order invalid: chrome.js appears after runtime-protection.js');
     return false;
   }
+
+  const preRendered = renderHomepageCards(html);
+  if (!preRendered) return false;
+  html = preRendered.html;
+  console.log('[assemble-index] pre-rendered ' + preRendered.total + ' homepage tool cards' + (preRendered.changed ? '' : ' (matching markup retained)'));
 
   const cleanup = removeHomepageOnlyOverlaysAndLaba(html);
   if (!cleanup) return false;
