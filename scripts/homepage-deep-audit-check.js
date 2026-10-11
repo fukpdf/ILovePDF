@@ -59,7 +59,7 @@ const staticChecks = [
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
 const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
-  .map(match => ({ src: match[1], index: match.index ?? 0 }));
+  .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: /\\bdefer\\b/i.test(match[0]), async: /\\basync\\b/i.test(match[0]) }));
 const scriptIndex = (needle) => scriptSources.find(item => item.src.includes(needle))?.index ?? -1;
 const chromeAt = scriptIndex('/js/chrome.js');
 const runtimeAt = scriptIndex('/js/runtime-protection.js');
@@ -150,8 +150,14 @@ const sizedScripts = scriptSources.map(item => {
   return { src: item.src, bytes: file && fs.existsSync(file) ? fs.statSync(file).size : 0 };
 }).sort((a, b) => b.bytes - a.bytes);
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
-console.log('Largest initial scripts (top 15):');
-sizedScripts.slice(0, 15).forEach(item => console.log('SCRIPT ' + item.bytes + ' bytes ' + item.src));
+const blockingScripts = scriptSources.filter(item => !item.defer && !item.async);
+console.log('Initial script scheduling: blocking=' + blockingScripts.length + ', defer=' + scriptSources.filter(item => item.defer).length + ', async=' + scriptSources.filter(item => item.async).length);
+console.log('All initial script references:');
+sizedScripts.forEach(item => {
+  const source = scriptSources.find(script => script.src === item.src);
+  const mode = source ? (source.async ? 'async' : source.defer ? 'defer' : 'BLOCKING') : 'unknown';
+  console.log('SCRIPT ' + mode + ' ' + item.bytes + ' bytes ' + item.src);
+});
 if (failures.length) {
   console.error('Homepage deep audit: FAILED');
   process.exit(1);
