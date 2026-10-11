@@ -65,14 +65,14 @@ Earlier CI measurements on this branch recorded the following before/after sampl
 4. Avoid an extra client-side fetch/decompress/document-replacement step on the production path.
 5. Compare first paint, FCP/LCP/CLS, resource requests, initial JS/CSS bytes, and screenshots against the current baseline.
 
-### Chunk E — Full verification and documentation — DEDICATED WORKFLOW PASSED; MERGE/POST-MERGE VERIFICATION PENDING
+### Chunk E — Full verification and documentation — COMPLETE WITH KNOWN REPOSITORY/DOMAIN ISSUES
 1. Build/assemble from a clean checkout.
 2. Run static/source, route/link, and asset checks.
 3. Run Chromium browser tests at 320, 360, 375, 390, 414, 430, 600, 768, 820, 1024, 1280, 1366, 1440, 1600, and 1920 px.
 4. Run axe accessibility checks; fix real violations instead of suppressing them.
 5. Verify header/mobile menu, every tool card/link, footer, no horizontal overflow, no hidden cards, no Laba UI/network requests, no console errors, and no engine regressions.
 6. Repeat the checks after fixes and update this root-level document and the existing audit log.
-7. The dedicated homepage workflow has passed. Review the unrelated existing CI failures and deployment consequences, then merge the reviewed PR to `main` and repeat the smoke/browser checks against the merged revision.
+7. The dedicated homepage workflow passed; PR #197 and deployment follow-ups #198–#200 are merged. The latest deployment workflow succeeded on main commit `0226e5116ccf50aed34634c401aef95aa60bd428`. The canonical Firebase origin checks passed. Keep the custom-domain automated HTTP 403 and unrelated repo-wide Phase 5/i18n missing-script failures listed as known issues; do not describe global CI as fully green.
 
 ## Definition of done
 
