@@ -91,12 +91,14 @@ function dedupeLocalStylesheets(html) {
  *   homepage sections around on slower or cold-cache visits.
  */
 function stabilizeHomepageFirstRender(html) {
+  // Match the actual nav structure rather than requiring a particular wrapper
+  // class: server-rendered header wrappers differ across assembled homepage revisions.
   const hasCompleteServerNav =
-    /class=["'][^"']*\bsite-header\b[^"']*["']/i.test(html) &&
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
     /id=["']nav-convert["']/i.test(html) &&
-    /id=["']all-tools-btn["']/i.test(html);
+    /id=["']all-tools-btn["']/i.test(html) &&
+    /class=["'][^"']*\bnav-direct\b[^"']*["']/i.test(html);
   let navPreservationEnabled = false;
 
   if (hasCompleteServerNav && /<\/head>/i.test(html)) {
