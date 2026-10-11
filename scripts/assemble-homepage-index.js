@@ -108,7 +108,7 @@ function stabilizeHomepageFirstRender(html) {
 
   const beforeFontPolicy = html;
   html = html.replace(
-    /(https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
+    /((?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
     '$1optional'
   );
 
