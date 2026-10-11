@@ -34,7 +34,8 @@ try {
   if (!/<h1\b/i.test(html)) throw new Error('Node-served homepage has no H1 in the initial HTML response');
   const css = await fetch(base + '/css/home.css');
   if (css.status !== 200) throw new Error('Node server failed to serve homepage CSS: HTTP ' + css.status);
-  const duplicateCssPaths = [...html.matchAll(/<link\b[^>]*>/gi)]
+  const stylesheetAuditHtml = html.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, '');
+  const duplicateCssPaths = [...stylesheetAuditHtml.matchAll(/<link\b[^>]*>/gi)]
     .map(match => match[0])
     .filter(tag => /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag))
     .map(tag => tag.match(/\bhref=["']([^"']+)["']/i)?.[1])
