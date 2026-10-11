@@ -163,6 +163,15 @@ try {
       ' cards=' + layout.cards + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
   }
 
+  // Dismiss the intentional first-visit announcement modal before testing underlying navigation.
+  const announcement = page.locator('#ilpdf-announcement-overlay');
+  const announcementClose = page.locator('#ilpdf-announcement-overlay .ilpdf-announcement-close');
+  if (await announcement.count() && await announcement.isVisible()) {
+    await announcementClose.click();
+    await announcement.waitFor({ state: 'detached', timeout: 5000 });
+    report('first-visit announcement modal closes and releases pointer interaction');
+  }
+
   // Exercise mobile bottom navigation and desktop All Tools dropdown.
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileNav = page.locator('#mobile-bottom-nav');
