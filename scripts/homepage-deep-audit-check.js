@@ -147,6 +147,20 @@ const toolOnlyHomepageScripts = new Set([
   '/js/runtime-pinned-tools.js', '/js/runtime-tool-engagement.js',
   '/js/runtime-failed-log.js',
   '/js/analytics-sync.js', '/js/runtime-recovery.js', '/js/runtime-perf-safety.js'
+  '/js/n2w-converter.js',
+  '/js/runtime-protection.js',
+  '/js/runtime-shield-core.js',
+  '/js/runtime-shield-integrity.js',
+  '/js/runtime-shield-workers.js',
+  '/js/runtime-shield-dependency.js',
+  '/js/runtime-manifest.js',
+  '/js/runtime-compat-validator.js',
+  '/js/runtime-rollback.js',
+  '/js/runtime-deployment-bind.js',
+  '/js/runtime-security-tiers.js',
+  '/js/runtime-security-telemetry.js',
+  '/js/runtime-sri-engine.js',
+  '/js/runtime-foreign-deploy.js',
 ]);
 const toolOnlyScriptRefs = scriptSources
   .map(item => item.src.split(/[?#]/, 1)[0])

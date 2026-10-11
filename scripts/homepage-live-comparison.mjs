@@ -197,7 +197,7 @@ for (const profile of profiles) {
   if (median('apiRequestCount') !== 0) candidateFailures.push(profile.name + ': static candidate still makes ' + median('apiRequestCount') + ' same-origin API request(s)');
   if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the initial-view measurement ended');
   if (median('totalTransferBytes') > 320 * 1024) candidateFailures.push(profile.name + ': initial-view transfer exceeded 320 KiB (' + median('totalTransferBytes') + ' bytes)');
-  if (median('scriptCount') > 45) candidateFailures.push(profile.name + ': initial-view script count exceeded 45 (' + median('scriptCount') + ')');
+  if (median('scriptCount') > 35) candidateFailures.push(profile.name + ': initial-view script count exceeded 35 (' + median('scriptCount') + ')');
   if (median('fcpMs') > 300) candidateFailures.push(profile.name + ': local candidate FCP exceeded 300 ms (' + median('fcpMs') + ' ms)');
   if (median('lcpMs') > 300) candidateFailures.push(profile.name + ': local candidate LCP exceeded 300 ms (' + median('lcpMs') + ' ms)');
   if (median('cls') > 0.1) candidateFailures.push(profile.name + ': local candidate CLS exceeded 0.1 (' + median('cls') + ')');
