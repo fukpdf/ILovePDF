@@ -234,25 +234,25 @@ function renderHeader(){
     <a class="nav-direct" href="/split-pdf" data-i18n="nav.split">Split PDF</a>
 
     <div class="nav-item has-dd" id="nav-organize">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="organize-menu">
         <span data-i18n="nav.organize">Organize</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="dd" role="menu">${ddLinks(ORGANIZE_ITEMS)}</div>
+      <div class="dd" id="organize-menu" role="region" aria-label="Organize tools">${ddLinks(ORGANIZE_ITEMS)}</div>
     </div>
 
     <div class="nav-item has-dd" id="nav-convert">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-haspopup="true">
+      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="convert-menu">
         <span data-i18n="nav.convert">Convert</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="dd" role="menu">${ddLinks(CONVERT_ITEMS)}</div>
+      <div class="dd" id="convert-menu" role="region" aria-label="Convert tools">${ddLinks(CONVERT_ITEMS)}</div>
     </div>
 
     <div class="nav-item has-dd has-mega" id="all-tools-item">
       <button class="nav-btn all-tools" id="all-tools-btn" type="button"
-              aria-expanded="false" aria-haspopup="true">
+              aria-expanded="false" aria-controls="all-tools-menu">
         <span data-i18n="nav.all_tools">All Tools</span> <i data-lucide="chevron-down"></i>
       </button>
-      <div class="mega" role="menu"><div class="mega-grid">${megaCols}</div></div>
+      <div class="mega" id="all-tools-menu" role="region" aria-label="All tools"><div class="mega-grid">${megaCols}</div></div>
     </div>
 
   `;
