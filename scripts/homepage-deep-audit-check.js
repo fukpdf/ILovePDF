@@ -33,13 +33,19 @@ function inflateHomepage() {
   return html;
 }
 
+let sourceHtml;
 let html;
 try {
-  html = inflateHomepage();
+  sourceHtml = inflateHomepage();
   pass('all four homepage chunks exist and inflate to a full HTML document');
+  html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+  if (!/<!doctype\\s+html/i.test(html) || html.includes('DecompressionStream')) {
+    throw new Error('public/index.html is still the runtime loader instead of the assembled production artifact');
+  }
+  pass('public/index.html is the assembled production artifact, not the runtime loader');
 } catch (error) {
   fail(error.message);
-  console.error('Homepage deep audit: BLOCKED (cannot inspect assembled source)');
+  console.error('Homepage deep audit: BLOCKED (cannot inspect assembled artifact)');
   process.exit(1);
 }
 
@@ -162,6 +168,8 @@ const sizedScripts = scriptSources.map(item => {
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
 const blockingScripts = scriptSources.filter(item => !item.defer && !item.async);
 console.log('Initial script scheduling: blocking=' + blockingScripts.length + ', defer=' + scriptSources.filter(item => item.defer).length + ', async=' + scriptSources.filter(item => item.async).length);
+if (blockingScripts.length) fail('homepage contains parser-blocking external scripts: ' + blockingScripts.map(item => item.src).join(', '));
+else pass('all external homepage scripts are deferred or async');
 console.log('All initial script references:');
 sizedScripts.forEach(item => {
   const source = scriptSources.find(script => script.src === item.src);
