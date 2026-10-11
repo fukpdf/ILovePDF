@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 
 const ROOT = process.cwd();
 const PUBLIC = path.join(ROOT, 'public');
@@ -33,8 +34,20 @@ for (const rel of requiredFiles) {
 }
 if (process.exitCode) process.exit(1);
 
-const index = read('public/index.html');
+const index = (() => {
+  const chunks = [];
+  for (let i = 0; i < 4; i++) {
+    const chunkPath = path.join(PUBLIC, 'index-chunks', 'z' + i + '.b64');
+    if (!fs.existsSync(chunkPath)) throw new Error('Missing homepage source chunk: ' + chunkPath);
+    chunks.push(fs.readFileSync(chunkPath, 'utf8').replace(/\\s+/g, ''));
+  }
+  const assembled = zlib.inflateSync(Buffer.from(chunks.join(''), 'base64')).toString('utf8');
+  if (!/<!doctype\\s+html/i.test(assembled)) throw new Error('Homepage chunks did not inflate to full HTML');
+  return assembled;
+})();
 const tool = read('public/tool.html');
+const homepageFile = path.join(PUBLIC, 'index.html');
+const readShellHtml = (file) => file === homepageFile ? index : fs.readFileSync(file, 'utf8');
 const chrome = read('public/js/chrome.js');
 const headerCss = read('public/css/home-header-v2.css');
 const footerCss = read('public/css/home-footer-v2.css');
@@ -75,7 +88,7 @@ const publicShellPages = htmlFiles.filter(p => !excludedPrefixes.some(x => p ===
 let missingChrome = 0;
 for (const file of publicShellPages) {
   const rel = path.relative(ROOT, file).replaceAll(path.sep, '/');
-  const html = fs.readFileSync(file, 'utf8');
+  const html = readShellHtml(file);
   if (!html.includes('/js/chrome.js')) {
     fail(rel + ': missing universal shared chrome loader');
     missingChrome++;
@@ -110,7 +123,7 @@ if (headerCss.includes('@media') && footerCss.includes('@media') && a11yCss.incl
 else fail('responsive/readability CSS contract incomplete');
 const pageShellViolations=[];
 for (const file of publicShellPages) {
-  const html=fs.readFileSync(file,'utf8');
+  const html=readShellHtml(file);
   const rel=path.relative(ROOT,file).replaceAll(path.sep,'/');
   if ((html.match(/home-footer-v2\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate footer css');
   if ((html.match(/shared-a11y\\.css/g)||[]).length>1) pageShellViolations.push(rel+': duplicate a11y css');
