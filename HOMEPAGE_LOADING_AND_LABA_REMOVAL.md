@@ -256,3 +256,8 @@ The homepage implementation is merged and deployed. Its required browser matrix 
 ## Matched live homepage comparison
 
 The homepage audit workflow now includes `scripts/homepage-live-comparison.mjs`. It loads the currently deployed `https://ilovepdf.cyou/` and the official `https://www.ilovepdf.com/` in fresh browser contexts, on mobile (390×844) and desktop (1366×768), with three runs per site/profile. It records median FCP, LCP, response-start, DOMContentLoaded, load-event, transfer-size estimate, resource/script/CSS counts, CLS, and failed navigation status. This is a same-runner lab comparison, not field Core Web Vitals; cross-origin resource transfer sizes may be unavailable where the server does not expose Resource Timing data. Because this benchmark targets the public URLs, it measures the deployed c.you version, not unmerged PR code.
+
+
+### Live comparison limitation observed in CI
+
+The GitHub Actions headless browser received HTTP 403 and a Cloudflare “Just a moment…” challenge page for all ILovePDF.cyou samples, while the official iLovePDF homepage returned HTTP 200. The challenge-page FCP/LCP/byte numbers are **not** valid measurements of our homepage and must not be compared with the official site. The benchmark now reports this as an incomplete comparison rather than failing the core homepage regression suite. A fair live comparison still needs an environment where the c.you page loads normally (for example, a normal browser/network not challenged by Cloudflare) or a trusted PSI/Lighthouse report for both URLs.
