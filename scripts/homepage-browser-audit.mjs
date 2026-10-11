@@ -3,7 +3,17 @@ import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 
 const BASE = process.env.HOMEPAGE_BASE_URL || 'http://127.0.0.1:4173/';
-const WIDTHS = [320, 360, 375, 390, 414, 430, 600, 768, 820, 1024, 1280, 1366, 1440, 1600, 1920];
+// Dense width sweep catches breakpoint gaps that a few device presets miss.
+const WIDTHS = [...new Set([
+  ...Array.from({ length: 41 }, (_, index) => 320 + index * 40),
+  360, 375, 390, 414, 430, 600, 768, 820, 1024, 1100, 1200, 1279, 1280,
+  1281, 1366, 1440, 1600, 1920, 2048, 2560, 2880
+])].sort((a, b) => a - b);
+const HEIGHT_PROFILES = [
+  [320, 568], [360, 640], [390, 844], [600, 800], [768, 1024],
+  [820, 600], [1024, 600], [1024, 768], [1280, 720], [1366, 768],
+  [1440, 900], [1600, 900], [1920, 1080], [2560, 1440]
+];
 const failures = [];
 const pageErrors = [];
 const failedLocalAssets = [];
@@ -335,14 +345,79 @@ try {
         const left = style.position === 'fixed' ? (style.left === 'auto' ? rect.right - width : parseFloat(style.left)) : rect.left + (parseFloat(style.left) || 0);
         return { selector: (element.id ? '#' + element.id : element.tagName.toLowerCase() + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\\s+/).join('.') : '')) + pseudo, content: style.content, position: style.position, left, right: left + width, width };
       })).filter(item => item.content !== 'none' && item.content !== 'normal' && item.width > 0 && (item.left < -1 || item.right > vw + 1)).slice(0, 8);
-      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow };
+      const pageElement = document.querySelector('.page');
+      const pageRect = pageElement?.getBoundingClientRect();
+      const toolsGrid = document.querySelector('.tools-grid');
+      const gridRect = toolsGrid?.getBoundingClientRect();
+      const gridColumns = toolsGrid ? getComputedStyle(toolsGrid).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+      const expectedColumns = vw <= 768 ? 2 : 3 + (vw > 1280 ? 1 : 0);
+      const viewportCoverage = {
+        pageFound: !!pageElement,
+        pageLeft: pageRect ? Math.round(pageRect.left * 10) / 10 : null,
+        pageRight: pageRect ? Math.round(pageRect.right * 10) / 10 : null,
+        pageWidth: pageRect ? Math.round(pageRect.width * 10) / 10 : null,
+        gridFound: !!toolsGrid,
+        gridWidth: gridRect ? Math.round(gridRect.width * 10) / 10 : null,
+        gridCoverage: gridRect && vw ? Math.round(gridRect.width / vw * 1000) / 1000 : 0,
+        gridColumns,
+        expectedColumns
+      };
+      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow, viewportCoverage };
     });
     if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport); root=' + JSON.stringify(layout.rootMetrics) + '; offenders=' + JSON.stringify(layout.overflowElements) + '; pseudo=' + JSON.stringify(layout.pseudoOverflow));
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
     if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
-    console.log('VIEWPORT ' + width + 'px: ' + (layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.hidden && !layout.overlaps ? 'PASS' : 'FAIL') +
-      ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
+    const coverage = layout.viewportCoverage;
+    if (!coverage.pageFound || coverage.pageLeft > 1 || coverage.pageRight < layout.vw - 1 || coverage.pageWidth < layout.vw - 1) {
+      fail(width + 'px: homepage page shell does not cover the viewport width: ' + JSON.stringify(coverage));
+    }
+    if (!coverage.gridFound || coverage.gridCoverage < (width <= 768 ? 0.80 : 0.60)) {
+      fail(width + 'px: tool grid leaves too much unused horizontal space: ' + JSON.stringify(coverage));
+    }
+    if (coverage.gridColumns !== coverage.expectedColumns) {
+      fail(width + 'px: expected ' + coverage.expectedColumns + ' responsive tool columns, got ' + coverage.gridColumns + ': ' + JSON.stringify(coverage));
+    }
+    const passed = layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.hidden && !layout.overlaps &&
+      coverage.pageFound && coverage.pageLeft <= 1 && coverage.pageRight >= layout.vw - 1 &&
+      coverage.gridFound && coverage.gridCoverage >= (width <= 768 ? 0.80 : 0.60) &&
+      coverage.gridColumns === coverage.expectedColumns;
+    console.log('VIEWPORT ' + width + 'px: ' + (passed ? 'PASS' : 'FAIL') +
+      ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth +
+      ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps + ' viewport=' + JSON.stringify(coverage));
+  }
+
+  // Height/width combinations exercise short laptop windows, tablet portrait,
+  // mobile landscape/portrait, and ultrawide displays without assuming a
+  // particular device. Content must stay inside the horizontal viewport;
+  // vertical scrolling remains expected for a long homepage.
+  for (const [width, height] of HEIGHT_PROFILES) {
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(40);
+    const frame = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const pageShell = document.querySelector('.page')?.getBoundingClientRect();
+      const header = document.querySelector('.site-header, header')?.getBoundingClientRect();
+      const hero = document.querySelector('.hero')?.getBoundingClientRect();
+      const heroText = document.querySelector('.hero h1, .hero-text')?.getBoundingClientRect();
+      return {
+        vw, vh,
+        documentWidth: document.documentElement.scrollWidth,
+        pageShell: pageShell ? { left: pageShell.left, right: pageShell.right, width: pageShell.width } : null,
+        header: header ? { left: header.left, right: header.right, top: header.top, bottom: header.bottom, width: header.width } : null,
+        hero: hero ? { left: hero.left, right: hero.right, top: hero.top, bottom: hero.bottom } : null,
+        heroText: heroText ? { left: heroText.left, right: heroText.right, top: heroText.top, bottom: heroText.bottom } : null
+      };
+    });
+    const frameOk = frame.documentWidth <= frame.vw + 1 &&
+      frame.pageShell && frame.pageShell.left <= 1 && frame.pageShell.right >= frame.vw - 1 &&
+      frame.header && frame.header.left <= 1 && frame.header.right >= frame.vw - 1 &&
+      (!frame.heroText || !frame.hero || (frame.heroText.left >= frame.hero.left - 1 &&
+        frame.heroText.right <= frame.hero.right + 1 && frame.heroText.top >= frame.hero.top - 1 &&
+        frame.heroText.bottom <= frame.hero.bottom + 1));
+    if (!frameOk) fail(width + 'x' + height + ': viewport-height/layout coverage failure: ' + JSON.stringify(frame));
+    else report(width + 'x' + height + ' viewport frame fills width with no horizontal overflow or clipped hero text');
   }
 
   // Verify the 140 KB extended locale bundle is requested only after a language change.
