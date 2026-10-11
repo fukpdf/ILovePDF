@@ -1226,26 +1226,15 @@ body:has(.ilpdf-download-page) footer.footer{
   }
 }
 
-/* Wrapper activates the exact shared Upload Popular Tools rules without adding a layout box. */
-.ilpdf-download-page .download-popular-tools-scope{ display: contents; }
-
-
-/* Download-only compact Popular Tools sizing.
-   Keep Upload's canonical 92px / 70px card geometry unchanged.
-   The stronger scoped selectors also override the legacy mobile 82px rules
-   in styles.css, so the compact sizing is consistent at every breakpoint. */
+/* Download page reuses the Upload Popular Tools component.
+   Keep only section spacing local to Download; card geometry, inner white
+   name panel, tool colors, 42px/38px stickers, 21px icons, hover and motion
+   behavior are inherited from the canonical shared styles.css rules. */
+.ilpdf-download-page .download-popular-tools-scope { display: contents; }
 .ilpdf-download-page .download-popular-tools-scope .popular-tools {
   margin-top: 17px !important;
   margin-bottom: 56px !important;
 }
 .ilpdf-download-page .download-popular-tools-scope .popular-tools .popular-title {
   margin-bottom: 16px !important;
-}
-.ilpdf-download-page .download-popular-tools-scope .popular-tools .popular-card {
-  min-height: 64px !important;
-  padding: 7px !important;
-}
-.ilpdf-download-page .download-popular-tools-scope .popular-tools .popular-card-name {
-  min-height: 50px !important;
-  padding: 7px 11px !important;
 }
