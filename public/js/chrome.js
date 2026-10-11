@@ -186,9 +186,21 @@ function tBand(key, fallback) {
   return v;
 }
 
-function renderHeader(){
+function renderHeader(forceRefresh = false){
   const nav = document.getElementById('nav');
   if (!nav) return;
+
+  // Preserve a complete server-rendered homepage nav through first paint.
+  // Replacing it with a skeleton and rebuilding it causes visible layout shift.
+  if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh) {
+    if (!window.__ILOVE_NAV_WIRED) {
+      wireSimpleDropdowns();
+      wireAllToolsToggle();
+      wireHoverPrefetch(nav);
+      window.__ILOVE_NAV_WIRED = true;
+    }
+    return;
+  }
 
   // "All Tools" mega-menu columns. Order reflects new priority: instant-heavy
   // categories first (organize, security, image, edit, utilities), then convert
