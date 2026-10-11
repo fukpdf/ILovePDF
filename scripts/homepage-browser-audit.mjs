@@ -24,6 +24,24 @@ try {
     } catch {}
   });
 
+  await page.addInitScript(() => {
+    window.__homepageLabPerf = { lcp: null, cls: 0 };
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          window.__homepageLabPerf.lcp = Math.max(window.__homepageLabPerf.lcp || 0, entry.startTime);
+        }
+      }).observe({ type: 'largest-contentful-paint', buffered: true });
+    } catch {}
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) window.__homepageLabPerf.cls += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    } catch {}
+  });
+
   const response = await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60000 });
   if (!response || response.status() !== 200) fail('homepage did not return HTTP 200');
   await page.waitForFunction(() => document.querySelectorAll('a.tool').length >= 30, null, { timeout: 30000 })
@@ -46,19 +64,12 @@ try {
         const pseudo = getComputedStyle(element, '::before').content;
         return style.display !== 'none' && style.visibility !== 'hidden' &&
           (element.childElementCount > 0 || !!element.textContent.trim() || (pseudo && pseudo !== 'none' && pseudo !== 'normal'));
-      })(),
-      iconMarkup: a.querySelector('.tool-name-sticker, .tool-icon, svg, img, [data-icon], i[data-lucide]')?.outerHTML.slice(0, 160) || '',
-      outer: a.outerHTML.slice(0, 500)
+      })()
     })),
     header: !!document.querySelector('.site-header, header'),
     footer: !!document.querySelector('footer'),
     htmlWidth: document.documentElement.scrollWidth,
-    viewportWidth: window.innerWidth,
-    toolGroupsCount: Array.isArray(window.TOOL_GROUPS) ? window.TOOL_GROUPS.length : -1,
-    renderCategorySectionsType: typeof window.renderCategorySections,
-    fastBoot: !!window.__HOME_FAST_BOOT__,
-    iconRepairType: typeof window.ensureHomepageToolCardIcons,
-    stickerCount: document.querySelectorAll('a.tool .tool-name-sticker').length
+    viewportWidth: window.innerWidth
   }));
 
   if (!initial.title.trim()) fail('homepage document title is empty');
@@ -70,18 +81,39 @@ try {
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
   const missingIcons = initial.cards.filter(card => !card.icon);
   if (missingIcons.length) {
-    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.slice(0, 5).map(card => (card.text || '(unnamed)') + ' :: icon=' + card.iconMarkup + ' :: outer=' + card.outer).join(' | '));
+    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.slice(0, 10).map(card => card.text || '(unnamed)').join(' | '));
     fail('tool cards with missing visible icon markup: ' + missingIcons.length);
   }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
-  console.log('RENDER DIAGNOSTICS: toolGroups=' + initial.toolGroupsCount + ', renderCategorySections=' + initial.renderCategorySectionsType + ', fastBoot=' + initial.fastBoot + ', iconRepair=' + initial.iconRepairType + ', stickers=' + initial.stickerCount);
-  const iconRepairProbe = await page.evaluate(() => {
-    const count = () => document.querySelectorAll('a.tool .tool-name-sticker, a.tool [data-icon], a.tool svg, a.tool img').length;
-    const before = count();
-    if (typeof window.ensureHomepageToolCardIcons === 'function') window.ensureHomepageToolCardIcons();
-    return { before, after: count(), hook: typeof window.ensureHomepageToolCardIcons };
-  }).catch(error => ({ error: error.message }));
-  console.log('ICON REPAIR PROBE: ' + JSON.stringify(iconRepairProbe));
+
+
+  await page.waitForTimeout(250);
+  const labMetrics = await page.evaluate(() => {
+    const paints = performance.getEntriesByType('paint');
+    const fcp = paints.find(entry => entry.name === 'first-contentful-paint')?.startTime ?? null;
+    const resources = performance.getEntriesByType('resource');
+    const sameOrigin = resources.filter(entry => {
+      try { return new URL(entry.name).origin === location.origin; } catch { return false; }
+    });
+    const scripts = sameOrigin.filter(entry => entry.initiatorType === 'script');
+    const styles = sameOrigin.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css'));
+    const bytes = entries => entries.reduce((total, entry) => total + (entry.encodedBodySize || 0), 0);
+    return {
+      fcp,
+      lcp: window.__homepageLabPerf?.lcp ?? null,
+      cls: window.__homepageLabPerf?.cls ?? null,
+      requests: resources.length,
+      scriptCount: scripts.length,
+      scriptBytes: bytes(scripts),
+      cssCount: styles.length,
+      cssBytes: bytes(styles)
+    };
+  });
+  const metricText = value => value === null || value === undefined ? 'NOT MEASURED' : Math.round(value) + 'ms';
+  console.log('LAB PERFORMANCE (unthrottled local CI; not field CWV): FCP=' + metricText(labMetrics.fcp) +
+    ', LCP=' + metricText(labMetrics.lcp) + ', CLS=' + (labMetrics.cls === null ? 'NOT MEASURED' : labMetrics.cls.toFixed(4)) +
+    ', INP=NOT MEASURED, requests=' + labMetrics.requests + ', sameOriginScripts=' + labMetrics.scriptCount +
+    ', scriptEncodedBytes=' + labMetrics.scriptBytes + ', cssFiles=' + labMetrics.cssCount + ', cssEncodedBytes=' + labMetrics.cssBytes);
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
@@ -129,6 +161,38 @@ try {
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
     console.log('VIEWPORT ' + width + 'px: ' + (layout.docWidth <= layout.vw + 1 && !layout.outside && !layout.overlaps ? 'PASS' : 'FAIL') +
       ' cards=' + layout.cards + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
+  }
+
+  // Exercise mobile bottom navigation and desktop All Tools dropdown.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileNav = page.locator('#mobile-bottom-nav');
+  if (!(await mobileNav.count()) || !(await mobileNav.isVisible())) {
+    fail('mobile bottom navigation is missing or not visible at 390px');
+  } else {
+    const toolsButton = page.locator('#mobile-bottom-nav [data-action="tools"]');
+    await toolsButton.click();
+    const toolsOverlay = page.locator('#mobile-tools-overlay');
+    const opened = (await toolsOverlay.getAttribute('aria-hidden')) === 'false' &&
+      await toolsOverlay.evaluate(element => element.classList.contains('is-open'));
+    if (!opened) fail('mobile Tools overlay did not open');
+    else report('mobile Tools overlay opens and exposes its dialog state');
+    await page.locator('#mobile-tools-overlay [data-close]').click();
+    const closed = (await toolsOverlay.getAttribute('aria-hidden')) === 'true' &&
+      !(await toolsOverlay.evaluate(element => element.classList.contains('is-open')));
+    if (!closed) fail('mobile Tools overlay did not close');
+    else report('mobile Tools overlay closes and restores its hidden state');
+  }
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const allToolsButton = page.locator('#all-tools-btn');
+  if (!(await allToolsButton.count()) || !(await allToolsButton.isVisible())) {
+    fail('desktop All Tools navigation button is missing or not visible');
+  } else {
+    await allToolsButton.click();
+    const expanded = (await allToolsButton.getAttribute('aria-expanded')) === 'true';
+    if (!expanded) fail('desktop All Tools dropdown did not set aria-expanded=true');
+    else report('desktop All Tools dropdown opens with correct ARIA state');
+    await allToolsButton.click();
   }
 
   // Automated accessibility audit; critical/serious violations block the check.
