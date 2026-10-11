@@ -29,7 +29,7 @@ function inflateHomepage() {
     parts.push(chunk);
   }
   const html = zlib.inflateSync(Buffer.from(parts.join(''), 'base64')).toString('utf8');
-  if (!/<!doctype\s+html/i.test(html)) throw new Error('Decompressed homepage is not a full HTML document');
+  if (!html.toLowerCase().includes('<!doctype html') || html.includes('DecompressionStream')) {
   return html;
 }
 
@@ -39,7 +39,7 @@ try {
   sourceHtml = inflateHomepage();
   pass('all four homepage chunks exist and inflate to a full HTML document');
   html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-  if (!/<!doctype\\s+html/i.test(html) || html.includes('DecompressionStream')) {
+  if (!html.toLowerCase().includes('<!doctype html') || html.includes('DecompressionStream')) {
     throw new Error('public/index.html is still the runtime loader instead of the assembled production artifact');
   }
   pass('public/index.html is the assembled production artifact, not the runtime loader');
