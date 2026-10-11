@@ -52,6 +52,13 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   '/js/runtime-pinned-tools.js',
   '/js/runtime-tool-engagement.js',
   '/js/runtime-failed-log.js',
+  // These modules are for tool/runtime telemetry, not the marketing homepage.
+  // The Firebase static homepage has no API backend to receive their events.
+  '/js/runtime-analytics.js',
+  '/js/runtime-identity.js',
+  '/js/analytics-sync.js',
+  '/js/runtime-recovery.js',
+  '/js/runtime-perf-safety.js',
 ]);
 
 function dedupeLocalStylesheets(html) {
@@ -91,8 +98,6 @@ function dedupeLocalStylesheets(html) {
  *   homepage sections around on slower or cold-cache visits.
  */
 function stabilizeHomepageFirstRender(html) {
-  // Match the actual nav structure rather than requiring a particular wrapper
-  // class: server-rendered header wrappers differ across assembled homepage revisions.
   const hasCompleteServerNav =
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
@@ -100,26 +105,31 @@ function stabilizeHomepageFirstRender(html) {
     /id=["']all-tools-btn["']/i.test(html) &&
     /class=["'][^"']*\bnav-direct\b[^"']*["']/i.test(html);
   let navPreservationEnabled = false;
-
   if (hasCompleteServerNav && /<\/head>/i.test(html)) {
-    // Place the flag in <head> so it exists before deferred chrome.js executes.
     html = html.replace(/<\/head>/i,
       '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\n</head>');
     navPreservationEnabled = true;
   }
-
   const beforeFontPolicy = html;
   html = html.replace(
     /((?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
     '$1optional'
   );
-
-  return {
-    html,
-    serverNavFound: hasCompleteServerNav,
-    navPreservationEnabled,
-    fontDisplayAdjusted: html !== beforeFontPolicy
-  };
+  const fontDisplayAdjusted = html !== beforeFontPolicy;
+  let fontStylesheetDeferred = false;
+  html = html.replace(/<link\b[^>]*>/gi, tag => {
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
+    const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+    if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
+        /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href)) return '';
+    if (rel.split(/\s+/).includes('stylesheet') &&
+        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
+      fontStylesheetDeferred = true;
+      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+    }
+    return tag;
+  });
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -173,6 +183,36 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
     return null;
   }
   return { html, changed: html !== before };
+}
+
+function injectStaticApiGuard(html) {
+  if (html.includes('window.__ILOVE_STATIC_API_GUARD__')) return html;
+  const guard = '<script>(function(){var host=String(location.hostname||"").toLowerCase();var testStaticHost=(host==="localhost"||host==="127.0.0.1")&&new URLSearchParams(location.search).get("static-hosting-test")==="1";var staticHost=host.endsWith(".web.app")||host.endsWith(".firebaseapp.com")||host==="ilovepdf.cyou"||testStaticHost;if(!staticHost||typeof window.fetch!=="function"||window.__ILOVE_STATIC_API_GUARD__)return;window.__ILOVE_STATIC_API_GUARD__=true;var nativeFetch=window.fetch;window.fetch=function(input,init){var raw=typeof input==="string"?input:(input&&input.url)||"";try{var url=new URL(raw,location.href);if(url.origin===location.origin&&url.pathname.startsWith("/api/"))return Promise.resolve(new Response(JSON.stringify({available:false,error:"API backend unavailable on static hosting"}),{status:503,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}}));}catch(_){}return nativeFetch.call(this,input,init);};})();</script>';
+  const charset = /<meta\b(?=[^>]*\bcharset\s*=)[^>]*>/i.exec(html);
+  if (charset) {
+    const insertAt = charset.index + charset[0].length;
+    return html.slice(0, insertAt) + '\n' + guard + html.slice(insertAt);
+  }
+  if (!/<head\b[^>]*>/i.test(html)) {
+    fail('cannot inject the static-hosting API guard because the homepage head element is missing');
+    return null;
+  }
+  return html.replace(/<head\b[^>]*>/i, head => head + '\n' + guard);
+}
+
+function deferHomepageAds(html) {
+  const pattern = /<script\b(?=[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^"']*["'])[^>]*>\s*<\/script>/gi;
+  let count = 0;
+  html = html.replace(pattern, tag => {
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1];
+    if (!src) return tag;
+    count++;
+    // Preserve ad monetization, but don't fetch the large third-party runtime
+    // until an ad slot is near the viewport, the visitor scrolls, or a post-load
+    // fallback fires. The original tag is removed from the critical request path.
+    return '<script>(function(){var src=' + JSON.stringify(src) + ';var loaded=false;function load(){if(loaded)return;loaded=true;var s=document.createElement("script");s.async=true;s.src=src;s.crossOrigin="anonymous";s.onload=function(){if(window.AdManager&&typeof window.AdManager.activateAll==="function")window.AdManager.activateAll();};document.head.appendChild(s);}function watchSlots(){var slots=document.querySelectorAll("[data-ad-slot],.ad-slot,ins.adsbygoogle");if("IntersectionObserver" in window&&slots.length){var observer=new IntersectionObserver(function(entries){if(entries.some(function(e){return e.isIntersecting;})){observer.disconnect();load();}},{rootMargin:"0px"});slots.forEach(function(slot){if(slot.getBoundingClientRect().top>=window.innerHeight)observer.observe(slot);});}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watchSlots,{once:true});else watchSlots();window.addEventListener("load",function(){setTimeout(load,4500);},{once:true});window.addEventListener("scroll",load,{once:true,passive:true});})();</script>';
+  });
+  return { html, count };
 }
 
 function escapeHtml(value) {
@@ -365,6 +405,18 @@ export function assembleHomepageIndex() {
   if (!cleanup) return false;
   html = cleanup.html;
 
+  // Static Firebase Hosting has no /api/* backend route. Short-circuit those
+  // requests locally instead of downloading tool.html as the wildcard fallback.
+  html = injectStaticApiGuard(html);
+  if (!html) return false;
+
+  // Ads remain enabled but are activated only when useful, not as a startup cost.
+  const adsCleanup = deferHomepageAds(html);
+  html = adsCleanup.html;
+  if (adsCleanup.count) {
+    console.log('[assemble-index] deferred ' + adsCleanup.count + ' AdSense script(s) until a slot approaches view or post-load fallback');
+  }
+
   // Repeated local CSS paths with different query strings still download the same stylesheet.
   const stylesheetCleanup = dedupeLocalStylesheets(html);
   html = stylesheetCleanup.html;
@@ -384,6 +436,9 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.fontDisplayAdjusted) {
     console.log('[assemble-index] changed Google Fonts display=swap to display=optional to reduce late font reflow');
+  }
+  if (firstRender.fontStylesheetDeferred) {
+    console.log('[assemble-index] made Google Fonts stylesheet non-blocking so system fallback can paint first');
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.

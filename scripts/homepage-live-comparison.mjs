@@ -2,7 +2,8 @@
 import { chromium } from 'playwright';
 
 const targets = [
-  { name: 'Firebase preview', url: 'https://ilovepdf-web.web.app/' },
+  { name: 'Local candidate build', url: 'http://127.0.0.1:4173/?static-hosting-test=1' },
+  { name: 'Firebase production', url: 'https://ilovepdf-web.web.app/' },
   { name: 'Official iLovePDF', url: 'https://www.ilovepdf.com/' }
 ];
 const profiles = [
@@ -64,11 +65,22 @@ try {
         const failedRequests = [];
         page.on('requestfailed', request => failedRequests.push({ url: request.url(), reason: request.failure()?.errorText || 'failed' }));
         let status = null;
+        let documentHeaders = null;
         let navigationError = null;
         const started = Date.now();
         try {
           const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           status = response?.status() ?? null;
+          if (response) {
+            const headers = await response.allHeaders();
+            documentHeaders = {
+              contentEncoding: headers['content-encoding'] || null,
+              contentLength: headers['content-length'] || null,
+              cacheControl: headers['cache-control'] || null,
+              contentType: headers['content-type'] || null,
+              server: headers['server'] || null
+            };
+          }
           // Give post-load scripts and the LCP observer the same short settling window.
           await page.waitForTimeout(2500);
         } catch (error) {
@@ -90,6 +102,26 @@ try {
             resourceCount: resources.length,
             scriptCount: resources.filter(entry => /script/i.test(entry.initiatorType)).length,
             stylesheetCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
+            apiRequestCount: resources.filter(entry => {
+              try { const url = new URL(entry.name); return url.origin === location.origin && url.pathname.startsWith('/api/'); } catch { return false; }
+            }).length,
+            apiTransferBytes: resources.filter(entry => {
+              try { const url = new URL(entry.name); return url.origin === location.origin && url.pathname.startsWith('/api/'); } catch { return false; }
+            }).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
+            adScriptCount: resources.filter(entry => /pagead2?\.googlesyndication\.com/i.test(entry.name)).length,
+            adTransferBytes: resources.filter(entry => /pagead2?\.googlesyndication\.com/i.test(entry.name)).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
+            topTransferredResources: resources
+              .filter(entry => entry.transferSize > 0)
+              .sort((a, b) => b.transferSize - a.transferSize)
+              .slice(0, 12)
+              .map(entry => ({
+                url: entry.name,
+                initiatorType: entry.initiatorType,
+                transferBytes: entry.transferSize,
+                encodedBodyBytes: entry.encodedBodySize,
+                decodedBodyBytes: entry.decodedBodySize,
+                durationMs: Math.round(entry.duration * 10) / 10
+              })),
             documentWidth: html?.scrollWidth ?? null,
             viewportWidth: html?.clientWidth ?? null,
             lcpMs: window.__livePerf?.lcp ?? null,
@@ -108,6 +140,7 @@ try {
           status,
           wallMs: Date.now() - started,
           navigationError,
+          documentHeaders,
           failedRequestCount: failedRequests.length,
           failedRequestExamples: failedRequests.slice(0, 3),
           ...metrics
@@ -133,10 +166,38 @@ for (const profile of profiles) {
       domContentLoadedMs: median('domContentLoadedMs'), loadEventMs: median('loadEventMs'),
       totalTransferBytes: median('totalTransferBytes'), resourceCount: median('resourceCount'),
       scriptCount: median('scriptCount'), stylesheetCount: median('stylesheetCount'),
+      apiRequestCount: median('apiRequestCount'), apiTransferBytes: median('apiTransferBytes'),
+      adScriptCount: median('adScriptCount'), adTransferBytes: median('adTransferBytes'),
       cls: median('cls')
     }));
   }
 }
+const candidateFailures = [];
+for (const profile of profiles) {
+  const rows = results.filter(row => row.profile === profile.name && row.target === 'Local candidate build' && row.status === 200);
+  const median = key => {
+    const values = rows.map(row => row[key]).filter(value => typeof value === 'number' && Number.isFinite(value)).sort((a, b) => a - b);
+    return values.length ? values[Math.floor(values.length / 2)] : null;
+  };
+  if (!rows.length) {
+    candidateFailures.push(profile.name + ': no successful local candidate samples');
+    continue;
+  }
+  if (median('apiRequestCount') !== 0) candidateFailures.push(profile.name + ': static candidate still makes ' + median('apiRequestCount') + ' same-origin API request(s)');
+  if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the initial-view measurement ended');
+  if (median('totalTransferBytes') > 320 * 1024) candidateFailures.push(profile.name + ': initial-view transfer exceeded 320 KiB (' + median('totalTransferBytes') + ' bytes)');
+  if (median('scriptCount') > 45) candidateFailures.push(profile.name + ': initial-view script count exceeded 45 (' + median('scriptCount') + ')');
+  if (median('fcpMs') > 300) candidateFailures.push(profile.name + ': local candidate FCP exceeded 300 ms (' + median('fcpMs') + ' ms)');
+  if (median('lcpMs') > 300) candidateFailures.push(profile.name + ': local candidate LCP exceeded 300 ms (' + median('lcpMs') + ' ms)');
+  if (median('cls') > 0.1) candidateFailures.push(profile.name + ': local candidate CLS exceeded 0.1 (' + median('cls') + ')');
+}
+if (candidateFailures.length) {
+  console.error('LOCAL_CANDIDATE_PERFORMANCE_REGRESSION: ' + candidateFailures.join('; '));
+  process.exitCode = 1;
+} else {
+  console.log('LOCAL_CANDIDATE_PERFORMANCE_GUARD: no same-origin API traffic or AdSense transfer during initial-view measurement');
+}
+
 const incompleteComparisons = profiles.some(profile => targets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200)));
 if (incompleteComparisons) {
   console.warn('LIVE_BENCHMARK_INCOMPLETE: at least one site/profile had no successful navigation. Do not compare its challenge/error page metrics with the other site. External bot protection or availability can block live lab tests; this diagnostic does not fail the homepage regression gate.');

@@ -3,6 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+  (function () {
+    var host = String(location.hostname || '').toLowerCase();
+    var testStaticHost = (host === 'localhost' || host === '127.0.0.1') && new URLSearchParams(location.search).get('static-hosting-test') === '1';
+    var staticHost = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host === 'ilovepdf.cyou' || testStaticHost;
+    if (!staticHost || typeof window.fetch !== 'function' || window.__ILOVE_STATIC_API_GUARD__) return;
+    window.__ILOVE_STATIC_API_GUARD__ = true;
+    var nativeFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var raw = typeof input === 'string' ? input : (input && input.url) || '';
+      try {
+        var url = new URL(raw, location.href);
+        if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
+          return Promise.resolve(new Response(JSON.stringify({
+            available: false,
+            error: 'API backend unavailable on static hosting'
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
+          }));
+        }
+      } catch (_) {}
+      return nativeFetch.call(this, input, init);
+    };
+  })();
+  </script>
   <title>ILovePDF — Online Tool</title>
   <meta name="description" content="Free online PDF tool by ILovePDF. No signup required. Fast and secure processing.">
   <meta name="robots" content="index, follow">
@@ -29,11 +55,9 @@
   <link rel="stylesheet" href="/css/economy.css">
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
-  <!-- Resource hints: preconnect for fonts, prefetch most-used workers -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="//fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Worker prefetch remains; Google Fonts is loaded non-blocking below. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
   <!-- Worker prefetch: browser downloads these during idle so the first tool
        dispatch hits cache instead of the network cold-start.
        ?v=__BUILD_ID__ ensures stale worker scripts are never served after a deploy. -->
@@ -55,7 +79,39 @@
   <link rel="stylesheet" href="/css/responsive-ads.css">
   <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2">
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556" crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    var src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556";
+    var loaded = false;
+    function loadAds() {
+      if (loaded) return;
+      loaded = true;
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = src;
+      script.crossOrigin = 'anonymous';
+      script.onload = function () {
+        if (window.AdManager && typeof window.AdManager.activateAll === 'function') window.AdManager.activateAll();
+      };
+      document.head.appendChild(script);
+    }
+    function watchSlots() {
+      var slots = document.querySelectorAll('[data-ad-slot], .ad-slot, ins.adsbygoogle');
+      if (!('IntersectionObserver' in window) || !slots.length) return;
+      var observer = new IntersectionObserver(function (entries) {
+        if (entries.some(function (entry) { return entry.isIntersecting; })) {
+          observer.disconnect();
+          loadAds();
+        }
+      }, { rootMargin: '0px' });
+      slots.forEach(function (slot) { if (slot.getBoundingClientRect().top >= window.innerHeight) observer.observe(slot); });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSlots, { once: true });
+    else watchSlots();
+    window.addEventListener('load', function () { setTimeout(loadAds, 4500); }, { once: true });
+    window.addEventListener('scroll', loadAds, { once: true, passive: true });
+  })();
+  </script>
 </head>
 <body>
 

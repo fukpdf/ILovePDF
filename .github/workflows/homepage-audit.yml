@@ -91,9 +91,6 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Compare Firebase preview, live homepage, and official iLovePDF performance
-        run: node scripts/homepage-live-comparison.mjs
-
       - name: Start local hosting-compatible test server
         shell: bash
         run: |
@@ -110,6 +107,9 @@ jobs:
           cat /tmp/homepage-test-server.log
           echo '::error::Homepage test server did not start'
           exit 1
+
+      - name: Compare local candidate, Firebase production, and official iLovePDF performance
+        run: node scripts/homepage-live-comparison.mjs
 
       - name: Browser viewport, route, and accessibility audit
         run: node scripts/homepage-browser-audit.mjs

@@ -104,6 +104,14 @@ const staticChecks = [
   ['homepage contains universal chrome loader', /src=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage contains homepage-only logic', /src=["'][^"']*\/js\/home\.js(?:[?#][^"']*)?["']/i.test(html)],
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
+  ['homepage short-circuits missing Firebase API routes instead of downloading tool.html', html.includes('__ILOVE_STATIC_API_GUARD__') && assembler.includes('injectStaticApiGuard')],
+  ['static API guard is inserted after the complete charset meta tag', (() => { const meta = /<meta\b(?=[^>]*\bcharset\s*=)[^>]*>/i.exec(html); const guardAt = html.indexOf('__ILOVE_STATIC_API_GUARD__'); return !!meta && guardAt > meta.index + meta[0].length; })()],
+  ['homepage defers AdSense loading until an ad slot is near view or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,4500)')],
+  ['homepage excludes tool-only analytics and identity scripts', !/src=["'][^"']*\/js\/runtime-analytics\.js/i.test(html) && !/src=["'][^"']*\/js\/runtime-identity\.js/i.test(html)],
+  ['tool page has the same static-hosting API guard', read('public/tool.html').includes('__ILOVE_STATIC_API_GUARD__')],
+  ['tool page defers AdSense until slot visibility or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(read('public/tool.html')) && read('public/tool.html').includes('setTimeout(loadAds, 4500)')],
+  ['local benchmark server compresses text assets with gzip', read('scripts/homepage-test-server.js').includes('createGzip') && read('scripts/homepage-test-server.js').includes("'Content-Encoding': 'gzip'")],
+  ['below-fold catalogues defer offscreen rendering with intrinsic size', read('public/css/home.css').includes('content-visibility: auto') && read('public/css/home.css').includes('contain-intrinsic-size: auto')],
   ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
   ['Firebase Hosting assembles the static homepage before deployment', String(firebaseConfig.hosting?.predeploy || '').includes('npm run build')],
   ['npm build runs the homepage assembler rather than a placeholder command', packageConfig.scripts?.build === 'npm run build:homepage' && String(packageConfig.scripts?.['build:homepage'] || '').includes('assemble-homepage-index.js')],
@@ -112,7 +120,9 @@ const staticChecks = [
   ['homepage navigation preservation is enabled before paint or immediately after first render', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*!!\(/.test(chrome)],
   ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
   ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
-  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)]
+  ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)],
+  ['Google Fonts stylesheet is non-blocking and does not preconnect during first paint', (() => { const visibleHtml = html.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ''); return /<link\b(?=[^>]*\brel=["']preload["'])(?=[^>]*\bas=["']style["'])(?=[^>]*\bfetchpriority=["']low["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\srel=["']stylesheet["'])(?=[^>]*\shref=["'](?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?)[^>]*>/i.test(visibleHtml) && !/<link\b(?=[^>]*\srel=["'](?:preconnect|dns-prefetch)["'])(?=[^>]*\shref=["'](?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com)[^>]*>/i.test(visibleHtml); })()],
+  ['tool page Google Fonts stylesheet is non-blocking', read('public/tool.html').includes('fetchpriority="low"') && read('public/tool.html').includes("this.rel='stylesheet'")],
 ];
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
@@ -135,7 +145,8 @@ const toolOnlyHomepageScripts = new Set([
   '/js/runtime-ai-scheduler.js', '/js/runtime-worker-factory.js',
   '/js/runtime-wasm-registry.js', '/js/runtime-compression-presets.js',
   '/js/runtime-pinned-tools.js', '/js/runtime-tool-engagement.js',
-  '/js/runtime-failed-log.js'
+  '/js/runtime-failed-log.js',
+  '/js/analytics-sync.js', '/js/runtime-recovery.js', '/js/runtime-perf-safety.js'
 ]);
 const toolOnlyScriptRefs = scriptSources
   .map(item => item.src.split(/[?#]/, 1)[0])

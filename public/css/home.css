@@ -2485,6 +2485,35 @@ body.mo-lock{ overflow:hidden;touch-action:none }
 .home-cat-section + .home-cat-section {
   border-top: 1px solid var(--border, #e5e7eb);
 }
+
+/*
+ * Keep the initial viewport focused on the hero and primary PDF tools.
+ * The image/utility catalogues remain in the DOM (including for keyboard
+ * navigation and find-in-page), but modern browsers can defer off-screen
+ * layout and paint until those sections approach the viewport.
+ */
+@supports (content-visibility: auto) {
+  #cat-image-tools {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
+  }
+  #cat-utilities {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
+  }
+}
+@media (max-width: 1024px) {
+  @supports (content-visibility: auto) {
+    #cat-image-tools { contain-intrinsic-size: auto 650px; }
+    #cat-utilities { contain-intrinsic-size: auto 520px; }
+  }
+}
+@media (max-width: 768px) {
+  @supports (content-visibility: auto) {
+    #cat-image-tools { contain-intrinsic-size: auto 800px; }
+    #cat-utilities { contain-intrinsic-size: auto 650px; }
+  }
+}
 .home-cat-inner {
   /* width is inherited from parent container */
 }
