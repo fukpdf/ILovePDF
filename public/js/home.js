@@ -204,6 +204,17 @@ function _renderOneCatSection(containerId, groupKeys, type) {
 
   if (!items.length) { el.style.display = 'none'; return; }
 
+  // The deployed homepage already contains server-rendered cards. Preserve that
+  // stable markup when its routes/count match the registry; only rebuild stale sections.
+  const existingCards = [...el.querySelectorAll('a.tool')];
+  const expectedHrefs = items.map(homeToolUrl);
+  const existingHrefs = existingCards.map(card => card.getAttribute('href') || '');
+  if (existingCards.length === items.length &&
+      existingCards.length > 0 &&
+      existingHrefs.every((href, index) => href === expectedHrefs[index])) {
+    return;
+  }
+
   const toolCards = items.map(t => {
     const tid      = t.tid || (t.url ? t.url.replace(/^\/+/, '') : '');
     const titleKey = tid ? `tools.${tid}.title` : '';
