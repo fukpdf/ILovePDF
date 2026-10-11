@@ -8,6 +8,7 @@ const failures = [];
 const pageErrors = [];
 const failedLocalAssets = [];
 const labaRequests = [];
+const toolOnlyRequests = [];
 const report = (message) => console.log('PASS:', message);
 const fail = (message) => { failures.push(message); console.error('FAIL:', message); };
 
@@ -19,6 +20,9 @@ try {
   page.on('request', request => {
     try {
       const url = new URL(request.url());
+      if (url.origin === new URL(BASE).origin && /\/core\/(?:core-manifest|shared-constants|runtime-contracts|runtime-federation|ai-runtime|runtime-governor|runtime-chunk-manifest)\.js$|\/js\/(?:tool-i18n-bridge|runtime-ai-scheduler|runtime-worker-factory|runtime-wasm-registry|runtime-compression-presets|runtime-pinned-tools|runtime-tool-engagement|runtime-failed-log)\.js$/i.test(url.pathname)) {
+        toolOnlyRequests.push(url.pathname);
+      }
       if (url.origin === new URL(BASE).origin && /(?:\/laba\/|\/js\/laba-|homepage-lazy-loader\.js)/i.test(url.pathname)) {
         labaRequests.push(url.pathname);
       }
@@ -129,6 +133,8 @@ try {
   if (!initial.footer) fail('homepage footer is missing');
   if (initial.labaUi || labaRequests.length) fail('Laba UI or assets are still present: UI=' + initial.labaUi + ', requests=' + [...new Set(labaRequests)].join(', '));
   else report('no Laba widget UI or Laba asset requests on homepage');
+  if (toolOnlyRequests.length) fail('tool-only runtime scripts requested by homepage: ' + [...new Set(toolOnlyRequests)].join(', '));
+  else report('no tool-only runtime/federation/worker scripts requested by homepage');
   if (initial.announcementUi) fail('delayed announcement overlay still appears on the homepage');
   else report('no delayed announcement overlay competes with the homepage first render');
   if (initial.cards.length !== 41) fail('expected 41 rendered tool cards, found ' + initial.cards.length);
