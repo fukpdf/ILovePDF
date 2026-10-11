@@ -263,6 +263,27 @@ try {
       ' cards=' + layout.cards + ' hidden=' + layout.hidden + ' documentWidth=' + layout.docWidth + ' overflowCards=' + layout.outside + ' overlaps=' + layout.overlaps);
   }
 
+  // Verify the 140 KB extended locale bundle is requested only after a language change.
+  const langButton = page.locator('#lang-btn');
+  if (!(await langButton.count()) || !(await langButton.isVisible())) {
+    fail('header language selector is missing');
+  } else {
+    await langButton.click();
+    const urOption = page.locator('#lang-list [data-code="ur"]');
+    if (!(await urOption.count())) {
+      fail('Urdu option is missing from the language selector');
+    } else {
+      await urOption.click();
+      await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'ur', null, { timeout: 10000 });
+      const localeExtensionLoaded = await page.evaluate(() => !!window.__ILOVE_I18N_EXT_LOADED);
+      if (!localeExtensionLoaded) fail('extended locale bundle was not loaded on explicit language change');
+      await langButton.click();
+      await page.locator('#lang-list [data-code="en"]').click();
+      await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'en', null, { timeout: 10000 });
+      report('language switching lazily loads extended locale data and returns to English');
+    }
+  }
+
   // Dismiss the intentional first-visit announcement modal before testing underlying navigation.
   const announcement = page.locator('#ilpdf-announcement-overlay');
   const announcementClose = page.locator('#ilpdf-announcement-overlay .ilpdf-announcement-close');
