@@ -118,8 +118,8 @@ const forbiddenHomepageRefs = /(?:\/laba\/|laba-widget|laba-ai-|homepage-lazy-lo
 if (forbiddenHomepageRefs.test(html)) fail('assembled homepage still references Laba assets or delayed announcement modal');
 else pass('assembled homepage contains no Laba widget, Laba lazy loader, or delayed announcement assets');
 const i18nExtAt = scriptIndex('i18n-ext.js');
-if (i18nExtAt < 0 && html.includes('loadExtendedI18n')) pass('extended translations are loaded on demand, not in the initial script list');
-else fail('extended translation payload is still part of the initial homepage script list');
+if (homeAt >= 0 && i18nExtAt >= 0 && homeAt < i18nExtAt) pass('homepage renderer executes before extended translation payload');
+else fail('extended translation payload is ahead of the homepage renderer or missing');
 if (scriptIndex('footer-lang.js') < 0) pass('duplicate footer language handler is excluded from homepage');
 else fail('duplicate footer language handler remains on homepage');
 
