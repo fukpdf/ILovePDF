@@ -251,7 +251,7 @@
 
   /**
    * getLazyGroup(name) → array of script paths in load order.
-   * Used by homepage-lazy-loader.js.
+   * Exposes declarative lazy groups to explicit consumers.
    */
   function getLazyGroup(name) {
     return LAZY_GROUPS[name] ? LAZY_GROUPS[name].slice() : [];
