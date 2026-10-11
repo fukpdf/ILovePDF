@@ -36,6 +36,30 @@ function moveExternalScriptAfter(html, targetPattern, anchorPattern) {
   };
 }
 
+function removeHomepageOnlyOverlaysAndLaba(html) {
+  const before = html;
+  // These scripts/styles belong to the optional Laba chatbot or the one-off
+  // announcement modal. Neither is required to render the homepage tool catalogue.
+  html = html.replace(
+    /<script\\b(?=[^>]*\\bsrc=["'][^"']*(?:\\/laba\\/|laba-widget|laba-ai-|homepage-lazy-loader\\.js|site-announcement\\.js)[^"']*["'])[^>]*>[\\s\\S]*?<\\/script>\\s*/gi,
+    ''
+  );
+  html = html.replace(
+    /<link\\b(?=[^>]*\\bhref=["'][^"']*(?:\\/laba\\/|laba-widget|site-announcement\\.css)[^"']*["'])[^>]*>\\s*/gi,
+    ''
+  );
+  html = html.replace(/<!--\\s*Laba AI Assistant[\\s\\S]*?-->/gi, '');
+  html = html.replace(/<!--\\s*Phase 13\\/14: AI\\/Laba stack[\\s\\S]*?-->/gi, '');
+  html = html.replace(/<!--\\s*Site announcement[\\s\\S]*?-->/gi, '');
+
+  const forbidden = /(?:\\/laba\\/|laba-widget|laba-ai-|homepage-lazy-loader\\.js|site-announcement\\.(?:js|css))/i;
+  if (forbidden.test(html)) {
+    fail('homepage still contains a Laba or delayed announcement asset reference after cleanup');
+    return null;
+  }
+  return { html, changed: html !== before };
+}
+
 function main() {
   const parts = [];
   for (let i = 0; i < 4; i++) {
@@ -82,6 +106,10 @@ function main() {
     return;
   }
 
+  const cleanup = removeHomepageOnlyOverlaysAndLaba(html);
+  if (!cleanup) return;
+  html = cleanup.html;
+
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.
   const homeMove = moveExternalScriptAfter(
     html,
@@ -89,15 +117,6 @@ function main() {
     /\/js\/chrome[.]js(?:[?#]|["'])/i
   );
   html = homeMove.html;
-
-  // The homepage renderer does not depend on the optional Laba chat widget.
-  // Keep the widget, but let the tool grid render before the widget script executes.
-  const labaMove = moveExternalScriptAfter(
-    html,
-    /laba-widget[.]js/i,
-    /\/js\/home[.]js(?:[?#]|["'])/i
-  );
-  html = labaMove.html;
 
   // i18n-ext.js waits for RuntimeI18n when the core i18n module is not ready,
   // so it can execute after the first homepage render without losing translations.
@@ -132,7 +151,7 @@ function main() {
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
   console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
   if (homeMove.moved) console.log('[assemble-index] chrome.js now executes before the homepage renderer');
-  if (labaMove.moved) console.log('[assemble-index] homepage renderer now executes before the optional Laba widget');
+  if (cleanup.changed) console.log('[assemble-index] removed homepage-only Laba widget/lazy-loader and delayed announcement assets');
   if (i18nExtMove.moved) console.log('[assemble-index] homepage renderer now executes before the extended translation payload');
 }
 
