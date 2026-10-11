@@ -101,6 +101,12 @@ function removeHomepageOnlyOverlaysAndLaba(html) {
     /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/footer-lang\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
     ''
   );
+  // The supplemental locale extension is a ~140KB payload. Base locale JSON
+  // already renders the homepage; load this extension only for non-English use.
+  html = html.replace(
+    /<script\b(?=[^>]*\bsrc=["'][^"']*\/js\/i18n-ext\.js(?:[?#][^"']*)?["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
+    ''
+  );
   // These scripts/styles belong to the optional Laba chatbot or the one-off
   // announcement modal. Neither is required to render the homepage tool catalogue.
   html = html.replace(
