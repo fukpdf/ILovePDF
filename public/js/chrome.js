@@ -311,7 +311,15 @@ function renderHeader(forceRefresh = false){
 
   `;
 
-  window.__ILOVE_PRESERVE_SERVER_NAV = false;
+  // The first render has now built the full navigation. Keep it mounted on later
+  // locale changes so translated menu content updates in place instead of shifting links.
+  window.__ILOVE_PRESERVE_SERVER_NAV = !!(
+    nav.querySelector('.nav-direct[href="/merge-pdf"]') &&
+    nav.querySelector('.nav-direct[href="/split-pdf"]') &&
+    nav.querySelector('#nav-organize .nav-btn') &&
+    nav.querySelector('#nav-convert .nav-btn') &&
+    nav.querySelector('#all-tools-btn')
+  );
   window.__ILOVE_NAV_WIRED = false;
   const allItem = document.getElementById('all-tools-item');
   if (allItem) allItem.classList.remove('is-open');
