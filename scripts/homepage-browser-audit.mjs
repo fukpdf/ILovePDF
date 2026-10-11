@@ -12,7 +12,8 @@ const fail = (message) => { failures.push(message); console.error('FAIL:', messa
 
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const page = await context.newPage();
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('requestfailed', request => {
     try {
@@ -50,7 +51,10 @@ try {
   const missingNames = initial.cards.filter(card => !card.text);
   if (missingNames.length) fail('tool cards with missing accessible text: ' + missingNames.length);
   const missingIcons = initial.cards.filter(card => !card.icon);
-  if (missingIcons.length) fail('tool cards with missing visible icon markup: ' + missingIcons.length);
+  if (missingIcons.length) {
+    console.log('CARDS_WITHOUT_ICON_MARKUP: ' + missingIcons.map(card => card.text || '(unnamed)').join(' | '));
+    fail('tool cards with missing visible icon markup: ' + missingIcons.length);
+  }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
 
   const seenHrefs = new Set();
