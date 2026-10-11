@@ -91,6 +91,15 @@ function main() {
   );
   html = labaMove.html;
 
+  // i18n-ext.js waits for RuntimeI18n when the core i18n module is not ready,
+  // so it can execute after the first homepage render without losing translations.
+  const i18nExtMove = moveExternalScriptAfter(
+    html,
+    /i18n-ext[.]js/i,
+    /\\/js\\/home[.]js(?:[?#]|["'])/i
+  );
+  html = i18nExtMove.html;
+
   // firebase-init.js already schedules Firebase SDK initialization during idle time.
   // Making its external script deferred removes the only parser-blocking script while
   // preserving classic-script execution order and the existing auth readiness promise.
@@ -115,6 +124,7 @@ function main() {
   console.log('[assemble-index] chunk integrity, full HTML, required scripts, and critical-path order OK');
   console.log('[assemble-index] parser-blocking external scripts: 0' + (firebaseDeferred ? ' (firebase-init deferred)' : ''));
   if (labaMove.moved) console.log('[assemble-index] homepage renderer now executes before the optional Laba widget');
+  if (i18nExtMove.moved) console.log('[assemble-index] homepage renderer now executes before the extended translation payload');
 }
 
 main();
