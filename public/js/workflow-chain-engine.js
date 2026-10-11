@@ -148,9 +148,6 @@
       if (ctx.summary) return { summary: ctx.summary, cached: true };
       const text = ctx.translated || ctx.ocrText || '';
       let summary = text.slice(0, 500) + (text.length > 500 ? '...' : '');
-      if (window.LabaAiFoundation?.AiReasoningRouter?.summarize) {
-        try { summary = await window.LabaAiFoundation.AiReasoningRouter.summarize(text); } catch {}
-      }
       ctx.summary = summary;
       return { summary };
     },
