@@ -25,11 +25,18 @@ try {
   });
 
   await page.addInitScript(() => {
-    window.__homepageLabPerf = { lcp: null, cls: 0, shifts: [] };
+    window.__homepageLabPerf = { lcp: null, lcpElement: null, cls: 0, shifts: [] };
     try {
       new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
           window.__homepageLabPerf.lcp = Math.max(window.__homepageLabPerf.lcp || 0, entry.startTime);
+          const element = entry.element;
+          if (element) window.__homepageLabPerf.lcpElement = {
+            tag: element.tagName || '',
+            id: element.id || '',
+            className: typeof element.className === 'string' ? element.className : '',
+            text: (element.textContent || '').trim().slice(0, 80)
+          };
         }
       }).observe({ type: 'largest-contentful-paint', buffered: true });
     } catch {}
@@ -126,6 +133,7 @@ try {
     return {
       fcp,
       lcp: window.__homepageLabPerf?.lcp ?? null,
+      lcpElement: window.__homepageLabPerf?.lcpElement ?? null,
       cls: window.__homepageLabPerf?.cls ?? null,
       requests: resources.length,
       scriptCount: scripts.length,
@@ -140,6 +148,7 @@ try {
     ', LCP=' + metricText(labMetrics.lcp) + ', CLS=' + (labMetrics.cls === null ? 'NOT MEASURED' : labMetrics.cls.toFixed(4)) +
     ', INP=NOT MEASURED, requests=' + labMetrics.requests + ', sameOriginScripts=' + labMetrics.scriptCount +
     ', scriptEncodedBytes=' + labMetrics.scriptBytes + ', cssFiles=' + labMetrics.cssCount + ', cssEncodedBytes=' + labMetrics.cssBytes);
+  console.log('LCP ELEMENT: ' + JSON.stringify(labMetrics.lcpElement));
   console.log('CLS SHIFT DETAILS: ' + JSON.stringify(labMetrics.shifts));
 
   const seenHrefs = new Set();
