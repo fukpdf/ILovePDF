@@ -320,7 +320,7 @@ try {
       }
       return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements };
     });
-    if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport)');
+    if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport); offenders=' + JSON.stringify(layout.overflowElements));
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
     if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
     if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
