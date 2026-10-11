@@ -184,7 +184,7 @@ for (const profile of profiles) {
     continue;
   }
   if (median('apiRequestCount') !== 0) candidateFailures.push(profile.name + ': static candidate still makes ' + median('apiRequestCount') + ' same-origin API request(s)');
-  if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the benchmark's first-view window ended');
+  if (median('adTransferBytes') !== 0) candidateFailures.push(profile.name + ': AdSense transferred ' + median('adTransferBytes') + ' bytes before the initial-view measurement ended');
 }
 if (candidateFailures.length) {
   console.error('LOCAL_CANDIDATE_PERFORMANCE_REGRESSION: ' + candidateFailures.join('; '));
