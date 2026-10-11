@@ -89,17 +89,23 @@ function ensureHomepageToolCardIcons() {
     const tool = tMap[card.dataset.tid] || {};
     const iconKey = tool.icon || 'file-text';
     const source = TOOL_ICON_SVGS[iconKey] || TOOL_ICON_SVGS['file-text'];
-    const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
-    if (!parsed.documentElement || parsed.documentElement.localName !== 'svg') return;
     const sticker = document.createElement('span');
     sticker.className = 'tool-name-sticker';
     sticker.setAttribute('aria-hidden', 'true');
     sticker.dataset.icon = iconKey;
-    sticker.appendChild(document.importNode(parsed.documentElement, true));
+    try {
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      if (parsed.documentElement && parsed.documentElement.localName === 'svg') {
+        sticker.appendChild(document.importNode(parsed.documentElement, true));
+      } else {
+        sticker.textContent = '📄';
+      }
+    } catch (_) {
+      sticker.textContent = '📄';
+    }
     title.insertBefore(sticker, title.firstChild);
   });
 }
-
 
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
@@ -577,6 +583,7 @@ window.renderRecentUse = renderRecentUse;
 function bootHomePage() {
   renderSessionContinue();
   waitForToolGroupsAndRender();
+  ensureHomepageToolCardIcons();
   wireCalc();
   wireCalcToggle();
   wireFx();
