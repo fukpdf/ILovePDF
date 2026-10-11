@@ -44,6 +44,13 @@ try {
     throw new Error('public/index.html is still the runtime loader instead of the assembled production artifact');
   }
   pass('public/index.html is the assembled production artifact, not the runtime loader');
+  if (/<script\b[^>]*\bsrc=["'][^"']*\/js\/i18n-ext\.js/i.test(html)) {
+    fail('supplemental locale payload is still in the homepage initial script list');
+  } else if (!/function loadExtendedI18n\s*\(/.test(fs.readFileSync(path.join(PUBLIC, 'js/chrome.js'), 'utf8'))) {
+    fail('homepage locale payload was removed without a lazy loader');
+  } else {
+    pass('supplemental locale payload is lazy-loaded, not part of initial homepage requests');
+  }
 } catch (error) {
   fail(error.message);
   console.error('Homepage deep audit: BLOCKED (cannot inspect assembled artifact)');
@@ -255,6 +262,8 @@ const sizedScripts = scriptSources.map(item => {
   return { src: item.src, bytes: file && fs.existsSync(file) ? fs.statSync(file).size : 0 };
 }).sort((a, b) => b.bytes - a.bytes);
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', cssFiles=' + cssAssets.length + ', initialCssBytes=' + initialCssBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
+if (initialScriptBytes > 720000) fail('homepage initial JS budget exceeded: ' + initialScriptBytes + ' bytes (budget 720000)');
+else pass('homepage initial JS payload is within the 720KB performance budget (' + initialScriptBytes + ' bytes)');
 const blockingScripts = scriptSources.filter(item => !item.defer && !item.async);
 console.log('Initial script scheduling: blocking=' + blockingScripts.length + ', defer=' + scriptSources.filter(item => item.defer).length + ', async=' + scriptSources.filter(item => item.async).length);
 if (blockingScripts.length) fail('homepage contains parser-blocking external scripts: ' + blockingScripts.map(item => item.src).join(', '));
