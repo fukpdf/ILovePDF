@@ -1,0 +1,38 @@
+name: Homepage Deep Audit
+
+on:
+  pull_request:
+    paths:
+      - 'public/index-chunks/**'
+      - 'public/index.html'
+      - 'public/js/chrome.js'
+      - 'public/js/home.js'
+      - 'public/js/tools-config.js'
+      - 'public/js/home-fast-boot.js'
+      - 'scripts/assemble-homepage-index.js'
+      - 'scripts/homepage-deep-audit-check.js'
+      - '.github/workflows/homepage-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  homepage-source-audit:
+    name: Homepage source, assets, and routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check audit script syntax
+        run: node --check scripts/homepage-deep-audit-check.js
+
+      - name: Audit assembled homepage without rewriting source
+        run: node scripts/homepage-deep-audit-check.js
