@@ -571,6 +571,7 @@ function wireLangSelector() {
     close();
     if (code) code.textContent = lang.toUpperCase();
     if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+      if (typeof window.loadExtendedI18n === 'function') { try { await window.loadExtendedI18n(); } catch (_) {} }
       await window.RuntimeI18n.setLanguage(lang);
     }
     renderList('');
@@ -961,6 +962,7 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
     const lang = link.dataset.lang;
     close();
     if (window.RuntimeI18n && typeof window.RuntimeI18n.setLanguage === 'function') {
+      if (typeof window.loadExtendedI18n === 'function') { try { await window.loadExtendedI18n(); } catch (_) {} }
       await window.RuntimeI18n.setLanguage(lang);
     }
   });
