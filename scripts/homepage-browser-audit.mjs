@@ -56,7 +56,9 @@ try {
     viewportWidth: window.innerWidth,
     toolGroupsCount: Array.isArray(window.TOOL_GROUPS) ? window.TOOL_GROUPS.length : -1,
     renderCategorySectionsType: typeof window.renderCategorySections,
-    fastBoot: !!window.__HOME_FAST_BOOT__
+    fastBoot: !!window.__HOME_FAST_BOOT__,
+    iconRepairType: typeof window.ensureHomepageToolCardIcons,
+    stickerCount: document.querySelectorAll('a.tool .tool-name-sticker').length
   }));
 
   if (!initial.title.trim()) fail('homepage document title is empty');
@@ -72,7 +74,7 @@ try {
     fail('tool cards with missing visible icon markup: ' + missingIcons.length);
   }
   report('homepage rendered ' + initial.cards.length + ' cards with header/footer and a titled document');
-  console.log('RENDER DIAGNOSTICS: toolGroups=' + initial.toolGroupsCount + ', renderCategorySections=' + initial.renderCategorySectionsType + ', fastBoot=' + initial.fastBoot);
+  console.log('RENDER DIAGNOSTICS: toolGroups=' + initial.toolGroupsCount + ', renderCategorySections=' + initial.renderCategorySectionsType + ', fastBoot=' + initial.fastBoot + ', iconRepair=' + initial.iconRepairType + ', stickers=' + initial.stickerCount);
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
