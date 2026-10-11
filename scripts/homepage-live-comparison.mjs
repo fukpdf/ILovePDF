@@ -107,8 +107,8 @@ try {
             apiTransferBytes: resources.filter(entry => {
               try { const url = new URL(entry.name); return url.origin === location.origin && url.pathname.startsWith('/api/'); } catch { return false; }
             }).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
-            adScriptCount: resources.filter(entry => /pagead\.googlesyndication\.com/i.test(entry.name)).length,
-            adTransferBytes: resources.filter(entry => /pagead\.googlesyndication\.com/i.test(entry.name)).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
+            adScriptCount: resources.filter(entry => /pagead2?\.googlesyndication\.com/i.test(entry.name)).length,
+            adTransferBytes: resources.filter(entry => /pagead2?\.googlesyndication\.com/i.test(entry.name)).reduce((sum, entry) => sum + (entry.transferSize || 0), 0),
             topTransferredResources: resources
               .filter(entry => entry.transferSize > 0)
               .sort((a, b) => b.transferSize - a.transferSize)
