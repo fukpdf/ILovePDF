@@ -6,7 +6,8 @@
   <script>
   (function () {
     var host = String(location.hostname || '').toLowerCase();
-    var staticHost = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host === 'ilovepdf.cyou';
+    var testStaticHost = (host === 'localhost' || host === '127.0.0.1') && new URLSearchParams(location.search).get('static-hosting-test') === '1';
+    var staticHost = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com') || host === 'ilovepdf.cyou' || testStaticHost;
     if (!staticHost || typeof window.fetch !== 'function' || window.__ILOVE_STATIC_API_GUARD__) return;
     window.__ILOVE_STATIC_API_GUARD__ = true;
     var nativeFetch = window.fetch;
