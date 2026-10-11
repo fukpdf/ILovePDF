@@ -257,12 +257,17 @@ function renderHeader(){
 
   `;
 
+  window.__ILOVE_PRESERVE_SERVER_NAV = false;
+  window.__ILOVE_NAV_WIRED = false;
   const allItem = document.getElementById('all-tools-item');
   if (allItem) allItem.classList.remove('is-open');
 
-  wireSimpleDropdowns();
-  wireAllToolsToggle();
-  wireHoverPrefetch(nav);
+  if (!window.__ILOVE_NAV_WIRED) {
+    wireSimpleDropdowns();
+    wireAllToolsToggle();
+    wireHoverPrefetch(nav);
+    window.__ILOVE_NAV_WIRED = true;
+  }
 }
 
 /* SPA navigation helper — navigates to a tool URL without a full page reload
@@ -886,12 +891,32 @@ function ensureSharedShell() {
     document.head.appendChild(link);
   }
 
-  /* Replace every page header with the exact canonical homepage header. */
+  /* Preserve a complete server-rendered homepage header to avoid a skeleton flash. */
   const headerHolder = document.createElement('div');
   headerHolder.innerHTML = SHARED_HEADER_HTML.trim();
   const canonicalHeader = headerHolder.firstElementChild;
-  const currentHeaders = document.querySelectorAll('header.site-header');
-  if (currentHeaders.length) {
+  const currentHeaders = [...document.querySelectorAll('header.site-header')];
+  const path = (window.location.pathname || '/').replace(/\\/+$/, '') || '/';
+  const isHomepage = path === '/' || path === '/index.html';
+  const existingHeader = currentHeaders[0];
+  const existingNav = existingHeader && existingHeader.querySelector('#nav');
+  const hasCompleteHomepageNav = !!(
+    isHomepage &&
+    currentHeaders.length === 1 &&
+    existingNav &&
+    existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
+    existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
+    existingNav.querySelector('#nav-organize .nav-btn') &&
+    existingNav.querySelector('#nav-convert .nav-btn') &&
+    existingNav.querySelector('#all-tools-btn') &&
+    existingNav.querySelector('#all-tools-menu')
+  );
+  window.__ILOVE_PRESERVE_SERVER_NAV = hasCompleteHomepageNav;
+  window.__ILOVE_NAV_WIRED = false;
+  if (hasCompleteHomepageNav) {
+    // The current server-rendered navigation already contains the complete
+    // canonical controls; keep it in place and only wire its interactions.
+  } else if (currentHeaders.length) {
     currentHeaders.forEach((current, index) => {
       if (index === 0) current.replaceWith(canonicalHeader);
       else current.remove();
@@ -1012,7 +1037,7 @@ async function initChrome() {
   } catch(_) {}
   /* Re-render header (mega-menu names + badges) whenever language changes. */
   window.addEventListener('i18n:change', function () {
-    renderHeader();
+    renderHeader(true);
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   });
   const tryIcons = () => {
