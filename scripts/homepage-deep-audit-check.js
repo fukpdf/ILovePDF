@@ -141,7 +141,7 @@ else pass('no known heavy PDF/OCR/conversion engine appears in initial homepage 
 const initialScriptBytes = scriptSources.reduce((total, item) => {
   const pathname = item.src.split(/[?#]/, 1)[0];
   if (!pathname.startsWith('/')) return total;
-  const file = path.join(PUBLIC, pathname.replace(/^\\//, ''));
+  const file = path.join(PUBLIC, pathname.slice(1));
   return fs.existsSync(file) ? total + fs.statSync(file).size : total;
 }, 0);
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
