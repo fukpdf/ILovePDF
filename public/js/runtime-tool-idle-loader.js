@@ -34,7 +34,7 @@
  *   • Idempotent: skips any script tag already in the document
  *   • Fault-tolerant: one failed file never blocks the rest of the chain
  *
- * REUSES: homepage-lazy-loader.js pattern exactly (Phase 13B reference).
+ * Uses its own dependency-wave scheduler; the retired homepage chatbot loader is not a dependency.
  */
 (function (G) {
   'use strict';
