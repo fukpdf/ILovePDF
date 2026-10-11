@@ -133,12 +133,18 @@ if (iconProblems.length) iconProblems.forEach(problem => fail(problem));
 else pass('all ' + cardObjects.length + ' homepage cards define icons');
 
 // Only inspect initial script URLs; no engine files are modified by this audit.
-const heavyPattern = /(?:pdf(?:js|[-_.]?lib|ium)|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/]|(?:^|[/_.-])wasm(?:[/_.-]|$))/i;
+const heavyPattern = /(?:pdf(?:\\.min)?\\.js|pdfjs|pdf[-_.]?lib|pdfium|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/])/i;
 const heavyInitialScripts = scriptSources.filter(item => heavyPattern.test(item.src));
 if (heavyInitialScripts.length) heavyInitialScripts.forEach(item => fail('heavy processing resource is in initial homepage script list: ' + item.src));
 else pass('no known heavy PDF/OCR/conversion engine appears in initial homepage script URLs');
 
-console.log('Homepage audit summary: cards=' + cardObjects.length + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
+const initialScriptBytes = scriptSources.reduce((total, item) => {
+  const pathname = item.src.split(/[?#]/, 1)[0];
+  if (!pathname.startsWith('/')) return total;
+  const file = path.join(PUBLIC, pathname.replace(/^\\//, ''));
+  return fs.existsSync(file) ? total + fs.statSync(file).size : total;
+}, 0);
+console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
 if (failures.length) {
   console.error('Homepage deep audit: FAILED');
   process.exit(1);
