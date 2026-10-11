@@ -90,6 +90,21 @@ inlineScripts.forEach((match, index) => {
 
 const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
   .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: match[0].toLowerCase().includes(' defer'), async: match[0].toLowerCase().includes(' async') }));
+const toolOnlyHomepageScripts = new Set([
+  '/core/core-manifest.js', '/core/shared-constants.js', '/core/runtime-contracts.js',
+  '/core/runtime-federation.js', '/core/ai-runtime.js', '/core/runtime-governor.js',
+  '/core/runtime-chunk-manifest.js', '/js/tool-i18n-bridge.js',
+  '/js/runtime-ai-scheduler.js', '/js/runtime-worker-factory.js',
+  '/js/runtime-wasm-registry.js', '/js/runtime-compression-presets.js',
+  '/js/runtime-pinned-tools.js', '/js/runtime-tool-engagement.js',
+  '/js/runtime-failed-log.js'
+]);
+const toolOnlyScriptRefs = scriptSources
+  .map(item => item.src.split(/[?#]/, 1)[0])
+  .filter(src => toolOnlyHomepageScripts.has(src));
+if (toolOnlyScriptRefs.length) fail('tool-only runtime scripts remain on homepage: ' + toolOnlyScriptRefs.join(', '));
+else pass('tool-only runtime, worker, and federation scripts are absent from homepage');
+
 const scriptIndex = (needle) => scriptSources.find(item => item.src.includes(needle))?.index ?? -1;
 const chromeAt = scriptIndex('/js/chrome.js');
 const runtimeAt = scriptIndex('/js/runtime-protection.js');
