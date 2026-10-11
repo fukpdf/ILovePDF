@@ -136,7 +136,6 @@ function observeHomepageToolCardIcons() {
 /* ─── RENDER RECENT USE SECTION ─────────────────────────────────────────── */
 function renderRecentUse() {
   const section = document.getElementById('recent-use-section');
-  const root    = document.getElementById('tools-root');
   if (!section) return;
 
   const recent = getRecentTools();
@@ -145,25 +144,33 @@ function renderRecentUse() {
 
   const tMap  = buildToolMap();
   const badge = (window.toolBadgeHtml || (() => ''));
+  const markup = recent.map(r => {
+    const t = tMap[r.id];
+    if (!t) return '';
+    const tid      = t.tid || r.id;
+    const titleKey = `tools.${tid}.title`;
+    const descKey  = `tools.${tid}.desc`;
+    const sticker  = renderToolStickerIcon(t.icon || 'file-text');
+    return `
+      <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
+        <div class="tool-text">
+          <h4 class="tool-name">${sticker}<span class="tool-name-label" data-i18n="${titleKey}">${t18(titleKey, t.name)}</span></h4>
+          <p data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
+        </div>
+        ${badge(t.prio)}
+      </a>`;
+  }).filter(Boolean).join('');
 
-  if (root) {
-    root.innerHTML = recent.map(r => {
-      const t = tMap[r.id];
-      if (!t) return '';
-      const tid      = t.tid || r.id;
-      const titleKey = `tools.${tid}.title`;
-      const descKey  = `tools.${tid}.desc`;
-      const sticker  = renderToolStickerIcon(t.icon || 'file-text');
-      return `
-        <a class="tool" data-tid="${tid}" href="${homeToolUrl(t)}">
-          <div class="tool-text">
-            <h4 class="tool-name">${sticker}<span class="tool-name-label" data-i18n="${titleKey}">${t18(titleKey, t.name)}</span></h4>
-            <p data-i18n="${descKey}">${t18(descKey, t.desc || '')}</p>
-          </div>
-          ${badge(t.prio)}
-        </a>`;
-    }).filter(Boolean).join('');
+  // Never replace #tools-root: it owns the server-rendered category sections.
+  // A recent-tools render must be scoped to its own section to avoid removing
+  // Image Tools and Utilities after first paint (a major CLS/regression source).
+  let container = section.querySelector('.recent-use-items');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'tools-grid recent-use-items';
+    section.appendChild(container);
   }
+  container.innerHTML = markup;
 }
 
 /* ─── CATEGORY SECTION CONFIG ───────────────────────────────────────────── */
