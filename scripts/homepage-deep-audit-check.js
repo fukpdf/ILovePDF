@@ -51,6 +51,7 @@ try {
 }
 
 const chrome = read('public/js/chrome.js');
+const homeSource = read('public/js/home.js');
 const config = read('public/js/tools-config.js');
 const assembler = read('scripts/assemble-homepage-index.js');
 const serverSource = read('server.js');
@@ -209,6 +210,26 @@ if (routeProblems.length) routeProblems.forEach(problem => fail('homepage route 
 else pass('all ' + cardObjects.length + ' homepage cards have matching route metadata');
 if (iconProblems.length) iconProblems.forEach(problem => fail(problem));
 else pass('all ' + cardObjects.length + ' homepage cards define icons');
+
+const iconMapMatch = homeSource.match(/const TOOL_ICON_SVGS\\s*=\\s*\\{([\\s\\S]*?)\\n\\};/);
+const availableIcons = new Set(iconMapMatch ? [...iconMapMatch[1].matchAll(/'([^']+)'\\s*:/g)].map(match => match[1]) : []);
+if (!availableIcons.size) fail('cannot read inline homepage SVG icon map');
+const missingCardIcons = cardObjects.map(source => ({ name: readField(source, 'name'), icon: readField(source, 'icon') }))
+  .filter(item => item.icon && !availableIcons.has(item.icon));
+if (missingCardIcons.length) missingCardIcons.forEach(item => fail(item.name + ': icon has no inline SVG (' + item.icon + ')'));
+else pass('all ' + cardObjects.length + ' homepage card icons resolve to real inline SVGs');
+
+const iconsByTool = new Map();
+for (const source of cardObjects) {
+  const name = readField(source, 'name') || '(unnamed card)';
+  const icon = readField(source, 'icon');
+  if (!icon) continue;
+  if (!iconsByTool.has(icon)) iconsByTool.set(icon, []);
+  iconsByTool.get(icon).push(name);
+}
+const duplicateToolIcons = [...iconsByTool.entries()].filter(([, toolNames]) => toolNames.length > 1);
+if (duplicateToolIcons.length) duplicateToolIcons.forEach(([icon, toolNames]) => fail('duplicate homepage tool icon "' + icon + '": ' + toolNames.join(', ')));
+else pass('all ' + cardObjects.length + ' homepage tools use distinct icon identities');
 
 // Only inspect initial script URLs; no engine files are modified by this audit.
 const heavyPattern = /(?:pdf([.]min)?[.]js|pdfjs|pdf[-_.]?lib|pdfium|tesseract|ghostscript|mupdf|libreoffice|opencv|ocr[-_/])/i;
