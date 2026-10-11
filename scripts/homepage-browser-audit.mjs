@@ -150,6 +150,7 @@ try {
 
   const initial = await page.evaluate(() => ({
     title: document.title,
+    preservedServerNav: window.__ILOVE_PRESERVE_SERVER_NAV === true,
     h1Count: document.querySelectorAll('h1').length,
     footerCount: document.querySelectorAll('footer.footer').length,
     footerAfterLower: (() => { const footer = document.querySelector('footer.footer'); const lower = document.querySelector('.home-lower'); return !footer || !lower || !!(lower.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING); })(),
