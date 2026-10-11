@@ -35,7 +35,7 @@ window.TOOL_GROUPS = [
   {
     key:'image', title:'Image',
     items:[
-      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'crop',       desc:'Trim images precisely',          prio:'instant'  },
+      { tid:'crop-image',         slug:'crop-image',         name:'Crop Image',         icon:'image-crop',       desc:'Trim images precisely',          prio:'instant'  },
       { tid:'resize-image',       slug:'resize-image',       name:'Resize Image',       icon:'maximize',   desc:'Change image dimensions',        prio:'instant'  },
       { tid:'image-filters',      slug:'image-filters',      name:'Image Filters',      icon:'sliders',    desc:'Apply photo filters',            prio:'instant'  },
       { url:'/image-compressor',  name:'Image Compressor',   icon:'minimize-2',         desc:'Compress JPG/PNG/WebP images',   prio:'instant'  },
@@ -46,14 +46,14 @@ window.TOOL_GROUPS = [
   {
     key:'convert', title:'Convert',
     items:[
-      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'image',        desc:'Combine images into PDF',          prio:'instant'  },
+      { tid:'jpg-to-pdf',        slug:'jpg-to-pdf',        name:'JPG to PDF',        icon:'file-image',        desc:'Combine images into PDF',          prio:'instant'  },
       { tid:'pdf-to-jpg',        slug:'pdf-to-jpg',        name:'PDF to JPG',        icon:'image',        desc:'Export pages as images',           prio:'instant'  },
       { tid:'pdf-to-word',       slug:'pdf-to-word',       name:'PDF to Word',       icon:'file-text',    desc:'Convert PDF to editable .docx',    prio:'advanced' },
       { tid:'pdf-to-powerpoint', slug:'pdf-to-powerpoint', name:'PDF to PowerPoint', icon:'presentation', desc:'Convert PDF to .pptx slides',      prio:'advanced' },
       { tid:'pdf-to-excel',      slug:'pdf-to-excel',      name:'PDF to Excel',      icon:'sheet',        desc:'Extract tables to .xlsx',          prio:'advanced' },
-      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-text',    desc:'Convert .docx into PDF',           prio:'advanced' },
-      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'presentation', desc:'Convert .pptx into PDF',           prio:'advanced' },
-      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'sheet',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
+      { tid:'word-to-pdf',       slug:'word-to-pdf',       name:'Word to PDF',       icon:'file-up',    desc:'Convert .docx into PDF',           prio:'advanced' },
+      { tid:'powerpoint-to-pdf', slug:'powerpoint-to-pdf', name:'PowerPoint to PDF', icon:'monitor', desc:'Convert .pptx into PDF',           prio:'advanced' },
+      { tid:'excel-to-pdf',      slug:'excel-to-pdf',      name:'Excel to PDF',      icon:'grid',        desc:'Convert .xlsx into PDF',           prio:'advanced' },
       { tid:'word-to-excel',     slug:'word-to-excel',     name:'Word to Excel',     icon:'table',        desc:'Extract Word tables into .xlsx',   prio:'advanced' },
       { tid:'html-to-pdf',       slug:'html-to-pdf',       name:'HTML to PDF',       icon:'code',         desc:'Render HTML pages as PDF',         prio:'advanced' },
     ]
