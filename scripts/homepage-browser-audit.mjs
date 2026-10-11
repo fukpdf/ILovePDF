@@ -25,7 +25,7 @@ try {
   });
 
   await page.addInitScript(() => {
-    window.__homepageLabPerf = { lcp: null, cls: 0 };
+    window.__homepageLabPerf = { lcp: null, cls: 0, shifts: [] };
     try {
       new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
@@ -36,7 +36,19 @@ try {
     try {
       new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
-          if (!entry.hadRecentInput) window.__homepageLabPerf.cls += entry.value;
+          if (!entry.hadRecentInput) {
+            window.__homepageLabPerf.cls += entry.value;
+            const rect = value => value ? { x: value.x, y: value.y, width: value.width, height: value.height } : null;
+            const sources = (entry.sources || []).map(source => ({
+              tag: source.node?.tagName || '',
+              id: source.node?.id || '',
+              className: typeof source.node?.className === 'string' ? source.node.className : '',
+              text: (source.node?.textContent || '').trim().slice(0, 60),
+              previous: rect(source.previousRect),
+              current: rect(source.currentRect)
+            }));
+            window.__homepageLabPerf.shifts.push({ value: entry.value, sources });
+          }
         }
       }).observe({ type: 'layout-shift', buffered: true });
     } catch {}
@@ -116,7 +128,8 @@ try {
       scriptCount: scripts.length,
       scriptBytes: bytes(scripts),
       cssCount: styles.length,
-      cssBytes: bytes(styles)
+      cssBytes: bytes(styles),
+      shifts: (window.__homepageLabPerf?.shifts || []).sort((a, b) => b.value - a.value).slice(0, 5)
     };
   });
   const metricText = value => value === null || value === undefined ? 'NOT MEASURED' : Math.round(value) + 'ms';
@@ -124,6 +137,7 @@ try {
     ', LCP=' + metricText(labMetrics.lcp) + ', CLS=' + (labMetrics.cls === null ? 'NOT MEASURED' : labMetrics.cls.toFixed(4)) +
     ', INP=NOT MEASURED, requests=' + labMetrics.requests + ', sameOriginScripts=' + labMetrics.scriptCount +
     ', scriptEncodedBytes=' + labMetrics.scriptBytes + ', cssFiles=' + labMetrics.cssCount + ', cssEncodedBytes=' + labMetrics.cssBytes);
+  console.log('CLS SHIFT DETAILS: ' + JSON.stringify(labMetrics.shifts));
 
   const seenHrefs = new Set();
   for (const card of initial.cards) {
