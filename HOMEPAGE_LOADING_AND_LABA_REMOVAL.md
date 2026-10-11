@@ -251,3 +251,8 @@ The assembled homepage already contains all tool cards, and `home.js` is the aut
 **PASS WITH KNOWN ISSUES**
 
 The homepage implementation is merged and deployed. Its required browser matrix passes with 41 cards/routes, 0 axe violations, 0 page errors, 0 failed assets, 0 Laba requests, no horizontal overflow, and CLS 0.0319 in local unthrottled CI. INP and official-site field performance remain NOT MEASURED. The remaining operational caveat is the custom-domain HTTP 403 from automated smoke requests; validate the route in a real browser or review the domain's bot/security policy separately.
+
+
+## Matched live homepage comparison
+
+The homepage audit workflow now includes `scripts/homepage-live-comparison.mjs`. It loads the currently deployed `https://ilovepdf.cyou/` and the official `https://www.ilovepdf.com/` in fresh browser contexts, on mobile (390×844) and desktop (1366×768), with three runs per site/profile. It records median FCP, LCP, response-start, DOMContentLoaded, load-event, transfer-size estimate, resource/script/CSS counts, CLS, and failed navigation status. This is a same-runner lab comparison, not field Core Web Vitals; cross-origin resource transfer sizes may be unavailable where the server does not expose Resource Timing data. Because this benchmark targets the public URLs, it measures the deployed c.you version, not unmerged PR code.
