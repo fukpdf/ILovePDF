@@ -86,7 +86,8 @@ function ensureHomepageToolCardIcons() {
   document.querySelectorAll('a.tool').forEach(card => {
     const title = card.querySelector('.tool-name, .tool-title, h3, h4');
     if (!title || title.querySelector('.tool-name-sticker, [data-icon], svg, img, i[data-lucide]')) return;
-    const tool = tMap[card.dataset.tid] || {};
+    const href = (card.getAttribute('href') || '').split(/[?#]/, 1)[0].replace(/^\\/+/, '');
+    const tool = tMap[card.dataset.tid] || tMap[href] || {};
     const iconKey = tool.icon || 'file-text';
     const source = TOOL_ICON_SVGS[iconKey] || TOOL_ICON_SVGS['file-text'];
     const sticker = document.createElement('span');
