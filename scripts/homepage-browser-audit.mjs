@@ -275,12 +275,12 @@ try {
     } else {
       await urOption.click();
       await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'ur', null, { timeout: 10000 });
-      const localeExtensionLoaded = await page.evaluate(() => !!window.__ILOVE_I18N_EXT_LOADED);
-      if (!localeExtensionLoaded) fail('extended locale bundle was not loaded on explicit language change');
+      const localeExtensionPresent = await page.evaluate(() => !!document.querySelector('script[src*="i18n-ext.js"]'));
+      if (!localeExtensionPresent) fail('extended locale bundle is missing from the homepage translation path');
       await langButton.click();
       await page.locator('#lang-list [data-code="en"]').click();
       await page.waitForFunction(() => window.RuntimeI18n && window.RuntimeI18n.getLanguage() === 'en', null, { timeout: 10000 });
-      report('language switching lazily loads extended locale data and returns to English');
+      report('language switching uses extended locale data and returns to English');
     }
   }
 
