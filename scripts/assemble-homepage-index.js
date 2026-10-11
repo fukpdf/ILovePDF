@@ -77,7 +77,7 @@ function main() {
     }
   );
 
-  const blockingScripts = [...html.matchAll(/<script\b([^>]*)\bsrc=["'][^"']+["'][^>]*>/gi)]
+  const blockingScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi)]
     .filter(match => !/\bdefer\b/i.test(match[1]) && !/\basync\b/i.test(match[1]));
   if (blockingScripts.length) {
     fail('homepage still has parser-blocking external scripts: ' + blockingScripts.length);
