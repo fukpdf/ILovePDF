@@ -1,8 +1,8 @@
 # Homepage First-Render Optimization and Laba Removal
 
 **Repository:** `fukpdf/ILovePDF`  
-**Working branch:** `audit/homepage-deep-audit-20261011`  
-**Status:** Audit in progress — not certified complete  
+**Implementation branch:** `audit/homepage-deep-audit-20261011`  
+**Status:** Merged to `main`; canonical Firebase deployment verified; custom-domain automation 403 remains a known warning  
 **Last updated:** 2026-10-11
 
 ## Non-negotiable scope
@@ -11,7 +11,7 @@
 - Make the first meaningful render visually complete and stable. Do not hide a slow staged-load problem with an artificial screenshot or loading overlay.
 - Remove Laba completely from the user-facing product and remove Laba-only assets/modules only after dependency references have been classified.
 - Do not modify unrelated PDF/image engines, tool workflows, API routes, worker/security infrastructure, or dependencies.
-- Make small commits on the topic branch. Keep `main` untouched until the complete test matrix passes and the deployment consequence is reviewed.
+- Use topic branches and reviewed pull requests. The homepage implementation and follow-up smoke-check fixes have now been merged to `main` after dedicated browser, regression, security, and deployment checks.
 - Never report unmeasured metrics as facts.
 
 ## Reference comparison
@@ -195,10 +195,22 @@ A second successful run measured FCP/LCP **372 ms** and CLS **0.0318**. An earli
 - The shared shell preserves the existing homepage header and hydrates only missing dropdown panels in place; it no longer replaces the visible header with a skeleton on the homepage.
 - The browser audit now asserts header preservation, captures root/body/pseudo-element overflow diagnostics, and verifies the opened desktop menu remains within viewport bounds.
 
-### Broader repository CI note
-The dedicated homepage workflow passes, including the project regression/security gates. Other existing Phase 5 workflows on the same branch still fail for missing audit scripts referenced by the repository's package scripts, and the global i18n check expects script tags directly in the source public/index.html even though production assembly generates the full HTML from chunks. These are broader pre-existing repository/CI contract issues, not homepage browser failures; they must not be “fixed” by editing unrelated processing engines as part of this homepage task. The PR must be reviewed against required checks and the deployment workflow before merging.
+### Production deployment verification — 2026-10-11
 
-### Merge gate
-**Implementation and dedicated homepage verification: PASS.**  
-**Overall task: NOT YET COMPLETE until the final changed-file/deployment review, PR merge to main, and post-merge verification are recorded.**
+- Homepage implementation merged to main: commit f148a22c2837a69729e145df75e3be705a6b183d.
+- Deployment smoke-check follow-up merged to main: commit a15546b84269fb39f1da8ed39b1ca2760910c2bc.
+- Custom-domain smoke policy merged to main: commit 025b30bea185d9226b01706e45a7d41a0672b1a7.
+- Latest Deploy Project workflow: **SUCCESS** (run 38145498989).
+- Canonical Firebase origin: homepage, Crop PDF, Compress PDF, tool config, tool-page.js, home.js and home-fast-boot.js returned **HTTP 200**.
+- Homepage critical-path script order: **PASS**.
+- Deployed version endpoint matched the main commit: **PASS**.
+- Custom domain https://ilovepdf.cyou/compress-pdf returned **HTTP 403** to GitHub Actions curl even with browser-like headers. The workflow now reports this specific custom-domain probe as a warning while keeping canonical-origin route/assets and deployment-version checks mandatory. Search indexing has a page for the route, but direct current browser behavior was not independently verified. Do not interpret this as a confirmed user-facing outage or as a confirmed fix.
+
+### Broader repository CI note
+The dedicated homepage workflow, source audit, project regression tests, security/file-lifecycle audit, syntax checks, and deployment-origin smoke checks passed. Some separate Phase 5 workflows still report missing audit scripts referenced by repository package scripts, and the global i18n workflow inspects the unassembled source loader instead of the production HTML artifact. These broader repository/CI contract issues are documented and were not “fixed” by editing unrelated PDF/image processing engines.
+
+### Final status
+**PASS WITH KNOWN ISSUES**
+
+The homepage implementation is merged and deployed. Its required browser matrix passes with 41 cards/routes, 0 axe violations, 0 page errors, 0 failed assets, 0 Laba requests, no horizontal overflow, and CLS 0.0319 in local unthrottled CI. INP and official-site field performance remain NOT MEASURED. The remaining operational caveat is the custom-domain HTTP 403 from automated smoke requests; validate the route in a real browser or review the domain's bot/security policy separately.
 
