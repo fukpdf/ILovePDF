@@ -6,7 +6,7 @@
  *
  * STRATEGY:
  *   • Crawler detected  → skip all heavy AI scripts (saves 2-4 MB parse work)
- *   • Normal user       → load after 4 s idle OR on first Laba interaction
+ *   • Normal user       → load only on first Laba interaction (no idle auto-load)
  *   • Laba widget CSS + laba-widget.js remain in the HTML (loaded eagerly)
  *     so the chat button appears immediately; only the intelligence stack
  *     (laba-ai-chat.js and onwards) is deferred.
@@ -168,31 +168,9 @@
   var _interactionHandler = function (e) {
     if (_isLabaTarget(e.target)) {
       document.removeEventListener('click', _interactionHandler, true);
-      clearTimeout(_idleTimer);
       loadAll();
     }
   };
   document.addEventListener('click', _interactionHandler, true);
-
-  /* ── Trigger 2: idle timer ──────────────────────────────────────────────── */
-  // Load the heavy stack 4 seconds after the page becomes interactive.
-  // This ensures AI systems are ready before most users scroll down and
-  // consider using the Laba chat, without blocking the critical render path.
-  var _idleTimer = setTimeout(function () {
-    document.removeEventListener('click', _interactionHandler, true);
-    loadAll();
-  }, 4000);
-
-  // If the browser supports requestIdleCallback, use it for the 4s trigger
-  // so it doesn't interrupt paint or interaction in flight.
-  if (typeof G.requestIdleCallback === 'function') {
-    clearTimeout(_idleTimer);
-    G.requestIdleCallback(function () {
-      _idleTimer = setTimeout(function () {
-        document.removeEventListener('click', _interactionHandler, true);
-        loadAll();
-      }, 2000);   // shorter delay once browser signals idle
-    }, { timeout: 4000 });
-  }
 
 }(window));
