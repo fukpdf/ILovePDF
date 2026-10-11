@@ -51,4 +51,6 @@ for (const item of externalRefs) {
   console.log('REFERENCE ' + item.path + ' (' + item.matches + ' refs)');
   for (const example of item.examples) console.log('  L' + example.line + ': ' + example.text);
 }
+console.log('\nHomepage category/layout references (for CLS diagnosis):');
+for (const item of layoutRefs) console.log('LAYOUT ' + item.path + ':L' + item.line + ': ' + item.text);
 console.log('\nThis report is an inventory only. Do not delete shared files until each external reference is classified.');
