@@ -144,7 +144,14 @@ const initialScriptBytes = scriptSources.reduce((total, item) => {
   const file = path.join(PUBLIC, pathname.slice(1));
   return fs.existsSync(file) ? total + fs.statSync(file).size : total;
 }, 0);
+const sizedScripts = scriptSources.map(item => {
+  const pathname = item.src.split(/[?#]/, 1)[0];
+  const file = pathname.startsWith('/') ? path.join(PUBLIC, pathname.slice(1)) : null;
+  return { src: item.src, bytes: file && fs.existsSync(file) ? fs.statSync(file).size : 0 };
+}).sort((a, b) => b.bytes - a.bytes);
 console.log('Homepage audit summary: cards=' + cardObjects.length + ', scripts=' + scriptSources.length + ', initialScriptBytes=' + initialScriptBytes + ', staticAssets=' + assetRefs.size + ', warnings=' + warnings.length + ', failures=' + failures.length);
+console.log('Largest initial scripts (top 15):');
+sizedScripts.slice(0, 15).forEach(item => console.log('SCRIPT ' + item.bytes + ' bytes ' + item.src));
 if (failures.length) {
   console.error('Homepage deep audit: FAILED');
   process.exit(1);
