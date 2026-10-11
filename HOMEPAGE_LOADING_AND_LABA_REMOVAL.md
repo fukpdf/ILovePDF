@@ -26,6 +26,13 @@ The source-only `public/index.html` loader fetches four base64 chunks and replac
 
 Earlier CI measurements on this branch recorded the following before/after sample: same-origin JS resources 114 → 64; JS bytes observed in the first 4.5 seconds 2,098,540 → 1,044,568; total requests 156 → 105; CLS 0.5193 → 0.0352; FCP 300 ms → 224 ms; LCP 1,728 ms → 1,564 ms. These were unthrottled local CI measurements, not production field data. Re-run after changes; INP remains unmeasured unless a valid interaction measurement is added.
 
+## Homepage icon consistency and initial-JS optimization
+
+- The shared homepage catalogue uses a distinct icon identity for each of its 41 tool cards; repeated icons that previously blurred conversion directionality (PDF ↔ Office and PDF ↔ image) were assigned purpose-specific inline SVGs.
+- The inline SVG catalogue covers icon keys used by the tool registry and navigation. The source audit fails if a homepage card references an icon without an SVG or if two tool cards reuse the same icon identity.
+- The supplemental locale extension (about 140KB) is omitted from the initial homepage script list. Core locale JSON and `i18n.js` remain available immediately; the extension loads on demand for non-English use, with a single-flight loader and rerender after load.
+- The source audit enforces a 720KB initial JavaScript budget. This is a payload guard, not a claim that lab and field Core Web Vitals will be identical.
+
 ## Current known implementation
 
 - Homepage renderer: `public/js/home.js`
