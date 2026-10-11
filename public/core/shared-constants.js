@@ -54,8 +54,7 @@
 
   /* ─────────────────────────────────────────────────────────────────────────
    * CRAWLER SIGNATURES
-   * Used by homepage-lazy-loader.js and runtime-browser-os-certification.js
-   * to skip unnecessary boot on non-human traffic.
+   * Used by runtime-browser-os-certification.js to skip unnecessary boot on non-human traffic.
    * ───────────────────────────────────────────────────────────────────────── */
   var CRAWLER_UA_PATTERN = /googlebot|bingbot|slurp|duckduckbot|baidu|yandexbot|sogou|exabot|ia_archiver|facebot|facebookexternalhit|twitterbot|linkedinbot|semrush|ahrefs|bot|crawler|spider|scraper/i;
 
