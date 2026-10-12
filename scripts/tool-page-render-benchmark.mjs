@@ -62,7 +62,10 @@ try {
                     sources: (entry.sources || []).slice(0, 3).map(source => ({
                       tag: source.node?.tagName || '',
                       id: source.node?.id || '',
-                      className: typeof source.node?.className === 'string' ? source.node.className.slice(0, 100) : ''
+                      className: typeof source.node?.className === 'string' ? source.node.className.slice(0, 100) : '',
+                      text: (source.node?.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 80),
+                      previousRect: source.previousRect ? { x: source.previousRect.x, y: source.previousRect.y, width: source.previousRect.width, height: source.previousRect.height } : null,
+                      currentRect: source.currentRect ? { x: source.currentRect.x, y: source.currentRect.y, width: source.currentRect.width, height: source.currentRect.height } : null
                     }))
                   });
                 }
@@ -118,6 +121,8 @@ try {
           return {
             title: document.title,
             uploadVisible: !!document.querySelector('#upload-area') && getComputedStyle(document.querySelector('#upload-area')).display !== 'none',
+            uploadRouteClassPresent: document.documentElement.classList.contains('tool-upload-route'),
+            toolContentRect: (() => { const el = document.querySelector('#tool-content'); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })(),
             fileInputPresent: !!document.querySelector('#file-input'),
             headerPresent: !!document.querySelector('.site-header'),
             footerPresent: !!document.querySelector('.footer'),
@@ -155,6 +160,7 @@ try {
         if (target.name === 'Local candidate') {
           if (result.status !== 200) fail(profile.name + ' run ' + run + ': local tool page HTTP status ' + result.status);
           if (!result.uploadVisible || !result.fileInputPresent) fail(profile.name + ' run ' + run + ': upload UI failed to initialize');
+          if (!result.uploadRouteClassPresent) fail(profile.name + ' run ' + run + ': upload route class was not applied');
           if (!result.headerPresent || !result.footerPresent) fail(profile.name + ' run ' + run + ': shared header/footer missing');
           if (result.horizontalOverflow) fail(profile.name + ' run ' + run + ': horizontal overflow');
           if (result.fcpMs == null || result.lcpMs == null) fail(profile.name + ' run ' + run + ': paint metrics were not measured');
