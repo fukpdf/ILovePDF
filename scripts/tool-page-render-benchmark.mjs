@@ -8,7 +8,8 @@ import { chromium } from 'playwright';
 
 const targets = [
   { name: 'Local candidate', url: 'http://127.0.0.1:4173/compress-pdf' },
-  { name: 'Firebase production', url: 'https://ilovepdf-web.web.app/compress-pdf' }
+  { name: 'Firebase production', url: 'https://ilovepdf-web.web.app/compress-pdf' },
+  { name: 'Official iLovePDF', url: 'https://www.ilovepdf.com/compress_pdf' }
 ];
 const profiles = [
   { name: 'mobile', width: 390, height: 844 },
