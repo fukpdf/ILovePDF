@@ -108,8 +108,11 @@ if (!html.includes('window.__ILOVE_RUNTIME_READY = new Promise') ||
 } else {
   pass('early tool rendering is safe: processing waits for the deferred runtime dependency wave');
 }
+const toolPageCss = read('public/css/styles.css');
 if (!html.includes('id="tool-first-paint-heading"') ||
     !html.includes('titlesBySlug') ||
+    !html.includes('if (/\\/(preview|download)$/') ||
+    !toolPageCss.includes('.tool-first-paint-shell[hidden]') ||
     !toolPageSource.includes('const firstPaintHeading = document.getElementById(\'tool-first-paint-heading\')') ||
     !toolPageSource.includes('renderedHeading.replaceWith(firstPaintHeading)')) {
   fail('route-aware first-paint heading is missing or not preserved through hydration');
