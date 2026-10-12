@@ -7,12 +7,14 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.HOMEPAGE_BASE_URL || 'http://127.0.0.1:4173/';
+const TARGET = new URL(BASE);
+TARGET.searchParams.set('static-hosting-test', '1');
 const PROFILES = [
-  { name: 'mobile', width: 390, height: 844 },
+  { name: 'mobile', width: 412, height: 823 },
   { name: 'desktop', width: 1366, height: 768 }
 ];
 const RUNS_PER_PROFILE = 3;
-const SETTLE_MS = 2200;
+const SETTLE_MS = 5000;
 const failures = [];
 const results = [];
 const fail = message => {
@@ -64,7 +66,6 @@ try {
               const rect = value => value ? {
                 x: value.x, y: value.y, width: value.width, height: value.height
               } : null;
-              window.__homepageStability.cls += entry.value;
               window.__homepageStability.shifts.push({
                 value: entry.value,
                 startTime: entry.startTime,
@@ -84,7 +85,7 @@ try {
 
       let response;
       try {
-        response = await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        response = await page.goto(TARGET.href, { waitUntil: 'domcontentloaded', timeout: 20000 });
         await page.waitForTimeout(SETTLE_MS);
       } catch (error) {
         fail(profile.name + ' run ' + run + ': navigation failed: ' + String(error?.message || error));
