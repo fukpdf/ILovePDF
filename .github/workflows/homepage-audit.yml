@@ -30,6 +30,7 @@ on:
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
       - 'scripts/tool-page-browser-smoke.mjs'
+      - 'scripts/tool-page-render-benchmark.mjs'
       - '.github/workflows/homepage-audit.yml'
   workflow_dispatch:
 
@@ -59,6 +60,7 @@ jobs:
           node --check scripts/homepage-node-server-smoke.mjs
           node --check scripts/homepage-live-comparison.mjs
           node --check scripts/homepage-stability-audit.mjs
+          node --check scripts/tool-page-render-benchmark.mjs
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
@@ -111,6 +113,9 @@ jobs:
 
       - name: Tool page upload-shell and responsive smoke test
         run: node scripts/tool-page-browser-smoke.mjs
+
+      - name: Benchmark PDF tool rendering on mobile and desktop
+        run: node scripts/tool-page-render-benchmark.mjs
 
       - name: Compare local candidate, Firebase production, and official iLovePDF performance
         run: node scripts/homepage-live-comparison.mjs
