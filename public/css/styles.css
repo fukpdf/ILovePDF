@@ -12903,6 +12903,14 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 #tool-content.tool-upload-shell {
   min-height: 1000px;
 }
+html.tool-upload-route #tool-content.tool-upload-shell {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+}
 @media (max-width: 767px) {
   #tool-content.tool-upload-shell {
     min-height: 1100px;
