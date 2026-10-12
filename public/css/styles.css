@@ -12897,3 +12897,31 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
   .ilpdf-continue-card .continue-tool-card:hover { transform: none !important; }
   .ilpdf-continue-card .continue-tool-card:hover .popular-card-arrow { transform: none !important; }
 }
+
+/* Keep the tool upload shell's first-screen geometry stable while the
+   below-fold SEO/related-tools content hydrates in its own sibling container. */
+#tool-content.tool-upload-shell {
+  min-height: 1000px;
+}
+@media (max-width: 767px) {
+  #tool-content.tool-upload-shell {
+    min-height: 1100px;
+  }
+}
+#tool-belowfold {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+#tool-belowfold[hidden] {
+  display: none !important;
+}
+#tool-belowfold .tool-page.ilpdf-branded-upload-belowfold {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 0 72px !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
