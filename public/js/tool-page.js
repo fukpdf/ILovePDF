@@ -810,6 +810,7 @@ function renderBrandedUploadStep(tool, config) {
       renderCloudProviderMenu() +
     '</div>';
   const multiAttr = tool.multipleFiles ? 'multiple' : '';
+  const firstPaintHeading = document.getElementById('tool-first-paint-heading');
   container.innerHTML = `
     <div class="tool-page ilpdf-branded-upload ${config.pageClass || ''}">
       <section class="ilpdf-branded-upload-hero" aria-labelledby="${config.headingId || 'tool-upload-heading'}">
@@ -833,6 +834,26 @@ function renderBrandedUploadStep(tool, config) {
 
       ${trustStripHtml()}
     </div>`;
+
+  // Keep the pre-painted heading node alive so Lighthouse and users see the
+  // real title immediately; only update its label/icon and move it into the
+  // hydrated hero. This avoids a second late LCP candidate when the tool UI renders.
+  if (firstPaintHeading) {
+    const renderedHeading = container.querySelector('.ilpdf-branded-upload-hero > h1.ilpdf-branded-title');
+    if (renderedHeading) {
+      const existingLabel = firstPaintHeading.querySelector('.tool-heading-label');
+      const renderedLabel = renderedHeading.querySelector('.tool-heading-label');
+      if (existingLabel) existingLabel.textContent = renderedLabel ? renderedLabel.textContent : renderedHeading.textContent.trim();
+      const existingSticker = firstPaintHeading.querySelector('.tool-name-sticker');
+      const renderedSticker = renderedHeading.querySelector('.tool-name-sticker');
+      if (existingSticker && renderedSticker) existingSticker.innerHTML = renderedSticker.innerHTML;
+      else if (existingSticker && !renderedSticker) existingSticker.remove();
+      firstPaintHeading.className = renderedHeading.className;
+      firstPaintHeading.id = renderedHeading.id;
+      firstPaintHeading.setAttribute('data-tool-name-heading', '1');
+      renderedHeading.replaceWith(firstPaintHeading);
+    }
+  }
 
   const palette = brandedToolPalette(tool);
   const brandedRoot = container.querySelector('.ilpdf-branded-upload');
