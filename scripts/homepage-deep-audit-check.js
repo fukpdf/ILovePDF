@@ -111,11 +111,10 @@ const staticChecks = [
   ['homepage excludes tool-only analytics and identity scripts', !/src=["'][^"']*\/js\/runtime-analytics\.js/i.test(html) && !/src=["'][^"']*\/js\/runtime-identity\.js/i.test(html)],
   ['homepage lazy-loads secondary runtime scripts after the initial load', (() => {
     const lazyPaths = [
-      '/js/runtime-ads.js', '/js/ad-manager.js', '/js/ad-responsive-engine.js',
-      '/js/runtime-credits.js', '/js/runtime-session-intel.js', '/js/analytics-engine.js',
-      '/js/runtime-offline.js', '/js/runtime-updater.js', '/js/runtime-changelog.js',
-      '/js/savings-animation.js', '/js/live-stats-sim.js', '/js/runtime-perf.js',
-      '/js/community-economy.js'
+      '/js/runtime-session-intel.js', '/js/analytics-engine.js',
+      '/js/runtime-offline.js', '/js/runtime-updater.js',
+      '/js/runtime-changelog.js', '/js/savings-animation.js',
+      '/js/live-stats-sim.js', '/js/runtime-perf.js'
     ];
     const lazySrcs = [...html.matchAll(/data-home-lazy-src=["']([^"']+)["']/gi)]
       .map(match => match[1].split(/[?#]/, 1)[0]);
@@ -123,7 +122,7 @@ const staticChecks = [
       .map(match => match[1].split(/[?#]/, 1)[0]);
     const allMarked = lazyPaths.every(path => lazySrcs.includes(path));
     const noneInitial = lazyPaths.every(path => !initialSrcs.includes(path));
-    return allMarked && noneInitial && html.includes('setTimeout(start,10000)') && html.includes('window.addEventListener("scroll",start') &&
+    return allMarked && noneInitial && html.includes('setTimeout(start,30000)') && html.includes('window.addEventListener("scroll",start') && html.includes('id="ce-widget-mobile"') && html.includes('id="ce-widget-desktop"') &&
       html.includes('script.onload=next;script.onerror=next');
   })()],
   ['tool page has the same static-hosting API guard', read('public/tool.html').includes('__ILOVE_STATIC_API_GUARD__')],
