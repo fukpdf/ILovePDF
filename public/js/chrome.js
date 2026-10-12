@@ -963,14 +963,23 @@ function ensureSharedShell() {
   const existingHeader = currentHeaders[0];
   const existingNav = existingHeader && existingHeader.querySelector('#nav');
   const preserveHomepageHeader = !!(isHomepage && existingHeader && existingNav);
+  const serverNavRequested = window.__ILOVE_PRESERVE_SERVER_NAV === true;
   const preserveHomepageNav = !!(
     preserveHomepageHeader &&
-    existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
-    existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
-    existingNav.querySelector('#nav-organize .nav-btn') &&
-    existingNav.querySelector('#nav-convert .nav-btn') &&
-    existingNav.querySelector('#all-tools-btn') &&
-    existingNav.querySelector('#all-tools-btn').closest('.nav-item')
+    (
+      (serverNavRequested &&
+        existingNav.querySelector('#nav-organize .nav-btn') &&
+        existingNav.querySelector('#nav-convert .nav-btn') &&
+        existingNav.querySelector('#all-tools-btn') &&
+        existingNav.querySelector('#all-tools-btn').closest('.nav-item') &&
+        existingNav.querySelectorAll('.nav-direct').length >= 2) ||
+      (existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
+        existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
+        existingNav.querySelector('#nav-organize .nav-btn') &&
+        existingNav.querySelector('#nav-convert .nav-btn') &&
+        existingNav.querySelector('#all-tools-btn') &&
+        existingNav.querySelector('#all-tools-btn').closest('.nav-item'))
+    )
   );
   window.__ILOVE_PRESERVE_SERVER_HEADER = preserveHomepageHeader;
   window.__ILOVE_PRESERVE_SERVER_NAV = preserveHomepageNav;
