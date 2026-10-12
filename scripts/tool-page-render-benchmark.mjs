@@ -82,10 +82,10 @@ try {
         try {
           response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           if (response) {
-            const sourceHtml = (await response.text()).replace(/<noscript\\b[\\s\\S]*?<\\/noscript>/gi, '');
-            sourceBlockingStylesheetCount = [...sourceHtml.matchAll(/<link\\b[^>]*>/gi)]
+            const sourceHtml = (await response.text()).replace(/<noscript\b[\s\S]*?<\/noscript>/gi, '');
+            sourceBlockingStylesheetCount = [...sourceHtml.matchAll(/<link\b[^>]*>/gi)]
               .map(match => match[0])
-              .filter(tag => /(?:^|\\s)rel=["'][^"']*\\bstylesheet\\b[^"']*["']/i.test(tag)).length;
+              .filter(tag => /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)).length;
           }
           await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
           await page.waitForTimeout(SETTLE_MS);
