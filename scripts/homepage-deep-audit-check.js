@@ -107,7 +107,7 @@ const staticChecks = [
   ['homepage includes the card paint accelerator', /home-fast-boot\.js/.test(html)],
   ['homepage short-circuits missing Firebase API routes instead of downloading tool.html', html.includes('__ILOVE_STATIC_API_GUARD__') && assembler.includes('injectStaticApiGuard')],
   ['static API guard is inserted after the complete charset meta tag', (() => { const meta = /<meta\b(?=[^>]*\bcharset\s*=)[^>]*>/i.exec(html); const guardAt = html.indexOf('__ILOVE_STATIC_API_GUARD__'); return !!meta && guardAt > meta.index + meta[0].length; })()],
-  ['homepage defers AdSense loading until an ad slot is near view or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,4500)')],
+  ['homepage defers AdSense loading until an ad slot is near view or 15-second fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,15000)') && html.includes('IntersectionObserver') && html.includes('window.addEventListener("scroll",load')],
   ['homepage excludes tool-only analytics and identity scripts', !/src=["'][^"']*\/js\/runtime-analytics\.js/i.test(html) && !/src=["'][^"']*\/js\/runtime-identity\.js/i.test(html)],
   ['homepage lazy-loads secondary runtime scripts after the initial load', (() => {
     const lazyPaths = [
