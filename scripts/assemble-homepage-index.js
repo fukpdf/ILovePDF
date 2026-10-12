@@ -130,7 +130,6 @@ function stabilizeHomepageFirstRender(html) {
     '$1optional'
   );
   const fontDisplayAdjusted = html !== beforeFontPolicy;
-  let fontStylesheetDeferred = false;
   let nonCriticalStylesheetsDeferred = 0;
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
@@ -149,7 +148,7 @@ function stabilizeHomepageFirstRender(html) {
     }
     return tag;
   });
-  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, nonCriticalStylesheetsDeferred };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -456,9 +455,6 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.fontDisplayAdjusted) {
     console.log('[assemble-index] changed Google Fonts display=swap to display=optional to reduce late font reflow');
-  }
-  if (firstRender.fontStylesheetDeferred) {
-    console.log('[assemble-index] made Google Fonts stylesheet non-blocking so system fallback can paint first');
   }
   if (firstRender.nonCriticalStylesheetsDeferred) {
     console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
