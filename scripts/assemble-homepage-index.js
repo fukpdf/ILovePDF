@@ -131,6 +131,7 @@ function stabilizeHomepageFirstRender(html) {
     '$1optional'
   );
   const fontDisplayAdjusted = html !== beforeFontPolicy;
+  let fontStylesheetDeferred = false;
   let nonCriticalStylesheetsDeferred = 0;
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
