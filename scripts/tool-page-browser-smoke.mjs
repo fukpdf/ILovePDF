@@ -72,7 +72,7 @@ try {
     const host = document.querySelector('#compress-preview-host');
     const process = document.querySelector('#process-btn');
     return !!host && !!process && (host.querySelector('canvas') || /couldn't render a preview/i.test(host.textContent || ''));
-  }, { timeout: 20000 });
+  }, null, { timeout: 20000 });
   const uploadPreview = await page.evaluate(() => ({
     previewHost: !!document.querySelector('#compress-preview-host'),
     filenameVisible: (document.querySelector('#compress-preview-host')?.textContent || '').includes('render-smoke.pdf'),
