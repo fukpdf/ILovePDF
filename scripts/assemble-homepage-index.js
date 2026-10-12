@@ -535,7 +535,7 @@ export function assembleHomepageIndex() {
     console.log('[assemble-index] moved ' + postLoadScripts.count + ' secondary homepage scripts out of the initial load path');
   }
 
-  const blockingScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi)]
+  const blockingScripts = [...html.matchAll(/<script\b[^>]*\ssrc=["'][^"']+["'][^>]*>/gi)]
     .filter(match => !/\bdefer\b/i.test(match[0]) && !/\basync\b/i.test(match[0]));
   if (blockingScripts.length) {
     fail('homepage still has parser-blocking external scripts: ' + blockingScripts.length);
