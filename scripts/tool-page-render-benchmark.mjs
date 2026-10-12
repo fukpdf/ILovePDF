@@ -156,11 +156,13 @@ try {
           if (result.status !== 200) fail(profile.name + ' run ' + run + ': local tool page HTTP status ' + result.status);
           if (!result.uploadVisible || !result.fileInputPresent) fail(profile.name + ' run ' + run + ': upload UI failed to initialize');
           if (!result.headerPresent || !result.footerPresent) fail(profile.name + ' run ' + run + ': shared header/footer missing');
-          if (!result.footerPreserved) fail(profile.name + ' run ' + run + ': server-rendered footer was replaced after first paint');
           if (result.horizontalOverflow) fail(profile.name + ' run ' + run + ': horizontal overflow');
-          if (result.sourceParserBlockingScriptCount !== 0) fail(profile.name + ' run ' + run + ': ' + result.sourceParserBlockingScriptCount + ' parser-blocking scripts in source HTML');
           if (result.fcpMs == null || result.lcpMs == null) fail(profile.name + ' run ' + run + ': paint metrics were not measured');
-          if (result.cls == null || !Number.isFinite(result.cls) || result.cls > 0.1) fail(profile.name + ' run ' + run + ': CLS missing or exceeds 0.1 (' + result.cls + ')');
+          if (target.name === 'Local candidate') {
+            if (!result.footerPreserved) fail(profile.name + ' run ' + run + ': server-rendered footer was replaced after first paint');
+            if (result.sourceParserBlockingScriptCount !== 0) fail(profile.name + ' run ' + run + ': ' + result.sourceParserBlockingScriptCount + ' parser-blocking scripts in source HTML');
+            if (result.cls == null || !Number.isFinite(result.cls) || result.cls > 0.1) fail(profile.name + ' run ' + run + ': CLS missing or exceeds 0.1 (' + result.cls + ')');
+          }
           if (pageErrors.length) fail(profile.name + ' run ' + run + ': browser errors: ' + pageErrors.slice(0, 4).join(' | '));
           if (failedLocalAssets.length) fail(profile.name + ' run ' + run + ': local asset failures: ' + failedLocalAssets.slice(0, 4).join(' | '));
         }
