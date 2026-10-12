@@ -117,10 +117,14 @@ const staticChecks = [
       '/js/savings-animation.js', '/js/live-stats-sim.js', '/js/runtime-perf.js',
       '/js/community-economy.js'
     ];
+    const lazySrcs = [...html.matchAll(/data-home-lazy-src=["']([^"']+)["']/gi)]
+      .map(match => match[1].split(/[?#]/, 1)[0]);
     const initialSrcs = [...html.matchAll(/<script\b[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi)]
       .map(match => match[1].split(/[?#]/, 1)[0]);
-    return lazyPaths.every(path => html.includes('data-home-lazy-src="' + path + '"') && !initialSrcs.includes(path)) &&
-      html.includes('setTimeout(start,2000)') && html.includes('script.onload=next;script.onerror=next');
+    const allMarked = lazyPaths.every(path => lazySrcs.includes(path));
+    const noneInitial = lazyPaths.every(path => !initialSrcs.includes(path));
+    return allMarked && noneInitial && html.includes('setTimeout(start,2000)') &&
+      html.includes('script.onload=next;script.onerror=next');
   })()],
   ['tool page has the same static-hosting API guard', read('public/tool.html').includes('__ILOVE_STATIC_API_GUARD__')],
   ['tool page defers AdSense until slot visibility or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(read('public/tool.html')) && read('public/tool.html').includes('setTimeout(loadAds, 4500)')],
