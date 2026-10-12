@@ -175,6 +175,22 @@
     if (isDirectToolPage) document.documentElement.classList.add('tool-upload-route');
   })();
   </script>
+
+  <!-- Let the upload shell paint before optional runtime support waves; gate processing until all deferred scripts are ready. -->
+  <script>
+  (function () {
+    window.__ILOVE_RUNTIME_READY_DONE = false;
+    window.__ILOVE_RUNTIME_READY = new Promise(function (resolve) {
+      function finish() {
+        if (window.__ILOVE_RUNTIME_READY_DONE) return;
+        window.__ILOVE_RUNTIME_READY_DONE = true;
+        resolve();
+      }
+      if (document.readyState === 'complete') finish();
+      else document.addEventListener('DOMContentLoaded', finish, { once: true });
+    });
+  })();
+  </script>
 </head>
 <body>
 
@@ -353,16 +369,16 @@
   <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
        tracked timers, streaming markers, future runtime integration points.
        Must load after timer-registry, before all processing scripts. -->
-  <script src="/js/phase1-stabilization.js" defer></script>
   <script src="/workers/workerPool.js" defer></script>
-  <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
   <script src="/js/opfs-manager.js" defer></script>
+  <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
   <script src="/js/stream-helpers.js" defer></script>
   <script src="/js/memory-pressure-monitor.js" defer></script>
-  <!-- Final Stabilization: Observability + Adaptive Runtime (after MemPressure, before TaskScheduler) -->
-  <script src="/js/stability-metrics.js" defer></script>
-  <script src="/js/runtime-failed-log.js" defer></script>
   <script src="/js/object-url-registry.js" defer></script>
+  <!-- Final Stabilization: Observability + Adaptive Runtime (after MemPressure, before TaskScheduler) -->
+  <script src="/js/phase1-stabilization.js" defer></script>
+  <script src="/js/browser-tools.js" defer></script>
+  <script src="/js/browser-tool-runtime.js" defer></script>
 
   <!-- Critical tool UI + processor entry points precede optional runtime extensions. -->
 
@@ -371,30 +387,30 @@
 
 
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
-  <script src="/js/browser-resource-lifecycle.js" defer></script>
-  <script src="/js/worker-leak-detector.js" defer></script>
-  <script src="/js/memory-telemetry.js" defer></script>
-  <script src="/js/adaptive-runtime.js" defer></script>
-  <script src="/js/runtime-device-lite.js" defer></script>
-  <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
-  <script src="/js/canvas-pool.js" defer></script>
-  <script src="/js/task-scheduler.js" defer></script>
-  <script src="/js/lifecycle-manager.js" defer></script>
-  <!-- Phase 25: Large File Architecture (load after Phase 23A, before browser-tools) -->
-  <script src="/js/large-file-streaming.js" defer></script>
-  <script src="/js/eviction-manager.js" defer></script>
-  <script src="/js/virtual-page-manager.js" defer></script>
-  <script src="/js/rolling-processor.js" defer></script>
-  <script src="/js/giant-file-routing.js" defer></script>
-  <script src="/js/giant-file-telemetry.js" defer></script>
-  
-
-  <script src="/js/browser-tools.js" defer></script>
-  <script src="/js/browser-tool-runtime.js" defer></script>
   <script src="/js/compress-worker-adapter.js" defer></script>
-  <!-- Phase 3 continued — worker-dispatch tools with existing OPS entries -->
   <script src="/js/compress-runtime.js" defer></script>
   <script src="/js/advanced-engine.js" defer></script>
+  <script src="/js/shared-core.js" defer></script>
+  <script src="/js/tool-app-manager.js" defer></script>
+  <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
+  <script src="/js/compress-pdf-app.js" defer></script>
+  <script src="/js/pdf-preview.js" defer></script>
+  <script src="/js/live-preview.js" defer></script>
+  <!-- Phase 25: Large File Architecture (load after Phase 23A, before browser-tools) -->
+  <script src="/js/page-organizer.js" defer></script>
+  <script src="/js/app-router.js" defer></script>
+  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
+  <script type="module" src="/js/firebase-init.js"></script>
+  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/chrome.js" defer></script>
+  
+
+  <script src="/js/dropdown-fix.js" defer></script>
+  <script src="/js/chrome-shim.js" defer></script>
+  <script src="/js/bg-ai-engine.js" defer></script>
+  <!-- Phase 3 continued — worker-dispatch tools with existing OPS entries -->
+  <script src="/js/bg-remover-pro.js" defer></script>
+  <script src="/js/edit-pdf-pro.js" defer></script>
   <!-- Phase 2: Microfrontend ToolApp Architecture — ADDITIVE, zero changes to existing files.
        Load order (all defer, executes after AE in document order):
          shared-core      — SharedCore event bus + service bridges
@@ -404,8 +420,8 @@
          pdf-excel-app    — Isolated pdf-to-excel pipeline + dedicated xlsx worker
          pdf-ppt-app      — Isolated pdf-to-powerpoint pipeline + dedicated pptx worker
          ocr-tool-app     — Isolated OCR pipeline (covers 'ocr') + reuses docx worker -->
-  <script src="/js/shared-core.js" defer></script>
-  <script src="/js/tool-app-manager.js" defer></script>
+  <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
+  <script src="/js/tool-registry-runtime.js" defer></script>
   <!-- Phase 2C: Isolated ToolApps — fix "first fail / second hang" WorkerPool+Tesseract leaks -->
   <!--   compress-pdf-app   — intercepts 'compress'           → compress-worker.js (dedicated) -->
   <!--   repair-pdf-app     — intercepts 'repair'             → repair-worker.js (dedicated) -->
@@ -416,38 +432,38 @@
   <!--   scan-pdf-app       — intercepts 'scan-to-pdf'        → canvas + isolated Tesseract + pdf-lib -->
   <!--   image-pdf-app      — intercepts 'jpg-to-pdf' + 'pdf-to-jpg' → image-pipeline-worker.js + PDF.js -->
   <!--   runtime-inspector  — CTRL+SHIFT+I debug panel (dev-only) -->
-  <script src="/js/compress-pdf-app.js" defer></script>
+  <script src="/js/tool-module-registry.js" defer></script>
 
-  <script src="/js/pdf-preview.js" defer></script>
+  <script src="/js/tool-content.js" defer></script>
 
   
 
   <!-- Phase 12: Shared Core Architecture (additive — safe on every page) -->
-  <script src="/js/live-preview.js" defer></script>
-  <script src="/js/page-organizer.js" defer></script>
-  <script src="/js/app-router.js" defer></script>
-  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
-  <script type="module" src="/js/firebase-init.js"></script>
-  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/chrome.js" defer></script>
-  <script src="/js/dropdown-fix.js" defer></script>
-  <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
-  <script src="/js/chrome-shim.js" defer></script>
-  <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
-  <script src="/js/bg-ai-engine.js" defer></script>
-  <script src="/js/bg-remover-pro.js" defer></script>
-  <script src="/js/edit-pdf-pro.js" defer></script>
-  <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
-  <!-- Phase 4 Unit 2: authoritative browser tool registry (identity/execution metadata) -->
-  <script src="/js/tool-registry-runtime.js" defer></script>
-  <script src="/js/tool-module-registry.js" defer></script>
-  <script src="/js/tool-content.js" defer></script>
   <script src="/js/tool-state.js" defer></script>
   <script src="/js/session-persist.js" defer></script>
-  <!-- Supplemental locale pack is loaded on demand by chrome.js for non-English locales. -->
-<script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
   <script src="/js/usage-limit.js?v=__BUILD_ID__" defer></script>
   <script src="/js/tool-page.js?v=20261010-popular-tool-cards-audit-v1" defer></script>
+  <script src="/js/stability-metrics.js" defer></script>
+  <script src="/js/runtime-failed-log.js" defer></script>
+  <script src="/js/browser-resource-lifecycle.js" defer></script>
+  <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
+  <script src="/js/worker-leak-detector.js" defer></script>
+  <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
+  <script src="/js/memory-telemetry.js" defer></script>
+  <script src="/js/adaptive-runtime.js" defer></script>
+  <script src="/js/runtime-device-lite.js" defer></script>
+  <script src="/js/canvas-pool.js" defer></script>
+  <!-- Phase 4 Unit 2: authoritative browser tool registry (identity/execution metadata) -->
+  <script src="/js/task-scheduler.js" defer></script>
+  <script src="/js/lifecycle-manager.js" defer></script>
+  <script src="/js/large-file-streaming.js" defer></script>
+  <script src="/js/eviction-manager.js" defer></script>
+  <script src="/js/virtual-page-manager.js" defer></script>
+  <!-- Supplemental locale pack is loaded on demand by chrome.js for non-English locales. -->
+<script src="/js/rolling-processor.js" defer></script>
+  <script src="/js/giant-file-routing.js" defer></script>
+  <script src="/js/giant-file-telemetry.js" defer></script>
   <!-- Phase 26: Per-Tool Deep Enhancement + Giant File Stabilization -->
   <script src="/js/phase26-enhancements.js" defer></script>
   <!-- Phase 27–30: Tool Validation, Resume System, Debug Hooks, Production Hardening -->
