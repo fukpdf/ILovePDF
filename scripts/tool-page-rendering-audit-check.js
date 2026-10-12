@@ -93,7 +93,7 @@ if (toolPageIndex >= 0 && optionalRuntimeIndex >= 0 && toolPageIndex < optionalR
 }
 
 const toolPageSource = read('public/js/tool-page.js');
-if (/document\\.addEventListener\\(['"]DOMContentLoaded['"],\\s*async\\s*\\(\\)\\s*=>/.test(toolPageSource) ||
+if (toolPageSource.includes("document.addEventListener('DOMContentLoaded', async") ||
     !toolPageSource.includes('async function initToolPage()') ||
     !toolPageSource.includes("if (document.readyState === 'loading')")) {
   fail('tool-page initialization still waits for the full deferred-script chain before rendering');
