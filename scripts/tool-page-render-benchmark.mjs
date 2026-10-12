@@ -49,7 +49,15 @@ try {
           window.__toolPerf = { lcp: null, cls: 0, rawCls: 0, clsSessionStart: null, clsLastShiftTime: null, clsSessionValue: 0, shifts: [], longTasks: [] };
           try {
             new PerformanceObserver(list => {
-              for (const entry of list.getEntries()) window.__toolPerf.lcp = entry.startTime;
+              for (const entry of list.getEntries()) {
+                window.__toolPerf.lcp = entry.startTime;
+                window.__toolPerf.lcpEntry = {
+                  startTime: entry.startTime, renderTime: entry.renderTime || 0,
+                  loadTime: entry.loadTime || 0, size: entry.size || 0,
+                  url: entry.url || '', element: entry.element?.tagName || '',
+                  id: entry.element?.id || '', className: typeof entry.element?.className === 'string' ? entry.element.className.slice(0, 120) : ''
+                };
+              }
             }).observe({ type: 'largest-contentful-paint', buffered: true });
           } catch {}
           try {
@@ -140,6 +148,7 @@ try {
             horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             fcpMs: paint.find(entry => entry.name === 'first-contentful-paint')?.startTime ?? null,
             lcpMs: window.__toolPerf?.lcp ?? null,
+            lcpAttribution: window.__toolPerf?.lcpEntry ?? null,
             domContentLoadedMs: nav?.domContentLoadedEventEnd ?? null,
             loadEventMs: nav?.loadEventEnd ?? null,
             responseStartMs: nav?.responseStart ?? null,
