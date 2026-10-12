@@ -203,16 +203,19 @@
 
   // ── Mobile header widget ──────────────────────────────────────────────────
   function mountMobileWidget() {
-    if (document.getElementById('ce-widget-mobile')) return;
     var headerInner = document.querySelector('.header-inner');
     if (!headerInner) return;
-
-    // Only show on mobile (CSS handles the breakpoint)
-    var widget = document.createElement('div');
-    widget.id        = 'ce-widget-mobile';
+    var widget = document.getElementById('ce-widget-mobile');
+    if (!widget) {
+      widget = document.createElement('div');
+      widget.id = 'ce-widget-mobile';
+      widget.className = 'ce-widget-mobile';
+      var nav = headerInner.querySelector('#nav');
+      if (nav) headerInner.insertBefore(widget, nav);
+      else headerInner.appendChild(widget);
+    }
     widget.className = 'ce-widget-mobile';
     widget.setAttribute('aria-label', 'Your credits and savings');
-
     widget.innerHTML = [
       '<span class="ce-pill ce-pill-credits" aria-label="Credits remaining">',
       '  <span class="ce-pill-icon">⚡</span>',
@@ -223,11 +226,6 @@
       '  <span class="ce-pill-val" id="ce-mob-savings">' + fmtPKR(getSavedToday()) + '</span>',
       '</span>',
     ].join('');
-
-    // Insert before the nav so it sits between brand and nav
-    var nav = headerInner.querySelector('#nav');
-    if (nav) { headerInner.insertBefore(widget, nav); }
-    else { headerInner.appendChild(widget); }
   }
 
   function updateMobileWidget() {
@@ -239,22 +237,24 @@
 
   // ── Desktop header widget ─────────────────────────────────────────────────
   function mountDesktopWidget() {
-    if (document.getElementById('ce-widget-desktop')) return;
-    var nav = document.querySelector('.header-inner');
-    if (!nav) return;
-
-    var widget = document.createElement('div');
-    widget.id            = 'ce-widget-desktop';
-    widget.className     = 'ce-widget-desktop';
-    widget.role          = 'button';
-    widget.tabIndex      = 0;
+    var headerInner = document.querySelector('.header-inner');
+    if (!headerInner) return;
+    var widget = document.getElementById('ce-widget-desktop');
+    if (!widget) {
+      widget = document.createElement('div');
+      widget.id = 'ce-widget-desktop';
+      widget.className = 'ce-widget-desktop';
+      headerInner.appendChild(widget);
+    }
+    widget.className = 'ce-widget-desktop';
+    widget.role = 'button';
+    widget.tabIndex = 0;
     widget.setAttribute('aria-label', 'Open savings dashboard');
     widget.setAttribute('aria-haspopup', 'dialog');
 
-    var todaySav    = getSavedToday();
+    var todaySav = getSavedToday();
     var lifetimeSav = getSavedLifetime();
-    var credits     = getCredits();
-
+    var credits = getCredits();
     widget.innerHTML = [
       '<span class="ce-widget-icon">📊</span>',
       '<span class="ce-stat">',
@@ -272,12 +272,13 @@
       '<span class="ce-widget-caret">▾</span>',
     ].join('');
 
-    widget.addEventListener('click', openDashboard);
-    widget.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDashboard(); }
-    });
-
-    nav.appendChild(widget);
+    if (widget.getAttribute('data-ce-events-bound') !== 'true') {
+      widget.addEventListener('click', openDashboard);
+      widget.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDashboard(); }
+      });
+      widget.setAttribute('data-ce-events-bound', 'true');
+    }
   }
 
   function updateDesktopWidget() {
