@@ -57,6 +57,7 @@ const requiredBeforeToolPage = [
   '/js/shared-core.js',
   '/js/tool-app-manager.js',
   '/js/compress-pdf-app.js',
+  '/js/pdf-preview.js',
   '/js/live-preview.js',
   '/js/i18n.js',
   '/js/chrome.js',
