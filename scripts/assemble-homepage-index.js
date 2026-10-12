@@ -173,7 +173,7 @@ html body div.ad-slot--rectangle[data-ad-pending]:not(.ad-slot--active) { min-he
   html body div.ad-slot--hero-below[data-ad-pending]:not(.ad-slot--active) { min-height:250px; }
 }
 </style>`;
-    html = html.replace(/<\\/head>/i, criticalAdCss + '\\n</head>');
+    html = html.replace(/<\/head>/i, criticalAdCss + '\n</head>');
   }
 
   return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
