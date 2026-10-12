@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
 const BASE = process.env.RENDERING_BASE_URL || 'http://127.0.0.1:4173';
-const OUT_DIR = path.resolve(process.cwd(), '.artifacts', 'lighthouse-rendering');
+const OUT_DIR = path.resolve(process.cwd(), 'artifacts', 'lighthouse-rendering');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const targets = [
