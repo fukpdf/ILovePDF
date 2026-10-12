@@ -259,7 +259,7 @@ window.addEventListener('popstate', () => {
 window.Flow = Flow; // exposed for queue-client and any future hookups
 window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initToolPage() {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
@@ -358,8 +358,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // If hydration succeeds the user can refresh on /preview or /download
   // and keep their place; otherwise renderStep's guards send them back to
   // the upload step automatically.
-  hydrateFlowState().finally(() => {
-    renderStep();
+  const initialStep = Flow.step;
+  // Render the upload route immediately. IndexedDB/session hydration is a
+  // secondary enhancement and must never hold the first visible tool UI.
+  if (initialStep === 'upload') renderStep();
+  hydrateFlowState().then((restored) => {
+    if (initialStep !== 'upload' || restored) renderStep();
+  }).catch(() => {
+    if (initialStep !== 'upload') renderStep();
+  }).finally(() => {
     // Phase 7G: crash recovery — show banner if an interrupted session exists.
     // Runs after renderStep() so the tool UI is already visible before the banner appears.
     if (window.CrashRecoveryUI && currentTool && Flow.step === 'upload') {
@@ -395,7 +402,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (_) {}
     }, 1800);
   });
-});
+}
+
+// A deferred script runs after parsing but before DOMContentLoaded. Initialize
+// here instead of waiting for DOMContentLoaded, which is held until every
+// deferred runtime extension in tool.html has executed.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initToolPage, { once: true });
+} else {
+  initToolPage();
+}
 
 function renderNotFound(toolId, slug) {
   const c = document.getElementById('tool-content');
