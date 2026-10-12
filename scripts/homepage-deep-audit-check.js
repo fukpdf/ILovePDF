@@ -117,7 +117,7 @@ const staticChecks = [
       '/js/savings-animation.js', '/js/live-stats-sim.js', '/js/runtime-perf.js',
       '/js/community-economy.js'
     ];
-    const initialSrcs = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
+    const initialSrcs = [...html.matchAll(/<script\b[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi)]
       .map(match => match[1].split(/[?#]/, 1)[0]);
     return lazyPaths.every(path => html.includes('data-home-lazy-src="' + path + '"') && !initialSrcs.includes(path)) &&
       html.includes('setTimeout(start,2000)') && html.includes('script.onload=next;script.onerror=next');
