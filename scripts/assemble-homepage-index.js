@@ -125,13 +125,22 @@ function stabilizeHomepageFirstRender(html) {
       '<script>window.__ILOVE_PRESERVE_SERVER_NAV = true;</script>\n</head>');
     navPreservationEnabled = true;
   }
-  const beforeFontPolicy = html;
-  html = html.replace(
-    /((?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?[^"'<>]*?display=)swap/gi,
-    '$1optional'
-  );
-  const fontDisplayAdjusted = html !== beforeFontPolicy;
+  // The homepage uses the same system-font fallback from its first paint onward.
+  // Even display=optional can swap to a fast-loading web font after first paint,
+  // changing nav/button widths and causing CLS. Keep the full Inter font on tool
+  // pages, but remove Google Fonts CSS/preconnects from this static homepage.
   let fontStylesheetDeferred = false;
+  html = html.replace(/<link\\b[^>]*>/gi, tag => {
+    const href = tag.match(/\\bhref=["']([^"']+)["']/i)?.[1] || '';
+    const rel = (tag.match(/\\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+    if (/(?:https?:)?\\/\\/fonts\\.(?:googleapis|gstatic)\\.com/i.test(href) &&
+        (rel === 'preconnect' || rel === 'dns-prefetch' ||
+         (rel.split(/\\s+/).includes('stylesheet') && /fonts\\.googleapis\\.com\\/css2?\\?/i.test(href)))) {
+      fontStylesheetDeferred = true;
+      return '';
+    }
+    return tag;
+  });
   let nonCriticalStylesheetsDeferred = 0;
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
@@ -155,20 +164,7 @@ function stabilizeHomepageFirstRender(html) {
     return tag;
   });
 
-  // Some source variants omit font preconnects entirely. Add only missing
-  // origins at the start of <head> so the high-priority optional font CSS can
-  // establish connections before its stylesheet/font requests begin.
-  const missingFontPreconnects = [];
-  if (!/<link\b(?=[^>]*\brel=["']preconnect["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com)[^>]*>/i.test(html)) {
-    missingFontPreconnects.push('<link rel="preconnect" href="https://fonts.googleapis.com">');
-  }
-  if (!/<link\b(?=[^>]*\brel=["']preconnect["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.gstatic\.com)[^>]*>/i.test(html)) {
-    missingFontPreconnects.push('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
-  }
-  if (missingFontPreconnects.length) {
-    html = html.replace(/<head\b[^>]*>/i, match => match + '\n' + missingFontPreconnects.join('\n'));
-  }
-  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -473,11 +469,8 @@ export function assembleHomepageIndex() {
   if (firstRender.navPreservationEnabled) {
     console.log('[assemble-index] enabled server-nav preservation before deferred chrome.js');
   }
-  if (firstRender.fontDisplayAdjusted) {
-    console.log('[assemble-index] changed Google Fonts display=swap to display=optional to reduce late font reflow');
-  }
   if (firstRender.fontStylesheetDeferred) {
-    console.log('[assemble-index] made Google Fonts stylesheet high-priority and non-blocking, with preconnects retained');
+    console.log('[assemble-index] removed Google Fonts CSS from the homepage initial path to prevent font-swap layout shifts; system fallback remains');
   }
   if (firstRender.nonCriticalStylesheetsDeferred) {
     console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
