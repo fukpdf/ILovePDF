@@ -80,6 +80,20 @@ if (toolPageIndex < 0) {
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
   /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
 );
+const activeHtml = html.replace(/<noscript\\b[^>]*>[\\s\\S]*?<\\/noscript>/gi, '');
+const nonCriticalCss = ['/css/home-footer-v2.css', '/css/blog.css', '/css/seo-extended.css'];
+const blockingNonCriticalCss = nonCriticalCss.filter(asset =>
+  [...activeHtml.matchAll(/<link\\b[^>]*>/gi)].some(match =>
+    /\\brel=["'][^"']*\\bstylesheet\\b[^"']*["']/i.test(match[0]) &&
+    (match[0].match(/\\bhref=["']([^"']+)/i)?.[1] || '').split('?')[0] === asset
+  )
+);
+if (blockingNonCriticalCss.length) {
+  fail('below-the-fold CSS is render-blocking: ' + blockingNonCriticalCss.join(', '));
+} else {
+  pass('footer, FAQ/blog and extended SEO CSS are non-blocking');
+}
+
 const seenStylesheets = new Set();
 const duplicateStylesheets = new Set();
 for (const tag of stylesheetTags) {
