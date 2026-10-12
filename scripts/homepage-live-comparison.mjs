@@ -18,9 +18,7 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 const results = [];
 try {
   for (const profile of profiles) {
-    const profileTargets = profile.throttle
-      ? targets.filter(target => target.name !== 'Official iLovePDF')
-      : targets;
+    const profileTargets = targets;
     for (const target of profileTargets) {
       for (let run = 1; run <= repetitions; run++) {
         const context = await browser.newContext({
@@ -186,9 +184,7 @@ try {
   await browser.close();
 }
 for (const profile of profiles) {
-  const profileTargets = profile.throttle
-    ? targets.filter(target => target.name !== 'Official iLovePDF')
-    : targets;
+  const profileTargets = targets;
   for (const target of profileTargets) {
     const rows = results.filter(row => row.profile === profile.name && row.target === target.name && row.status === 200);
     const median = key => {
@@ -238,9 +234,7 @@ if (candidateFailures.length) {
 }
 
 const incompleteComparisons = profiles.some(profile => {
-  const profileTargets = profile.throttle
-    ? targets.filter(target => target.name !== 'Official iLovePDF')
-    : targets;
+  const profileTargets = targets;
   return profileTargets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200));
 });
 if (incompleteComparisons) {
