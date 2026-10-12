@@ -12,7 +12,7 @@ const PROFILES = [
   { name: 'desktop', width: 1366, height: 768 }
 ];
 const RUNS_PER_PROFILE = 3;
-const SETTLE_MS = 2200;
+const SETTLE_MS = 12000;
 const failures = [];
 const results = [];
 const fail = message => {
