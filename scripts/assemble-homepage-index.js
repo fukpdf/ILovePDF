@@ -143,7 +143,7 @@ function stabilizeHomepageFirstRender(html) {
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
     if (rel.split(/\s+/).includes('stylesheet') &&
-        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads|economy|community-economy)\.css(?:[?#]|$)/i.test(href)) {
+        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads|economy|community-economy|rtl)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
@@ -266,7 +266,7 @@ function deferHomepageNonCriticalScripts(html) {
   });
   if (!count) return { html, count: 0 };
 
-  const loader = '<script>(function(){var started=false;function start(){if(started)return;started=true;var queue=Array.prototype.slice.call(document.querySelectorAll("script[data-home-lazy-src]"));function next(){if(!queue.length)return;var marker=queue.shift();var src=marker.getAttribute("data-home-lazy-src");if(!src){next();return;}var script=document.createElement("script");script.src=src;script.async=false;script.onload=next;script.onerror=next;document.head.appendChild(script);}next();}function schedule(){setTimeout(start,2000);}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true});})();</script>';
+  const loader = '<script>(function(){var started=false;function start(){if(started)return;started=true;var queue=Array.prototype.slice.call(document.querySelectorAll("script[data-home-lazy-src]"));function next(){if(!queue.length)return;var marker=queue.shift();var src=marker.getAttribute("data-home-lazy-src");if(!src){next();return;}var script=document.createElement("script");script.src=src;script.async=false;script.onload=next;script.onerror=next;document.head.appendChild(script);}next();}function schedule(){setTimeout(start,10000);window.addEventListener("scroll",start,{once:true,passive:true});window.addEventListener("pointerdown",start,{once:true,passive:true});window.addEventListener("keydown",start,{once:true});}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true});})();</script>';
   html = html.replace(/<\/body>/i, loader + '\n</body>');
   return { html, count };
 }
