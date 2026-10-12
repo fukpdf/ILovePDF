@@ -143,7 +143,7 @@ function stabilizeHomepageFirstRender(html) {
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
     if (rel.split(/\s+/).includes('stylesheet') &&
-        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
+        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads|styles)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
