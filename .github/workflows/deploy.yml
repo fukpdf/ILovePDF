@@ -50,6 +50,23 @@ jobs:
           echo '[assemble] public/index.html ready for hosting'
           node scripts/homepage-deep-audit-check.js
 
+      - name: Defer tool-page external scripts (UI first-paint)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/defer-tool-page-scripts.js
+          # Every external script on tool.html must be deferred so the HTML shell paints first
+          if grep -E '<script[^>]+src=' public/tool.html | grep -v defer | grep -v async | grep -q .; then
+            echo '::error::tool.html still has parser-blocking external scripts'
+            grep -E '<script[^>]+src=' public/tool.html | grep -v defer | grep -v async || true
+            exit 1
+          fi
+          if ! grep -q 'id="tool-content"' public/tool.html; then
+            echo '::error::tool.html missing tool-content workspace'
+            exit 1
+          fi
+          echo '[defer-tool-page] tool.html external scripts are deferred'
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -77,6 +94,7 @@ jobs:
           node --check public/script.js || true
           node --check public/sw.js || true
           node --check scripts/assemble-homepage-index.js
+          node --check scripts/defer-tool-page-scripts.js
 
       - name: Deploy to Firebase Hosting
         shell: bash
