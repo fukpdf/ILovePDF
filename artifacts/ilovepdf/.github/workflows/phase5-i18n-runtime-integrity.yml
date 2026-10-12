@@ -1,0 +1,29 @@
+name: Phase 5 Bulk i18n Runtime Integrity
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/i18n.js'
+      - 'public/js/i18n-ext.js'
+      - 'public/js/special-page-i18n.js'
+      - 'public/js/tool-i18n-bridge.js'
+      - 'public/js/universal-translation-chunker.js'
+      - 'public/js/universal-translation-validator.js'
+      - 'public/js/universal-translation-pipeline.js'
+      - 'public/locales/**'
+      - 'scripts/phase5-i18n-runtime-integrity-batch-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-i18n-runtime-integrity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run bulk i18n runtime integrity audit
+        run: npm run audit:i18n:runtime-integrity

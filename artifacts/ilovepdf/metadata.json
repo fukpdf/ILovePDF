@@ -1,0 +1,7 @@
+{
+  "name": "ILovePDF — All-in-One PDF, Image & AI Tools",
+  "description": "ILovePDF offers free online PDF tools: Merge, Split, Compress, Convert (PDF↔Word/PPT/Excel/JPG/HTML), Edit, Watermark, Sign, Protect, OCR, AI Summarizer, Translate, Background Remover and more.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,35 @@
+name: Phase 5 WorkerPool Security Boundary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/workers/workerPool.js'
+      - 'public/js/runtime-security.js'
+      - 'public/js/runtime-shield-workers.js'
+      - 'public/js/runtime-worker-factory.js'
+      - 'scripts/phase5-workerpool-security-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-workerpool-security.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/workers/workerPool.js'
+      - 'public/js/runtime-security.js'
+      - 'public/js/runtime-shield-workers.js'
+      - 'public/js/runtime-worker-factory.js'
+      - 'scripts/phase5-workerpool-security-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-workerpool-security.yml'
+
+jobs:
+  workerpool-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run audit:phase5:workerpool-security

@@ -1,0 +1,17 @@
+{
+  "name": "ilovepdf-queue-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev":    "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail":   "wrangler tail"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}

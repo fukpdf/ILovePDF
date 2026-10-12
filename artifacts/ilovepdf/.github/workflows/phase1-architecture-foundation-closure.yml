@@ -1,0 +1,18 @@
+name: Phase 1 Architecture Foundation Closure
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  phase1-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: node scripts/phase1-architecture-foundation-closure-check.js

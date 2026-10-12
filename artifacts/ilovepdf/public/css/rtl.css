@@ -1,0 +1,227 @@
+/* RTL Hardening — Phase 21
+   Applied when <html dir="rtl"> or <body class="rtl"> is set by RuntimeI18n.
+   Covers: layout flip, notifications, overlays, upload zones, modals,
+   dropdowns, economy widgets, blog widgets, admin tables.
+   Uses logical properties where possible; explicit LTR overrides for RTL.
+*/
+
+/* ── Core direction ─────────────────────────────────────────────────────── */
+[dir="rtl"],
+body.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* ── Navigation & header ────────────────────────────────────────────────── */
+body.rtl .site-header .header-inner,
+[dir="rtl"] .site-header .header-inner {
+  flex-direction: row-reverse;
+}
+body.rtl .nav,
+[dir="rtl"] .nav {
+  flex-direction: row-reverse;
+}
+body.rtl .brand,
+[dir="rtl"] .brand {
+  flex-direction: row-reverse;
+}
+
+/* ── Upload zone ────────────────────────────────────────────────────────── */
+body.rtl .upload-zone,
+[dir="rtl"] .upload-zone {
+  text-align: center; /* keep centred regardless */
+}
+body.rtl .file-list-item,
+[dir="rtl"] .file-list-item {
+  flex-direction: row-reverse;
+}
+body.rtl .file-list-item .file-meta,
+[dir="rtl"] .file-list-item .file-meta {
+  text-align: right;
+  margin-right: 0;
+  margin-left: auto;
+}
+body.rtl .file-actions,
+[dir="rtl"] .file-actions {
+  flex-direction: row-reverse;
+}
+
+/* ── Buttons & icons inside flex rows ───────────────────────────────────── */
+body.rtl .btn svg:first-child,
+[dir="rtl"] .btn svg:first-child {
+  margin-right: 0;
+  margin-left: 0.4em;
+}
+body.rtl .btn svg:last-child,
+[dir="rtl"] .btn svg:last-child {
+  margin-left: 0;
+  margin-right: 0.4em;
+}
+
+/* ── Tool cards ─────────────────────────────────────────────────────────── */
+body.rtl a.tool,
+[dir="rtl"] a.tool {
+  text-align: right;
+}
+body.rtl .tool-card-icon,
+[dir="rtl"] .tool-card-icon {
+  margin-right: 0;
+  margin-left: 0.75rem;
+}
+body.rtl .badge,
+[dir="rtl"] .badge {
+  margin-right: 0;
+  margin-left: 0.4rem;
+}
+
+/* ── Modals & overlays ──────────────────────────────────────────────────── */
+body.rtl .modal,
+[dir="rtl"] .modal {
+  text-align: right;
+}
+body.rtl .modal-header,
+[dir="rtl"] .modal-header {
+  flex-direction: row-reverse;
+}
+body.rtl .modal-close,
+[dir="rtl"] .modal-close {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+/* ── Notifications / toast ──────────────────────────────────────────────── */
+body.rtl .notification,
+body.rtl .toast,
+[dir="rtl"] .notification,
+[dir="rtl"] .toast {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+body.rtl .notification-icon,
+[dir="rtl"] .notification-icon {
+  margin-right: 0;
+  margin-left: 0.75rem;
+}
+
+/* ── Dropdown menus ─────────────────────────────────────────────────────── */
+body.rtl .dropdown-menu,
+[dir="rtl"] .dropdown-menu {
+  right: auto;
+  left: 0;
+  text-align: right;
+}
+
+/* ── Progress / steps ───────────────────────────────────────────────────── */
+body.rtl .step-row,
+[dir="rtl"] .step-row {
+  flex-direction: row-reverse;
+}
+body.rtl .progress-bar,
+[dir="rtl"] .progress-bar {
+  direction: ltr; /* progress bar fill must always go left→right */
+}
+
+/* ── Economy widgets (credits, savings, donations) ──────────────────────── */
+body.rtl .credits-chip,
+body.rtl .savings-chip,
+body.rtl .donation-widget,
+[dir="rtl"] .credits-chip,
+[dir="rtl"] .savings-chip,
+[dir="rtl"] .donation-widget {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* ── Blog widgets ───────────────────────────────────────────────────────── */
+body.rtl .blog-card,
+[dir="rtl"] .blog-card {
+  text-align: right;
+}
+body.rtl .blog-meta,
+[dir="rtl"] .blog-meta {
+  flex-direction: row-reverse;
+}
+body.rtl .blog-tag,
+[dir="rtl"] .blog-tag {
+  margin-right: 0;
+  margin-left: 0.4rem;
+}
+
+/* ── Admin tables ───────────────────────────────────────────────────────── */
+body.rtl table,
+[dir="rtl"] table {
+  text-align: right;
+}
+body.rtl th,
+body.rtl td,
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right;
+}
+/* Numeric columns stay LTR */
+body.rtl td.num,
+[dir="rtl"] td.num {
+  direction: ltr;
+  text-align: right;
+}
+
+/* ── Search bar ─────────────────────────────────────────────────────────── */
+body.rtl .search-bar,
+[dir="rtl"] .search-bar {
+  flex-direction: row-reverse;
+}
+body.rtl .search-bar input,
+[dir="rtl"] .search-bar input {
+  text-align: right;
+  padding-right: 1rem;
+  padding-left: 2.5rem;
+}
+body.rtl .search-bar .search-icon,
+[dir="rtl"] .search-bar .search-icon {
+  left: 0.75rem;
+  right: auto;
+}
+
+/* ── Range / slider inputs — always LTR ────────────────────────────────── */
+body.rtl input[type="range"],
+[dir="rtl"] input[type="range"] {
+  direction: ltr;
+}
+
+/* ── Offline bar (runtime-offline.js) ──────────────────────────────────── */
+body.rtl #iplv-offline-bar,
+[dir="rtl"] #iplv-offline-bar {
+  direction: rtl;
+  text-align: right;
+}
+
+/* ── Page organizer (drag handles) ─────────────────────────────────────── */
+body.rtl .page-thumb-label,
+[dir="rtl"] .page-thumb-label {
+  text-align: center; /* keep centred on thumb */
+}
+
+/* ── Sidebar / rail ─────────────────────────────────────────────────────── */
+body.rtl .rail,
+[dir="rtl"] .rail {
+  border-right: none;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+body.rtl .site-footer .footer-inner,
+[dir="rtl"] .site-footer .footer-inner {
+  flex-direction: row-reverse;
+}
+body.rtl .footer-links,
+[dir="rtl"] .footer-links {
+  flex-direction: row-reverse;
+}
+
+/* ── Ensure icons inside translated spans stay neutral ───────────────────── */
+body.rtl [data-lucide],
+[dir="rtl"] [data-lucide] {
+  /* SVG icons should not flip with text direction */
+  display: inline-block;
+  direction: ltr;
+}

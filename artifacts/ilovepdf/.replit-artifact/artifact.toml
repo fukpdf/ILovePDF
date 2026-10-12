@@ -1,0 +1,35 @@
+kind = "web"
+previewPath = "/"
+title = "ILovePDF"
+description = "An online PDF and image processing platform with browser-based tools, file conversion, and an Express API."
+version = "1.0.0"
+id = "artifacts/ilovepdf"
+router = "path"
+
+[[services]]
+name = "web"
+paths = ["/"]
+localPort = 23968
+
+[services.development]
+run = "pnpm --filter @workspace/ilovepdf run dev"
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/ilovepdf", "run", "build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+args = ["node", "server.js"]
+
+[services.production.run.env]
+PORT = "23968"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/api/health"
+
+[services.env]
+PORT = "23968"
+BASE_PATH = "/"

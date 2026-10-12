@@ -1,0 +1,19 @@
+name: Phase 4 Tool Registry Module Boundary Closure
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  phase4-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node scripts/phase4-tool-registry-closure-check.js
+      - run: npm run audit:phase4
+      - run: npm run audit:security
+      - run: npm run audit:runtime

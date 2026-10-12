@@ -1,0 +1,30 @@
+name: Phase 5 Bulk Page i18n Coverage
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/**/*.html'
+      - 'public/js/i18n.js'
+      - 'public/js/chrome.js'
+      - 'public/js/chrome-shim.js'
+      - 'public/js/home.js'
+      - 'public/js/tools-page.js'
+      - 'public/js/tool-i18n-bridge.js'
+      - 'scripts/phase5-page-i18n-coverage-batch-check.js'
+      - 'package.json'
+      - '.github/workflows/phase5-page-i18n-coverage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run bulk page/i18n coverage audit
+        run: npm run audit:i18n:page-coverage

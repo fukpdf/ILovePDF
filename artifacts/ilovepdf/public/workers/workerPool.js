@@ -1,0 +1,635 @@
+// Worker Pool v5.2 — Phase 24 lifecycle hardening.
+// v4.x: priority queues (high/normal/low), CancelToken, heartbeat, slot rotation.
+// v5.0 NEW:
+//   — 4th queue tier: 'background' (AI batch jobs, prewarm, cleanup)
+//   — Starvation prevention: tasks waiting > STARVATION_MS are promoted
+//     to the front regardless of lower-priority siblings still queued.
+//     Algorithm: scan tiers high→background; first tier whose oldest task
+//     has waited > threshold is served immediately, breaking normal order.
+//   — Per-tier queue depth in getStats() diagnostics.
+(function () {
+  'use strict';
+
+  // Adaptive worker cap — scale to device capability to avoid OOM on mobile.
+  // deviceMemory: 0.25/0.5/1/2/4/8 GB (or undefined on unsupported browsers).
+  var _devMem   = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 4;
+  var _devCores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+  var DEFAULT_MAX_PER_URL = (_devMem <= 1 || _devCores <= 2) ? 1 :
+                    (_devMem <= 2 || _devCores <= 4) ? 2 : 4;
+  DEFAULT_MAX_PER_URL = Math.max(1, Math.min(DEFAULT_MAX_PER_URL, _devCores, 4));
+  var MAX_PER_URL = DEFAULT_MAX_PER_URL;
+
+  var TIMEOUT_MS         = 0;      // 0 = no artificial per-task execution timeout
+  var MAX_CRASHES        = 3;      // auto-restart limit before slot is retired
+  var IDLE_TTL_MS        = 60000;  // terminate idle workers after 60 s
+  var MAX_QUEUE          = 0;      // 0 = unbounded queue; backpressure is memory/lifecycle driven
+  var MAX_TASKS_PER_SLOT = 0;      // 0 = no artificial task-count cutoff
+  // Faster heartbeat (15 s) catches hung workers sooner, especially on mobile
+  // where OS may freeze workers without firing onerror.
+  var HEARTBEAT_MS       = 15000;
+  // Phase 24: tasks waiting longer than this in any queue tier are promoted
+  // and served immediately regardless of higher-tier backlog.
+  var STARVATION_MS      = 8000;   // 8 seconds anti-starvation threshold
+
+  // Map<workerUrl, { url, queues: {high,normal,low,background}, slots[] }>
+  var pools = {};
+
+  // ── Token factory for task cancellation ───────────────────────────────────
+  function CancelToken() {
+    var _cancelled = false;
+    var _cbs       = [];
+    return {
+      get cancelled() { return _cancelled; },
+      cancel: function () {
+        if (_cancelled) return;
+        _cancelled = true;
+        _cbs.forEach(function (fn) { try { fn(); } catch (_) {} });
+        _cbs = [];
+      },
+      onCancel: function (fn) {
+        if (_cancelled) { try { fn(); } catch (_) {} }
+        else _cbs.push(fn);
+      },
+    };
+  }
+
+  function getPool(url) {
+    if (!pools[url]) {
+      pools[url] = {
+        url:    url,
+        slots:  [],
+        // Phase 24: 4-tier queues — background is the lowest tier
+        queues: { high: [], normal: [], low: [], background: [] },
+      };
+    }
+    return pools[url];
+  }
+
+  // ── Queue helpers ─────────────────────────────────────────────────────────
+  var TIER_ORDER = ['high', 'normal', 'low', 'background'];
+
+  function queueLength(pool) {
+    return pool.queues.high.length + pool.queues.normal.length +
+           pool.queues.low.length  + pool.queues.background.length;
+  }
+
+  // Phase 24: starvation-aware dequeue.
+  // Scans tiers in priority order; if the oldest item in any tier has waited
+  // longer than STARVATION_MS, serve it immediately (breaks strict priority
+  // order only when necessary to prevent indefinite starvation of lower tiers).
+  function dequeueNext(pool) {
+    var now = Date.now();
+    var queues = pool.queues;
+
+    // Pass 1: find the highest-priority tier whose head task is starving
+    for (var si = 0; si < TIER_ORDER.length; si++) {
+      var sq = queues[TIER_ORDER[si]];
+      if (sq.length > 0 && (now - sq[0].queued) > STARVATION_MS) {
+        return sq.shift(); // serve this starving task ahead of schedule
+      }
+    }
+
+    // Pass 2: no starvation detected — strict priority order
+    for (var ni = 0; ni < TIER_ORDER.length; ni++) {
+      if (queues[TIER_ORDER[ni]].length) return queues[TIER_ORDER[ni]].shift();
+    }
+    return null;
+  }
+
+  function rejectAllQueued(pool, err) {
+    TIER_ORDER.forEach(function (tier) {
+      var q = pool.queues[tier];
+      while (q.length > 0) {
+        var t = q.shift();
+        try { t.reject(err); } catch (_) {}
+      }
+    });
+  }
+
+  // ── Worker lifecycle ──────────────────────────────────────────────────────
+  function spawnWorker(url) {
+    try { return new Worker(url); } catch (_) { return null; }
+  }
+
+  function _validateInboundWorkerMessage(data) {
+    // WorkerPool is a direct Worker consumer, so it must not bypass the
+    // centralized RuntimeSecurity validation layer.
+    var rs = (typeof window !== 'undefined') ? window.RuntimeSecurity : null;
+    if (!rs || typeof rs.validateWorkerMessage !== 'function') {
+      throw new Error('RuntimeSecurity unavailable for WorkerPool inbound message');
+    }
+    try {
+      return rs.validateWorkerMessage(data);
+    } catch (err) {
+      var e = new Error((err && err.message) || 'worker_message_security_rejected');
+      e.name = 'SecurityError';
+      throw e;
+    }
+  }
+
+  function _recoverWorkerAfterFault(pool, slot, err) {
+    // A worker fault must settle the current task BEFORE any queued task is
+    // dispatched, and the replacement must be installed before draining.
+    var wasBusy = slot.busy;
+    if (wasBusy) {
+      settle(pool, slot, err, null, false);
+    } else {
+      _clearIdleTimer(slot);
+    }
+
+    try { slot.worker.terminate(); } catch (_) {}
+
+    if (slot.crashes >= MAX_CRASHES) {
+      slot.worker = null;
+      return false;
+    }
+
+    var replacement = spawnWorker(pool.url);
+    if (!replacement) {
+      slot.worker = null;
+      return false;
+    }
+
+    slot.worker = replacement;
+    attachHandlers(pool, slot);
+    return true;
+  }
+
+  function attachHandlers(pool, slot) {
+    slot.worker.onmessage = function (e) {
+      try {
+        var validated = _validateInboundWorkerMessage(e.data);
+        settle(pool, slot, null, validated);
+      } catch (err) {
+        settle(pool, slot, err, null);
+      }
+    };
+    slot.worker.onerror   = function (e) {
+      slot.crashes++;
+      var err = new Error((e && e.message) || 'worker_error');
+      var replaced = _recoverWorkerAfterFault(pool, slot, err);
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
+    };
+    slot.worker.onmessageerror = function () {
+      slot.crashes++;
+      var replaced = _recoverWorkerAfterFault(pool, slot, new Error('worker_message_error'));
+      if (replaced) drainAll(pool);
+      else if (!slot.busy) drainAll(pool);
+    };
+  }
+
+  function makeSlot(pool) {
+    var w = spawnWorker(pool.url);
+    if (!w) return null;
+    var slot = {
+      worker:      w,
+      busy:        false,
+      crashes:     0,
+      taskCount:   0,
+      timer:       null,
+      idleTimer:   null,
+      lastActive:  Date.now(),
+      currentTask: null,
+      resolve:     null,
+      reject:      null,
+    };
+    attachHandlers(pool, slot);
+    return slot;
+  }
+
+  function _startIdleTimer(pool, slot) {
+    _clearIdleTimer(slot);
+    slot.idleTimer = setTimeout(function () {
+      if (slot.busy) return;
+      var idx = pool.slots.indexOf(slot);
+      if (idx !== -1) pool.slots.splice(idx, 1);
+      try { slot.worker.terminate(); } catch (_) {}
+    }, IDLE_TTL_MS);
+  }
+
+  function _clearIdleTimer(slot) {
+    if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
+  }
+
+  function settle(pool, slot, err, data, shouldDrain) {
+    if (shouldDrain === undefined) shouldDrain = true;
+    if (!slot.busy) return;
+    clearTimeout(slot.timer);
+    var res = slot.resolve;
+    var rej = slot.reject;
+    slot.busy        = false;
+    slot.timer       = null;
+    slot.resolve     = null;
+    slot.reject      = null;
+    slot.currentTask = null;
+    slot.lastActive  = Date.now();
+
+    if (err) {
+      rej(err);
+    } else if (data && data.__error) {
+      rej(new Error(data.__error));
+    } else {
+      res(data);
+    }
+
+    if (shouldDrain) {
+      _startIdleTimer(pool, slot);
+      drainOne(pool, slot);
+    }
+  }
+
+  function dispatch(pool, slot, task) {
+    // Honour cancellation before dispatch
+    if (task.token && task.token.cancelled) {
+      task.reject(new Error('task_cancelled'));
+      drainOne(pool, slot);
+      return;
+    }
+
+    _clearIdleTimer(slot);
+    slot.busy        = true;
+    slot.taskCount++;
+    slot.lastActive  = Date.now();
+    slot.currentTask = task;
+    slot.resolve     = task.resolve;
+    slot.reject      = task.reject;
+
+    // Register cancellation handler. A cancelled active task must release
+    // the promise AND retire the worker that may still be executing the
+    // transferred job. Calling settle() alone would mark the slot idle while
+    // the old worker keeps running, allowing a late result to race with the
+    // next task on the same slot.
+    if (task.token) {
+      task.token.onCancel(function () {
+        if (!slot.busy || slot.currentTask !== task) return;
+
+        clearTimeout(slot.timer);
+        slot.timer       = null;
+        slot.busy        = false;
+        slot.currentTask = null;
+
+        var rejectTask = slot.reject;
+        slot.resolve = null;
+        slot.reject  = null;
+
+        // Retire the worker before draining another task so the cancelled
+        // computation cannot continue in the background or leak into reuse.
+        var idx = pool.slots.indexOf(slot);
+        if (idx !== -1) pool.slots.splice(idx, 1);
+        try { slot.worker.terminate(); } catch (_) {}
+
+        if (rejectTask) {
+          try { rejectTask(new Error('task_cancelled')); } catch (_) {}
+        }
+
+        drainAll(pool);
+      });
+    }
+
+    // TIMEOUT_MS === 0 deliberately disables the artificial execution timer.
+    // Cancellation, worker errors, lifecycle cleanup and memory pressure remain active.
+    if (TIMEOUT_MS > 0) {
+      slot.timer = setTimeout(function () {
+        settle(pool, slot, new Error('Worker task timed out after ' + (TIMEOUT_MS / 1000) + 's'), null);
+        var w = spawnWorker(pool.url);
+        if (w) {
+          try { slot.worker.terminate(); } catch (_) {}
+          slot.worker    = w;
+          slot.taskCount = 0;
+          attachHandlers(pool, slot);
+        }
+      }, TIMEOUT_MS);
+    }
+
+    if (!slot.worker || slot.crashes >= MAX_CRASHES) {
+      settle(pool, slot, new Error('Worker unavailable — crash limit reached'), null);
+      return;
+    }
+
+    var msg = task.message;
+    var xfr = task.transferables || [];
+    try {
+      slot.worker.postMessage(msg, xfr);
+    } catch (_) {
+      try {
+        slot.worker.postMessage(msg);
+      } catch (e2) {
+        settle(pool, slot, new Error('postMessage failed: ' + e2.message), null);
+      }
+    }
+  }
+
+  function drainOne(pool, slot) {
+    if (queueLength(pool) === 0) return;
+    if (slot.busy || slot.crashes >= MAX_CRASHES) return;
+
+    // Slot rotation — retire workers that have processed many tasks
+    if (MAX_TASKS_PER_SLOT > 0 && slot.taskCount >= MAX_TASKS_PER_SLOT) {
+      var idx = pool.slots.indexOf(slot);
+      if (idx !== -1) pool.slots.splice(idx, 1);
+      try { slot.worker.terminate(); } catch (_) {}
+      var fresh = makeSlot(pool);
+      if (fresh) {
+        pool.slots.push(fresh);
+        var task = dequeueNext(pool);
+        if (task) dispatch(pool, fresh, task);
+      }
+      return;
+    }
+
+    var t = dequeueNext(pool);
+    if (t) dispatch(pool, slot, t);
+  }
+
+  function drainAll(pool) {
+    for (var i = 0; i < pool.slots.length && queueLength(pool) > 0; i++) {
+      var s = pool.slots[i];
+      if (!s.busy && s.crashes < MAX_CRASHES) drainOne(pool, s);
+    }
+    while (queueLength(pool) > 0 && pool.slots.length < MAX_PER_URL) {
+      var slot = makeSlot(pool);
+      if (!slot) break;
+      pool.slots.push(slot);
+      drainOne(pool, slot);
+    }
+  }
+
+  // ── Heartbeat: detect hung workers and respawn ─────────────────────────────
+  var _heartbeatId = null;
+  function _startHeartbeat() {
+    if (_heartbeatId) return;
+    _heartbeatId = setInterval(function () {
+      var now = Date.now();
+      Object.keys(pools).forEach(function (url) {
+        var pool = pools[url];
+        pool.slots.forEach(function (slot) {
+          if (TIMEOUT_MS > 0 && slot.busy && (now - slot.lastActive) > TIMEOUT_MS) {
+            // Stuck worker — force settle with timeout error, then respawn
+            try { slot.worker.terminate(); } catch (_) {}
+            settle(pool, slot, new Error('Worker heartbeat timeout'), null);
+            var fresh = spawnWorker(pool.url);
+            if (fresh) {
+              slot.worker    = fresh;
+              slot.crashes   = 0;
+              slot.taskCount = 0;
+              slot.lastActive = Date.now();
+              attachHandlers(pool, slot);
+            }
+          }
+        });
+
+        // Dead-slot cleanup: remove retired slots that have no pending tasks
+        // and have exceeded the crash limit. Prevents accumulation over sessions.
+        pool.slots = pool.slots.filter(function (slot) {
+          if (slot.crashes >= MAX_CRASHES && !slot.busy) {
+            try { slot.worker.terminate(); } catch (_) {}
+            return false; // remove from pool
+          }
+          return true;
+        });
+      });
+    }, HEARTBEAT_MS);
+  }
+  _startHeartbeat();
+
+  // ── Memory pressure response ───────────────────────────────────────────────
+  // When the browser signals memory pressure, reduce active worker count and
+  // terminate idle workers immediately (don't wait for IDLE_TTL_MS).
+  // Uses the window 'memorywarning' event (Chrome 90+ on Android) and a
+  // periodic deviceMemory / performance.memory safety check.
+  (function () {
+    if (typeof window === 'undefined') return;
+
+    function _trimIdleWorkers(urgency) {
+      // urgency: 'moderate' | 'critical'
+      Object.keys(pools).forEach(function (url) {
+        var pool = pools[url];
+        var toKeep = urgency === 'critical' ? 0 : 1;
+        var idle = pool.slots.filter(function (s) { return !s.busy; });
+        // Terminate excess idle workers beyond the keep limit
+        idle.slice(toKeep).forEach(function (slot) {
+          var idx = pool.slots.indexOf(slot);
+          if (idx !== -1) pool.slots.splice(idx, 1);
+          if (slot.idleTimer) clearTimeout(slot.idleTimer);
+          try { slot.worker.terminate(); } catch (_) {}
+        });
+      });
+    }
+
+    // Chrome Android memorywarning event
+    if ('onmemorywarning' in window || typeof window.MemoryWarning !== 'undefined') {
+      try {
+        window.addEventListener('memorywarning', function (e) {
+          var urgency = (e && e.data && e.data.level === 'critical') ? 'critical' : 'moderate';
+          _trimIdleWorkers(urgency);
+        });
+      } catch (_) {}
+    }
+
+    // Periodic safety check using performance.memory (Chrome-only)
+    setInterval(function () {
+      try {
+        var m = performance && performance.memory;
+        if (!m) return;
+        var usedPct = m.usedJSHeapSize / m.jsHeapSizeLimit;
+        if (usedPct > 0.90) _trimIdleWorkers('critical');
+        else if (usedPct > 0.75) _trimIdleWorkers('moderate');
+      } catch (_) {}
+    }, 30000); // every 30 s — lightweight
+  }());
+
+  // ── PUBLIC API ─────────────────────────────────────────────────────────────
+
+  // opts: { priority?: 'high'|'normal'|'low'|'background', token?: CancelToken }
+  function run(workerUrl, message, transferables, opts) {
+    opts = opts || {};
+    var priority = opts.priority || 'normal';
+    var token    = opts.token    || null;
+
+    // Phase 24: validate priority — unknown tiers fall back to 'normal'
+    if (!pool_proto_queues[priority]) priority = 'normal';
+
+    var pool = getPool(workerUrl);
+
+    return new Promise(function (resolve, reject) {
+      if (MAX_QUEUE > 0 && queueLength(pool) >= MAX_QUEUE) {
+        reject(new Error('Worker queue full — too many concurrent tasks'));
+        return;
+      }
+
+      var task = {
+        message:       message,
+        transferables: transferables || [],
+        resolve:       resolve,
+        reject:        reject,
+        priority:      priority,
+        token:         token,
+        queued:        Date.now(),
+      };
+
+      // Try a free, healthy slot
+      for (var i = 0; i < pool.slots.length; i++) {
+        var s = pool.slots[i];
+        if (!s.busy && s.crashes < MAX_CRASHES) {
+          dispatch(pool, s, task);
+          return;
+        }
+      }
+
+      // Spawn a new slot if under limit
+      if (pool.slots.length < MAX_PER_URL) {
+        var slot = makeSlot(pool);
+        if (slot) {
+          pool.slots.push(slot);
+          dispatch(pool, slot, task);
+          return;
+        }
+      }
+
+      // All slots busy — enqueue with priority.
+      // A queued cancellation must remove only this task and reject it;
+      // otherwise a cancelled Rotate request can remain in the queue until
+      // another task drains it, retaining its payload/transfer references.
+      var q = pool.queues[priority] || pool.queues.normal;
+      q.push(task);
+
+      if (token) {
+        token.onCancel(function () {
+          var idx = q.indexOf(task);
+          if (idx === -1) return; // already dequeued/settled
+          q.splice(idx, 1);
+          try { reject(new Error('task_cancelled')); } catch (_) {}
+        });
+      }
+    });
+  }
+
+  // Phase 24: sentinel used for priority validation in run()
+  var pool_proto_queues = { high: 1, normal: 1, low: 1, background: 1 };
+
+  function getStats() {
+    var out = {};
+    Object.keys(pools).forEach(function (url) {
+      var p = pools[url];
+      out[url] = {
+        total:            p.slots.length,
+        busy:             p.slots.filter(function (s) { return s.busy; }).length,
+        queued:           queueLength(p),
+        queuedHigh:       p.queues.high.length,
+        queuedNormal:     p.queues.normal.length,
+        queuedLow:        p.queues.low.length,
+        queuedBackground: p.queues.background.length,  // Phase 24
+        crashed:          p.slots.filter(function (s) { return s.crashes >= MAX_CRASHES; }).length,
+        taskCounts:       p.slots.map(function (s) { return s.taskCount; }),
+        // Phase 24: starvation diagnostics — oldest wait per tier (ms)
+        oldestWaitMs: (function () {
+          var now = Date.now();
+          var result = {};
+          TIER_ORDER.forEach(function (tier) {
+            var q = p.queues[tier];
+            result[tier] = q.length > 0 ? (now - q[0].queued) : 0;
+          });
+          return result;
+        }()),
+      };
+    });
+    return out;
+  }
+
+  function prewarm(workerUrl) {
+    if (!workerUrl) return false;
+    // Hidden tabs should not grow speculative worker capacity. Active tasks
+    // continue normally; only new prewarm/spare-worker creation is suppressed.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+    var pool = getPool(workerUrl);
+    // Idempotent per URL: an existing healthy idle/busy slot is already warm.
+    // Never create a second slot just because another prewarm caller fired.
+    if (pool.slots.length > 0) return true;
+    var slot = makeSlot(pool);
+    if (slot) {
+      pool.slots.push(slot);
+      _startIdleTimer(pool, slot);
+      return true;
+    }
+    return false;
+  }
+
+  // Dynamically lower/restore the per-URL worker cap during memory pressure.
+  // Lowering the cap never kills a busy worker; only excess idle workers are
+  // retired. New slots remain bounded by the current cap.
+  function setMaxPerUrl(cap) {
+    if (typeof cap !== 'number' || !isFinite(cap)) return MAX_PER_URL;
+    MAX_PER_URL = Math.max(1, Math.min(Math.floor(cap), _devCores, 4));
+    Object.keys(pools).forEach(function (url) {
+      var pool = pools[url];
+      var idle = pool.slots.filter(function (slot) { return !slot.busy; });
+      while (pool.slots.length > MAX_PER_URL && idle.length) {
+        var slot = idle.pop();
+        var idx = pool.slots.indexOf(slot);
+        if (idx !== -1) pool.slots.splice(idx, 1);
+        _clearIdleTimer(slot);
+        try { slot.worker.terminate(); } catch (_) {}
+      }
+    });
+    return MAX_PER_URL;
+  }
+
+  function restoreMaxPerUrl() {
+    return setMaxPerUrl(DEFAULT_MAX_PER_URL);
+  }
+
+  function terminateAll() {
+    Object.keys(pools).forEach(function (url) {
+      terminatePool(url);
+    });
+  }
+
+  // Navigation cleanup: release every WorkerPool-owned worker on a real page
+  // unload. Keep BFCache entries intact because pagehide can be followed by
+  // pageshow without a full document teardown.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', function (event) {
+      if (event && event.persisted) return;
+      terminateAll();
+    }, { passive: true });
+  }
+
+  function terminatePool(workerUrl) {
+    var pool = pools[workerUrl];
+    if (!pool) return;
+    pool.slots.forEach(function (slot) {
+      if (slot.idleTimer) { clearTimeout(slot.idleTimer); slot.idleTimer = null; }
+      if (slot.timer)     { clearTimeout(slot.timer);     slot.timer     = null; }
+      try { slot.worker.terminate(); } catch (_) {}
+      if (slot.busy && slot.reject) {
+        slot.reject(new Error('pool_terminated'));
+        slot.busy = false; slot.resolve = null; slot.reject = null;
+      }
+    });
+    pool.slots = [];
+    rejectAllQueued(pool, new Error('pool_terminated'));
+    delete pools[workerUrl];
+  }
+
+  window.WorkerPool = {
+    VERSION:       '5.2',
+    run:           run,
+    getStats:      getStats,
+    prewarm:       prewarm,
+    terminatePool: terminatePool,
+    terminateAll:  terminateAll,
+    CancelToken:   CancelToken,   // v4.0
+    MAX_WORKERS:   MAX_PER_URL,
+    DEFAULT_MAX_WORKERS: DEFAULT_MAX_PER_URL,
+    setMaxPerUrl:  setMaxPerUrl,
+    restoreMaxPerUrl: restoreMaxPerUrl,   // adaptive: 1 (CRITICAL) | 2 (LOW) | 4 (HIGH)
+    // Expose device profile so consumers can adapt (e.g. advanced-engine.js)
+    DEVICE_MEM:    _devMem,
+    DEVICE_CORES:  _devCores,
+    // Phase 24: expose tier list for diagnostics
+    TIERS:         TIER_ORDER,
+    STARVATION_MS: STARVATION_MS,
+  };
+
+}());

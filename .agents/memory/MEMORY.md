@@ -1,0 +1,1 @@
+- [Native addon compatibility](native-addon-compatibility.md) — check native modules against this workspace's Node 24 runtime and pnpm build-script approval.
