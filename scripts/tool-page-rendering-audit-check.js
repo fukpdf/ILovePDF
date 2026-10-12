@@ -40,9 +40,9 @@ if (blockingClassic.length) {
 }
 
 const chromeSource = fs.readFileSync(path.join(root, 'public', 'js', 'chrome.js'), 'utf8');
-if (/\\bsrc=["'][^"']*\\/js\\/i18n-ext\\.js/i.test(html)) {
+if (/\bsrc=["'][^"']*\/js\/i18n-ext\.js/i.test(html)) {
   fail('supplemental locale pack is still in the initial tool-page script list');
-} else if (!/function loadExtendedI18n\\s*\\(/.test(chromeSource) || !/\\/js\\/i18n-ext\\.js/.test(chromeSource)) {
+} else if (!/function loadExtendedI18n\s*\(/.test(chromeSource) || !/\/js\/i18n-ext\.js/.test(chromeSource)) {
   fail('supplemental locale pack was removed without the shared lazy loader');
 } else {
   pass('supplemental locale pack is lazy-loaded through the shared shell');
