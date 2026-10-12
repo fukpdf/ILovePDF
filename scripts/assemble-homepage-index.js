@@ -112,7 +112,7 @@ function dedupeLocalStylesheets(html) {
  *   homepage sections around on slower or cold-cache visits.
  */
 function reserveCommunityWidgetPlaceholders(html) {
-  const mobile = '<div id="ce-widget-mobile" class="ce-widget-mobile" aria-label="Your credits and savings" style="min-width:148px;min-height:30px">' +
+  const mobile = '<div id="ce-widget-mobile" class="ce-widget-mobile" aria-label="Your credits and savings" style="min-width:116px;min-height:30px">' +
     '<span class="ce-pill ce-pill-credits" aria-label="Credits remaining"><span class="ce-pill-icon">⚡</span><span class="ce-pill-val" id="ce-mob-credits">15</span></span>' +
     '<span class="ce-pill ce-pill-savings" aria-label="Money saved today"><span class="ce-pill-icon">💰</span><span class="ce-pill-val" id="ce-mob-savings">₨0</span></span></div>';
   const desktop = '<div id="ce-widget-desktop" class="ce-widget-desktop" role="button" tabindex="0" aria-label="Open savings dashboard" aria-haspopup="dialog" style="min-width:260px;min-height:34px">' +
