@@ -68,11 +68,17 @@
   <link rel="prefetch" href="/workers/workerPool.js?v=__BUILD_ID__" as="worker">
   <link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2">
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2" data-shared-header-css="1">
-  <link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924">
+  <!-- Non-critical shared footer styles load without blocking the first tool render. -->
+  <link rel="preload" as="style" href="/css/home-footer-v2.css?v=20260924" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924"></noscript>
   <link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1">
   <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1">
-  <link rel="stylesheet" href="/css/blog.css">
-  <link rel="stylesheet" href="/css/seo-extended.css">
+  <!-- Non-critical below-the-fold FAQ/blog styles load without blocking the first tool render. -->
+  <link rel="preload" as="style" href="/css/blog.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/blog.css"></noscript>
+  <!-- Non-critical below-the-fold SEO content styles load without blocking the first tool render. -->
+  <link rel="preload" as="style" href="/css/seo-extended.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
   <link rel="stylesheet" href="/css/ads.css">
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
