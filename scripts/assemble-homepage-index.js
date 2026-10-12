@@ -147,7 +147,7 @@ function stabilizeHomepageFirstRender(html) {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
     if (rel.split(/\s+/).includes('stylesheet') &&
-        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
+        /(?:^|\/)css\/(?:seo-extended|home-footer-v2|economy|community-economy|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
       // Footer styles are non-critical for first paint; keep every deferred stylesheet low priority.
       const priority = 'low';
