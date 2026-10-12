@@ -1021,13 +1021,28 @@ function ensureSharedShell() {
     else document.body.insertBefore(canonicalHeader, document.body.firstChild);
   }
 
-  /* Replace every page footer with the canonical homepage footer. */
+  /* Preserve a complete server-rendered footer to avoid a large post-paint CLS.
+     Only replace it when the current page truly lacks the shared footer contract. */
   const currentFooters = [...document.querySelectorAll('footer.footer')];
-  const holder = document.createElement('div');
-  holder.innerHTML = SHARED_FOOTER_HTML.trim();
-  const canonicalFooter = holder.firstElementChild;
-  currentFooters.forEach(footer => footer.remove());
-  document.body.appendChild(canonicalFooter);
+  const existingFooter = currentFooters.find(footer =>
+    footer.querySelector('.footer-inner') &&
+    footer.querySelector('.footer-bottom') &&
+    footer.querySelector('#footer-lang-btn') &&
+    footer.querySelector('#footer-lang-panel') &&
+    footer.querySelectorAll('a[href]').length >= 10
+  );
+  let canonicalFooter = existingFooter || null;
+  if (canonicalFooter) {
+    currentFooters.filter(footer => footer !== canonicalFooter).forEach(footer => footer.remove());
+    window.__ILOVE_PRESERVE_SERVER_FOOTER = true;
+  } else {
+    const holder = document.createElement('div');
+    holder.innerHTML = SHARED_FOOTER_HTML.trim();
+    canonicalFooter = holder.firstElementChild;
+    currentFooters.forEach(footer => footer.remove());
+    document.body.appendChild(canonicalFooter);
+    window.__ILOVE_PRESERVE_SERVER_FOOTER = false;
+  }
 
   window.__ILOVE_SHARED_SHELL_READY = true;
   return canonicalFooter;
