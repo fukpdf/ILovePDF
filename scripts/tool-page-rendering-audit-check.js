@@ -101,6 +101,13 @@ if (toolPageSource.includes("document.addEventListener('DOMContentLoaded', async
 } else {
   pass('tool-page initialization runs as soon as its deferred entry executes');
 }
+if (!html.includes('window.__ILOVE_RUNTIME_READY = new Promise') ||
+    !toolPageSource.includes('await window.__ILOVE_RUNTIME_READY') ||
+    !toolPageSource.includes('window.__ILOVE_PROCESS_WAITING')) {
+  fail('early tool rendering is not protected by a runtime-ready gate before processing');
+} else {
+  pass('early tool rendering is safe: processing waits for the deferred runtime dependency wave');
+}
 
 const headEnd = html.toLowerCase().indexOf('</head>');
 const earlyRouteBootstrap = html.indexOf('Set upload-shell geometry before first paint');
