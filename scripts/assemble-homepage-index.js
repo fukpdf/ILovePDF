@@ -135,12 +135,12 @@ function stabilizeHomepageFirstRender(html) {
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
-    if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
-        /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href)) return '';
+    // Keep font preconnects and discover the optional-display font stylesheet
+    // in the initial head. Deferring this stylesheet caused a late font swap and
+    // a measured CLS regression at the 1280px navigation breakpoint.
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
-      fontStylesheetDeferred = true;
-      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+      return tag;
     }
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
