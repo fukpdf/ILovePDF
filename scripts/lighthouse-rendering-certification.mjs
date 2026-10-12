@@ -13,8 +13,8 @@ const OUT_DIR = path.resolve(process.cwd(), 'artifacts', 'lighthouse-rendering')
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const targets = [
-  { name: 'homepage', url: BASE + '/' },
-  { name: 'compress-pdf', url: BASE + '/compress-pdf' },
+  { name: 'homepage', url: BASE + '/?static-hosting-test=1' },
+  { name: 'compress-pdf', url: BASE + '/compress-pdf?static-hosting-test=1' },
 ];
 const profiles = [
   { name: 'mobile', desktop: false },
@@ -93,7 +93,16 @@ for (const target of targets) {
       cls: auditValue('cumulative-layout-shift'),
       speedIndexMs: auditValue('speed-index'),
       tbtMs: auditValue('total-blocking-time'),
-      lcpElement: report.audits?.['largest-contentful-paint-element']?.details?.items?.[0]?.node?.snippet || null,
+      lcpElement: (() => {
+        const items = report.audits?.['largest-contentful-paint-element']?.details?.items || [];
+        const node = items.find(item => item.node?.selector || item.node?.snippet)?.node;
+        return node?.selector || node?.snippet || report.audits?.['largest-contentful-paint-element']?.displayValue || null;
+      })(),
+      lcpPhases: (report.audits?.['lcp-breakdown']?.details?.items || []).map(item => ({
+        phase: item.phase || item.name || '',
+        timing: item.timing ?? item.duration ?? null
+      })),
+      renderBlockingResourceCount: report.audits?.['render-blocking-resources']?.details?.items?.length ?? null,
       reportPath: path.relative(process.cwd(), reportPath),
     };
     results.push(result);
