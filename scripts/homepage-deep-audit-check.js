@@ -142,7 +142,7 @@ const staticChecks = [
 for (const [label, condition] of staticChecks) condition ? pass(label) : fail(label);
 
 const allScriptTags = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
-const inlineScripts = allScriptTags.filter(match => !/\bsrc\s*=/i.test(match[1]));
+const inlineScripts = allScriptTags.filter(match => !/(?:^|\s)src\s*=/i.test(match[1]));
 const headEnd = html.toLowerCase().indexOf('</head>');
 const headScripts = allScriptTags.filter(match => headEnd >= 0 && (match.index ?? 0) < headEnd);
 console.log('Script structure: total=' + allScriptTags.length + ', inline=' + inlineScripts.length + ', beforeHeadClose=' + headScripts.length);
@@ -151,7 +151,7 @@ inlineScripts.forEach((match, index) => {
   console.log('INLINE SCRIPT ' + (index + 1) + ': ' + snippet);
 });
 
-const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
+const scriptSources = [...html.matchAll(/<script\b[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi)]
   .map(match => ({ src: match[1], tag: match[0], index: match.index ?? 0, defer: match[0].toLowerCase().includes(' defer'), async: match[0].toLowerCase().includes(' async') }));
 const toolOnlyHomepageScripts = new Set([
   '/core/core-manifest.js', '/core/shared-constants.js', '/core/runtime-contracts.js',
