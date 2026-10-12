@@ -104,7 +104,7 @@ try {
         let sourceExternalScriptCount = null;
         let sourceParserBlockingScriptCount = null;
         try {
-          response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          response = await page.goto(target.url, { waitUntil: 'commit', timeout: 30000 });
           if (response) {
             const sourceHtml = (await response.text()).replace(/<noscript\b[\s\S]*?<\/noscript>/gi, '');
             sourceBlockingStylesheetCount = [...sourceHtml.matchAll(/<link\b[^>]*>/gi)]
@@ -118,7 +118,11 @@ try {
               !/\btype=["']module["']/i.test(tag)
             ).length;
           }
-          await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
+          if (target.name === 'Local candidate') {
+            await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
+          }
+          // Capture early rendering instead of waiting for DOMContentLoaded: hundreds of
+          // deferred scripts can delay that event even after the visible shell has painted.
           await page.waitForTimeout(SETTLE_MS);
         } catch (error) {
           navigationError = String(error?.message || error);
