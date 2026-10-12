@@ -111,7 +111,31 @@ function dedupeLocalStylesheets(html) {
  * - Avoid a late Google-font swap changing nav/button widths and pushing the
  *   homepage sections around on slower or cold-cache visits.
  */
+function reserveCommunityWidgetPlaceholders(html) {
+  const mobile = '<div id="ce-widget-mobile" class="ce-widget-mobile" aria-label="Your credits and savings" style="min-width:148px;min-height:30px">' +
+    '<span class="ce-pill ce-pill-credits" aria-label="Credits remaining"><span class="ce-pill-icon">⚡</span><span class="ce-pill-val" id="ce-mob-credits">15</span></span>' +
+    '<span class="ce-pill ce-pill-savings" aria-label="Money saved today"><span class="ce-pill-icon">💰</span><span class="ce-pill-val" id="ce-mob-savings">₨0</span></span></div>';
+  const desktop = '<div id="ce-widget-desktop" class="ce-widget-desktop" role="button" tabindex="0" aria-label="Open savings dashboard" aria-haspopup="dialog" style="min-width:260px;min-height:34px">' +
+    '<span class="ce-widget-icon">📊</span>' +
+    '<span class="ce-stat"><span class="ce-stat-label">Credits</span><span class="ce-stat-val" id="ce-dsk-credits">15</span></span>' +
+    '<span class="ce-stat"><span class="ce-stat-label">Saved Today</span><span class="ce-stat-val" id="ce-dsk-today">₨0</span></span>' +
+    '<span class="ce-stat"><span class="ce-stat-label">Total Saved</span><span class="ce-stat-val" id="ce-dsk-total">₨0</span></span>' +
+    '<span class="ce-widget-caret">▾</span></div>';
+  if (!/id=["']ce-widget-mobile["']/i.test(html)) {
+    const before = html;
+    html = html.replace(/(<nav\b[^>]*\bid=["']nav["'][^>]*>)/i, mobile + '\n$1');
+    if (html === before) console.warn('[assemble-index] mobile community widget placeholder was not inserted');
+  }
+  if (!/id=["']ce-widget-desktop["']/i.test(html)) {
+    const before = html;
+    html = html.replace(/<\/nav>/i, '</nav>\n' + desktop);
+    if (html === before) console.warn('[assemble-index] desktop community widget placeholder was not inserted');
+  }
+  return html;
+}
+
 function stabilizeHomepageFirstRender(html) {
+  html = reserveCommunityWidgetPlaceholders(html);
   const hasCompleteServerNav =
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
@@ -236,10 +260,6 @@ function deferHomepageAds(html) {
 }
 
 const HOMEPAGE_POST_LOAD_SCRIPTS = new Set([
-  '/js/runtime-ads.js',
-  '/js/ad-manager.js',
-  '/js/ad-responsive-engine.js',
-  '/js/runtime-credits.js',
   '/js/runtime-session-intel.js',
   '/js/analytics-engine.js',
   '/js/runtime-offline.js',
@@ -248,7 +268,6 @@ const HOMEPAGE_POST_LOAD_SCRIPTS = new Set([
   '/js/savings-animation.js',
   '/js/live-stats-sim.js',
   '/js/runtime-perf.js',
-  '/js/community-economy.js',
 ]);
 
 /**
@@ -266,7 +285,7 @@ function deferHomepageNonCriticalScripts(html) {
   });
   if (!count) return { html, count: 0 };
 
-  const loader = '<script>(function(){var started=false;function start(){if(started)return;started=true;var queue=Array.prototype.slice.call(document.querySelectorAll("script[data-home-lazy-src]"));function next(){if(!queue.length)return;var marker=queue.shift();var src=marker.getAttribute("data-home-lazy-src");if(!src){next();return;}var script=document.createElement("script");script.src=src;script.async=false;script.onload=next;script.onerror=next;document.head.appendChild(script);}next();}function schedule(){setTimeout(start,10000);window.addEventListener("scroll",start,{once:true,passive:true});window.addEventListener("pointerdown",start,{once:true,passive:true});window.addEventListener("keydown",start,{once:true});}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true});})();</script>';
+  const loader = '<script>(function(){var started=false;function start(){if(started)return;started=true;var queue=Array.prototype.slice.call(document.querySelectorAll("script[data-home-lazy-src]"));function next(){if(!queue.length)return;var marker=queue.shift();var src=marker.getAttribute("data-home-lazy-src");if(!src){next();return;}var script=document.createElement("script");script.src=src;script.async=false;script.onload=next;script.onerror=next;document.head.appendChild(script);}next();}function schedule(){setTimeout(start,30000);window.addEventListener("scroll",start,{once:true,passive:true});window.addEventListener("pointerdown",start,{once:true,passive:true});window.addEventListener("keydown",start,{once:true});}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true});})();</script>';
   html = html.replace(/<\/body>/i, loader + '\n</body>');
   return { html, count };
 }
