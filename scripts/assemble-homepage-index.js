@@ -128,7 +128,7 @@ function stabilizeHomepageFirstRender(html) {
   // The homepage uses the same system-font fallback from its first paint onward.
   // Even display=optional can swap to a fast-loading web font after first paint,
   // changing nav/button widths and causing CLS. Keep the full Inter font on tool
-  // pages, but remove Google Fonts CSS/preconnects from this static homepage.
+  // pages, but remove Google Fonts CSS, preconnects, and direct font preloads from this static homepage.
   let fontStylesheetDeferred = false;
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
@@ -462,7 +462,7 @@ export function assembleHomepageIndex() {
     console.log('[assemble-index] enabled server-nav preservation before deferred chrome.js');
   }
   if (firstRender.fontStylesheetDeferred) {
-    console.log('[assemble-index] removed Google Fonts CSS from the homepage initial path to prevent font-swap layout shifts; system fallback remains');
+    console.log('[assemble-index] removed Google Fonts requests from the homepage initial path to prevent font-swap layout shifts; system fallback remains');
   }
   if (firstRender.nonCriticalStylesheetsDeferred) {
     console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
