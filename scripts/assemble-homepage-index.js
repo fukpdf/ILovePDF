@@ -158,14 +158,14 @@ function stabilizeHomepageFirstRender(html) {
   // origins at the start of <head> so the high-priority optional font CSS can
   // establish connections before its stylesheet/font requests begin.
   const missingFontPreconnects = [];
-  if (!/<link\\b(?=[^>]*\\brel=["']preconnect["'])(?=[^>]*\\bhref=["'](?:https?:)?\\/\\/fonts\\.googleapis\\.com)[^>]*>/i.test(html)) {
+  if (!/<link\b(?=[^>]*\brel=["']preconnect["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.googleapis\.com)[^>]*>/i.test(html)) {
     missingFontPreconnects.push('<link rel="preconnect" href="https://fonts.googleapis.com">');
   }
-  if (!/<link\\b(?=[^>]*\\brel=["']preconnect["'])(?=[^>]*\\bhref=["'](?:https?:)?\\/\\/fonts\\.gstatic\\.com)[^>]*>/i.test(html)) {
+  if (!/<link\b(?=[^>]*\brel=["']preconnect["'])(?=[^>]*\bhref=["'](?:https?:)?\/\/fonts\.gstatic\.com)[^>]*>/i.test(html)) {
     missingFontPreconnects.push('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
   }
   if (missingFontPreconnects.length) {
-    html = html.replace(/<head\\b[^>]*>/i, match => match + '\\n' + missingFontPreconnects.join('\\n'));
+    html = html.replace(/<head\b[^>]*>/i, match => match + '\n' + missingFontPreconnects.join('\n'));
   }
   return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontDisplayAdjusted, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
 }
