@@ -86,6 +86,36 @@ try {
     pass('valid PDF upload reaches compression preview with enabled process button; canvas=' + uploadPreview.previewCanvas);
   }
 
+  if (uploadPreview.previewCanvas && uploadPreview.processButtonEnabled) {
+    try {
+      await page.locator('#opt-compress-mode').selectOption('deep');
+      await page.locator('#process-btn').click();
+      await page.waitForFunction(() => {
+        return !!document.querySelector('a.dl-burst-trigger[download]') ||
+          !!document.querySelector('#result-area .status-error');
+      }, null, { timeout: 60000 });
+      const compressionResult = await page.evaluate(() => ({
+        downloadLink: !!document.querySelector('a.dl-burst-trigger[download]'),
+        filename: document.querySelector('a.dl-burst-trigger[download]')?.getAttribute('download') || '',
+        error: document.querySelector('#result-area .status-error')?.textContent?.trim() || ''
+      }));
+      if (!compressionResult.downloadLink) {
+        fail('valid PDF compression did not produce a download link: ' + compressionResult.error);
+      } else {
+        const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+        await page.locator('a.dl-burst-trigger[download]').first().click();
+        const download = await downloadPromise;
+        if (!download.suggestedFilename().toLowerCase().endsWith('.pdf')) {
+          fail('compression download returned an unexpected filename: ' + download.suggestedFilename());
+        } else {
+          pass('valid PDF compressed successfully and download was triggered: ' + download.suggestedFilename());
+        }
+      }
+    } catch (error) {
+      fail('end-to-end PDF compression/download smoke test failed: ' + (error?.message || String(error)));
+    }
+  }
+
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(new URL('/compress-pdf', BASE).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
