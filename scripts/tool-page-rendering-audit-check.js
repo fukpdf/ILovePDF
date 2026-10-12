@@ -119,8 +119,8 @@ const googleFontLinks = [...html.matchAll(/<link\\b[^>]*>/gi)].map(match => matc
 );
 if (googleFontLinks.length) {
   fail('tool page must not request external Google Fonts in the initial render path');
-} else if (!/font-family:\\s*system-ui,\\s*-apple-system/i.test(read('public/css/styles.css')) ||
-           /font-family:\\s*Inter,/i.test(read('public/css/styles.css'))) {
+} else if (!/font-family:\s*system-ui,\s*-apple-system/i.test(read('public/css/styles.css')) ||
+           /font-family:\s*Inter,/i.test(read('public/css/styles.css'))) {
   fail('tool page must use the stable system font stack');
 } else {
   pass('tool page uses system fonts with no external Google Fonts request');
