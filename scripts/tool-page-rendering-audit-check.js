@@ -39,7 +39,7 @@ if (blockingClassic.length) {
   pass('no parser-blocking classic external scripts');
 }
 
-const scriptSources = scriptTags.map(tag => tag.match(/\\bsrc=["']([^"']+)/i)?.[1] || '');
+const scriptSources = scriptTags.map(tag => tag.match(/\bsrc=["']([^"']+)/i)?.[1] || '');
 const indexOfScript = fragment => scriptSources.findIndex(src => src.includes(fragment));
 const requiredBeforeToolPage = [
   '/js/browser-tools.js',
@@ -78,14 +78,14 @@ if (toolPageIndex < 0) {
 }
 
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
-  /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
+  /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
 );
-const activeHtml = html.replace(/<noscript\\b[^>]*>[\\s\\S]*?<\\/noscript>/gi, '');
+const activeHtml = html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
 const nonCriticalCss = ['/css/home-footer-v2.css', '/css/blog.css', '/css/seo-extended.css'];
 const blockingNonCriticalCss = nonCriticalCss.filter(asset =>
-  [...activeHtml.matchAll(/<link\\b[^>]*>/gi)].some(match =>
-    /\\brel=["'][^"']*\\bstylesheet\\b[^"']*["']/i.test(match[0]) &&
-    (match[0].match(/\\bhref=["']([^"']+)/i)?.[1] || '').split('?')[0] === asset
+  [...activeHtml.matchAll(/<link\b[^>]*>/gi)].some(match =>
+    /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(match[0]) &&
+    (match[0].match(/\bhref=["']([^"']+)/i)?.[1] || '').split('?')[0] === asset
   )
 );
 if (blockingNonCriticalCss.length) {
