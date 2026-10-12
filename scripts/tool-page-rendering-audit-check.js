@@ -85,6 +85,18 @@ if (toolPageIndex < 0) {
   }
 }
 
+const headEnd = html.toLowerCase().indexOf('</head>');
+const earlyRouteBootstrap = html.indexOf('Set upload-shell geometry before first paint');
+const earlyRouteSource = headEnd >= 0 ? html.slice(0, headEnd) : '';
+if (earlyRouteBootstrap < 0 || earlyRouteBootstrap >= headEnd ||
+    !earlyRouteSource.includes("document.documentElement.classList.add('tool-upload-route')") ||
+    !earlyRouteSource.includes("path.endsWith('/preview')") ||
+    !earlyRouteSource.includes("path.endsWith('/download')")) {
+  fail('upload-shell geometry is not reserved in the head before first paint, or preview/download routes are not excluded');
+} else {
+  pass('upload-shell geometry is reserved before first paint without changing preview/download routes');
+}
+
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
   /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
 );
