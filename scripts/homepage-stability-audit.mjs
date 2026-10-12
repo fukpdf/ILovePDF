@@ -34,6 +34,15 @@ try {
         reducedMotion: 'reduce'
       });
       const page = await context.newPage();
+      if (profile.name === 'mobile') {
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+        await cdp.send('Network.enable');
+        await cdp.send('Network.emulateNetworkConditions', {
+          offline: false, latency: 150, downloadThroughput: 200 * 1024,
+          uploadThroughput: 96 * 1024, connectionType: 'cellular4g'
+        });
+      }
       const pageErrors = [];
       const failedLocalAssets = [];
       page.on('pageerror', error => pageErrors.push(error.message));
