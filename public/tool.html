@@ -56,8 +56,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="/css/economy.css">
-  <link rel="stylesheet" href="/css/community-economy.css">
+  <!-- Economy/community widgets are below the first-render path; fetch their CSS without blocking upload UI. -->
+  <link rel="preload" as="style" href="/css/economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/economy.css"></noscript>
+  <link rel="preload" as="style" href="/css/community-economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/community-economy.css"></noscript>
   <link rel="stylesheet" href="/css/rtl.css">
   <!-- Worker prefetch remains; Google Fonts is loaded non-blocking below. -->
   <!-- Use system fonts for stable first paint; no external font request on the tool route. -->
@@ -73,10 +76,29 @@
   <link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2">
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2" data-shared-header-css="1">
   <!-- Non-critical shared footer styles load without blocking the first tool render. -->
-  <link rel="preload" as="style" href="/css/home-footer-v2.css?v=20260924" fetchpriority="high" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/home-footer-v2.css?v=20260924" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924"></noscript>
   <link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1">
-  <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1">
+  <!-- Download-only styles are blocking only on the final download route. -->
+  <script>
+  (function () {
+    var path = window.location.pathname || '/';
+    var isDownloadRoute = /\\/download\\/?$/.test(path);
+    var link = document.createElement('link');
+    link.href = '/css/download-page.css?v=20261010-continue-cards-match-popular-v1';
+    if (isDownloadRoute) {
+      link.rel = 'stylesheet';
+      link.setAttribute('fetchpriority', 'high');
+    } else {
+      link.rel = 'preload';
+      link.as = 'style';
+      link.setAttribute('fetchpriority', 'low');
+      link.onload = function () { link.onload = null; link.rel = 'stylesheet'; };
+    }
+    document.head.appendChild(link);
+  })();
+  </script>
+  <noscript><link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1"></noscript>
   <!-- Non-critical below-the-fold FAQ/blog styles load without blocking the first tool render. -->
   <link rel="preload" as="style" href="/css/blog.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/css/blog.css"></noscript>
@@ -84,10 +106,31 @@
   <link rel="preload" as="style" href="/css/seo-extended.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css">
-  <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css">
-  <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2">
+  <link rel="preload" as="style" href="/css/ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/ads.css"></noscript>
+  <!-- Phase 5: Responsive multi-stage ad orchestration; CSS arrives before lazy ad slots are activated. -->
+  <link rel="preload" as="style" href="/css/responsive-ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/responsive-ads.css"></noscript>
+  <!-- Editor workspace CSS blocks only on preview/download; upload routes fetch it at low priority. -->
+  <script>
+  (function () {
+    var path = window.location.pathname || '/';
+    var needsWorkspaceCss = /\\/(preview|download)\\/?$/.test(path);
+    var link = document.createElement('link');
+    link.href = '/css/editor-workspace.css?v=20261009-custom-feedback-v2';
+    if (needsWorkspaceCss) {
+      link.rel = 'stylesheet';
+      link.setAttribute('fetchpriority', 'high');
+    } else {
+      link.rel = 'preload';
+      link.as = 'style';
+      link.setAttribute('fetchpriority', 'low');
+      link.onload = function () { link.onload = null; link.rel = 'stylesheet'; };
+    }
+    document.head.appendChild(link);
+  })();
+  </script>
+  <noscript><link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2"></noscript>
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script>
   (function () {
