@@ -64,6 +64,7 @@ jobs:
           node --check scripts/lighthouse-rendering-certification.mjs
           node --check scripts/tool-page-render-benchmark.mjs
           node --check scripts/tool-page-browser-smoke.mjs
+          node --check public/js/tool-page.js
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
