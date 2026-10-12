@@ -109,6 +109,19 @@ const staticChecks = [
   ['static API guard is inserted after the complete charset meta tag', (() => { const meta = /<meta\b(?=[^>]*\bcharset\s*=)[^>]*>/i.exec(html); const guardAt = html.indexOf('__ILOVE_STATIC_API_GUARD__'); return !!meta && guardAt > meta.index + meta[0].length; })()],
   ['homepage defers AdSense loading until an ad slot is near view or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(html) && html.includes('setTimeout(load,4500)')],
   ['homepage excludes tool-only analytics and identity scripts', !/src=["'][^"']*\/js\/runtime-analytics\.js/i.test(html) && !/src=["'][^"']*\/js\/runtime-identity\.js/i.test(html)],
+  ['homepage lazy-loads secondary runtime scripts after the initial load', (() => {
+    const lazyPaths = [
+      '/js/runtime-ads.js', '/js/ad-manager.js', '/js/ad-responsive-engine.js',
+      '/js/runtime-credits.js', '/js/runtime-session-intel.js', '/js/analytics-engine.js',
+      '/js/runtime-offline.js', '/js/runtime-updater.js', '/js/runtime-changelog.js',
+      '/js/savings-animation.js', '/js/live-stats-sim.js', '/js/runtime-perf.js',
+      '/js/community-economy.js'
+    ];
+    const initialSrcs = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)]
+      .map(match => match[1].split(/[?#]/, 1)[0]);
+    return lazyPaths.every(path => html.includes('data-home-lazy-src="' + path + '"') && !initialSrcs.includes(path)) &&
+      html.includes('setTimeout(start,2000)') && html.includes('script.onload=next;script.onerror=next');
+  })()],
   ['tool page has the same static-hosting API guard', read('public/tool.html').includes('__ILOVE_STATIC_API_GUARD__')],
   ['tool page defers AdSense until slot visibility or post-load fallback', !/<script\b[^>]*\bsrc=["']https?:\/\/pagead2?\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/i.test(read('public/tool.html')) && read('public/tool.html').includes('setTimeout(loadAds, 4500)')],
   ['local benchmark server compresses text assets with gzip', read('scripts/homepage-test-server.js').includes('createGzip') && read('scripts/homepage-test-server.js').includes("'Content-Encoding': 'gzip'")],
@@ -193,7 +206,7 @@ else fail('duplicate footer language handler remains on homepage');
 
 // Static asset references in the assembled HTML must resolve within public/.
 const assetRefs = new Set();
-for (const match of html.matchAll(/(?:src|href)=["']([^"'#]+)["']/gi)) {
+for (const match of html.matchAll(/(?:src|href|data-home-lazy-src)=["']([^"'#]+)["']/gi)) {
   const raw = match[1].trim();
   if (!raw || /^(?:https?:)?\/\//i.test(raw) || /^(?:data:|blob:|mailto:|tel:|javascript:)/i.test(raw)) continue;
   const pathname = raw.split(/[?#]/, 1)[0];
