@@ -12986,6 +12986,7 @@ html.tool-upload-route #tool-content.tool-upload-shell {
 .tool-first-paint-heading-shell .ilpdf-branded-title {
   margin: 0;
 }
+.tool-first-paint-shell[hidden],
 .tool-first-paint-heading-shell[hidden] {
   display: none !important;
 }
