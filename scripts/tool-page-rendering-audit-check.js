@@ -83,7 +83,6 @@ if (toolPageIndex < 0) {
   } else {
     pass('tool UI entry follows its declared critical dependencies');
   }
-  pass('tool UI entry follows the required PDF processor, preview, registry, and shared-shell dependencies');
 }
 
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
