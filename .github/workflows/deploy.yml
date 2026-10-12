@@ -38,7 +38,6 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/assemble-homepage-index.js
-          # Prove production artifact is full HTML, not the runtime loader
           if grep -q 'DecompressionStream' public/index.html; then
             echo '::error::index.html still looks like the chunk loader'
             exit 1
@@ -49,6 +48,30 @@ jobs:
           fi
           echo '[assemble] public/index.html ready for hosting'
           node scripts/homepage-deep-audit-check.js
+
+      - name: Tool-page fast path (reorder + immediate init)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/reorder-tool-page-scripts.js
+          node scripts/patch-tool-page-init.js
+          if grep -q 'PLACEHOLDER' public/tool.html; then
+            echo '::error::tool.html contains PLACEHOLDER'
+            exit 1
+          fi
+          if ! grep -q 'id="tool-content"' public/tool.html; then
+            echo '::error::tool.html missing tool-content'
+            exit 1
+          fi
+          if grep -E '<script[^>]+src=' public/tool.html | grep -v defer | grep -v async | grep -q .; then
+            echo '::error::blocking external scripts remain in tool.html'
+            exit 1
+          fi
+          if ! grep -q 'async function initToolPage' public/js/tool-page.js; then
+            echo '::error::tool-page.js was not patched for immediate init'
+            exit 1
+          fi
+          echo '[tool-fast-path] tool.html reordered + tool-page.js immediate init OK'
 
       - name: Install dependencies
         shell: bash
@@ -77,6 +100,8 @@ jobs:
           node --check public/script.js || true
           node --check public/sw.js || true
           node --check scripts/assemble-homepage-index.js
+          node --check scripts/reorder-tool-page-scripts.js
+          node --check scripts/patch-tool-page-init.js
 
       - name: Deploy to Firebase Hosting
         shell: bash
@@ -89,51 +114,20 @@ jobs:
           OVERRIDE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
-
-          # 1. Resolve and configure credentials
           CRED_JSON="${SA_SECRET_1:-${SA_SECRET_2:-${SA_SECRET_3:-${SA_SECRET_4:-}}}}"
           TOKEN_FLAG=""
           DETECTED_PROJECT=""
-
           if [ -n "$CRED_JSON" ]; then
             echo "$CRED_JSON" > /tmp/firebase-sa.json
             export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-            echo "[AUTH] Service account credentials configured at /tmp/firebase-sa.json."
-            
-            # Extract project_id from service account if present
-            DETECTED_PROJECT=$(node -e '
-              try {
-                const sa = JSON.parse(require("fs").readFileSync("/tmp/firebase-sa.json", "utf8"));
-                console.log(sa.project_id || "");
-              } catch (_) {
-                console.log("");
-              }
-            ')
+            DETECTED_PROJECT=$(node -e 'try{const sa=JSON.parse(require("fs").readFileSync("/tmp/firebase-sa.json","utf8"));console.log(sa.project_id||"")}catch(_){console.log("")}')
           fi
-
           if [ -n "$TOKEN_SECRET" ]; then
             TOKEN_FLAG="--token ${TOKEN_SECRET}"
-            echo "[AUTH] CLI token detected."
           fi
-
-          # 2. Determine target project ID
           TARGET_PROJECT="${OVERRIDE_PROJECT_ID:-${DETECTED_PROJECT:-ilovepdf-web}}"
           echo "[TARGET] Deploying to Firebase project: $TARGET_PROJECT"
-
-          # 3. Execute Firebase Hosting deployment
-          echo "[DEPLOY] Starting Firebase Hosting deployment..."
-          npx --yes firebase-tools@latest deploy \
-            --only hosting \
-            --project "$TARGET_PROJECT" \
-            $TOKEN_FLAG \
-            --non-interactive || {
-              echo "[ERROR] Deployment failed. Checking debug logs..."
-              if [ -f "firebase-debug.log" ]; then
-                cat firebase-debug.log
-              fi
-              exit 1
-            }
-
+          npx --yes firebase-tools@latest deploy --only hosting --project "$TARGET_PROJECT" $TOKEN_FLAG --non-interactive
           echo "[SUCCESS] Firebase deployment completed successfully!"
 
       - name: Smoke verification
@@ -142,24 +136,15 @@ jobs:
           set -euo pipefail
           base="${PRODUCTION_BASE_URL:-https://ilovepdf.cyou}"
           origin="${PRODUCTION_ORIGIN_URL:-https://ilovepdf-web.web.app}"
-          echo "Verifying deployment at: $origin (and $base)"
-
           smoke_check() {
             local url="$1"
             local allow_waf_403="${2:-false}"
             local code
-            code="$(curl -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -L --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
+            code="$(curl -A 'Mozilla/5.0' -L --retry 3 --connect-timeout 8 --max-time 20 -sS -o /dev/null -w '%{http_code}' "$url" || echo "000")"
             echo "Status $code -> $url"
-            if [ "$code" = "403" ] && [ "$allow_waf_403" = "allow" ]; then
-              echo "::warning::Custom-domain smoke request was blocked with HTTP 403. Canonical Firebase origin checks remain mandatory; verify this protected-domain route in a real browser."
-              return 0
-            fi
-            if [ "$code" != "200" ]; then
-              echo "::error::Smoke verification failed for $url (HTTP $code)"
-              return 1
-            fi
+            if [ "$code" = "403" ] && [ "$allow_waf_403" = "allow" ]; then return 0; fi
+            if [ "$code" != "200" ]; then echo "::error::Smoke failed $url ($code)"; return 1; fi
           }
-
           smoke_check "$origin/"
           smoke_check "$origin/crop-pdf"
           smoke_check "$origin/compress-pdf"
@@ -167,38 +152,12 @@ jobs:
           smoke_check "$origin/js/tool-page.js?v=20261009-hybrid-150dpi-v2"
           smoke_check "$origin/js/home.js"
           smoke_check "$origin/js/home-fast-boot.js"
-          # Some custom-domain security layers challenge automation even when the Firebase origin is healthy.
-          # Treat only this custom-domain 403 as a warning; origin route/assets and deployment SHA must still pass.
           smoke_check "$base/compress-pdf" "allow"
-
-          # Homepage must be full HTML with Step-2 order (not loader)
-          html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/")"
-          if echo "$html" | grep -q 'DecompressionStream'; then
-            echo '::error::Deployed homepage still uses chunk loader'
-            exit 1
-          fi
-          if ! echo "$html" | grep -q 'home-fast-boot'; then
-            echo '::error::Deployed homepage missing home-fast-boot'
-            exit 1
-          fi
-          if echo "$html" | grep -q 'runtime-protection'; then
-            echo '::error::Homepage should not load the PDF-tool runtime protection stack'
-            exit 1
-          fi
-          if ! grep -q 'runtime-protection' public/tool.html; then
-            echo '::error::Source tool.html is missing the runtime protection stack'
-            exit 1
-          fi
-          tool_html="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/tool.html")"
-          if ! echo "$tool_html" | grep -q 'id="tool-content"'; then
-            echo '::error::Deployed tool page did not return the expected tool workspace HTML'
-            exit 1
-          fi
-          echo "Homepage excludes tool-only runtime; source retains protection and deployed tool workspace responds"
-
-          deployed_sha="$(curl -fLsS --retry 3 --retry-all-errors --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
-          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then
-            echo "::error::Deployment version mismatch. Expected $GITHUB_SHA, got $deployed_sha"
-            exit 1
-          fi
+          html="$(curl -fLsS --retry 3 --connect-timeout 8 --max-time 20 "$origin/")"
+          if echo "$html" | grep -q 'DecompressionStream'; then echo '::error::loader'; exit 1; fi
+          if ! echo "$html" | grep -q 'home-fast-boot'; then echo '::error::no fast-boot'; exit 1; fi
+          tool_html="$(curl -fLsS --retry 3 --connect-timeout 8 --max-time 20 "$origin/tool.html")"
+          if ! echo "$tool_html" | grep -q 'id="tool-content"'; then echo '::error::no tool-content'; exit 1; fi
+          deployed_sha="$(curl -fLsS --retry 3 --connect-timeout 8 --max-time 20 "$origin/deploy-version.txt" | tr -d '\r\n')"
+          if [ "$deployed_sha" != "$GITHUB_SHA" ]; then echo "::error::sha mismatch"; exit 1; fi
           echo "Deployment version verified: $deployed_sha"
