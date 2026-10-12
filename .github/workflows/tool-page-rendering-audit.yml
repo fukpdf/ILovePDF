@@ -5,6 +5,8 @@ on:
     paths:
       - "public/tool.html"
       - "public/css/**"
+      - "public/js/**"
+      - "workers/**"
       - "scripts/tool-page-rendering-audit-check.js"
       - "package.json"
       - ".github/workflows/tool-page-rendering-audit.yml"
