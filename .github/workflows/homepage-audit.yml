@@ -108,7 +108,7 @@ jobs:
           echo '::error::Homepage test server did not start'
           exit 1
 
-      # Ads are viewport/scroll-triggered with a 15-second fallback; measure first-view without forcing the ad request early.
+      # Ads are viewport/scroll-triggered with a 30-second fallback; measure first-view without forcing the ad request early.
       - name: Run real Lighthouse mobile audits on candidate and production
         shell: bash
         run: |
