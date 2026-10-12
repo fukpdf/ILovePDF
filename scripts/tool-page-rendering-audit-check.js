@@ -113,17 +113,16 @@ if (earlyRouteBootstrap < 0 || earlyRouteBootstrap >= headEnd ||
   pass('upload-shell geometry is reserved before first paint without changing preview/download routes');
 }
 
-const googleFontLinks = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
-  /fonts\.googleapis\.com\/css2?\?/i.test(tag.match(/\bhref=["']([^"']+)/i)?.[1] || '')
+const googleFontLinks = [...html.matchAll(/<link\\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
+  /(?:fonts\\.googleapis\\.com|fonts\\.gstatic\\.com)/i.test(tag.match(/\\bhref=["']([^"']+)/i)?.[1] || '')
 );
-if (googleFontLinks.length !== 1) {
-  fail('expected one Google Fonts stylesheet/preload link, found ' + googleFontLinks.length);
-} else if (!/\brel=["']preload["']/i.test(googleFontLinks[0]) ||
-           !/\bas=["']style["']/i.test(googleFontLinks[0]) ||
-           !/this\.rel=['"]stylesheet['"]/i.test(googleFontLinks[0])) {
-  fail('Google Fonts must use one non-blocking style preload with an onload stylesheet swap');
+if (googleFontLinks.length) {
+  fail('tool page must not request external Google Fonts in the initial render path');
+} else if (!/font-family:\\s*system-ui,\\s*-apple-system/i.test(read('public/css/styles.css')) ||
+           /font-family:\\s*Inter,/i.test(read('public/css/styles.css'))) {
+  fail('tool page must use the stable system font stack');
 } else {
-  pass('Google Fonts uses exactly one non-blocking stylesheet preload');
+  pass('tool page uses system fonts with no external Google Fonts request');
 }
 
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
