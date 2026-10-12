@@ -2177,6 +2177,18 @@ async function tryWithRetry(toolId, files, opts) {
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
+  // The visible upload shell can render before the non-visual runtime support
+  // scripts finish. If the user acts immediately, wait for that dependency wave
+  // once, then retry so processing never races an unfinished runtime bootstrap.
+  if (window.__ILOVE_RUNTIME_READY && !window.__ILOVE_RUNTIME_READY_DONE) {
+    if (window.__ILOVE_PROCESS_WAITING) return;
+    window.__ILOVE_PROCESS_WAITING = true;
+    showStatus('loading', _tp('status.preparing_tool', 'Preparing tool…'), _tp('status.preparing_tool_msg', 'Finishing setup. Your file will process automatically in a moment.'));
+    try { await window.__ILOVE_RUNTIME_READY; }
+    finally { window.__ILOVE_PROCESS_WAITING = false; }
+    if (_processingInFlight) return;
+    return processFile();
+  }
   // Re-entrancy guard: a rapid double-click must never launch two concurrent
   // processing runs.  All downstream validation is synchronous so this guard
   // fires before any async work begins.
