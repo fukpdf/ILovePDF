@@ -450,6 +450,12 @@ function renderStep() {
   if (!currentTool) return;
   setMeta('keywords', `${currentTool.name.toLowerCase()}, ${currentTool.name.toLowerCase()} online, ${currentTool.name.toLowerCase()} free, ilovepdf, pdf tools online`);
 
+  const belowFold = document.getElementById('tool-belowfold');
+  if (Flow.step !== 'upload' && belowFold) {
+    belowFold.hidden = true;
+    belowFold.innerHTML = '';
+  }
+
   // Guard: preview needs files; download needs a captured result.
   if (Flow.step === 'preview' && selectedFiles.length === 0) {
     return Flow.navTo('upload', { replace: true });
