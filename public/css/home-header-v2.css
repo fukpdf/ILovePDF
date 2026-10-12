@@ -465,3 +465,42 @@ body:has(.site-header){
   color: #fff;
 }
 .site-header .mega-col > h5 { color: var(--ilpdf-header-soft); }
+
+
+/* Reserve stable first-render space for the community header widgets. The
+   community-economy stylesheet enhances their visual treatment after preload;
+   these critical rules keep header geometry stable before hydration. */
+.site-header .ce-widget-mobile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  margin-inline-end: 8px;
+  min-width: 116px;
+  min-height: 30px;
+  flex-shrink: 0;
+}
+.site-header .ce-widget-mobile .ce-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.site-header .ce-widget-desktop {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  min-width: 260px;
+  min-height: 34px;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .site-header .ce-widget-mobile { display: none; }
+  .site-header .ce-widget-desktop { display: flex; }
+}
