@@ -232,9 +232,22 @@ function renderHeader(forceRefresh = false){
   // Preserve the server-rendered homepage header and hydrate only missing dropdown
   // panels. Replacing the whole nav causes a first-paint layout shift.
   if (window.__ILOVE_PRESERVE_SERVER_NAV) {
-    const organizeItem = nav.querySelector('#nav-organize');
-    const convertItem = nav.querySelector('#nav-convert');
-    const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
+    const findExistingItem = (id, i18nKey, label) => {
+      const byId = nav.querySelector('#' + id);
+      if (byId) return byId;
+      const keyed = nav.querySelector('[data-i18n="' + i18nKey + '"]');
+      if (keyed && keyed.closest('.nav-item')) return keyed.closest('.nav-item');
+      return [...nav.querySelectorAll('.nav-item')].find(item =>
+        (item.querySelector('.nav-btn')?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase().includes(label)
+      );
+    };
+    const organizeItem = findExistingItem('nav-organize', 'nav.organize', 'organize');
+    const convertItem = findExistingItem('nav-convert', 'nav.convert', 'convert');
+    const allItem = findExistingItem('all-tools-item', 'nav.all_tools', 'all tools') ||
+      nav.querySelector('#all-tools-btn')?.closest('.nav-item');
+    if (organizeItem) organizeItem.id = 'nav-organize';
+    if (convertItem) convertItem.id = 'nav-convert';
+    if (allItem) allItem.id = 'all-tools-item';
     if (organizeItem && !organizeItem.querySelector('.dd')) {
       const panel = document.createElement('div');
       panel.className = 'dd';
@@ -963,23 +976,30 @@ function ensureSharedShell() {
   const existingHeader = currentHeaders[0];
   const existingNav = existingHeader && existingHeader.querySelector('#nav');
   const preserveHomepageHeader = !!(isHomepage && existingHeader && existingNav);
-  const serverNavRequested = window.__ILOVE_PRESERVE_SERVER_NAV === true;
+  const findNavItem = (id, i18nKey, label) => {
+    const byId = existingNav && existingNav.querySelector('#' + id);
+    if (byId) return byId;
+    const keyed = existingNav && existingNav.querySelector('[data-i18n="' + i18nKey + '"]');
+    if (keyed && keyed.closest('.nav-item')) return keyed.closest('.nav-item');
+    return existingNav && [...existingNav.querySelectorAll('.nav-item')].find(item =>
+      (item.querySelector('.nav-btn')?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase().includes(label)
+    );
+  };
+  const hasDirectRoute = route => existingNav && [...existingNav.querySelectorAll('.nav-direct')].some(link => {
+    try { return new URL(link.getAttribute('href') || '', window.location.href).pathname.replace(/\/+$/, '') === route; }
+    catch (_) { return false; }
+  });
+  const organizeNavItem = findNavItem('nav-organize', 'nav.organize', 'organize');
+  const convertNavItem = findNavItem('nav-convert', 'nav.convert', 'convert');
+  const allToolsNavItem = findNavItem('all-tools-item', 'nav.all_tools', 'all tools') ||
+    (existingNav && existingNav.querySelector('#all-tools-btn')?.closest('.nav-item'));
   const preserveHomepageNav = !!(
     preserveHomepageHeader &&
-    (
-      (serverNavRequested &&
-        existingNav.querySelector('#nav-organize .nav-btn') &&
-        existingNav.querySelector('#nav-convert .nav-btn') &&
-        existingNav.querySelector('#all-tools-btn') &&
-        existingNav.querySelector('#all-tools-btn').closest('.nav-item') &&
-        existingNav.querySelectorAll('.nav-direct').length >= 2) ||
-      (existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
-        existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
-        existingNav.querySelector('#nav-organize .nav-btn') &&
-        existingNav.querySelector('#nav-convert .nav-btn') &&
-        existingNav.querySelector('#all-tools-btn') &&
-        existingNav.querySelector('#all-tools-btn').closest('.nav-item'))
-    )
+    hasDirectRoute('/merge-pdf') &&
+    hasDirectRoute('/split-pdf') &&
+    organizeNavItem?.querySelector('.nav-btn') &&
+    convertNavItem?.querySelector('.nav-btn') &&
+    allToolsNavItem?.querySelector('.nav-btn')
   );
   window.__ILOVE_PRESERVE_SERVER_HEADER = preserveHomepageHeader;
   window.__ILOVE_PRESERVE_SERVER_NAV = preserveHomepageNav;
