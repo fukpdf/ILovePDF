@@ -12980,7 +12980,7 @@ html.tool-upload-route #tool-content.tool-upload-shell {
   margin: 0 !important;
   padding: 0 !important;
 }
-.tool-first-paint-heading-shell {
+.tool-first-paint-shell .tool-first-paint-heading-shell {
   padding: clamp(44px, 5vw, 72px) 24px 20px !important;
 }
 .tool-first-paint-heading-shell .ilpdf-branded-title {
