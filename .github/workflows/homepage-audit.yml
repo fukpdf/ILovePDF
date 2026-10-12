@@ -26,6 +26,7 @@ on:
       - 'scripts/homepage-fast-boot-check.js'
       - 'scripts/homepage-browser-audit.mjs'
       - 'scripts/homepage-stability-audit.mjs'
+      - 'scripts/lighthouse-rendering-certification.mjs'
       - 'scripts/homepage-live-comparison.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
@@ -60,6 +61,7 @@ jobs:
           node --check scripts/homepage-node-server-smoke.mjs
           node --check scripts/homepage-live-comparison.mjs
           node --check scripts/homepage-stability-audit.mjs
+          node --check scripts/lighthouse-rendering-certification.mjs
           node --check scripts/tool-page-render-benchmark.mjs
           node --check scripts/tool-page-browser-smoke.mjs
 
@@ -82,7 +84,7 @@ jobs:
         run: node scripts/homepage-deep-audit-check.js
 
       - name: Install isolated browser QA tools
-        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2
+        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2 lighthouse@12.8.2
 
       - name: Smoke-test the real Node server homepage bootstrap
         run: node scripts/homepage-node-server-smoke.mjs
@@ -96,6 +98,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Start local hosting-compatible test server
+        id: start-server
         shell: bash
         run: |
           set -euo pipefail
@@ -113,19 +116,36 @@ jobs:
           exit 1
 
       - name: Tool page upload-shell and responsive smoke test
+        if: always() && steps.start-server.outcome == 'success'
         run: node scripts/tool-page-browser-smoke.mjs
 
       - name: Benchmark PDF tool rendering on mobile and desktop
+        if: always() && steps.start-server.outcome == 'success'
         run: node scripts/tool-page-render-benchmark.mjs
 
       - name: Compare local candidate, Firebase production, and official iLovePDF performance
+        if: always() && steps.start-server.outcome == 'success'
         run: node scripts/homepage-live-comparison.mjs
 
+      - name: Lighthouse mobile/desktop rendering certification
+        if: always() && steps.start-server.outcome == 'success'
+        run: node scripts/lighthouse-rendering-certification.mjs
+
       - name: Browser viewport, route, and accessibility audit
+        if: always() && steps.start-server.outcome == 'success'
         run: node scripts/homepage-browser-audit.mjs
 
       - name: Repeat cold-load CLS stability checks
+        if: always() && steps.start-server.outcome == 'success'
         run: node scripts/homepage-stability-audit.mjs
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ilovepdf-rendering-certification
+          path: .artifacts/lighthouse-rendering/*.json
+          if-no-files-found: ignore
 
       - name: Stop local hosting-compatible test server
         if: always()
