@@ -79,6 +79,8 @@ try {
         let response = null;
         let navigationError = null;
         let sourceBlockingStylesheetCount = null;
+        let sourceExternalScriptCount = null;
+        let sourceParserBlockingScriptCount = null;
         try {
           response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           if (response) {
@@ -86,6 +88,13 @@ try {
             sourceBlockingStylesheetCount = [...sourceHtml.matchAll(/<link\b[^>]*>/gi)]
               .map(match => match[0])
               .filter(tag => /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)).length;
+            const sourceScripts = [...sourceHtml.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
+            const sourceExternalScripts = sourceScripts.filter(tag => /\bsrc=["']/i.test(tag));
+            sourceExternalScriptCount = sourceExternalScripts.length;
+            sourceParserBlockingScriptCount = sourceExternalScripts.filter(tag =>
+              !/\b(?:defer|async)\b/i.test(tag) &&
+              !/\btype=["']module["']/i.test(tag)
+            ).length;
           }
           await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
           await page.waitForTimeout(SETTLE_MS);
@@ -126,7 +135,7 @@ try {
             scriptResourceCount: resources.filter(entry => /script/i.test(entry.initiatorType)).length,
             stylesheetResourceCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
             scriptTagCount: externalScripts.length,
-            parserBlockingScriptCount: blockingScripts.length,
+            domScriptsWithoutDeferAttribute: blockingScripts.length,
             activeStylesheetCountAfterSettle: activeLinks.length,
             cls: window.__toolPerf?.cls ?? null,
             layoutShifts: (window.__toolPerf?.shifts || []).slice(0, 3),
@@ -137,7 +146,8 @@ try {
         const result = {
           target: target.name, profile: profile.name, run,
           status: response?.status() ?? null, navigationError, pageErrors, failedLocalAssets,
-          blockingStylesheetCountAtSource: sourceBlockingStylesheetCount, ...metrics
+          blockingStylesheetCountAtSource: sourceBlockingStylesheetCount,
+          sourceExternalScriptCount, sourceParserBlockingScriptCount, ...metrics
         };
         results.push(result);
         console.log('TOOL_RENDER_BENCHMARK ' + JSON.stringify(result));
@@ -146,7 +156,7 @@ try {
           if (!result.uploadVisible || !result.fileInputPresent) fail(profile.name + ' run ' + run + ': upload UI failed to initialize');
           if (!result.headerPresent || !result.footerPresent) fail(profile.name + ' run ' + run + ': shared header/footer missing');
           if (result.horizontalOverflow) fail(profile.name + ' run ' + run + ': horizontal overflow');
-          if (result.parserBlockingScriptCount !== 0) fail(profile.name + ' run ' + run + ': ' + result.parserBlockingScriptCount + ' parser-blocking scripts');
+          if (result.sourceParserBlockingScriptCount !== 0) fail(profile.name + ' run ' + run + ': ' + result.sourceParserBlockingScriptCount + ' parser-blocking scripts in source HTML');
           if (result.fcpMs == null || result.lcpMs == null) fail(profile.name + ' run ' + run + ': paint metrics were not measured');
           if (result.cls == null || !Number.isFinite(result.cls) || result.cls > 0.1) fail(profile.name + ' run ' + run + ': CLS missing or exceeds 0.1 (' + result.cls + ')');
           if (pageErrors.length) fail(profile.name + ' run ' + run + ': browser errors: ' + pageErrors.slice(0, 4).join(' | '));
@@ -175,7 +185,9 @@ for (const profile of profiles) {
       decodedBodyBytes: median('decodedBodyBytes'), bodyCompressionRatioPct: median('bodyCompressionRatioPct'),
       resourceCount: median('resourceCount'),
       scriptResourceCount: median('scriptResourceCount'), stylesheetResourceCount: median('stylesheetResourceCount'),
-      scriptTagCount: median('scriptTagCount'), parserBlockingScriptCount: median('parserBlockingScriptCount'),
+      scriptTagCount: median('scriptTagCount'), sourceExternalScriptCount: median('sourceExternalScriptCount'),
+      sourceParserBlockingScriptCount: median('sourceParserBlockingScriptCount'),
+      domScriptsWithoutDeferAttribute: median('domScriptsWithoutDeferAttribute'),
       blockingStylesheetCountAtSource: median('blockingStylesheetCountAtSource'),
       activeStylesheetCountAfterSettle: median('activeStylesheetCountAfterSettle'), cls: median('cls'),
       longTaskCount: median('longTaskCount'), longTaskDurationMs: median('longTaskDurationMs')
