@@ -3401,3 +3401,44 @@ html {
 @media (max-width: 520px) {
   .tools-grid > .tool { min-height: 160px !important; }
 }
+
+
+/* Reserve icon geometry before Lucide replaces <i data-lucide> with SVGs.
+   This prevents CTA wrapping and downstream CLS during first-page hydration. */
+.hero-btn [data-lucide],
+.hero-btn svg.lucide {
+  display:inline-block;
+  width:14px;
+  height:14px;
+  min-width:14px;
+  min-height:14px;
+  flex:0 0 14px;
+}
+@media (max-width:768px) {
+  .hero-btn [data-lucide],
+  .hero-btn svg.lucide {
+    width:12px;
+    height:12px;
+    min-width:12px;
+    min-height:12px;
+    flex-basis:12px;
+  }
+}
+.qa-card .qa-ico [data-lucide],
+.qa-card .qa-ico svg.lucide {
+  display:inline-block;
+  width:22px;
+  height:22px;
+  min-width:22px;
+  min-height:22px;
+  flex:0 0 22px;
+}
+.qa-card .qa-arrow [data-lucide],
+.qa-card .qa-arrow svg.lucide {
+  display:inline-block;
+  width:15px;
+  height:15px;
+  min-width:15px;
+  min-height:15px;
+  flex:0 0 15px;
+}
