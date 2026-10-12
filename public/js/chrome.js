@@ -949,8 +949,12 @@ function ensureSharedAccessibility() {
 }
 
 function ensureSharedShell() {
-  /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
-  if (!document.querySelector('link[data-shared-header-css]')) {
+  /* Load the exact homepage header + footer stylesheets only when the page has not already linked them. */
+  const headerCssAlreadyLinked = [...document.querySelectorAll('link[rel="stylesheet"][href]')].some(link => {
+    try { return new URL(link.href, document.baseURI).pathname === '/css/home-header-v2.css'; }
+    catch (_) { return false; }
+  });
+  if (!document.querySelector('link[data-shared-header-css]') && !headerCssAlreadyLinked) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-header-v2.css?v=20260924';
