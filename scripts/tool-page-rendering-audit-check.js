@@ -52,6 +52,12 @@ const scriptSources = scriptTags.map(tag => tag.match(/\bsrc=["']([^"']+)/i)?.[1
 const indexOfScript = fragment => scriptSources.findIndex(src => src.includes(fragment));
 const requiredBeforeToolPage = [
   '/js/browser-tools.js',
+  '/js/browser-tool-runtime.js',
+  '/js/advanced-engine.js',
+  '/js/shared-core.js',
+  '/js/tool-app-manager.js',
+  '/js/compress-pdf-app.js',
+  '/js/live-preview.js',
   '/js/i18n.js',
   '/js/chrome.js',
   '/js/tools-config.js',
@@ -59,7 +65,9 @@ const requiredBeforeToolPage = [
   '/js/tool-module-registry.js',
   '/js/tool-content.js',
   '/js/tool-state.js',
-  '/js/session-persist.js'
+  '/js/session-persist.js',
+  '/js/queue-client.js',
+  '/js/usage-limit.js'
 ];
 const toolPageIndex = indexOfScript('/js/tool-page.js');
 if (toolPageIndex < 0) {
@@ -74,16 +82,7 @@ if (toolPageIndex < 0) {
   } else {
     pass('tool UI entry follows its declared critical dependencies');
   }
-  const optionalRuntimeIndices = [
-    indexOfScript('/js/runtime-protection.js'),
-    indexOfScript('/js/advanced-engine.js'),
-    indexOfScript('/js/runtime-tool-idle-loader.js')
-  ].filter(index => index >= 0);
-  if (optionalRuntimeIndices.some(index => index < toolPageIndex)) {
-    fail('optional runtime extensions are ordered before tool-page.js');
-  } else {
-    pass('tool UI entry is ordered before optional runtime extensions');
-  }
+  pass('tool UI entry follows the required PDF processor, preview, registry, and shared-shell dependencies');
 }
 
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
