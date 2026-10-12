@@ -121,6 +121,7 @@ try {
             fileInputPresent: !!document.querySelector('#file-input'),
             headerPresent: !!document.querySelector('.site-header'),
             footerPresent: !!document.querySelector('.footer'),
+            footerPreserved: window.__ILOVE_PRESERVE_SERVER_FOOTER === true,
             horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             fcpMs: paint.find(entry => entry.name === 'first-contentful-paint')?.startTime ?? null,
             lcpMs: window.__toolPerf?.lcp ?? null,
@@ -155,6 +156,7 @@ try {
           if (result.status !== 200) fail(profile.name + ' run ' + run + ': local tool page HTTP status ' + result.status);
           if (!result.uploadVisible || !result.fileInputPresent) fail(profile.name + ' run ' + run + ': upload UI failed to initialize');
           if (!result.headerPresent || !result.footerPresent) fail(profile.name + ' run ' + run + ': shared header/footer missing');
+          if (!result.footerPreserved) fail(profile.name + ' run ' + run + ': server-rendered footer was replaced after first paint');
           if (result.horizontalOverflow) fail(profile.name + ' run ' + run + ': horizontal overflow');
           if (result.sourceParserBlockingScriptCount !== 0) fail(profile.name + ' run ' + run + ': ' + result.sourceParserBlockingScriptCount + ' parser-blocking scripts in source HTML');
           if (result.fcpMs == null || result.lcpMs == null) fail(profile.name + ' run ' + run + ': paint metrics were not measured');
