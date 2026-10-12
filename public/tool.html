@@ -125,10 +125,11 @@
   <!-- Set upload-shell geometry before first paint; tool-page.js also applies this class after initialization. -->
   <script>
   (function () {
-    var path = (window.location.pathname || '/').replace(/\\/+$/, '') || '/';
-    if (/\\/(?:preview|download)$/i.test(path)) return;
+    var path = window.location.pathname || '/';
+    while (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+    if (path.endsWith('/preview') || path.endsWith('/download')) return;
     var isDirectToolPage = path === '/tool.html' ||
-      (path !== '/' && path !== '/index.html' && !/\\.html$/i.test(path));
+      (path !== '/' && path !== '/index.html' && !path.endsWith('.html'));
     if (isDirectToolPage) document.documentElement.classList.add('tool-upload-route');
   })();
   </script>
