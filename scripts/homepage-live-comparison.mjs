@@ -26,7 +26,7 @@ try {
         });
         const page = await context.newPage();
         await page.addInitScript(() => {
-          window.__livePerf = { lcp: null, cls: 0, shifts: [], longTasks: [] };
+          window.__livePerf = { lcp: null, cls: 0, rawCls: 0, clsSessionStart: null, clsLastShiftTime: null, clsSessionValue: 0, shifts: [], longTasks: [] };
           try {
             new PerformanceObserver(list => {
               for (const entry of list.getEntries()) {
@@ -38,7 +38,17 @@ try {
             new PerformanceObserver(list => {
               for (const entry of list.getEntries()) {
                 if (!entry.hadRecentInput) {
-                  window.__livePerf.cls += entry.value;
+                  const time = entry.startTime;
+                  const perf = window.__livePerf;
+                  perf.rawCls += entry.value;
+                  if (perf.clsSessionStart === null || time - perf.clsLastShiftTime > 1000 || time - perf.clsSessionStart > 5000) {
+                    perf.clsSessionStart = time;
+                    perf.clsSessionValue = entry.value;
+                  } else {
+                    perf.clsSessionValue += entry.value;
+                  }
+                  perf.clsLastShiftTime = time;
+                  perf.cls = Math.max(perf.cls, perf.clsSessionValue);
                   window.__livePerf.shifts.push({
                     value: entry.value,
                     startTime: entry.startTime,
