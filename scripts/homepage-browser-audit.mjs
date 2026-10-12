@@ -199,6 +199,12 @@ try {
   else report('server-rendered homepage header is preserved at boot');
   if (initial.h1Count < 1) fail('homepage has no H1 heading');
   if (!initial.header) fail('homepage header is missing');
+  const headerCssCount = await page.evaluate(() => [...document.querySelectorAll('link[rel="stylesheet"][href]')].filter(link => {
+    try { return new URL(link.href, document.baseURI).pathname === '/css/home-header-v2.css'; }
+    catch (_) { return false; }
+  }).length);
+  if (headerCssCount > 1) fail('homepage has duplicate home-header-v2.css stylesheets (' + headerCssCount + ') that can change header geometry after first paint');
+  else report('homepage loads the shared header stylesheet once');
   if (!initial.footer) fail('homepage footer is missing');
   if (initial.labaUi || labaRequests.length) fail('Laba UI or assets are still present: UI=' + initial.labaUi + ', requests=' + [...new Set(labaRequests)].join(', '));
   else report('no Laba widget UI or Laba asset requests on homepage');
