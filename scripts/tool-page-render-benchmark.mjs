@@ -163,6 +163,21 @@ for (const profile of profiles) {
     }));
   }
 }
+for (const profile of profiles) {
+  const rows = results.filter(row => row.profile === profile.name && row.target === 'Local candidate' && row.status === 200);
+  const median = key => {
+    const values = rows.map(row => row[key]).filter(value => typeof value === 'number' && Number.isFinite(value)).sort((a, b) => a - b);
+    return values.length ? values[Math.floor(values.length / 2)] : null;
+  };
+  if (rows.length !== runsPerTarget) fail(profile.name + ': expected ' + runsPerTarget + ' successful local performance samples, got ' + rows.length);
+  const fcp = median('fcpMs');
+  const lcp = median('lcpMs');
+  const cls = median('cls');
+  if (fcp == null || fcp > 1800) fail(profile.name + ': median FCP missing or exceeds 1.8s (' + fcp + 'ms)');
+  if (lcp == null || lcp > 2500) fail(profile.name + ': median LCP missing or exceeds 2.5s (' + lcp + 'ms)');
+  if (cls == null || cls > 0.1) fail(profile.name + ': median CLS missing or exceeds 0.1 (' + cls + ')');
+}
+
 if (failures.length) {
   console.error('TOOL_RENDER_BENCHMARK_FAILED: ' + failures.join('; '));
   process.exitCode = 1;
