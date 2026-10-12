@@ -156,6 +156,26 @@ function stabilizeHomepageFirstRender(html) {
     return tag;
   });
 
+  // Keep above-the-fold ad slots geometrically stable even though their full
+  // stylesheets and network activation are deferred. Pending slots must reserve
+  // the same dimensions they use once activated, otherwise the content below
+  // jumps when AdManager adds the active class.
+  if (!html.includes('id="ilpdf-critical-ad-reservation"')) {
+    const criticalAdCss = `<style id="ilpdf-critical-ad-reservation">
+html body div.ad-wrap { width:100%; display:flex; flex-direction:column; align-items:center; }
+html body div.ad-wrap--tight { padding:8px 0; }
+html body div.ad-slot--leaderboard[data-ad-pending]:not(.ad-slot--active),
+html body div.ad-slot--in-content[data-ad-pending]:not(.ad-slot--active),
+html body div.ad-slot--hero-below[data-ad-pending]:not(.ad-slot--active) { min-height:90px; }
+html body div.ad-slot--rectangle[data-ad-pending]:not(.ad-slot--active) { min-height:250px; }
+@media (max-width:767px) {
+  html body div.ad-slot--in-content[data-ad-pending]:not(.ad-slot--active),
+  html body div.ad-slot--hero-below[data-ad-pending]:not(.ad-slot--active) { min-height:250px; }
+}
+</style>`;
+    html = html.replace(/<\\/head>/i, criticalAdCss + '\\n</head>');
+  }
+
   return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
 }
 
