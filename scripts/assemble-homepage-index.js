@@ -117,7 +117,8 @@ function stabilizeHomepageFirstRender(html) {
     /id=["']nav-organize["']/i.test(html) &&
     /id=["']nav-convert["']/i.test(html) &&
     /id=["']all-tools-btn["']/i.test(html) &&
-    /class=["'][^"']*\bnav-direct\b[^"']*["']/i.test(html);
+    /<a\b(?=[^>]*\bclass=["'][^"']*\bnav-direct\b[^"']*["'])(?=[^>]*\bhref=["']\/merge-pdf(?:[?#][^"']*)?["'])[^>]*>/i.test(html) &&
+    /<a\b(?=[^>]*\bclass=["'][^"']*\bnav-direct\b[^"']*["'])(?=[^>]*\bhref=["']\/split-pdf(?:[?#][^"']*)?["'])[^>]*>/i.test(html);
   let navPreservationEnabled = false;
   if (hasCompleteServerNav && /<\/head>/i.test(html)) {
     html = html.replace(/<\/head>/i,
