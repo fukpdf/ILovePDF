@@ -214,6 +214,32 @@
 
   <!-- ───────────── Tool content (centered, full-width, NO sidebar) ───────────── -->
   <main id="tool-content" class="tool-page tool-upload-shell">
+    <div class="tool-page ilpdf-branded-upload tool-first-paint-shell" id="tool-first-paint-shell">
+      <section class="ilpdf-branded-upload-hero tool-first-paint-heading-shell" aria-labelledby="tool-first-paint-heading">
+        <h1 class="ilpdf-branded-title" id="tool-first-paint-heading" data-tool-name-heading="1">
+          <span class="tool-name-sticker" aria-hidden="true"><i data-lucide="file-text"></i></span>
+          <span class="tool-heading-label" id="tool-first-paint-label">PDF Tool</span>
+        </h1>
+      </section>
+    </div>
+    <script>
+    (function () {
+      var titlesBySlug = {"merge-pdf":"Merge","split-pdf":"Split","rotate-pdf":"Rotate PDF","crop-pdf":"Crop","organize-pdf":"Organize PDF","compress-pdf":"Compress PDF","pdf-to-word":"PDF to Word","pdf-to-powerpoint":"PDF to PowerPoint","pdf-to-excel":"PDF to Excel","pdf-to-jpg":"PDF to JPG","word-to-pdf":"Word to PDF","powerpoint-to-pdf":"PowerPoint to PDF","excel-to-pdf":"Excel to PDF","word-to-excel":"Word to Excel","jpg-to-pdf":"JPG to PDF","html-to-pdf":"HTML to PDF","edit-pdf":"Edit PDF","watermark-pdf":"Watermark","sign-pdf":"Sign PDF","add-page-numbers":"Add Page Numbers","redact-pdf":"Redact PDF","protect-pdf":"Protect PDF","unlock-pdf":"Unlock PDF","repair-pdf":"Repair","scan-pdf":"Scan","ocr-pdf":"OCR","compare-pdf":"Compare","ai-summarizer":"AI Summarizer","translate-pdf":"Translate","workflow-builder":"Workflow Builder","numbers-to-words":"Numbers to Words","currency-converter":"Currency Converter","background-remover":"Background Remover","crop-image":"Crop Image","resize-image":"Image Resize","image-filters":"Image Filters","image-compressor":"Image Compressor","image-converter":"Image Converter","qr-code-generator":"QR Code Generator","barcode-generator":"Barcode Generator","zip-builder":"ZIP Builder"};
+      var titlesById = {"merge":"Merge","split":"Split","rotate":"Rotate PDF","crop":"Crop","organize":"Organize PDF","compress":"Compress PDF","pdf-to-word":"PDF to Word","pdf-to-powerpoint":"PDF to PowerPoint","pdf-to-excel":"PDF to Excel","pdf-to-jpg":"PDF to JPG","word-to-pdf":"Word to PDF","powerpoint-to-pdf":"PowerPoint to PDF","excel-to-pdf":"Excel to PDF","word-to-excel":"Word to Excel","jpg-to-pdf":"JPG to PDF","html-to-pdf":"HTML to PDF","edit":"Edit PDF","watermark":"Watermark","sign":"Sign PDF","page-numbers":"Add Page Numbers","redact":"Redact PDF","protect":"Protect PDF","unlock":"Unlock PDF","repair":"Repair","scan-to-pdf":"Scan","ocr":"OCR","compare":"Compare","ai-summarize":"AI Summarizer","translate":"Translate","workflow":"Workflow Builder","numbers-to-words":"Numbers to Words","currency-converter":"Currency Converter","background-remover":"Background Remover","crop-image":"Crop Image","resize-image":"Image Resize","image-filters":"Image Filters","image-compressor":"Image Compressor","image-converter":"Image Converter","qr-code-generator":"QR Code Generator","barcode-generator":"Barcode Generator","zip-builder":"ZIP Builder"};
+      var path = (window.location.pathname || '/').replace(/\/+$/g, '').toLowerCase();
+      if (/\/(preview|download)$/.test(path)) {
+        var shell = document.getElementById('tool-first-paint-shell');
+        if (shell) shell.hidden = true;
+        return;
+      }
+      var slug = path.replace(/^\/+|\/+$/g, '');
+      if (slug === 'tool.html') slug = '';
+      var id = new URLSearchParams(window.location.search).get('id') || '';
+      var title = titlesBySlug[slug] || titlesById[id] || 'PDF Tool';
+      var label = document.getElementById('tool-first-paint-label');
+      if (label) label.textContent = title;
+    })();
+    </script>
     <!-- sk: upload / preview / download skeleton — replaced by tool-page.js renderStep() -->
     <div class="sk-upload-wrap" aria-hidden="true">
       <div class="sk-upload-icon"></div>
