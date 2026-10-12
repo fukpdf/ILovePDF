@@ -761,7 +761,15 @@ function normalizeUploadAcceptSpec(spec) {
 function renderBrandedUploadStep(tool, config) {
   const container = document.getElementById('tool-content');
   if (!container) return;
+  let belowFold = document.getElementById('tool-belowfold');
+  if (!belowFold) {
+    belowFold = document.createElement('div');
+    belowFold.id = 'tool-belowfold';
+    belowFold.className = 'tool-belowfold-shell';
+    container.insertAdjacentElement('afterend', belowFold);
+  }
   container.classList.remove('ew-wide');
+  container.classList.add('tool-upload-shell');
 
   const fileLabel = tool.multipleFiles
     ? _tp('tool.upload_files', config.fileLabel || 'Select files')
@@ -798,9 +806,6 @@ function renderBrandedUploadStep(tool, config) {
       </section>
 
       ${trustStripHtml()}
-      ${renderSeoContent(tool)}
-      ${learnMoreHtml(tool)}
-      ${popularToolsHtml(tool.id)}
     </div>`;
 
   const palette = brandedToolPalette(tool);
@@ -810,7 +815,20 @@ function renderBrandedUploadStep(tool, config) {
     brandedRoot.style.setProperty('--tool-tone-2', palette[1]);
   }
 
-  decorateSeoLineVisuals(container.querySelector('.seo-content--crop-contract'));
+  belowFold.hidden = false;
+  belowFold.innerHTML = `
+    <div class="tool-page ilpdf-branded-upload ilpdf-branded-upload-belowfold ${config.pageClass || ''}">
+      ${renderSeoContent(tool)}
+      ${learnMoreHtml(tool)}
+      ${popularToolsHtml(tool.id)}
+    </div>`;
+  const belowFoldRoot = belowFold.querySelector('.ilpdf-branded-upload');
+  if (belowFoldRoot) {
+    belowFoldRoot.style.setProperty('--tool-tone', palette[0]);
+    belowFoldRoot.style.setProperty('--tool-tone-2', palette[1]);
+  }
+
+  decorateSeoLineVisuals(belowFold.querySelector('.seo-content--crop-contract'));
 
   if (window.lucide) lucide.createIcons();
   setupFileInput();
