@@ -71,6 +71,16 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
   '/js/runtime-deployment-bind.js',
   '/js/runtime-security-tiers.js',
   '/js/runtime-security-telemetry.js',
+  // Tool-session services and admin/after-processing UX are not needed to render
+  // the marketing homepage. Keep them available in public/tool.html.
+  '/js/runtime-session-intel.js',
+  '/js/analytics-engine.js',
+  '/js/runtime-perf.js',
+  '/js/runtime-offline.js',
+  '/js/runtime-updater.js',
+  '/js/runtime-changelog.js',
+  '/js/runtime-device-lite.js',
+  '/js/savings-animation.js',
   '/js/runtime-sri-engine.js',
   '/js/runtime-foreign-deploy.js',
 ]);
