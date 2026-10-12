@@ -11738,7 +11738,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-eyebrow::af
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms h2 {
   margin: 0 auto 10px;
   color: #202334;
-  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(25px, 3vw, 34px);
   line-height: 1.18;
   letter-spacing: -.045em;
@@ -11749,7 +11749,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platforms-intro {
   max-width: 580px;
   margin: 0 auto 28px;
   color: #737789;
-  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(13px, 1.3vw, 15px);
   line-height: 1.75;
 }
@@ -11818,7 +11818,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-logo--ios { 
 body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item h3 {
   margin: 0 0 7px;
   color: #282b3b;
-  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(13px, 1.3vw, 15px);
   line-height: 1.35;
   font-weight: 780;
@@ -11829,7 +11829,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-item p {
   max-width: 170px;
   margin: 0 auto;
   color: #777b8b;
-  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(11px, 1.05vw, 12px);
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -11975,7 +11975,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .ilpdf-platform-link {
   border-radius: 9px;
   background: #fff;
   color: #4f46e5;
-  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px;
   line-height: 1.25;
   font-weight: 700;
