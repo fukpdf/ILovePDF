@@ -29,6 +29,7 @@ on:
       - 'scripts/homepage-live-comparison.mjs'
       - 'scripts/homepage-test-server.js'
       - 'scripts/homepage-node-server-smoke.mjs'
+      - 'scripts/tool-page-browser-smoke.mjs'
       - '.github/workflows/homepage-audit.yml'
   workflow_dispatch:
 
@@ -107,6 +108,9 @@ jobs:
           cat /tmp/homepage-test-server.log
           echo '::error::Homepage test server did not start'
           exit 1
+
+      - name: Tool page upload-shell and responsive smoke test
+        run: node scripts/tool-page-browser-smoke.mjs
 
       - name: Compare local candidate, Firebase production, and official iLovePDF performance
         run: node scripts/homepage-live-comparison.mjs
