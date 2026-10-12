@@ -63,7 +63,7 @@ try {
                       tag: source.node?.tagName || '',
                       id: source.node?.id || '',
                       className: typeof source.node?.className === 'string' ? source.node.className.slice(0, 100) : '',
-                      text: (source.node?.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 80),
+                      text: (source.node?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80),
                       previousRect: source.previousRect ? { x: source.previousRect.x, y: source.previousRect.y, width: source.previousRect.width, height: source.previousRect.height } : null,
                       currentRect: source.currentRect ? { x: source.currentRect.x, y: source.currentRect.y, width: source.currentRect.width, height: source.currentRect.height } : null
                     }))
