@@ -1,0 +1,30 @@
+name: Tool-page rendering audit
+
+on:
+  pull_request:
+    paths:
+      - "public/tool.html"
+      - "public/css/**"
+      - "scripts/tool-page-rendering-audit-check.js"
+      - "package.json"
+      - ".github/workflows/tool-page-rendering-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rendering-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate audit script syntax
+        run: node --check scripts/tool-page-rendering-audit-check.js
+      - name: Check tool-page render path
+        run: node scripts/tool-page-rendering-audit-check.js
