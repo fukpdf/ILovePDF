@@ -61,6 +61,7 @@ jobs:
           node --check scripts/homepage-live-comparison.mjs
           node --check scripts/homepage-stability-audit.mjs
           node --check scripts/tool-page-render-benchmark.mjs
+          node --check scripts/tool-page-browser-smoke.mjs
 
       - name: Inventory Laba dependencies before removal
         run: node scripts/laba-removal-audit.js --assert-clean
