@@ -451,9 +451,12 @@ function renderStep() {
   setMeta('keywords', `${currentTool.name.toLowerCase()}, ${currentTool.name.toLowerCase()} online, ${currentTool.name.toLowerCase()} free, ilovepdf, pdf tools online`);
 
   const belowFold = document.getElementById('tool-belowfold');
-  if (Flow.step !== 'upload' && belowFold) {
-    belowFold.hidden = true;
-    belowFold.innerHTML = '';
+  if (Flow.step !== 'upload') {
+    document.documentElement.classList.remove('tool-upload-route');
+    if (belowFold) {
+      belowFold.hidden = true;
+      belowFold.innerHTML = '';
+    }
   }
 
   // Guard: preview needs files; download needs a captured result.
@@ -776,6 +779,7 @@ function renderBrandedUploadStep(tool, config) {
   }
   container.classList.remove('ew-wide');
   container.classList.add('tool-upload-shell');
+  document.documentElement.classList.add('tool-upload-route');
 
   const fileLabel = tool.multipleFiles
     ? _tp('tool.upload_files', config.fileLabel || 'Select files')
