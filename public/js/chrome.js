@@ -275,7 +275,10 @@ function renderHeader(forceRefresh = false){
     if (allItem) {
       allItem.id = 'all-tools-item';
       const button = allItem.querySelector('#all-tools-btn') || allItem.querySelector('.nav-btn');
-      if (button) button.setAttribute('aria-controls', 'all-tools-menu');
+      if (button) {
+        button.id = 'all-tools-btn';
+        button.setAttribute('aria-controls', 'all-tools-menu');
+      }
       let panel = allItem.querySelector('#all-tools-menu');
       if (!panel) {
         panel = document.createElement('div');
