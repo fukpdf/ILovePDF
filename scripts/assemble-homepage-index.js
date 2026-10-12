@@ -111,7 +111,29 @@ function dedupeLocalStylesheets(html) {
  * - Avoid a late Google-font swap changing nav/button widths and pushing the
  *   homepage sections around on slower or cold-cache visits.
  */
+function convertPlaceholderLanguageLinks(html) {
+  let converted = 0;
+  const output = html.replace(
+    /<a\b(?=[^>]*\bhref=["']#["'])(?=[^>]*\bdata-lang=["'][^"']+["'])[^>]*>[\s\S]*?<\/a>/gi,
+    function (full) {
+      const opening = /^<a\b[^>]*>/i.exec(full)?.[0];
+      if (!opening) return full;
+      const inner = full.slice(opening.length, full.length - 4);
+      const attrs = opening.slice(2, -1)
+        .replace(/^a\b/i, '')
+        .replace(/\s+href=["']#["']/i, '')
+        .replace(/\s+target=["'][^"']*["']/i, '')
+        .replace(/\s+rel=["'][^"']*["']/i, '');
+      converted += 1;
+      return '<button type="button"' + attrs + '>' + inner + '</button>';
+    }
+  );
+  return { html: output, converted };
+}
+
 function stabilizeHomepageFirstRender(html) {
+  const languageLinks = convertPlaceholderLanguageLinks(html);
+  html = languageLinks.html;
   const hasCompleteServerNav =
     /id=["']nav["']/i.test(html) &&
     /id=["']nav-organize["']/i.test(html) &&
@@ -176,7 +198,7 @@ html body div.ad-slot--rectangle[data-ad-pending]:not(.ad-slot--active) { min-he
     html = html.replace(/<\/head>/i, criticalAdCss + '\n</head>');
   }
 
-  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontStylesheetDeferred, nonCriticalStylesheetsDeferred };
+  return { html, serverNavFound: hasCompleteServerNav, navPreservationEnabled, fontStylesheetDeferred, nonCriticalStylesheetsDeferred, placeholderLanguageLinksConverted: languageLinks.converted };
 }
 
 function removeHomepageOnlyOverlaysAndLaba(html) {
@@ -486,6 +508,9 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.nonCriticalStylesheetsDeferred) {
     console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
+  }
+  if (firstRender.placeholderLanguageLinksConverted) {
+    console.log('[assemble-index] converted ' + firstRender.placeholderLanguageLinksConverted + ' placeholder language anchors into semantic buttons');
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.
