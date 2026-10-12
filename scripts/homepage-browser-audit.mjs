@@ -270,6 +270,8 @@ try {
       scriptBytes: bytes(scripts),
       cssCount: styles.length,
       cssBytes: bytes(styles),
+      preserveServerNav: window.__ILOVE_PRESERVE_SERVER_NAV === true,
+      preserveServerHeader: window.__ILOVE_PRESERVE_SERVER_HEADER === true,
       shifts: (window.__homepageLabPerf?.shifts || []).sort((a, b) => b.value - a.value).slice(0, 5)
     };
   });
@@ -280,6 +282,8 @@ try {
     ', scriptEncodedBytes=' + labMetrics.scriptBytes + ', cssFiles=' + labMetrics.cssCount + ', cssEncodedBytes=' + labMetrics.cssBytes);
   console.log('LCP ELEMENT: ' + JSON.stringify(labMetrics.lcpElement));
   console.log('CLS SHIFT DETAILS: ' + JSON.stringify(labMetrics.shifts));
+  if (!labMetrics.preserveServerNav) fail('server-rendered homepage navigation was not preserved; chrome.js may replace it after first paint');
+  if (!labMetrics.preserveServerHeader) fail('server-rendered homepage header was not preserved at first render');
   if (labMetrics.cls !== null && labMetrics.cls > 0.1) fail('CLS exceeds the 0.1 target: ' + labMetrics.cls.toFixed(4));
 
   const seenHrefs = new Set();
