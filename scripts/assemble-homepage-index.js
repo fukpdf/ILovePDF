@@ -148,7 +148,8 @@ function stabilizeHomepageFirstRender(html) {
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
-      const priority = /(?:^|\/)css\/home-footer-v2\.css(?:[?#]|$)/i.test(href) ? 'high' : 'low';
+      // Footer styles are non-critical for first paint; keep every deferred stylesheet low priority.
+      const priority = 'low';
       return '<link rel="preload" as="style" href="' + href + '" fetchpriority="' + priority + '" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
     return tag;
