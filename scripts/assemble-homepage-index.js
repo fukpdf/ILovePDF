@@ -235,6 +235,42 @@ function deferHomepageAds(html) {
   return { html, count };
 }
 
+const HOMEPAGE_POST_LOAD_SCRIPTS = new Set([
+  '/js/runtime-ads.js',
+  '/js/ad-manager.js',
+  '/js/ad-responsive-engine.js',
+  '/js/runtime-credits.js',
+  '/js/runtime-session-intel.js',
+  '/js/analytics-engine.js',
+  '/js/runtime-offline.js',
+  '/js/runtime-updater.js',
+  '/js/runtime-changelog.js',
+  '/js/savings-animation.js',
+  '/js/live-stats-sim.js',
+  '/js/runtime-perf.js',
+  '/js/community-economy.js',
+]);
+
+/**
+ * Keep secondary homepage features available without making them part of the
+ * initial DOMContentLoaded/load critical path. Preserve relative script order
+ * and continue loading if an individual optional script fails.
+ */
+function deferHomepageNonCriticalScripts(html) {
+  let count = 0;
+  html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (tag, src) => {
+    const path = src.split(/[?#]/, 1)[0];
+    if (!HOMEPAGE_POST_LOAD_SCRIPTS.has(path)) return tag;
+    count += 1;
+    return '<script data-home-lazy-src="' + escapeHtml(src) + '"></script>';
+  });
+  if (!count) return { html, count: 0 };
+
+  const loader = '<script>(function(){var started=false;function start(){if(started)return;started=true;var queue=Array.prototype.slice.call(document.querySelectorAll("script[data-home-lazy-src]"));function next(){if(!queue.length)return;var marker=queue.shift();var src=marker.getAttribute("data-home-lazy-src");if(!src){next();return;}var script=document.createElement("script");script.src=src;script.async=false;script.onload=next;script.onerror=next;document.head.appendChild(script);}next();}function schedule(){setTimeout(start,2000);}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true});})();</script>';
+  html = html.replace(/<\/body>/i, loader + '\n</body>');
+  return { html, count };
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -492,6 +528,12 @@ export function assembleHomepageIndex() {
       return '<script defer' + attrs + '>';
     }
   );
+
+  const postLoadScripts = deferHomepageNonCriticalScripts(html);
+  html = postLoadScripts.html;
+  if (postLoadScripts.count) {
+    console.log('[assemble-index] moved ' + postLoadScripts.count + ' secondary homepage scripts out of the initial load path');
+  }
 
   const blockingScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi)]
     .filter(match => !/\bdefer\b/i.test(match[0]) && !/\basync\b/i.test(match[0]));
