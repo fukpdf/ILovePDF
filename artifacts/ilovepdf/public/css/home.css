@@ -514,10 +514,16 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
 .hero-btn.outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.55)}
 .hero-btn.outline:hover{background:rgba(255,255,255,.14);border-color:#fff}
 .hero-btn svg{width:14px;height:14px}
+.hero-btn > i[data-lucide]{
+  display:inline-block;
+  flex:0 0 14px;
+  width:14px;height:14px;
+}
 @media (max-width:768px){
   .hero-actions{gap:6px}
   .hero-btn{padding:6px 11px !important;font-size:.75rem !important}
   .hero-btn svg{width:12px;height:12px}
+  .hero-btn > i[data-lucide]{flex-basis:12px;width:12px;height:12px}
 }
 
 /* Sticky rail — calculator + currency converter */

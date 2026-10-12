@@ -128,6 +128,17 @@ body:has(.site-header){
   transition:.2s transform;
 }
 
+/* Reserve each Lucide icon's final footprint before the async icon loader runs.
+   The loader replaces these empty <i> nodes with 14px SVGs; without this slot,
+   nav and hero controls widen after first paint and can reflow nearby content. */
+.site-header .nav i[data-lucide]{
+  display:inline-block;
+  flex:0 0 14px;
+  width:14px;
+  height:14px;
+}
+.site-header .nav .nav-btn > i[data-lucide]{opacity:.7}
+
 .site-header .nav .all-tools{
   background:var(--ilpdf-header-grad);
   color:#fff;

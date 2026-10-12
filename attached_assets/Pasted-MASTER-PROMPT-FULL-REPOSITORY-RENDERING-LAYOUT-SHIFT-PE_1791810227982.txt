@@ -1,0 +1,376 @@
+MASTER PROMPT — FULL REPOSITORY RENDERING, LAYOUT SHIFT & PERFORMANCE AUDIT
+
+Project Context
+
+Our existing iLovePDF clone repository is ALREADY imported into this Replit project.
+
+Our live website:
+https://ilovepdf-web.web.app/
+
+Our Compress PDF tool:
+https://ilovepdf-web.web.app/compress-pdf
+
+Original reference website:
+https://www.ilovepdf.com/
+
+Original reference tool:
+https://www.ilovepdf.com/compress_pdf
+
+Your task is to inspect the EXISTING repository, understand the actual implementation, audit the rendering and loading problems across the entire application, compare our live website with the original iLovePDF website, and implement safe, evidence-based performance improvements.
+
+This is an existing production-style application. Do not treat it as a new project.
+
+PRIMARY OBJECTIVE
+
+Make our website render as quickly and smoothly as possible, targeting performance comparable to or better than the original iLovePDF website under equivalent testing conditions.
+
+Focus on:
+
+- Initial page rendering and time to usable content.
+- Tool page loading and upload interface readiness.
+- Cumulative Layout Shift (CLS) and unexpected movement.
+- First Contentful Paint (FCP) and Largest Contentful Paint (LCP).
+- JavaScript execution and main-thread blocking.
+- CSS, font, icon and image loading.
+- Responsive rendering on mobile, tablet, laptop and desktop.
+- Navigation and transitions between PDF tool routes.
+- Firebase Hosting and asset-delivery performance.
+- Consistent visual rendering without broken, missing, overlapping or hidden elements.
+
+Do not claim that our website is slower or faster without measuring it or identifying concrete evidence.
+
+---
+
+PHASE 1 — UNDERSTAND THE EXISTING REPOSITORY
+
+Before changing any code, inspect the entire repository systematically.
+
+1. Identify the actual framework, runtime, build tool, package manager, router, entry points and application architecture.
+2. Inspect package.json, lockfiles, build configuration, hosting configuration, public assets, source files, CSS, shared components and tool-specific components.
+3. Map the routes for every existing PDF tool.
+4. Identify shared headers, navigation, footer, upload components, cards, dialogs, buttons, icons and layouts.
+5. Locate existing lazy-loading, dynamic imports, loading states, error boundaries and caching configuration.
+6. Identify oversized dependencies, duplicate libraries, unused imports, duplicated styles and unnecessarily repeated rendering.
+7. Determine which components and files are critical to initial rendering.
+8. Check existing tests, build scripts, environment variables and deployment assumptions.
+
+Use the actual repository structure. Do not assume that files, libraries, routes or components exist before verifying them.
+
+Create a concise internal audit checklist and a route/component map before implementing changes.
+
+Do not waste free-agent tokens producing lengthy documentation. Save only concise, useful findings and continue with the audit.
+
+PHASE 2 — ESTABLISH A PERFORMANCE BASELINE
+
+Measure the current application before applying fixes.
+
+Test our live homepage and representative tool pages, especially Compress PDF. Include other routes that use the same shared layout or upload components.
+
+Where browser automation, Lighthouse, Chrome DevTools or equivalent tooling is available, collect:
+
+- Lighthouse Performance score.
+- First Contentful Paint (FCP).
+- Largest Contentful Paint (LCP).
+- Cumulative Layout Shift (CLS).
+- Total Blocking Time (TBT).
+- Interaction to Next Paint (INP), where field data is available.
+- Time to first byte (TTFB).
+- Total transferred bytes.
+- Number of network requests.
+- JavaScript and CSS transfer sizes.
+- Long tasks and render-blocking resources.
+- Time until the upload interface is actually usable.
+
+Clearly distinguish laboratory metrics from real-user field metrics. Do not present unavailable field data as measured results.
+
+Test under comparable conditions:
+
+- Same viewport and device class.
+- Same network throttling and CPU conditions.
+- Cold-cache and warm-cache runs.
+- Multiple runs when practical, reporting representative results.
+- Direct navigation to a tool URL and navigation from the homepage.
+- Mobile first, then desktop.
+
+If the free Replit environment cannot run browser automation or Lighthouse, use available tools first. Then inspect build output and source code for additional evidence. Clearly state which measurements remain unavailable.
+
+Do not invent performance scores, timings, transfer sizes, browser results or benchmark results.
+
+PHASE 3 — COMPARE WITH ORIGINAL ILOVEPDF
+
+Compare these exact page types wherever the corresponding pages are available:
+
+Our Compress PDF:
+https://ilovepdf-web.web.app/compress-pdf
+
+Original Compress PDF:
+https://www.ilovepdf.com/compress_pdf
+
+Also compare the homepage rendering when practical.
+
+Use the same viewport, network conditions and cache state. Check:
+
+1. When the main content first appears.
+2. When the upload area becomes visible.
+3. When the upload button becomes interactive.
+4. When compression options and primary actions are ready.
+5. Whether fonts, images or styles cause visible movement.
+6. Whether content appears progressively or waits for unnecessary JavaScript.
+7. Whether large assets, third-party scripts or network requests delay rendering.
+8. Whether the initial page requires downloading code for unrelated PDF tools.
+9. Whether navigation causes blank screens, flashes, duplicated loading states or unnecessary full-page reloads.
+10. Whether mobile rendering differs significantly.
+
+The original website is a reference, not permission to copy its proprietary code or assets.
+
+If the original page cannot be measured directly, record that limitation. Never fabricate a comparison.
+
+Produce a concise comparison table with baseline results, observations, evidence and confidence levels. Distinguish measured differences from source-code-based hypotheses.
+
+PHASE 4 — FULL REPOSITORY RENDERING AUDIT
+
+Inspect every relevant route and all shared components, not just the homepage.
+
+A. Layout shifts and CLS
+
+Investigate:
+
+- Images, logos and icons without reserved dimensions.
+- Fonts that change text width or page geometry after loading.
+- Header and navigation height changes.
+- Upload areas that expand after JavaScript initialization.
+- Cards and tool grids that change height after rendering.
+- Banners, notices, advertisements or asynchronous content that push existing content down.
+- Buttons whose labels or dimensions change during loading.
+- Missing skeleton dimensions or inconsistent placeholders.
+- Responsive breakpoints that cause overflow or abrupt reflow.
+- Content injected above already-rendered content.
+- Loading indicators that unexpectedly alter surrounding layout.
+
+Reserve space for asynchronous content and assets where appropriate.
+
+Use width, height or aspect-ratio reservations for images and stable dimensions for elements where suitable.
+
+Do not simply hide shifting content to reduce CLS. Correct the underlying cause.
+
+B. Initial rendering and critical path
+
+Investigate:
+
+- Render-blocking CSS.
+- Unnecessary synchronous JavaScript.
+- Oversized entry bundles.
+- Unnecessary hydration or initialization work.
+- Excessive component nesting or repeated renders.
+- Expensive calculations during initial rendering.
+- Unnecessary network requests before the upload interface appears.
+- Large global stylesheets.
+- Unused fonts and excessive font weights.
+- Duplicate requests and assets.
+- Third-party resources that delay first render.
+
+Prioritize content needed for the first visible screen.
+
+Do not lazy-load the main heading, primary upload area, visible critical images or other essential above-the-fold content.
+
+C. JavaScript and bundle optimization
+
+Inspect the production build output.
+
+Where justified and supported by the current architecture:
+
+- Introduce route-level code splitting.
+- Dynamically import heavy, tool-specific modules.
+- Load PDF processing libraries only when required.
+- Remove verified unused dependencies.
+- Reduce duplicate dependencies and unnecessary polyfills.
+- Optimize imports without changing existing tool behavior.
+- Avoid loading every tool's implementation on every route.
+- Reduce avoidable React re-renders.
+- Move expensive noncritical work away from initial rendering when safe.
+
+Do not split code blindly or add new dependencies just to improve an audit score.
+
+D. CSS, fonts and assets
+
+Inspect:
+
+- CSS bundle size and duplicated selectors.
+- Fonts, weights, formats and loading strategy.
+- Image dimensions, formats and compression.
+- SVG usage and icon-library overhead.
+- Background images and offscreen content.
+- Asset preloading and preconnect hints.
+- Unnecessary animations or expensive paint effects.
+- Large shadows, filters or blur effects where profiling shows a real cost.
+
+Preserve the existing visual design, brand identity, spacing, typography and colors.
+
+Use preload or preconnect only for resources proven to be critical.
+
+Lazy-load below-the-fold images and noncritical media where appropriate.
+
+E. Responsive rendering
+
+Test practical mobile, tablet, laptop and desktop viewport sizes.
+
+Inspect:
+
+- Horizontal overflow.
+- Overlapping cards and buttons.
+- Text clipping and unexpected wrapping.
+- Header and navigation alignment.
+- Upload area width and height.
+- Tool grids and card dimensions.
+- Dialogs and menus extending outside the viewport.
+- Missing content and incorrect responsive visibility.
+- Touch-target sizing.
+- Unexpected changes after fonts or images finish loading.
+
+Do not solve layout problems by hiding content, removing features or using arbitrary fixed widths.
+
+F. Loading and error states
+
+Inspect every existing tool's shared and route-specific loading behavior.
+
+Ensure:
+
+- The page shell renders promptly.
+- The user sees a stable upload interface.
+- Loading indicators have a clear purpose.
+- Error and empty states are understandable.
+- Failed asset or network requests do not leave permanent loading screens.
+- The interface does not jump unnecessarily between loading, ready and error states.
+- Repeated clicks do not start duplicate operations.
+- Existing upload validation and progress behavior remain intact.
+
+Keep PDF file processing separate from the time required to render the initial page.
+
+G. Firebase Hosting and delivery
+
+Inspect the actual deployment configuration and generated build output.
+
+Check:
+
+- Immutable caching for fingerprinted assets.
+- Appropriate HTML caching and revalidation.
+- Brotli or Gzip delivery where supported.
+- Compression of text assets.
+- Asset paths and cache invalidation.
+- Duplicate or unnecessarily large production assets.
+- SPA fallback configuration.
+- Direct access to nested tool routes.
+- Missing assets and incorrect MIME types.
+
+Do not change domains, hosting providers, deployment architecture or production configuration unnecessarily.
+
+Do not expose secrets, API keys or environment variables.
+
+PHASE 5 — IMPLEMENTATION STRATEGY
+
+After the audit, implement only fixes supported by repository inspection, browser evidence or build analysis.
+
+Prioritize:
+
+P0 — Critical:
+
+- Broken rendering, missing content, failed routes, severe layout shifts, blocking errors and unusable upload interfaces.
+
+P1 — High impact:
+
+- Unnecessary initial JavaScript, large render-blocking assets, delayed primary content and serious network bottlenecks.
+
+P2 — Medium impact:
+
+- Font and image optimization, redundant requests, avoidable re-renders and noncritical layout instability.
+
+P3 — Low impact:
+
+- Minor cleanup that has a demonstrable benefit without introducing unnecessary risk.
+
+For every implemented fix:
+
+1. Identify the affected file or component.
+2. Explain the verified problem.
+3. Make the smallest safe change.
+4. Preserve current APIs, component contracts and route behavior.
+5. Run the available tests and production build.
+6. Check for regressions.
+7. Measure again where tooling permits.
+
+Avoid speculative rewrites and cosmetic refactoring unrelated to performance.
+
+PHASE 6 — STRICT PRESERVATION REQUIREMENTS
+
+This section is mandatory.
+
+DO NOT:
+
+- Redesign the website.
+- Change the existing brand identity, colors, typography or intended layouts.
+- Remove or rename existing routes.
+- Delete PDF tools or reduce supported features.
+- Break file uploads, compression, conversion, download or other processing workflows.
+- Replace working components without a verified reason.
+- Remove accessibility features.
+- Disable validation, security checks or error handling.
+- Remove dependencies without checking their usage.
+- Replace the package manager or framework.
+- Modify unrelated backend logic.
+- Change environment variables or deployment secrets.
+- Introduce unnecessary packages, services or paid APIs.
+- Rewrite the whole project.
+- Claim that performance improved without post-change evidence.
+- Spend excessive free-agent tokens on repeated explanations or large reports.
+
+Do not deploy automatically. Keep changes within the imported repository unless an explicit deployment action is required and authorized.
+
+If a change could break functionality, investigate further or leave it unchanged and report the risk.
+
+PHASE 7 — REGRESSION TESTING
+
+After implementation:
+
+1. Run the existing production build.
+2. Run available linting, type checks and tests.
+3. Verify the homepage and all discovered tool routes.
+4. Test direct navigation to /compress-pdf.
+5. Check upload-area rendering and compression-option visibility.
+6. Test responsive layouts.
+7. Check browser console errors and failed network requests where available.
+8. Verify that lazy-loaded modules load correctly.
+9. Verify that existing navigation and PDF workflows remain functional.
+10. Repeat the baseline performance tests using the same conditions.
+
+If browser automation is unavailable, clearly list the tests that could not be executed. Do not claim they passed.
+
+PHASE 8 — FINAL REPORT
+
+Keep the final report concise and evidence-based.
+
+Include:
+
+1. Repository architecture discovered.
+2. Pages and components inspected.
+3. Baseline performance measurements and testing conditions.
+4. Our website versus original iLovePDF comparison.
+5. Verified rendering and layout-shift root causes.
+6. Files changed and the purpose of each change.
+7. Before-and-after measurements where available.
+8. Build and test results.
+9. Remaining issues and limitations.
+10. Any manual validation still required.
+
+Separate facts, measured results and hypotheses.
+
+Execution instruction
+
+Start by inspecting the existing imported repository. Then audit, measure, compare, implement safe fixes and validate the result.
+
+Do not stop after generating a plan or a report if safe, verified improvements can be implemented within the existing project.
+
+Do not ask me to recreate the repository, upload it again or manually perform tests that available tools can perform.
+
+If a tool or environment limitation prevents a task, continue with the remaining audit and report the limitation accurately.
+
+The goal is a faster, stable, responsive and visually consistent website, with performance that matches or exceeds the original iLovePDF where measurements demonstrate that result, without disturbing any unrelated functionality.
