@@ -71,7 +71,7 @@ try {
   await page.waitForFunction(() => {
     const host = document.querySelector('#compress-preview-host');
     const process = document.querySelector('#process-btn');
-    return !!host && !!process && (host.querySelector('canvas') || /couldn't render a preview/i.test(host.textContent || ''));
+    return !!host && !!process && !!host.querySelector('canvas');
   }, null, { timeout: 20000 });
   const uploadPreview = await page.evaluate(() => ({
     previewHost: !!document.querySelector('#compress-preview-host'),
@@ -80,7 +80,7 @@ try {
     processButtonEnabled: !!document.querySelector('#process-btn') && !document.querySelector('#process-btn').disabled,
     previewCanvas: !!document.querySelector('#compress-preview-host canvas')
   }));
-  if (!uploadPreview.previewHost || !uploadPreview.filenameVisible || !uploadPreview.processButtonVisible || !uploadPreview.processButtonEnabled) {
+  if (!uploadPreview.previewHost || !uploadPreview.filenameVisible || !uploadPreview.previewCanvas || !uploadPreview.processButtonVisible || !uploadPreview.processButtonEnabled) {
     fail('valid PDF selection did not reach a usable compression preview: ' + JSON.stringify(uploadPreview));
   } else {
     pass('valid PDF upload reaches compression preview with enabled process button; canvas=' + uploadPreview.previewCanvas);
