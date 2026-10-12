@@ -73,6 +73,7 @@ try {
     const process = document.querySelector('#process-btn');
     return !!host && !!process && !!host.querySelector('canvas');
   }, null, { timeout: 20000 });
+  await page.locator('#opt-compress-mode').selectOption('deep');
   const uploadPreview = await page.evaluate(() => ({
     previewHost: !!document.querySelector('#compress-preview-host'),
     filenameVisible: (document.querySelector('#compress-preview-host')?.textContent || '').includes('render-smoke.pdf'),
@@ -88,7 +89,6 @@ try {
 
   if (uploadPreview.previewCanvas && uploadPreview.processButtonEnabled) {
     try {
-      await page.locator('#opt-compress-mode').selectOption('deep');
       await page.locator('#process-btn').click();
       await page.waitForFunction(() => {
         return !!document.querySelector('a.dl-burst-trigger[download]') ||
