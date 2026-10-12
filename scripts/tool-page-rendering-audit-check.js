@@ -87,10 +87,10 @@ if (toolPageIndex < 0) {
 }
 
 const optionalRuntimeIndex = indexOfScript('/js/phase26-enhancements.js');
-if (toolPageIndex >= 0 && optionalRuntimeIndex >= 0 && toolPageIndex < optionalRuntimeIndex && toolPageIndex <= 60) {
+if (toolPageIndex >= 0 && optionalRuntimeIndex >= 0 && toolPageIndex < optionalRuntimeIndex && toolPageIndex <= 40) {
   pass('tool-page.js executes before optional runtime-extension waves');
 } else {
-  fail('tool-page.js is still ordered behind optional runtime extensions (tool=' + toolPageIndex + ', optional=' + optionalRuntimeIndex + ')');
+  fail('tool-page.js is still ordered behind optional runtime extensions (tool=' + toolPageIndex + ', optional=' + optionalRuntimeIndex + ', expected tool index <= 40)');
 }
 
 const toolPageSource = read('public/js/tool-page.js');
