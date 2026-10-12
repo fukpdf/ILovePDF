@@ -1,6 +1,27 @@
 #!/usr/bin/env node
 import { chromium } from 'playwright';
 
+
+function makeMinimalPdf() {
+  const objects = [
+    '1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\n',
+    '2 0 obj\\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\\nendobj\\n',
+    '3 0 obj\\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Contents 4 0 R >>\\nendobj\\n',
+    '4 0 obj\\n<< /Length 4 >>\\nstream\\nq Q\\nendstream\\nendobj\\n'
+  ];
+  let pdf = '%PDF-1.4\\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf, 'utf8'));
+    pdf += object;
+  }
+  const xrefOffset = Buffer.byteLength(pdf, 'utf8');
+  pdf += 'xref\\n0 5\\n0000000000 65535 f \\n';
+  for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, '0') + ' 00000 n \\n';
+  pdf += 'trailer\\n<< /Size 5 /Root 1 0 R >>\\nstartxref\\n' + xrefOffset + '\\n%%EOF\\n';
+  return Buffer.from(pdf, 'utf8');
+}
+
 const BASE = process.env.TOOL_PAGE_BASE_URL || 'http://127.0.0.1:4173/';
 const failures = [];
 const pass = message => console.log('PASS:', message);
@@ -37,6 +58,32 @@ try {
     } catch (error) {
       fail(route + ': ' + (error?.message || String(error)));
     }
+  }
+
+  await page.goto(new URL('/compress-pdf', BASE).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
+  await page.locator('#file-input').setInputFiles({
+    name: 'render-smoke.pdf',
+    mimeType: 'application/pdf',
+    buffer: makeMinimalPdf()
+  });
+  await page.waitForSelector('#compress-preview-host', { state: 'visible', timeout: 15000 });
+  await page.waitForFunction(() => {
+    const host = document.querySelector('#compress-preview-host');
+    const process = document.querySelector('#process-btn');
+    return !!host && !!process && (host.querySelector('canvas') || /couldn't render a preview/i.test(host.textContent || ''));
+  }, { timeout: 20000 });
+  const uploadPreview = await page.evaluate(() => ({
+    previewHost: !!document.querySelector('#compress-preview-host'),
+    filenameVisible: (document.querySelector('#compress-preview-host')?.textContent || '').includes('render-smoke.pdf'),
+    processButtonVisible: !!document.querySelector('#process-btn') && getComputedStyle(document.querySelector('#process-btn')).display !== 'none',
+    processButtonEnabled: !!document.querySelector('#process-btn') && !document.querySelector('#process-btn').disabled,
+    previewCanvas: !!document.querySelector('#compress-preview-host canvas')
+  }));
+  if (!uploadPreview.previewHost || !uploadPreview.filenameVisible || !uploadPreview.processButtonVisible || !uploadPreview.processButtonEnabled) {
+    fail('valid PDF selection did not reach a usable compression preview: ' + JSON.stringify(uploadPreview));
+  } else {
+    pass('valid PDF upload reaches compression preview with enabled process button; canvas=' + uploadPreview.previewCanvas);
   }
 
   await page.setViewportSize({ width: 1280, height: 900 });
