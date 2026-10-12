@@ -130,12 +130,12 @@ function stabilizeHomepageFirstRender(html) {
   // changing nav/button widths and causing CLS. Keep the full Inter font on tool
   // pages, but remove Google Fonts CSS/preconnects from this static homepage.
   let fontStylesheetDeferred = false;
-  html = html.replace(/<link\\b[^>]*>/gi, tag => {
-    const href = tag.match(/\\bhref=["']([^"']+)["']/i)?.[1] || '';
-    const rel = (tag.match(/\\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
-    if (/(?:https?:)?\\/\\/fonts\\.(?:googleapis|gstatic)\\.com/i.test(href) &&
+  html = html.replace(/<link\b[^>]*>/gi, tag => {
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
+    const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+    if (/(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href) &&
         (rel === 'preconnect' || rel === 'dns-prefetch' ||
-         (rel.split(/\\s+/).includes('stylesheet') && /fonts\\.googleapis\\.com\\/css2?\\?/i.test(href)))) {
+         (rel.split(/\s+/).includes('stylesheet') && /fonts\.googleapis\.com\/css2?\?/i.test(href)))) {
       fontStylesheetDeferred = true;
       return '';
     }
@@ -145,16 +145,6 @@ function stabilizeHomepageFirstRender(html) {
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
-    // Keep preconnects and fetch the optional-display font stylesheet at high
-    // priority without blocking HTML rendering. Low-priority deferred font CSS
-    // arrived after first paint and changed nav/button widths at the 1280px breakpoint.
-    if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
-        /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href)) return tag;
-    if (rel.split(/\s+/).includes('stylesheet') &&
-        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
-      fontStylesheetDeferred = true;
-      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="high" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
-    }
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
