@@ -135,7 +135,8 @@ function stabilizeHomepageFirstRender(html) {
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
     if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
         /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href) ||
-        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
+        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href) ||
+        /(?:https?:)?\/\/fonts\.gstatic\.com\//i.test(href)) {
       fontStylesheetDeferred = true;
       return '';
     }
