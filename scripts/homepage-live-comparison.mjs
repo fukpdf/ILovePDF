@@ -86,7 +86,7 @@ try {
         const started = Date.now();
         let blockingStylesheetCountAtDOMContentLoaded = null;
         try {
-          const response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          const response = await page.goto(target.url, { waitUntil: 'commit', timeout: 30000 });
           status = response?.status() ?? null;
           if (response) {
             const headers = await response.allHeaders();
@@ -99,7 +99,8 @@ try {
             };
           }
           blockingStylesheetCountAtDOMContentLoaded = await page.evaluate(() => Array.from(document.querySelectorAll('link[rel~="stylesheet"]')).filter(link => link.getAttribute('fetchpriority') !== 'low').length);
-          // Give post-load scripts and the LCP observer the same short settling window.
+          // Measure from navigation commit; waiting for DOMContentLoaded can hide the cost
+          // of long deferred-script chains even though paint entries are already observable.
           await page.waitForTimeout(2500);
         } catch (error) {
           navigationError = String(error?.message || error);
