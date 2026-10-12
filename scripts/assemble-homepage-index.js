@@ -133,9 +133,9 @@ function stabilizeHomepageFirstRender(html) {
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
     const rel = (tag.match(/\brel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
-    if (/(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href) &&
-        (rel === 'preconnect' || rel === 'dns-prefetch' ||
-         (rel.split(/\s+/).includes('stylesheet') && /fonts\.googleapis\.com\/css2?\?/i.test(href)))) {
+    if ((rel === 'preconnect' || rel === 'dns-prefetch') &&
+        /(?:https?:)?\/\/fonts\.(?:googleapis|gstatic)\.com/i.test(href) ||
+        /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
       fontStylesheetDeferred = true;
       return '';
     }
