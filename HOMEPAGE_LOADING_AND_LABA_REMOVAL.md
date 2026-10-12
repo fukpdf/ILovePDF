@@ -290,3 +290,9 @@ The same trace showed the hero buttons changing widths and the PDF category/Quic
 ### Verification status
 
 These changes are committed to the review branch. The required next proof is a successful Homepage Deep Audit and a fresh live comparison run after the updated assembled artifact is deployed to the Firebase preview. Until that run records the new CLS and FCP/LCP values, no improvement percentage or “fully fixed” claim is made.
+## 2026-10-12 follow-up: eliminate homepage font-swap CLS
+
+- The rendering regression workflow exposed a fresh cold-load CLS of **0.2198**. The largest shift sources included hero action buttons, the navigation, and the PDF tools section.
+- The previous display=optional policy was not sufficient to guarantee stable metrics when a web font arrived quickly after first paint. The homepage assembler now removes Google Fonts CSS and font preconnects from the homepage artifact, and the homepage stylesheet uses the existing system-font fallback directly. Tool pages retain their Inter stylesheet.
+- The source audit now asserts that Google Fonts is absent from the homepage first-render path and that the system font stack is used.
+- This is a hypothesis-driven fix based on the observed text-width/layout-shift trace. **Do not mark it complete until the new Homepage Deep Audit passes, CLS is <= 0.1 in the main browser audit and all repeated cold-load runs, and the screenshot/route/accessibility checks remain green.** Production performance still requires a separate post-deployment comparison.
