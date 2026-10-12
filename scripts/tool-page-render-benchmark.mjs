@@ -78,8 +78,15 @@ try {
 
         let response = null;
         let navigationError = null;
+        let sourceBlockingStylesheetCount = null;
         try {
           response = await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          if (response) {
+            const sourceHtml = (await response.text()).replace(/<noscript\\b[\\s\\S]*?<\\/noscript>/gi, '');
+            sourceBlockingStylesheetCount = [...sourceHtml.matchAll(/<link\\b[^>]*>/gi)]
+              .map(match => match[0])
+              .filter(tag => /(?:^|\\s)rel=["'][^"']*\\bstylesheet\\b[^"']*["']/i.test(tag)).length;
+          }
           await page.waitForSelector('#upload-area', { state: 'visible', timeout: 20000 });
           await page.waitForTimeout(SETTLE_MS);
         } catch (error) {
@@ -120,7 +127,7 @@ try {
             stylesheetResourceCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
             scriptTagCount: externalScripts.length,
             parserBlockingScriptCount: blockingScripts.length,
-            blockingStylesheetCount: activeLinks.length,
+            activeStylesheetCountAfterSettle: activeLinks.length,
             cls: window.__toolPerf?.cls ?? null,
             layoutShifts: (window.__toolPerf?.shifts || []).slice(0, 3),
             longTaskCount: (window.__toolPerf?.longTasks || []).length,
@@ -129,7 +136,8 @@ try {
         }).catch(error => ({ measurementError: String(error) }));
         const result = {
           target: target.name, profile: profile.name, run,
-          status: response?.status() ?? null, navigationError, pageErrors, failedLocalAssets, ...metrics
+          status: response?.status() ?? null, navigationError, pageErrors, failedLocalAssets,
+          blockingStylesheetCountAtSource: sourceBlockingStylesheetCount, ...metrics
         };
         results.push(result);
         console.log('TOOL_RENDER_BENCHMARK ' + JSON.stringify(result));
@@ -168,7 +176,8 @@ for (const profile of profiles) {
       resourceCount: median('resourceCount'),
       scriptResourceCount: median('scriptResourceCount'), stylesheetResourceCount: median('stylesheetResourceCount'),
       scriptTagCount: median('scriptTagCount'), parserBlockingScriptCount: median('parserBlockingScriptCount'),
-      blockingStylesheetCount: median('blockingStylesheetCount'), cls: median('cls'),
+      blockingStylesheetCountAtSource: median('blockingStylesheetCountAtSource'),
+      activeStylesheetCountAfterSettle: median('activeStylesheetCountAfterSettle'), cls: median('cls'),
       longTaskCount: median('longTaskCount'), longTaskDurationMs: median('longTaskDurationMs')
     }));
   }
