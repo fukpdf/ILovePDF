@@ -45,11 +45,22 @@ try {
         } catch {}
       });
       await page.addInitScript(() => {
-        window.__homepageStability = { cls: 0, shifts: [] };
+        window.__homepageStability = { cls: 0, rawCls: 0, clsSessionStart: null, clsLastShiftTime: null, clsSessionValue: 0, shifts: [] };
         try {
           new PerformanceObserver(list => {
             for (const entry of list.getEntries()) {
               if (entry.hadRecentInput) continue;
+              const time = entry.startTime;
+              const perf = window.__homepageStability;
+              perf.rawCls += entry.value;
+              if (perf.clsSessionStart === null || time - perf.clsLastShiftTime > 1000 || time - perf.clsSessionStart > 5000) {
+                perf.clsSessionStart = time;
+                perf.clsSessionValue = entry.value;
+              } else {
+                perf.clsSessionValue += entry.value;
+              }
+              perf.clsLastShiftTime = time;
+              perf.cls = Math.max(perf.cls, perf.clsSessionValue);
               const rect = value => value ? {
                 x: value.x, y: value.y, width: value.width, height: value.height
               } : null;
