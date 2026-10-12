@@ -129,7 +129,7 @@ const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[
   /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
 );
 const activeHtml = html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
-const nonCriticalCss = ['/css/home-footer-v2.css', '/css/blog.css', '/css/seo-extended.css'];
+const nonCriticalCss = ['/css/home-footer-v2.css', '/css/blog.css', '/css/seo-extended.css', '/css/economy.css', '/css/community-economy.css', '/css/download-page.css', '/css/editor-workspace.css', '/css/ads.css', '/css/responsive-ads.css'];
 const blockingNonCriticalCss = nonCriticalCss.filter(asset =>
   [...activeHtml.matchAll(/<link\b[^>]*>/gi)].some(match =>
     /(?:^|\s)rel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(match[0]) &&
@@ -139,7 +139,14 @@ const blockingNonCriticalCss = nonCriticalCss.filter(asset =>
 if (blockingNonCriticalCss.length) {
   fail('below-the-fold CSS is render-blocking: ' + blockingNonCriticalCss.join(', '));
 } else {
-  pass('footer, FAQ/blog and extended SEO CSS are non-blocking');
+  pass('footer, FAQ/blog, economy/community, ads and route-specific CSS are non-blocking on the upload path');
+}
+
+if (!html.includes('var isDownloadRoute = /\\/download\\/?$/.test(path);') ||
+    !html.includes('var needsWorkspaceCss = /\\/(preview|download)\\/?$/.test(path);')) {
+  fail('download/editor CSS must be blocking only on routes that need those styles');
+} else {
+  pass('download/editor CSS uses route-aware loading');
 }
 
 const seenStylesheets = new Set();
