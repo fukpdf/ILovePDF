@@ -31,6 +31,12 @@ try {
             new PerformanceObserver(list => {
               for (const entry of list.getEntries()) {
                 window.__livePerf.lcp = entry.startTime;
+                window.__livePerf.lcpEntry = {
+                  startTime: entry.startTime, renderTime: entry.renderTime || 0,
+                  loadTime: entry.loadTime || 0, size: entry.size || 0,
+                  url: entry.url || '', element: entry.element?.tagName || '',
+                  id: entry.element?.id || '', className: typeof entry.element?.className === 'string' ? entry.element.className.slice(0, 120) : ''
+                };
               }
             }).observe({ type: 'largest-contentful-paint', buffered: true });
           } catch {}
@@ -137,6 +143,7 @@ try {
             documentWidth: html?.scrollWidth ?? null,
             viewportWidth: html?.clientWidth ?? null,
             lcpMs: window.__livePerf?.lcp ?? null,
+            lcpAttribution: window.__livePerf?.lcpEntry ?? null,
             cls: window.__livePerf?.cls ?? null,
             layoutShifts: (window.__livePerf?.shifts || []).slice(0, 5),
             longTaskCount: (window.__livePerf?.longTasks || []).length,
