@@ -323,7 +323,10 @@ try {
       const cards = [...document.querySelectorAll('a.tool')].map(element => {
         const r = element.getBoundingClientRect();
         const style = getComputedStyle(element);
-        return { label: (element.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 70), href: element.getAttribute('href') || '', className: typeof element.className === 'string' ? element.className : '', left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
+        const parent = element.parentElement;
+        const parentRect = parent?.getBoundingClientRect();
+        const parentStyle = parent ? getComputedStyle(parent) : null;
+        return { label: (element.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 70), ariaLabel: element.getAttribute('aria-label') || '', href: element.getAttribute('href') || '', className: typeof element.className === 'string' ? element.className : '', parentTag: parent?.tagName || '', parentClass: typeof parent?.className === 'string' ? parent.className : '', parentOpacity: parentStyle?.opacity || '', parentPosition: parentStyle?.position || '', parentRect: parentRect ? { left: parentRect.left, top: parentRect.top, right: parentRect.right, bottom: parentRect.bottom } : null, opacity: style.opacity, left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
       });
       const outside = cards.filter(r => r.width <= 0 || r.left < -1 || r.right > vw + 1);
       const overflowElements = (docWidth > vw + 1 || outside.length) ? [...document.querySelectorAll('body *')].map(element => {
