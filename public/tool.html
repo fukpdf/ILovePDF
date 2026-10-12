@@ -83,7 +83,7 @@
   <script>
   (function () {
     var path = window.location.pathname || '/';
-    var isDownloadRoute = /\\/download\\/?$/.test(path);
+    var isDownloadRoute = /\/download\/?$/.test(path);
     var link = document.createElement('link');
     link.href = '/css/download-page.css?v=20261010-continue-cards-match-popular-v1';
     if (isDownloadRoute) {
@@ -115,7 +115,7 @@
   <script>
   (function () {
     var path = window.location.pathname || '/';
-    var needsWorkspaceCss = /\\/(preview|download)\\/?$/.test(path);
+    var needsWorkspaceCss = /\/(preview|download)\/?$/.test(path);
     var link = document.createElement('link');
     link.href = '/css/editor-workspace.css?v=20261009-custom-feedback-v2';
     if (needsWorkspaceCss) {
