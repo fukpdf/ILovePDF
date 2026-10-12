@@ -85,6 +85,22 @@ if (toolPageIndex < 0) {
   }
 }
 
+const optionalRuntimeIndex = indexOfScript('/js/phase26-enhancements.js');
+if (toolPageIndex >= 0 && optionalRuntimeIndex >= 0 && toolPageIndex < optionalRuntimeIndex && toolPageIndex <= 60) {
+  pass('tool-page.js executes before optional runtime-extension waves');
+} else {
+  fail('tool-page.js is still ordered behind optional runtime extensions (tool=' + toolPageIndex + ', optional=' + optionalRuntimeIndex + ')');
+}
+
+const toolPageSource = read('public/js/tool-page.js');
+if (/document\\.addEventListener\\(['"]DOMContentLoaded['"],\\s*async\\s*\\(\\)\\s*=>/.test(toolPageSource) ||
+    !toolPageSource.includes('async function initToolPage()') ||
+    !toolPageSource.includes("if (document.readyState === 'loading')")) {
+  fail('tool-page initialization still waits for the full deferred-script chain before rendering');
+} else {
+  pass('tool-page initialization runs as soon as its deferred entry executes');
+}
+
 const headEnd = html.toLowerCase().indexOf('</head>');
 const earlyRouteBootstrap = html.indexOf('Set upload-shell geometry before first paint');
 const earlyRouteSource = headEnd >= 0 ? html.slice(0, headEnd) : '';
