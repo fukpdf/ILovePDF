@@ -317,7 +317,7 @@ try {
       const cards = [...document.querySelectorAll('a.tool')].map(element => {
         const r = element.getBoundingClientRect();
         const style = getComputedStyle(element);
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
+        return { label: (element.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 70), href: element.getAttribute('href') || '', className: typeof element.className === 'string' ? element.className : '', left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, visible: style.display !== 'none' && style.visibility !== 'hidden' && r.width > 0 && r.height > 0 };
       });
       const outside = cards.filter(r => r.width <= 0 || r.left < -1 || r.right > vw + 1);
       const overflowElements = (docWidth > vw + 1 || outside.length) ? [...document.querySelectorAll('body *')].map(element => {
@@ -330,11 +330,15 @@ try {
         .sort((left, right) => (right.right - vw) - (left.right - vw)).slice(0, 8) : [];
       const hidden = cards.filter(r => !r.visible).length;
       let overlaps = 0;
+      const overlapPairs = [];
       for (let i = 0; i < cards.length; i++) {
         for (let j = i + 1; j < cards.length; j++) {
           const a = cards[i], b = cards[j];
           if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
-              Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) overlaps++;
+              Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) {
+            overlaps++;
+            overlapPairs.push({ a: { label: a.label, href: a.href, className: a.className, rect: { left: a.left, top: a.top, right: a.right, bottom: a.bottom } }, b: { label: b.label, href: b.href, className: b.className, rect: { left: b.left, top: b.top, right: b.right, bottom: b.bottom } } });
+          }
         }
       }
       const rootMetrics = {
@@ -401,12 +405,12 @@ try {
           cards: item.cardCount
         })),
       };
-      return { vw, docWidth, outside: outside.length, hidden, overlaps, cards: cards.length, overflowElements, rootMetrics, pseudoOverflow, viewportCoverage };
+      return { vw, docWidth, outside: outside.length, hidden, overlaps, overlapPairs: overlapPairs.slice(0, 3), cards: cards.length, overflowElements, rootMetrics, pseudoOverflow, viewportCoverage };
     });
     if (layout.docWidth > layout.vw + 1) fail(width + 'px: horizontal overflow (' + layout.docWidth + 'px document vs ' + layout.vw + 'px viewport); root=' + JSON.stringify(layout.rootMetrics) + '; offenders=' + JSON.stringify(layout.overflowElements) + '; pseudo=' + JSON.stringify(layout.pseudoOverflow));
     if (layout.outside) fail(width + 'px: ' + layout.outside + ' tool cards outside viewport');
     if (layout.hidden) fail(width + 'px: ' + layout.hidden + ' tool cards are hidden or have zero size');
-    if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs');
+    if (layout.overlaps) fail(width + 'px: ' + layout.overlaps + ' overlapping tool-card pairs: ' + JSON.stringify(layout.overlapPairs));
     const coverage = layout.viewportCoverage;
     if (!coverage.pageFound || coverage.pageLeft > 1 || coverage.pageRight < layout.vw - 1 || coverage.pageWidth < layout.vw - 1) {
       fail(width + 'px: homepage page shell does not cover the viewport width: ' + JSON.stringify(coverage));
