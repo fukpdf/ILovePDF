@@ -8,23 +8,41 @@ const targets = [
 ];
 const profiles = [
   { name: 'mobile', width: 390, height: 844, deviceScaleFactor: 1 },
-  { name: 'desktop', width: 1366, height: 768, deviceScaleFactor: 1 }
+  { name: 'desktop', width: 1366, height: 768, deviceScaleFactor: 1 },
+  // Lighthouse-like mobile lab profile: 1.6 Mbps down, 750 Kbps up,
+  // 150 ms RTT, and 4x CPU slowdown. Compare candidate vs Firebase only.
+  { name: 'mobile-throttled', width: 390, height: 844, deviceScaleFactor: 1, throttle: true }
 ];
 const repetitions = 3;
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const results = [];
 try {
   for (const profile of profiles) {
-    for (const target of targets) {
+    const profileTargets = profile.throttle
+      ? targets.filter(target => target.name !== 'Official iLovePDF')
+      : targets;
+    for (const target of profileTargets) {
       for (let run = 1; run <= repetitions; run++) {
         const context = await browser.newContext({
           viewport: { width: profile.width, height: profile.height },
           deviceScaleFactor: profile.deviceScaleFactor,
-          isMobile: profile.name === 'mobile',
-          hasTouch: profile.name === 'mobile',
+          isMobile: profile.name.startsWith('mobile'),
+          hasTouch: profile.name.startsWith('mobile'),
           reducedMotion: 'reduce'
         });
         const page = await context.newPage();
+        if (profile.throttle) {
+          const cdp = await context.newCDPSession(page);
+          await cdp.send('Network.enable');
+          await cdp.send('Network.emulateNetworkConditions', {
+            offline: false,
+            latency: 150,
+            downloadThroughput: 1.6 * 1024 * 1024 / 8,
+            uploadThroughput: 750 * 1024 / 8,
+            connectionType: 'cellular3g'
+          });
+          await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+        }
         await page.addInitScript(() => {
           window.__livePerf = { lcp: null, cls: 0, shifts: [], longTasks: [] };
           try {
@@ -168,7 +186,10 @@ try {
   await browser.close();
 }
 for (const profile of profiles) {
-  for (const target of targets) {
+  const profileTargets = profile.throttle
+    ? targets.filter(target => target.name !== 'Official iLovePDF')
+    : targets;
+  for (const target of profileTargets) {
     const rows = results.filter(row => row.profile === profile.name && row.target === target.name && row.status === 200);
     const median = key => {
       const values = rows.map(row => row[key]).filter(value => typeof value === 'number' && Number.isFinite(value)).sort((a, b) => a - b);
@@ -203,8 +224,10 @@ for (const profile of profiles) {
   if (median('totalTransferBytes') > 320 * 1024) candidateFailures.push(profile.name + ': initial-view transfer exceeded 320 KiB (' + median('totalTransferBytes') + ' bytes)');
   if (median('scriptCount') > 35) candidateFailures.push(profile.name + ': initial-view script count exceeded 35 (' + median('scriptCount') + ')');
   if (median('blockingStylesheetCount') > 5) candidateFailures.push(profile.name + ': blocking stylesheet count exceeded 5 (' + median('blockingStylesheetCount') + ')');
-  if (median('fcpMs') > 300) candidateFailures.push(profile.name + ': local candidate FCP exceeded 300 ms (' + median('fcpMs') + ' ms)');
-  if (median('lcpMs') > 300) candidateFailures.push(profile.name + ': local candidate LCP exceeded 300 ms (' + median('lcpMs') + ' ms)');
+  const fcpBudgetMs = profile.throttle ? 3000 : 300;
+  const lcpBudgetMs = profile.throttle ? 4000 : 300;
+  if (median('fcpMs') > fcpBudgetMs) candidateFailures.push(profile.name + ': local candidate FCP exceeded ' + fcpBudgetMs + ' ms (' + median('fcpMs') + ' ms)');
+  if (median('lcpMs') > lcpBudgetMs) candidateFailures.push(profile.name + ': local candidate LCP exceeded ' + lcpBudgetMs + ' ms (' + median('lcpMs') + ' ms)');
   if (median('cls') > 0.1) candidateFailures.push(profile.name + ': local candidate CLS exceeded 0.1 (' + median('cls') + ')');
 }
 if (candidateFailures.length) {
@@ -214,7 +237,12 @@ if (candidateFailures.length) {
   console.log('LOCAL_CANDIDATE_PERFORMANCE_GUARD: no same-origin API traffic or AdSense transfer during initial-view measurement');
 }
 
-const incompleteComparisons = profiles.some(profile => targets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200)));
+const incompleteComparisons = profiles.some(profile => {
+  const profileTargets = profile.throttle
+    ? targets.filter(target => target.name !== 'Official iLovePDF')
+    : targets;
+  return profileTargets.some(target => !results.some(row => row.profile === profile.name && row.target === target.name && row.status === 200));
+});
 if (incompleteComparisons) {
   console.warn('LIVE_BENCHMARK_INCOMPLETE: at least one site/profile had no successful navigation. Do not compare its challenge/error page metrics with the other site. External bot protection or availability can block live lab tests; this diagnostic does not fail the homepage regression gate.');
 } else if (results.some(row => row.status !== 200 || row.navigationError)) {
