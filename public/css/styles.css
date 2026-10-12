@@ -12973,3 +12973,19 @@ html.tool-upload-route #tool-content.tool-upload-shell {
     padding: 12px 14px;
   }
 }
+
+
+/* First-paint title shell: mirrors the final tool heading until tool-page.js hydrates. */
+.tool-first-paint-shell {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.tool-first-paint-heading-shell {
+  padding: clamp(44px, 5vw, 72px) 24px 20px !important;
+}
+.tool-first-paint-heading-shell .ilpdf-branded-title {
+  margin: 0;
+}
+.tool-first-paint-heading-shell[hidden] {
+  display: none !important;
+}
