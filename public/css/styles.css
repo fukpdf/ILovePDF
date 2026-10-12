@@ -12901,7 +12901,7 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
 /* Keep the tool upload shell's first-screen geometry stable while the
    below-fold SEO/related-tools content hydrates in its own sibling container. */
 #tool-content.tool-upload-shell {
-  min-height: 1000px;
+  min-height: max(1000px, calc(100vh + 200px));
 }
 html.tool-upload-route #tool-content.tool-upload-shell {
   width: 100%;
@@ -12913,7 +12913,7 @@ html.tool-upload-route #tool-content.tool-upload-shell {
 }
 @media (max-width: 767px) {
   #tool-content.tool-upload-shell {
-    min-height: 1100px;
+    min-height: max(1100px, calc(100vh + 200px));
   }
 }
 #tool-belowfold {
