@@ -78,7 +78,7 @@ jobs:
         run: node scripts/homepage-deep-audit-check.js
 
       - name: Install isolated browser QA tools
-        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2
+        run: npm install --no-save --no-package-lock playwright@1.55.0 @axe-core/playwright@4.10.2 lighthouse@12.8.2
 
       - name: Smoke-test the real Node server homepage bootstrap
         run: node scripts/homepage-node-server-smoke.mjs
@@ -108,6 +108,28 @@ jobs:
           echo '::error::Homepage test server did not start'
           exit 1
 
+      - name: Run real Lighthouse mobile audits on candidate and production
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")"
+          run_lighthouse() {
+            local label="$1"
+            local url="$2"
+            local report="/tmp/lighthouse-${label}.json"
+            ./node_modules/.bin/lighthouse "$url" \
+              --chrome-path="$CHROME_PATH" \
+              --form-factor=mobile \
+              --throttling-method=devtools \
+              --only-categories=performance \
+              --output=json \
+              --output-path="$report" \
+              --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+              --quiet
+            node -e 'const r=require(process.argv[1]);const a=r.audits;const pick=id=>a[id]?.numericValue??null;console.log("LIGHTHOUSE_MOBILE "+JSON.stringify({target:process.argv[2],url:r.finalDisplayedUrl,performanceScore:r.categories.performance.score,fcpMs:pick("first-contentful-paint"),lcpMs:pick("largest-contentful-paint"),tbtMs:pick("total-blocking-time"),cls:pick("cumulative-layout-shift"),speedIndexMs:pick("speed-index"),blockingResources:(a["render-blocking-resources"]?.details?.items||[]).map(x=>x.url).slice(0,10)}))' "$report" "$label"
+          }
+          run_lighthouse candidate http://127.0.0.1:4173/?static-hosting-test=1
+          run_lighthouse firebase-production https://ilovepdf-web.web.app/
       - name: Compare local candidate, Firebase production, and official iLovePDF performance
         run: node scripts/homepage-live-comparison.mjs
 
