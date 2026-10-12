@@ -285,6 +285,40 @@
   <script src="/js/stability-metrics.js" defer></script>
   <script src="/js/runtime-failed-log.js" defer></script>
   <script src="/js/object-url-registry.js" defer></script>
+
+  <!-- Critical tool UI + processor entry points precede optional runtime extensions. -->
+<script src="/js/browser-tools.js" defer></script>
+
+  <!-- Critical tool UI scripts are deliberately ordered before optional runtime extensions. -->
+<script src="/js/live-preview.js" defer></script>
+  <script src="/js/page-organizer.js" defer></script>
+  <script src="/js/app-router.js" defer></script>
+  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
+  <script type="module" src="/js/firebase-init.js"></script>
+  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/chrome.js" defer></script>
+  <script src="/js/dropdown-fix.js" defer></script>
+  <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
+  <script src="/js/chrome-shim.js" defer></script>
+  <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
+  <script src="/js/bg-ai-engine.js" defer></script>
+  <script src="/js/bg-remover-pro.js" defer></script>
+  <script src="/js/edit-pdf-pro.js" defer></script>
+  <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
+  <!-- Phase 4 Unit 2: authoritative browser tool registry (identity/execution metadata) -->
+  <script src="/js/tool-registry-runtime.js" defer></script>
+  <script src="/js/tool-module-registry.js" defer></script>
+  <script src="/js/tool-content.js" defer></script>
+  <script src="/js/tool-state.js" defer></script>
+  <script src="/js/session-persist.js" defer></script>
+  <script src="/js/i18n-ext.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/usage-limit.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/tool-page.js?v=20261010-popular-tool-cards-audit-v1" defer></script>
+  <script src="/js/shared.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/auth-ui.js?v=__BUILD_ID__" defer></script>
+  <script src="/js/tool-i18n-bridge.js?v=__BUILD_ID__" defer></script>
+
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
   <script src="/js/browser-resource-lifecycle.js" defer></script>
   <script src="/js/worker-leak-detector.js" defer></script>
@@ -537,37 +571,7 @@
   <script src="/js/pdf-pipeline/layout-graph.js" defer></script>
   <script src="/js/pdf-pipeline/docx-coordinate-engine.js" defer></script>
   <script src="/js/pdf-pipeline/fidelity-debug.js" defer></script>
-  <script src="/js/browser-tools.js" defer></script>
-
-  <!-- Critical tool UI scripts are deliberately ordered before optional runtime extensions. -->
-<script src="/js/live-preview.js" defer></script>
-  <script src="/js/page-organizer.js" defer></script>
-  <script src="/js/app-router.js" defer></script>
-  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
-  <script type="module" src="/js/firebase-init.js"></script>
-  <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/chrome.js" defer></script>
-  <script src="/js/dropdown-fix.js" defer></script>
-  <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
-  <script src="/js/chrome-shim.js" defer></script>
-  <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
-  <script src="/js/bg-ai-engine.js" defer></script>
-  <script src="/js/bg-remover-pro.js" defer></script>
-  <script src="/js/edit-pdf-pro.js" defer></script>
-  <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
-  <!-- Phase 4 Unit 2: authoritative browser tool registry (identity/execution metadata) -->
-  <script src="/js/tool-registry-runtime.js" defer></script>
-  <script src="/js/tool-module-registry.js" defer></script>
-  <script src="/js/tool-content.js" defer></script>
-  <script src="/js/tool-state.js" defer></script>
-  <script src="/js/session-persist.js" defer></script>
-  <script src="/js/i18n-ext.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/queue-client.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/usage-limit.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/tool-page.js?v=20261010-popular-tool-cards-audit-v1" defer></script>
-  <script src="/js/shared.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/auth-ui.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/tool-i18n-bridge.js?v=__BUILD_ID__" defer></script>
+  
 
   <script src="/js/browser-tool-runtime.js" defer></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
