@@ -90,6 +90,11 @@ try {
           const resources = performance.getEntriesByType('resource');
           const paint = performance.getEntriesByType('paint');
           const transfer = resources.reduce((sum, entry) => sum + (entry.transferSize || 0), nav?.transferSize || 0);
+          const encodedBodyBytes = resources.reduce((sum, entry) => sum + (entry.encodedBodySize || 0), nav?.encodedBodySize || 0);
+          const decodedBodyBytes = resources.reduce((sum, entry) => sum + (entry.decodedBodySize || 0), nav?.decodedBodySize || 0);
+          const bodyCompressionRatioPct = decodedBodyBytes > 0
+            ? Math.round((1 - encodedBodyBytes / decodedBodyBytes) * 1000) / 10
+            : null;
           const externalScripts = [...document.scripts].filter(script => script.src);
           const blockingScripts = externalScripts.filter(script => !script.defer && !script.async && script.type !== 'module');
           const activeLinks = [...document.querySelectorAll('link[rel~="stylesheet"]')];
@@ -107,6 +112,9 @@ try {
             loadEventMs: nav?.loadEventEnd ?? null,
             responseStartMs: nav?.responseStart ?? null,
             transferBytes: transfer,
+            encodedBodyBytes,
+            decodedBodyBytes,
+            bodyCompressionRatioPct,
             resourceCount: resources.length,
             scriptResourceCount: resources.filter(entry => /script/i.test(entry.initiatorType)).length,
             stylesheetResourceCount: resources.filter(entry => entry.name.split('?')[0].toLowerCase().endsWith('.css')).length,
@@ -155,7 +163,9 @@ for (const profile of profiles) {
       target: target.name, profile: profile.name, successfulRuns: rows.length,
       fcpMs: median('fcpMs'), lcpMs: median('lcpMs'), responseStartMs: median('responseStartMs'),
       domContentLoadedMs: median('domContentLoadedMs'), loadEventMs: median('loadEventMs'),
-      transferBytes: median('transferBytes'), resourceCount: median('resourceCount'),
+      transferBytes: median('transferBytes'), encodedBodyBytes: median('encodedBodyBytes'),
+      decodedBodyBytes: median('decodedBodyBytes'), bodyCompressionRatioPct: median('bodyCompressionRatioPct'),
+      resourceCount: median('resourceCount'),
       scriptResourceCount: median('scriptResourceCount'), stylesheetResourceCount: median('stylesheetResourceCount'),
       scriptTagCount: median('scriptTagCount'), parserBlockingScriptCount: median('parserBlockingScriptCount'),
       blockingStylesheetCount: median('blockingStylesheetCount'), cls: median('cls'),
