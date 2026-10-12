@@ -259,7 +259,7 @@ window.addEventListener('popstate', () => {
 window.Flow = Flow; // exposed for queue-client and any future hookups
 window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initializeToolPage() {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
@@ -358,6 +358,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // If hydration succeeds the user can refresh on /preview or /download
   // and keep their place; otherwise renderStep's guards send them back to
   // the upload step automatically.
+  // The default upload view does not need saved-file IndexedDB recovery.
+  // Paint it immediately, then reconcile persisted state when hydration finishes.
+  // Preview/download routes still wait for hydration to avoid invalid redirects.
+  if (Flow.step === 'upload') renderStep();
+
   hydrateFlowState().finally(() => {
     renderStep();
     // Phase 7G: crash recovery — show banner if an interrupted session exists.
@@ -395,7 +400,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (_) {}
     }, 1800);
   });
-});
+}
+
+// A deferred script runs after HTML parsing. Do not wait for DOMContentLoaded,
+// which also waits for every deferred script later in tool.html, before showing
+// the first upload screen. Keep the fallback for any non-deferred embedding.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeToolPage, { once: true });
+} else {
+  initializeToolPage();
+}
 
 function renderNotFound(toolId, slug) {
   const c = document.getElementById('tool-content');
