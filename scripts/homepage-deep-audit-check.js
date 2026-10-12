@@ -118,7 +118,7 @@ const staticChecks = [
   ['npm build runs the homepage assembler rather than a placeholder command', packageConfig.scripts?.build === 'npm run build:homepage' && String(packageConfig.scripts?.['build:homepage'] || '').includes('assemble-homepage-index.js')],
   ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
   ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)],
-  ['homepage navigation preservation is enabled before paint or detected from the existing server nav', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || (/const preserveHomepageNav\s*=\s*!!\(/.test(chrome) && /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*preserveHomepageNav/.test(chrome) && /function findNavItem\s*\(/.test(chrome))],
+  ['homepage navigation preservation is enabled before paint or detected from the existing server nav', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || (/const preserveHomepageNav\s*=\s*!!\(/.test(chrome) && /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*preserveHomepageNav/.test(chrome) && /const findNavItem\s*=/.test(chrome))],
   ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
   ['header refresh preserves server-rendered nav even after locale changes', chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV)') && !chrome.includes('if (window.__ILOVE_PRESERVE_SERVER_NAV && !forceRefresh)')],
   ['Google Fonts uses optional display to avoid late font-swap reflow', /fonts\.googleapis\.com\/css2?[^"']*display=optional/i.test(html)],
