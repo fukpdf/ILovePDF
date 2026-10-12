@@ -843,10 +843,16 @@ function renderBrandedUploadStep(tool, config) {
     if (renderedHeading) {
       const existingLabel = firstPaintHeading.querySelector('.tool-heading-label');
       const renderedLabel = renderedHeading.querySelector('.tool-heading-label');
-      if (existingLabel) existingLabel.textContent = renderedLabel ? renderedLabel.textContent : renderedHeading.textContent.trim();
+      if (existingLabel) {
+        const nextLabel = renderedLabel ? renderedLabel.textContent : renderedHeading.textContent.trim();
+        if (existingLabel.textContent !== nextLabel) existingLabel.textContent = nextLabel;
+      }
       const existingSticker = firstPaintHeading.querySelector('.tool-name-sticker');
       const renderedSticker = renderedHeading.querySelector('.tool-name-sticker');
-      if (existingSticker && renderedSticker) existingSticker.innerHTML = renderedSticker.innerHTML;
+      if (existingSticker && renderedSticker) {
+        existingSticker.className = renderedSticker.className;
+        existingSticker.innerHTML = renderedSticker.innerHTML;
+      }
       else if (existingSticker && !renderedSticker) existingSticker.remove();
       firstPaintHeading.className = renderedHeading.className;
       firstPaintHeading.id = renderedHeading.id;
