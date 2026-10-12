@@ -39,6 +39,44 @@ if (blockingClassic.length) {
   pass('no parser-blocking classic external scripts');
 }
 
+const scriptSources = scriptTags.map(tag => tag.match(/\\bsrc=["']([^"']+)/i)?.[1] || '');
+const indexOfScript = fragment => scriptSources.findIndex(src => src.includes(fragment));
+const requiredBeforeToolPage = [
+  '/js/browser-tools.js',
+  '/js/i18n.js',
+  '/js/chrome.js',
+  '/js/tools-config.js',
+  '/js/tool-registry-runtime.js',
+  '/js/tool-module-registry.js',
+  '/js/tool-content.js',
+  '/js/tool-state.js',
+  '/js/session-persist.js'
+];
+const toolPageIndex = indexOfScript('/js/tool-page.js');
+if (toolPageIndex < 0) {
+  fail('tool-page.js is missing from the shared tool shell');
+} else {
+  const missingOrLate = requiredBeforeToolPage.filter(fragment => {
+    const index = indexOfScript(fragment);
+    return index < 0 || index >= toolPageIndex;
+  });
+  if (missingOrLate.length) {
+    fail('tool-page.js appears before required dependencies: ' + missingOrLate.join(', '));
+  } else {
+    pass('tool UI entry follows its declared critical dependencies');
+  }
+  const optionalRuntimeIndices = [
+    indexOfScript('/js/runtime-protection.js'),
+    indexOfScript('/js/advanced-engine.js'),
+    indexOfScript('/js/runtime-tool-idle-loader.js')
+  ].filter(index => index >= 0);
+  if (optionalRuntimeIndices.some(index => index < toolPageIndex)) {
+    fail('optional runtime extensions are ordered before tool-page.js');
+  } else {
+    pass('tool UI entry is ordered before optional runtime extensions');
+  }
+}
+
 const stylesheetTags = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag =>
   /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(tag)
 );
