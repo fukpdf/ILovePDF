@@ -108,6 +108,14 @@ if (!html.includes('window.__ILOVE_RUNTIME_READY = new Promise') ||
 } else {
   pass('early tool rendering is safe: processing waits for the deferred runtime dependency wave');
 }
+if (!html.includes('id="tool-first-paint-heading"') ||
+    !html.includes('titlesBySlug') ||
+    !toolPageSource.includes('const firstPaintHeading = document.getElementById(\'tool-first-paint-heading\')') ||
+    !toolPageSource.includes('renderedHeading.replaceWith(firstPaintHeading)')) {
+  fail('route-aware first-paint heading is missing or not preserved through hydration');
+} else {
+  pass('route-aware tool heading paints before deferred scripts and is preserved through hydration');
+}
 
 const headEnd = html.toLowerCase().indexOf('</head>');
 const earlyRouteBootstrap = html.indexOf('Set upload-shell geometry before first paint');
