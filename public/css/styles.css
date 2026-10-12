@@ -12925,3 +12925,43 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
   flex: 0 0 auto !important;
   overflow: visible !important;
 }
+
+/* Lightweight placeholder rows match the reserved tool-shell height before
+   tool-page.js hydrates the upload panel and below-fold sections. */
+.sk-tool-loading-sections {
+  display: grid;
+  gap: 22px;
+  width: min(1100px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 8px 0 40px;
+}
+.sk-tool-loading-sections > .sk-upload-line {
+  margin: 0 auto;
+}
+.sk-tool-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.sk-tool-loading-grid .sk-tool-card {
+  min-height: 110px;
+  justify-content: center;
+  gap: 12px;
+}
+.sk-tool-loading-grid .sk-upload-line {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .sk-tool-loading-sections {
+    width: calc(100% - 32px);
+    gap: 18px;
+  }
+  .sk-tool-loading-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .sk-tool-loading-grid .sk-tool-card {
+    min-height: 64px;
+    padding: 12px 14px;
+  }
+}
