@@ -2,7 +2,7 @@
 
 ## Scope and intent
 
-Refactor the shared tool page so opening a tool route does not request the processing engines, preview renderers, worker scripts, or unrelated tool-app bundles. Once the user selects a file, load the preview path and the selected tool's processing foundation in parallel. Let the user review the preview/settings while the engine warms in the background. If the user presses **Process** before the engine is ready, wait on the same preparation promise and start processing automatically once it succeeds.
+Refactor the shared tool page so opening a tool route does not request the processing engines, preview renderers, worker scripts, or unrelated tool-app bundles. Once the user selects a file, prioritize the preview path first. After the preview UI is visible, schedule the selected tool's processing foundation in the background during idle time. Let the user review the preview/settings while the engine warms in the background. If the user presses **Process** before the engine is ready, wait on the same preparation promise and start processing automatically once it succeeds.
 
 This is a source/repository audit. It is **not** a live Lighthouse/DevTools verification report.
 
@@ -25,12 +25,12 @@ Keep the branded upload shell, route/tool metadata, essential localization/navig
 
 ### After file selection
 
-`runToolPreviewPreparation()` starts two separate tracks:
+`runToolPreviewPreparation()` now prioritizes the preview before starting the processing runtime:
 
-1. **Preview track:** PDF preview renderer, live-preview module, page organizer, route preview helper, and only the special editor module needed by tools such as Edit PDF or Background Remover.
-2. **Processing track:** ordered shared worker/runtime dependencies, `BrowserTools`, `BrowserToolRuntime`, and the selected tool's advanced/translation enhancement modules when applicable. The engine's own `prewarm()` hook runs after the selected processing scripts have loaded. It warms only the selected tool's likely CDN libraries or worker (for example, PDF.js + PDF-Lib for compression, or the PDF worker for worker-backed tools).
+1. **Preview track first:** PDF preview renderer, live-preview module, page organizer, route preview helper, and only the special editor module needed by tools such as Edit PDF or Background Remover. The preview is rendered as soon as its dependencies are ready.
+2. **Selected processing track second:** once the preview UI is visible, the engine is scheduled with `requestIdleCallback` (900 ms maximum wait) or a short timeout fallback. It loads ordered shared worker/runtime dependencies, `BrowserTools`, `BrowserToolRuntime`, and only the selected tool's advanced/translation enhancements where applicable. The engine's own `prewarm()` hook warms only that tool's likely CDN libraries or worker.
 
-The preview track controls when the preview becomes interactive; it does not wait for the full processing engine. Live Preview and Page Organizer are only requested for tool IDs whose manifest supports those experiences. Edit PDF and Background Remover prefer their dedicated editor engines and skip the generic runtime bundle when their editor mount API is available; generic fallback modules load only if that editor failed to register. Processing status is updated independently while the user reviews the file and settings.
+This avoids having the initial preview compete with dozens of processing-runtime requests. If the user presses **Process** before the idle callback, `processFile()` immediately calls `prepareEngine(toolId)`; the loader deduplicates the request and joins the same in-flight promise. Live Preview and Page Organizer are only requested for tool IDs whose manifest supports those experiences. Edit PDF and Background Remover prefer their dedicated editor engines and skip the generic runtime bundle when their editor mount API is available; generic fallback modules load only if that editor failed to register. Processing status is updated while the user reviews the file and settings.
 
 ### When Process is clicked
 
@@ -38,7 +38,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 
 ### Readiness and dependency safety
 
-- After file selection, preview resources are preloaded at high priority and the shared processing resources at low priority in parallel; classic scripts are then injected/executed sequentially with `async = false` to preserve dependency order without a serial network waterfall.
+- Preview resources are loaded first at high priority; after the preview is visible, the selected engine begins warming at idle priority. Within each selected track, resources are preloaded together and classic scripts execute sequentially with `async = false` to preserve dependency order without a serial network waterfall.
 - Script requests and per-tool preparation promises are deduplicated.
 - A failed script is removed from the in-flight cache so the user can retry.
 - Advanced Engine's resumable-progress listener now handles being initialized after the page `load` event and checks the file that was already selected.
@@ -48,7 +48,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 
 - `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell.
 - `public/js/tool-engine-loader.js`: new split preview/engine loader and per-tool manifest.
-- `public/js/tool-page.js`: start both tracks after selection, render preview as soon as preview dependencies are ready, show engine readiness, and gate processing on the selected engine. The shared UI/flow script remains part of the shell because it renders the upload page and binds file selection; splitting it into a tiny upload-only bootstrap is a separate, higher-risk refactor.
+- `public/js/tool-page.js`: render preview before scheduling selected-engine background warming, show readiness/error status, and let Process immediately start or join engine preparation. The shared UI/flow script remains part of the shell because it renders the upload page and binds file selection; splitting it into a tiny upload-only bootstrap is a separate, higher-risk refactor.
 - `public/js/browser-tools.js`: prewarm only the selected tool's libraries or worker in the background, with explicit dependency maps for compression, conversion, OCR/translation, and worker-backed tools; shared CDN promises prevent Preview and BrowserTools from racing to inject duplicate PDF-Lib, JSZip, or Tesseract scripts.
 - `public/js/live-preview.js`, `public/js/page-organizer.js`, and `public/js/edit-pdf-pro.js`: reuse the shared dependency promise for overlapping CDN libraries and PDF.js imports.
 - `public/js/advanced-engine.js`: make resumable-progress binding work when the engine is lazy-loaded after page load.
