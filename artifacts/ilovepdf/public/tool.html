@@ -68,7 +68,7 @@
     function use(file) { workers = [file]; }
     if (/compress/.test(path)) {
       use('/workers/compress-worker.js');
-    } else if (/(ocr|scan-to-pdf|image-to-text)/.test(path)) {
+    } else if (/(ocr|image-to-text)/.test(path)) {
       workers = ['/workers/advanced-worker.js', '/workers/ocr-preprocessor-worker.js'];
     } else if (/(pdf-to-word|word-to-pdf)/.test(path)) {
       use('/workers/pdf-word-docx-worker.js');
