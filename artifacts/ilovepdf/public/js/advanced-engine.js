@@ -1211,13 +1211,23 @@
   var _scriptLoads = {};
   function loadScript(url) {
     if (_scriptLoads[url]) return _scriptLoads[url];
-    _scriptLoads[url] = new Promise(function (res, rej) {
-      if (document.querySelector('script[src="' + url + '"]')) return res();
-      var s = document.createElement('script');
-      s.src = url;
-      s.onload  = res;
-      s.onerror = function () { delete _scriptLoads[url]; rej(AEError(ERR.NETWORK, 'script_load_failed')); };
-      document.head.appendChild(s);
+    function loadDirect() {
+      return new Promise(function (res, rej) {
+        if (document.querySelector('script[src="' + url + '"]')) return res();
+        var s = document.createElement('script');
+        s.src = url;
+        s.onload = res;
+        s.onerror = function () { rej(AEError(ERR.NETWORK, 'script_load_failed')); };
+        document.head.appendChild(s);
+      });
+    }
+    var globalName = /tesseract\.js/i.test(url) ? 'Tesseract' : null;
+    var shared = window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function'
+      ? window.ToolEngineLoader.shareDependency(url, globalName, loadDirect)
+      : loadDirect();
+    _scriptLoads[url] = shared.catch(function (error) {
+      delete _scriptLoads[url];
+      throw error;
     });
     return _scriptLoads[url];
   }
