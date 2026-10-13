@@ -77,7 +77,6 @@
   // → AdManager, analytics sync → AnalyticsEngine.
   var IDLE_ROOT_STACK = [
     '/js/runtime-diagnostics-center.js',
-    '/js/runtime-telemetry-enterprise.js',
     '/js/runtime-prefetch.js',
     '/js/runtime-processing-concurrency.js',
     '/js/runtime-compression-presets.js',
@@ -96,7 +95,13 @@
     '/js/analytics-sync.js',
   ];
 
-  var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length;
+  // Optional observability UI: load in-order only after core idle modules settle.
+  var IDLE_LATE_STACK = [
+    '/js/runtime-telemetry-enterprise.js',
+    '/js/runtime-devtools-dashboard.js',
+  ];
+
+  var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
 
   /* ── Dependency boundary ──────────────────────────────────────────────── */
   /* ── Sequential/dependency-wave loader ───────────────────────────────── */
@@ -111,6 +116,9 @@
     // direct dependencies are already initialized by the root wave.
     await new Promise(function (resolve) { setTimeout(resolve, 1000); });
     await Promise.all(IDLE_DEPENDENT_STACK.map(loadScript));
+    for (var i = 0; i < IDLE_LATE_STACK.length; i++) {
+      await loadScript(IDLE_LATE_STACK[i]);
+    }
     console.debug('[ToolIdleLoader] idle runtime stack ready');
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-idle-stack-ready'));
