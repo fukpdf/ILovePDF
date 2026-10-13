@@ -44,6 +44,11 @@ cd artifacts/ilovepdf
 node scripts/tool-page-performance-check.js
 ```
 
+## Additional hosting and repeat-visit risks
+
+- `artifacts/ilovepdf/firebase.json` sets `Cache-Control: no-cache, must-revalidate, max-age=0` for `/js/**`, `/css/**`, `/workers/**`, and `/locales/**`. This encourages revalidation on repeat visits and may add request latency even when cached bodies are reused. It was **not** changed blindly: many asset URLs are not content-fingerprinted, so long-lived immutable caching could serve stale code after deploy. A safe cache improvement needs reliable content hashes/versioned URLs plus an HTML revalidation strategy.
+- `tool.html` installs a static-host guard that returns a 503 response for same-origin `/api/**` calls on Firebase static hosting. Browser-side compression can still run, but server-dependent tools must be verified individually for clear failure handling or a working browser fallback. This audit did not claim those tools pass end-to-end tests.
+
 ## Remaining work — do not mark complete yet
 
 The remaining 114 parser-blocking scripts are still a substantial performance risk. The viewport reservation mitigates footer movement, but CLS remains an open item until measured; if local shifts remain, consider tool-aware placeholders or server-rendered shell markup. They include runtime/security infrastructure and other tool bundles with documented ordering dependencies. **Do not add `defer` globally or delete bundles by filename alone.** Continue dependency tracing and move only verified non-critical/feature-specific modules to a deferred or on-demand loading path, then run the full repository test suite.
