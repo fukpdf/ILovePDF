@@ -33,6 +33,11 @@ const pdfPipelineLazy = pdfPipelineNames.every((name) =>
 const optionalRuntimeEnhancementsDeferred = [
   'runtime-ai-upgrade.js', 'runtime-telemetry-enterprise.js',
 ].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
+const translationEnhancementsDeferred = [
+  'universal-encoding-repair.js', 'universal-translation-chunker.js',
+  'universal-ocr-cleanup.js', 'global-multilingual-renderer.js',
+  'universal-translation-validator.js', 'universal-translation-pipeline.js',
+].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
 
 const checks = [
   ['tool-page.js is deferred', /<script\b[^>]*src=["']\/js\/tool-page\.js(?:\?[^"']*)?["'][^>]*\bdefer\b/i.test(html)],
@@ -42,8 +47,9 @@ const checks = [
   ['admin/dev diagnostics are not shipped on public tool pages', !/src=["']\/js\/runtime-(?:production-certification|devtools-dashboard|enterprise-certification|inspector)\.js["']/i.test(html)],
   ['PDF-to-Word fidelity modules are loaded on demand in dependency order', pdfPipelineLazy],
   ['AI upgrade and enterprise telemetry are deferred', optionalRuntimeEnhancementsDeferred],
+  ['translation and OCR enhancements are deferred in source order', translationEnhancementsDeferred],
   ['external script count stays at or below the audited ceiling', externalScripts.length <= 374],
-  ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 125],
+  ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 119],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['upload skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['tool shell reserves the initial viewport to limit footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
