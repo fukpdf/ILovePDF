@@ -421,7 +421,6 @@
   <!-- 7G: Crash recovery UI (load before tool-page.js DOMContentLoaded) -->
   <script src="/js/crash-recovery-ui.js"></script>
   <!-- 7I: Production certification (dev + console diagnostics only) -->
-  <script src="/js/runtime-production-certification.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 8 — Final Production Platform + Enterprise Hardening         -->
@@ -444,9 +443,7 @@
   <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
   <script src="/js/runtime-telemetry-enterprise.js"></script>
   <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
-  <script src="/js/runtime-devtools-dashboard.js" defer></script>
   <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
-  <script src="/js/runtime-enterprise-certification.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 9 — Distributed Browser Operating System + GPU Compute       -->
@@ -658,7 +655,6 @@
   <script src="/js/resize-image-app.js" defer></script>
   <script src="/js/image-filters-app.js" defer></script>
   <script src="/js/html-pdf-app.js" defer></script>
-  <script src="/js/runtime-inspector.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 2D — Global WorkerPool Healing + Runtime Self-Recovery       -->
@@ -815,6 +811,9 @@
   <!-- Phase 7 Tier 8: Security Dashboard (stream + visualizer; dashboard only on admin page) -->
   <script src="/js/runtime-security-stream.js" defer></script>
   <script src="/js/runtime-security-visualizer.js" defer></script>
+  <!-- Public tool pages intentionally omit dev/admin diagnostics bundles.
+       Runtime certification and inspector tooling belong on authenticated/admin
+       routes; loading them here adds requests and execution cost to every upload. -->
   <!-- Phase 8 — Zero-Trust Runtime Enforcement + Distributed Threat Intelligence + Persistent Forensics -->
   <!-- Phase 8 Tier 1: Forensic Persistence + Replay -->
   <script src="/js/runtime-session-persistence.js" defer></script>
