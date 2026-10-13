@@ -213,18 +213,38 @@
 
   // ── Library loading ──────────────────────────────────────────────────────
   async function _loadLibs() {
-    // pdf.js
+    // Reuse the shared PDF.js import promise so Edit PDF cannot race the
+    // preview renderer or another processor into importing a second copy.
     if (!window.pdfjsLib) {
-      const mod = await import(PDFJS_URL);
-      window.pdfjsLib = mod.default || mod;
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      if (!window.__pdfjsLibPromise) {
+        window.__pdfjsLibPromise = import(PDFJS_URL).then(function (mod) {
+          const lib = (mod && mod.getDocument) ? mod : (mod && mod.default && mod.default.getDocument ? mod.default : null);
+          if (!lib || !lib.getDocument) throw new Error('pdfjsLib.getDocument missing');
+          lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+          window.pdfjsLib = lib;
+          return lib;
+        }).catch(function (error) {
+          window.__pdfjsLibPromise = null;
+          throw error;
+        });
+      }
+      window.pdfjsLib = await window.__pdfjsLibPromise;
     }
-    // pdf-lib
+
+    // Share the same pdf-lib promise used by BrowserTools and PageOrganizer.
     if (!window.PDFLib) {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script'); s.src = PDFLIB_URL;
-        s.onload = res; s.onerror = rej; document.head.appendChild(s);
+      const loadPdfLib = () => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = PDFLIB_URL;
+        s.onload = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('PDFLib global missing'));
+        s.onerror = reject;
+        document.head.appendChild(s);
       });
+      if (window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function') {
+        await window.ToolEngineLoader.shareDependency(PDFLIB_URL, 'PDFLib', loadPdfLib);
+      } else {
+        await loadPdfLib();
+      }
     }
   }
 
