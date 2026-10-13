@@ -176,29 +176,6 @@ input, select, textarea { font-family: inherit; }
 /* Upload area */
 .upload-section { margin-bottom: 20px; }
 .upload-label { font-size: .82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: block; }
-.upload-area {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 36px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: var(--transition);
-  background: #fafbfd;
-  position: relative;
-}
-.upload-area:hover, .upload-area.dragover {
-  border-color: var(--primary);
-  background: var(--primary-light);
-}
-.upload-area input[type="file"] {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  opacity: 0; cursor: pointer;
-}
-.upload-icon { color: #a5b4fc; margin-bottom: 12px; }
-.upload-icon [data-lucide] { width: 40px; height: 40px; }
-.upload-text { font-weight: 600; color: var(--text); font-size: .93rem; margin-bottom: 4px; }
-.upload-hint { font-size: .78rem; color: var(--text-muted); }
 .upload-files-list { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 .upload-file-item {
   display: flex;
@@ -3405,9 +3382,6 @@ input[type="range"] {
 
 /* ── 2. Mid-mobile layout fixes (≤768 px) ───────────────────────────────── */
 @media (max-width: 768px) {
-  /* Upload zone — smaller vertical footprint */
-  .upload-area                { padding: 28px 16px; }
-  .upload-icon [data-lucide]  { width: 34px; height: 34px; }
 
   /* Process button — full-width stack */
   .process-btn-wrap           { flex-direction: column; }
@@ -3432,10 +3406,6 @@ input[type="range"] {
 
 /* ── 3. Small-phone optimisations (≤480 px) ─────────────────────────────── */
 @media (max-width: 480px) {
-  /* Upload zone — ultra-compact */
-  .upload-area                { padding: 20px 12px; }
-  .upload-icon [data-lucide]  { width: 28px; height: 28px; }
-  .upload-text                { font-size: .85rem; }
 
   /* Tool header — compact */
   .tool-header-name           { font-size: 1.2rem; }
