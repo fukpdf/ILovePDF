@@ -65,7 +65,7 @@
   ];
 
   var ADVANCED_TOOLS = new Set([
-    'compress', 'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
+    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
     'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel',
     'html-to-pdf', 'ocr', 'scan-to-pdf', 'translate', 'ai-summarize',
     'background-remover', 'crop-image', 'resize-image', 'image-filters',
