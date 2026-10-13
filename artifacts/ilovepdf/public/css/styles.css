@@ -281,6 +281,10 @@ input, select, textarea { font-family: inherit; }
 /* ===== TOOL PAGE ===== */
 .tool-page { padding: 28px; flex: 1; max-width: 780px; }
 
+/* Reserve the first viewport while tool-page.js replaces the initial upload skeleton.
+   This keeps the shared footer below the fold during the initial render transition. */
+main#tool-content { min-height: 100vh; min-height: 100svh; }
+
 .tool-header { margin-bottom: 28px; }
 .back-link {
   display: inline-flex;
