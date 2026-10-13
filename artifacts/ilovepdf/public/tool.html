@@ -117,9 +117,9 @@
           loadAds();
         }
       };
-      checkSlots();
       window.addEventListener('scroll', checkSlots, { passive: true });
       window.addEventListener('resize', checkSlots);
+      checkSlots();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSlots, { once: true });
     else watchSlots();
