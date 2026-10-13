@@ -114,7 +114,9 @@
   <link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1">
   <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1">
   <!-- Blog-only CSS is excluded from the shared tool shell to avoid an unused render-blocking request. -->
-  <link rel="stylesheet" href="/css/seo-extended.css">
+  <!-- FAQ/SEO-section styling is below the primary tool workspace; load it without blocking first paint. -->
+  <link rel="stylesheet" href="/css/seo-extended.css" media="print" onload="this.onload=null;this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
   <link rel="stylesheet" href="/css/ads.css">
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
