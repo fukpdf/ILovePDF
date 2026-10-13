@@ -1222,21 +1222,23 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
-  // After a file is selected, load only the shared processing foundation and
-  // this tool's preview/engine modules. The upload page itself does not fetch
-  // the processing runtime or unrelated tool bundles.
+  // Start both download tracks after file selection: preview modules are a
+  // short dependency chain, while the selected processor prepares in parallel.
+  // Never make the user wait for the processing engine just to inspect a file.
+  let engineError = null;
   const engineWarm = window.ToolEngineLoader
-    ? window.ToolEngineLoader.prepare(tool.id).then(function () {
-        return window.BrowserTools && typeof window.BrowserTools.prewarm === 'function'
-          ? window.BrowserTools.prewarm(tool.id)
-          : { warmed: false };
+    ? window.ToolEngineLoader.prepareEngine(tool.id).catch(function (error) {
+        engineError = error;
+        return null;
       })
     : Promise.reject(new Error('Tool engine loader is unavailable.'));
-  const previewWarm = engineWarm.then(function () {
-    return window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image'
-      ? window.PdfPreview.loadPdfJs()
-      : undefined;
-  });
+  const previewWarm = window.ToolEngineLoader
+    ? window.ToolEngineLoader.preparePreview(tool.id).then(function () {
+        return window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image'
+          ? window.PdfPreview.loadPdfJs()
+          : undefined;
+      })
+    : Promise.reject(new Error('Tool preview loader is unavailable.'));
   const isImage = tool.group === 'image';
   const stages = [
     { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
@@ -1262,26 +1264,45 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     requestAnimationFrame(tick);
   });
   if (runId !== _cropUploadRun) return;
-  let engineError = null;
+  let previewError = null;
   try {
-    await Promise.all([engineWarm, previewWarm]);
+    await previewWarm;
   } catch (error) {
-    engineError = error;
+    previewError = error;
   }
   const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
   if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
   if (runId !== _cropUploadRun) return;
-  if (engineError) {
-    cropJourneySetStage('engine', 'Engine preparation needs a retry', 'Your file is kept safe. You can retry when you press Process.', 100, true);
+  if (previewError) {
+    cropJourneySetStage('preview', 'Preview is unavailable', 'Your selected file is preserved; processing can still be attempted.', 100, true);
   } else {
-    cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
+    cropJourneySetStage('ready', tool.name + ' preview is ready', 'The processing engine is preparing in the background.', 100, true);
   }
-  await new Promise(resolve => setTimeout(resolve, 220));
+  await new Promise(resolve => setTimeout(resolve, 180));
   if (runId !== _cropUploadRun) return;
   renderStandardPreviewStep(tool);
-  if (engineError) {
-    showStatus('error', 'Tool preparation failed', 'The processing modules could not finish loading. Check your connection and press Process to retry.');
+  if (previewError) {
+    showStatus('error', 'Preview could not be prepared', 'Your file is still selected. You can try Process, or choose the file again to retry preview.');
   }
+  // Engine downloads continue independently while the user reviews the preview.
+  engineWarm.then(function () {
+    if (currentTool && currentTool.id === tool.id && window.ToolEngineLoader.isEngineReady(tool.id)) {
+      const status = document.getElementById('engine-ready-status');
+      if (status) {
+        status.textContent = 'Processing engine ready — click Process when you are ready.';
+        status.dataset.engineState = 'ready';
+      }
+    }
+  }).catch(function (error) {
+    engineError = error;
+    if (currentTool && currentTool.id === tool.id) {
+      const status = document.getElementById('engine-ready-status');
+      if (status) {
+        status.textContent = 'Engine download failed. Press Process to retry loading.';
+        status.dataset.engineState = 'error';
+      }
+    }
+  });
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
@@ -1338,6 +1359,7 @@ function renderStandardPreviewStep(tool) {
         <aside class="ew-preview-aside">
           ${optionsHtml}
           <div class="ew-process-panel">
+            <p id="engine-ready-status" class="engine-ready-status" role="status" aria-live="polite" data-engine-state="loading">Processing engine is loading in the background. You can review your file and settings now.</p>
             <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
               <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
             </button>
@@ -2168,20 +2190,19 @@ async function processFile() {
     return;
   }
 
-  // The engine is normally prepared in the background after file selection.
-  // Keep a defensive gate here so direct calls, restored sessions, and retries
-  // can never start processing before their tool modules are ready.
-  if (!window.BrowserTools || !window.BrowserToolRuntime) {
+  // If the user presses Process before background preparation completes, wait
+  // for the exact same per-tool promise, then continue this click automatically.
+  if (!window.ToolEngineLoader || !window.ToolEngineLoader.isEngineReady(currentTool.id)) {
     const button = document.getElementById('process-btn');
     if (button) button.disabled = true;
-    showProcessing('Preparing your tool…', 'Loading the selected tool engine. Processing will start when you press Process again if preparation needs a retry.');
+    showProcessing('Preparing your tool…', 'Finishing the selected tool engine. Processing will start automatically as soon as it is ready.');
     try {
       if (!window.ToolEngineLoader) throw new Error('Tool engine loader is unavailable.');
-      await window.ToolEngineLoader.prepare(currentTool.id);
+      await window.ToolEngineLoader.prepareEngine(currentTool.id);
     } catch (error) {
       hideProcessing();
       if (button) button.disabled = false;
-      showStatus('error', 'Tool preparation failed', 'The processing modules could not finish loading. Check your connection and try again.');
+      showStatus('error', 'Tool preparation failed', 'The processing modules could not finish loading. Check your connection and press Process to retry.');
       return;
     }
     hideProcessing();
