@@ -268,158 +268,158 @@
     } catch (_) {}
   </script>
 
-  <script src="/js/config.js"></script>
-  <script src="/js/debug-trace.js"></script>
+  <script src="/js/config.js" defer></script>
+  <script src="/js/debug-trace.js" defer></script>
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
-  <script src="/js/timer-registry.js"></script>
+  <script src="/js/timer-registry.js" defer></script>
   <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
        tracked timers, streaming markers, future runtime integration points.
        Must load after timer-registry, before all processing scripts. -->
-  <script src="/js/phase1-stabilization.js"></script>
-  <script src="/workers/workerPool.js"></script>
+  <script src="/js/phase1-stabilization.js" defer></script>
+  <script src="/workers/workerPool.js" defer></script>
   <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
-  <script src="/js/opfs-manager.js"></script>
-  <script src="/js/stream-helpers.js"></script>
-  <script src="/js/memory-pressure-monitor.js"></script>
+  <script src="/js/opfs-manager.js" defer></script>
+  <script src="/js/stream-helpers.js" defer></script>
+  <script src="/js/memory-pressure-monitor.js" defer></script>
   <!-- Final Stabilization: Observability + Adaptive Runtime (after MemPressure, before TaskScheduler) -->
-  <script src="/js/stability-metrics.js"></script>
-  <script src="/js/runtime-failed-log.js"></script>
-  <script src="/js/object-url-registry.js"></script>
+  <script src="/js/stability-metrics.js" defer></script>
+  <script src="/js/runtime-failed-log.js" defer></script>
+  <script src="/js/object-url-registry.js" defer></script>
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
-  <script src="/js/browser-resource-lifecycle.js"></script>
-  <script src="/js/worker-leak-detector.js"></script>
-  <script src="/js/memory-telemetry.js"></script>
-  <script src="/js/adaptive-runtime.js"></script>
-  <script src="/js/runtime-device-lite.js"></script>
+  <script src="/js/browser-resource-lifecycle.js" defer></script>
+  <script src="/js/worker-leak-detector.js" defer></script>
+  <script src="/js/memory-telemetry.js" defer></script>
+  <script src="/js/adaptive-runtime.js" defer></script>
+  <script src="/js/runtime-device-lite.js" defer></script>
   <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
-  <script src="/js/canvas-pool.js"></script>
-  <script src="/js/task-scheduler.js"></script>
-  <script src="/js/lifecycle-manager.js"></script>
+  <script src="/js/canvas-pool.js" defer></script>
+  <script src="/js/task-scheduler.js" defer></script>
+  <script src="/js/lifecycle-manager.js" defer></script>
   <!-- Phase 25: Large File Architecture (load after Phase 23A, before browser-tools) -->
-  <script src="/js/large-file-streaming.js"></script>
-  <script src="/js/eviction-manager.js"></script>
-  <script src="/js/virtual-page-manager.js"></script>
-  <script src="/js/rolling-processor.js"></script>
-  <script src="/js/giant-file-routing.js"></script>
-  <script src="/js/giant-file-telemetry.js"></script>
+  <script src="/js/large-file-streaming.js" defer></script>
+  <script src="/js/eviction-manager.js" defer></script>
+  <script src="/js/virtual-page-manager.js" defer></script>
+  <script src="/js/rolling-processor.js" defer></script>
+  <script src="/js/giant-file-routing.js" defer></script>
+  <script src="/js/giant-file-telemetry.js" defer></script>
   <!-- Phase 26: Per-Tool Deep Enhancement + Giant File Stabilization -->
-  <script src="/js/phase26-enhancements.js"></script>
+  <script src="/js/phase26-enhancements.js" defer></script>
   <!-- Phase 27–30: Tool Validation, Resume System, Debug Hooks, Production Hardening -->
-  <script src="/js/phase27-30-enhancements.js"></script>
+  <script src="/js/phase27-30-enhancements.js" defer></script>
   <!-- Phase 31: Scalability & Survivability (WebGPU, SmartCache, ComputeHarvester, AutoTuner) -->
-  <script src="/js/phase31-scalability.js"></script>
+  <script src="/js/phase31-scalability.js" defer></script>
   <!-- Phase 32: True OPFS Streaming Architecture (ByteRange, RollingWindow, SurvivalMode) -->
-  <script src="/js/phase32-streaming.js"></script>
+  <script src="/js/phase32-streaming.js" defer></script>
   <!-- Phase 33: Session Resume & Crash Recovery (CheckpointEngine, CrashRecovery, MultiDay) -->
-  <script src="/js/phase33-resume.js"></script>
+  <script src="/js/phase33-resume.js" defer></script>
   <!-- Phase 34: Table-Aware OCR System (StructuredOCR, TableExtraction, ModeSelector) -->
-  <script src="/js/phase34-table-ocr.js"></script>
+  <script src="/js/phase34-table-ocr.js" defer></script>
   <!-- Phase 35: Advanced Virtualization Engine (PageVirtualizer, PredictiveEviction, AIWindows) -->
-  <script src="/js/phase35-virtualization.js"></script>
+  <script src="/js/phase35-virtualization.js" defer></script>
   <!-- Phase 36: Enterprise PDF Recovery + GPU Pipelines + FullEnterpriseAudit -->
-  <script src="/js/phase36-enterprise.js"></script>
+  <script src="/js/phase36-enterprise.js" defer></script>
   <!-- Phase A: ONNX Runtime Manager (ModelRegistry, TensorPool, InferenceScheduler) -->
-  <script src="/js/onnx-runtime-manager.js"></script>
+  <script src="/js/onnx-runtime-manager.js" defer></script>
   <!-- Phase B: WebGPU AI Pipelines (sharpen, denoise, edge, segment, tiled GPU exec) -->
-  <script src="/js/webgpu-ai-pipelines.js"></script>
+  <script src="/js/webgpu-ai-pipelines.js" defer></script>
   <!-- Phase C: Multi-Tab Cluster (BroadcastChannel leader election, distributed pages) -->
-  <script src="/js/multi-tab-cluster.js"></script>
+  <script src="/js/multi-tab-cluster.js" defer></script>
   <!-- Phase D: P2P Compute Mesh (WebRTC mesh, encrypted shards — OFF by default) -->
-  <script src="/js/p2p-compute-mesh.js"></script>
+  <script src="/js/p2p-compute-mesh.js" defer></script>
   <!-- Phase E: OPFS Memory-Mapped Streaming (byte-range parser, giant output streamer) -->
-  <script src="/js/opfs-memory-mapped.js"></script>
+  <script src="/js/opfs-memory-mapped.js" defer></script>
   <!-- Phase F: Differential Processing (page hashes, visual diff, incremental OCR) -->
-  <script src="/js/differential-processing.js"></script>
+  <script src="/js/differential-processing.js" defer></script>
   <!-- Phase G: Advanced Auto-Tuning Engine (HW benchmark, device fingerprint, telemetry) -->
-  <script src="/js/auto-tuning-engine.js"></script>
+  <script src="/js/auto-tuning-engine.js" defer></script>
   <!-- Phase H: Enterprise Recovery V2 (object graph, font/page-tree/image recovery) -->
-  <script src="/js/enterprise-recovery-v2.js"></script>
+  <script src="/js/enterprise-recovery-v2.js" defer></script>
   <!-- Phase I: Job Dashboard (live progress, mem tier, GPU, workers, ETA) -->
-  <script src="/js/job-dashboard.js"></script>
+  <script src="/js/job-dashboard.js" defer></script>
   <!-- Phase J: FullNextGenAudit — master audit across all phases 18–37+ -->
-  <script src="/js/full-nextgen-audit.js"></script>
+  <script src="/js/full-nextgen-audit.js" defer></script>
   <!-- Phase 40A: Final Memory Leak Audit (canvas/bitmap/worker/blob/tensor/GPU tracking) -->
-  <script src="/js/final-memory-audit.js"></script>
+  <script src="/js/final-memory-audit.js" defer></script>
   <!-- Phase 40B: Worker Deadlock Monitor (heartbeat, stalled-promise, queue-starvation) -->
-  <script src="/js/deadlock-monitor.js"></script>
+  <script src="/js/deadlock-monitor.js" defer></script>
   <!-- Phase 40C: OPFS Integrity System (CRC32, staged-write, journal, orphan recovery) -->
-  <script src="/js/opfs-integrity.js"></script>
+  <script src="/js/opfs-integrity.js" defer></script>
   <!-- Phase 40E: Browser Compat Layer (Safari/iOS/mobile detect, fallback routing, shims) -->
-  <script src="/js/browser-compat-layer.js"></script>
+  <script src="/js/browser-compat-layer.js" defer></script>
   <!-- Phase 40F: GPU Fallback Validator (capability probe, chain verify, device-lost sim) -->
-  <script src="/js/gpu-fallback-validator.js"></script>
+  <script src="/js/gpu-fallback-validator.js" defer></script>
   <!-- Phase 40G: Resume Integrity Tests (checkpoint verify, page order, OCR continuity) -->
-  <script src="/js/resume-integrity.js"></script>
+  <script src="/js/resume-integrity.js" defer></script>
   <!-- Phase 40H: Distributed Recovery Tests (leader-death, shard integrity, reassignment) -->
-  <script src="/js/distributed-recovery.js"></script>
+  <script src="/js/distributed-recovery.js" defer></script>
   <!-- Phase 40M: Self-Healing Recovery (trigger detect, auto-cleanup, progress preserve) -->
-  <script src="/js/self-healing.js"></script>
+  <script src="/js/self-healing.js" defer></script>
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
-  <script src="/js/final-automated-audit.js"></script>
+  <script src="/js/final-automated-audit.js" defer></script>
   <!-- Phase 41A: Universal Encoding Repair (MojibakeDetector, UtfRepairEngine, UnicodeSanitizer) -->
-  <script src="/js/universal-encoding-repair.js"></script>
+  <script src="/js/universal-encoding-repair.js" defer></script>
   <!-- Phase 41B: Universal Smart Chunk Engine (LanguageAwareChunker, AdaptiveChunkSizer, StreamingQueue) -->
-  <script src="/js/universal-translation-chunker.js"></script>
+  <script src="/js/universal-translation-chunker.js" defer></script>
   <!-- Phase 41C: Universal OCR Cleanup (SourceClassifier, OcrNoiseCleaner, ScriptDetector, SmartReOcr) -->
-  <script src="/js/universal-ocr-cleanup.js"></script>
+  <script src="/js/universal-ocr-cleanup.js" defer></script>
   <!-- Phase 41D: Global Multilingual Renderer (BidiLayout, FontManager, PdfTextFlow, GlyphResolver) -->
-  <script src="/js/global-multilingual-renderer.js"></script>
+  <script src="/js/global-multilingual-renderer.js" defer></script>
   <!-- Phase 41E: Universal Translation Validator (CorruptionScanner, QualityAudit, AutoRetry, SafeMerge) -->
-  <script src="/js/universal-translation-validator.js"></script>
+  <script src="/js/universal-translation-validator.js" defer></script>
   <!-- Phase 41F: Universal Translation Pipeline (full P41A-E integration, BrowserTools.process hook) -->
-  <script src="/js/universal-translation-pipeline.js"></script>
+  <script src="/js/universal-translation-pipeline.js" defer></script>
   <!-- Phase 1C: Worker Lifecycle, Download Manager, Retry Orchestrator,
        Navigation Cancel, Adaptive Degradation, Cleanup Contracts, Lifecycle Audit.
        Load after all Phase 1A/1B/Phase 40 systems, before browser-tools.
        Strict order: worker-lifecycle → download-manager → retry-orchestrator →
                      navigation-cancel → adaptive-degradation → cleanup-contracts →
                      phase1c-audit -->
-  <script src="/js/worker-lifecycle.js"></script>
-  <script src="/js/download-manager.js"></script>
-  <script src="/js/retry-orchestrator.js"></script>
-  <script src="/js/navigation-cancel.js"></script>
-  <script src="/js/adaptive-degradation.js"></script>
-  <script src="/js/cleanup-contracts.js"></script>
-  <script src="/js/phase1c-audit.js"></script>
+  <script src="/js/worker-lifecycle.js" defer></script>
+  <script src="/js/download-manager.js" defer></script>
+  <script src="/js/retry-orchestrator.js" defer></script>
+  <script src="/js/navigation-cancel.js" defer></script>
+  <script src="/js/adaptive-degradation.js" defer></script>
+  <script src="/js/cleanup-contracts.js" defer></script>
+  <script src="/js/phase1c-audit.js" defer></script>
   <!-- Phase 2: CentralRuntime — Centralized Browser-Side Processing Runtime
        Strict load order (each depends on all prior):
          T032 event-bus → T030 state → T028 telemetry → T025 cancellation →
          T023 memory → T026 progress → T021 scheduler → T022 workers →
          T024 queue → T027 cleanup → T031 health → T029 adapters →
          T034 streaming → T033 diagnostics → T020 core (CentralRuntime) -->
-  <script src="/js/runtime-event-bus.js"></script>
-  <script src="/js/runtime-state.js"></script>
-  <script src="/js/runtime-telemetry.js"></script>
-  <script src="/js/runtime-cancellation.js"></script>
-  <script src="/js/runtime-memory-controller.js"></script>
-  <script src="/js/runtime-progress.js"></script>
-  <script src="/js/runtime-task-scheduler.js"></script>
-  <script src="/js/runtime-worker-orchestrator.js"></script>
-  <script src="/js/runtime-queue-engine.js"></script>
-  <script src="/js/runtime-cleanup.js"></script>
-  <script src="/js/runtime-health.js"></script>
-  <script src="/js/runtime-tool-adapters.js"></script>
-  <script src="/js/runtime-streaming-hooks.js"></script>
-  <script src="/js/runtime-diagnostics.js"></script>
-  <script src="/js/runtime-core.js"></script>
+  <script src="/js/runtime-event-bus.js" defer></script>
+  <script src="/js/runtime-state.js" defer></script>
+  <script src="/js/runtime-telemetry.js" defer></script>
+  <script src="/js/runtime-cancellation.js" defer></script>
+  <script src="/js/runtime-memory-controller.js" defer></script>
+  <script src="/js/runtime-progress.js" defer></script>
+  <script src="/js/runtime-task-scheduler.js" defer></script>
+  <script src="/js/runtime-worker-orchestrator.js" defer></script>
+  <script src="/js/runtime-queue-engine.js" defer></script>
+  <script src="/js/runtime-cleanup.js" defer></script>
+  <script src="/js/runtime-health.js" defer></script>
+  <script src="/js/runtime-tool-adapters.js" defer></script>
+  <script src="/js/runtime-streaming-hooks.js" defer></script>
+  <script src="/js/runtime-diagnostics.js" defer></script>
+  <script src="/js/runtime-core.js" defer></script>
   <!-- Phase 5 — Runtime Certification Layer (report functions + RT.debug + RT.simulate) -->
-  <script src="/js/runtime-phase5.js"></script>
+  <script src="/js/runtime-phase5.js" defer></script>
   <!-- Phase 6A+6F — IndexedDB Persistence + Crash Recovery -->
-  <script src="/js/runtime-idb.js"></script>
+  <script src="/js/runtime-idb.js" defer></script>
   <!-- Phase 6B — OPFS Streaming Engine (replaces streaming stubs) -->
   <!-- runtime-streaming-hooks.js is already loaded above; engine is live -->
   <!-- Phase 6C — Advanced Worker Pooling already active via WorkerPool in advanced-engine.js -->
   <!-- Phase 7 — Production-Grade Stream Pipeline, Adaptive Engine, IDB Coalescing, Crash Recovery -->
   <!-- 7E: Adaptive pipeline (load first — bridges use it for chunk sizing) -->
-  <script src="/js/runtime-adaptive-pipeline.js"></script>
+  <script src="/js/runtime-adaptive-pipeline.js" defer></script>
   <!-- 7A: Transferable stream bridge (load before runtime-stream-bridge references) -->
-  <script src="/js/runtime-stream-bridge.js"></script>
+  <script src="/js/runtime-stream-bridge.js" defer></script>
   <!-- 7B: PDF byte-range index (partial OPFS staging for split/organize/compare) -->
-  <script src="/js/pdf-byte-range-index.js"></script>
+  <script src="/js/pdf-byte-range-index.js" defer></script>
   <!-- 7F: IDB write coalescer (load before runtime-idb archiveHealth subscription fires) -->
-  <script src="/js/runtime-idb-coalescer.js"></script>
+  <script src="/js/runtime-idb-coalescer.js" defer></script>
   <!-- 7G: Crash recovery UI (load before tool-page.js DOMContentLoaded) -->
-  <script src="/js/crash-recovery-ui.js"></script>
+  <script src="/js/crash-recovery-ui.js" defer></script>
   <!-- 7I: Production certification (dev + console diagnostics only) -->
   <script src="/js/runtime-production-certification.js" defer></script>
 
@@ -430,19 +430,19 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
 
   <!-- 8I: Security hardening — worker validation, prompt sanitization, OPFS guards -->
-  <script src="/js/runtime-security.js"></script>
+  <script src="/js/runtime-security.js" defer></script>
   <!-- 8D: Predictive OOM memory defense — must load before stream bridge + AI -->
-  <script src="/js/runtime-memory-defense.js"></script>
+  <script src="/js/runtime-memory-defense.js" defer></script>
   <!-- 8A: Benchmark engine — baseline CPU/IO/WASM benchmarks for adaptive tuning -->
-  <script src="/js/runtime-benchmark-engine.js"></script>
+  <script src="/js/runtime-benchmark-engine.js" defer></script>
   <!-- 8C: Distributed cross-tab scheduler — BroadcastChannel task coordination -->
-  <script src="/js/runtime-distributed-scheduler.js"></script>
+  <script src="/js/runtime-distributed-scheduler.js" defer></script>
   <!-- 8E: Result cache — 3-tier LRU/OPFS/IDB output caching with SHA-256 keying -->
-  <script src="/js/runtime-result-cache.js"></script>
+  <script src="/js/runtime-result-cache.js" defer></script>
   <!-- 8F: AI upgrade — scored provider routing, priority queue, batching, retry -->
-  <script src="/js/runtime-ai-upgrade.js"></script>
+  <script src="/js/runtime-ai-upgrade.js" defer></script>
   <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
-  <script src="/js/runtime-telemetry-enterprise.js"></script>
+  <script src="/js/runtime-telemetry-enterprise.js" defer></script>
   <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
   <script src="/js/runtime-devtools-dashboard.js" defer></script>
   <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
@@ -464,24 +464,24 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
 
   <!-- 9A: WASM compute engine — SIMD probe, streaming instantiation, JS fallbacks -->
-  <script src="/js/runtime-wasm-engine.js"></script>
+  <script src="/js/runtime-wasm-engine.js" defer></script>
   <!-- 9B: GPU compute engine — WebGPU device, WebGL2/WebGL1/CPU fallback tier -->
-  <script src="/js/runtime-gpu-engine.js"></script>
+  <script src="/js/runtime-gpu-engine.js" defer></script>
   <script src="/js/webgpu-phase23.js" defer></script>
   <!-- 9G: Browser OS microkernel — single arbitration point for all compute slots -->
-  <script src="/js/runtime-kernel.js"></script>
+  <script src="/js/runtime-kernel.js" defer></script>
   <!-- 9C: SharedWorker cluster — persistent multi-tab brain, priority task queue -->
-  <script src="/js/runtime-shared-cluster.js"></script>
+  <script src="/js/runtime-shared-cluster.js" defer></script>
   <!-- 9D/9I: Sandbox VM — isolated execution, policy engine, OPFS/Worker isolation -->
-  <script src="/js/runtime-sandbox.js"></script>
+  <script src="/js/runtime-sandbox.js" defer></script>
   <!-- 9F: Incremental PDF engine — OPFS staging, xref parsing, incremental write -->
-  <script src="/js/runtime-incremental-pdf.js"></script>
+  <script src="/js/runtime-incremental-pdf.js" defer></script>
   <!-- 9G/9H: Zero-copy pipeline — buffer pool, transferable streams, backpressure -->
-  <script src="/js/runtime-zero-copy.js"></script>
+  <script src="/js/runtime-zero-copy.js" defer></script>
   <!-- 9H: Workspace persistence — OPFS + IDB multi-document workspace manager -->
-  <script src="/js/runtime-workspace.js"></script>
+  <script src="/js/runtime-workspace.js" defer></script>
   <!-- 9E: Local AI engine — ONNX on-device inference, model cache, heuristic chain -->
-  <script src="/js/runtime-local-ai.js"></script>
+  <script src="/js/runtime-local-ai.js" defer></script>
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
   <script src="/js/runtime-browser-os-certification.js" defer></script>
 
@@ -496,17 +496,17 @@
   <!--   9P  WorkerPrewarm    — idle/drop-triggered worker pool prewarming -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- 9K: Network quality monitor — no deps at load time; used by 9O -->
-  <script src="/js/runtime-network-state.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-network-state.js?v=__BUILD_ID__" defer></script>
   <!-- 9L: Memory pressure recovery — evicts IDB/OPFS/blobs under heap pressure -->
-  <script src="/js/runtime-memory-recovery.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-memory-recovery.js?v=__BUILD_ID__" defer></script>
   <!-- 9M: Lazy engine loader — deduplicates and defers heavy engine loads -->
-  <script src="/js/runtime-lazy-engine-loader.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-lazy-engine-loader.js?v=__BUILD_ID__" defer></script>
   <!-- 9N: Performance monitor — Web Vitals (LCP/FID/CLS), tool timing, memory -->
-  <script src="/js/runtime-performance-monitor.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-performance-monitor.js?v=__BUILD_ID__" defer></script>
   <!-- 9O: Stream pipeline — composable backpressure pipeline, uses RuntimeNetworkState -->
-  <script src="/js/runtime-stream-pipeline.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-stream-pipeline.js?v=__BUILD_ID__" defer></script>
   <!-- 9P: Worker prewarm — idle/drop-triggered WorkerPool prewarming -->
-  <script src="/js/runtime-worker-prewarm.js?v=__BUILD_ID__"></script>
+  <script src="/js/runtime-worker-prewarm.js?v=__BUILD_ID__" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 27–30 RUNTIME LAYER                                           -->
@@ -523,22 +523,22 @@
   <!-- runtime-hardening.js stays SYNC — patches global setInterval/RAF  -->
   <!-- before any intervals are created; must run before user interaction. -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="/js/runtime-hardening.js"></script>
+  <script src="/js/runtime-hardening.js" defer></script>
   <!-- PDF→Word Fidelity Pipeline — Phases 1–12 (loaded before browser-tools so modules
        are available when pdfToWord() first runs; all are additive/opt-in IIFE modules
        that register on window.PDFPipeline = window.PDFPipeline || {}) -->
-  <script src="/js/pdf-pipeline/font-mapper.js"></script>
-  <script src="/js/pdf-pipeline/column-engine.js"></script>
-  <script src="/js/pdf-pipeline/form-reconstruction.js"></script>
-  <script src="/js/pdf-pipeline/fidelity-validator.js"></script>
-  <script src="/js/pdf-pipeline/visual-reconstruction.js"></script>
-  <script src="/js/pdf-pipeline/ocr-zoning.js"></script>
-  <script src="/js/pdf-pipeline/image-anchor-engine.js"></script>
-  <script src="/js/pdf-pipeline/layout-graph.js"></script>
-  <script src="/js/pdf-pipeline/docx-coordinate-engine.js"></script>
-  <script src="/js/pdf-pipeline/fidelity-debug.js"></script>
-  <script src="/js/browser-tools.js"></script>
-  <script src="/js/browser-tool-runtime.js"></script>
+  <script src="/js/pdf-pipeline/font-mapper.js" defer></script>
+  <script src="/js/pdf-pipeline/column-engine.js" defer></script>
+  <script src="/js/pdf-pipeline/form-reconstruction.js" defer></script>
+  <script src="/js/pdf-pipeline/fidelity-validator.js" defer></script>
+  <script src="/js/pdf-pipeline/visual-reconstruction.js" defer></script>
+  <script src="/js/pdf-pipeline/ocr-zoning.js" defer></script>
+  <script src="/js/pdf-pipeline/image-anchor-engine.js" defer></script>
+  <script src="/js/pdf-pipeline/layout-graph.js" defer></script>
+  <script src="/js/pdf-pipeline/docx-coordinate-engine.js" defer></script>
+  <script src="/js/pdf-pipeline/fidelity-debug.js" defer></script>
+  <script src="/js/browser-tools.js" defer></script>
+  <script src="/js/browser-tool-runtime.js" defer></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
   <!-- Phase 2A: deferred — depends only on Phase 1-9 globals (SYNC); all globals       -->
   <!-- available before any defer fires. Document order preserved by defer. User cannot  -->
@@ -690,8 +690,8 @@
   <script src="/js/runtime-health-monitor.js" defer></script>
   <script src="/js/runtime-watchdog.js" defer></script>
 
-  <script src="/js/pdf-preview.js"></script>
-  <script src="/js/runtime-protection.js"></script>
+  <script src="/js/pdf-preview.js" defer></script>
+  <script src="/js/runtime-protection.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- ENTERPRISE RUNTIME SHIELD LAYER — additive hardening               -->
@@ -701,17 +701,17 @@
   <!-- after runtime-security.js (workers wraps its validateWorkerMessage) -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- Task 1,5,6: Window lockdown + Symbol registry + enumeration hiding -->
-  <script src="/js/runtime-shield-core.js"></script>
+  <script src="/js/runtime-shield-core.js" defer></script>
   <!-- Task 3,7,8: Integrity sweeps + honeypots + DevTools degradation    -->
-  <script src="/js/runtime-shield-integrity.js"></script>
+  <script src="/js/runtime-shield-integrity.js" defer></script>
   <!-- Task 2,6: Worker nonce + timestamp + replay protection             -->
-  <script src="/js/runtime-shield-workers.js"></script>
+  <script src="/js/runtime-shield-workers.js" defer></script>
   <!-- Task 4,5,6: Dependency integrity + script injection monitor        -->
-  <script src="/js/runtime-shield-dependency.js"></script>
+  <script src="/js/runtime-shield-dependency.js" defer></script>
   <!-- Phase 2: Trusted Module Manifest + Script Registry + Import Guard -->
-  <script src="/js/runtime-manifest.js"></script>
+  <script src="/js/runtime-manifest.js" defer></script>
   <!-- Phase 2: Centralized Worker Factory + Spawn Hardening             -->
-  <script src="/js/runtime-worker-factory.js"></script>
+  <script src="/js/runtime-worker-factory.js" defer></script>
   <!-- Phase 2: Runtime Chunk Manifest (Task 5 + Task 11 hooks)         -->
   <script src="/core/runtime-chunk-manifest.js" defer></script>
   <!-- Phase 2 Final: Compatibility validation (all systems + browser)  -->
@@ -752,7 +752,7 @@
   <!--  13. anomaly-engine      — session/deploy/worker anomaly scoring    -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- Phase 6 Tier 1: Shadow Runtime (captures originals at load time)  -->
-  <script src="/js/runtime-shadow-runtime.js"></script>
+  <script src="/js/runtime-shadow-runtime.js" defer></script>
   <!-- Phase 6 Tier 2: Session + Attestation (must load before ticket)   -->
   <script src="/js/runtime-secure-session.js" defer></script>
   <script src="/js/runtime-edge-attestation.js" defer></script>
@@ -828,16 +828,16 @@
   <!-- Phase 8 Tier 5: Encrypted Memory Vault -->
   <script src="/js/runtime-memory-vault.js" defer></script>
 
-  <script src="/js/live-preview.js"></script>
-  <script src="/js/page-organizer.js"></script>
-  <script src="/js/app-router.js"></script>
-  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/live-preview.js" defer></script>
+  <script src="/js/page-organizer.js" defer></script>
+  <script src="/js/app-router.js" defer></script>
+  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/chrome.js"></script>
+  <script src="/js/chrome.js" defer></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
-  <script src="/js/chrome-shim.js"></script>
+  <script src="/js/chrome-shim.js" defer></script>
   <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
   <script src="/js/bg-ai-engine.js" defer></script>
   <script src="/js/bg-remover-pro.js" defer></script>
