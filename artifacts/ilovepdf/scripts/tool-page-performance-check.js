@@ -82,7 +82,7 @@ const checks = [
   ['preview does not wait for processing engine downloads', /const previewResult = await previewWarm/.test(toolPage) && !/await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
   ['background engine warm starts only after preview UI is rendered', toolPage.indexOf('renderStandardPreviewStep(tool);', toolPage.indexOf('async function runToolPreviewPreparation')) < toolPage.indexOf('const warmEngine = function ()', toolPage.indexOf('async function runToolPreviewPreparation')) && /requestIdleCallback\(warmEngine, \{ timeout: 900 \}\)/.test(toolPage) && /setEngineReadyStatus\('ready'/.test(toolPage)],
   ['engine readiness updates while user reviews preview', /setEngineReadyStatus\('ready'/.test(toolPage) && /setEngineReadyStatus\('error'/.test(toolPage) && /engine-ready-status/.test(toolPage)],
-  ['Process click can immediately start or join engine loading', /await window\.ToolEngineLoader\.prepareEngine\(currentTool\.id\)/.test(toolPage) && /_enginePromises\.has\(key\) return _enginePromises\.get\(key\)/.test(loader)],
+  ['Process click can immediately start or join engine loading', /await window\.ToolEngineLoader\.prepareEngine\(currentTool\.id\)/.test(toolPage) && /if \(_enginePromises\.has\(key\)\) return _enginePromises\.get\(key\)/.test(loader)],
   ['processing has a defensive engine-ready gate', /!window\.ToolEngineLoader\.isEngineReady\(currentTool\.id\)/.test(toolPage) && /await window\.ToolEngineLoader\.prepareEngine\(currentTool\.id\)/.test(toolPage)],
   ['PDF-to-Word fidelity modules are loaded after file selection in dependency order', [
     'font-mapper.js', 'column-engine.js', 'form-reconstruction.js', 'fidelity-validator.js',
