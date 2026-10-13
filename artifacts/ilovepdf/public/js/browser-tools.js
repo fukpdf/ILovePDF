@@ -1343,7 +1343,56 @@
   //  • Comprehensive styles.xml (Normal, H1–H3, List, Table, Hyperlink)
   //  • word/numbering.xml for bullet + numbered lists
   //  Opts: structureMode (preserve-layout|simple-text), ocrMode (auto|force)
+  // Load fidelity enhancements only if the legacy in-browser PDF→Word path is used.
+  // The canonical PdfToWordApp normally processes in dedicated workers and does not
+  // require these page-thread modules on every tool route.
+  const PDF_WORD_FIDELITY_SCRIPTS = [
+    '/js/pdf-pipeline/font-mapper.js',
+    '/js/pdf-pipeline/column-engine.js',
+    '/js/pdf-pipeline/form-reconstruction.js',
+    '/js/pdf-pipeline/fidelity-validator.js',
+    '/js/pdf-pipeline/visual-reconstruction.js',
+    '/js/pdf-pipeline/ocr-zoning.js',
+    '/js/pdf-pipeline/image-anchor-engine.js',
+    '/js/pdf-pipeline/layout-graph.js',
+    '/js/pdf-pipeline/docx-coordinate-engine.js',
+    '/js/pdf-pipeline/fidelity-debug.js',
+  ];
+  let _pdfWordFidelityLoadPromise = null;
+
+  function ensurePdfWordFidelityPipeline() {
+    if (window.PDFPipeline && window.PDFPipeline.FontMapper &&
+        window.PDFPipeline.ColumnEngine && window.PDFPipeline.FidelityValidator) {
+      return Promise.resolve();
+    }
+    if (_pdfWordFidelityLoadPromise) return _pdfWordFidelityLoadPromise;
+
+    _pdfWordFidelityLoadPromise = (async function () {
+      for (const src of PDF_WORD_FIDELITY_SCRIPTS) {
+        // Preserve dependency order. These modules are optional enhancements;
+        // a failed enhancement must not prevent the existing conversion fallback.
+        if (document.querySelector('script[src="' + src + '"]')) continue;
+        await new Promise(function (resolve) {
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = false;
+          script.onload = resolve;
+          script.onerror = function () {
+            console.warn('[PdfToWord] Optional fidelity module failed to load:', src);
+            resolve();
+          };
+          document.head.appendChild(script);
+        });
+      }
+    })().catch(function (error) {
+      console.warn('[PdfToWord] Fidelity enhancement loader failed; using base conversion:', error);
+    });
+
+    return _pdfWordFidelityLoadPromise;
+  }
+
   async function pdfToWord(files, opts) {
+    await ensurePdfWordFidelityPipeline();
     opts = opts || {};
     const pdfjsLib   = await loadPdfJs();
     const JSZip      = await loadJsZip();
