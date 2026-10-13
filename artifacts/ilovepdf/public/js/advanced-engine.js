@@ -1447,15 +1447,30 @@
     },
   };
 
-  // ── PRELOAD WARMUP ────────────────────────────────────────────────────────
+  // ── SELECTED-TOOL PRELOAD WARMUP ──────────────────────────────────────────
+  // This engine is loaded after a file is selected. Never warm unrelated PDF,
+  // advanced, or OCR workers just because a different tool uses AdvancedEngine.
   function warmup() {
+    var toolId = null;
+    try {
+      toolId = typeof window.resolveToolIdFromUrl === 'function'
+        ? window.resolveToolIdFromUrl()
+        : (window.location.pathname || '').replace(/^\\/+|\\/+$/g, '').split('/')[0];
+    } catch (_) {}
+    var advancedWorkerTools = new Set([
+      'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
+      'excel-to-pdf', 'html-to-pdf', 'ocr', 'scan-to-pdf', 'ai-summarize',
+      'translate', 'workflow', 'repair', 'compare', 'powerpoint-to-pdf',
+      'word-to-excel', 'background-remover'
+    ]);
+    var ocrWorkerTools = new Set(['ocr', 'scan-to-pdf', 'ai-summarize', 'translate']);
     setTimeout(function () {
-      loadPdfJs().catch(function () {});
-      // Phase 1: pre-warm worker slots so first task is faster
-      if (window.WorkerPool) {
-        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/pdf-worker.js');
-        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/advanced-worker.js');
-        window.WorkerPool.prewarm && window.WorkerPool.prewarm('/workers/ocr-preprocessor-worker.js');
+      if (!window.WorkerPool || typeof window.WorkerPool.prewarm !== 'function') return;
+      if (advancedWorkerTools.has(toolId)) {
+        window.WorkerPool.prewarm('/workers/advanced-worker.js');
+      }
+      if (ocrWorkerTools.has(toolId)) {
+        window.WorkerPool.prewarm('/workers/ocr-preprocessor-worker.js');
       }
     }, 800);
   }
