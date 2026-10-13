@@ -5,7 +5,7 @@
 // v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
 // cacheFirst retained only for truly-immutable font files.
 // Bumping this version clears all v1 caches on next SW activation.
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
@@ -21,6 +21,10 @@ const LOCALE_PATH   = /^\/locales\//;
 const API_PATH      = /^\/api\//;
 const ADMIN_PATH    = /^\/admin\//;
 const IMMUTABLE_EXTS = /\.(woff2?|ttf|otf)(\?|$)/i;
+// Assets carrying an explicit version token are safe to cache-first: changing
+// their contents should also change the URL, so repeat visits avoid re-fetching
+// large CSS/JS files while unversioned assets retain freshness-first behavior.
+const VERSIONED_ASSET = /[?&](?:v|build|rev|hash)=[^&]+/i;
 
 // Security headers required for SharedArrayBuffer (COEP/COOP)
 const ISOLATION_HEADERS = {
@@ -103,9 +107,15 @@ self.addEventListener('fetch', event => {
     event.respondWith(cacheFirst(request, CACHE_STATIC));
     return;
   }
-  // JS / CSS / images: network-first.
-  // Always ask the server for the current asset; cached content is only a
-  // fallback for offline use. This prevents users from seeing stale builds.
+  // Explicitly versioned JS / CSS / images: cache-first.
+  // Their query token is the cache-busting contract, so a changed asset gets
+  // a new cache key and repeat visits can skip the network round trip.
+  if (STATIC_EXTS.test(path) && VERSIONED_ASSET.test(url.search)) {
+    event.respondWith(cacheFirst(request, CACHE_STATIC));
+    return;
+  }
+
+  // Unversioned JS / CSS / images remain network-first to avoid stale deploys.
   if (STATIC_EXTS.test(path)) {
     event.respondWith(networkFirst(request, CACHE_STATIC));
     return;
