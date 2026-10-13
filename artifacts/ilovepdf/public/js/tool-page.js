@@ -2461,18 +2461,6 @@ function setMeta(name, content) {
   m.content = content;
 }
 
-function mimeToExt(ct) {
-  if (ct.includes('application/pdf')) return '.pdf';
-  if (ct.includes('wordprocessingml') || ct.includes('msword')) return '.docx';
-  if (ct.includes('spreadsheetml') || ct.includes('ms-excel')) return '.xlsx';
-  if (ct.includes('presentationml') || ct.includes('ms-powerpoint')) return '.pptx';
-  if (ct.includes('image/jpeg')) return '.jpg';
-  if (ct.includes('image/png'))  return '.png';
-  if (ct.includes('image/webp')) return '.webp';
-  if (ct.includes('application/zip')) return '.zip';
-  return '.bin';
-}
-
 function triggerDownload(blob, filename) {
   const reg = window.ObjectURLRegistry;
   const url  = reg ? reg.create(blob, 'trigger-download') : URL.createObjectURL(blob);
@@ -2937,50 +2925,6 @@ window.attachDownloadBurst = attachDownloadBurst;
 window.explodeAt = explodeAt;
 window.clearAllBursts = clearAllBursts;
 
-function showTextResult(text, label = 'Result') {
-  const area = document.getElementById('result-area');
-  if (!area) return;
-  area.innerHTML = `
-    <div class="text-result-card">
-      <div class="text-result-header">
-        <span class="text-result-label"><i data-lucide="file-text"></i> ${label}</span>
-        <button class="btn btn-outline btn-sm" onclick="copyTextResult(this)"><i data-lucide="copy"></i> Copy</button>
-      </div>
-      <textarea class="text-result-area" readonly>${escapeHtml(text)}</textarea>
-    </div>`;
-  if (window.lucide) lucide.createIcons();
-  if (Flow.step !== 'download') Flow.commitResult();
-}
-
-function showReport(report) {
-  const area = document.getElementById('result-area');
-  if (!area) return;
-  const rows = Object.entries(report).map(([k, v]) => `
-    <div class="report-row">
-      <span class="report-key">${k}</span>
-      <span class="report-val">${v}</span>
-    </div>`).join('');
-  area.innerHTML = `
-    <div class="text-result-card">
-      <div class="text-result-header">
-        <span class="text-result-label"><i data-lucide="bar-chart-2"></i> Comparison Report</span>
-      </div>
-      <div class="report-table">${rows}</div>
-    </div>`;
-  if (window.lucide) lucide.createIcons();
-  if (Flow.step !== 'download') Flow.commitResult();
-}
-
-function copyTextResult(btn) {
-  const ta = btn.closest('.text-result-card')?.querySelector('textarea');
-  if (!ta) return;
-  navigator.clipboard.writeText(ta.value).then(() => {
-    btn.innerHTML = '<i data-lucide="check"></i> Copied!';
-    if (window.lucide) lucide.createIcons();
-    setTimeout(() => { btn.innerHTML = '<i data-lucide="copy"></i> Copy'; if (window.lucide) lucide.createIcons(); }, 2000);
-  });
-}
-
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -3358,17 +3302,6 @@ function escapeHtml(str) {
 // Free users get the strongest compression (~30% reduction, hard-coded).
 // Paid / logged-in users get a Low / Medium / High slider that maps to the
 // `level` option the backend route already understands.
-function isPaidUser() {
-  // Logged-in (any auth provider) is treated as "paid" for the compress
-  // slider gate. If a real billing tier exists later, swap this for a
-  // window.AuthUI.current().plan === 'pro' check.
-  try {
-    if (window.AuthUI && window.AuthUI.current) return !!window.AuthUI.current();
-    if (window.firebase?.auth) return !!window.firebase.auth().currentUser;
-  } catch (_) {}
-  return false;
-}
-
 function renderCompressOptionsHtml() {
   return `
     <div class="options-section compress-options" data-compress-options="all">
