@@ -4600,24 +4600,66 @@
     'page-numbers', 'watermark', 'sign', 'edit', 'compare',
   ]);
 
-  // Crop-only warm-up hook used by the Crop PDF upload UI. This loads the
-  // exact pdf-lib dependency that the existing crop() handler uses, but does
-  // not execute processing or mutate the selected file. It is intentionally
-  // narrow so other tools keep their existing lazy-loading behavior.
+  // Per-tool warm-up runs only after a user has selected a file. It downloads
+  // that tool's likely libraries/worker in the background, without processing
+  // or mutating the file. Avoid preloading other tools' CDN libraries.
   async function prewarm(toolId) {
-    if (toolId === 'merge') {
-      await loadPdfLib();
-      return { warmed: true, dependency: 'pdf-lib' };
+    const workerTools = new Set([
+      'split', 'rotate', 'organize', 'crop', 'page-numbers', 'watermark',
+      'sign', 'edit', 'compare', 'protect', 'unlock', 'repair', 'workflow',
+    ]);
+    if (workerTools.has(toolId)) {
+      const pool = await loadWorkerPool();
+      const warmed = !!(pool && typeof pool.prewarm === 'function' && pool.prewarm('/workers/pdf-worker.js'));
+      return { warmed, dependency: 'pdf-worker + worker-pool' };
     }
-    if (toolId === 'crop') {
-      await loadWorkerPool();
-      return { warmed: true, dependency: 'pdf-worker + worker-pool' };
+
+    switch (toolId) {
+      case 'merge':
+        await loadPdfLib();
+        return { warmed: true, dependency: 'pdf-lib' };
+      case 'compress':
+        await Promise.all([loadPdfLib(), loadPdfJs()]);
+        return { warmed: true, dependency: 'pdf-lib+pdfjs' };
+      case 'pdf-to-word':
+        await Promise.all([loadPdfJs(), loadJsZip()]);
+        return { warmed: true, dependency: 'pdfjs+jszip' };
+      case 'pdf-to-excel':
+        await Promise.all([loadPdfJs(), loadXlsx()]);
+        return { warmed: true, dependency: 'pdfjs+xlsx' };
+      case 'pdf-to-powerpoint':
+        await Promise.all([loadPdfJs(), loadPptxGen(), loadJsZip()]);
+        return { warmed: true, dependency: 'pdfjs+pptxgen+jszip' };
+      case 'word-to-pdf':
+        await Promise.all([loadMammoth(), loadHtml2Pdf()]);
+        return { warmed: true, dependency: 'mammoth+html2pdf' };
+      case 'powerpoint-to-pdf':
+        await Promise.all([loadJsZip(), loadPdfLib()]);
+        return { warmed: true, dependency: 'jszip+pdf-lib' };
+      case 'excel-to-pdf':
+        await Promise.all([loadXlsx(), loadPdfLib()]);
+        return { warmed: true, dependency: 'xlsx+pdf-lib' };
+      case 'word-to-excel':
+        await Promise.all([loadMammoth(), loadXlsx()]);
+        return { warmed: true, dependency: 'mammoth+xlsx' };
+      case 'html-to-pdf':
+        await loadHtml2Pdf();
+        return { warmed: true, dependency: 'html2pdf' };
+      case 'pdf-to-jpg':
+        await loadPdfJs();
+        return { warmed: true, dependency: 'pdfjs' };
+      case 'jpg-to-pdf':
+        await loadPdfLib();
+        return { warmed: true, dependency: 'pdf-lib' };
+      case 'ocr':
+      case 'scan-to-pdf':
+      case 'translate':
+      case 'ai-summarize':
+        await Promise.all([loadPdfJs(), loadTesseract()]);
+        return { warmed: true, dependency: 'pdfjs+tesseract' };
+      default:
+        return { warmed: false, dependency: 'no-extra-cdn-library' };
     }
-    if (toolId === 'word-to-excel') {
-      await Promise.all([loadMammoth(), loadXlsx()]);
-      return { warmed: true, dependency: 'mammoth+xlsx' };
-    }
-    return { warmed: false };
   }
 
   function supports(toolId) { return Object.prototype.hasOwnProperty.call(HANDLERS, toolId); }
