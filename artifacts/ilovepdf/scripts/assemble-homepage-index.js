@@ -22,8 +22,9 @@ function fail(message) {
 function optimizeHomepageResourceHints(html) {
   // Warm up external origins used by the homepage without blocking rendering.
   const hints = [
-    ['https://fonts.googleapis.com', '<link rel="preconnect" href="https://fonts.googleapis.com">'],
-    ['https://fonts.gstatic.com', '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'],
+    // Lucide is loaded as a deferred script; warm only that origin. Google
+    // Fonts intentionally stays un-preconnected so it cannot compete with
+    // first paint; its stylesheet already uses non-blocking optional display.
     ['https://unpkg.com', '<link rel="preconnect" href="https://unpkg.com">']
   ];
   if (!/<\/head\s*>/i.test(html)) throw new Error('homepage head closing tag not found');
