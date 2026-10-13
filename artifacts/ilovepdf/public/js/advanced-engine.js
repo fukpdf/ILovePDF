@@ -1461,7 +1461,7 @@
       'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
       'excel-to-pdf', 'html-to-pdf', 'ocr', 'scan-to-pdf', 'ai-summarize',
       'translate', 'workflow', 'repair', 'compare', 'powerpoint-to-pdf',
-      'word-to-excel', 'background-remover'
+      'word-to-excel'
     ]);
     var ocrWorkerTools = new Set(['ocr', 'scan-to-pdf', 'ai-summarize', 'translate']);
     setTimeout(function () {
