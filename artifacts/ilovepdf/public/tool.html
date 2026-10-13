@@ -263,10 +263,10 @@
     } catch (_) {}
   </script>
 
-  <script src="/js/config.js"></script>
+  <script src="/js/config.js" defer></script>
   
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
-  <script src="/js/timer-registry.js"></script>
+  <script src="/js/timer-registry.js" defer></script>
   <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
        tracked timers, streaming markers, future runtime integration points.
        Must load after timer-registry, before all processing scripts. -->
@@ -825,13 +825,13 @@
   
   
   
-  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
+  <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
-  <script src="/js/chrome.js"></script>
+  <script src="/js/chrome.js" defer></script>
   <script src="/js/dropdown-fix.js" defer></script>
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
-  <script src="/js/chrome-shim.js"></script>
+  <script src="/js/chrome-shim.js" defer></script>
   <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
   
   
