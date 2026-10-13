@@ -65,14 +65,12 @@
     'merge', 'split', 'rotate', 'organize', 'crop', 'compress', 'page-numbers',
     'watermark', 'sign', 'redact', 'protect', 'unlock', 'repair', 'ocr',
     'ai-summarize', 'translate', 'edit', 'compare', 'pdf-to-word',
-    'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf', 'powerpoint-to-pdf',
-    'excel-to-pdf', 'word-to-excel', 'html-to-pdf', 'scan-to-pdf', 'jpg-to-pdf'
+    'pdf-to-excel', 'pdf-to-powerpoint', 'pdf-to-jpg'
   ]);
   var LIVE_PREVIEW_TOOLS = new Set([
-    'word-to-pdf', 'excel-to-pdf', 'pdf-to-word', 'pdf-to-excel',
-    'background-remover', 'translate', 'ai-summarize', 'edit',
-    'pdf-to-powerpoint', 'powerpoint-to-pdf', 'html-to-pdf', 'ocr',
-    'scan-to-pdf', 'repair', 'word-to-excel'
+    'pdf-to-word', 'pdf-to-excel', 'background-remover', 'translate',
+    'ai-summarize', 'edit', 'pdf-to-powerpoint', 'powerpoint-to-pdf',
+    'html-to-pdf', 'ocr', 'scan-to-pdf', 'repair', 'word-to-excel'
   ]);
   var PAGE_ORGANIZER_TOOLS = new Set([
     'split', 'rotate', 'organize', 'crop', 'page-numbers', 'watermark',
