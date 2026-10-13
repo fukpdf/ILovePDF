@@ -56,6 +56,12 @@ This avoids having the initial preview compete with dozens of processing-runtime
 - `scripts/tool-page-performance-check.js`: regression checks for the new on-demand architecture.
 - `docs/audits/tool-page-performance-audit-2026-10-13.md`: this report.
 
+## Latest source verification pass — 2026-10-13
+
+- Re-ran the committed regression script's assertions against the current fetched branch source using a source-backed harness: **42 PASS, 0 FAIL** (35 architecture assertions plus 7 JavaScript syntax checks).
+- The verified shell metrics are 23 external script tags, 0 parser-blocking external script tags, 0 statically referenced processing/preview engine scripts, 0 worker prefetch links, and 0 exact duplicate external script URLs.
+- The assertion harness checks the test script's logic and syntax-parses its target files, but the actual `npm run audit:tool-page-performance` command has **not** been run inside a cloned repository/runtime. Full `npm test`, CI, browser Network traces and end-to-end upload/process/download testing remain outstanding.
+
 ## Remaining risks and verification required
 
 1. **Browser runtime tests are still required.** This environment can inspect/update GitHub source, but it has not run the deployed site in a real browser with Network/Performance panels. The live URL was not accessible to the available web browser tool during the earlier audit.
