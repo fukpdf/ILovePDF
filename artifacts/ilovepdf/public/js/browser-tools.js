@@ -25,7 +25,10 @@
     if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
     if (slot.p) return slot.p;
 
-    slot.p = new Promise((resolve, reject) => {
+    // ToolEngineLoader coordinates the same CDN URL across BrowserTools,
+    // LivePreview, PageOrganizer, and dedicated editors. The first caller keeps
+    // its normal cache strategy; concurrent callers await that exact promise.
+    const loadDirect = () => new Promise((resolve, reject) => {
       const inject = (src, done) => {
         const s = document.createElement('script');
         s.src = src; s.async = true;
@@ -35,14 +38,15 @@
       };
 
       const settle = (err) => {
-        if (err) { slot.p = null; reject(new Error((globalName || url) + ' failed to load')); return; }
+        if (err) { reject(new Error((globalName || url) + ' failed to load')); return; }
         const val = globalName ? window[globalName] : true;
-        if (!val && globalName) { slot.p = null; reject(new Error(globalName + ' not found after load')); return; }
+        if (!val && globalName) { reject(new Error(globalName + ' not found after load')); return; }
         resolve(val);
       };
 
       (async () => {
-        // ── Path A: IDB hit → inject as blob URL ────────────────────────
+        // Path A: IndexedDB cache → blob URL. If CSP blocks blob execution,
+        // retry the canonical CDN URL exactly as the original loader did.
         if (window.IDBCache) {
           try {
             const cached = await window.IDBCache.get(url);
@@ -51,7 +55,6 @@
               inject(blobUrl, (err) => {
                 URL.revokeObjectURL(blobUrl);
                 if (!err) { settle(null); return; }
-                // CSP blocked blob: → fall back to CDN
                 inject(url, settle);
               });
               return;
@@ -59,7 +62,7 @@
           } catch (_) {}
         }
 
-        // ── Path B: CDN → execute, then cache bytes in background ───────
+        // Path B: CDN → execute, then cache bytes in the background.
         inject(url, (err) => {
           settle(err);
           if (!err && window.IDBCache) {
@@ -71,6 +74,13 @@
       })();
     });
 
+    const shared = window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function'
+      ? window.ToolEngineLoader.shareDependency(url, globalName, loadDirect)
+      : loadDirect();
+    slot.p = shared.catch((error) => {
+      slot.p = null;
+      throw error;
+    });
     return slot.p;
   }
 
