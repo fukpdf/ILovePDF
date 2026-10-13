@@ -60,12 +60,23 @@
     '/js/browser-tool-runtime.js'
   ];
 
-  var PREVIEW = [
-    '/js/pdf-preview.js',
-    '/js/live-preview.js',
-    '/js/page-organizer.js',
-    '/js/app-router.js'
-  ];
+  var PDF_PREVIEW_TOOLS = new Set([
+    'merge', 'split', 'rotate', 'organize', 'crop', 'compress', 'page-numbers',
+    'watermark', 'sign', 'redact', 'protect', 'unlock', 'repair', 'ocr',
+    'ai-summarize', 'translate', 'edit', 'compare', 'pdf-to-word',
+    'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf', 'powerpoint-to-pdf',
+    'excel-to-pdf', 'word-to-excel', 'html-to-pdf', 'scan-to-pdf', 'jpg-to-pdf'
+  ]);
+  var LIVE_PREVIEW_TOOLS = new Set([
+    'word-to-pdf', 'excel-to-pdf', 'pdf-to-word', 'pdf-to-excel',
+    'background-remover', 'translate', 'ai-summarize', 'edit',
+    'pdf-to-powerpoint', 'powerpoint-to-pdf', 'html-to-pdf', 'ocr',
+    'scan-to-pdf', 'repair', 'word-to-excel'
+  ]);
+  var PAGE_ORGANIZER_TOOLS = new Set([
+    'split', 'rotate', 'organize', 'crop', 'page-numbers', 'watermark',
+    'sign', 'redact', 'ocr', 'ai-summarize', 'translate', 'repair', 'edit'
+  ]);
 
   var ADVANCED_TOOLS = new Set([
     'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
@@ -130,7 +141,12 @@
   }
 
   function previewModulesFor(toolId) {
-    return Array.from(new Set(PREVIEW.concat(TOOL_PREVIEW_MODULES[toolId] || [])));
+    var sources = [];
+    if (PDF_PREVIEW_TOOLS.has(toolId)) sources.push('/js/pdf-preview.js');
+    if (LIVE_PREVIEW_TOOLS.has(toolId)) sources.push('/js/live-preview.js');
+    if (PAGE_ORGANIZER_TOOLS.has(toolId)) sources.push('/js/page-organizer.js');
+    if (TOOL_PREVIEW_MODULES[toolId]) sources = sources.concat(TOOL_PREVIEW_MODULES[toolId]);
+    return Array.from(new Set(sources));
   }
 
   function preparePreview(toolId) {
