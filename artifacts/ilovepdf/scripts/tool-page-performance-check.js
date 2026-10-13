@@ -12,6 +12,9 @@ const toolPage = readFileSync(path.join(root, 'public/js/tool-page.js'), 'utf8')
 const loader = readFileSync(path.join(root, 'public/js/tool-engine-loader.js'), 'utf8');
 const browserTools = readFileSync(path.join(root, 'public/js/browser-tools.js'), 'utf8');
 const advancedEngine = readFileSync(path.join(root, 'public/js/advanced-engine.js'), 'utf8');
+const advancedWarmupStart = advancedEngine.indexOf('function warmup()');
+const advancedWarmupEnd = advancedEngine.indexOf('// ── CHUNK STREAM', advancedWarmupStart);
+const advancedWarmup = advancedEngine.slice(advancedWarmupStart, advancedWarmupEnd);
 
 const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map((match) => match[0]);
 const externalScripts = scriptTags.filter((tag) => /\bsrc\s*=/i.test(tag));
@@ -62,6 +65,7 @@ const checks = [
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
   ['engine resources preload in parallel and execute in dependency order', /script\.async\s*=\s*false/.test(loader) && /await Promise\.all\(sources\.map\(preloadOne\)\)/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
   ['loader deduplicates scripts and concurrent tool preparation', loader.includes('var _loaded = new Set()') && loader.includes('var _scriptPromises = new Map()') && loader.includes('var _enginePromises = new Map()')],
+  ['concurrent callers await an in-flight script instead of racing its tag', loader.indexOf('if (_scriptPromises.has(src)) return _scriptPromises.get(src);') < loader.indexOf('if (document.querySelector(\'script[src="\' + src + \'"]\'))')],
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
@@ -79,6 +83,7 @@ const checks = [
     'docx-coordinate-engine.js', 'fidelity-debug.js',
   ].every((name) => browserTools.includes("'/js/pdf-pipeline/" + name + "'") && loader.includes("/js/pdf-pipeline/" + name))],
   ['advanced engine supports lazy loading after window load', /function attachResumeInput\(\)/.test(advancedEngine) && /document\.readyState === 'complete'\) attachResumeInput\(\)/.test(advancedEngine)],
+  ['advanced warmup preloads only selected-tool workers', advancedWarmup.includes('advancedWorkerTools.has(toolId)') && advancedWarmup.includes('ocrWorkerTools.has(toolId)') && !advancedWarmup.includes("prewarm('/workers/pdf-worker.js')") && !advancedWarmup.includes('loadPdfJs().catch')],
   ['upload skeleton remains in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['tool shell reserves initial viewport to reduce footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
