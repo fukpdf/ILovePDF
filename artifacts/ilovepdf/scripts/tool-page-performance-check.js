@@ -96,6 +96,7 @@ const checks = [
   ['tool shell reserves initial viewport to reduce footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
   ['main stylesheet remains present', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
   ['processing workers are not prefetched on initial page open', !html.includes('rel="prefetch" href="/workers/') && !html.includes("rel='prefetch' href='/workers/")],
+  ['ad runtime waits for a real ad slot near the viewport', !html.includes('setTimeout(loadAds, 4500)') && !html.includes("window.addEventListener('scroll', loadAds") && html.includes("{ rootMargin: '300px 0px' }") && html.includes("if (!slots.length) return;")],
   ['supplemental locale pack is not downloaded on initial open', !scriptUrls.some((url) => url.includes('i18n-ext.js'))],
   ['preview transition has no artificial two-second delay', toolPage.includes('runToolPreviewPreparation(tool, runId, startedAt, 250);') && !toolPage.includes('runToolPreviewPreparation(tool, runId, startedAt, 2200);')],
   ['duplicate initial external script URLs are absent', new Set(scriptUrls).size === scriptUrls.length],
