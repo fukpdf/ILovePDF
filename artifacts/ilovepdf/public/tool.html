@@ -335,13 +335,13 @@
   <!-- Phase H: Enterprise Recovery V2 (object graph, font/page-tree/image recovery) -->
   <script src="/js/enterprise-recovery-v2.js"></script>
   <!-- Phase I: Job Dashboard (live progress, mem tier, GPU, workers, ETA) -->
-  <script src="/js/job-dashboard.js"></script>
+  <script src="/js/job-dashboard.js" defer></script>
   <!-- Phase J: FullNextGenAudit — master audit across all phases 18–37+ -->
-  <script src="/js/full-nextgen-audit.js"></script>
+  <script src="/js/full-nextgen-audit.js" defer></script>
   <!-- Phase 40A: Final Memory Leak Audit (canvas/bitmap/worker/blob/tensor/GPU tracking) -->
-  <script src="/js/final-memory-audit.js"></script>
+  <script src="/js/final-memory-audit.js" defer></script>
   <!-- Phase 40B: Worker Deadlock Monitor (heartbeat, stalled-promise, queue-starvation) -->
-  <script src="/js/deadlock-monitor.js"></script>
+  <script src="/js/deadlock-monitor.js" defer></script>
   <!-- Phase 40C: OPFS Integrity System (CRC32, staged-write, journal, orphan recovery) -->
   <script src="/js/opfs-integrity.js"></script>
   <!-- Phase 40E: Browser Compat Layer (Safari/iOS/mobile detect, fallback routing, shims) -->
@@ -355,7 +355,7 @@
   <!-- Phase 40M: Self-Healing Recovery (trigger detect, auto-cleanup, progress preserve) -->
   <script src="/js/self-healing.js"></script>
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
-  <script src="/js/final-automated-audit.js"></script>
+  <script src="/js/final-automated-audit.js" defer></script>
   <!-- Phase 41A: Universal Encoding Repair (MojibakeDetector, UtfRepairEngine, UnicodeSanitizer) -->
   <script src="/js/universal-encoding-repair.js" defer></script>
   <!-- Phase 41B: Universal Smart Chunk Engine (LanguageAwareChunker, AdaptiveChunkSizer, StreamingQueue) -->
