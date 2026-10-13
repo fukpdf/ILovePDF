@@ -29,16 +29,21 @@
     if (window.BrowserTools && window.BrowserTools._loadPdfLib) {
       return window.BrowserTools._loadPdfLib();
     }
-    return new Promise((resolve, reject) => {
+    const url = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+    const loadDirect = () => new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
-      s.onload  = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib load failed'));
+      s.src = url;
+      s.onload = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib load failed'));
       s.onerror = (e) => {
         console.error('[PO] pdf-lib script load failed:', e);
         reject(new Error('pdf-lib load failed'));
       };
       document.head.appendChild(s);
     });
+    if (window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function') {
+      return window.ToolEngineLoader.shareDependency(url, 'PDFLib', loadDirect);
+    }
+    return loadDirect();
   }
 
   // ── Tile state machine states ─────────────────────────────────────────────
