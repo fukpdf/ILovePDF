@@ -35,34 +35,8 @@ input, select, textarea { font-family: inherit; }
 
 /* ===== LAYOUT ===== */
 .app-layout { display: flex; min-height: 100vh; }
-
-/* ===== SIDEBAR ===== */
-.sidebar {
-  width: var(--sidebar-width);
-  background: var(--sidebar-bg);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0; left: 0; bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  z-index: calc(var(--z-header, 1000) - 10);
-  transition: transform .25s ease;
-  scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
-}
 .sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 20px 16px 16px;
-  border-bottom: 1px solid var(--sidebar-border);
-  flex-shrink: 0;
-}
 .sidebar-logo-icon {
   width: 36px; height: 36px;
   background: var(--primary);
@@ -71,10 +45,7 @@ input, select, textarea { font-family: inherit; }
   color: white;
   flex-shrink: 0;
 }
-.sidebar-logo-text { color: #f8fafc; font-weight: 700; font-size: 1rem; line-height: 1.2; }
 .sidebar-logo-text span { display: block; font-size: .7rem; font-weight: 400; color: #94a3b8; }
-
-.sidebar-nav { flex: 1; padding: 10px 0 20px; }
 
 .sidebar-category {
   padding: 14px 16px 4px;
@@ -84,23 +55,7 @@ input, select, textarea { font-family: inherit; }
   text-transform: uppercase;
   color: #475569;
 }
-
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  font-size: .82rem;
-  color: #94a3b8;
-  border-radius: 0;
-  transition: var(--transition);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  position: relative;
-}
 .sidebar-item:hover { background: var(--sidebar-hover); color: #e2e8f0; }
-.sidebar-item.active { background: var(--sidebar-active); color: #a5b4fc; }
 .sidebar-item.active::before {
   content: '';
   position: absolute;
@@ -109,7 +64,6 @@ input, select, textarea { font-family: inherit; }
   background: var(--primary);
   border-radius: 0 3px 3px 0;
 }
-.sidebar-item [data-lucide] { width: 15px; height: 15px; flex-shrink: 0; }
 .sidebar-item-badge {
   margin-left: auto;
   font-size: .6rem;
@@ -118,7 +72,6 @@ input, select, textarea { font-family: inherit; }
   font-weight: 600;
   letter-spacing: .03em;
 }
-.badge-soon { background: #1e293b; color: #64748b; }
 
 /* ===== MAIN CONTENT ===== */
 .main-content {
@@ -128,36 +81,8 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
 }
-
-/* ===== TOP BAR ===== */
-.topbar {
-  height: var(--header-height);
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 28px;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  flex-shrink: 0;
-}
 .topbar-title { font-size: 1.05rem; font-weight: 600; }
-.topbar-sub { font-size: .83rem; color: var(--text-muted); margin-left: 4px; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.topbar-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: .85rem;
-  color: var(--text-muted);
-  min-width: 200px;
-}
 .topbar-search input {
   border: none;
   background: transparent;
@@ -166,7 +91,6 @@ input, select, textarea { font-family: inherit; }
   width: 100%;
   font-size: .85rem;
 }
-.topbar-search [data-lucide] { width: 15px; height: 15px; flex-shrink: 0; }
 .menu-toggle {
   display: none;
   background: none;
@@ -175,7 +99,6 @@ input, select, textarea { font-family: inherit; }
   padding: 6px;
   border-radius: 8px;
 }
-.menu-toggle:hover { background: var(--bg); }
 
 /* ===== DASHBOARD ===== */
 .dashboard { padding: 28px; flex: 1; }
@@ -453,15 +376,6 @@ input, select, textarea { font-family: inherit; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
 .empty-state [data-lucide] { width: 48px; height: 48px; margin-bottom: 16px; opacity: .4; }
 .empty-state-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-
-/* ===== SIDEBAR FILTER NAV ===== */
-.sidebar-filter-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 10px 6px;
-  border-bottom: 1px solid var(--sidebar-border);
-}
 .sidebar-filter-btn {
   display: flex;
   align-items: center;
@@ -474,9 +388,7 @@ input, select, textarea { font-family: inherit; }
   transition: var(--transition);
   white-space: nowrap;
 }
-.sidebar-filter-btn [data-lucide] { width: 14px; height: 14px; flex-shrink: 0; }
 .sidebar-filter-btn:hover { background: var(--sidebar-hover); color: #e2e8f0; }
-.sidebar-filter-btn.active { background: var(--sidebar-active); color: #a5b4fc; font-weight: 600; }
 
 /* ===== CATEGORY BADGE ON CARD ===== */
 .cat-badge {
@@ -569,9 +481,7 @@ input, select, textarea { font-family: inherit; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; }
   .menu-toggle { display: flex; align-items: center; justify-content: center; }
   .tools-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .dashboard { padding: 16px; }
@@ -579,18 +489,9 @@ input, select, textarea { font-family: inherit; }
   .options-grid { grid-template-columns: 1fr; }
   .hero { padding: 24px 20px; }
   .hero-title { font-size: 1.25rem; }
-  .sidebar-overlay { display: block; }
   .modal-box { padding: 28px 20px 22px; }
 }
-@media (min-width: 769px) {
-  .sidebar-overlay { display: none !important; }
-}
-.sidebar-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.5);
-  z-index: 99;
-}
+
 
 .btn-sm { padding: 5px 12px; font-size: .78rem; }
 
@@ -842,9 +743,6 @@ input, select, textarea { font-family: inherit; }
   background: linear-gradient(135deg, #E5322E 0%, #ff6a5b 100%);
 }
 
-/* Sidebar active accent */
-.sidebar-item.active { color: #fecaca; }
-
 /* ===== MEGA MENU (in topbar) ===== */
 .mega-nav { display: flex; align-items: center; gap: 4px; margin-left: 10px; flex: 1; overflow-x: auto; scrollbar-width: none; }
 .mega-nav::-webkit-scrollbar { display: none; }
@@ -1049,11 +947,8 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 768px) {
   :root { --sidebar-width: 0px; }
   .menu-toggle { display: inline-flex; }
-  .sidebar { transform: translateX(-100%); width: 256px; }
   .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; }
   .topbar { padding: 0 14px; gap: 8px; }
-  .topbar-search { display: none; }
   .dashboard { padding: 16px; }
   .hero { padding: 22px 20px; }
   .hero-title { font-size: 1.3rem; }
@@ -1062,11 +957,6 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 480px) {
   .tools-grid { grid-template-columns: 1fr; }
   .processing-card { padding: 28px 24px; max-width: 92vw; }
-}
-.sidebar-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.45); z-index: 90;
-  transition: opacity .2s;
 }
 .sidebar-overlay.hidden { display: none; }
 
@@ -1114,19 +1004,11 @@ input, select, textarea { font-family: inherit; }
 
 /* Sidebar */
 .sidebar{ background: linear-gradient(180deg,#0e0c2e 0%, #161237 100%) !important; }
-.sidebar-header{ background: rgba(255,255,255,.04) !important; }
 .sidebar-link.active,
 .sidebar-link:hover{
   background: linear-gradient(135deg, rgba(124,58,237,.25), rgba(91,61,245,.18)) !important;
   color:#fff !important;
   border-left:3px solid #a78bfa !important;
-}
-
-/* Topbar */
-.topbar{
-  background: rgba(255,255,255,.85) !important;
-  backdrop-filter: saturate(180%) blur(10px);
-  border-bottom:1px solid #e2e8f0 !important;
 }
 
 /* Buttons / accents */
@@ -4232,22 +4114,6 @@ i[data-lucide] {
     gap: 14px;
     padding: 14px;
   }
-}
-
-
-/* ============================================================
-   ROTATE PDF — full-bleed application workspace
-   Reference: ilovepdf.com/rotate_pdf
-   Visual/theme changes only; PDF processing remains in existing JS.
-   ============================================================ */
-
-.main-content:has(.ilpdf-rotate-page) #tool-content {
-  width: 100% !important;
-  max-width: none !important;
-  min-width: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  flex: 1 1 auto !important;
 }
 
 .main-content:has(.ilpdf-rotate-page) {
