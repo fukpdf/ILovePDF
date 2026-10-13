@@ -65,7 +65,8 @@
     "audit:phase5:pdf-to-word-quality": "node scripts/phase5-pdf-to-word-quality-check.js",
     "audit:phase5:pdf-to-word-decision": "node scripts/phase5-pdf-to-word-decision-check.js",
     "audit:phase5:units-1-332-full": "node scripts/phase5-units-1-332-full-audit-check.js",
-    "build:homepage": "node scripts/assemble-homepage-index.js"
+    "build:homepage": "node scripts/assemble-homepage-index.js",
+    "audit:tool-page-performance": "node scripts/tool-page-performance-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
