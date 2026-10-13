@@ -92,6 +92,18 @@
   };
 
   var TRANSLATION_TOOLS = new Set(['translate', 'ocr', 'scan-to-pdf']);
+  var PDF_WORD_PIPELINE = [
+    '/js/pdf-pipeline/font-mapper.js',
+    '/js/pdf-pipeline/column-engine.js',
+    '/js/pdf-pipeline/form-reconstruction.js',
+    '/js/pdf-pipeline/fidelity-validator.js',
+    '/js/pdf-pipeline/visual-reconstruction.js',
+    '/js/pdf-pipeline/ocr-zoning.js',
+    '/js/pdf-pipeline/image-anchor-engine.js',
+    '/js/pdf-pipeline/layout-graph.js',
+    '/js/pdf-pipeline/docx-coordinate-engine.js',
+    '/js/pdf-pipeline/fidelity-debug.js'
+  ];
 
   function loadOne(src) {
     if (_loaded.has(src) || document.querySelector('script[src="' + src + '"]')) {
@@ -127,6 +139,7 @@
   function engineModulesFor(toolId) {
     var sources = CORE.slice();
     if (ADVANCED_TOOLS.has(toolId)) sources.push('/js/advanced-engine.js');
+    if (toolId === 'pdf-to-word') sources = sources.concat(PDF_WORD_PIPELINE);
     if (TRANSLATION_TOOLS.has(toolId)) {
       sources.push(
         '/js/universal-encoding-repair.js',
