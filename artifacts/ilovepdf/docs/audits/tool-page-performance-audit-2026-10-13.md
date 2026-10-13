@@ -30,7 +30,7 @@ Keep the branded upload shell, route/tool metadata, essential localization/navig
 1. **Preview track:** PDF preview renderer, live-preview module, page organizer, route preview helper, and only the special editor module needed by tools such as Edit PDF or Background Remover.
 2. **Processing track:** ordered shared worker/runtime dependencies, `BrowserTools`, `BrowserToolRuntime`, and the selected tool's advanced/translation enhancement modules when applicable. The engine's own `prewarm()` hook runs after the selected processing scripts have loaded. It warms only the selected tool's likely CDN libraries or worker (for example, PDF.js + PDF-Lib for compression, or the PDF worker for worker-backed tools).
 
-The preview track controls when the preview becomes interactive; it does not wait for the full processing engine. Live Preview and Page Organizer are only requested for tool IDs whose manifest supports those experiences. Processing status is updated independently while the user reviews the file and settings.
+The preview track controls when the preview becomes interactive; it does not wait for the full processing engine. Live Preview and Page Organizer are only requested for tool IDs whose manifest supports those experiences. Edit PDF and Background Remover prefer their dedicated editor engines and skip the generic runtime bundle when their editor mount API is available; generic fallback modules load only if that editor failed to register. Processing status is updated independently while the user reviews the file and settings.
 
 ### When Process is clicked
 
@@ -38,7 +38,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 
 ### Readiness and dependency safety
 
-- Classic scripts are inserted one at a time with `async = false` to preserve the manifest's dependency order.
+- Selected script resources are preloaded concurrently after file selection, then classic scripts are injected/executed sequentially with `async = false` to preserve dependency order without a serial network waterfall.
 - Script requests and per-tool preparation promises are deduplicated.
 - A failed script is removed from the in-flight cache so the user can retry.
 - Advanced Engine's resumable-progress listener now handles being initialized after the page `load` event and checks the file that was already selected.
@@ -49,7 +49,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 - `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell.
 - `public/js/tool-engine-loader.js`: new split preview/engine loader and per-tool manifest.
 - `public/js/tool-page.js`: start both tracks after selection, render preview as soon as preview dependencies are ready, show engine readiness, and gate processing on the selected engine. The shared UI/flow script remains part of the shell because it renders the upload page and binds file selection; splitting it into a tiny upload-only bootstrap is a separate, higher-risk refactor.
-- `public/js/browser-tools.js`: prewarm only the selected tool's libraries or worker in the background.
+- `public/js/browser-tools.js`: prewarm only the selected tool's libraries or worker in the background, with explicit dependency maps for compression, conversion, OCR/translation, and worker-backed tools.
 - `public/js/advanced-engine.js`: make resumable-progress binding work when the engine is lazy-loaded after page load.
 - `scripts/tool-page-performance-check.js`: regression checks for the new on-demand architecture.
 - `docs/audits/tool-page-performance-audit-2026-10-13.md`: this report.
