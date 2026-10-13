@@ -140,7 +140,7 @@
     return promise;
   }
 
-  function preloadOne(src) {
+  function preloadOne(src, priority) {
     if (_loaded.has(src)) return Promise.resolve();
     if (_scriptPromises.has(src)) return _scriptPromises.get(src);
     if (document.querySelector('script[src="' + src + '"]')) return Promise.resolve();
@@ -150,7 +150,7 @@
       link.rel = 'preload';
       link.as = 'script';
       link.href = src;
-      link.fetchPriority = 'low';
+      link.fetchPriority = priority || 'low';
       link.dataset.toolEnginePreload = src;
       link.onload = resolve;
       // Preload is only an optimization. The ordered script request below is
@@ -162,11 +162,11 @@
     return promise;
   }
 
-  async function loadOrdered(sources) {
+  async function loadOrdered(sources, priority) {
     // Download the selected tool's resources concurrently, then execute them
-    // one at a time in manifest order. This avoids a serial network waterfall
-    // without allowing a dependent classic script to execute before its parent.
-    await Promise.all(sources.map(preloadOne));
+    // one at a time in manifest order. Preview resources get higher fetch priority
+    // so background engine traffic cannot starve the visible preview.
+    await Promise.all(sources.map(function (src) { return preloadOne(src, priority); }));
     for (var i = 0; i < sources.length; i++) await loadOne(sources[i]);
   }
 
@@ -201,7 +201,7 @@
     var key = String(toolId);
     if (_previewReady.has(key)) return Promise.resolve({ toolId: key, ready: true });
     if (_previewPromises.has(key)) return _previewPromises.get(key);
-    var promise = loadOrdered(previewModulesFor(key)).then(function () {
+    var promise = loadOrdered(previewModulesFor(key), 'high').then(function () {
       _previewReady.add(key);
       return { toolId: key, ready: true };
     }).catch(function (error) {
@@ -229,13 +229,13 @@
           ? !!(G.EditPdfPro && typeof G.EditPdfPro.mount === 'function')
           : !!(G.BgRemoverPro && typeof G.BgRemoverPro.mount === 'function');
         if (dedicatedReady) return { dedicated: true };
-        return loadOrdered(engineModulesFor(key)).then(async function () {
+        return loadOrdered(engineModulesFor(key), 'low').then(async function () {
           if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') await G.BrowserTools.prewarm(key);
           return { dedicated: false };
         });
       });
     } else {
-      engineWork = loadOrdered(engineModulesFor(key)).then(async function () {
+      engineWork = loadOrdered(engineModulesFor(key), 'low').then(async function () {
         // Prewarm only dependencies explicitly declared by BrowserTools for
         // this tool. Other tools do not download each other's CDN libraries.
         if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') {
