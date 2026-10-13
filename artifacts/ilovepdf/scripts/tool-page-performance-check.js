@@ -29,7 +29,7 @@ const pdfPipelineNames = [
 const pdfPipelineLazy = pdfPipelineNames.every((name) =>
   browserTools.includes("'/js/pdf-pipeline/" + name + "'") &&
   !html.includes('src="/js/pdf-pipeline/' + name + '"')
-) && /async function pdfToWord\\(files, opts\\) \\{\\s*await ensurePdfWordFidelityPipeline\\(\\);/.test(browserTools);
+) && browserTools.includes('async function pdfToWord(files, opts) {\n    await ensurePdfWordFidelityPipeline();');
 const optionalRuntimeEnhancementsDeferred = [
   'runtime-ai-upgrade.js', 'runtime-telemetry-enterprise.js',
 ].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
