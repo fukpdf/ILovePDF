@@ -10,6 +10,7 @@
 
   var _loaded = new Set();
   var _scriptPromises = new Map();
+  var _preloadPromises = new Map();
   var _enginePromises = new Map();
   var _previewPromises = new Map();
   var _engineReady = new Set();
@@ -132,11 +133,32 @@
     return promise;
   }
 
-  function loadOrdered(sources) {
-    // Insert every tag in manifest order without awaiting each network response.
-    // Dynamically inserted classic scripts with async=false execute in insertion
-    // order, while their downloads can overlap instead of forming a waterfall.
-    return Promise.all(sources.map(loadOne));
+  function preloadOne(src) {
+    if (_loaded.has(src) || document.querySelector('script[src="' + src + '"]')) return Promise.resolve();
+    if (_preloadPromises.has(src)) return _preloadPromises.get(src);
+    var promise = new Promise(function (resolve) {
+      var link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'script';
+      link.href = src;
+      link.fetchPriority = 'low';
+      link.dataset.toolEnginePreload = src;
+      link.onload = resolve;
+      // Preload is only an optimization. The ordered script request below is
+      // authoritative and will report a real failure if the script cannot load.
+      link.onerror = resolve;
+      document.head.appendChild(link);
+    });
+    _preloadPromises.set(src, promise);
+    return promise;
+  }
+
+  async function loadOrdered(sources) {
+    // Download the selected tool's resources concurrently, then execute them
+    // one at a time in manifest order. This avoids a serial network waterfall
+    // without allowing a dependent classic script to execute before its parent.
+    await Promise.all(sources.map(preloadOne));
+    for (var i = 0; i < sources.length; i++) await loadOne(sources[i]);
   }
 
   function engineModulesFor(toolId) {
