@@ -57,7 +57,7 @@ const checks = [
   ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && loaderScriptIndex >= 0 && toolPageScriptIndex > loaderScriptIndex],
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
   ['loader uses deterministic sequential script injection', /script\.async\s*=\s*false/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
-  ['loader deduplicates scripts and concurrent tool preparation', /_loaded\s*=\s*new Set/.test(loader) && /_inFlight\s*=\s*new Map/.test(loader)],
+  ['loader deduplicates scripts and concurrent tool preparation', /_loaded\\s*=\\s*new Set/.test(loader) && loader.includes('_scriptPromises = new Map()') && loader.includes('_enginePromises = new Map()')],
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
@@ -76,7 +76,7 @@ const checks = [
   ['skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['tool shell reserves initial viewport to reduce footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
   ['main stylesheet remains present', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
-  ['processing workers are not prefetched on initial page open', !/rel=[\"']prefetch[\"'][^>]*href=[\"']\/workers\//i.test(html)],
+  ['processing workers are not prefetched on initial page open', !html.includes('rel="prefetch" href="/workers/') && !html.includes("rel='prefetch' href='/workers/")],
   ['duplicate initial external script URLs are absent', new Set(scriptUrls).size === scriptUrls.length],
 ];
 
