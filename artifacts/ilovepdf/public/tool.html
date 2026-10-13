@@ -64,27 +64,51 @@
   <script>
   (function () {
     var path = String(location.pathname || '/').toLowerCase();
-    var worker = '/workers/pdf-worker.js';
+    var workers = ['/workers/pdf-worker.js'];
+    function use(file) { workers = [file]; }
     if (/compress/.test(path)) {
-      worker = '/workers/compress-worker.js';
+      use('/workers/compress-worker.js');
     } else if (/(ocr|scan-to-pdf|image-to-text)/.test(path)) {
-      worker = '/workers/advanced-worker.js';
-    } else if (/(merge|split|rotate|crop|organize|watermark|protect|unlock|sign|page-numbers|pdf-to-jpg|jpg-to-pdf|redact)/.test(path)) {
-      worker = '/workers/pdf-lib-worker.js';
+      workers = ['/workers/advanced-worker.js', '/workers/ocr-preprocessor-worker.js'];
+    } else if (/(pdf-to-word|word-to-pdf)/.test(path)) {
+      use('/workers/pdf-word-docx-worker.js');
+    } else if (/(pdf-to-excel|excel-to-pdf|word-to-excel)/.test(path)) {
+      use('/workers/pdf-excel-xlsx-worker.js');
+    } else if (/(pdf-to-powerpoint|powerpoint-to-pdf)/.test(path)) {
+      use('/workers/pdf-ppt-pptx-worker.js');
+    } else if (/repair/.test(path)) {
+      use('/workers/repair-worker.js');
+    } else if (/compare/.test(path)) {
+      use('/workers/compare-worker.js');
+    } else if (/(ai-summarize|ai-summarizer)/.test(path)) {
+      use('/workers/summary-worker.js');
+    } else if (/(translate|translation)/.test(path)) {
+      use('/workers/translation-worker.js');
+    } else if (/(background-remover|remove-background)/.test(path)) {
+      use('/workers/remove-bg-worker.js');
+    } else if (/(crop-image|resize-image|image-filters|image-compressor)/.test(path)) {
+      use('/workers/image-tools-worker.js');
+    } else if (/image-converter/.test(path)) {
+      use('/workers/image-pipeline-worker.js');
+    } else if (/(merge|split|rotate|crop|organize|watermark|protect|unlock|sign|page-numbers|pdf-to-jpg|jpg-to-pdf|redact|html-to-pdf)/.test(path)) {
+      use('/workers/pdf-lib-worker.js');
     }
-    var addHint = function () {
-      if (document.querySelector('link[data-tool-worker-prefetch]')) return;
-      var link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.as = 'worker';
-      link.href = worker + '?v=__BUILD_ID__';
-      link.setAttribute('data-tool-worker-prefetch', '1');
-      document.head.appendChild(link);
+    var addHints = function () {
+      workers.forEach(function (worker, index) {
+        var key = worker + '?v=__BUILD_ID__';
+        if (document.querySelector('link[data-tool-worker-prefetch="' + index + '"]')) return;
+        var link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'worker';
+        link.href = key;
+        link.setAttribute('data-tool-worker-prefetch', String(index));
+        document.head.appendChild(link);
+      });
     };
     if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(addHint, { timeout: 2500 });
+      window.requestIdleCallback(addHints, { timeout: 2500 });
     } else {
-      window.setTimeout(addHint, 1800);
+      window.setTimeout(addHints, 1800);
     }
   })();
   </script>
