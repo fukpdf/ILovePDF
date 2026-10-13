@@ -77,6 +77,7 @@
   // → AdManager, analytics sync → AnalyticsEngine.
   var IDLE_ROOT_STACK = [
     '/js/runtime-diagnostics-center.js',
+    '/js/runtime-telemetry-enterprise.js',
     '/js/runtime-prefetch.js',
     '/js/runtime-processing-concurrency.js',
     '/js/runtime-compression-presets.js',
