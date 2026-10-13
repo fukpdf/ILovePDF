@@ -38,6 +38,10 @@ const translationEnhancementsDeferred = [
   'universal-ocr-cleanup.js', 'global-multilingual-renderer.js',
   'universal-translation-validator.js', 'universal-translation-pipeline.js',
 ].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
+const auditEnhancementsDeferred = [
+  'job-dashboard.js', 'full-nextgen-audit.js', 'final-memory-audit.js',
+  'deadlock-monitor.js', 'final-automated-audit.js',
+].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
 
 const checks = [
   ['tool-page.js is deferred', /<script\b[^>]*src=["']\/js\/tool-page\.js(?:\?[^"']*)?["'][^>]*\bdefer\b/i.test(html)],
@@ -48,6 +52,7 @@ const checks = [
   ['PDF-to-Word fidelity modules are loaded on demand in dependency order', pdfPipelineLazy],
   ['AI upgrade and enterprise telemetry are deferred', optionalRuntimeEnhancementsDeferred],
   ['translation and OCR enhancements are deferred in source order', translationEnhancementsDeferred],
+  ['audit and dashboard modules are deferred in source order', auditEnhancementsDeferred],
   ['external script count stays at or below the audited ceiling', externalScripts.length <= 374],
   ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 119],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
