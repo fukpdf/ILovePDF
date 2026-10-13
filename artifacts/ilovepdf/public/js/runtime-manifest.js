@@ -103,7 +103,6 @@
     'runtime-governor.js',
     'production-mode.js',
     'pwa-register.js',
-    'footer-lang.js',
     'chrome-shim.js',
     'about-contact-form.js',
     'savings-animation.js',
