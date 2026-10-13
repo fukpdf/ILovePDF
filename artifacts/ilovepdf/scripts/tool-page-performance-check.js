@@ -20,8 +20,8 @@ const scriptUrls = externalScripts.map((tag) => {
   return match ? match[1] : null;
 }).filter(Boolean);
 const fileName = (url) => url.split('/').pop().split('?')[0];
-const loaderScriptIndex = html.search(/<script\\b[^>]*src=[\"']\\/js\\/tool-engine-loader\\.js[\"'][^>]*>/i);
-const toolPageScriptIndex = html.search(/<script\\b[^>]*src=[\"']\\/js\\/tool-page\\.js(?:\\?[^\"']*)?[\"'][^>]*>/i);
+const loaderScriptIndex = html.indexOf('<script src=\"/js/tool-engine-loader.js\" defer></script>');
+const toolPageScriptIndex = html.indexOf('<script src=\"/js/tool-page.js?v=20261010-popular-tool-cards-audit-v1\" defer></script>');
 
 const initialEngineFiles = new Set([
   'workerPool.js', 'browser-tools.js', 'browser-tool-runtime.js', 'advanced-engine.js',
