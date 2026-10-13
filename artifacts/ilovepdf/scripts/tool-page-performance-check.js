@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(path.join(root, 'public/tool.html'), 'utf8');
 const styles = readFileSync(path.join(root, 'public/css/styles.css'), 'utf8');
+const browserTools = readFileSync(path.join(root, 'public/js/browser-tools.js'), 'utf8');
 
 const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map((match) => match[0]);
 const externalScripts = scriptTags.filter((tag) => /\bsrc\s*=/i.test(tag));
@@ -25,9 +26,10 @@ const pdfPipelineNames = [
   'image-anchor-engine.js', 'layout-graph.js', 'docx-coordinate-engine.js',
   'fidelity-debug.js',
 ];
-const pdfPipelineDeferred = pdfPipelineNames.every((name) =>
-  html.includes('<script src="/js/pdf-pipeline/' + name + '" defer></script>')
-);
+const pdfPipelineLazy = pdfPipelineNames.every((name) =>
+  browserTools.includes("'/js/pdf-pipeline/" + name + "'") &&
+  !html.includes('src="/js/pdf-pipeline/' + name + '"')
+) && /async function pdfToWord\\(files, opts\\) \\{\\s*await ensurePdfWordFidelityPipeline\\(\\);/.test(browserTools);
 const optionalRuntimeEnhancementsDeferred = [
   'runtime-ai-upgrade.js', 'runtime-telemetry-enterprise.js',
 ].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
@@ -38,7 +40,7 @@ const checks = [
   ['compression runtime is deferred', /<script\b[^>]*src=["']\/js\/compress-runtime\.js["'][^>]*\bdefer\b/i.test(html)],
   ['idle runtime loader is present', /<script\b[^>]*src=["']\/js\/runtime-tool-idle-loader\.js["'][^>]*\bdefer\b/i.test(html)],
   ['admin/dev diagnostics are not shipped on public tool pages', !/src=["']\/js\/runtime-(?:production-certification|devtools-dashboard|enterprise-certification|inspector)\.js["']/i.test(html)],
-  ['PDF-to-Word fidelity modules are deferred in dependency order', pdfPipelineDeferred],
+  ['PDF-to-Word fidelity modules are loaded on demand in dependency order', pdfPipelineLazy],
   ['AI upgrade and enterprise telemetry are deferred', optionalRuntimeEnhancementsDeferred],
   ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 125],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
