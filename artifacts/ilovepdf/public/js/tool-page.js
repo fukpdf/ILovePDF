@@ -1067,6 +1067,7 @@ function renderRotatePreviewStep(tool) {
 
             <div class="ilpdf-rotate-controls-spacer"></div>
 
+            <p id="engine-ready-status" class="engine-ready-status" role="status" aria-live="polite" data-engine-state="loading">Processing engine is loading in the background. You can review the page rotations now.</p>
             <button type="button" class="btn btn-primary ilpdf-rotate-process" id="process-btn" onclick="processFile()">
               <i data-lucide="rotate-cw"></i> Rotate PDF
             </button>
