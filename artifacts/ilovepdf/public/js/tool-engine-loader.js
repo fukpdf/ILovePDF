@@ -95,6 +95,7 @@
   };
 
   var TRANSLATION_TOOLS = new Set(['translate', 'ocr', 'scan-to-pdf']);
+  var DEDICATED_EDITOR_TOOLS = new Set(['edit', 'background-remover']);
   var PDF_WORD_PIPELINE = [
     '/js/pdf-pipeline/font-mapper.js',
     '/js/pdf-pipeline/column-engine.js',
@@ -211,14 +212,35 @@
     var key = String(toolId);
     if (_engineReady.has(key)) return Promise.resolve({ toolId: key, ready: true });
     if (_enginePromises.has(key)) return _enginePromises.get(key);
-    var promise = loadOrdered(engineModulesFor(key)).then(async function () {
-      // Prewarm only dependencies explicitly declared by BrowserTools for this
-      // tool. Other tools do not download each other's CDN libraries.
-      if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') {
-        await G.BrowserTools.prewarm(key);
-      }
+    var engineWork;
+    if (DEDICATED_EDITOR_TOOLS.has(key)) {
+      // Edit PDF and Background Remover have their own editor engines. Load
+      // those first and avoid the generic BrowserTools/runtime bundle unless
+      // the dedicated editor failed to register and the generic fallback is
+      // needed by the standard preview UI.
+      engineWork = preparePreview(key).catch(function () { return null; }).then(function () {
+        var dedicatedReady = key === 'edit'
+          ? !!(G.EditPdfPro && typeof G.EditPdfPro.mount === 'function')
+          : !!(G.BgRemoverPro && typeof G.BgRemoverPro.mount === 'function');
+        if (dedicatedReady) return { dedicated: true };
+        return loadOrdered(engineModulesFor(key)).then(async function () {
+          if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') await G.BrowserTools.prewarm(key);
+          return { dedicated: false };
+        });
+      });
+    } else {
+      engineWork = loadOrdered(engineModulesFor(key)).then(async function () {
+        // Prewarm only dependencies explicitly declared by BrowserTools for
+        // this tool. Other tools do not download each other's CDN libraries.
+        if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') {
+          await G.BrowserTools.prewarm(key);
+        }
+        return { dedicated: false };
+      });
+    }
+    var promise = engineWork.then(function (mode) {
       _engineReady.add(key);
-      return { toolId: key, ready: true };
+      return { toolId: key, ready: true, dedicated: !!(mode && mode.dedicated) };
     }).catch(function (error) {
       _enginePromises.delete(key);
       _engineReady.delete(key);
