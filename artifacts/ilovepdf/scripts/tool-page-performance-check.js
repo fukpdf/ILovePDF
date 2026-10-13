@@ -28,6 +28,9 @@ const pdfPipelineNames = [
 const pdfPipelineDeferred = pdfPipelineNames.every((name) =>
   html.includes('<script src="/js/pdf-pipeline/' + name + '" defer></script>')
 );
+const optionalRuntimeEnhancementsDeferred = [
+  'runtime-ai-upgrade.js', 'runtime-telemetry-enterprise.js',
+].every((name) => html.includes('<script src="/js/' + name + '" defer></script>'));
 
 const checks = [
   ['tool-page.js is deferred', /<script\b[^>]*src=["']\/js\/tool-page\.js(?:\?[^"']*)?["'][^>]*\bdefer\b/i.test(html)],
@@ -36,7 +39,8 @@ const checks = [
   ['idle runtime loader is present', /<script\b[^>]*src=["']\/js\/runtime-tool-idle-loader\.js["'][^>]*\bdefer\b/i.test(html)],
   ['admin/dev diagnostics are not shipped on public tool pages', !/src=["']\/js\/runtime-(?:production-certification|devtools-dashboard|enterprise-certification|inspector)\.js["']/i.test(html)],
   ['PDF-to-Word fidelity modules are deferred in dependency order', pdfPipelineDeferred],
-  ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 127],
+  ['AI upgrade and enterprise telemetry are deferred', optionalRuntimeEnhancementsDeferred],
+  ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 125],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['upload skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['essential tool shell stylesheet is included', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
