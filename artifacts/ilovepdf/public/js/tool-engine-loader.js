@@ -42,7 +42,6 @@
     '/js/runtime-health.js',
     '/js/runtime-tool-adapters.js',
     '/js/runtime-streaming-hooks.js',
-    '/js/runtime-core.js',
     '/js/runtime-phase5.js',
     '/js/runtime-idb.js',
     '/js/runtime-adaptive-pipeline.js',
@@ -53,6 +52,7 @@
     '/js/runtime-memory-defense.js',
     '/js/runtime-result-cache.js',
     '/js/runtime-worker-factory.js',
+    '/js/runtime-core.js',
     '/js/browser-tools.js',
     '/js/browser-tool-runtime.js'
   ];
