@@ -1239,14 +1239,10 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
       }, function (error) {
         return { ready: false, error: error };
       });
-  const engineWarm = window.ToolEngineLoader
-    ? window.ToolEngineLoader.prepareEngine(tool.id)
-    : Promise.reject(new Error('Tool engine loader is unavailable.'));
-  const engineWarmHandled = engineWarm.then(function () {
-    return { ready: true };
-  }, function (error) {
-    return { ready: false, error: error };
-  });
+  // Keep the first preview responsive: do not compete with preview decoding
+  // by preloading the complete processor runtime at the same time. The selected
+  // tool engine is scheduled in the background immediately after the preview UI
+  // is visible. Process clicks can still start it synchronously via processFile().
   const isImage = tool.group === 'image';
   const stages = [
     { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
@@ -1288,19 +1284,36 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   if (previewError) {
     showStatus('error', 'Preview could not be prepared', 'Your file is still selected. You can try Process, or choose the file again to retry preview.');
   }
-  // Engine downloads continue independently while the user reviews the preview.
-  engineWarmHandled.then(function (result) {
-    if (!currentTool || currentTool.id !== tool.id) return;
-    const status = document.getElementById('engine-ready-status');
-    if (!status) return;
-    if (result && result.ready && window.ToolEngineLoader.isEngineReady(tool.id)) {
-      status.textContent = 'Processing engine ready — click Process when you are ready.';
-      status.dataset.engineState = 'ready';
-    } else {
-      status.textContent = 'Engine download failed. Press Process to retry loading.';
-      status.dataset.engineState = 'error';
+  // Now that the preview is visible, warm only this tool's engine in the
+  // background. Idle scheduling protects preview interactions; the Process
+  // handler calls prepareEngine() directly and shares the same in-flight promise.
+  const warmEngine = function () {
+    if (runId !== _cropUploadRun || !currentTool || currentTool.id !== tool.id) return;
+    if (!window.ToolEngineLoader) {
+      setEngineReadyStatus('error', 'Processing engine loader is unavailable. Press Process to retry.');
+      return;
     }
-  });
+    window.ToolEngineLoader.prepareEngine(tool.id).then(function () {
+      if (runId !== _cropUploadRun || !currentTool || currentTool.id !== tool.id) return;
+      setEngineReadyStatus('ready', 'Processing engine ready — click Process when you are ready.');
+    }).catch(function (error) {
+      if (runId !== _cropUploadRun || !currentTool || currentTool.id !== tool.id) return;
+      console.warn('[ToolPage] Background engine preparation failed for ' + tool.id, error);
+      setEngineReadyStatus('error', 'Engine download failed. Press Process to retry loading.');
+    });
+  };
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(warmEngine, { timeout: 900 });
+  } else {
+    window.setTimeout(warmEngine, 160);
+  }
+}
+
+function setEngineReadyStatus(state, message) {
+  const status = document.getElementById('engine-ready-status');
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.engineState = state;
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
