@@ -113,6 +113,9 @@ for (const file of [
   'public/js/tool-page.js',
   'public/js/advanced-engine.js',
   'public/js/browser-tools.js',
+  'public/js/live-preview.js',
+  'public/js/page-organizer.js',
+  'public/js/edit-pdf-pro.js',
 ]) {
   const result = spawnSync(process.execPath, ['--check', path.join(root, file)], { encoding: 'utf8' });
   const passed = result.status === 0;
