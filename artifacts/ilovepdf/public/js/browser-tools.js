@@ -4606,7 +4606,7 @@
   async function prewarm(toolId) {
     const workerTools = new Set([
       'split', 'rotate', 'organize', 'crop', 'page-numbers', 'watermark',
-      'sign', 'edit', 'compare', 'workflow',
+      'sign', 'compare', 'workflow',
     ]);
     if (workerTools.has(toolId)) {
       const pool = await loadWorkerPool();
@@ -4651,6 +4651,7 @@
       case 'jpg-to-pdf':
         await loadPdfLib();
         return { warmed: true, dependency: 'pdf-lib' };
+      case 'edit':
       case 'protect':
       case 'unlock':
       case 'repair':
