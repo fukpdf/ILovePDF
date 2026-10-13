@@ -58,7 +58,7 @@ async function main() {
 
   await loader.preparePreview('compress');
   pass('compression preview loads only its preview module', () => {
-    assert.deepEqual(loader.getLoadedScripts(), ['/js/pdf-preview.js']);
+    assert.deepEqual(Array.from(loader.getLoadedScripts()), ['/js/pdf-preview.js']);
   });
 
   await loader.prepareEngine('compress');
