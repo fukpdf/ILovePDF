@@ -39,7 +39,7 @@ const toolSpecificScripts = [
   'runtime-stream-bridge.js', 'pdf-preview.js', 'live-preview.js', 'page-organizer.js',
 ];
 const advancedTools = [
-  'compress', 'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
+  'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
   'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel', 'html-to-pdf', 'ocr',
   'scan-to-pdf', 'translate', 'ai-summarize', 'background-remover', 'crop-image',
   'resize-image', 'image-filters', 'image-compressor', 'image-converter',
@@ -60,9 +60,10 @@ const checks = [
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
   ['translation/OCR enhancements are requested only for related tools', translationScripts.every((name) => loader.includes(name)) && /TRANSLATION_TOOLS/.test(loader)),
-  ['file selection starts engine preparation before preview readiness', /ToolEngineLoader\s*\n\s*\? window\.ToolEngineLoader\.prepare\(tool\.id\)/.test(toolPage)],
-  ['preview waits for engine and PDF preview readiness', /await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
-  ['processing has a defensive engine-ready gate', /if \(!window\.BrowserTools \|\| !window\.BrowserToolRuntime\)/.test(toolPage) && /await window\.ToolEngineLoader\.prepare\(currentTool\.id\)/.test(toolPage)],
+  ['file selection starts preview and engine loads in parallel', /ToolEngineLoader\.prepareEngine\(tool\.id\)/.test(toolPage) && /ToolEngineLoader\.preparePreview\(tool\.id\)/.test(toolPage)],
+  ['preview does not wait for processing engine downloads', /const previewResult = await previewWarm/.test(toolPage) && !/await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
+  ['engine readiness updates while user reviews preview', /engineWarmHandled\.then/.test(toolPage) && /engine-ready-status/.test(toolPage)],
+  ['processing has a defensive engine-ready gate', /!window\.ToolEngineLoader\.isEngineReady\(currentTool\.id\)/.test(toolPage) && /await window\.ToolEngineLoader\.prepareEngine\(currentTool\.id\)/.test(toolPage)],
   ['PDF-to-Word fidelity modules remain lazy-loaded in dependency order', [
     'font-mapper.js', 'column-engine.js', 'form-reconstruction.js', 'fidelity-validator.js',
     'visual-reconstruction.js', 'ocr-zoning.js', 'image-anchor-engine.js', 'layout-graph.js',
@@ -73,6 +74,7 @@ const checks = [
   ['skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['tool shell reserves initial viewport to reduce footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
   ['main stylesheet remains present', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
+  ['processing workers are not prefetched on initial page open', !/rel=[\"']prefetch[\"'][^>]*href=[\"']\/workers\//i.test(html)],
   ['duplicate initial external script URLs are absent', new Set(scriptUrls).size === scriptUrls.length],
 ];
 
