@@ -592,64 +592,7 @@ input, select, textarea { font-family: inherit; }
   z-index: 99;
 }
 
-/* ===== TEXT RESULT CARD ===== */
-.text-result-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  margin-top: 24px;
-}
-.text-result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(99,102,241,0.04);
-}
-.text-result-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-weight: 600;
-  font-size: .88rem;
-  color: var(--text);
-}
-.text-result-label i { width: 15px; height: 15px; color: var(--primary); }
-.text-result-area {
-  display: block;
-  width: 100%;
-  min-height: 220px;
-  max-height: 480px;
-  padding: 16px 18px;
-  border: none;
-  outline: none;
-  resize: vertical;
-  background: var(--card-bg);
-  color: var(--text);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-  font-size: .82rem;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
 .btn-sm { padding: 5px 12px; font-size: .78rem; }
-
-/* ===== COMPARISON REPORT ===== */
-.report-table { padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
-.report-row {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: 7px;
-  font-size: .84rem;
-  background: var(--bg);
-}
-.report-row:nth-child(even) { background: rgba(99,102,241,0.04); }
-.report-key { font-weight: 600; min-width: 170px; color: var(--text-muted); flex-shrink: 0; }
-.report-val { color: var(--text); flex: 1; word-break: break-word; }
 
 /* Legacy footer styles removed: canonical footer is /css/home-footer-v2.css. */
 
