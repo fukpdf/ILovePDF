@@ -6732,8 +6732,7 @@
       var input = document.getElementById('file-input');
       if (!input || input.dataset.advancedResumeBound === '1') return;
       input.dataset.advancedResumeBound = '1';
-      input.addEventListener('change', function () {
-        var f = input.files && input.files[0];
+      function checkResumeForFile(f) {
         if (!f) return;
         var fh = _fileHash(f);
         ProgressStore.load(toolId, fh).then(function (saved) {
@@ -6747,7 +6746,12 @@
             );
           }
         }).catch(function () {});
+      }
+      input.addEventListener('change', function () {
+        checkResumeForFile(input.files && input.files[0]);
       });
+      // The script is normally loaded after the user's first file selection.
+      checkResumeForFile(input.files && input.files[0]);
     }
     // This engine can be loaded on demand after the page's load event.
     if (document.readyState === 'complete') attachResumeInput();
