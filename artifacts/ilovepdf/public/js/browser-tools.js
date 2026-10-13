@@ -1392,6 +1392,7 @@
   }
 
   async function pdfToWord(files, opts) {
+    if (!files || !files[0]) throw new Error('No file provided');
     await ensurePdfWordFidelityPipeline();
     opts = opts || {};
     const pdfjsLib   = await loadPdfJs();
