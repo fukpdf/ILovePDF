@@ -57,7 +57,7 @@ const checks = [
   ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && loaderScriptIndex >= 0 && toolPageScriptIndex > loaderScriptIndex],
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
   ['loader uses deterministic sequential script injection', /script\.async\s*=\s*false/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
-  ['loader deduplicates scripts and concurrent tool preparation', /_loaded\\s*=\\s*new Set/.test(loader) && loader.includes('_scriptPromises = new Map()') && loader.includes('_enginePromises = new Map()')],
+  ['loader deduplicates scripts and concurrent tool preparation', loader.includes('var _loaded = new Set()') && loader.includes('var _scriptPromises = new Map()') && loader.includes('var _enginePromises = new Map()')],
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
