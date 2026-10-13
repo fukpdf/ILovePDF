@@ -9,7 +9,7 @@ This is a source/repository audit. It is **not** a live Lighthouse/DevTools veri
 ## Source-level results
 
 - The shared HTML template had 388 external script tags on the baseline branch.
-- The current branch template has **24 external script tags**, including **5 parser-blocking shell scripts**: 364 fewer static script tags in the initial HTML.
+- The current branch template has **23 external script tags**, including **5 parser-blocking shell scripts**: 365 fewer static script tags in the initial HTML.
 - Static HTML references **0 processing/preview engine scripts** and has **0 worker prefetch links**.
 - The initial HTML no longer references processing engines, preview renderers, worker-pool scripts, per-tool processor bundles, or the idle runtime loader.
 - Five worker `rel=prefetch` links were removed; worker downloads are now initiated through the selected-tool loader.
@@ -60,7 +60,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 2. Run the Node regression check and full project test suite from `artifacts/ilovepdf`; CI status for the current branch is not confirmed here.
 3. Test at least Compress, Merge, Split, Rotate, PDF-to-Word, PDF-to-Excel, OCR, Translate, Edit PDF, Background Remover, image tools, and one multi-file tool. Verify preview, settings, progress, cancel/retry, output validation, download, route/back navigation, and mobile touch.
 4. Confirm registry entries with `execution: "browser"` all have `RuntimeScheduler`, `BrowserToolRuntime`, and `BrowserTools` available. These are included in the lazy core manifest, but browser execution has not been exercised here.
-5. The initial shell still references UI scripts such as `chrome.js`, `i18n.js`, `i18n-ext.js`, `tool-content.js`, and `shared.js`. Some may inject UI/localization helpers dynamically. Audit their runtime Network requests separately; the current count measures static external script tags, not every possible dynamic request.
+5. The initial shell still references UI scripts such as `chrome.js`, `i18n.js`, `tool-content.js`, and `shared.js`. Supplemental `i18n-ext.js` is no longer in the initial HTML; `chrome.js` loads it only after a non-English language is selected. Some shell scripts may still inject navigation or registry helpers dynamically. Audit their runtime Network requests separately; the current count measures static external script tags, not every possible dynamic request.
 6. `tool.html` still includes non-critical CSS for shared homepage/footer/blog/SEO/ad/editor styles. CSS critical-path pruning and actual CLS/LCP measurements remain open.
 7. Firebase hosting cache headers still use revalidation for `/js/**`, `/css/**`, `/workers/**`, and `/locales/**`. Do not set immutable long-lived caching until all relevant assets have reliable content-hashed/versioned URLs.
 8. The static-host guard blocks same-origin `/api/**` calls on Firebase static hosting. Browser-side tools must keep clear error handling; server-dependent features need separate end-to-end verification.
