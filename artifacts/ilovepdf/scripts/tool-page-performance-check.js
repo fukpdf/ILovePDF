@@ -42,6 +42,7 @@ const checks = [
   ['admin/dev diagnostics are not shipped on public tool pages', !/src=["']\/js\/runtime-(?:production-certification|devtools-dashboard|enterprise-certification|inspector)\.js["']/i.test(html)],
   ['PDF-to-Word fidelity modules are loaded on demand in dependency order', pdfPipelineLazy],
   ['AI upgrade and enterprise telemetry are deferred', optionalRuntimeEnhancementsDeferred],
+  ['external script count stays at or below the audited ceiling', externalScripts.length <= 374],
   ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 125],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['upload skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
