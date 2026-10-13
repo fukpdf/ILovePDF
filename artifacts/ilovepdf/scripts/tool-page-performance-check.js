@@ -66,11 +66,11 @@ const checks = [
   ['preview does not wait for processing engine downloads', /const previewResult = await previewWarm/.test(toolPage) && !/await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
   ['engine readiness updates while user reviews preview', /engineWarmHandled\.then/.test(toolPage) && /engine-ready-status/.test(toolPage)],
   ['processing has a defensive engine-ready gate', /!window\.ToolEngineLoader\.isEngineReady\(currentTool\.id\)/.test(toolPage) && /await window\.ToolEngineLoader\.prepareEngine\(currentTool\.id\)/.test(toolPage)],
-  ['PDF-to-Word fidelity modules remain lazy-loaded in dependency order', [
+  ['PDF-to-Word fidelity modules are loaded after file selection in dependency order', [
     'font-mapper.js', 'column-engine.js', 'form-reconstruction.js', 'fidelity-validator.js',
     'visual-reconstruction.js', 'ocr-zoning.js', 'image-anchor-engine.js', 'layout-graph.js',
     'docx-coordinate-engine.js', 'fidelity-debug.js',
-  ].every((name) => browserTools.includes("'/js/pdf-pipeline/" + name + "'"))],
+  ].every((name) => browserTools.includes("'/js/pdf-pipeline/" + name + "'") && loader.includes("/js/pdf-pipeline/" + name))],
   ['advanced engine supports lazy loading after window load', /function attachResumeInput\(\)/.test(advancedEngine) && /document\.readyState === 'complete'\) attachResumeInput\(\)/.test(advancedEngine)],
   ['upload skeleton remains in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
