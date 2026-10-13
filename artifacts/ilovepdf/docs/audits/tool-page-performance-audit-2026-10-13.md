@@ -14,7 +14,8 @@ This is a source/repository audit. It is **not** a live Lighthouse/DevTools veri
 - The initial HTML no longer references processing engines, preview renderers, worker-pool scripts, per-tool processor bundles, or the idle runtime loader. The five remaining classic shell scripts that previously blocked parsing now use `defer` and execute in document order.
 - Five worker `rel=prefetch` links were removed; worker downloads are now initiated through the selected-tool loader.
 - The processing engine and preview scripts are not requested by static script tags on initial page load. The small shell still has normal UI/navigation, localization, registry, session-state, auth, and PWA scripts.
-- The source-level regression test checks the initial shell, zero parser-blocking scripts, on-demand manifest, script ordering/deduplication, shared CDN dependency promises, preview/engine priority, process-button readiness gate, layout reservation, and JavaScript syntax.
+- The ad bootstrap no longer forces a third-party ad script request after 4.5 seconds or on any first scroll. It loads only if an actual ad slot exists and approaches the viewport; browsers without `IntersectionObserver` use a slot-aware scroll/resize fallback.
+- The source-level regression test checks the initial shell, zero parser-blocking scripts, on-demand manifest, script ordering/deduplication, shared CDN dependency promises, preview-first background engine scheduling, process-button readiness gate, ad-slot-gated ad loading, layout reservation, and JavaScript syntax.
 - The PDF-to-Word fidelity pipeline is downloaded sequentially after file selection for that tool only; its existing fallback loader safely reuses the already-loaded modules.
 
 ## Architecture changes
@@ -46,7 +47,7 @@ This avoids having the initial preview compete with dozens of processing-runtime
 
 ## Files changed in this branch
 
-- `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell.
+- `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell; make the ad runtime conditional on an actual near-viewport slot.
 - `public/js/tool-engine-loader.js`: new split preview/engine loader and per-tool manifest.
 - `public/js/tool-page.js`: render preview before scheduling selected-engine background warming, show readiness/error status, and let Process immediately start or join engine preparation. The shared UI/flow script remains part of the shell because it renders the upload page and binds file selection; splitting it into a tiny upload-only bootstrap is a separate, higher-risk refactor.
 - `public/js/browser-tools.js`: prewarm only the selected tool's libraries or worker in the background, with explicit dependency maps for compression, conversion, OCR/translation, and worker-backed tools; shared CDN promises prevent Preview and BrowserTools from racing to inject duplicate PDF-Lib, JSZip, or Tesseract scripts.
