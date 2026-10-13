@@ -19,6 +19,30 @@ function fail(message) {
   process.exitCode = 1;
 }
 
+function optimizeHomepageResourceHints(html) {
+  // Warm up external origins used by the homepage without blocking rendering.
+  const hints = [
+    ['https://fonts.googleapis.com', '<link rel="preconnect" href="https://fonts.googleapis.com">'],
+    ['https://fonts.gstatic.com', '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'],
+    ['https://unpkg.com', '<link rel="preconnect" href="https://unpkg.com">']
+  ];
+  if (!/<\/head\s*>/i.test(html)) throw new Error('homepage head closing tag not found');
+  for (const [origin, hint] of hints) {
+    const hasHint = html.includes('rel="preconnect" href="' + origin + '"') ||
+      html.includes('href="' + origin + '" rel="preconnect"');
+    if (!hasHint) html = html.replace(/<\/head\s*>/i, '  ' + hint + '\n</head>');
+  }
+
+  // Analytics and decorative effects are non-critical to first content paint.
+  // Lower their fetch priority while preserving defer and script execution order.
+  const lowPriorityScripts = /(?:analytics-engine|savings-animation|live-stats-sim|community-economy|runtime-changelog|runtime-perf)\.js(?:[?#][^"']*)?/i;
+  html = html.replace(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi, tag => {
+    if (!lowPriorityScripts.test(tag) || /\bfetchpriority\s*=/i.test(tag)) return tag;
+    return tag.replace(/>$/, ' fetchpriority="low">');
+  });
+  return html;
+}
+
 function moveExternalScriptAfter(html, targetPattern, anchorPattern) {
   const tags = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)];
   const target = tags.find(match => targetPattern.test(match[0]));
@@ -492,6 +516,14 @@ export function assembleHomepageIndex() {
       return '<script defer' + attrs + '>';
     }
   );
+
+  try {
+    html = optimizeHomepageResourceHints(html);
+    console.log('[assemble-index] added non-blocking external-origin hints and lowered non-critical script fetch priority');
+  } catch (error) {
+    fail('homepage resource-hint optimization failed: ' + error.message);
+    return false;
+  }
 
   const blockingScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>/gi)]
     .filter(match => !/\bdefer\b/i.test(match[0]) && !/\basync\b/i.test(match[0]));
