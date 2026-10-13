@@ -35,7 +35,7 @@ function createHarness() {
       };
     },
     querySelector(selector) {
-      const match = selector.match(/^script\\[src="([^"]+)"\\]$/);
+      const match = selector.match(/^script\[src="([^"]+)"\]$/);
       return match ? scripts.find((script) => script.src === match[1]) || null : null;
     },
   };
