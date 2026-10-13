@@ -4606,7 +4606,7 @@
   async function prewarm(toolId) {
     const workerTools = new Set([
       'split', 'rotate', 'organize', 'crop', 'page-numbers', 'watermark',
-      'sign', 'edit', 'compare', 'protect', 'unlock', 'repair', 'workflow',
+      'sign', 'edit', 'compare', 'workflow',
     ]);
     if (workerTools.has(toolId)) {
       const pool = await loadWorkerPool();
@@ -4628,8 +4628,8 @@
         await Promise.all([loadPdfJs(), loadXlsx()]);
         return { warmed: true, dependency: 'pdfjs+xlsx' };
       case 'pdf-to-powerpoint':
-        await Promise.all([loadPdfJs(), loadPptxGen(), loadJsZip()]);
-        return { warmed: true, dependency: 'pdfjs+pptxgen+jszip' };
+        await Promise.all([loadPdfJs(), loadPptxGen()]);
+        return { warmed: true, dependency: 'pdfjs+pptxgen' };
       case 'word-to-pdf':
         await Promise.all([loadMammoth(), loadHtml2Pdf()]);
         return { warmed: true, dependency: 'mammoth+html2pdf' };
@@ -4646,14 +4646,25 @@
         await loadHtml2Pdf();
         return { warmed: true, dependency: 'html2pdf' };
       case 'pdf-to-jpg':
-        await loadPdfJs();
-        return { warmed: true, dependency: 'pdfjs' };
+        await Promise.all([loadPdfJs(), loadJsZip()]);
+        return { warmed: true, dependency: 'pdfjs+jszip' };
       case 'jpg-to-pdf':
         await loadPdfLib();
         return { warmed: true, dependency: 'pdf-lib' };
+      case 'protect':
+      case 'unlock':
+      case 'repair':
+        await loadPdfLib();
+        return { warmed: true, dependency: 'pdf-lib' };
       case 'ocr':
+        await Promise.all([loadPdfJs(), loadTesseract(), loadPdfLib(), loadJsZip()]);
+        return { warmed: true, dependency: 'pdfjs+tesseract+pdf-lib+jszip' };
       case 'scan-to-pdf':
+        await Promise.all([loadTesseract(), loadPdfLib(), loadJsZip()]);
+        return { warmed: true, dependency: 'tesseract+pdf-lib+jszip' };
       case 'translate':
+        await Promise.all([loadPdfJs(), loadTesseract(), loadJsZip()]);
+        return { warmed: true, dependency: 'pdfjs+tesseract+jszip' };
       case 'ai-summarize':
         await Promise.all([loadPdfJs(), loadTesseract()]);
         return { warmed: true, dependency: 'pdfjs+tesseract' };
