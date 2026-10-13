@@ -2181,7 +2181,8 @@
     max-height: calc(100vh - var(--ew-header-h, 72px) - 24px) !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
+    /* Keep the sticky settings rail scrollable without drawing a second scrollbar. */
+    scrollbar-width: none;
     z-index: 20;
   }
 
