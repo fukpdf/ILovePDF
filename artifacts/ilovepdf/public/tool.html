@@ -55,23 +55,45 @@
   <link rel="stylesheet" href="/css/economy.css">
   <link rel="stylesheet" href="/css/community-economy.css">
   <link rel="stylesheet" href="/css/rtl.css">
-  <!-- Worker prefetch remains; Google Fonts is loaded non-blocking below. -->
+  <!-- Keep font CSS off the render-blocking path. -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
-  <!-- Worker prefetch: browser downloads these during idle so the first tool
-       dispatch hits cache instead of the network cold-start.
-       ?v=__BUILD_ID__ ensures stale worker scripts are never served after a deploy. -->
-  <link rel="prefetch" href="/workers/pdf-worker.js?v=__BUILD_ID__" as="worker">
-  <link rel="prefetch" href="/workers/pdf-lib-worker.js?v=__BUILD_ID__" as="worker">
-  <link rel="prefetch" href="/workers/compress-worker.js?v=__BUILD_ID__" as="worker">
-  <link rel="prefetch" href="/workers/advanced-worker.js?v=__BUILD_ID__" as="worker">
-  <link rel="prefetch" href="/workers/workerPool.js?v=__BUILD_ID__" as="worker">
+  <!-- Warm only the worker family likely to be used by this route. Prefetching
+       every engine on every tool page wastes mobile bandwidth and competes with
+       the tool UI. The version token keeps deploys cache-safe. -->
+  <script>
+  (function () {
+    var path = String(location.pathname || '/').toLowerCase();
+    var worker = '/workers/pdf-worker.js';
+    if (/compress/.test(path)) {
+      worker = '/workers/compress-worker.js';
+    } else if (/(ocr|scan-to-pdf|image-to-text)/.test(path)) {
+      worker = '/workers/advanced-worker.js';
+    } else if (/(merge|split|rotate|crop|organize|watermark|protect|unlock|sign|page-numbers|pdf-to-jpg|jpg-to-pdf|redact)/.test(path)) {
+      worker = '/workers/pdf-lib-worker.js';
+    }
+    var addHint = function () {
+      if (document.querySelector('link[data-tool-worker-prefetch]')) return;
+      var link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.as = 'worker';
+      link.href = worker + '?v=__BUILD_ID__';
+      link.setAttribute('data-tool-worker-prefetch', '1');
+      document.head.appendChild(link);
+    };
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(addHint, { timeout: 2500 });
+    } else {
+      window.setTimeout(addHint, 1800);
+    }
+  })();
+  </script>
   <link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2">
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2" data-shared-header-css="1">
   <link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924">
   <link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1">
   <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1">
-  <link rel="stylesheet" href="/css/blog.css">
+  <!-- Blog-only CSS is excluded from the shared tool shell to avoid an unused render-blocking request. -->
   <link rel="stylesheet" href="/css/seo-extended.css">
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
   <link rel="stylesheet" href="/css/ads.css">
@@ -288,7 +310,7 @@
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
   <script src="/js/browser-resource-lifecycle.js" defer></script>
   <script src="/js/worker-leak-detector.js" defer></script>
-  <script src="/js/memory-telemetry.js" defer></script>
+  <script src="/js/memory-telemetry.js" defer fetchpriority="low"></script>
   <script src="/js/adaptive-runtime.js" defer></script>
   <script src="/js/runtime-device-lite.js" defer></script>
   <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
@@ -301,7 +323,7 @@
   <script src="/js/virtual-page-manager.js" defer></script>
   <script src="/js/rolling-processor.js" defer></script>
   <script src="/js/giant-file-routing.js" defer></script>
-  <script src="/js/giant-file-telemetry.js" defer></script>
+  <script src="/js/giant-file-telemetry.js" defer fetchpriority="low"></script>
   <!-- Phase 26: Per-Tool Deep Enhancement + Giant File Stabilization -->
   <script src="/js/phase26-enhancements.js" defer></script>
   <!-- Phase 27–30: Tool Validation, Resume System, Debug Hooks, Production Hardening -->
@@ -389,7 +411,7 @@
          T034 streaming → T033 diagnostics → T020 core (CentralRuntime) -->
   <script src="/js/runtime-event-bus.js" defer></script>
   <script src="/js/runtime-state.js" defer></script>
-  <script src="/js/runtime-telemetry.js" defer></script>
+  <script src="/js/runtime-telemetry.js" defer fetchpriority="low"></script>
   <script src="/js/runtime-cancellation.js" defer></script>
   <script src="/js/runtime-memory-controller.js" defer></script>
   <script src="/js/runtime-progress.js" defer></script>
@@ -442,7 +464,7 @@
   <!-- 8F: AI upgrade — scored provider routing, priority queue, batching, retry -->
   <script src="/js/runtime-ai-upgrade.js" defer></script>
   <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
-  <script src="/js/runtime-telemetry-enterprise.js" defer></script>
+  <script src="/js/runtime-telemetry-enterprise.js" defer fetchpriority="low"></script>
   <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
   <script src="/js/runtime-devtools-dashboard.js" defer></script>
   <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
@@ -893,16 +915,16 @@
   <script src="/js/runtime-ads.js" defer></script>
   <script src="/js/runtime-credits.js" defer></script>
   <script src="/js/runtime-donation.js" defer></script>
-  <script src="/js/runtime-analytics.js" defer></script>
+  <script src="/js/runtime-analytics.js" defer fetchpriority="low"></script>
   <script src="/js/runtime-offline.js" defer></script>
   <script src="/js/runtime-updater.js" defer></script>
-  <script src="/js/runtime-changelog.js" defer></script>
+  <script src="/js/runtime-changelog.js" defer fetchpriority="low"></script>
   <script src="/js/runtime-recovery.js" defer></script>
   <script src="/js/runtime-ai-scheduler.js" defer></script>
-  <script src="/js/runtime-perf.js" defer></script>
+  <script src="/js/runtime-perf.js" defer fetchpriority="low"></script>
   <!-- Phase Community: enhanced savings animation + community header widget -->
-  <script src="/js/savings-animation.js" defer></script>
-  <script src="/js/community-economy.js" defer></script>
+  <script src="/js/savings-animation.js" defer fetchpriority="low"></script>
+  <script src="/js/community-economy.js" defer fetchpriority="low"></script>
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
   <script src="/js/pwa-register.js" defer></script>
@@ -915,7 +937,7 @@
   <!-- T3: Tier-based hydration scheduler (P0/P1/P2) -->
   <script src="/js/runtime-hydration-scheduler.js" defer></script>
   <!-- T4: Crash fingerprinting + encrypted ring-buffer + deploy-crash correlation -->
-  <script src="/js/runtime-crash-telemetry.js" defer></script>
+  <script src="/js/runtime-crash-telemetry.js" defer fetchpriority="low"></script>
   <!-- T5: Dynamic bundle activation + dependency-aware loading -->
   <script src="/js/runtime-bundle-registry.js" defer></script>
   <!-- T6: Transactional offline jobs + processing continuation -->
@@ -925,7 +947,7 @@
   <!-- T8: Geo-aware resource hints + BUILD_ID edge validation -->
   <script src="/js/runtime-edge-hints.js" defer></script>
   <!-- T9: Unified health score + AdvancedEngine.audit() dashboard panels -->
-  <script src="/js/runtime-health-analytics.js" defer></script>
+  <script src="/js/runtime-health-analytics.js" defer fetchpriority="low"></script>
 
   <!-- Arc 3: Tool Runtime Isolation Architecture -->
   <!-- Phase A: Tool manifests + loader -->
@@ -938,7 +960,7 @@
   <!-- Phase D: Per-tool memory islands -->
   <script src="/js/runtime-memory-islands.js" defer></script>
   <!-- Phase E: Per-tool analytics domains -->
-  <script src="/js/runtime-analytics-domains.js" defer></script>
+  <script src="/js/runtime-analytics-domains.js" defer fetchpriority="low"></script>
   <!-- Phase F: Per-tool recovery circuit breakers -->
   <script src="/js/runtime-recovery-domains.js" defer></script>
   <!-- Phase G: Tool-aware bundle segmentation -->
@@ -1022,7 +1044,7 @@
   <!-- Phase E: Smart cache — LFU-LRU hybrid + hot-runtime preservation + predictive warming -->
   <script src="/js/runtime-smart-cache.js" defer></script>
   <!-- Phase F: Streaming telemetry — time-series ring buffers + FPS + latency histograms -->
-  <script src="/js/runtime-stream-telemetry.js" defer></script>
+  <script src="/js/runtime-stream-telemetry.js" defer fetchpriority="low"></script>
   <!-- Phase G: Self-optimizing runtime — auto-adjust hydration/workers/memory/thermal -->
   <script src="/js/runtime-self-optimizer.js" defer></script>
   <!-- Phase H: Mobile extreme mode — ultra-low-memory + emergency worker trim + battery -->
@@ -1030,39 +1052,39 @@
 
   <!-- Arc 8: Enterprise Observability + Live Control Plane -->
   <!-- Phase A: Centralized command bus — live toggles, feature flags, audit trail -->
-  <script src="/js/runtime-control-plane.js" defer></script>
+  <script src="/js/runtime-control-plane.js" defer fetchpriority="low"></script>
   <!-- Phase B: Live floating dashboard — Ctrl+Shift+R, FPS/heap/tasks/incidents -->
-  <script src="/js/runtime-live-dashboard.js" defer></script>
+  <script src="/js/runtime-live-dashboard.js" defer fetchpriority="low"></script>
   <!-- Phase C: Distributed trace engine — span trees, slow-path detection, p99 -->
-  <script src="/js/runtime-trace-engine.js" defer></script>
+  <script src="/js/runtime-trace-engine.js" defer fetchpriority="low"></script>
   <!-- Phase D: Centralized event timeline — searchable ring buffer, grouped views -->
-  <script src="/js/runtime-event-timeline.js" defer></script>
+  <script src="/js/runtime-event-timeline.js" defer fetchpriority="low"></script>
   <!-- Phase E: Performance profiler — longtask sampling, bottleneck analysis -->
-  <script src="/js/runtime-performance-profiler.js" defer></script>
+  <script src="/js/runtime-performance-profiler.js" defer fetchpriority="low"></script>
   <!-- Phase F: Incident center — unified registry, P0-P3, dedup, escalation -->
-  <script src="/js/runtime-incident-center.js" defer></script>
+  <script src="/js/runtime-incident-center.js" defer fetchpriority="low"></script>
   <!-- Phase G: State snapshots — full capture, diff, checksum, rollback -->
-  <script src="/js/runtime-state-snapshots.js" defer></script>
+  <script src="/js/runtime-state-snapshots.js" defer fetchpriority="low"></script>
   <!-- Phase H: Replay engine — event scrubber, play/pause/step, export -->
-  <script src="/js/runtime-replay-engine.js" defer></script>
+  <script src="/js/runtime-replay-engine.js" defer fetchpriority="low"></script>
 
   <!-- Arc 9: Autonomous Self-Healing + Distributed Runtime Intelligence -->
   <!-- Phase A: Autonomous healing engine — failure detection, worker resurrection, rollback -->
-  <script src="/js/runtime-autonomous-healing.js" defer></script>
+  <script src="/js/runtime-autonomous-healing.js" defer fetchpriority="low"></script>
   <!-- Phase B: Workload intelligence — thermal/memory migration, starvation prevention -->
-  <script src="/js/runtime-workload-intelligence.js" defer></script>
+  <script src="/js/runtime-workload-intelligence.js" defer fetchpriority="low"></script>
   <!-- Phase C: Session stability — 6hr+ targets, entropy detection, periodic compaction -->
-  <script src="/js/runtime-session-stability.js" defer></script>
+  <script src="/js/runtime-session-stability.js" defer fetchpriority="low"></script>
   <!-- Phase D: Recovery orchestrator — dependency graph, safe-mode, partial restart -->
-  <script src="/js/runtime-recovery-orchestrator.js" defer></script>
+  <script src="/js/runtime-recovery-orchestrator.js" defer fetchpriority="low"></script>
   <!-- Phase E: Adaptive AI — behavior learning, predictive prewarm, thermal prediction -->
-  <script src="/js/runtime-adaptive-ai.js" defer></script>
+  <script src="/js/runtime-adaptive-ai.js" defer fetchpriority="low"></script>
   <!-- Phase F: Governance — policy enforcement, protected flags, quarantine, compliance -->
-  <script src="/js/runtime-governance.js" defer></script>
+  <script src="/js/runtime-governance.js" defer fetchpriority="low"></script>
   <!-- Phase G: Blackbox recorder — 15-min rolling buffer, panic export, replay handoff -->
-  <script src="/js/runtime-blackbox.js" defer></script>
+  <script src="/js/runtime-blackbox.js" defer fetchpriority="low"></script>
   <!-- Phase H: Adaptive bundles — device-tier plans, dormant detection, predictive preload -->
-  <script src="/js/runtime-adaptive-bundles.js" defer></script>
+  <script src="/js/runtime-adaptive-bundles.js" defer fetchpriority="low"></script>
 
   <!-- Phase 2B: Idle group loader — loads analytics, telemetry, AI-helper, and prefetch   -->
   <!-- systems via requestIdleCallback after first paint. Zero impact on upload / process.  -->
