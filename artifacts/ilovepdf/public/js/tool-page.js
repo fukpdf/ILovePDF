@@ -1222,12 +1222,21 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
-  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm(tool.id)
-    : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
-    ? window.PdfPreview.loadPdfJs()
-    : Promise.resolve();
+  // After a file is selected, load only the shared processing foundation and
+  // this tool's preview/engine modules. The upload page itself does not fetch
+  // the processing runtime or unrelated tool bundles.
+  const engineWarm = window.ToolEngineLoader
+    ? window.ToolEngineLoader.prepare(tool.id).then(function () {
+        return window.BrowserTools && typeof window.BrowserTools.prewarm === 'function'
+          ? window.BrowserTools.prewarm(tool.id)
+          : { warmed: false };
+      })
+    : Promise.reject(new Error('Tool engine loader is unavailable.'));
+  const previewWarm = engineWarm.then(function () {
+    return window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image'
+      ? window.PdfPreview.loadPdfJs()
+      : undefined;
+  });
   const isImage = tool.group === 'image';
   const stages = [
     { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
@@ -1253,14 +1262,26 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     requestAnimationFrame(tick);
   });
   if (runId !== _cropUploadRun) return;
-  await Promise.all([engineWarm, previewWarm]);
+  let engineError = null;
+  try {
+    await Promise.all([engineWarm, previewWarm]);
+  } catch (error) {
+    engineError = error;
+  }
   const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
   if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
   if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
+  if (engineError) {
+    cropJourneySetStage('engine', 'Engine preparation needs a retry', 'Your file is kept safe. You can retry when you press Process.', 100, true);
+  } else {
+    cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
+  }
   await new Promise(resolve => setTimeout(resolve, 220));
   if (runId !== _cropUploadRun) return;
   renderStandardPreviewStep(tool);
+  if (engineError) {
+    showStatus('error', 'Tool preparation failed', 'The processing modules could not finish loading. Check your connection and press Process to retry.');
+  }
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
@@ -2145,6 +2166,26 @@ async function processFile() {
   if (!currentTool.working) {
     showStatus('error', _tp('tool.unavailable', 'Tool unavailable'), _tp('tool.unavailable_msg', 'This tool is not currently available.'));
     return;
+  }
+
+  // The engine is normally prepared in the background after file selection.
+  // Keep a defensive gate here so direct calls, restored sessions, and retries
+  // can never start processing before their tool modules are ready.
+  if (!window.BrowserTools || !window.BrowserToolRuntime) {
+    const button = document.getElementById('process-btn');
+    if (button) button.disabled = true;
+    showProcessing('Preparing your tool…', 'Loading the selected tool engine. Processing will start when you press Process again if preparation needs a retry.');
+    try {
+      if (!window.ToolEngineLoader) throw new Error('Tool engine loader is unavailable.');
+      await window.ToolEngineLoader.prepare(currentTool.id);
+    } catch (error) {
+      hideProcessing();
+      if (button) button.disabled = false;
+      showStatus('error', 'Tool preparation failed', 'The processing modules could not finish loading. Check your connection and try again.');
+      return;
+    }
+    hideProcessing();
+    if (button) button.disabled = false;
   }
 
   // Daily usage limit — guests 15/day, logged-in 100/day
