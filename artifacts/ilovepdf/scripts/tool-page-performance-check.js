@@ -43,6 +43,7 @@ const checks = [
   ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 125],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['upload skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
+  ['tool shell reserves the initial viewport to limit footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
   ['essential tool shell stylesheet is included', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
   ['duplicate external script URLs are absent', new Set(scriptUrls).size === scriptUrls.length],
 ];
