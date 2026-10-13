@@ -136,12 +136,19 @@
   function loadTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
     if (tesseractPromise) return tesseractPromise;
-    tesseractPromise = new Promise((resolve, reject) => {
+    const loadDirect = () => new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = TESSERACT_URL; s.async = true;
-      s.onload  = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract failed'));
+      s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract failed'));
       s.onerror = () => reject(new Error('Tesseract failed'));
       document.head.appendChild(s);
+    });
+    const shared = window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function'
+      ? window.ToolEngineLoader.shareDependency(TESSERACT_URL, 'Tesseract', loadDirect)
+      : loadDirect();
+    tesseractPromise = shared.catch((error) => {
+      tesseractPromise = null;
+      throw error;
     });
     return tesseractPromise;
   }
