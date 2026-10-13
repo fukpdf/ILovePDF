@@ -19,12 +19,24 @@ const scriptUrls = externalScripts.map((tag) => {
   return match ? match[1] : null;
 }).filter(Boolean);
 
+const pdfPipelineNames = [
+  'font-mapper.js', 'column-engine.js', 'form-reconstruction.js',
+  'fidelity-validator.js', 'visual-reconstruction.js', 'ocr-zoning.js',
+  'image-anchor-engine.js', 'layout-graph.js', 'docx-coordinate-engine.js',
+  'fidelity-debug.js',
+];
+const pdfPipelineDeferred = pdfPipelineNames.every((name) =>
+  html.includes('<script src="/js/pdf-pipeline/' + name + '" defer></script>')
+);
+
 const checks = [
   ['tool-page.js is deferred', /<script\b[^>]*src=["']\/js\/tool-page\.js(?:\?[^"']*)?["'][^>]*\bdefer\b/i.test(html)],
   ['compression runtime adapter is deferred', /<script\b[^>]*src=["']\/js\/compress-worker-adapter\.js["'][^>]*\bdefer\b/i.test(html)],
   ['compression runtime is deferred', /<script\b[^>]*src=["']\/js\/compress-runtime\.js["'][^>]*\bdefer\b/i.test(html)],
   ['idle runtime loader is present', /<script\b[^>]*src=["']\/js\/runtime-tool-idle-loader\.js["'][^>]*\bdefer\b/i.test(html)],
   ['admin/dev diagnostics are not shipped on public tool pages', !/src=["']\/js\/runtime-(?:production-certification|devtools-dashboard|enterprise-certification|inspector)\.js["']/i.test(html)],
+  ['PDF-to-Word fidelity modules are deferred in dependency order', pdfPipelineDeferred],
+  ['parser-blocking script count stays at or below the audited ceiling', parserBlocking.length <= 127],
   ['upload skeleton is present in initial HTML', /class=["']sk-upload-wrap["']/.test(html) && /class=["']sk-upload-icon["']/.test(html)],
   ['upload skeleton reserves stable dimensions', /\.sk-upload-icon\s*\{[^}]*width:\s*64px[^}]*height:\s*64px/s.test(styles) && /\.sk-upload-btn\s*\{[^}]*width:\s*200px[^}]*height:\s*48px/s.test(styles)],
   ['essential tool shell stylesheet is included', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
@@ -42,6 +54,6 @@ console.log('INFO parser-blocking external script tags remaining: ' + parserBloc
 console.log('INFO duplicate URLs: ' + (scriptUrls.length - new Set(scriptUrls).size));
 
 if (parserBlocking.length > 0) {
-  console.warn('WARN parser-blocking scripts remain; these need dependency-aware refactoring, not a blanket defer conversion.');
+  console.warn('WARN parser-blocking scripts remain; the remaining chain needs dependency-aware refactoring, not a blanket defer conversion.');
 }
 assert.equal(failed, 0, failed + ' tool-page performance check(s) failed.');
