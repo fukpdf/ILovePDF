@@ -13,6 +13,7 @@
   var _preloadPromises = new Map();
   var _enginePromises = new Map();
   var _previewPromises = new Map();
+  var _dependencyPromises = new Map();
   var _engineReady = new Set();
   var _previewReady = new Set();
 
@@ -255,6 +256,23 @@
     return promise;
   }
 
+  function shareDependency(key, globalName, factory) {
+    if (globalName && G[globalName]) return Promise.resolve(G[globalName]);
+    if (_dependencyPromises.has(key)) return _dependencyPromises.get(key);
+    if (typeof factory !== 'function') return Promise.reject(new Error('A dependency loader is required for ' + key));
+
+    var promise = Promise.resolve().then(factory).then(function (value) {
+      var resolved = globalName ? (G[globalName] || value) : value;
+      if (globalName && !resolved) throw new Error('Dependency did not expose ' + globalName + ': ' + key);
+      return resolved;
+    }).catch(function (error) {
+      _dependencyPromises.delete(key);
+      throw error;
+    });
+    _dependencyPromises.set(key, promise);
+    return promise;
+  }
+
   function prepare(toolId) {
     return Promise.all([preparePreview(toolId), prepareEngine(toolId)]).then(function () {
       return { toolId: String(toolId), ready: true };
@@ -267,6 +285,7 @@
     prepareEngine: prepareEngine,
     isPreviewReady: function (toolId) { return !!toolId && _previewReady.has(String(toolId)); },
     isEngineReady: function (toolId) { return !!toolId && _engineReady.has(String(toolId)); },
-    getLoadedScripts: function () { return Array.from(_loaded); }
+    getLoadedScripts: function () { return Array.from(_loaded); },
+    shareDependency: shareDependency
   });
 }(window));
