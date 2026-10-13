@@ -41,10 +41,12 @@ const toolSpecificScripts = [
   'runtime-stream-bridge.js', 'pdf-preview.js', 'live-preview.js', 'page-organizer.js',
 ];
 const advancedTools = [
-  'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
-  'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel', 'html-to-pdf', 'ocr',
-  'scan-to-pdf', 'translate', 'ai-summarize', 'crop-image',
-  'resize-image', 'image-filters', 'image-compressor', 'image-converter',
+  'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf', 'excel-to-pdf',
+  'html-to-pdf', 'ocr', 'scan-to-pdf', 'background-remover', 'repair', 'compare',
+  'ai-summarize', 'translate', 'workflow', 'merge', 'split', 'rotate', 'organize',
+  'page-numbers', 'watermark', 'crop', 'jpg-to-pdf', 'protect', 'unlock', 'pdf-to-jpg',
+  'crop-image', 'resize-image', 'image-filters', 'edit', 'sign', 'redact',
+  'powerpoint-to-pdf', 'word-to-excel',
 ];
 const translationScripts = [
   'universal-encoding-repair.js', 'universal-translation-chunker.js',
@@ -56,12 +58,14 @@ const checks = [
   ['no processing, preview, worker, or idle-engine script is referenced by initial HTML', initialEngineRequests.length === 0],
   ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && loaderScriptIndex >= 0 && toolPageScriptIndex > loaderScriptIndex],
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
-  ['loader uses deterministic sequential script injection', /script\.async\s*=\s*false/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
+  ['engine resources preload in parallel and execute in dependency order', /script\.async\s*=\s*false/.test(loader) && /await Promise\.all\(sources\.map\(preloadOne\)\)/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
   ['loader deduplicates scripts and concurrent tool preparation', loader.includes('var _loaded = new Set()') && loader.includes('var _scriptPromises = new Map()') && loader.includes('var _enginePromises = new Map()')],
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
   ['translation/OCR enhancements are requested only for related tools', translationScripts.every((name) => loader.includes(name)) && /TRANSLATION_TOOLS/.test(loader)],
+  ['preview modules are scoped to tools that need them', /PDF_PREVIEW_TOOLS/.test(loader) && /LIVE_PREVIEW_TOOLS/.test(loader) && /PAGE_ORGANIZER_TOOLS/.test(loader) && /function previewModulesFor\(toolId\)/.test(loader)],
+  ['selected-tool dependency prewarm covers compression, conversion, and worker-backed tools', browserTools.includes("case 'compress':") && browserTools.includes("case 'pdf-to-word':") && browserTools.includes("pool.prewarm('/workers/pdf-worker.js')")],
   ['file selection starts preview and engine loads in parallel', /ToolEngineLoader\.prepareEngine\(tool\.id\)/.test(toolPage) && /ToolEngineLoader\.preparePreview\(tool\.id\)/.test(toolPage)],
   ['preview does not wait for processing engine downloads', /const previewResult = await previewWarm/.test(toolPage) && !/await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
   ['engine readiness updates while user reviews preview', /engineWarmHandled\.then/.test(toolPage) && /engine-ready-status/.test(toolPage)],
@@ -77,6 +81,8 @@ const checks = [
   ['tool shell reserves initial viewport to reduce footer shift', /main#tool-content\s*\{[^}]*min-height:\s*100vh[^}]*min-height:\s*100svh/s.test(styles)],
   ['main stylesheet remains present', /href=["']\/css\/styles\.css(?:\?[^"']*)?["']/.test(html)],
   ['processing workers are not prefetched on initial page open', !html.includes('rel="prefetch" href="/workers/') && !html.includes("rel='prefetch' href='/workers/")],
+  ['supplemental locale pack is not downloaded on initial open', !scriptUrls.some((url) => url.includes('i18n-ext.js'))],
+  ['preview transition has no artificial two-second delay', toolPage.includes('runToolPreviewPreparation(tool, runId, startedAt, 250);') && !toolPage.includes('runToolPreviewPreparation(tool, runId, startedAt, 2200);')],
   ['duplicate initial external script URLs are absent', new Set(scriptUrls).size === scriptUrls.length],
 ];
 
@@ -93,6 +99,7 @@ for (const file of [
   'public/js/tool-engine-loader.js',
   'public/js/tool-page.js',
   'public/js/advanced-engine.js',
+  'public/js/browser-tools.js',
 ]) {
   const result = spawnSync(process.execPath, ['--check', path.join(root, file)], { encoding: 'utf8' });
   const passed = result.status === 0;
