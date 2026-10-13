@@ -15,6 +15,7 @@ const advancedEngine = readFileSync(path.join(root, 'public/js/advanced-engine.j
 
 const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map((match) => match[0]);
 const externalScripts = scriptTags.filter((tag) => /\bsrc\s*=/i.test(tag));
+const parserBlockingScripts = externalScripts.filter((tag) => !/\b(?:defer|async)\b/i.test(tag) && !/\btype\s*=\s*[\"']module[\"']/i.test(tag));
 const scriptUrls = externalScripts.map((tag) => {
   const match = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
   return match ? match[1] : null;
@@ -55,6 +56,7 @@ const translationScripts = [
 ];
 const checks = [
   ['only lightweight shell scripts are requested on initial tool-page open', externalScripts.length <= 25],
+  ['initial shell has no parser-blocking external scripts', parserBlockingScripts.length === 0],
   ['no processing, preview, worker, or idle-engine script is referenced by initial HTML', initialEngineRequests.length === 0],
   ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && loaderScriptIndex >= 0 && toolPageScriptIndex > loaderScriptIndex],
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
@@ -92,6 +94,7 @@ for (const [name, passed] of checks) {
   if (!passed) failed++;
 }
 console.log('INFO initial external script tags: ' + externalScripts.length);
+console.log('INFO parser-blocking external script tags: ' + parserBlockingScripts.length);
 console.log('INFO processing/preview script requests at initial HTML parse: ' + initialEngineRequests.length);
 console.log('INFO exact duplicate initial script URLs: ' + (scriptUrls.length - new Set(scriptUrls).size));
 
