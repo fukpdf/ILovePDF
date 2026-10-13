@@ -1,19 +1,22 @@
-/* ToolEngineLoader v1 — on-demand processing/preview boot.
- * Only the lightweight shell is loaded at page open. After a valid file is
- * selected, load the shared processing foundation and the selected tool's
- * preview/engine modules in deterministic order.
+/* ToolEngineLoader v2 — split preview and processing boot.
+ * The upload shell is intentionally kept independent from processing bundles.
+ * File selection starts preview + engine downloads; Process waits for the engine
+ * promise if it is still in flight. All classic scripts load sequentially so
+ * existing global-script dependencies keep their expected order.
  */
 (function (G) {
   'use strict';
   if (G.ToolEngineLoader) return;
 
   var _loaded = new Set();
-  var _inFlight = new Map();
-  var _prepared = new Set();
+  var _scriptPromises = new Map();
+  var _enginePromises = new Map();
+  var _previewPromises = new Map();
+  var _engineReady = new Set();
+  var _previewReady = new Set();
 
-  // Ordered shared runtime needed by the browser processor, streaming workers,
-  // result lifecycle, and PDF preview. Diagnostics, dashboards, ads, AI graphs,
-  // and unrelated tool-app bundles are deliberately not in this list.
+  // Shared processing foundation. Optional diagnostics, dashboards, ads,
+  // marketing widgets, unrelated tool-apps, and unused AI runtimes are omitted.
   var CORE = [
     '/workers/workerPool.js',
     '/js/stream-helpers.js',
@@ -68,28 +71,23 @@
     'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
     'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel',
     'html-to-pdf', 'ocr', 'scan-to-pdf', 'translate', 'ai-summarize',
-    'background-remover', 'crop-image', 'resize-image', 'image-filters',
-    'image-compressor', 'image-converter'
+    'crop-image', 'resize-image', 'image-filters', 'image-compressor',
+    'image-converter'
   ]);
 
-  var TOOL_MODULES = {
+  var TOOL_PREVIEW_MODULES = {
     'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js'],
     'edit': ['/js/edit-pdf-pro.js']
   };
 
   var TRANSLATION_TOOLS = new Set(['translate', 'ocr', 'scan-to-pdf']);
 
-  function scriptPresent(src) {
-    return _loaded.has(src) || !!document.querySelector('script[data-tool-engine-src="' + src + '"]') ||
-      !!document.querySelector('script[src="' + src + '"]');
-  }
-
   function loadOne(src) {
-    if (scriptPresent(src)) {
+    if (_loaded.has(src) || document.querySelector('script[src="' + src + '"]')) {
       _loaded.add(src);
       return Promise.resolve();
     }
-    if (_inFlight.has(src)) return _inFlight.get(src);
+    if (_scriptPromises.has(src)) return _scriptPromises.get(src);
 
     var promise = new Promise(function (resolve, reject) {
       var script = document.createElement('script');
@@ -102,60 +100,90 @@
       };
       script.onerror = function () {
         script.remove();
-        _inFlight.delete(src);
+        _scriptPromises.delete(src);
         reject(new Error('Could not load processing module: ' + src));
       };
       document.head.appendChild(script);
     });
-    _inFlight.set(src, promise);
+    _scriptPromises.set(src, promise);
     return promise;
   }
 
   async function loadOrdered(sources) {
-    for (var i = 0; i < sources.length; i++) {
-      await loadOne(sources[i]);
-    }
+    for (var i = 0; i < sources.length; i++) await loadOne(sources[i]);
   }
 
-  function modulesFor(toolId) {
+  function engineModulesFor(toolId) {
     var sources = CORE.slice();
     if (ADVANCED_TOOLS.has(toolId)) sources.push('/js/advanced-engine.js');
-    sources = sources.concat(PREVIEW);
-    if (TOOL_MODULES[toolId]) sources = sources.concat(TOOL_MODULES[toolId]);
     if (TRANSLATION_TOOLS.has(toolId)) {
-      sources = sources.concat([
+      sources.push(
         '/js/universal-encoding-repair.js',
         '/js/universal-translation-chunker.js',
         '/js/universal-ocr-cleanup.js',
         '/js/global-multilingual-renderer.js',
         '/js/universal-translation-validator.js',
         '/js/universal-translation-pipeline.js'
-      ]);
+      );
     }
     return Array.from(new Set(sources));
   }
 
-  function prepare(toolId) {
-    if (!toolId) return Promise.reject(new Error('A tool ID is required to prepare the engine.'));
+  function previewModulesFor(toolId) {
+    return Array.from(new Set(PREVIEW.concat(TOOL_PREVIEW_MODULES[toolId] || [])));
+  }
+
+  function preparePreview(toolId) {
+    if (!toolId) return Promise.reject(new Error('A tool ID is required to prepare preview.'));
     var key = String(toolId);
-    if (_inFlight.has('tool:' + key)) return _inFlight.get('tool:' + key);
-    var promise = loadOrdered(modulesFor(key)).then(function () {
-      _prepared.add(key);
-      return { toolId: key, ready: true, loadedScripts: _loaded.size };
+    if (_previewReady.has(key)) return Promise.resolve({ toolId: key, ready: true });
+    if (_previewPromises.has(key)) return _previewPromises.get(key);
+    var promise = loadOrdered(previewModulesFor(key)).then(function () {
+      _previewReady.add(key);
+      return { toolId: key, ready: true };
     }).catch(function (error) {
-      _inFlight.delete('tool:' + key);
-      _prepared.delete(key);
+      _previewPromises.delete(key);
+      _previewReady.delete(key);
       throw error;
     });
-    _inFlight.set('tool:' + key, promise);
+    _previewPromises.set(key, promise);
     return promise;
+  }
+
+  function prepareEngine(toolId) {
+    if (!toolId) return Promise.reject(new Error('A tool ID is required to prepare the engine.'));
+    var key = String(toolId);
+    if (_engineReady.has(key)) return Promise.resolve({ toolId: key, ready: true });
+    if (_enginePromises.has(key)) return _enginePromises.get(key);
+    var promise = loadOrdered(engineModulesFor(key)).then(async function () {
+      // Prewarm only dependencies explicitly declared by BrowserTools for this
+      // tool. Other tools do not download each other's CDN libraries.
+      if (G.BrowserTools && typeof G.BrowserTools.prewarm === 'function') {
+        await G.BrowserTools.prewarm(key);
+      }
+      _engineReady.add(key);
+      return { toolId: key, ready: true };
+    }).catch(function (error) {
+      _enginePromises.delete(key);
+      _engineReady.delete(key);
+      throw error;
+    });
+    _enginePromises.set(key, promise);
+    return promise;
+  }
+
+  function prepare(toolId) {
+    return Promise.all([preparePreview(toolId), prepareEngine(toolId)]).then(function () {
+      return { toolId: String(toolId), ready: true };
+    });
   }
 
   G.ToolEngineLoader = Object.freeze({
     prepare: prepare,
-    isReady: function (toolId) {
-      return !!toolId && _prepared.has(String(toolId));
-    },
+    preparePreview: preparePreview,
+    prepareEngine: prepareEngine,
+    isPreviewReady: function (toolId) { return !!toolId && _previewReady.has(String(toolId)); },
+    isEngineReady: function (toolId) { return !!toolId && _engineReady.has(String(toolId)); },
     getLoadedScripts: function () { return Array.from(_loaded); }
   });
 }(window));
