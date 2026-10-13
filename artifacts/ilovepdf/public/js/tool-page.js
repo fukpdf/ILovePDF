@@ -349,7 +349,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  buildSidebar(currentTool.id);
 
   // Initial step from server-injected window.__STEP (or URL on Firebase static)
   Flow.step = window.__STEP || stepFromPath();
@@ -3536,7 +3535,6 @@ window.loadToolPage = function loadToolPage(path) {
       }
     }
   } catch (_) {}
-  buildSidebar(currentTool.id);
   setMetaForStep(Flow.step);
   renderStep();
   try { window.scrollTo(0, 0); } catch (_) {}
