@@ -1226,14 +1226,12 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   // Start both download tracks after file selection: preview modules are a
   // short dependency chain, while the selected processor prepares in parallel.
   // Never make the user wait for the processing engine just to inspect a file.
-  let engineError = null;
   const engineWarm = window.ToolEngineLoader
     ? window.ToolEngineLoader.prepareEngine(tool.id)
     : Promise.reject(new Error('Tool engine loader is unavailable.'));
   const engineWarmHandled = engineWarm.then(function () {
     return { ready: true };
   }, function (error) {
-    engineError = error;
     return { ready: false, error: error };
   });
   const previewWarm = (window.ToolEngineLoader
