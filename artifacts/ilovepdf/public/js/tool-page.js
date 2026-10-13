@@ -1226,14 +1226,8 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   // Start both download tracks after file selection: preview modules are a
   // short dependency chain, while the selected processor prepares in parallel.
   // Never make the user wait for the processing engine just to inspect a file.
-  const engineWarm = window.ToolEngineLoader
-    ? window.ToolEngineLoader.prepareEngine(tool.id)
-    : Promise.reject(new Error('Tool engine loader is unavailable.'));
-  const engineWarmHandled = engineWarm.then(function () {
-    return { ready: true };
-  }, function (error) {
-    return { ready: false, error: error };
-  });
+  // Start preview first so its requests receive priority over background
+  // processor downloads; both tracks still run concurrently after this point.
   const previewWarm = (window.ToolEngineLoader
     ? window.ToolEngineLoader.preparePreview(tool.id).then(function () {
         return window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image'
@@ -1245,6 +1239,14 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
       }, function (error) {
         return { ready: false, error: error };
       });
+  const engineWarm = window.ToolEngineLoader
+    ? window.ToolEngineLoader.prepareEngine(tool.id)
+    : Promise.reject(new Error('Tool engine loader is unavailable.'));
+  const engineWarmHandled = engineWarm.then(function () {
+    return { ready: true };
+  }, function (error) {
+    return { ready: false, error: error };
+  });
   const isImage = tool.group === 'image';
   const stages = [
     { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
