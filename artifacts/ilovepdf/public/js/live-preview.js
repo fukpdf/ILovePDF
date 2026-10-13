@@ -42,12 +42,25 @@
   function loadScript(url, globalName) {
     if (globalName && window[globalName]) return Promise.resolve(window[globalName]);
     if (_slots[url]) return _slots[url];
-    _slots[url] = new Promise(function (res, rej) {
-      var s = document.createElement('script');
-      s.src = url; s.async = true;
-      s.onload  = function () { res(globalName ? window[globalName] : true); };
-      s.onerror = function () { delete _slots[url]; rej(new Error('load-fail:' + url)); };
-      document.head.appendChild(s);
+    function loadDirect() {
+      return new Promise(function (res, rej) {
+        var s = document.createElement('script');
+        s.src = url; s.async = true;
+        s.onload = function () {
+          var value = globalName ? window[globalName] : true;
+          if (globalName && !value) { rej(new Error('missing-global:' + globalName)); return; }
+          res(value);
+        };
+        s.onerror = function () { rej(new Error('load-fail:' + url)); };
+        document.head.appendChild(s);
+      });
+    }
+    var shared = window.ToolEngineLoader && typeof window.ToolEngineLoader.shareDependency === 'function'
+      ? window.ToolEngineLoader.shareDependency(url, globalName, loadDirect)
+      : loadDirect();
+    _slots[url] = shared.catch(function (error) {
+      delete _slots[url];
+      throw error;
     });
     return _slots[url];
   }
