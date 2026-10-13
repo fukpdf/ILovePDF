@@ -1227,18 +1227,25 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   // Never make the user wait for the processing engine just to inspect a file.
   let engineError = null;
   const engineWarm = window.ToolEngineLoader
-    ? window.ToolEngineLoader.prepareEngine(tool.id).catch(function (error) {
-        engineError = error;
-        return null;
-      })
+    ? window.ToolEngineLoader.prepareEngine(tool.id)
     : Promise.reject(new Error('Tool engine loader is unavailable.'));
-  const previewWarm = window.ToolEngineLoader
+  const engineWarmHandled = engineWarm.then(function () {
+    return { ready: true };
+  }, function (error) {
+    engineError = error;
+    return { ready: false, error: error };
+  });
+  const previewWarm = (window.ToolEngineLoader
     ? window.ToolEngineLoader.preparePreview(tool.id).then(function () {
         return window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image'
           ? window.PdfPreview.loadPdfJs()
           : undefined;
       })
-    : Promise.reject(new Error('Tool preview loader is unavailable.'));
+    : Promise.reject(new Error('Tool preview loader is unavailable.'))).then(function (value) {
+        return { ready: true, value: value };
+      }, function (error) {
+        return { ready: false, error: error };
+      });
   const isImage = tool.group === 'image';
   const stages = [
     { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
@@ -1264,12 +1271,8 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     requestAnimationFrame(tick);
   });
   if (runId !== _cropUploadRun) return;
-  let previewError = null;
-  try {
-    await previewWarm;
-  } catch (error) {
-    previewError = error;
-  }
+  const previewResult = await previewWarm;
+  const previewError = previewResult && !previewResult.ready ? previewResult.error : null;
   const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
   if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
   if (runId !== _cropUploadRun) return;
@@ -1285,22 +1288,16 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     showStatus('error', 'Preview could not be prepared', 'Your file is still selected. You can try Process, or choose the file again to retry preview.');
   }
   // Engine downloads continue independently while the user reviews the preview.
-  engineWarm.then(function () {
-    if (currentTool && currentTool.id === tool.id && window.ToolEngineLoader.isEngineReady(tool.id)) {
-      const status = document.getElementById('engine-ready-status');
-      if (status) {
-        status.textContent = 'Processing engine ready — click Process when you are ready.';
-        status.dataset.engineState = 'ready';
-      }
-    }
-  }).catch(function (error) {
-    engineError = error;
-    if (currentTool && currentTool.id === tool.id) {
-      const status = document.getElementById('engine-ready-status');
-      if (status) {
-        status.textContent = 'Engine download failed. Press Process to retry loading.';
-        status.dataset.engineState = 'error';
-      }
+  engineWarmHandled.then(function (result) {
+    if (!currentTool || currentTool.id !== tool.id) return;
+    const status = document.getElementById('engine-ready-status');
+    if (!status) return;
+    if (result && result.ready && window.ToolEngineLoader.isEngineReady(tool.id)) {
+      status.textContent = 'Processing engine ready — click Process when you are ready.';
+      status.dataset.engineState = 'ready';
+    } else {
+      status.textContent = 'Engine download failed. Press Process to retry loading.';
+      status.dataset.engineState = 'error';
     }
   });
 }
