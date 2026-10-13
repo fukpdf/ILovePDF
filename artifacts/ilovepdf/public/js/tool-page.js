@@ -1213,7 +1213,7 @@ function renderToolPreviewPreparation(tool) {
   if (window.lucide) lucide.createIcons();
   const runId = ++_cropUploadRun;
   const startedAt = Date.now();
-  runToolPreviewPreparation(tool, runId, startedAt, 2200);
+  runToolPreviewPreparation(tool, runId, startedAt, 250);
 }
 
 async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
