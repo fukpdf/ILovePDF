@@ -40,8 +40,9 @@
 
   // Track load state per bundle
   Object.keys(_bundles).forEach(function (k) {
-    _bundles[k].loaded    = false;
-    _bundles[k].loading   = false;
+    _bundles[k].loaded       = false;
+    _bundles[k].sourceBacked = false;
+    _bundles[k].loading      = false;
     _bundles[k].callbacks = [];
   });
 
@@ -79,8 +80,9 @@
     return depChain.then(function () {
       return _injectScript(BASE + b.file);
     }).then(function () {
-      b.loaded  = true;
-      b.loading = false;
+      b.loaded       = true;
+      b.sourceBacked = false;
+      b.loading      = false;
       console.debug(LOG, 'loaded:', name, '—', b.file);
       b.callbacks.forEach(function (cb) { cb.res(); });
       b.callbacks = [];
@@ -96,7 +98,7 @@
   function _status() {
     var out = {};
     Object.keys(_bundles).forEach(function (k) {
-      out[k] = { loaded: _bundles[k].loaded, loading: _bundles[k].loading, file: _bundles[k].file };
+      out[k] = { loaded: _bundles[k].loaded, sourceBacked: !!_bundles[k].sourceBacked, loading: _bundles[k].loading, file: _bundles[k].file };
     });
     return out;
   }
@@ -105,9 +107,19 @@
     VERSION:  VERSION,
     load:     _load,
     status:   _status,
+    // Mark a bundle as available when every source file is already included
+    // and executed individually by the page. This avoids downloading and
+    // executing a second copy of the same runtime modules.
+    markSourceBacked: function (name) {
+      var b = _bundles[name];
+      if (!b || b.loading) return false;
+      b.loaded = true;
+      b.sourceBacked = true;
+      return true;
+    },
     register: function (name, file, deps) {
       if (_bundles[name]) return;
-      _bundles[name] = { file: file, deps: deps || [], loaded: false, loading: false, callbacks: [] };
+      _bundles[name] = { file: file, deps: deps || [], loaded: false, sourceBacked: false, loading: false, callbacks: [] };
     },
   });
 
