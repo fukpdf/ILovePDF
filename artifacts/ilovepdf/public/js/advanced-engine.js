@@ -1455,7 +1455,7 @@
     try {
       toolId = typeof window.resolveToolIdFromUrl === 'function'
         ? window.resolveToolIdFromUrl()
-        : (window.location.pathname || '').replace(/^\\/+|\\/+$/g, '').split('/')[0];
+        : (window.location.pathname || '').replace(/^\/+|\/+$/g, '').split('/')[0];
     } catch (_) {}
     var advancedWorkerTools = new Set([
       'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
