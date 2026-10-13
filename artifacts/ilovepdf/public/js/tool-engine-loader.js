@@ -110,11 +110,14 @@
   ];
 
   function loadOne(src) {
-    if (_loaded.has(src) || document.querySelector('script[src="' + src + '"]')) {
+    if (_loaded.has(src)) return Promise.resolve();
+    // Check the in-flight promise before looking for a script tag: another
+    // tool may already have inserted this dependency but not executed it yet.
+    if (_scriptPromises.has(src)) return _scriptPromises.get(src);
+    if (document.querySelector('script[src="' + src + '"]')) {
       _loaded.add(src);
       return Promise.resolve();
     }
-    if (_scriptPromises.has(src)) return _scriptPromises.get(src);
 
     var promise = new Promise(function (resolve, reject) {
       var script = document.createElement('script');
@@ -137,7 +140,9 @@
   }
 
   function preloadOne(src) {
-    if (_loaded.has(src) || document.querySelector('script[src="' + src + '"]')) return Promise.resolve();
+    if (_loaded.has(src)) return Promise.resolve();
+    if (_scriptPromises.has(src)) return _scriptPromises.get(src);
+    if (document.querySelector('script[src="' + src + '"]')) return Promise.resolve();
     if (_preloadPromises.has(src)) return _preloadPromises.get(src);
     var promise = new Promise(function (resolve) {
       var link = document.createElement('link');
