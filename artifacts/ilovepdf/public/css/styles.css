@@ -285,6 +285,18 @@ input, select, textarea { font-family: inherit; }
    This keeps the shared footer below the fold during the initial render transition. */
 main#tool-content { min-height: 100vh; min-height: 100svh; }
 
+/* Stable status slot: engine readiness text changes without shifting the Process CTA. */
+.engine-ready-status {
+  min-height: 2.4em;
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.engine-ready-status[data-engine-state="ready"] { color: #047857; }
+.engine-ready-status[data-engine-state="error"] { color: #b91c1c; }
+
+
 .tool-header { margin-bottom: 28px; }
 .back-link {
   display: inline-flex;
