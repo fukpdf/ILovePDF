@@ -79,12 +79,16 @@
     'sign', 'redact', 'ocr', 'ai-summarize', 'translate', 'repair', 'edit'
   ]);
 
+  // Match AdvancedEngine's TOOL_STEPS manifest, excluding compress because
+  // the shared tool page uses its dedicated runAdvancedCompress() pipeline.
   var ADVANCED_TOOLS = new Set([
-    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
-    'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel',
-    'html-to-pdf', 'ocr', 'scan-to-pdf', 'translate', 'ai-summarize',
-    'crop-image', 'resize-image', 'image-filters', 'image-compressor',
-    'image-converter'
+    'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
+    'excel-to-pdf', 'html-to-pdf', 'ocr', 'scan-to-pdf', 'background-remover',
+    'repair', 'compare', 'ai-summarize', 'translate', 'workflow', 'merge',
+    'split', 'rotate', 'organize', 'page-numbers', 'watermark', 'crop',
+    'jpg-to-pdf', 'protect', 'unlock', 'pdf-to-jpg', 'crop-image',
+    'resize-image', 'image-filters', 'edit', 'sign', 'redact',
+    'powerpoint-to-pdf', 'word-to-excel'
   ]);
 
   var TOOL_PREVIEW_MODULES = {
