@@ -132,8 +132,11 @@
     return promise;
   }
 
-  async function loadOrdered(sources) {
-    for (var i = 0; i < sources.length; i++) await loadOne(sources[i]);
+  function loadOrdered(sources) {
+    // Insert every tag in manifest order without awaiting each network response.
+    // Dynamically inserted classic scripts with async=false execute in insertion
+    // order, while their downloads can overlap instead of forming a waterfall.
+    return Promise.all(sources.map(loadOne));
   }
 
   function engineModulesFor(toolId) {
