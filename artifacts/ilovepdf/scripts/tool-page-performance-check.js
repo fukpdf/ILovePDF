@@ -20,6 +20,8 @@ const scriptUrls = externalScripts.map((tag) => {
   return match ? match[1] : null;
 }).filter(Boolean);
 const fileName = (url) => url.split('/').pop().split('?')[0];
+const loaderScriptIndex = html.search(/<script\\b[^>]*src=[\"']\\/js\\/tool-engine-loader\\.js[\"'][^>]*>/i);
+const toolPageScriptIndex = html.search(/<script\\b[^>]*src=[\"']\\/js\\/tool-page\\.js(?:\\?[^\"']*)?[\"'][^>]*>/i);
 
 const initialEngineFiles = new Set([
   'workerPool.js', 'browser-tools.js', 'browser-tool-runtime.js', 'advanced-engine.js',
@@ -41,7 +43,7 @@ const toolSpecificScripts = [
 const advancedTools = [
   'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint', 'word-to-pdf',
   'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel', 'html-to-pdf', 'ocr',
-  'scan-to-pdf', 'translate', 'ai-summarize', 'background-remover', 'crop-image',
+  'scan-to-pdf', 'translate', 'ai-summarize', 'crop-image',
   'resize-image', 'image-filters', 'image-compressor', 'image-converter',
 ];
 const translationScripts = [
@@ -52,14 +54,14 @@ const translationScripts = [
 const checks = [
   ['only lightweight shell scripts are requested on initial tool-page open', externalScripts.length <= 25],
   ['no processing, preview, worker, or idle-engine script is referenced by initial HTML', initialEngineRequests.length === 0],
-  ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && html.indexOf('tool-engine-loader.js') < html.indexOf('tool-page.js')],
+  ['tool engine loader is included before tool-page bootstrap', /src=["']\/js\/tool-engine-loader\.js["'][^>]*defer/i.test(html) && loaderScriptIndex >= 0 && toolPageScriptIndex > loaderScriptIndex],
   ['essential tool identity/configuration scripts remain on the shell', ['tools-config.js', 'tool-registry-runtime.js', 'tool-module-registry.js', 'tool-page.js'].every((name) => externalScripts.some((tag) => tag.includes(name)))],
   ['loader uses deterministic sequential script injection', /script\.async\s*=\s*false/.test(loader) && /await loadOne\(sources\[i\]\)/.test(loader)],
   ['loader deduplicates scripts and concurrent tool preparation', /_loaded\s*=\s*new Set/.test(loader) && /_inFlight\s*=\s*new Map/.test(loader)],
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
-  ['translation/OCR enhancements are requested only for related tools', translationScripts.every((name) => loader.includes(name)) && /TRANSLATION_TOOLS/.test(loader)),
+  ['translation/OCR enhancements are requested only for related tools', translationScripts.every((name) => loader.includes(name)) && /TRANSLATION_TOOLS/.test(loader)],
   ['file selection starts preview and engine loads in parallel', /ToolEngineLoader\.prepareEngine\(tool\.id\)/.test(toolPage) && /ToolEngineLoader\.preparePreview\(tool\.id\)/.test(toolPage)],
   ['preview does not wait for processing engine downloads', /const previewResult = await previewWarm/.test(toolPage) && !/await Promise\.all\(\[engineWarm, previewWarm\]\)/.test(toolPage)],
   ['engine readiness updates while user reviews preview', /engineWarmHandled\.then/.test(toolPage) && /engine-ready-status/.test(toolPage)],
