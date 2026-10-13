@@ -1,63 +1,75 @@
-# Tool page performance audit — 2026-10-13
+# Tool-page on-demand engine architecture audit — 2026-10-13
 
-## Scope and evidence
+## Scope and intent
 
-Repository source audit of `artifacts/ilovepdf/public/tool.html`, its tool-page shell CSS, compression runtime entry points, and the shared `tool-page.js`. The live browser Network waterfall, Lighthouse trace, real-device layout shifts, and end-to-end file processing were **not** available from this audit environment; source findings must not be represented as live-site measurements.
+Refactor the shared tool page so opening a tool route does not request the processing engines, preview renderers, worker scripts, or unrelated tool-app bundles. Once the user selects a file, load the preview path and the selected tool's processing foundation in parallel. Let the user review the preview/settings while the engine warms in the background. If the user presses **Process** before the engine is ready, wait on the same preparation promise and start processing automatically once it succeeds.
 
-## Confirmed findings
+This is a source/repository audit. It is **not** a live Lighthouse/DevTools verification report.
 
-1. **Oversized shared script graph.** Before this patch, `tool.html` declared 388 external script tags, 137 of them parser-blocking classic scripts. Four deferred diagnostic/admin scripts were included on every public tool page despite not being needed for upload/compression:
-   - `runtime-production-certification.js`
-   - `runtime-devtools-dashboard.js`
-   - `runtime-enterprise-certification.js`
-   - `runtime-inspector.js`
-2. **PDF-to-Word fidelity modules were loaded on every tool page.** Ten `/js/pdf-pipeline/*` modules were included in the shared HTML despite being used by the legacy `pdfToWord()` fallback. Their references in `browser-tools.js` are inside the asynchronous conversion function, so the modules are now loaded sequentially only when that fallback is invoked. The worker-based `PdfToWordApp` path and all unrelated tool pages avoid these ten initial requests.
-3. **Layout-shift risk remains in the upload shell.** Initial HTML includes only a small upload skeleton, while `renderBrandedUploadStep()` replaces the entire `#tool-content` with a tool heading, upload zone, cloud-provider controls, benefits, trust strip, SEO content, learn-more content, and popular-tool cards. The skeleton CSS reserves fixed 64×64 px icon and 200×48 px button dimensions, but it does not reserve the final page's full height. A targeted `main#tool-content` viewport minimum was added so the shared footer stays below the initial viewport while JavaScript replaces the skeleton. This is a mitigation, not proof of a good CLS score: local movement within the upload hero and the longer SEO/content sections still need a browser trace.
-4. **Non-critical runtime enhancements also blocked parsing.** The AI-upgrade and enterprise-telemetry scripts are event-driven/diagnostic enhancements that register their boot work around `DOMContentLoaded`; they are now deferred so they do not pause HTML parsing while retaining their own boot hooks.
-5. **Translation/OCR enhancements blocked parsing.** Six `universal-*` / multilingual helper scripts are now deferred in their existing dependency order. The translation pipeline contains an explicit retry installer for `BrowserTools`, so it can attach after the parser-blocking `browser-tools.js` initializes; all deferred scripts finish before the deferred tool-page boot path allows user interaction.
-6. **Audit/dashboard scripts blocked parsing.** Five diagnostic modules (`job-dashboard`, full next-gen audit, final memory audit, deadlock monitor, final automated audit) now run as ordered deferred scripts. Their code exposes dashboards/audit APIs and the job dashboard retries its BrowserTools hook, so the modules can initialize after the synchronous core while still finishing before user interaction.
-7. **No exact duplicate external script URLs found** in the inspected source template. This is a template-level check; it does not prove the live browser has no redirects, dynamically injected duplicates, or repeated requests.
-8. **Compression entry points are already deferred.** `compress-worker-adapter.js`, `compress-runtime.js`, `compress-pdf-app.js`, and `tool-page.js` are deferred, so the immediate opportunity was the broader shared script graph, not changing the compression entry points blindly.
+## Source-level results
 
-## Changes in this branch
+- The shared HTML template had 388 external script tags on the baseline branch.
+- The current branch template has **24 external script tags**: 364 fewer static script tags in the initial HTML.
+- The initial HTML no longer references processing engines, preview renderers, worker-pool scripts, per-tool processor bundles, or the idle runtime loader.
+- Five worker `rel=prefetch` links were removed; worker downloads are now initiated through the selected-tool loader.
+- The processing engine and preview scripts are not requested by static script tags on initial page load. The small shell still has normal UI/navigation, localization, registry, session-state, auth, and PWA scripts.
+- The source-level regression test checks the initial shell, on-demand manifest, script ordering/deduplication, preview/engine parallelism, process-button readiness gate, layout reservation, and JavaScript syntax.
+- The PDF-to-Word fidelity pipeline remains sequentially lazy-loaded only when its legacy fallback is invoked.
 
-- Removed the four admin/developer diagnostics script tags from the public shared tool page. The diagnostics remain in the repository; this change only stops loading them for every public tool page.
-- Removed the ten PDF-to-Word fidelity script tags from the shared HTML and added a sequential, memoized on-demand loader at the start of the legacy `pdfToWord()` fallback.
-- Reserved the first viewport on `main#tool-content` to reduce the chance that the shared footer enters the viewport during skeleton replacement.
-- Deferred `runtime-ai-upgrade.js` and `runtime-telemetry-enterprise.js`, whose boot work is scheduled from DOM/runtime readiness events.
-- Deferred six translation/OCR enhancement scripts in source order; the pipeline's existing retry installer attaches after `BrowserTools` is available.
-- Deferred five audit/dashboard modules while preserving their source order and keeping their exposed APIs available before DOMContentLoaded.
-- Added `scripts/tool-page-performance-check.js` and the `audit:tool-page-performance` package script to prevent regressions in script loading, diagnostics exclusion, upload skeleton dimensions, duplicate URLs, and the audited parser-blocking ceiling.
+## Architecture changes
 
-## Source-level verification
+### Initial tool-page open
 
-After the patch:
-- External script tags in `tool.html`: **374** (down from 388).
-- Parser-blocking external script tags: **114** (down from 137).
-- Exact duplicate external script URLs: **0** in the template.
-- The fifteen static assertions in the new performance check were evaluated against the current branch source and all passed.
+Keep the branded upload shell, route/tool metadata, essential localization/navigation, tool registry/configuration, session state, usage-limit UI, and `tool-page.js`. Add the small `tool-engine-loader.js` orchestrator. Processing/preview engines and unrelated diagnostic/dashboard scripts are absent from the initial HTML.
 
-To run the committed test in the repository:
+### After file selection
 
-```sh
-cd artifacts/ilovepdf
-node scripts/tool-page-performance-check.js
-```
+`runToolPreviewPreparation()` starts two separate tracks:
 
-## Additional hosting and repeat-visit risks
+1. **Preview track:** PDF preview renderer, live-preview module, page organizer, route preview helper, and only the special editor module needed by tools such as Edit PDF or Background Remover.
+2. **Processing track:** ordered shared worker/runtime dependencies, `BrowserTools`, `BrowserToolRuntime`, and the selected tool's advanced/translation enhancement modules when applicable. The engine's own `prewarm()` hook runs after the selected processing scripts have loaded.
 
-- `artifacts/ilovepdf/firebase.json` sets `Cache-Control: no-cache, must-revalidate, max-age=0` for `/js/**`, `/css/**`, `/workers/**`, and `/locales/**`. This encourages revalidation on repeat visits and may add request latency even when cached bodies are reused. It was **not** changed blindly: many asset URLs are not content-fingerprinted, so long-lived immutable caching could serve stale code after deploy. A safe cache improvement needs reliable content hashes/versioned URLs plus an HTML revalidation strategy.
-- `tool.html` installs a static-host guard that returns a 503 response for same-origin `/api/**` calls on Firebase static hosting. Browser-side compression can still run, but server-dependent tools must be verified individually for clear failure handling or a working browser fallback. This audit did not claim those tools pass end-to-end tests.
+The preview track controls when the preview becomes interactive; it does not wait for the full processing engine. Processing status is updated independently while the user reviews the file and settings.
 
-## Remaining work — do not mark complete yet
+### When Process is clicked
 
-The remaining 114 parser-blocking scripts are still a substantial performance risk. The viewport reservation mitigates footer movement, but CLS remains an open item until measured; if local shifts remain, consider tool-aware placeholders or server-rendered shell markup. They include runtime/security infrastructure and other tool bundles with documented ordering dependencies. **Do not add `defer` globally or delete bundles by filename alone.** Continue dependency tracing and move only verified non-critical/feature-specific modules to a deferred or on-demand loading path, then run the full repository test suite.
+`processFile()` checks the selected tool's engine-ready state. If loading is still in progress, it waits on `prepareEngine(toolId)` and then continues the same click automatically. A failed load displays an actionable error and permits retry; it does not claim that processing started or silently switch to an unrelated processor.
 
-Before deployment, verify on the deployed site with browser DevTools/Lighthouse:
-- cold and warm cache, desktop and mobile;
-- request initiators, transfer sizes, cache status, script evaluation/long tasks;
-- FCP/LCP/CLS/INP/TBT and console/network errors;
-- upload → compression → download, cancel/retry, large PDFs, and representative other tools;
-- compare before/after measurements against the exact deployed commit.
+### Readiness and dependency safety
 
-Core Web Vitals targets are LCP ≤ 2.5 s, CLS ≤ 0.1, and INP ≤ 200 ms at the 75th percentile. These are targets, not results from this source audit.
+- Classic scripts are inserted one at a time with `async = false` to preserve the manifest's dependency order.
+- Script requests and per-tool preparation promises are deduplicated.
+- A failed script is removed from the in-flight cache so the user can retry.
+- Advanced Engine's resumable-progress listener now handles being initialized after the page `load` event and checks the file that was already selected.
+- Compression's dedicated `runAdvancedCompress()` path does not download the unrelated Advanced Engine bundle.
+
+## Files changed in this branch
+
+- `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell.
+- `public/js/tool-engine-loader.js`: new split preview/engine loader and per-tool manifest.
+- `public/js/tool-page.js`: start both tracks after selection, render preview as soon as preview dependencies are ready, show engine readiness, and gate processing on the selected engine.
+- `public/js/advanced-engine.js`: make resumable-progress binding work when the engine is lazy-loaded after page load.
+- `scripts/tool-page-performance-check.js`: regression checks for the new on-demand architecture.
+- `docs/audits/tool-page-performance-audit-2026-10-13.md`: this report.
+
+## Remaining risks and verification required
+
+1. **Browser runtime tests are still required.** This environment can inspect/update GitHub source, but it has not run the deployed site in a real browser with Network/Performance panels. The live URL was not accessible to the available web browser tool during the earlier audit.
+2. Run the Node regression check and full project test suite from `artifacts/ilovepdf`; CI status for the current branch is not confirmed here.
+3. Test at least Compress, Merge, Split, Rotate, PDF-to-Word, PDF-to-Excel, OCR, Translate, Edit PDF, Background Remover, image tools, and one multi-file tool. Verify preview, settings, progress, cancel/retry, output validation, download, route/back navigation, and mobile touch.
+4. Confirm registry entries with `execution: "browser"` all have `RuntimeScheduler`, `BrowserToolRuntime`, and `BrowserTools` available. These are included in the lazy core manifest, but browser execution has not been exercised here.
+5. The initial shell still references UI scripts such as `chrome.js`, `i18n.js`, `i18n-ext.js`, `tool-content.js`, and `shared.js`. Some may inject UI/localization helpers dynamically. Audit their runtime Network requests separately; the current count measures static external script tags, not every possible dynamic request.
+6. `tool.html` still includes non-critical CSS for shared homepage/footer/blog/SEO/ad/editor styles. CSS critical-path pruning and actual CLS/LCP measurements remain open.
+7. Firebase hosting cache headers still use revalidation for `/js/**`, `/css/**`, `/workers/**`, and `/locales/**`. Do not set immutable long-lived caching until all relevant assets have reliable content-hashed/versioned URLs.
+8. The static-host guard blocks same-origin `/api/**` calls on Firebase static hosting. Browser-side tools must keep clear error handling; server-dependent features need separate end-to-end verification.
+
+## Acceptance criteria before merge/deploy
+
+- Initial tool open requests no processing engine, preview renderer, worker script, or unrelated per-tool processor.
+- After file selection, preview is usable without waiting for the processing engine to finish downloading.
+- The selected tool's engine reaches a ready or explicit error state; no other tool's heavy bundle is downloaded.
+- Clicking Process while the engine is loading waits and then begins processing automatically.
+- No duplicate script injection, unhandled preparation rejection, or deadlock on a failed request.
+- All targeted tool smoke tests pass, and cold-cache/warm-cache mobile and desktop traces show actual improvement in LCP/TBT/INP without a CLS regression.
+
+**Status: source refactor implemented on the draft PR branch; browser/end-to-end verification remains pending. Do not merge or deploy until acceptance criteria are met.**
