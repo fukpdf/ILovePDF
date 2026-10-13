@@ -65,6 +65,7 @@ const checks = [
   ['shared engine includes browser processing and streaming dependencies', toolSpecificScripts.every((name) => loader.includes(name))],
   ['advanced engine is restricted to tools that use advanced processing', advancedTools.every((id) => loader.includes("'" + id + "'")) && /ADVANCED_TOOLS/.test(loader)],
   ['only relevant pro-editor modules are mapped for edit/background-removal', loader.includes("'background-remover': ['/js/bg-ai-engine.js', '/js/bg-remover-pro.js']") && loader.includes("'edit': ['/js/edit-pdf-pro.js']")],
+  ['dedicated editors avoid generic engine when their own mount API exists', /DEDICATED_EDITOR_TOOLS/.test(loader) && /G\.EditPdfPro && typeof G\.EditPdfPro\.mount/.test(loader) && /G\.BgRemoverPro && typeof G\.BgRemoverPro\.mount/.test(loader)],
   ['translation/OCR enhancements are requested only for related tools', translationScripts.every((name) => loader.includes(name)) && /TRANSLATION_TOOLS/.test(loader)],
   ['preview modules are scoped to tools that need them', /PDF_PREVIEW_TOOLS/.test(loader) && /LIVE_PREVIEW_TOOLS/.test(loader) && /PAGE_ORGANIZER_TOOLS/.test(loader) && /function previewModulesFor\(toolId\)/.test(loader)],
   ['selected-tool dependency prewarm covers compression, conversion, and worker-backed tools', browserTools.includes("case 'compress':") && browserTools.includes("case 'pdf-to-word':") && browserTools.includes("pool.prewarm('/workers/pdf-worker.js')")],
