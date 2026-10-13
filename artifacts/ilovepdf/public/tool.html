@@ -91,20 +91,38 @@
       document.head.appendChild(script);
     }
     function watchSlots() {
-      var slots = document.querySelectorAll('[data-ad-slot], .ad-slot, ins.adsbygoogle');
-      if (!('IntersectionObserver' in window) || !slots.length) return;
-      var observer = new IntersectionObserver(function (entries) {
-        if (entries.some(function (entry) { return entry.isIntersecting; })) {
-          observer.disconnect();
+      var slots = Array.prototype.slice.call(document.querySelectorAll('[data-ad-slot], .ad-slot, ins.adsbygoogle'));
+      // Never download the ad runtime on a tool page that has no ad placement.
+      if (!slots.length) return;
+      var nearViewport = function (slot) {
+        var rect = slot.getBoundingClientRect();
+        return rect.bottom >= -300 && rect.top <= window.innerHeight + 300;
+      };
+      var observer;
+      if ('IntersectionObserver' in window) {
+        observer = new IntersectionObserver(function (entries) {
+          if (entries.some(function (entry) { return entry.isIntersecting; })) {
+            observer.disconnect();
+            loadAds();
+          }
+        }, { rootMargin: '300px 0px' });
+        slots.forEach(function (slot) { observer.observe(slot); });
+        return;
+      }
+      // Legacy fallback: only load when a real ad placement approaches view.
+      var checkSlots = function () {
+        if (slots.some(nearViewport)) {
+          window.removeEventListener('scroll', checkSlots);
+          window.removeEventListener('resize', checkSlots);
           loadAds();
         }
-      }, { rootMargin: '0px' });
-      slots.forEach(function (slot) { if (slot.getBoundingClientRect().top >= window.innerHeight) observer.observe(slot); });
+      };
+      checkSlots();
+      window.addEventListener('scroll', checkSlots, { passive: true });
+      window.addEventListener('resize', checkSlots);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSlots, { once: true });
     else watchSlots();
-    window.addEventListener('load', function () { setTimeout(loadAds, 4500); }, { once: true });
-    window.addEventListener('scroll', loadAds, { once: true, passive: true });
   })();
   </script>
 </head>
