@@ -332,36 +332,6 @@ function renderHeader(forceRefresh = false){
   }
 }
 
-/* SPA navigation helper — navigates to a tool URL without a full page reload
-   when the tool.html shell is already loaded (has #tool-content). Falls back
-   to a normal href assignment so it is always safe to call. */
-function spaNavigateTo(url) {
-  const slug = url
-    .replace(/^\//, '')
-    .replace(/\/(preview|download)\/?$/i, '')
-    .split('?')[0].split('#')[0].toLowerCase();
-  if (
-    slug &&
-    window.SLUG_MAP && window.SLUG_MAP[slug] &&
-    document.getElementById('tool-content') &&
-    typeof window.loadToolPage === 'function'
-  ) {
-    history.pushState({ toolSlug: slug }, '', url);
-    window.loadToolPage(url);
-  } else {
-    location.href = url;
-  }
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, ch => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[ch]));
-}
-
-/* Prefetch tool pages on hover so the navigation feels instant.
-   Adds a single <link rel="prefetch"> per URL — browsers natively dedupe and
-   the request is low-priority so it never competes with critical resources. */
 function wireHoverPrefetch(scope){
   const seen = new Set();
   const prefetch = (href) => {
