@@ -78,12 +78,8 @@
       use('/workers/pdf-ppt-pptx-worker.js');
     } else if (/repair/.test(path)) {
       use('/workers/repair-worker.js');
-    } else if (/compare/.test(path)) {
-      use('/workers/compare-worker.js');
     } else if (/(ai-summarize|ai-summarizer)/.test(path)) {
       use('/workers/summary-worker.js');
-    } else if (/(translate|translation)/.test(path)) {
-      use('/workers/translation-worker.js');
     } else if (/(background-remover|remove-background)/.test(path)) {
       use('/workers/remove-bg-worker.js');
     } else if (/(crop-image|resize-image|image-filters|image-compressor)/.test(path)) {
