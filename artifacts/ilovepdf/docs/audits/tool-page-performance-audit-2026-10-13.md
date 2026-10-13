@@ -35,7 +35,7 @@ After the patch:
 - External script tags in `tool.html`: **374** (down from 388).
 - Parser-blocking external script tags: **114** (down from 137).
 - Exact duplicate external script URLs: **0** in the template.
-- The sixteen static assertions in the new performance check were evaluated against the current branch source and all passed.
+- The fifteen static assertions in the new performance check were evaluated against the current branch source and all passed.
 
 To run the committed test in the repository:
 
