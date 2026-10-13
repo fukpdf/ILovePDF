@@ -9,6 +9,7 @@
 
   var _loaded = new Set();
   var _inFlight = new Map();
+  var _prepared = new Set();
 
   // Ordered shared runtime needed by the browser processor, streaming workers,
   // result lifecycle, and PDF preview. Diagnostics, dashboards, ads, AI graphs,
@@ -134,8 +135,12 @@
     if (!toolId) return Promise.reject(new Error('A tool ID is required to prepare the engine.'));
     var key = String(toolId);
     if (_inFlight.has('tool:' + key)) return _inFlight.get('tool:' + key);
-    var promise = loadOrdered(modulesFor(key)).catch(function (error) {
+    var promise = loadOrdered(modulesFor(key)).then(function () {
+      _prepared.add(key);
+      return { toolId: key, ready: true, loadedScripts: _loaded.size };
+    }).catch(function (error) {
       _inFlight.delete('tool:' + key);
+      _prepared.delete(key);
       throw error;
     });
     _inFlight.set('tool:' + key, promise);
@@ -145,9 +150,7 @@
   G.ToolEngineLoader = Object.freeze({
     prepare: prepare,
     isReady: function (toolId) {
-      if (!toolId) return false;
-      return !!G.BrowserTools && !!G.PdfPreview && !!G.LivePreview && !!G.PageOrganizer &&
-        (!_inFlight.has('tool:' + String(toolId)) || _loaded.size > 0);
+      return !!toolId && _prepared.has(String(toolId));
     },
     getLoadedScripts: function () { return Array.from(_loaded); }
   });
