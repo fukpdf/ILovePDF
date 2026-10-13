@@ -9,12 +9,12 @@ This is a source/repository audit. It is **not** a live Lighthouse/DevTools veri
 ## Source-level results
 
 - The shared HTML template had 388 external script tags on the baseline branch.
-- The current branch template has **23 external script tags**, including **5 parser-blocking shell scripts**: 365 fewer static script tags in the initial HTML.
+- The current branch template has **23 external script tags** and **0 parser-blocking external scripts**: 365 fewer static script tags in the initial HTML.
 - Static HTML references **0 processing/preview engine scripts** and has **0 worker prefetch links**.
-- The initial HTML no longer references processing engines, preview renderers, worker-pool scripts, per-tool processor bundles, or the idle runtime loader.
+- The initial HTML no longer references processing engines, preview renderers, worker-pool scripts, per-tool processor bundles, or the idle runtime loader. The five remaining classic shell scripts that previously blocked parsing now use `defer` and execute in document order.
 - Five worker `rel=prefetch` links were removed; worker downloads are now initiated through the selected-tool loader.
 - The processing engine and preview scripts are not requested by static script tags on initial page load. The small shell still has normal UI/navigation, localization, registry, session-state, auth, and PWA scripts.
-- The source-level regression test checks the initial shell, on-demand manifest, script ordering/deduplication, preview/engine parallelism, process-button readiness gate, layout reservation, and JavaScript syntax.
+- The source-level regression test checks the initial shell, zero parser-blocking scripts, on-demand manifest, script ordering/deduplication, preview/engine parallelism, process-button readiness gate, layout reservation, and JavaScript syntax.
 - The PDF-to-Word fidelity pipeline is downloaded sequentially after file selection for that tool only; its existing fallback loader safely reuses the already-loaded modules.
 
 ## Architecture changes
@@ -48,7 +48,7 @@ The preview track controls when the preview becomes interactive; it does not wai
 
 - `public/tool.html`: remove eager engine/preview/diagnostic/app scripts and worker prefetches; retain the upload/UI shell.
 - `public/js/tool-engine-loader.js`: new split preview/engine loader and per-tool manifest.
-- `public/js/tool-page.js`: start both tracks after selection, render preview as soon as preview dependencies are ready, show engine readiness, and gate processing on the selected engine.
+- `public/js/tool-page.js`: start both tracks after selection, render preview as soon as preview dependencies are ready, show engine readiness, and gate processing on the selected engine. The shared UI/flow script remains part of the shell because it renders the upload page and binds file selection; splitting it into a tiny upload-only bootstrap is a separate, higher-risk refactor.
 - `public/js/browser-tools.js`: prewarm only the selected tool's libraries or worker in the background.
 - `public/js/advanced-engine.js`: make resumable-progress binding work when the engine is lazy-loaded after page load.
 - `scripts/tool-page-performance-check.js`: regression checks for the new on-demand architecture.
