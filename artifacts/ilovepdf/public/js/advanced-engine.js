@@ -6728,9 +6728,10 @@
     var toolId  = slugMap[slug];
     if (!toolId) return;
 
-    window.addEventListener('load', function () {
+    function attachResumeInput() {
       var input = document.getElementById('file-input');
-      if (!input) return;
+      if (!input || input.dataset.advancedResumeBound === '1') return;
+      input.dataset.advancedResumeBound = '1';
       input.addEventListener('change', function () {
         var f = input.files && input.files[0];
         if (!f) return;
@@ -6747,7 +6748,10 @@
           }
         }).catch(function () {});
       });
-    });
+    }
+    // This engine can be loaded on demand after the page's load event.
+    if (document.readyState === 'complete') attachResumeInput();
+    else window.addEventListener('load', attachResumeInput, { once: true });
   }());
 
   // ── PUBLIC API ──────────────────────────────────────────────────────────────
