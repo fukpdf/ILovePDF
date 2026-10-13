@@ -521,19 +521,19 @@
   <!-- before any intervals are created; must run before user interaction. -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <script src="/js/runtime-hardening.js"></script>
-  <!-- PDF→Word Fidelity Pipeline — Phases 1–12 (loaded before browser-tools so modules
-       are available when pdfToWord() first runs; all are additive/opt-in IIFE modules
-       that register on window.PDFPipeline = window.PDFPipeline || {}) -->
-  <script src="/js/pdf-pipeline/font-mapper.js" defer></script>
-  <script src="/js/pdf-pipeline/column-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/form-reconstruction.js" defer></script>
-  <script src="/js/pdf-pipeline/fidelity-validator.js" defer></script>
-  <script src="/js/pdf-pipeline/visual-reconstruction.js" defer></script>
-  <script src="/js/pdf-pipeline/ocr-zoning.js" defer></script>
-  <script src="/js/pdf-pipeline/image-anchor-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/layout-graph.js" defer></script>
-  <script src="/js/pdf-pipeline/docx-coordinate-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/fidelity-debug.js" defer></script>
+  <!-- PDF→Word fidelity enhancements are loaded on demand by browser-tools.js only
+       if the legacy page-thread pdfToWord() fallback is invoked. The worker-based
+       PdfToWordApp path and all other tool pages avoid these ten initial requests. -->
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   <script src="/js/browser-tools.js"></script>
   <script src="/js/browser-tool-runtime.js"></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
