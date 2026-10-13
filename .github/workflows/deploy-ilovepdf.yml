@@ -10,7 +10,9 @@ env:
 
 concurrency:
   group: production-deploy
-  cancel-in-progress: false
+  # Only the newest main-branch build should deploy; prevent stale queued builds
+  # from redeploying older revisions after a newer optimization has landed.
+  cancel-in-progress: true
 
 jobs:
   deploy:
