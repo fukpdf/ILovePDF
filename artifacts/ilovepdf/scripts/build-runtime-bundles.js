@@ -498,4 +498,9 @@ const ratio = totalIn > 0 ? (totalOut / totalIn * 100).toFixed(1) : '—';
 console.log('\n[bundle] Done. Input:', (totalIn / 1024).toFixed(1),
   'KB → Output:', (totalOut / 1024).toFixed(1), 'KB  ratio:', ratio + '%');
 console.log('[bundle] Bundles saved to:', path.relative(ROOT, OUT_DIR));
+const missingBundles = manifest.filter(bundle => bundle.missing > 0);
+if (missingBundles.length) {
+  console.error('[bundle] ERROR: refusing to use incomplete runtime bundles:', missingBundles.map(bundle => bundle.name + ' (' + bundle.missing + ' missing)').join(', '));
+  process.exitCode = 1;
+}
 if (DRY_RUN) console.log('[bundle] DRY-RUN — no files written.');
