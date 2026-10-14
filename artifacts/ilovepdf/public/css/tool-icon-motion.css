@@ -207,3 +207,14 @@
  .popular-card:hover .tool-name-sticker[data-icon]::after,
  .popular-card:focus-visible .tool-name-sticker[data-icon]::after {transform:none!important;opacity:.42}
 }
+
+/* Icon-key corrections: compression uses minimize-2; archive stays archive. */
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+ .tool:hover .tool-name-sticker[data-icon="minimize-2"] svg,
+ .tool:focus-visible .tool-name-sticker[data-icon="minimize-2"] svg,
+ .popular-card:hover .tool-name-sticker[data-icon="minimize-2"] svg { animation:logoCompress .72s both; }
+ .tool:hover .tool-name-sticker[data-icon="archive"] svg,
+ .tool:focus-visible .tool-name-sticker[data-icon="archive"] svg,
+ .popular-card:hover .tool-name-sticker[data-icon="archive"] svg { animation:logoArchive .78s both; }
+}
+@keyframes logoArchive {0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(2px) scale(.92)}68%{transform:translateY(-1px) scale(1.06)}}
