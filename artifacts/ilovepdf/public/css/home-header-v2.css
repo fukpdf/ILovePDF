@@ -594,5 +594,13 @@ html:has(head link[data-shared-header-css]) body {
   .site-header .header-inner > .ce-widget-mobile .ce-pill-savings { display: none !important; }
 }
 @media (min-width: 640px) and (max-width: 700px) {
-  .site-header .header-inner > .ce-widget-desktop .ce-stat:nth-child(n + 3) { display: none !important; }
+  /* Keep every credit/savings statistic visible; compact only the centered brand. */
+  .site-header .brand { font-size: .82rem !important; gap: 4px !important; }
+  .site-header .brand-mark {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    flex-basis: 26px !important;
+  }
+  .site-header .header-inner > .ce-widget-desktop { right: 4px !important; }
 }
