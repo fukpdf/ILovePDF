@@ -35,8 +35,9 @@
   // Family-specific extensions listed after the base.
   var BASE_BUNDLES = ['core', 'security', 'zero-trust', 'hardening', 'infra', 'arc2'];
 
-  // tool.html already loads these source modules individually before DOMContentLoaded.
-  // Reuse them instead of fetching a second concatenated copy of the same code.
+  // In development, source modules may already be present in tool.html. The
+  // optimized upload shell omits this heavy chain, so production falls back to
+  // the freshly built bundles and loads them only when RuntimeToolLoader.boot() runs.
   var SOURCE_FILES = {
     "core": [
       "runtime-shadow-runtime.js"
