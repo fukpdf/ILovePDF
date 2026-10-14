@@ -244,17 +244,24 @@
     return _bootPromise;
   }
 
-  function _deferredBoot() { setTimeout(_boot, 0); }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _deferredBoot, { once: true });
-  else _deferredBoot();
+  // Explicit boot: the upload shell must render before the shared security/runtime
+  // bundle chain is fetched. The selected-tool loader calls boot before processing.
+  function boot() {
+    return _boot().then(function (ready) {
+      if (!ready) _bootPromise = null; // allow a later interaction to retry a transient failure
+      return ready;
+    }).catch(function (error) {
+      _bootPromise = null;
+      throw error;
+    });
+  }
 
   G.RuntimeToolLoader = Object.freeze({
     VERSION: VERSION,
     getToolId: function () { return _toolId; },
     getManifest: function () { return _manifest; },
     isBooted: function () { return _booted; },
-    boot: _boot,
+    boot: boot,
   });
 
 }(window));
