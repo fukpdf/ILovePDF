@@ -5,7 +5,7 @@
 // v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
 // cacheFirst retained only for truly-immutable font files.
 // Bumping this version clears all v1 caches on next SW activation.
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
@@ -161,7 +161,9 @@ async function cacheFirst(request, cacheName) {
     const response = await fetch(request);
     if (response.ok) {
       const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
+      // Finish the write before returning: an immediate page navigation should
+      // not race an unfinished cache.put() for the shared chrome asset.
+      await cache.put(request, response.clone());
     }
     return response;
   } catch {
