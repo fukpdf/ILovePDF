@@ -3456,6 +3456,12 @@ body::-webkit-scrollbar {
 #recent-use-section .tools-grid > .tool::before {
   content: none;
 }
+.home-cat-section .tool .tool-badge,
+#recent-use-section .tool .tool-badge,
+.home-cat-section .tool .tool-badges,
+#recent-use-section .tool .tool-badges {
+  display: none !important;
+}
 .home-cat-section .tool > .tool-text,
 #recent-use-section .tool > .tool-text {
   display: flex;
