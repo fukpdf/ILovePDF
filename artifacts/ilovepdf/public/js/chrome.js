@@ -619,6 +619,14 @@ const SHARED_FOOTER_HTML = `<footer class="footer">
   </footer>`;
 
 function ensureSharedShell() {
+  /* Load lightweight operation-specific icon motion on homepage and tool pages. */
+  if (!document.querySelector('link[data-tool-icon-motion-css]')) {
+    const motionCss = document.createElement('link');
+    motionCss.rel = 'stylesheet';
+    motionCss.href = '/css/tool-icon-motion.css?v=20261014-premium-motion-v1';
+    motionCss.dataset.toolIconMotionCss = '1';
+    document.head.appendChild(motionCss);
+  }
   /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
