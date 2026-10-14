@@ -579,16 +579,16 @@
   <!-- PDF→Word Fidelity Pipeline — Phases 1–12 (loaded before browser-tools so modules
        are available when pdfToWord() first runs; all are additive/opt-in IIFE modules
        that register on window.PDFPipeline = window.PDFPipeline || {}) -->
-  <script src="/js/pdf-pipeline/font-mapper.js" defer></script>
-  <script src="/js/pdf-pipeline/column-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/form-reconstruction.js" defer></script>
-  <script src="/js/pdf-pipeline/fidelity-validator.js" defer></script>
-  <script src="/js/pdf-pipeline/visual-reconstruction.js" defer></script>
-  <script src="/js/pdf-pipeline/ocr-zoning.js" defer></script>
-  <script src="/js/pdf-pipeline/image-anchor-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/layout-graph.js" defer></script>
-  <script src="/js/pdf-pipeline/docx-coordinate-engine.js" defer></script>
-  <script src="/js/pdf-pipeline/fidelity-debug.js" defer></script>
+  <!-- /js/pdf-pipeline/font-mapper.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/column-engine.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/form-reconstruction.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/fidelity-validator.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/visual-reconstruction.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/ocr-zoning.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/image-anchor-engine.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/layout-graph.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/docx-coordinate-engine.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-pipeline/fidelity-debug.js is loaded on demand for the active tool. -->
   <script src="/js/browser-tools.js" defer></script>
   <script src="/js/browser-tool-runtime.js" defer></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
@@ -596,46 +596,46 @@
   <!-- available before any defer fires. Document order preserved by defer. User cannot  -->
   <!-- interact before DOMContentLoaded (which fires after all defer scripts). Safe.     -->
   <!-- merge worker adapter loads only when its tool is active. -->
-  <script src="/js/merge-runtime.js" defer></script>
+  <!-- /js/merge-runtime.js is loaded on demand for the active tool. -->
   <!-- Phase 3 — Rotate PDF Runtime Migration (canonical WorkerPool path) -->
   <!-- rotate worker adapter loads only when its tool is active. -->
-  <script src="/js/rotate-runtime.js" defer></script>
+  <!-- /js/rotate-runtime.js is loaded on demand for the active tool. -->
   <!-- Phase 3 — Bulk PDF Runtime Migration (registry + factory + per-tool runtimes) -->
   <!-- Load order: registry (patches BrowserTools.process once, after merge+rotate chain) -->
   <!--             factory (shared createPdfToolRuntime function, no side effects)       -->
   <!--             per-tool runtimes (each registers with registry, sets feature flag)   -->
   <!-- scheduler-only tools (main-thread pdf-lib, wrapped in RuntimeScheduler slot) -->
   <!-- split worker adapter loads only when its tool is active. -->
-  <script src="/js/split-runtime.js" defer></script>
+  <!-- /js/split-runtime.js is loaded on demand for the active tool. -->
   <!-- organize worker adapter loads only when its tool is active. -->
-  <script src="/js/organize-runtime.js" defer></script>
+  <!-- /js/organize-runtime.js is loaded on demand for the active tool. -->
   <!-- protect worker adapter loads only when its tool is active. -->
-  <script src="/js/protect-runtime.js" defer></script>
+  <!-- /js/protect-runtime.js is loaded on demand for the active tool. -->
   <!-- unlock worker adapter loads only when its tool is active. -->
-  <script src="/js/unlock-runtime.js" defer></script>
+  <!-- /js/unlock-runtime.js is loaded on demand for the active tool. -->
   <!-- worker-dispatch tools (pdf-worker.js OPS table, full RuntimeWorkers orchestration) -->
   <!-- page-numbers worker adapter loads only when its tool is active. -->
-  <script src="/js/page-numbers-runtime.js" defer></script>
+  <!-- /js/page-numbers-runtime.js is loaded on demand for the active tool. -->
   <!-- watermark worker adapter loads only when its tool is active. -->
-  <script src="/js/watermark-runtime.js" defer></script>
+  <!-- /js/watermark-runtime.js is loaded on demand for the active tool. -->
   <!-- compress worker adapter loads only when its tool is active. -->
   <!-- edit worker adapter loads only when its tool is active. -->
   <!-- Phase 3 continued — worker-dispatch tools with existing OPS entries -->
-  <script src="/js/compress-runtime.js" defer></script>
+  <!-- /js/compress-runtime.js is loaded on demand for the active tool. -->
   <!-- repair worker adapter loads only when its tool is active. -->
-  <script src="/js/repair-runtime.js" defer></script>
-  <script src="/js/edit-runtime.js" defer></script>
+  <!-- /js/repair-runtime.js is loaded on demand for the active tool. -->
+  <!-- /js/edit-runtime.js is loaded on demand for the active tool. -->
   <!-- sign worker adapter loads only when its tool is active. -->
-  <script src="/js/sign-runtime.js" defer></script>
+  <!-- /js/sign-runtime.js is loaded on demand for the active tool. -->
   <!-- redact worker adapter loads only when its tool is active. -->
-  <script src="/js/redact-runtime.js" defer></script>
+  <!-- /js/redact-runtime.js is loaded on demand for the active tool. -->
   <!-- workflow worker adapter loads only when its tool is active. -->
-  <script src="/js/workflow-runtime.js" defer></script>
+  <!-- /js/workflow-runtime.js is loaded on demand for the active tool. -->
   <!-- Phase 3 continued — scheduler-only tools (no OPS entry; main-thread or server-side) -->
   <!-- compare worker adapter loads only when its tool is active. -->
-  <script src="/js/compare-runtime.js" defer></script>
-  <script src="/js/translate-runtime.js" defer></script>
-  <script src="/js/advanced-engine.js" defer></script>
+  <!-- /js/compare-runtime.js is loaded on demand for the active tool. -->
+  <!-- /js/translate-runtime.js is loaded on demand for the active tool. -->
+  <!-- /js/advanced-engine.js is loaded on demand for the active tool. -->
   <!-- Phase 2: Microfrontend ToolApp Architecture — ADDITIVE, zero changes to existing files.
        Load order (all defer, executes after AE in document order):
          shared-core      — SharedCore event bus + service bridges
@@ -647,10 +647,10 @@
          ocr-tool-app     — Isolated OCR pipeline (covers 'ocr') + reuses docx worker -->
   <script src="/js/shared-core.js" defer></script>
   <script src="/js/tool-app-manager.js" defer></script>
-  <script src="/js/pdf-word-app.js" defer></script>
-  <script src="/js/pdf-excel-app.js" defer></script>
-  <script src="/js/pdf-ppt-app.js" defer></script>
-  <script src="/js/ocr-tool-app.js" defer></script>
+  <!-- /js/pdf-word-app.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-excel-app.js is loaded on demand for the active tool. -->
+  <!-- /js/pdf-ppt-app.js is loaded on demand for the active tool. -->
+  <!-- /js/ocr-tool-app.js is loaded on demand for the active tool. -->
   <!-- Phase 2C: Isolated ToolApps — fix "first fail / second hang" WorkerPool+Tesseract leaks -->
   <!--   compress-pdf-app   — intercepts 'compress'           → compress-worker.js (dedicated) -->
   <!--   repair-pdf-app     — intercepts 'repair'             → repair-worker.js (dedicated) -->
@@ -661,18 +661,18 @@
   <!--   scan-pdf-app       — intercepts 'scan-to-pdf'        → canvas + isolated Tesseract + pdf-lib -->
   <!--   image-pdf-app      — intercepts 'jpg-to-pdf' + 'pdf-to-jpg' → image-pipeline-worker.js + PDF.js -->
   <!--   runtime-inspector  — CTRL+SHIFT+I debug panel (dev-only) -->
-  <script src="/js/compress-pdf-app.js" defer></script>
-  <script src="/js/repair-pdf-app.js" defer></script>
-  <script src="/js/compare-pdf-app.js" defer></script>
-  <script src="/js/ai-summarizer-app.js" defer></script>
+  <!-- /js/compress-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/repair-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/compare-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/ai-summarizer-app.js is loaded on demand for the active tool. -->
   <!-- translate worker adapter loads only when its tool is active. -->
-  <script src="/js/translate-pdf-app.js" defer></script>
+  <!-- /js/translate-pdf-app.js is loaded on demand for the active tool. -->
   <!-- Phase 5: OCR canonical runtime boundary — Tesseract/Canvas engine remains isolated -->
   <!-- ocr worker adapter loads only when its tool is active. -->
-  <script src="/js/ocr-runtime.js" defer></script>
-  <script src="/js/remove-background-app.js" defer></script>
-  <script src="/js/scan-pdf-app.js" defer></script>
-  <script src="/js/image-pdf-app.js" defer></script>
+  <!-- /js/ocr-runtime.js is loaded on demand for the active tool. -->
+  <!-- /js/remove-background-app.js is loaded on demand for the active tool. -->
+  <!-- /js/scan-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/image-pdf-app.js is loaded on demand for the active tool. -->
   <!-- Phase 3: Full Enterprise Isolation — dedicated worker per tool, terminate-after-job.
        Batch 1: pure pdf-lib tools (was: main thread in browser-tools.js)
          merge-pdf-app    — intercepts 'merge'        → pdf-lib-worker.js (dedicated)
@@ -694,22 +694,22 @@
          image-filters-app— intercepts 'image-filters'→ image-tools-worker.js (dedicated, sharpen convolution)
        Batch 4: DOM-dependent (no worker possible — inline isolation + canvas tracker)
          html-pdf-app     — intercepts 'html-to-pdf'  → inline html2pdf.js + canvas zeroing lifecycle -->
-  <script src="/js/merge-pdf-app.js" defer></script>
-  <script src="/js/split-pdf-app.js" defer></script>
-  <script src="/js/rotate-pdf-app.js" defer></script>
-  <script src="/js/crop-pdf-app.js" defer></script>
-  <script src="/js/protect-pdf-app.js" defer></script>
-  <script src="/js/unlock-pdf-app.js" defer></script>
-  <script src="/js/watermark-pdf-app.js" defer></script>
-  <script src="/js/page-numbers-app.js" defer></script>
-  <script src="/js/organize-app.js" defer></script>
-  <script src="/js/sign-app.js" defer></script>
-  <script src="/js/edit-pdf-app.js" defer></script>
-  <script src="/js/redact-pdf-app.js" defer></script>
-  <script src="/js/crop-image-app.js" defer></script>
-  <script src="/js/resize-image-app.js" defer></script>
-  <script src="/js/image-filters-app.js" defer></script>
-  <script src="/js/html-pdf-app.js" defer></script>
+  <!-- /js/merge-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/split-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/rotate-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/crop-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/protect-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/unlock-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/watermark-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/page-numbers-app.js is loaded on demand for the active tool. -->
+  <!-- /js/organize-app.js is loaded on demand for the active tool. -->
+  <!-- /js/sign-app.js is loaded on demand for the active tool. -->
+  <!-- /js/edit-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/redact-pdf-app.js is loaded on demand for the active tool. -->
+  <!-- /js/crop-image-app.js is loaded on demand for the active tool. -->
+  <!-- /js/resize-image-app.js is loaded on demand for the active tool. -->
+  <!-- /js/image-filters-app.js is loaded on demand for the active tool. -->
+  <!-- /js/html-pdf-app.js is loaded on demand for the active tool. -->
   <script src="/js/runtime-inspector.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
