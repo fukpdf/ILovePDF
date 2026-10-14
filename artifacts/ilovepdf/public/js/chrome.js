@@ -623,7 +623,7 @@ function ensureSharedShell() {
   if (!document.querySelector('link[data-tool-icon-motion-css]')) {
     const motionCss = document.createElement('link');
     motionCss.rel = 'stylesheet';
-    motionCss.href = '/css/tool-icon-motion.css?v=20261014-premium-motion-v1';
+    motionCss.href = '/css/tool-icon-motion.css?v=20261014-shared-card-system-v1';
     motionCss.dataset.toolIconMotionCss = '1';
     document.head.appendChild(motionCss);
   }
