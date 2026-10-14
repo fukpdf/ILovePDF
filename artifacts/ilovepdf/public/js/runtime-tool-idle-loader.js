@@ -188,14 +188,27 @@
   // Do not warm even shared background runtimes merely because the page became
   // idle. Start this secondary stack only after a real file/drop interaction.
 
-  /* ── Accelerate on first file drop / input interaction ──────────────────── */
+  /* ── Accelerate after file interaction and verified runtime boot ─────────── */
+  function _startAfterRuntimeReady() {
+    var runtime = G.RuntimeToolLoader;
+    if (runtime && typeof runtime.isBooted === 'function' && runtime.isBooted()) {
+      setTimeout(triggerLoad, 1000);
+      return;
+    }
+    var onReady = function () {
+      G.removeEventListener('tool:runtime-ready', onReady);
+      // Keep background work behind the selected tool's security/runtime chain.
+      setTimeout(triggerLoad, 1000);
+    };
+    G.addEventListener('tool:runtime-ready', onReady);
+  }
+
   function _onFirstInteraction() {
     document.removeEventListener('dragenter', _onFirstInteraction, true);
     document.removeEventListener('change', _onFirstInteraction, true);
-    // Do not compete with the first upload/worker dispatch. The dedicated
-    // RuntimeWorkerPrewarm path handles worker startup immediately; this idle
-    // UI/analytics stack starts after the processing path has had 1 second.
-    setTimeout(triggerLoad, 1000);
+    // The selected-tool bundle and its worker prewarm take priority over
+    // shared analytics/idle modules.
+    _startAfterRuntimeReady();
   }
 
   document.addEventListener('dragenter', _onFirstInteraction, true);
