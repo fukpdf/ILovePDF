@@ -41,6 +41,18 @@ assert.match(
   'Shared shell must enumerate footers so duplicate footers can be removed.'
 );
 
+const sharedHeaderCss = fs.readFileSync(path.join(publicDir, 'css/home-header-v2.css'), 'utf8');
+assert.match(
+  sharedHeaderCss,
+  /body \\* \\{[\\s\\S]*?scrollbar-width:\\s*none\\s*!important;/,
+  'Shared shell stylesheet must suppress visible scrollbars on nested page containers, not only html/body.'
+);
+assert.match(
+  sharedHeaderCss,
+  /body \\*::-webkit-scrollbar \\{[\\s\\S]*?display:\\s*none\\s*!important;/,
+  'Shared shell stylesheet must suppress WebKit scrollbars on nested containers.'
+);
+
 const swSource = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache version must be rotated with this cache contract.');
 assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must use the explicit cache-first route.');
