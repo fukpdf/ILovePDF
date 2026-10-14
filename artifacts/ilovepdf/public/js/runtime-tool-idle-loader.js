@@ -179,28 +179,16 @@
   }
 
   /* ── Trigger scheduling ─────────────────────────────────────────────────── */
-  var _fallbackTimer = null;
   var _triggered = false;
 
   function triggerLoad() {
     if (_triggered || _loaded) return;
     _triggered = true;
-    if (_fallbackTimer !== null) {
-      clearTimeout(_fallbackTimer);
-      _fallbackTimer = null;
-    }
     loadAll();
   }
 
-  if (typeof G.requestIdleCallback === 'function') {
-    G.requestIdleCallback(function () {
-      triggerLoad();
-    }, { timeout: 4000 });
-
-    _fallbackTimer = setTimeout(triggerLoad, 5000);
-  } else {
-    _fallbackTimer = setTimeout(triggerLoad, 5000);
-  }
+  // Do not warm even shared background runtimes merely because the page became
+  // idle. Start this secondary stack only after a real file/drop interaction.
 
   /* ── Accelerate on first file drop / input interaction ──────────────────── */
   function _onFirstInteraction() {
