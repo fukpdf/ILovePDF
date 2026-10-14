@@ -1789,10 +1789,26 @@ function cropJourneySetStage(stage, title, detail, percent, determinate) {
   }
 }
 
+function ensureToolRuntimeAndBundle(toolId) {
+  const runtime = window.RuntimeToolLoader;
+  const boot = runtime && typeof runtime.boot === 'function'
+    ? Promise.resolve().then(function () {
+        return runtime.isBooted && runtime.isBooted() ? true : runtime.boot();
+      })
+    : Promise.resolve(true);
+  return boot.then(function (ready) {
+    if (ready === false) throw new Error('The shared security/runtime stack did not become ready.');
+    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
+      return window.RuntimeToolCodeLoader.load(toolId);
+    }
+    return true;
+  });
+}
+
 function loadSelectedToolBundle() {
   if (!currentTool || !window.RuntimeToolCodeLoader || typeof window.RuntimeToolCodeLoader.load !== 'function') return;
   const requestedToolId = currentTool.id;
-  window.RuntimeToolCodeLoader.load(requestedToolId).then(function () {
+  ensureToolRuntimeAndBundle(requestedToolId).then(function () {
     if (!currentTool || currentTool.id !== requestedToolId || !selectedFiles.length || Flow.step !== 'preview' || _processingInFlight) return;
     // Pro editors are selected by renderStandardPreviewStep; rerender once if
     // the file was selected before their on-demand modules finished loading.
@@ -2236,7 +2252,7 @@ async function processFile() {
     _processingInFlight = true;
     if (bundleReadyBtn) bundleReadyBtn.disabled = true;
     try {
-      await window.RuntimeToolCodeLoader.load(currentTool.id);
+      await ensureToolRuntimeAndBundle(currentTool.id);
     } catch (bundleError) {
       showStatus('error', 'Tool is still loading', 'Please try processing again in a moment.');
       console.warn('[ToolCodeLoader] processing blocked until active bundle loads:', currentTool.id, bundleError);
