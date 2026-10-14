@@ -19,6 +19,36 @@
   };
 
   var _MAX_TOOL_RUNS = 30;
+  // Keep a small, text-free attribution ring buffer so CLS can be traced to
+  // actual moving DOM nodes without collecting user content.
+  var _layoutShiftEntries = [];
+  var _MAX_LAYOUT_SHIFT_ENTRIES = 25;
+
+  function _describeNode(node) {
+    if (!node) return null;
+    var className = '';
+    try {
+      className = typeof node.className === 'string'
+        ? node.className
+        : (node.className && node.className.baseVal) || '';
+    } catch (_) {}
+    return {
+      tag: String(node.tagName || '').toLowerCase() || null,
+      id: String(node.id || '').slice(0, 120) || null,
+      className: String(className).trim().slice(0, 240) || null,
+      role: (node.getAttribute && node.getAttribute('role')) || null,
+    };
+  }
+
+  function _describeRect(rect) {
+    if (!rect) return null;
+    var result = {};
+    ['x', 'y', 'width', 'height', 'top', 'right', 'bottom', 'left'].forEach(function (key) {
+      var value = Number(rect[key]);
+      if (isFinite(value)) result[key] = Math.round(value * 100) / 100;
+    });
+    return result;
+  }
 
   // ── Web Vitals via PerformanceObserver ────────────────────────────────────
   function _observe(type, callback) {
@@ -41,6 +71,23 @@
 
   _observe('layout-shift', function (e) {
     if (!e.hadRecentInput) _metrics.cls = +(_metrics.cls + (e.value || 0)).toFixed(4);
+    var sources = [];
+    try {
+      (e.sources || []).slice(0, 5).forEach(function (source) {
+        sources.push({
+          node: _describeNode(source && source.node),
+          previousRect: _describeRect(source && source.previousRect),
+          currentRect: _describeRect(source && source.currentRect),
+        });
+      });
+    } catch (_) {}
+    _layoutShiftEntries.push({
+      value: +Number(e.value || 0).toFixed(4),
+      startTime: Math.round(Number(e.startTime || 0)),
+      hadRecentInput: !!e.hadRecentInput,
+      sources: sources,
+    });
+    if (_layoutShiftEntries.length > _MAX_LAYOUT_SHIFT_ENTRIES) _layoutShiftEntries.shift();
   });
 
   _observe('longtask', function (e) {
@@ -142,6 +189,10 @@
       memory:       mem,
       memorySamples:_memorySamples.slice(),
       toolRuns:     _metrics.toolRuns.slice(),
+      // Recent entries include shifts caused by user-visible reflow and
+      // input-triggered movement; only hadRecentInput=false contributes to CLS.
+      layoutShifts: _layoutShiftEntries.slice(),
+      route:        (G.location && G.location.pathname) || null,
       ts:           Date.now(),
     };
   }
@@ -154,5 +205,6 @@
       lcp: _metrics.lcp, fid: _metrics.fid, cls: _metrics.cls,
       fcp: _metrics.fcp, ttfb: _metrics.ttfb,
     } : {}); },
+    getLayoutShiftDiagnostics: function () { return _layoutShiftEntries.slice(); },
   });
 }());
