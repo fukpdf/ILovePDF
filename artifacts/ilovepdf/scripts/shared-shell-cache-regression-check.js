@@ -89,6 +89,7 @@ assert.ok(
   'Pages that inject the shared header stylesheet must use the same cache-busted URL.'
 );
 assert.ok(chromeJs.includes(sharedFooterUrl), 'Pages that inject the shared footer stylesheet must use the canonical cache-busted URL.');
+assert.ok(chromeJs.includes("s.src = '/js/mobile-nav.js?v=20261014-shared-shell-v1';"), 'Shared mobile navigation must use a versioned URL so the service worker can reuse it across page visits.');
 
 const sharedHeaderCss = fs.readFileSync(path.join(publicDir, 'css/home-header-v2.css'), 'utf8');
 assert.match(
@@ -151,6 +152,7 @@ for (const [file, zoneId, inputId, browseId] of [
 const swSource = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache version must be rotated with this cache contract.');
 assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must use the explicit cache-first route.');
+assert.match(swSource, /if \(STATIC_EXTS\.test\(path\) && VERSIONED_ASSET\.test\(url\.search\)\)/, 'Versioned shared shell assets must use the cache-first strategy.');
 assert.match(swSource, /await cache\.put\(request, response\.clone\(\)\)/, 'Asset cache write must complete before the first response returns.');
 
 // All root HTML pages must avoid applying/preloading the same stylesheet URL twice.
