@@ -475,3 +475,223 @@
     animation: none !important;
   }
 }
+
+
+/* Shared homepage tool-card system (2026-10-14)
+   Use the Popular Tools visual language for category, recent-use and popular cards.
+   Keep one square card rhythm and one icon scale across all homepage tool grids. */
+:root {
+  --tool-card-radius: 16px;
+  --tool-card-gap: 12px;
+  --tool-card-icon-size: 76px;
+  --tool-card-icon-glyph: 42px;
+}
+.home-cat-section .tools-grid,
+#recent-use-section .tools-grid,
+.popular-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.home-cat-section .tools-grid > .tool,
+#recent-use-section .tools-grid > .tool,
+.popular-grid > .popular-card {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 0 !important;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  align-self: stretch;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--tool-card-gap);
+  padding: 22px 18px 18px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--tool-card-radius);
+  background: #fff;
+  color: var(--text, #1f2937);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .035);
+  text-align: center;
+  text-decoration: none;
+  overflow: hidden;
+  transition: transform .22s cubic-bezier(.2,.75,.25,1),
+              box-shadow .22s ease, border-color .22s ease;
+}
+.home-cat-section .tools-grid > .tool:hover,
+.home-cat-section .tools-grid > .tool:focus-visible,
+#recent-use-section .tools-grid > .tool:hover,
+#recent-use-section .tools-grid > .tool:focus-visible,
+.popular-grid > .popular-card:hover,
+.popular-grid > .popular-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(79, 70, 229, .32);
+  box-shadow: 0 12px 28px rgba(79, 70, 229, .12);
+  color: var(--text, #1f2937);
+}
+.home-cat-section .tools-grid > .tool > .tool-name-sticker,
+#recent-use-section .tools-grid > .tool > .tool-name-sticker,
+.popular-grid > .popular-card .tool-name-sticker {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: var(--tool-card-icon-size) !important;
+  height: var(--tool-card-icon-size) !important;
+  min-width: var(--tool-card-icon-size);
+  min-height: var(--tool-card-icon-size);
+  flex: 0 0 var(--tool-card-icon-size);
+  margin: 4px auto 2px;
+  border-radius: 22px;
+}
+.home-cat-section .tools-grid > .tool > .tool-name-sticker svg,
+#recent-use-section .tools-grid > .tool > .tool-name-sticker svg,
+.popular-grid > .popular-card .tool-name-sticker svg {
+  display: block;
+  width: var(--tool-card-icon-glyph) !important;
+  height: var(--tool-card-icon-glyph) !important;
+  min-width: var(--tool-card-icon-glyph);
+  min-height: var(--tool-card-icon-glyph);
+}
+.home-cat-section .tools-grid > .tool > .tool-text,
+#recent-use-section .tools-grid > .tool > .tool-text,
+.popular-grid > .popular-card .popular-card-body {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-align: center;
+}
+.home-cat-section .tools-grid > .tool .tool-name,
+#recent-use-section .tools-grid > .tool .tool-name,
+.popular-grid > .popular-card .popular-card-name {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.home-cat-section .tools-grid > .tool .tool-name-label,
+#recent-use-section .tools-grid > .tool .tool-name-label,
+.popular-grid > .popular-card .popular-card-name-label {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-align: center;
+}
+.home-cat-section .tools-grid > .tool .tool-text p,
+#recent-use-section .tools-grid > .tool .tool-text p,
+.popular-grid > .popular-card .popular-card-description {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-soft, #5b6478);
+  font-size: .82rem;
+  line-height: 1.45;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.popular-grid > .popular-card .popular-card-arrow {
+  top: 10px;
+  right: 12px;
+}
+.home-cat-section .tools-grid > .tool:focus-visible,
+#recent-use-section .tools-grid > .tool:focus-visible,
+.popular-grid > .popular-card:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, .42);
+  outline-offset: 3px;
+}
+@media (max-width: 1024px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid,
+  .popular-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+@media (max-width: 640px) {
+  :root {
+    --tool-card-icon-size: 64px;
+    --tool-card-icon-glyph: 36px;
+  }
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid,
+  .popular-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool,
+  .popular-grid > .popular-card {
+    padding: 16px 10px 14px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+  .home-cat-section .tools-grid > .tool > .tool-name-sticker,
+  #recent-use-section .tools-grid > .tool > .tool-name-sticker,
+  .popular-grid > .popular-card .tool-name-sticker {
+    border-radius: 18px;
+  }
+  .home-cat-section .tools-grid > .tool .tool-name,
+  #recent-use-section .tools-grid > .tool .tool-name,
+  .popular-grid > .popular-card .popular-card-name {
+    font-size: .9rem;
+    min-height: 2.6em;
+  }
+  .home-cat-section .tools-grid > .tool .tool-text p,
+  #recent-use-section .tools-grid > .tool .tool-text p,
+  .popular-grid > .popular-card .popular-card-description {
+    font-size: .74rem;
+    line-height: 1.35;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+}
+@media (max-width: 360px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid,
+  .popular-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool,
+  .popular-grid > .popular-card {
+    aspect-ratio: auto;
+    min-height: 210px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool,
+  .popular-grid > .popular-card {
+    transition: none;
+  }
+  .home-cat-section .tools-grid > .tool:hover,
+  #recent-use-section .tools-grid > .tool:hover,
+  .popular-grid > .popular-card:hover {
+    transform: none;
+  }
+}
