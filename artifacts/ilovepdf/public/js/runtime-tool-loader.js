@@ -248,9 +248,20 @@
   // Explicit boot: the upload shell must render before the shared security/runtime
   // bundle chain is fetched. The selected-tool loader calls boot before processing.
   function boot(requestedToolId) {
+    // Concurrent requests for the same tool share one activation promise.
+    // In particular, a fast Process click must not trigger a second config seal.
+    if (_bootPromise && requestedToolId && requestedToolId === _requestedToolId) {
+      return _bootPromise.then(function (ready) {
+        if (!ready) _bootPromise = null;
+        return ready;
+      }).catch(function (error) {
+        _bootPromise = null;
+        throw error;
+      });
+    }
     // Serialize a tool switch behind any in-flight boot. The config/manifest
     // globals are shared, so two concurrent activations must never race them.
-    if (_bootPromise && requestedToolId && requestedToolId !== _toolId) {
+    if (_bootPromise && requestedToolId && requestedToolId !== _requestedToolId) {
       var previousBoot = _bootPromise;
       return previousBoot.catch(function () { return false; }).then(function () {
         if (_bootPromise === previousBoot) {
