@@ -620,7 +620,7 @@ const SHARED_HEADER_HTML = `<header class="site-header">
       </a>
 
       <nav class="nav" id="nav" aria-label="Main">
-        <!-- Fallback skeleton for pages without a complete server-rendered navigation. -->
+        <!-- sk: nav skeleton — replaced by chrome.js nav.innerHTML -->
         <span class="sk-nav-pill" style="width:64px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:80px" aria-hidden="true"></span>
         <span class="sk-nav-pill" style="width:56px" aria-hidden="true"></span>
