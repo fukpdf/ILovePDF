@@ -3436,8 +3436,8 @@ body::-webkit-scrollbar {
   background: linear-gradient(145deg, #ffe45b 0%, #f4c92b 100%);
   color: #252525;
 }
-.home-cat-section .tools-grid > .tool:nth-child(8n),
-#recent-use-section .tools-grid > .tool:nth-child(8n) {
+.home-cat-section .tools-grid > .tool:nth-child(8n + 7),
+#recent-use-section .tools-grid > .tool:nth-child(8n + 7) {
   background: linear-gradient(145deg, #f35c5c 0%, #df343b 100%);
 }
 .home-cat-section .tools-grid > .tool:nth-child(8n + 8),
