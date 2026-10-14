@@ -605,7 +605,7 @@ function loadMobileNav() {
   if (document.getElementById('mobile-nav-script')) return;
   const s = document.createElement('script');
   s.id  = 'mobile-nav-script';
-  s.src = '/js/mobile-nav.js';
+  s.src = '/js/mobile-nav.js?v=20261014-shared-shell-v1';
   s.defer = true;
   document.head.appendChild(s);
 }
