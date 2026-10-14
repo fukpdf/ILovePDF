@@ -367,19 +367,19 @@
   <!-- Phase 33: Session Resume & Crash Recovery (CheckpointEngine, CrashRecovery, MultiDay) -->
   <script src="/js/phase33-resume.js" defer></script>
   <!-- Phase 34: Table-Aware OCR System (StructuredOCR, TableExtraction, ModeSelector) -->
-  <script src="/js/phase34-table-ocr.js" defer></script>
+  <!-- /js/phase34-table-ocr.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 35: Advanced Virtualization Engine (PageVirtualizer, PredictiveEviction, AIWindows) -->
   <script src="/js/phase35-virtualization.js" defer></script>
   <!-- Phase 36: Enterprise PDF Recovery + GPU Pipelines + FullEnterpriseAudit -->
   <script src="/js/phase36-enterprise.js" defer></script>
   <!-- Phase A: ONNX Runtime Manager (ModelRegistry, TensorPool, InferenceScheduler) -->
-  <script src="/js/onnx-runtime-manager.js" defer></script>
+  <!-- /js/onnx-runtime-manager.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase B: WebGPU AI Pipelines (sharpen, denoise, edge, segment, tiled GPU exec) -->
-  <script src="/js/webgpu-ai-pipelines.js" defer></script>
+  <!-- /js/webgpu-ai-pipelines.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase C: Multi-Tab Cluster (BroadcastChannel leader election, distributed pages) -->
   <script src="/js/multi-tab-cluster.js" defer></script>
   <!-- Phase D: P2P Compute Mesh (WebRTC mesh, encrypted shards — OFF by default) -->
-  <script src="/js/p2p-compute-mesh.js" defer></script>
+  <!-- /js/p2p-compute-mesh.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase E: OPFS Memory-Mapped Streaming (byte-range parser, giant output streamer) -->
   <script src="/js/opfs-memory-mapped.js" defer></script>
   <!-- Phase F: Differential Processing (page hashes, visual diff, incremental OCR) -->
@@ -401,7 +401,7 @@
   <!-- Phase 40E: Browser Compat Layer (Safari/iOS/mobile detect, fallback routing, shims) -->
   <script src="/js/browser-compat-layer.js" defer></script>
   <!-- Phase 40F: GPU Fallback Validator (capability probe, chain verify, device-lost sim) -->
-  <script src="/js/gpu-fallback-validator.js" defer></script>
+  <!-- /js/gpu-fallback-validator.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 40G: Resume Integrity Tests (checkpoint verify, page order, OCR continuity) -->
   <script src="/js/resume-integrity.js" defer></script>
   <!-- Phase 40H: Distributed Recovery Tests (leader-death, shard integrity, reassignment) -->
@@ -411,17 +411,17 @@
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
   <!-- /js/final-automated-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 41A: Universal Encoding Repair (MojibakeDetector, UtfRepairEngine, UnicodeSanitizer) -->
-  <script src="/js/universal-encoding-repair.js" defer></script>
+  <!-- /js/universal-encoding-repair.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41B: Universal Smart Chunk Engine (LanguageAwareChunker, AdaptiveChunkSizer, StreamingQueue) -->
-  <script src="/js/universal-translation-chunker.js" defer></script>
+  <!-- /js/universal-translation-chunker.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41C: Universal OCR Cleanup (SourceClassifier, OcrNoiseCleaner, ScriptDetector, SmartReOcr) -->
-  <script src="/js/universal-ocr-cleanup.js" defer></script>
+  <!-- /js/universal-ocr-cleanup.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41D: Global Multilingual Renderer (BidiLayout, FontManager, PdfTextFlow, GlyphResolver) -->
   <script src="/js/global-multilingual-renderer.js" defer></script>
   <!-- Phase 41E: Universal Translation Validator (CorruptionScanner, QualityAudit, AutoRetry, SafeMerge) -->
-  <script src="/js/universal-translation-validator.js" defer></script>
+  <!-- /js/universal-translation-validator.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41F: Universal Translation Pipeline (full P41A-E integration, BrowserTools.process hook) -->
-  <script src="/js/universal-translation-pipeline.js" defer></script>
+  <!-- /js/universal-translation-pipeline.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 1C: Worker Lifecycle, Download Manager, Retry Orchestrator,
        Navigation Cancel, Adaptive Degradation, Cleanup Contracts, Lifecycle Audit.
        Load after all Phase 1A/1B/Phase 40 systems, before browser-tools.
@@ -494,7 +494,7 @@
   <!-- 8E: Result cache — 3-tier LRU/OPFS/IDB output caching with SHA-256 keying -->
   <script src="/js/runtime-result-cache.js" defer></script>
   <!-- 8F: AI upgrade — scored provider routing, priority queue, batching, retry -->
-  <script src="/js/runtime-ai-upgrade.js" defer></script>
+  <!-- /js/runtime-ai-upgrade.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
   <!-- Enterprise telemetry dashboard is non-critical; loaded by the idle runtime loader. -->
   <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
@@ -519,8 +519,8 @@
   <!-- 9A: WASM compute engine — SIMD probe, streaming instantiation, JS fallbacks -->
   <script src="/js/runtime-wasm-engine.js" defer></script>
   <!-- 9B: GPU compute engine — WebGPU device, WebGL2/WebGL1/CPU fallback tier -->
-  <script src="/js/runtime-gpu-engine.js" defer></script>
-  <script src="/js/webgpu-phase23.js" defer></script>
+  <!-- /js/runtime-gpu-engine.js is loaded only for the matching AI/OCR/translation tool. -->
+  <!-- /js/webgpu-phase23.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 9G: Browser OS microkernel — single arbitration point for all compute slots -->
   <script src="/js/runtime-kernel.js" defer></script>
   <!-- 9C: SharedWorker cluster — persistent multi-tab brain, priority task queue -->
@@ -534,7 +534,7 @@
   <!-- 9H: Workspace persistence — OPFS + IDB multi-document workspace manager -->
   <script src="/js/runtime-workspace.js" defer></script>
   <!-- 9E: Local AI engine — ONNX on-device inference, model cache, heuristic chain -->
-  <script src="/js/runtime-local-ai.js" defer></script>
+  <!-- /js/runtime-local-ai.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -733,7 +733,7 @@
   <script src="/js/runtime-timeout-reaper.js" defer></script>
   <script src="/js/runtime-zombie-cleaner.js" defer></script>
   <script src="/js/runtime-pdf-cleaner.js" defer></script>
-  <script src="/js/runtime-tesseract-cleaner.js" defer></script>
+  <!-- /js/runtime-tesseract-cleaner.js is loaded only for the matching AI/OCR/translation tool. -->
   <script src="/js/runtime-canvas-gc.js" defer></script>
   <script src="/js/runtime-healer.js" defer></script>
   <script src="/js/runtime-panic-manager.js" defer></script>
@@ -891,7 +891,7 @@
   <!-- Shim: tool-page.js (legacy) calls these but the new chrome.js renders header/sidebar -->
   <script src="/js/chrome-shim.js" defer></script>
   <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
-  <script src="/js/bg-ai-engine.js" defer></script>
+  <!-- /js/bg-ai-engine.js is loaded only for the matching AI/OCR/translation tool. -->
   <script src="/js/bg-remover-pro.js" defer></script>
   <script src="/js/edit-pdf-pro.js" defer></script>
   <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
@@ -925,7 +925,7 @@
        AIRuntime + AIProviderRegistry + AIInferenceRouter + AIExecutionLayer.
        Wraps RuntimeAIOrchestrator + GenerativeAiEngine + RuntimeLocalAI.
        Adds window.AIRuntime.run(taskType, payload) unified AI entry point. -->
-  <script src="/core/ai-runtime.js" defer></script>
+  <!-- /core/ai-runtime.js is loaded only for the matching AI/OCR/translation tool. -->
 
   <!-- Phase 16: Browser OS Runtime Finalization
        RuntimeGovernor + RuntimeOrchestrator + RT.runtime.* extension.
@@ -950,7 +950,7 @@
   <script src="/js/runtime-updater.js" defer></script>
   <script src="/js/runtime-changelog.js" defer fetchpriority="low"></script>
   <script src="/js/runtime-recovery.js" defer></script>
-  <script src="/js/runtime-ai-scheduler.js" defer></script>
+  <!-- /js/runtime-ai-scheduler.js is loaded only for the matching AI/OCR/translation tool. -->
   <script src="/js/runtime-perf.js" defer fetchpriority="low"></script>
   <!-- Phase Community: enhanced savings animation + community header widget -->
   <script src="/js/savings-animation.js" defer fetchpriority="low"></script>
@@ -1107,7 +1107,7 @@
   <!-- Phase D: Recovery orchestrator — dependency graph, safe-mode, partial restart -->
   <script src="/js/runtime-recovery-orchestrator.js" defer fetchpriority="low"></script>
   <!-- Phase E: Adaptive AI — behavior learning, predictive prewarm, thermal prediction -->
-  <script src="/js/runtime-adaptive-ai.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-adaptive-ai.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase F: Governance — policy enforcement, protected flags, quarantine, compliance -->
   <script src="/js/runtime-governance.js" defer fetchpriority="low"></script>
   <!-- Phase G: Blackbox recorder — 15-min rolling buffer, panic export, replay handoff -->
