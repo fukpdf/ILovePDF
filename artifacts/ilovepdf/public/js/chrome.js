@@ -657,12 +657,29 @@ function ensureSharedShell() {
   };
   decoratePopularToolIcons();
   if (!window.__ilpdfPopularIconMotionObserver && document.documentElement) {
-    window.__ilpdfPopularIconMotionObserver = new MutationObserver(records => {
-      records.forEach(record => record.addedNodes.forEach(node => {
-        if (node.nodeType === 1) decoratePopularToolIcons(node);
-      }));
-    });
-    window.__ilpdfPopularIconMotionObserver.observe(document.documentElement, { childList: true, subtree: true });
+    const observePopularGrid = grid => {
+      if (!grid || window.__ilpdfPopularIconMotionObserver) return;
+      decoratePopularToolIcons(grid);
+      window.__ilpdfPopularIconMotionObserver = new MutationObserver(records => {
+        records.forEach(record => record.addedNodes.forEach(node => {
+          if (node.nodeType === 1) decoratePopularToolIcons(node);
+        }));
+      });
+      window.__ilpdfPopularIconMotionObserver.observe(grid, { childList: true, subtree: true });
+    };
+    const existingGrid = document.querySelector('.popular-grid');
+    if (existingGrid) {
+      observePopularGrid(existingGrid);
+    } else {
+      const discoveryObserver = new MutationObserver(() => {
+        const grid = document.querySelector('.popular-grid');
+        if (grid) {
+          discoveryObserver.disconnect();
+          observePopularGrid(grid);
+        }
+      });
+      discoveryObserver.observe(document.documentElement, { childList: true, subtree: true });
+    }
   }
   /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
   if (!document.querySelector('link[data-shared-header-css]')) {
