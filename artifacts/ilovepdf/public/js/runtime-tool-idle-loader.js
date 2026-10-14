@@ -95,8 +95,9 @@
     '/js/analytics-sync.js',
   ];
 
-  // Optional observability UI: load in-order only after core idle modules settle.
-  var IDLE_LATE_STACK = [
+  // Optional diagnostics, dashboards, and monetization UI are not automatic.
+  // They can be explicitly requested by a diagnostics/monetization surface.
+  var ON_DEMAND_OPTIONAL_STACK = [
     '/js/runtime-event-timeline.js',
     '/js/runtime-performance-profiler.js',
     '/js/runtime-stream-telemetry.js',
@@ -105,13 +106,10 @@
     '/js/runtime-live-dashboard.js',
     '/js/runtime-telemetry-enterprise.js',
     '/js/runtime-devtools-dashboard.js',
-    // Adaptive preloading is advisory; keep its timers and prediction hooks off first paint.
     '/js/runtime-adaptive-bundles.js',
-    // Certification and trace visualization are diagnostics, not upload prerequisites.
     '/js/runtime-enterprise-certification.js',
     '/js/runtime-browser-os-certification.js',
     '/js/runtime-trace-engine.js',
-    // Low-priority diagnostics/telemetry do not gate file selection or processing.
     '/js/debug-trace.js',
     '/js/stability-metrics.js',
     '/js/memory-telemetry.js',
@@ -129,15 +127,13 @@
     '/js/runtime-health-analytics.js',
     '/js/runtime-incident-center.js',
     '/js/runtime-blackbox.js',
-    // Non-critical monetization and release-note UI is intentionally post-paint.
     '/js/runtime-ads.js',
     '/js/runtime-donation.js',
     '/js/savings-animation.js',
     '/js/community-economy.js',
     '/js/runtime-changelog.js',
   ];
-
-  var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
+  var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length;
 
   /* ── Dependency boundary ──────────────────────────────────────────────── */
   /* ── Sequential/dependency-wave loader ───────────────────────────────── */
@@ -152,14 +148,29 @@
     // direct dependencies are already initialized by the root wave.
     await new Promise(function (resolve) { setTimeout(resolve, 1000); });
     await Promise.all(IDLE_DEPENDENT_STACK.map(loadScript));
-    for (var i = 0; i < IDLE_LATE_STACK.length; i++) {
-      await loadScript(IDLE_LATE_STACK[i]);
-    }
-    console.debug('[ToolIdleLoader] idle runtime stack ready');
+    console.debug('[ToolIdleLoader] core idle runtime stack ready');
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-idle-stack-ready'));
     } catch (_) {}
   }
+
+  var _optionalPromise = null;
+  async function loadOptionalDiagnostics() {
+    if (_optionalPromise) return _optionalPromise;
+    _optionalPromise = (async function () {
+      for (var i = 0; i < ON_DEMAND_OPTIONAL_STACK.length; i++) {
+        await loadScript(ON_DEMAND_OPTIONAL_STACK[i]);
+      }
+      try { G.dispatchEvent(new CustomEvent('ilovepdf:optional-diagnostics-ready')); } catch (_) {}
+      return true;
+    })();
+    return _optionalPromise;
+  }
+  G.RuntimeToolIdleLoader = Object.freeze({
+    loadAll: loadAll,
+    loadOptionalDiagnostics: loadOptionalDiagnostics,
+    getOptionalStack: function () { return ON_DEMAND_OPTIONAL_STACK.slice(); },
+  });
 
   /* ── Crawler guard ──────────────────────────────────────────────────────── */
   if (isCrawler()) {
