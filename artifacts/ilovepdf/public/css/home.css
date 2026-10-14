@@ -3204,7 +3204,7 @@ body.mo-lock{ overflow:hidden;touch-action:none }
   .site-header .nav {
     position: static !important;
     inset: auto !important;
-    transform: none !important;
+    /* Keep the icon's transform available to its floating keyframe animation. */
     display: flex !important;
     flex: 0 0 auto !important;
     width: auto !important;
