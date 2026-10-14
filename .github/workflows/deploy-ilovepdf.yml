@@ -10,9 +10,10 @@ env:
 
 concurrency:
   group: production-deploy
-  # Only the newest main-branch build should deploy; prevent stale queued builds
-  # from redeploying older revisions after a newer optimization has landed.
-  cancel-in-progress: true
+  # Serialize deployments: cancelling a Firebase upload mid-release can still
+  # let its already-started release finish after a newer build and overwrite it.
+  # GitHub replaces the single pending run with the newest commit.
+  cancel-in-progress: false
 
 jobs:
   deploy:
