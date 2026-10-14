@@ -264,26 +264,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
 
-  // Phase 4: the published Tool Registry is the runtime routing authority.
-  // Resolve only after the registry readiness barrier so clean URLs never depend
-  // on the legacy SLUG_MAP identity table.
-  if (window.ToolRegistryReady) {
-    try { await window.ToolRegistryReady; } catch (_) { /* registry failure is handled below */ }
-  }
+  // Resolve the upload route from the already-loaded local slug map first.
+  // The JSON registry enriches identity/execution metadata in the background;
+  // a network round-trip must not hold the first upload screen behind it.
   const pathnameSlug = (window.location.pathname || '/')
     .replace(/^\/+|\/+$/g, '')
     .toLowerCase()
     .replace(/\/(preview|download)$/i, '');
   const queryId = new URLSearchParams(window.location.search).get('id');
-  const registryByPath = window.ToolRegistry && window.ToolRegistry.isReady()
+  const registryReady = !!(window.ToolRegistry && window.ToolRegistry.isReady());
+  const registryByPath = registryReady
     ? (window.ToolRegistry.getBySlug(pathnameSlug) || window.ToolRegistry.get(pathnameSlug))
     : null;
-  const registryByQuery = window.ToolRegistry && window.ToolRegistry.isReady() && queryId
+  const registryByQuery = registryReady && queryId
     ? window.ToolRegistry.get(queryId)
     : null;
-  const toolId = (window.__TOOL_ID && window.ToolRegistry && window.ToolRegistry.isReady())
+  const legacySlugEntry = window.SLUG_MAP && window.SLUG_MAP[pathnameSlug];
+  const toolId = (window.__TOOL_ID && registryReady)
     ? (window.ToolRegistry.get(window.__TOOL_ID)?.id || window.__TOOL_ID)
-    : (registryByQuery?.id || registryByPath?.id || window.__TOOL_ID || queryId || pathnameSlug || null);
+    : (registryByQuery?.id || registryByPath?.id || window.__TOOL_ID || queryId || legacySlugEntry?.id || pathnameSlug || null);
 
   // ── Loop-safe redirect helper ────────────────────────────────────────────
   // Firebase Hosting's catch-all rewrite (** → /index.html) plus pathname-only
@@ -314,11 +313,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Registry-owned standalone routes replace the legacy SLUG_MAP special-route table.
   const slug = (window.location.pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+  const routeSlug = slug.replace(/\/(preview|download)$/i, '');
   const registryRoute = window.ToolRegistry && window.ToolRegistry.isReady()
-    ? window.ToolRegistry.getBySlug(slug.replace(/\/(preview|download)$/i, ''))
+    ? window.ToolRegistry.getBySlug(routeSlug)
     : null;
-  if (registryRoute && registryRoute.specialRoute) {
-    if (safeRedirect(registryRoute.specialRoute)) return;
+  // Preserve special-route redirects even when the network-backed registry is
+  // still loading or temporarily unavailable.
+  const specialRoute = (registryRoute && registryRoute.specialRoute)
+    || (window.SLUG_MAP && window.SLUG_MAP[routeSlug] && window.SLUG_MAP[routeSlug].special);
+  if (specialRoute) {
+    if (safeRedirect(specialRoute)) return;
   }
 
   // Unit 5: resolve identity from the authoritative registry after its readiness barrier.
@@ -341,6 +345,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Made it to the right page — clear the loop guard so a future legit
   // navigation (e.g. user clicks back, then forward to a redirecting tool) works.
   try { sessionStorage.removeItem('__tp_redir__'); } catch {}
+
+  // If the registry finishes after the upload UI is shown, merge its metadata
+  // without delaying or replacing the user's current step.
+  if (!registryReady && window.ToolRegistryReady && typeof window.ToolRegistryReady.then === 'function') {
+    window.ToolRegistryReady.then(function () {
+      if (!currentTool || !window.ToolRegistry || !window.ToolRegistry.isReady()) return;
+      const legacy = TOOLS.find(function (item) { return item.id === currentTool.id; });
+      const enriched = window.ToolRegistry.mergeLegacy(legacy);
+      if (enriched && enriched.id === currentTool.id) {
+        currentTool = enriched;
+        setMetaForStep(Flow.step);
+      }
+    }).catch(function () {});
+  }
 
   if (!currentTool) {
     // Show a friendly 404 instead of silently bouncing to home (which looked
