@@ -21,7 +21,7 @@ function fail(message) {
 
 function optimizeHomepageResourceHints(html) {
   // Keep the generated homepage aligned with the active tool-card stylesheet cache key.
-  html = html.replace(/\/css\/home\.css\?v=[^"'>]*/g, '/css/home.css?v=20261014-home-compact-tool-cards-v1');
+  html = html.replace(/\/css\/home\.css\?v=[^"'>]*/g, '/css/home.css?v=20261014-home-compact-cards-rollback-v1');
   // Warm up external origins used by the homepage without blocking rendering.
   const hints = [
     // Lucide is loaded as a deferred script; warm only that origin. Google
