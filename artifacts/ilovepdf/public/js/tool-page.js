@@ -2204,6 +2204,24 @@ async function processFile() {
     }
   }
 
+  // Processing waits for this tool's on-demand bundle if the user clicks quickly
+  // during initial loading or immediately after an SPA tool switch.
+  if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
+    const bundleReadyBtn = document.getElementById('process-btn');
+    _processingInFlight = true;
+    if (bundleReadyBtn) bundleReadyBtn.disabled = true;
+    try {
+      await window.RuntimeToolCodeLoader.load(currentTool.id);
+    } catch (bundleError) {
+      showStatus('error', 'Tool is still loading', 'Please try processing again in a moment.');
+      console.warn('[ToolCodeLoader] processing blocked until active bundle loads:', currentTool.id, bundleError);
+      return;
+    } finally {
+      _processingInFlight = false;
+      if (bundleReadyBtn) bundleReadyBtn.disabled = false;
+    }
+  }
+
   // Compress PDF uses the selected mode directly: Deep Compression needs no
   // second click, while Custom passes its validated target size to the renderer.
   if (currentTool.id === 'compress') {
