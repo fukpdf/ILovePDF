@@ -81,7 +81,7 @@ assert.match(
   'Shared shell must enumerate footers so duplicate footers can be removed.'
 );
 
-const sharedHeaderUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+const sharedHeaderUrl = '/css/home-header-v2.css?v=20261014-header-centered-nav-v3';
 const sharedFooterUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
 for (const file of ['index.html', 'tool.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
@@ -121,6 +121,32 @@ assert.ok(chromeJs.includes(sharedFooterUrl), 'Pages that inject the shared foot
 assert.ok(chromeJs.includes("s.src = '/js/mobile-nav.js?v=20261014-shared-shell-v1';"), 'Shared mobile navigation must use a versioned URL so the service worker can reuse it across page visits.');
 
 const sharedHeaderCss = fs.readFileSync(path.join(publicDir, 'css/home-header-v2.css'), 'utf8');
+const desktopNavContract = [
+  'href="/merge-pdf"',
+  'href="/split-pdf"',
+  'href="/compress-pdf"',
+  'href="/organize-pdf"',
+  'id="all-tools-btn"',
+];
+let lastNavIndex = -1;
+for (const token of desktopNavContract) {
+  const index = chromeJs.indexOf(token, chromeJs.indexOf('nav.innerHTML = `'));
+  assert.ok(index > lastNavIndex, 'Desktop nav must preserve Merge, Split, Compress, Organize, All Tools order (' + token + ').');
+  lastNavIndex = index;
+}
+assert.doesNotMatch(chromeJs, /id="nav-convert"|id="nav-organize"|wireSimpleDropdowns|ORGANIZE_ITEMS|CONVERT_ITEMS/,
+  'Obsolete Convert/Organize dropdown navigation code must not return.');
+assert.match(sharedHeaderCss, /html:has\(head link\[data-shared-header-css\]\) body\s*\{[^}]*padding-top:\s*var\(--ilpdf-header-h\)/,
+  'Header space must be reserved before chrome.js injects the header.');
+assert.match(sharedHeaderCss, /\.site-header \.header-inner > \.ce-widget-desktop\s*\{[^}]*position:\s*absolute\s*!important/,
+  'Desktop credits widget must not participate in header flex layout.');
+assert.match(sharedHeaderCss, /\.site-header \.header-inner > \.ce-widget-mobile\s*\{[^}]*position:\s*absolute\s*!important/,
+  'Mobile credits widget must not participate in header flex layout.');
+assert.match(sharedHeaderCss, /@media \(max-width:\s*1023\.98px\)[\s\S]*?\.site-header \.brand\s*\{[^}]*left:\s*50%\s*!important[^}]*transform:\s*translate\(-50%,\s*-50%\)\s*!important/,
+  'Tablet/mobile brand must be centered against the viewport.');
+assert.match(sharedHeaderCss, /@media \(max-width:\s*420px\)[\s\S]*?\.ce-pill-savings\s*\{\s*display:\s*none\s*!important/,
+  'Only the secondary savings pill may hide on narrow phones to protect centered-brand clearance.');
+
 assert.match(
   sharedHeaderCss,
   /body \* \{[\s\S]*?scrollbar-width:\s*none\s*!important;/,
