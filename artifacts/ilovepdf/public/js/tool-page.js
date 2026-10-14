@@ -337,23 +337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? window.ToolRegistry.mergeLegacy(legacyTool)
     : legacyTool;
 
-  // Start the active tool's feature bundle immediately after route resolution.
-  // This is independent of optional runtime certification/boot diagnostics, so
-  // a delayed diagnostic cannot leave the upload button without its own modules.
-  try {
-    if (currentTool && window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
-      window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
-        // A user can select a file before the rich preview bundle finishes loading.
-        if (selectedFiles.length && Flow.step === 'preview' && !_processingInFlight) {
-          renderStandardPreviewStep(currentTool);
-        } else if (typeof maybeOpenPageOrganizer === 'function') {
-          maybeOpenPageOrganizer();
-        }
-      }).catch(function (error) {
-        console.warn('[ToolCodeLoader] active tool bundle did not fully load:', currentTool.id, error);
-      });
-    }
-  } catch (_) {}
+  // Tool-specific feature scripts are intentionally deferred until file selection.
 
   // Tool has a dedicated standalone page (e.g. numbers-to-words → /n2w.html)
   if (currentTool && currentTool.url) {
@@ -3583,20 +3567,7 @@ window.loadToolPage = function loadToolPage(path) {
   }
 
   currentTool = tool;
-  // SPA tool switches must request the new tool's own modules as well.
-  try {
-    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
-      window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
-        if (selectedFiles.length && Flow.step === 'preview' && !_processingInFlight) {
-          renderStandardPreviewStep(currentTool);
-        } else if (typeof maybeOpenPageOrganizer === 'function') {
-          maybeOpenPageOrganizer();
-        }
-      }).catch(function (error) {
-        console.warn('[ToolCodeLoader] switched tool bundle did not fully load:', currentTool.id, error);
-      });
-    }
-  } catch (_) {}
+  // A new tool route stays lightweight until the user selects a file.
   // Activate the selected logical module without eagerly loading its processor.
   // The module registry is a boundary/contract layer; BrowserTools remains the
   // lazy execution owner for browser-capable tools.
