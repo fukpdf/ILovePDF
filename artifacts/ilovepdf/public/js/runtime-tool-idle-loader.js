@@ -190,15 +190,10 @@
 
   /* ── Accelerate after file interaction and selected bundle completion ───── */
   function _startAfterToolBundleReady() {
-    var runtime = G.RuntimeToolLoader;
-    var codeLoader = G.RuntimeToolCodeLoader;
-    var activeToolId = runtime && typeof runtime.getToolId === 'function' ? runtime.getToolId() : null;
-    if (activeToolId && codeLoader && typeof codeLoader.isLoaded === 'function' && codeLoader.isLoaded(activeToolId)) {
-      setTimeout(triggerLoad, 1000);
-      return;
-    }
     var onLoaded = function (evt) {
       var loadedToolId = evt && evt.detail && evt.detail.toolId;
+      var runtime = G.RuntimeToolLoader;
+      var activeToolId = runtime && typeof runtime.getToolId === 'function' ? runtime.getToolId() : null;
       if (activeToolId && loadedToolId && loadedToolId !== activeToolId) return;
       G.removeEventListener('code-loader:loaded', onLoaded);
       // Keep shared background work behind the selected tool's own modules.
