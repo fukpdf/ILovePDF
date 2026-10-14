@@ -1272,11 +1272,8 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
     ? window.PdfPreview.loadPdfJs()
     : Promise.resolve();
-  const isImage = tool.group === 'image';
   const stages = [
-    { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
-    { at: 28, stage: 'engine', title: 'Preparing ' + tool.name, detail: 'Getting the ' + tool.name + ' workspace ready.' },
-    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
+    { at: 0, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
     { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing your workspace.' }
   ];
   const updateVisual = value => {
