@@ -52,8 +52,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="/css/economy.css">
-  <link rel="stylesheet" href="/css/community-economy.css">
+  <link rel="stylesheet" href="/css/economy.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  <noscript><link rel="stylesheet" href="/css/economy.css"></noscript>
+  <link rel="stylesheet" href="/css/community-economy.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  <noscript><link rel="stylesheet" href="/css/community-economy.css"></noscript>
   <link rel="stylesheet" href="/css/rtl.css">
   <!-- Keep font CSS off the render-blocking path. -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
@@ -122,9 +124,11 @@
   <link rel="stylesheet" href="/css/seo-extended.css" media="print" onload="this.onload=null;this.media='all'">
   <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css">
+  <link rel="stylesheet" href="/css/ads.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  <noscript><link rel="stylesheet" href="/css/ads.css"></noscript>
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css">
+  <link rel="stylesheet" href="/css/responsive-ads.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  <noscript><link rel="stylesheet" href="/css/responsive-ads.css"></noscript>
   <!-- Preview/editor workspace styles are fetched early but do not block upload first paint. -->
   <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
   <noscript><link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2"></noscript>
