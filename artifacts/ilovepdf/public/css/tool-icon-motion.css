@@ -97,3 +97,113 @@
  .tool:hover .tool-name-sticker[data-icon] svg,.tool:focus-visible .tool-name-sticker[data-icon] svg,
  .popular-card:hover .tool-name-sticker[data-icon] svg,.popular-card:focus-visible .tool-name-sticker[data-icon] svg {animation:none!important}
 }
+
+
+/* ADVANCED PASS: animate the actual SVG parts, not just the whole glyph. */
+.tool-name-sticker[data-icon] { position:relative; overflow:hidden; }
+.tool-name-sticker[data-icon]::before {
+  content:""; position:absolute; inset:-45% auto -45% -65%; width:42%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.52),transparent);
+  transform:skewX(-22deg); opacity:0; pointer-events:none; z-index:2;
+}
+.tool-name-sticker[data-icon]::after {
+  opacity:.42; transition:opacity .22s ease,transform .35s ease;
+}
+.tool:hover .tool-name-sticker[data-icon]::before,
+.tool:focus-visible .tool-name-sticker[data-icon]::before,
+.popular-card:hover .tool-name-sticker[data-icon]::before,
+.popular-card:focus-visible .tool-name-sticker[data-icon]::before {
+  opacity:1; animation:logoPrismSweep .9s cubic-bezier(.2,.7,.2,1) both;
+}
+.tool:hover .tool-name-sticker[data-icon]::after,
+.tool:focus-visible .tool-name-sticker[data-icon]::after,
+.popular-card:hover .tool-name-sticker[data-icon]::after,
+.popular-card:focus-visible .tool-name-sticker[data-icon]::after {
+  opacity:.95; transform:scale(1.08);
+}
+.tool-name-sticker[data-icon] svg > *,
+.tool-name-sticker[data-icon] svg > * > * { transform-box:fill-box; transform-origin:center; }
+
+/* Merge: separate document layers slide together, then settle as one stack. */
+.tool:hover .tool-name-sticker[data-icon="layers"] svg polygon,
+.tool:focus-visible .tool-name-sticker[data-icon="layers"] svg polygon,
+.popular-card:hover .tool-name-sticker[data-icon="layers"] svg polygon { animation:mergeTopLayer .82s both; }
+.tool:hover .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(1),
+.tool:focus-visible .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(1),
+.popular-card:hover .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(1) { animation:mergeBottomLayer .82s both; }
+.tool:hover .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(2),
+.tool:focus-visible .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(2),
+.popular-card:hover .tool-name-sticker[data-icon="layers"] svg polyline:nth-of-type(2) { animation:mergeMiddleLayer .82s both; }
+
+/* Split: scissor blades pivot apart and close again. */
+.tool:hover .tool-name-sticker[data-icon="scissors"] svg line,
+.tool:focus-visible .tool-name-sticker[data-icon="scissors"] svg line,
+.popular-card:hover .tool-name-sticker[data-icon="scissors"] svg line { animation:splitBlade .72s both; }
+.tool:hover .tool-name-sticker[data-icon="scissors"] svg circle,
+.tool:focus-visible .tool-name-sticker[data-icon="scissors"] svg circle,
+.popular-card:hover .tool-name-sticker[data-icon="scissors"] svg circle { animation:splitPivot .72s both; }
+
+/* Compress PDF: correct icon key is minimize-2; corners collapse inward. */
+.tool:hover .tool-name-sticker[data-icon="minimize-2"] svg polyline,
+.tool:focus-visible .tool-name-sticker[data-icon="minimize-2"] svg polyline,
+.popular-card:hover .tool-name-sticker[data-icon="minimize-2"] svg polyline { animation:compressCorners .74s both; }
+.tool:hover .tool-name-sticker[data-icon="minimize-2"] svg line,
+.tool:focus-visible .tool-name-sticker[data-icon="minimize-2"] svg line,
+.popular-card:hover .tool-name-sticker[data-icon="minimize-2"] svg line { animation:compressLines .74s both; }
+
+/* Rotate: the arrow tip has a short orbit trail, not only a whole-icon spin. */
+.tool:hover .tool-name-sticker[data-icon="rotate-cw"] svg polyline,
+.tool:focus-visible .tool-name-sticker[data-icon="rotate-cw"] svg polyline,
+.popular-card:hover .tool-name-sticker[data-icon="rotate-cw"] svg polyline { animation:rotateArrowTip .8s both; }
+.tool:hover .tool-name-sticker[data-icon="rotate-cw"] svg path,
+.tool:focus-visible .tool-name-sticker[data-icon="rotate-cw"] svg path,
+.popular-card:hover .tool-name-sticker[data-icon="rotate-cw"] svg path { animation:rotateOrbit .9s both; }
+
+/* Organize, scan, crop, lock and edit each animate meaningful SVG parts. */
+.tool:hover .tool-name-sticker[data-icon="list-ordered"] svg line,
+.tool:focus-visible .tool-name-sticker[data-icon="list-ordered"] svg line,
+.popular-card:hover .tool-name-sticker[data-icon="list-ordered"] svg line { animation:organizeRows .7s both; }
+.tool:hover .tool-name-sticker[data-icon="scan-line"] svg line,
+.tool:focus-visible .tool-name-sticker[data-icon="scan-line"] svg line,
+.popular-card:hover .tool-name-sticker[data-icon="scan-line"] svg line { animation:scanBeam .8s both; }
+.tool:hover .tool-name-sticker[data-icon="crop"] svg path,
+.tool:focus-visible .tool-name-sticker[data-icon="crop"] svg path,
+.popular-card:hover .tool-name-sticker[data-icon="crop"] svg path { animation:cropCorners .72s both; }
+.tool:hover .tool-name-sticker[data-icon="lock"] svg path,
+.tool:focus-visible .tool-name-sticker[data-icon="lock"] svg path,
+.popular-card:hover .tool-name-sticker[data-icon="lock"] svg path { animation:lockShackle .72s both; }
+.tool:hover .tool-name-sticker[data-icon="unlock"] svg path,
+.tool:focus-visible .tool-name-sticker[data-icon="unlock"] svg path,
+.popular-card:hover .tool-name-sticker[data-icon="unlock"] svg path { animation:unlockShackle .72s both; }
+.tool:hover .tool-name-sticker[data-icon="image"] svg polyline,
+.tool:focus-visible .tool-name-sticker[data-icon="image"] svg polyline,
+.popular-card:hover .tool-name-sticker[data-icon="image"] svg polyline { animation:imageReveal .72s both; }
+.tool:hover .tool-name-sticker[data-icon="edit-3"] svg path:nth-of-type(2),
+.tool:focus-visible .tool-name-sticker[data-icon="edit-3"] svg path:nth-of-type(2),
+.popular-card:hover .tool-name-sticker[data-icon="edit-3"] svg path:nth-of-type(2) { animation:editStroke .72s both; }
+
+@keyframes logoPrismSweep { 0%{left:-65%;opacity:0} 18%{opacity:1} 100%{left:140%;opacity:0} }
+@keyframes mergeTopLayer { 0%,100%{transform:translate(0,0)} 35%{transform:translate(-1.8px,-1.4px)} 68%{transform:translate(1px,1px)} }
+@keyframes mergeBottomLayer { 0%,100%{transform:translate(0,0)} 35%{transform:translate(1.8px,1.4px)} 68%{transform:translate(-1px,-1px)} }
+@keyframes mergeMiddleLayer { 0%,100%{transform:translate(0,0)} 40%{transform:translateY(1.6px)} 72%{transform:translateY(-.8px)} }
+@keyframes splitBlade { 0%,100%{transform:rotate(0)} 38%{transform:rotate(-12deg)} 72%{transform:rotate(7deg)} }
+@keyframes splitPivot { 0%,100%{transform:scale(1)} 42%{transform:scale(1.12)} 70%{transform:scale(.96)} }
+@keyframes compressCorners { 0%,100%{transform:scale(1)} 38%{transform:scale(.72)} 68%{transform:scale(1.08)} }
+@keyframes compressLines { 0%,100%{transform:scale(1)} 38%{transform:scale(.7)} 70%{transform:scale(1.06)} }
+@keyframes rotateArrowTip { 0%,100%{transform:rotate(0) scale(1)} 55%{transform:rotate(24deg) scale(1.15)} 80%{transform:rotate(-6deg) scale(1.02)} }
+@keyframes rotateOrbit { 0%,100%{stroke-dasharray:0 60;opacity:.8} 45%{stroke-dasharray:30 60;opacity:1} 75%{stroke-dasharray:48 60;opacity:1} }
+@keyframes organizeRows { 0%,100%{transform:translateX(0)} 35%{transform:translateX(2px)} 65%{transform:translateX(-1px)} }
+@keyframes scanBeam { 0%,100%{transform:translateY(0);opacity:1} 45%{transform:translateY(-2px)} 72%{transform:translateY(2px)} }
+@keyframes cropCorners { 0%,100%{transform:scale(1)} 42%{transform:scale(.82)} 72%{transform:scale(1.06)} }
+@keyframes lockShackle { 0%,100%{transform:translateY(0) rotate(0)} 45%{transform:translateY(1px) rotate(-8deg)} 72%{transform:translateY(0) rotate(2deg)} }
+@keyframes unlockShackle { 0%,100%{transform:translate(0,0) rotate(0)} 45%{transform:translate(2px,-2px) rotate(14deg)} 72%{transform:translate(1px,-1px) rotate(-3deg)} }
+@keyframes imageReveal { 0%,100%{transform:translateY(0);opacity:1} 40%{transform:translateY(-1.8px)} 72%{transform:translateY(.5px)} }
+@keyframes editStroke { 0%,100%{transform:rotate(0)} 38%{transform:rotate(8deg)} 72%{transform:rotate(-3deg)} }
+
+@media (prefers-reduced-motion:reduce) {
+ .tool-name-sticker[data-icon]::before {display:none!important}
+ .tool:hover .tool-name-sticker[data-icon]::after,
+ .tool:focus-visible .tool-name-sticker[data-icon]::after,
+ .popular-card:hover .tool-name-sticker[data-icon]::after,
+ .popular-card:focus-visible .tool-name-sticker[data-icon]::after {transform:none!important;opacity:.42}
+}
