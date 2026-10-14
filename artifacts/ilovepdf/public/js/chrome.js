@@ -765,7 +765,8 @@ function ensureSharedShell() {
      this shell in HTML for first paint; replacing it here caused avoidable DOM
      teardown/rebuild and re-bound UI on initialization. */
   const currentFooters = [...document.querySelectorAll('footer.footer')];
-  const existingCanonicalFooter = currentFooters.length === 1 &&
+  const existingCanonicalFooter = isHomepage &&
+    currentFooters.length === 1 &&
     currentFooters[0].querySelector('.footer-inner') &&
     currentFooters[0].querySelector('.footer-bottom') &&
     currentFooters[0].querySelector('#footer-lang-sel') &&
