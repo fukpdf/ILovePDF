@@ -3685,3 +3685,71 @@ body::-webkit-scrollbar {
   }
   .tools-grid .tool { transition: none; }
 }
+
+
+/* FINAL HOMEPAGE CARD FIX (2026-10-14):
+   The old generic a.tool rule absolutely positioned the logo inside the title
+   and added left padding, making the title appear behind/beside the logo.
+   On homepage category and Recent Use cards, restore normal document flow:
+   logo first, title directly underneath, description after the title. */
+.home-cat-section .tools-grid > a.tool .tool-name,
+#recent-use-section .tools-grid > a.tool .tool-name {
+  position: static !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+.home-cat-section .tools-grid > a.tool .tool-name > .tool-name-sticker,
+#recent-use-section .tools-grid > a.tool .tool-name > .tool-name-sticker {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 92px !important;
+  width: 92px !important;
+  height: 92px !important;
+  min-width: 92px !important;
+  min-height: 92px !important;
+  margin: 0 auto !important;
+  z-index: 1 !important;
+}
+.home-cat-section .tools-grid > a.tool .tool-name > .tool-name-label,
+#recent-use-section .tools-grid > a.tool .tool-name > .tool-name-label {
+  position: static !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+  line-height: 1.3 !important;
+}
+@media (max-width: 768px) {
+  .home-cat-section .tools-grid > a.tool .tool-name > .tool-name-sticker,
+  #recent-use-section .tools-grid > a.tool .tool-name > .tool-name-sticker {
+    flex-basis: 82px !important;
+    width: 82px !important;
+    height: 82px !important;
+    min-width: 82px !important;
+    min-height: 82px !important;
+  }
+}
+@media (max-width: 420px) {
+  .home-cat-section .tools-grid > a.tool .tool-name > .tool-name-sticker,
+  #recent-use-section .tools-grid > a.tool .tool-name > .tool-name-sticker {
+    flex-basis: 72px !important;
+    width: 72px !important;
+    height: 72px !important;
+    min-width: 72px !important;
+    min-height: 72px !important;
+  }
+}
