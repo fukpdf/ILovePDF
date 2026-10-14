@@ -179,7 +179,7 @@
     'page-numbers': ['/js/page-numbers-runtime.js', '/js/page-numbers-app.js', '/js/page-organizer.js'],
     'redact': ['/js/redact-runtime.js', '/js/redact-pdf-app.js', '/js/page-organizer.js'],
     'compress': ['/js/compress-runtime.js', '/js/compress-pdf-app.js'],
-    'pdf-to-word': ['/js/live-preview.js', '/js/pdf-word-app.js', '/js/pdf-pipeline/font-mapper.js', '/js/pdf-pipeline/column-engine.js', '/js/pdf-pipeline/form-reconstruction.js', '/js/pdf-pipeline/fidelity-validator.js', '/js/pdf-pipeline/visual-reconstruction.js', '/js/pdf-pipeline/ocr-zoning.js', '/js/pdf-pipeline/image-anchor-engine.js', '/js/pdf-pipeline/layout-graph.js', '/js/pdf-pipeline/docx-coordinate-engine.js', '/js/pdf-pipeline/fidelity-debug.js'],
+    'pdf-to-word': ['/js/pdf-pipeline/font-mapper.js', '/js/pdf-pipeline/column-engine.js', '/js/pdf-pipeline/form-reconstruction.js', '/js/pdf-pipeline/fidelity-validator.js', '/js/pdf-pipeline/visual-reconstruction.js', '/js/pdf-pipeline/ocr-zoning.js', '/js/pdf-pipeline/image-anchor-engine.js', '/js/pdf-pipeline/layout-graph.js', '/js/pdf-pipeline/docx-coordinate-engine.js', '/js/pdf-pipeline/fidelity-debug.js', '/js/live-preview.js', '/js/pdf-word-app.js'],
     'pdf-to-excel': ['/js/live-preview.js', '/js/pdf-excel-app.js'],
     'pdf-to-powerpoint': ['/js/live-preview.js', '/js/pdf-ppt-app.js'],
     'word-to-pdf': ['/js/live-preview.js', '/js/pdf-word-app.js'],
