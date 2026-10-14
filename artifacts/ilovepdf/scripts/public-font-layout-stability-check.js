@@ -47,14 +47,14 @@ for (const file of htmlFiles) {
     path.relative(publicDir, file) + ' must not keep a render-blocking Google Fonts stylesheet after normalization'
   );
 
-  const needsSharedHeader = /<script\\b[^>]*\\bsrc=["'][^"']*\\/js\\/chrome\\.js(?:[?#][^"']*)?["'][^>]*>/i.test(source) ||
-    /<header\\b[^>]*class=["'][^"']*\\bsite-header\\b/i.test(source);
+  const needsSharedHeader = /<script\b[^>]*\bsrc=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["'][^>]*>/i.test(source) ||
+    /<header\b[^>]*class=["'][^"']*\bsite-header\b/i.test(source);
   if (needsSharedHeader) {
-    const head = result.html.slice(0, result.html.search(/<\\/head\\s*>/i));
-    const sharedHeaderLinks = [...head.matchAll(/<link\\b[^>]*>/gi)].map(match => match[0]).filter(tag => {
-      const href = tag.match(/\\bhref=["']([^"']*)["']/i)?.[1] || '';
-      const rel = (tag.match(/\\brel=["']([^"']*)["']/i)?.[1] || '').toLowerCase().split(/\\s+/);
-      return /\\/css\\/home-header-v2\\.css(?:[?#]|$)/i.test(href) && rel.includes('stylesheet');
+    const head = result.html.slice(0, result.html.search(/<\/head\s*>/i));
+    const sharedHeaderLinks = [...head.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag => {
+      const href = tag.match(/\bhref=["']([^"']*)["']/i)?.[1] || '';
+      const rel = (tag.match(/\brel=["']([^"']*)["']/i)?.[1] || '').toLowerCase().split(/\s+/);
+      return /\/css\/home-header-v2\.css(?:[?#]|$)/i.test(href) && rel.includes('stylesheet');
     });
     assert.equal(sharedHeaderLinks.length, 1, path.relative(publicDir, file) + ' must load exactly one shared-header stylesheet in head');
     assert.ok(
