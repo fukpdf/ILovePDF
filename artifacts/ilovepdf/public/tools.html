@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
-  <link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2">
+  <link rel="stylesheet" href="/css/home.css?v=20261014-tool-card-standard-v1">
   <style>
     .tools-page-hero {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
@@ -207,6 +207,67 @@
       .tp-main { padding: 8px 16px 48px; }
       .tools-page-hero { padding: 40px 16px 36px; }
     }
+  
+    /* Standardized tool-card hierarchy: icon → title → description.
+       Keep existing grid column sizing; square cards are homepage-only. */
+    .tp-grid { align-items: stretch; }
+    .tp-tool {
+      min-width: 0;
+      box-sizing: border-box;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+      padding: 18px 16px;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+    }
+    .tp-tool-top {
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .tp-tool-ico {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+    }
+    .tp-tool-ico svg { width: 22px; height: 22px; }
+    .tp-tool-badges {
+      min-width: 0;
+      max-width: 100%;
+      justify-content: center;
+    }
+    .tp-tool-name {
+      width: 100%;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .tp-tool-desc {
+      width: 100%;
+      min-width: 0;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .tp-tool:focus-visible {
+      outline: 3px solid rgba(79, 70, 229, .42);
+      outline-offset: 3px;
+    }
+    @media (max-width: 600px) {
+      .tp-tool { padding: 14px 10px; gap: 8px; }
+      .tp-tool-ico { width: 40px; height: 40px; }
+      .tp-tool-ico svg { width: 20px; height: 20px; }
+      .tp-tool-name { font-size: 13px; }
+      .tp-tool-desc { font-size: 11px; line-height: 1.4; }
+    }
+
   </style>
   <script src="/js/i18n.js?v=shared-shell"></script>
 
