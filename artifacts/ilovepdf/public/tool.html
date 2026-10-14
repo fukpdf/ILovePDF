@@ -139,6 +139,9 @@
     var loaded = false;
     function loadAds() {
       if (loaded) return;
+      // No ad units are currently rendered on the shared tool shell; avoid a
+      // third-party request unless a real slot exists in this document.
+      if (!document.querySelectorAll('[data-ad-slot], .ad-slot, ins.adsbygoogle').length) return;
       loaded = true;
       var script = document.createElement('script');
       script.async = true;
