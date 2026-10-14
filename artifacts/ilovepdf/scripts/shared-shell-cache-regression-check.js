@@ -32,8 +32,22 @@ assert.ok(chromeUsers.includes('tool.html'), 'Tool shell must load shared chrome
 const toolHtml = fs.readFileSync(path.join(publicDir, 'tool.html'), 'utf8');
 const directScriptCount = [...toolHtml.matchAll(/<script\b[^>]*\ssrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)].length;
 const lazyScriptCount = [...toolHtml.matchAll(/data-lazy-src=["'][^"']+["']/g)].length;
+const activeScriptTags = [...toolHtml.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
+const initialScriptTags = activeScriptTags.filter(tag => /(?:^|\s)src\s*=/.test(tag));
+const initialScriptUrls = initialScriptTags
+  .map(tag => tag.match(/(?:^|\s)src\s*=\s*["']([^"']+)["']/i)?.[1])
+  .filter(Boolean);
+const parserBlockingInitialScripts = initialScriptTags.filter(tag =>
+  !/\b(?:defer|async)\b/i.test(tag) && !/\btype\s*=\s*["']module["']/i.test(tag)
+);
+const initialHeavyEngineUrls = initialScriptUrls.filter(url =>
+  /(?:workerPool|browser-tools|browser-tool-runtime|advanced-engine|pdf-preview|live-preview|page-organizer|runtime-stream-bridge|compress-runtime|merge-runtime|bg-ai-engine|bg-remover-pro|edit-pdf-pro|pdf-word-app|pdf-excel-app|pdf-ppt-app|compress-pdf-app|runtime-processor-loader)\.js(?:[?#]|$)/i.test(url)
+);
 assert.ok(directScriptCount <= 30, 'Shared upload HTML must keep its critical script path small; found ' + directScriptCount + ' direct external scripts.');
 assert.ok(lazyScriptCount >= 150, 'Runtime/processor support scripts must remain demand-loaded; found ' + lazyScriptCount + ' lazy scripts.');
+assert.equal(parserBlockingInitialScripts.length, 0, 'Initial tool shell must not contain parser-blocking external scripts.');
+assert.equal(initialHeavyEngineUrls.length, 0, 'Preview/processing/worker engines must not be requested by initial HTML; found ' + initialHeavyEngineUrls.join(', '));
+assert.equal(new Set(initialScriptUrls).size, initialScriptUrls.length, 'Initial tool shell must not request duplicate external script URLs.');
 assert.match(toolHtml, /SharedToolRuntimeBoot/, 'Shared upload shell must expose its on-demand runtime boot loader.');
 assert.match(toolHtml, /document\.addEventListener\('change',[\s\S]*?isFileInput/, 'File selection must wait for the ordered runtime stack before dispatching the upload change.');
 assert.match(toolHtml, /data-shared-header-css="1"/, 'Shared header CSS must stay in the first-paint HTML.');
