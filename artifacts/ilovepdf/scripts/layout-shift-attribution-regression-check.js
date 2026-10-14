@@ -18,9 +18,12 @@ const layoutEntries = [
       currentRect: { x: 0, y: 100, width: 390, height: 620, top: 100, right: 390, bottom: 720, left: 0 },
     }],
   },
+  { value: 0.13, startTime: 900, hadRecentInput: false, sources: [] },
+  { value: 0.4, startTime: 2500, hadRecentInput: false, sources: [] },
+  { value: 0.1, startTime: 3200, hadRecentInput: false, sources: [] },
   {
     value: 0.5,
-    startTime: 170,
+    startTime: 3300,
     hadRecentInput: true,
     sources: [{
       node: { tagName: 'SECTION', id: 'preview', className: 'preview-panel', getAttribute: () => 'region' },
@@ -53,15 +56,15 @@ vm.runInNewContext(source, { window, document, console, setInterval() {}, Date, 
 const monitor = window.RuntimePerformanceMonitor;
 assert.ok(monitor, 'monitor must register');
 const report = monitor.getReport();
-assert.equal(report.vitals.cls, 0.12, 'only shifts without recent input contribute to CLS');
+assert.equal(report.vitals.cls, 0.5, 'CLS must use the largest session window and exclude recent-input shifts');
 assert.equal(report.route, '/tool.html', 'report should identify the current route');
-assert.equal(report.layoutShifts.length, 2, 'diagnostics should retain recent layout-shift entries');
+assert.equal(report.layoutShifts.length, 5, 'diagnostics should retain recent layout-shift entries');
 assert.equal(report.layoutShifts[0].sources[0].node.id, 'tool-content', 'diagnostics should identify the moved DOM node');
 assert.equal(report.layoutShifts[0].sources[0].node.className, 'tool-page upload-shell', 'diagnostics should expose classes without collecting page text');
 assert.equal(report.layoutShifts[0].sources[0].previousRect.y, 68, 'diagnostics should capture previous geometry');
 assert.equal(report.layoutShifts[0].sources[0].currentRect.y, 100, 'diagnostics should capture current geometry');
-assert.equal(report.layoutShifts[1].hadRecentInput, true, 'input-triggered shifts should be marked separately');
-assert.equal(monitor.getLayoutShiftDiagnostics().length, 2, 'dedicated diagnostics API should be available');
+assert.equal(report.layoutShifts[4].hadRecentInput, true, 'input-triggered shifts should be marked separately');
+assert.equal(monitor.getLayoutShiftDiagnostics().length, 5, 'dedicated diagnostics API should be available');
 console.log('PASS layout-shift attribution captures source nodes and geometry');
-console.log('PASS CLS excludes shifts with recent user input');
+console.log('PASS CLS uses the largest 1-second-gap/5-second session window and excludes recent-input shifts');
 console.log('PASS diagnostics include route and do not collect node text');
