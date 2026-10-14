@@ -34,10 +34,17 @@ for (const file of htmlFiles) {
   const source = fs.readFileSync(file, 'utf8');
   const result = normalizeHtml(source);
   normalizedLinks += result.changed;
-  assert.doesNotMatch(
-    result.html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ''),
-    /<link\b(?=[^>]*\bhref=["']https?:\/\/fonts\.googleapis\.com\/css2?\?[^"']*display=swap)(?=[^>]*\brel=["']stylesheet["'])[^>]*>/i,
-    path.relative(publicDir, file) + ' must not keep a blocking Google Fonts swap stylesheet after normalization'
+  const activeMarkup = result.html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  const blockingFontLinks = [...activeMarkup.matchAll(/<link\b[^>]*>/gi)].filter(match => {
+    const tag = match[0];
+    const href = tag.match(/\bhref=["']([^"']*)["']/i)?.[1] || '';
+    const rel = (tag.match(/\brel=["']([^"']*)["']/i)?.[1] || '').toLowerCase().split(/\s+/);
+    return /https?:\/\/fonts\.googleapis\.com\/css2?\?/i.test(href) && rel.includes('stylesheet');
+  });
+  assert.equal(
+    blockingFontLinks.length,
+    0,
+    path.relative(publicDir, file) + ' must not keep a render-blocking Google Fonts stylesheet after normalization'
   );
 }
 assert.ok(htmlFiles.length > 0, 'public HTML files should be discoverable');
