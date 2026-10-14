@@ -343,8 +343,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     if (currentTool && window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
       window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
-        // File selection can happen before an on-demand page editor finishes loading.
-        if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+        // A user can select a file before the rich preview bundle finishes loading.
+        if (selectedFiles.length && Flow.step === 'preview' && !_processingInFlight) {
+          renderStandardPreviewStep(currentTool);
+        } else if (typeof maybeOpenPageOrganizer === 'function') {
+          maybeOpenPageOrganizer();
+        }
       }).catch(function (error) {
         console.warn('[ToolCodeLoader] active tool bundle did not fully load:', currentTool.id, error);
       });
@@ -3583,7 +3587,11 @@ window.loadToolPage = function loadToolPage(path) {
   try {
     if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
       window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
-        if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+        if (selectedFiles.length && Flow.step === 'preview' && !_processingInFlight) {
+          renderStandardPreviewStep(currentTool);
+        } else if (typeof maybeOpenPageOrganizer === 'function') {
+          maybeOpenPageOrganizer();
+        }
       }).catch(function (error) {
         console.warn('[ToolCodeLoader] switched tool bundle did not fully load:', currentTool.id, error);
       });
