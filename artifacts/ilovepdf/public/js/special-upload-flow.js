@@ -72,7 +72,6 @@ function renderSharedDropzones(){
   });
   if(mounts.length && G.lucide && typeof G.lucide.createIcons==='function') G.lucide.createIcons();
 }
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',renderSharedDropzones,{once:true});
-else renderSharedDropzones();
+renderSharedDropzones();
 G.SharedSpecialUpload=Object.freeze({prepare:prepare,render:renderSharedDropzones});
 })();
