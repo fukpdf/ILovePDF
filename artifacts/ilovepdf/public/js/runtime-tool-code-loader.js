@@ -270,8 +270,10 @@
 
   // ── Inject a script (idempotent) ──────────────────────────────────────────
   function _injectScript(src) {
+    // An injected tag exists in the DOM before its load event; prefer the
+    // in-flight promise so concurrent callers never mistake it for loaded.
+    if (_loading[src]) return _loading[src];
     if (_isLoaded(src)) return Promise.resolve();
-    if (_loading[src])  return _loading[src];
 
     _loading[src] = new Promise(function (resolve) {
       var el   = document.createElement('script');
