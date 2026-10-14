@@ -243,4 +243,4 @@ const toolStyles = [...toolHtml.matchAll(/<link\b[^>]*>/gi)]
 assert.equal(new Set(toolStyles).size, toolStyles.length,
   'Tool shell must not apply/preload the same stylesheet URL more than once.');
 assert.ok(toolStyles.includes('/css/styles.css?v=20261014-root-scrollbar-fix-v1'), 'Tool shell must retain the primary styles.css.');
-assert.ok(toolStyles.includes('/css/home.css?v=20261014-root-scrollbar-fix-v1'), 'Tool shell must retain home.css.');
+assert.ok(toolStyles.includes('/css/home.css?v=20261014-tool-card-standard-v1'), 'Tool shell must use the current tool-card stylesheet cache key.');
