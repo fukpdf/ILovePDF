@@ -3558,6 +3558,14 @@ window.loadToolPage = function loadToolPage(path) {
   }
 
   currentTool = tool;
+  // SPA tool switches must request the new tool's own modules as well.
+  try {
+    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
+      window.RuntimeToolCodeLoader.load(currentTool.id).catch(function (error) {
+        console.warn('[ToolCodeLoader] switched tool bundle did not fully load:', currentTool.id, error);
+      });
+    }
+  } catch (_) {}
   // Activate the selected logical module without eagerly loading its processor.
   // The module registry is a boundary/contract layer; BrowserTools remains the
   // lazy execution owner for browser-capable tools.
