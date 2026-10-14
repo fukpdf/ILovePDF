@@ -1066,7 +1066,7 @@
   <!-- Phase E: Smart cache — LFU-LRU hybrid + hot-runtime preservation + predictive warming -->
   <script src="/js/runtime-smart-cache.js" defer></script>
   <!-- Phase F: Streaming telemetry — time-series ring buffers + FPS + latency histograms -->
-  <script src="/js/runtime-stream-telemetry.js" defer fetchpriority="low"></script>
+  <!-- runtime-stream-telemetry.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase G: Self-optimizing runtime — auto-adjust hydration/workers/memory/thermal -->
   <script src="/js/runtime-self-optimizer.js" defer></script>
   <!-- Phase H: Mobile extreme mode — ultra-low-memory + emergency worker trim + battery -->
@@ -1080,9 +1080,9 @@
   <!-- Phase C: Distributed trace engine — span trees, slow-path detection, p99 -->
   <script src="/js/runtime-trace-engine.js" defer fetchpriority="low"></script>
   <!-- Phase D: Centralized event timeline — searchable ring buffer, grouped views -->
-  <script src="/js/runtime-event-timeline.js" defer fetchpriority="low"></script>
+  <!-- runtime-event-timeline.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase E: Performance profiler — longtask sampling, bottleneck analysis -->
-  <script src="/js/runtime-performance-profiler.js" defer fetchpriority="low"></script>
+  <!-- runtime-performance-profiler.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase F: Incident center — unified registry, P0-P3, dedup, escalation -->
   <script src="/js/runtime-incident-center.js" defer fetchpriority="low"></script>
   <!-- Phase G: State snapshots — full capture, diff, checksum, rollback -->
