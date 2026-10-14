@@ -767,7 +767,14 @@ function ensureSharedShell() {
   holder.innerHTML = SHARED_FOOTER_HTML.trim();
   const canonicalFooter = holder.firstElementChild;
   currentFooters.forEach(footer => footer.remove());
-  document.body.appendChild(canonicalFooter);
+  // Keep the shared footer directly after the tool workspace in the document
+  // flow; modal overlays and scripts must not become its layout ancestors.
+  const toolMain = document.querySelector('main#tool-content');
+  if (toolMain && toolMain.parentNode === document.body) {
+    toolMain.insertAdjacentElement('afterend', canonicalFooter);
+  } else {
+    document.body.appendChild(canonicalFooter);
+  }
 
   window.__ILOVE_SHARED_SHELL_READY = true;
   return canonicalFooter;
