@@ -3686,7 +3686,6 @@ body::-webkit-scrollbar {
 #recent-use-section .tools-grid > a.tool .tool-name > .tool-name-sticker {
   position: relative !important;
   inset: auto !important;
-  transform: none !important;
   display: grid !important;
   place-items: center !important;
   flex: 0 0 92px !important;
