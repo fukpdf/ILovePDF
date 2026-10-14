@@ -9,9 +9,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "npm run build:homepage",
+    "build": "npm run build:homepage && node scripts/normalize-public-font-display.js",
     "lint": "node --check server.js",
-    "test": "node scripts/compress-hybrid-regression-check.js && node scripts/enterprise-ci-gate.js && node scripts/shared-shell-cache-regression-check.js && node scripts/layout-shift-attribution-regression-check.js",
+    "test": "node scripts/compress-hybrid-regression-check.js && node scripts/enterprise-ci-gate.js && node scripts/shared-shell-cache-regression-check.js && node scripts/layout-shift-attribution-regression-check.js && node scripts/layout-shift-attribution-regression-check.js && node scripts/public-font-layout-stability-check.js",
     "audit:security": "node scripts/phase3-security-validation-file-lifecycle-closure-check.js",
     "audit:runtime": "node scripts/phase4-tool-registry-closure-check.js",
     "audit:phase3": "node scripts/phase3-file-lifecycle-check.js",
@@ -67,7 +67,7 @@
     "audit:phase5:units-1-332-full": "node scripts/phase5-units-1-332-full-audit-check.js",
     "build:homepage": "node scripts/assemble-homepage-index.js",
     "build:runtime-bundles": "node scripts/build-runtime-bundles.js",
-    "audit:layout-shift": "node scripts/layout-shift-attribution-regression-check.js && node --check public/js/runtime-performance-monitor.js"
+    "audit:layout-shift": "node scripts/layout-shift-attribution-regression-check.js && node scripts/public-font-layout-stability-check.js && node --check public/js/runtime-performance-monitor.js && node --check scripts/normalize-public-font-display.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
