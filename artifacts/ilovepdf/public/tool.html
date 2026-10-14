@@ -168,17 +168,8 @@
   </div>
 
   <script>
-    function acceptCookies() {
-      try {
-        localStorage.setItem('ilovepdf_cookies', '1');
-        localStorage.setItem('ILovePDF_cookies', '1');
-      } catch (_) {}
-      var banner = document.getElementById('cookie-banner');
-      if (banner) {
-        banner.classList.add('hidden');
-        banner.style.display = 'none';
-      }
-    }
+    // acceptCookies() is provided by shared chrome.js; keep only this
+    // pre-paint consent check to prevent the banner flashing for returning users.
     try {
       if (localStorage.getItem('ilovepdf_cookies') || localStorage.getItem('ILovePDF_cookies')) {
         document.write('<style>#cookie-banner { display: none !important; }</style>');
