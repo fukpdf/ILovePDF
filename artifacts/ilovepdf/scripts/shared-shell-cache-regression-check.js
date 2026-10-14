@@ -108,9 +108,8 @@ assert.match(
   /function normalizeSharedShellAssetUrls\(html\)/,
   'Homepage assembly must normalize stale cache-busting URLs embedded in compressed source chunks.'
 );
-assert.match(
-  homepageAssembler,
-  /canonicalFooterCssUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1'/, 
+assert.ok(
+  homepageAssembler.includes("const canonicalFooterCssUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';"),
   'Homepage assembly must normalize the shared footer stylesheet to the cache-busted URL.'
 );
 assert.match(
