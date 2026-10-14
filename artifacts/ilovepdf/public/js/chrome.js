@@ -209,56 +209,10 @@ function renderHeader(forceRefresh = false){
       </div>`;
   }).join('');
 
-  // Simple dropdown item lists — reordered: instant browser tools first.
-  const ORGANIZE_ITEMS = [
-    { tid:'merge',    name:'Merge PDF',    href:'/merge-pdf',    icon:'layers'       },
-    { tid:'split',    name:'Split PDF',    href:'/split-pdf',    icon:'scissors'     },
-    { tid:'rotate',   name:'Rotate PDF',   href:'/rotate-pdf',   icon:'rotate-cw'    },
-    { tid:'crop',     name:'Crop PDF',     href:'/crop-pdf',     icon:'crop'         },
-    { tid:'organize', name:'Organize PDF', href:'/organize-pdf', icon:'list-ordered' },
-  ];
-  const CONVERT_ITEMS = [
-    { tid:'pdf-to-jpg',        name:'PDF to JPG',        href:'/pdf-to-jpg',        icon:'image'        },
-    { tid:'pdf-to-word',       name:'PDF to Word',       href:'/pdf-to-word',       icon:'file-text'    },
-    { tid:'pdf-to-powerpoint', name:'PDF to PowerPoint', href:'/pdf-to-powerpoint', icon:'presentation' },
-    { tid:'pdf-to-excel',      name:'PDF to Excel',      href:'/pdf-to-excel',      icon:'sheet'        },
-  ];
-  const ddLinks = arr => arr.map(i =>
-    `<a class="dd-link" href="${i.href}">
-       <span class="mi"><i data-lucide="${i.icon}"></i></span>
-       <span>${tTool(i.tid, 'title', i.name)}</span>
-     </a>`).join('');
-
-  // Preserve the server-rendered homepage header and hydrate only missing dropdown
-  // panels. Replacing the whole nav causes a first-paint layout shift.
+  // Preserve the server-rendered navigation only when it already matches the current
+  // stable five-item desktop contract. Older dropdown navigation is rebuilt once.
   if (window.__ILOVE_PRESERVE_SERVER_NAV) {
-    const organizeItem = nav.querySelector('#nav-organize');
-    const convertItem = nav.querySelector('#nav-convert');
     const allItem = nav.querySelector('#all-tools-item') || nav.querySelector('#all-tools-btn')?.closest('.nav-item');
-    if (organizeItem && !organizeItem.querySelector('.dd')) {
-      const panel = document.createElement('div');
-      panel.className = 'dd';
-      panel.id = 'organize-menu';
-      panel.setAttribute('role', 'region');
-      panel.setAttribute('aria-label', 'Organize tools');
-      panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
-      organizeItem.appendChild(panel);
-    } else if (organizeItem) {
-      const panel = organizeItem.querySelector('.dd');
-      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(ORGANIZE_ITEMS);
-    }
-    if (convertItem && !convertItem.querySelector('.dd')) {
-      const panel = document.createElement('div');
-      panel.className = 'dd';
-      panel.id = 'convert-menu';
-      panel.setAttribute('role', 'region');
-      panel.setAttribute('aria-label', 'Convert tools');
-      panel.innerHTML = ddLinks(CONVERT_ITEMS);
-      convertItem.appendChild(panel);
-    } else if (convertItem) {
-      const panel = convertItem.querySelector('.dd');
-      if (panel && (forceRefresh || !panel.children.length)) panel.innerHTML = ddLinks(CONVERT_ITEMS);
-    }
     if (allItem) {
       allItem.id = 'all-tools-item';
       const button = allItem.querySelector('#all-tools-btn') || allItem.querySelector('.nav-btn');
@@ -275,7 +229,6 @@ function renderHeader(forceRefresh = false){
       if (forceRefresh || !panel.querySelector('.mega-grid')) panel.innerHTML = '<div class="mega-grid">' + megaCols + '</div>';
     }
     if (!window.__ILOVE_NAV_WIRED) {
-      wireSimpleDropdowns();
       wireAllToolsToggle();
       wireHoverPrefetch(nav);
       window.__ILOVE_NAV_WIRED = true;
@@ -286,20 +239,8 @@ function renderHeader(forceRefresh = false){
   nav.innerHTML = `
     <a class="nav-direct" href="/merge-pdf" data-i18n="nav.merge">Merge PDF</a>
     <a class="nav-direct" href="/split-pdf" data-i18n="nav.split">Split PDF</a>
-
-    <div class="nav-item has-dd" id="nav-organize">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="organize-menu">
-        <span data-i18n="nav.organize">Organize</span> <i data-lucide="chevron-down"></i>
-      </button>
-      <div class="dd" id="organize-menu" role="region" aria-label="Organize tools">${ddLinks(ORGANIZE_ITEMS)}</div>
-    </div>
-
-    <div class="nav-item has-dd" id="nav-convert">
-      <button class="nav-btn" type="button" aria-expanded="false" aria-controls="convert-menu">
-        <span data-i18n="nav.convert">Convert</span> <i data-lucide="chevron-down"></i>
-      </button>
-      <div class="dd" id="convert-menu" role="region" aria-label="Convert tools">${ddLinks(CONVERT_ITEMS)}</div>
-    </div>
+    <a class="nav-direct" href="/compress-pdf" data-i18n="tools.compress.title">Compress PDF</a>
+    <a class="nav-direct" href="/organize-pdf" data-i18n="tools.organize.title">Organize PDF</a>
 
     <div class="nav-item has-dd has-mega" id="all-tools-item">
       <button class="nav-btn all-tools" id="all-tools-btn" type="button"
@@ -308,7 +249,6 @@ function renderHeader(forceRefresh = false){
       </button>
       <div class="mega" id="all-tools-menu" role="region" aria-label="All tools"><div class="mega-grid">${megaCols}</div></div>
     </div>
-
   `;
 
   // The first render has now built the full navigation. Keep it mounted on later
@@ -316,8 +256,8 @@ function renderHeader(forceRefresh = false){
   window.__ILOVE_PRESERVE_SERVER_NAV = !!(
     nav.querySelector('.nav-direct[href="/merge-pdf"]') &&
     nav.querySelector('.nav-direct[href="/split-pdf"]') &&
-    nav.querySelector('#nav-organize .nav-btn') &&
-    nav.querySelector('#nav-convert .nav-btn') &&
+    nav.querySelector('.nav-direct[href="/compress-pdf"]') &&
+    nav.querySelector('.nav-direct[href="/organize-pdf"]') &&
     nav.querySelector('#all-tools-btn')
   );
   window.__ILOVE_NAV_WIRED = false;
@@ -325,7 +265,6 @@ function renderHeader(forceRefresh = false){
   if (allItem) allItem.classList.remove('is-open');
 
   if (!window.__ILOVE_NAV_WIRED) {
-    wireSimpleDropdowns();
     wireAllToolsToggle();
     wireHoverPrefetch(nav);
     window.__ILOVE_NAV_WIRED = true;
@@ -396,31 +335,6 @@ function wireAllToolsToggle(){
   // ESC closes.
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') close();
-  });
-}
-
-/* Simple dropdowns (Organize, Convert) — open on hover + toggle on click/keyboard. */
-function wireSimpleDropdowns() {
-  ['nav-organize', 'nav-convert'].forEach(id => {
-    const item = document.getElementById(id);
-    if (!item) return;
-    const btn = item.querySelector('.nav-btn');
-    if (!btn) return;
-
-    const close = () => { item.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); };
-    const open  = () => { item.classList.add('is-open');    btn.setAttribute('aria-expanded', 'true'); };
-
-    btn.addEventListener('click', e => {
-      e.preventDefault(); e.stopPropagation();
-      item.classList.contains('is-open') ? close() : open();
-    });
-
-    let leaveTimer = null;
-    item.addEventListener('mouseenter', () => { clearTimeout(leaveTimer); open(); });
-    item.addEventListener('mouseleave', () => { leaveTimer = setTimeout(close, 160); });
-
-    document.addEventListener('click', e => { if (!item.contains(e.target)) close(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   });
 }
 
@@ -739,8 +653,8 @@ function ensureSharedShell() {
     preserveHomepageHeader &&
     existingNav.querySelector('.nav-direct[href="/merge-pdf"]') &&
     existingNav.querySelector('.nav-direct[href="/split-pdf"]') &&
-    existingNav.querySelector('#nav-organize .nav-btn') &&
-    existingNav.querySelector('#nav-convert .nav-btn') &&
+    existingNav.querySelector('.nav-direct[href="/compress-pdf"]') &&
+    existingNav.querySelector('.nav-direct[href="/organize-pdf"]') &&
     existingNav.querySelector('#all-tools-btn') &&
     existingNav.querySelector('#all-tools-btn').closest('.nav-item')
   );
