@@ -427,7 +427,7 @@ function renderHomepageCards(html) {
 
 function normalizeSharedShellAssetUrls(html) {
   const canonicalChromeUrl = '/js/chrome.js?v=20261014-shared-shell-v2';
-  const canonicalHeaderCssUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+  const canonicalHeaderCssUrl = '/css/home-header-v2.css?v=20261014-header-centered-nav-v3';
   const canonicalFooterCssUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
   html = html.replace(/\/js\/chrome\.js(?:\?[^"' >]*)?/g, canonicalChromeUrl);
   html = html.replace(/\/css\/home-header-v2\.css(?:\?[^"' >]*)?/g, canonicalHeaderCssUrl);
