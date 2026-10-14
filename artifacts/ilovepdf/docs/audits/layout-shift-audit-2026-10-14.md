@@ -30,6 +30,17 @@ Changes:
 
 This avoids waiting for the shared-shell script to append critical header CSS after page parsing. It is a source-level mitigation; its effect on actual CLS still needs a browser trace.
 
+### Preview transition and processing-engine warmup
+
+The tool preview preparation path contained a fixed 2,200 ms minimum wait and awaited `BrowserTools.prewarm(tool.id)` before the preview UI could appear. That delayed the transition even when the preview renderer was ready and coupled processing-engine warmup to preview visibility.
+
+Changes:
+- Reduced the minimum transition time to 250 ms to avoid a long artificial wait.
+- The transition now waits for preview-renderer readiness plus that short minimum display time; renderer errors no longer strand the user on the preparation screen.
+- Processing-engine warmup is scheduled in idle time after `renderStandardPreviewStep(tool)`, so it no longer blocks the preview screen.
+- Extended `shared-shell-cache-regression-check.js` to prevent the 2.2-second wait from returning, require engine warmup to occur after preview rendering, and verify the initial tool HTML has no parser-blocking or eager heavy-engine script URLs.
+- The current source has 22 direct external script URLs, 173 `data-lazy-src` entries, zero parser-blocking direct external scripts, and no identified preview/processing/worker engine among the initial `src` URLs. The 173 lazy entries are still booted after upload intent; this is distinct from the initial page-load path and should be measured separately.
+
 ## CLS diagnostics
 
 The performance monitor previously kept only the aggregate CLS score. It now also keeps a bounded ring buffer of the latest 25 layout-shift entries with:
@@ -44,9 +55,9 @@ Node text and page content are deliberately not collected. The CLS aggregate con
 
 - `scripts/layout-shift-attribution-regression-check.js` checks that source attribution, geometry, route, and recent-input handling work with a deterministic PerformanceObserver harness.
 - `scripts/public-font-layout-stability-check.js` exercises the font normalizer against a fixture and every HTML file under `public` without writing files.
-- `npm test` includes both checks.
+- `npm test` includes the shared-shell, CLS-attribution, and public-font stability checks.
 - `npm run audit:layout-shift` runs both regression checks and JavaScript syntax checks.
-- `npm run build` assembles the homepage, normalizes all public HTML, runs both regression harnesses, and syntax-checks the monitor/normalizer before Firebase Hosting deploys it.
+- `npm run build` assembles the homepage, normalizes all public HTML, runs the shared-shell/CLS/font regression checks, and syntax-checks the monitor/normalizer before Firebase Hosting deploys it.
 
 ## Verification status and remaining limitation
 
