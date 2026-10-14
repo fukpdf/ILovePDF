@@ -105,6 +105,8 @@
     '/js/runtime-live-dashboard.js',
     '/js/runtime-telemetry-enterprise.js',
     '/js/runtime-devtools-dashboard.js',
+    // Adaptive preloading is advisory; keep its timers and prediction hooks off first paint.
+    '/js/runtime-adaptive-bundles.js',
   ];
 
   var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
