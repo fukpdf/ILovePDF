@@ -121,6 +121,54 @@
     'zip-builder': ['/js/processors/image-processor.js'],
   };
 
+  // Tool-specific worker adapters are also loaded only for the active tool.
+  var TOOL_ADAPTER_SCRIPTS = {
+    'merge': ['/js/merge-worker-adapter.js'],
+    'split': ['/js/split-worker-adapter.js'],
+    'rotate': ['/js/rotate-worker-adapter.js'],
+    'crop': ['/js/organize-worker-adapter.js'],
+    'organize': ['/js/organize-worker-adapter.js'],
+    'page-numbers': ['/js/page-numbers-worker-adapter.js'],
+    'redact': ['/js/redact-worker-adapter.js'],
+    'compress': ['/js/compress-worker-adapter.js'],
+    'pdf-to-word': [],
+    'pdf-to-excel': [],
+    'pdf-to-powerpoint': [],
+    'pdf-to-jpg': [],
+    'word-to-pdf': [],
+    'excel-to-pdf': [],
+    'powerpoint-to-pdf': [],
+    'word-to-excel': [],
+    'jpg-to-pdf': [],
+    'html-to-pdf': [],
+    'scan-to-pdf': [],
+    'edit': ['/js/edit-worker-adapter.js'],
+    'watermark': ['/js/watermark-worker-adapter.js'],
+    'sign': ['/js/sign-worker-adapter.js'],
+    'protect': ['/js/protect-worker-adapter.js'],
+    'unlock': ['/js/unlock-worker-adapter.js'],
+    'repair': ['/js/repair-worker-adapter.js'],
+    'repair-pdf': ['/js/repair-worker-adapter.js'],
+    'compare': ['/js/compare-worker-adapter.js'],
+    'ocr': ['/js/ocr-worker-adapter.js'],
+    'ocr-pdf': ['/js/ocr-worker-adapter.js'],
+    'ai-summarize': [],
+    'ai-summarizer': [],
+    'translate': ['/js/translate-worker-adapter.js'],
+    'translate-pdf': ['/js/translate-worker-adapter.js'],
+    'workflow': ['/js/workflow-worker-adapter.js'],
+    'background-remover': [],
+    'remove-background': [],
+    'crop-image': [],
+    'resize-image': [],
+    'image-filters': [],
+    'image-compressor': [],
+    'image-converter': [],
+    'qr-code-generator': [],
+    'barcode-generator': [],
+    'zip-builder': [],
+  };
+
   // ── Tool → family ─────────────────────────────────────────────────────────
   var TOOL_FAMILY = {
     'merge':'organize','split':'organize','rotate':'organize','crop':'organize',
@@ -195,7 +243,9 @@
     } catch (_) {}
 
     // Load only the active tool's processor entry point, then its worker dependency.
-    var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || []).concat(TOOL_SCRIPTS[toolId] || []);
+    var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || [])
+      .concat(TOOL_ADAPTER_SCRIPTS[toolId] || [])
+      .concat(TOOL_SCRIPTS[toolId] || []);
     var orderedUniqueScripts = [];
     scripts.forEach(function (src) { if (orderedUniqueScripts.indexOf(src) === -1) orderedUniqueScripts.push(src); });
     // Crucially: tools in one family NEVER load scripts for another family.
