@@ -81,6 +81,12 @@ jobs:
           done
           node --check server.js
           node --check public/js/tool-page.js
+          node --check public/js/runtime-tool-loader.js
+          node --check public/js/runtime-tool-code-loader.js
+          node --check public/js/runtime-tool-idle-loader.js
+          node --check public/js/runtime-tool-bundle-segments.js
+          node --check public/js/runtime-bundle-registry.js
+          node --check scripts/build-runtime-bundles.js
           node --check scripts/compress-hybrid-regression-check.js
           node scripts/compress-hybrid-regression-check.js
           node --check public/script.js || true
