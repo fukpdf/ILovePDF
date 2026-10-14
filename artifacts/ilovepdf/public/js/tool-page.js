@@ -1798,7 +1798,9 @@ function loadSelectedToolBundle() {
       renderStandardPreviewStep(currentTool);
       return;
     }
-    if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+    // Compress already mounts its dedicated preview during the first render;
+    // calling maybeOpenPageOrganizer again would rebind its option listeners.
+    if (requestedToolId !== 'compress' && typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
     if (window.LivePreview && typeof window.LivePreview.supported === 'function' && window.LivePreview.supported(requestedToolId)) {
       const host = document.getElementById('live-preview-host');
       if (host && host.dataset.livePreviewMounted !== '1') {
