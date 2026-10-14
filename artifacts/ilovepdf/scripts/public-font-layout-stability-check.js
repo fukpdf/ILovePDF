@@ -58,7 +58,7 @@ for (const file of htmlFiles) {
     });
     assert.equal(sharedHeaderLinks.length, 1, path.relative(publicDir, file) + ' must load exactly one shared-header stylesheet in head');
     assert.ok(
-      sharedHeaderLinks[0].includes('/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2') &&
+      sharedHeaderLinks[0].includes('/css/home-header-v2.css?v=20261014-header-centered-nav-v3') &&
       sharedHeaderLinks[0].includes('data-shared-header-css="1"'),
       path.relative(publicDir, file) + ' must use the canonical first-paint shared-header stylesheet'
     );
