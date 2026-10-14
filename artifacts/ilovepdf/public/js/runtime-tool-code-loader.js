@@ -291,9 +291,11 @@
     } catch (_) {}
 
     // Load only the active tool's processor entry point, then its worker dependency.
-    var scripts = (TOOL_FEATURE_SCRIPTS[toolId] || [])
-      .concat(TOOL_PROCESSOR_SCRIPTS[toolId] || [])
+    // Registration dependencies first, then adapter bridges, UI/runtime modules,
+    // and finally the selected worker entry point.
+    var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || [])
       .concat(TOOL_ADAPTER_SCRIPTS[toolId] || [])
+      .concat(TOOL_FEATURE_SCRIPTS[toolId] || [])
       .concat(TOOL_SCRIPTS[toolId] || []);
     var orderedUniqueScripts = [];
     scripts.forEach(function (src) { if (orderedUniqueScripts.indexOf(src) === -1) orderedUniqueScripts.push(src); });
