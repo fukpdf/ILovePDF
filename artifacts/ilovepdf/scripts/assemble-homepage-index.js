@@ -56,11 +56,11 @@ function addSharedUploadWarmupHints(html) {
     '<link rel="prefetch" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2" as="style" fetchpriority="low" data-shared-upload-prefetch="editor">',
     '<link rel="prefetch" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1" as="style" fetchpriority="low" data-shared-upload-prefetch="download">'
   ];
-  if (!/<\\/head\\s*>/i.test(html)) throw new Error('homepage head closing tag not found for shared upload warmup');
+  if (!/<\/head\s*>/i.test(html)) throw new Error('homepage head closing tag not found for shared upload warmup');
   for (const hint of hints) {
     const marker = hint.match(/data-shared-upload-prefetch="([^"]+)"/)[1];
     if (html.includes('data-shared-upload-prefetch="' + marker + '"')) continue;
-    html = html.replace(/<\\/head\\s*>/i, '  ' + hint + '\\n</head>');
+    html = html.replace(/<\/head\s*>/i, '  ' + hint + '\n</head>');
   }
   return html;
 }
