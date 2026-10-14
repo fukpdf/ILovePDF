@@ -67,8 +67,13 @@ function renderSharedDropzones(){
     zone.appendChild(detail);
     zone.appendChild(browse);
     zone.appendChild(input);
+    zone.addEventListener('keydown',function(event){
+      if(event.target===zone&&(event.key==='Enter'||event.key===' ')){
+        event.preventDefault();
+        input.click();
+      }
+    });
     mount.replaceWith(zone);
-    mount.setAttribute('data-rendered','true');
   });
   if(mounts.length && G.lucide && typeof G.lucide.createIcons==='function') G.lucide.createIcons();
 }
