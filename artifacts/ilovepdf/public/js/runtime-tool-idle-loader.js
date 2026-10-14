@@ -111,6 +111,24 @@
     '/js/runtime-enterprise-certification.js',
     '/js/runtime-browser-os-certification.js',
     '/js/runtime-trace-engine.js',
+    // Low-priority diagnostics/telemetry do not gate file selection or processing.
+    '/js/debug-trace.js',
+    '/js/stability-metrics.js',
+    '/js/memory-telemetry.js',
+    '/js/giant-file-telemetry.js',
+    '/js/job-dashboard.js',
+    '/js/full-nextgen-audit.js',
+    '/js/final-memory-audit.js',
+    '/js/final-automated-audit.js',
+    '/js/phase1c-audit.js',
+    '/js/runtime-telemetry.js',
+    '/js/runtime-diagnostics.js',
+    '/js/runtime-performance-monitor.js?v=__BUILD_ID__',
+    '/js/runtime-analytics.js',
+    '/js/runtime-crash-telemetry.js',
+    '/js/runtime-health-analytics.js',
+    '/js/runtime-incident-center.js',
+    '/js/runtime-blackbox.js',
   ];
 
   var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
