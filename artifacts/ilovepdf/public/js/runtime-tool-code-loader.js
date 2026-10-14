@@ -341,6 +341,11 @@
         var pr = G.RuntimeProcessorRegistry;
         if (pr && typeof pr.activateForTool === 'function') pr.activateForTool(toolId);
       } catch (_) {}
+      // Prewarm only the worker for this selected tool; never fan out to all workers.
+      try {
+        var wp = G.RuntimeWorkerPrewarm;
+        if (wp && typeof wp.prewarmForTool === 'function') wp.prewarmForTool(toolId);
+      } catch (_) {}
       _toolLoads[toolId].resolved = true;
       console.debug(LOG, 'loaded deps for:', toolId, '— family:', family, '— scripts:', scripts.length);
       try {
