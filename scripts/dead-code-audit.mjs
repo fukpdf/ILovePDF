@@ -63,7 +63,7 @@ for (const [file, text] of contents) {
   const patterns = [];
   if (ext === '.html' || ext === '.htm') patterns.push(refPattern);
   if (ext === '.css') patterns.push(cssUrlPattern);
-  if (['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'].includes(ext)) patterns.push(importPattern, refPattern);
+  if (['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'].includes(ext)) patterns.push(importPattern);
   for (const pattern of patterns) {
     pattern.lastIndex = 0;
     let match;
