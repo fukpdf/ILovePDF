@@ -42,7 +42,7 @@ export function normalizeHtml(source) {
   // header and then move the page when the header becomes fixed.
   const needsSharedHeader = /<script\b[^>]*\bsrc=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["'][^>]*>/i.test(source) ||
     /<header\b[^>]*class=["'][^"']*\bsite-header\b/i.test(source);
-  const headerCssUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+  const headerCssUrl = '/css/home-header-v2.css?v=20261014-header-centered-nav-v3';
   const headerCssTag = '<link rel="stylesheet" href="' + headerCssUrl + '" data-shared-header-css="1">';
   const headClose = html.search(/<\/head\s*>/i);
   if (needsSharedHeader && headClose >= 0) {
