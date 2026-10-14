@@ -57,7 +57,7 @@ Node text and page content are deliberately not collected. The CLS aggregate con
 - `scripts/public-font-layout-stability-check.js` exercises the font normalizer against a fixture and every HTML file under `public` without writing files.
 - `npm test` includes the shared-shell, CLS-attribution, and public-font stability checks.
 - `npm run audit:layout-shift` runs both regression checks and JavaScript syntax checks.
-- `npm run build` assembles the homepage, normalizes all public HTML, runs the shared-shell/CLS/font regression checks, and syntax-checks the monitor/normalizer before Firebase Hosting deploys it.
+- `npm run build` assembles the homepage, normalizes all public HTML, runs the shared-shell/CLS/font regression checks, and syntax-checks the tool page, monitor, and normalizer before Firebase Hosting deploys it.
 
 ## Verification status and remaining limitation
 
