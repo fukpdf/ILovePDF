@@ -510,8 +510,8 @@ html:has(head link[data-shared-header-css]) body {
 .site-header .header-inner { position: relative !important; }
 .site-header .header-inner > .ce-widget-desktop {
   position: absolute !important;
-  inset-inline-end: clamp(12px, 2vw, 28px) !important;
-  inset-inline-start: auto !important;
+  right: clamp(12px, 2vw, 28px) !important;
+  left: auto !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
   margin: 0 !important;
@@ -519,8 +519,8 @@ html:has(head link[data-shared-header-css]) body {
 }
 .site-header .header-inner > .ce-widget-mobile {
   position: absolute !important;
-  inset-inline-end: 12px !important;
-  inset-inline-start: auto !important;
+  right: 12px !important;
+  left: auto !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
   margin: 0 !important;
@@ -584,7 +584,7 @@ html:has(head link[data-shared-header-css]) body {
   .site-header .nav { display: none !important; }
   .site-header .header-inner > .ce-widget-desktop,
   .site-header .header-inner > .ce-widget-mobile {
-    inset-inline-end: 12px !important;
+    right: 12px !important;
     max-width: calc(50% - 24px) !important;
   }
 }
