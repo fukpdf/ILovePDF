@@ -416,6 +416,14 @@ function renderHomepageCards(html) {
   }
 }
 
+function normalizeSharedShellAssetUrls(html) {
+  const canonicalChromeUrl = '/js/chrome.js?v=20261014-shared-shell-v2';
+  const canonicalHeaderCssUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+  html = html.replace(/\/js\/chrome\.js(?:\?[^"' >]*)?/g, canonicalChromeUrl);
+  html = html.replace(/\/css\/home-header-v2\.css(?:\?[^"' >]*)?/g, canonicalHeaderCssUrl);
+  return html;
+}
+
 export function assembleHomepageIndex() {
   const parts = [];
   for (let i = 0; i < 4; i++) {
@@ -439,6 +447,9 @@ export function assembleHomepageIndex() {
     fail('zlib decompress failed: ' + error.message);
     return false;
   }
+
+  html = normalizeSharedShellAssetUrls(html);
+  console.log('[assemble-index] normalized compressed homepage shell asset URLs before validation');
 
   if (!/<!doctype\s+html/i.test(html)) {
     fail('decompressed output is not a full HTML document');
