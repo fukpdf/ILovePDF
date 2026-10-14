@@ -248,6 +248,19 @@
   // Explicit boot: the upload shell must render before the shared security/runtime
   // bundle chain is fetched. The selected-tool loader calls boot before processing.
   function boot(requestedToolId) {
+    // Serialize a tool switch behind any in-flight boot. The config/manifest
+    // globals are shared, so two concurrent activations must never race them.
+    if (_bootPromise && requestedToolId && requestedToolId !== _toolId) {
+      var previousBoot = _bootPromise;
+      return previousBoot.catch(function () { return false; }).then(function () {
+        if (_bootPromise === previousBoot) {
+          _bootPromise = null;
+          _booted = false;
+          _manifest = null;
+        }
+        return boot(requestedToolId);
+      });
+    }
     // SPA navigation can switch tools without a full document reload. Re-run
     // manifest/config activation for the new tool while reusing loaded bundles.
     if (requestedToolId && requestedToolId !== _toolId) {
