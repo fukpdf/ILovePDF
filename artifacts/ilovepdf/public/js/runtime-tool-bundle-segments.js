@@ -159,9 +159,9 @@
     return segments.reduce(function (chain, seg) {
       return chain.then(function (result) {
         if (!result.ok) return result;
-        // All six base bundle source sets are already included individually
-        // in tool.html and execute before DOMContentLoaded. Reuse those modules
-        // rather than fetching and executing a duplicate bundle.
+        // If a development shell has the complete source set, reuse it. The
+        // production upload shell omits these tags, so the registry fetches the
+        // matching bundle here instead of eagerly downloading every source file.
         if (SOURCE_FILES[seg] && _hasSourceFiles(SOURCE_FILES[seg]) &&
             typeof reg.markSourceBacked === 'function' && reg.markSourceBacked(seg)) {
           var sourceState = reg.status();
