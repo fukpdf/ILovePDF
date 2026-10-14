@@ -1791,6 +1791,13 @@ function loadSelectedToolBundle() {
   const requestedToolId = currentTool.id;
   window.RuntimeToolCodeLoader.load(requestedToolId).then(function () {
     if (!currentTool || currentTool.id !== requestedToolId || !selectedFiles.length || Flow.step !== 'preview' || _processingInFlight) return;
+    // Pro editors are selected by renderStandardPreviewStep; rerender once if
+    // the file was selected before their on-demand modules finished loading.
+    if ((requestedToolId === 'background-remover' && window.BgRemoverPro) ||
+        (requestedToolId === 'edit' && window.EditPdfPro)) {
+      renderStandardPreviewStep(currentTool);
+      return;
+    }
     if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
     if (window.LivePreview && typeof window.LivePreview.supported === 'function' && window.LivePreview.supported(requestedToolId)) {
       const host = document.getElementById('live-preview-host');
