@@ -3742,3 +3742,21 @@ body::-webkit-scrollbar {
   padding: 0 !important;
   text-align: center !important;
 }
+
+
+/* Card vertical-centering correction (2026-10-14):
+   Keep each homepage tool card's logo, title, and description centered
+   as one group between the card's top and bottom edges. */
+.home-cat-section .tools-grid > a.tool,
+#recent-use-section .tools-grid > a.tool {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+.home-cat-section .tools-grid > a.tool > .tool-text,
+#recent-use-section .tools-grid > a.tool > .tool-text {
+  flex: 0 0 auto !important;
+  margin-block: auto !important;
+}
