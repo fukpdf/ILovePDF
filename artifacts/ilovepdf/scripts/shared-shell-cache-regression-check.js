@@ -53,6 +53,21 @@ assert.match(toolHtml, /document\.addEventListener\('change',[\s\S]*?isFileInput
 assert.match(toolHtml, /data-shared-header-css="1"/, 'Shared header CSS must stay in the first-paint HTML.');
 assert.match(toolHtml, /data-shared-footer-css="1"/, 'Shared footer CSS must stay in the first-paint HTML.');
 assert.ok(!toolHtml.includes('data-tool-worker-prefetch'), 'Tool workers must not be prefetched during idle time before user action.');
+const toolPageSource = fs.readFileSync(path.join(publicDir, 'js/tool-page.js'), 'utf8');
+assert.ok(
+  toolPageSource.includes('runToolPreviewPreparation(tool, runId, startedAt, 250);'),
+  'Preview preparation must not enforce the old artificial 2.2-second wait.'
+);
+assert.ok(
+  !toolPageSource.includes('runToolPreviewPreparation(tool, runId, startedAt, 2200);'),
+  'The obsolete 2.2-second preview delay must not return.'
+);
+const previewPreparationStart = toolPageSource.indexOf('function scheduleToolEngineWarmup(tool)');
+const previewPreparationEnd = toolPageSource.indexOf('function renderStandardPreviewStep(tool)', previewPreparationStart);
+const previewPreparationSource = toolPageSource.slice(previewPreparationStart, previewPreparationEnd);
+assert.ok(previewPreparationSource.includes('await Promise.all([previewWarmSafe, minimumVisibleTime]);'), 'Preview preparation should wait only for preview readiness and its brief minimum display time.');
+assert.ok(!previewPreparationSource.includes('await Promise.all([engineWarm, previewWarm]);'), 'Processing-engine warmup must not block the preview screen.');
+assert.match(previewPreparationSource, /renderStandardPreviewStep\\(tool\\);\\s*scheduleToolEngineWarmup\\(tool\\);/, 'Tool engine warmup must be scheduled after the preview UI is rendered.');
 
 const chromeSource = fs.readFileSync(path.join(publicDir, 'js/chrome.js'), 'utf8');
 assert.match(
