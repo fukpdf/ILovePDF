@@ -218,3 +218,102 @@
  .popular-card:hover .tool-name-sticker[data-icon="archive"] svg { animation:logoArchive .78s both; }
 }
 @keyframes logoArchive {0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(2px) scale(.92)}68%{transform:translateY(-1px) scale(1.06)}}
+
+
+/* Deep audit correction (2026-10-14):
+   The original motion was effectively invisible on touch devices because every
+   animation lived inside @media (hover:hover), while the homepage icons were
+   rendered at only 16–19px. Enlarge the actual operation mark and provide a
+   touch-active path without forcing motion on reduced-motion users. */
+.tool .tool-name-sticker[data-icon] {
+  flex: 0 0 46px !important;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px;
+  min-height: 46px;
+  border-radius: 13px;
+}
+.tool .tool-name-sticker[data-icon] svg {
+  display: block;
+  width: 29px !important;
+  height: 29px !important;
+  stroke-width: 2.05;
+}
+.popular-card .tool-name-sticker[data-icon] {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 11px;
+}
+.popular-card .tool-name-sticker[data-icon] svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+/* Touchscreens do not have hover. Use the pressed state for operation-specific
+   feedback instead of leaving the icons completely static on phones/tablets. */
+@media (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  .tool:active .tool-name-sticker[data-icon],
+  .popular-card:active .tool-name-sticker[data-icon] {
+    filter: saturate(1.2) brightness(1.04);
+    box-shadow: 0 8px 22px var(--logo-glow), inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  .tool:active .tool-name-sticker[data-icon] svg,
+  .popular-card:active .tool-name-sticker[data-icon] svg { animation-duration: .78s; animation-fill-mode: both; }
+
+  .tool:active .tool-name-sticker[data-icon="layers"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="layers"] svg { animation-name: logoMerge; }
+  .tool:active .tool-name-sticker[data-icon="scissors"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="scissors"] svg { animation-name: logoSplit; }
+  .tool:active .tool-name-sticker[data-icon="archive"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="archive"] svg { animation-name: logoArchive; }
+  .tool:active .tool-name-sticker[data-icon="minimize-2"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="minimize-2"] svg { animation-name: logoCompress; }
+  .tool:active .tool-name-sticker[data-icon="rotate-cw"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="rotate-cw"] svg { animation-name: logoRotate; }
+  .tool:active .tool-name-sticker[data-icon="list-ordered"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="list-ordered"] svg { animation-name: logoArrange; }
+  .tool:active .tool-name-sticker[data-icon="lock"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="lock"] svg { animation-name: logoLock; }
+  .tool:active .tool-name-sticker[data-icon="unlock"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="unlock"] svg { animation-name: logoUnlock; }
+  .tool:active .tool-name-sticker[data-icon="crop"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="crop"] svg { animation-name: logoCrop; }
+  .tool:active .tool-name-sticker[data-icon="edit-3"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="edit-3"] svg { animation-name: logoEdit; }
+  .tool:active .tool-name-sticker[data-icon="scan-line"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="scan-line"] svg { animation-name: logoScan; }
+  .tool:active .tool-name-sticker[data-icon="qr-code"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="qr-code"] svg { animation-name: logoQr; }
+  .tool:active .tool-name-sticker[data-icon="image"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="image"] svg { animation-name: logoImage; }
+  .tool:active .tool-name-sticker[data-icon="sliders"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="sliders"] svg { animation-name: logoAdjust; }
+  .tool:active .tool-name-sticker[data-icon="sparkles"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="sparkles"] svg { animation-name: logoSparkle; }
+  .tool:active .tool-name-sticker[data-icon="git-compare"] svg,
+  .popular-card:active .tool-name-sticker[data-icon="git-compare"] svg { animation-name: logoCompare; }
+}
+
+/* Give the archive-shaped compression mark a visible internal action too. */
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .tool:hover .tool-name-sticker[data-icon="archive"] svg rect,
+  .tool:focus-visible .tool-name-sticker[data-icon="archive"] svg rect,
+  .popular-card:hover .tool-name-sticker[data-icon="archive"] svg rect { animation: archiveCompress .76s both; transform-box: fill-box; transform-origin:center; }
+  .tool:hover .tool-name-sticker[data-icon="archive"] svg line,
+  .tool:focus-visible .tool-name-sticker[data-icon="archive"] svg line,
+  .popular-card:hover .tool-name-sticker[data-icon="archive"] svg line { animation: archiveCompressLine .76s both; transform-box: fill-box; transform-origin:center; }
+}
+@media (hover:none) and (pointer:coarse) and (prefers-reduced-motion:no-preference) {
+  .tool:active .tool-name-sticker[data-icon="archive"] svg rect,
+  .popular-card:active .tool-name-sticker[data-icon="archive"] svg rect { animation: archiveCompress .76s both; transform-box:fill-box; transform-origin:center; }
+  .tool:active .tool-name-sticker[data-icon="archive"] svg line,
+  .popular-card:active .tool-name-sticker[data-icon="archive"] svg line { animation: archiveCompressLine .76s both; transform-box:fill-box; transform-origin:center; }
+}
+@keyframes archiveCompress { 0%,100%{transform:scaleY(1)} 42%{transform:scaleY(.68)} 72%{transform:scaleY(1.06)} }
+@keyframes archiveCompressLine { 0%,100%{transform:scaleX(1)} 42%{transform:scaleX(.58)} 72%{transform:scaleX(1.12)} }
+
+@media (max-width: 640px) {
+  .tool .tool-name-sticker[data-icon] { flex-basis: 42px !important; width: 42px !important; height: 42px !important; min-width: 42px; min-height: 42px; }
+  .tool .tool-name-sticker[data-icon] svg { width: 26px !important; height: 26px !important; }
+}
