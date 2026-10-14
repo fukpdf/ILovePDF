@@ -783,3 +783,21 @@
     animation: none !important;
   }
 }
+
+
+/* Alignment fix: keep each tool title directly underneath its icon. */
+.home-cat-section .tools-grid > .tool .tool-name,
+#recent-use-section .tools-grid > .tool .tool-name {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: center !important;
+}
+.home-cat-section .tools-grid > .tool .tool-name > .tool-name-label,
+#recent-use-section .tools-grid > .tool .tool-name > .tool-name-label {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  text-align: center !important;
+}
