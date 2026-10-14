@@ -213,7 +213,8 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _init, { once: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init, { once: true });
+    else _init();
   } else {
     _init();
   }

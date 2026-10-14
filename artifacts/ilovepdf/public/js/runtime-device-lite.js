@@ -198,7 +198,8 @@
 
   // Run after DOMContentLoaded so body exists for classList.add
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { _detect(); _watchBattery(); }, { once: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { _detect(); _watchBattery(); }, { once: true });
+    else { _detect(); _watchBattery(); }
   } else {
     _detect();
     _watchBattery();

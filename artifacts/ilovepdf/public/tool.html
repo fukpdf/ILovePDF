@@ -60,56 +60,7 @@
   <!-- Keep font CSS off the render-blocking path. -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
-  <!-- Warm only the worker family likely to be used by this route. Prefetching
-       every engine on every tool page wastes mobile bandwidth and competes with
-       the tool UI. The version token keeps deploys cache-safe. -->
-  <script>
-  (function () {
-    var path = String(location.pathname || '/').toLowerCase();
-    var workers = ['/workers/pdf-worker.js'];
-    function use(file) { workers = [file]; }
-    if (/compress/.test(path)) {
-      use('/workers/compress-worker.js');
-    } else if (/(ocr|image-to-text)/.test(path)) {
-      workers = ['/workers/advanced-worker.js', '/workers/ocr-preprocessor-worker.js'];
-    } else if (/(pdf-to-word|word-to-pdf)/.test(path)) {
-      use('/workers/pdf-word-docx-worker.js');
-    } else if (/(pdf-to-excel|excel-to-pdf|word-to-excel)/.test(path)) {
-      use('/workers/pdf-excel-xlsx-worker.js');
-    } else if (/(pdf-to-powerpoint|powerpoint-to-pdf)/.test(path)) {
-      use('/workers/pdf-ppt-pptx-worker.js');
-    } else if (/repair/.test(path)) {
-      use('/workers/repair-worker.js');
-    } else if (/(ai-summarize|ai-summarizer)/.test(path)) {
-      use('/workers/summary-worker.js');
-    } else if (/(background-remover|remove-background)/.test(path)) {
-      use('/workers/remove-bg-worker.js');
-    } else if (/(crop-image|resize-image|image-filters|image-compressor)/.test(path)) {
-      use('/workers/image-tools-worker.js');
-    } else if (/image-converter/.test(path)) {
-      use('/workers/image-pipeline-worker.js');
-    } else if (/(merge|split|rotate|crop|organize|watermark|protect|unlock|sign|page-numbers|pdf-to-jpg|jpg-to-pdf|redact|html-to-pdf)/.test(path)) {
-      use('/workers/pdf-lib-worker.js');
-    }
-    var addHints = function () {
-      workers.forEach(function (worker, index) {
-        var key = worker + '?v=__BUILD_ID__';
-        if (document.querySelector('link[data-tool-worker-prefetch="' + index + '"]')) return;
-        var link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.as = 'worker';
-        link.href = key;
-        link.setAttribute('data-tool-worker-prefetch', String(index));
-        document.head.appendChild(link);
-      });
-    };
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(addHints, { timeout: 2500 });
-    } else {
-      window.setTimeout(addHints, 1800);
-    }
-  })();
-  </script>
+  <!-- Worker scripts are not prefetched on idle; selected-tool runtime loads them only after user interaction. -->
   <link rel="stylesheet" href="/css/home.css?v=20261014-root-scrollbar-fix-v1">
 
   <!-- Footer is below the first viewport; load its styles without blocking upload UI paint. -->
@@ -238,69 +189,69 @@
   <script src="/js/config.js" defer></script>
   <!-- /js/debug-trace.js is loaded in the post-paint diagnostics stack. -->
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
-  <script src="/js/timer-registry.js" defer></script>
+  <script data-lazy-src="/js/timer-registry.js"></script>
   <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
        tracked timers, streaming markers, future runtime integration points.
        Must load after timer-registry, before all processing scripts. -->
-  <script src="/js/phase1-stabilization.js" defer></script>
-  <script src="/workers/workerPool.js" defer></script>
+  <script data-lazy-src="/js/phase1-stabilization.js"></script>
+  <script data-lazy-src="/workers/workerPool.js"></script>
   <!-- Phase 23A infrastructure (load before browser-tools + advanced-engine) -->
-  <script src="/js/opfs-manager.js" defer></script>
-  <script src="/js/stream-helpers.js" defer></script>
-  <script src="/js/memory-pressure-monitor.js" defer></script>
+  <script data-lazy-src="/js/opfs-manager.js"></script>
+  <script data-lazy-src="/js/stream-helpers.js"></script>
+  <script data-lazy-src="/js/memory-pressure-monitor.js"></script>
   <!-- Final Stabilization: Observability + Adaptive Runtime (after MemPressure, before TaskScheduler) -->
   <!-- /js/stability-metrics.js is loaded in the post-paint diagnostics stack. -->
-  <script src="/js/runtime-failed-log.js" defer></script>
-  <script src="/js/object-url-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-failed-log.js"></script>
+  <script data-lazy-src="/js/object-url-registry.js"></script>
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
-  <script src="/js/browser-resource-lifecycle.js" defer></script>
-  <script src="/js/worker-leak-detector.js" defer></script>
+  <script data-lazy-src="/js/browser-resource-lifecycle.js"></script>
+  <script data-lazy-src="/js/worker-leak-detector.js"></script>
   <!-- /js/memory-telemetry.js is loaded in the post-paint diagnostics stack. -->
-  <script src="/js/adaptive-runtime.js" defer></script>
-  <script src="/js/runtime-device-lite.js" defer></script>
+  <script data-lazy-src="/js/adaptive-runtime.js"></script>
+  <script data-lazy-src="/js/runtime-device-lite.js"></script>
   <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
-  <script src="/js/canvas-pool.js" defer></script>
-  <script src="/js/task-scheduler.js" defer></script>
-  <script src="/js/lifecycle-manager.js" defer></script>
+  <script data-lazy-src="/js/canvas-pool.js"></script>
+  <script data-lazy-src="/js/task-scheduler.js"></script>
+  <script data-lazy-src="/js/lifecycle-manager.js"></script>
   <!-- Phase 25: Large File Architecture (load after Phase 23A, before browser-tools) -->
-  <script src="/js/large-file-streaming.js" defer></script>
-  <script src="/js/eviction-manager.js" defer></script>
-  <script src="/js/virtual-page-manager.js" defer></script>
-  <script src="/js/rolling-processor.js" defer></script>
-  <script src="/js/giant-file-routing.js" defer></script>
+  <script data-lazy-src="/js/large-file-streaming.js"></script>
+  <script data-lazy-src="/js/eviction-manager.js"></script>
+  <script data-lazy-src="/js/virtual-page-manager.js"></script>
+  <script data-lazy-src="/js/rolling-processor.js"></script>
+  <script data-lazy-src="/js/giant-file-routing.js"></script>
   <!-- /js/giant-file-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 26: Per-Tool Deep Enhancement + Giant File Stabilization -->
-  <script src="/js/phase26-enhancements.js" defer></script>
+  <script data-lazy-src="/js/phase26-enhancements.js"></script>
   <!-- Phase 27–30: Tool Validation, Resume System, Debug Hooks, Production Hardening -->
-  <script src="/js/phase27-30-enhancements.js" defer></script>
+  <script data-lazy-src="/js/phase27-30-enhancements.js"></script>
   <!-- Phase 31: Scalability & Survivability (WebGPU, SmartCache, ComputeHarvester, AutoTuner) -->
-  <script src="/js/phase31-scalability.js" defer></script>
+  <script data-lazy-src="/js/phase31-scalability.js"></script>
   <!-- Phase 32: True OPFS Streaming Architecture (ByteRange, RollingWindow, SurvivalMode) -->
-  <script src="/js/phase32-streaming.js" defer></script>
+  <script data-lazy-src="/js/phase32-streaming.js"></script>
   <!-- Phase 33: Session Resume & Crash Recovery (CheckpointEngine, CrashRecovery, MultiDay) -->
-  <script src="/js/phase33-resume.js" defer></script>
+  <script data-lazy-src="/js/phase33-resume.js"></script>
   <!-- Phase 34: Table-Aware OCR System (StructuredOCR, TableExtraction, ModeSelector) -->
   <!-- /js/phase34-table-ocr.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 35: Advanced Virtualization Engine (PageVirtualizer, PredictiveEviction, AIWindows) -->
-  <script src="/js/phase35-virtualization.js" defer></script>
+  <script data-lazy-src="/js/phase35-virtualization.js"></script>
   <!-- Phase 36: Enterprise PDF Recovery + GPU Pipelines + FullEnterpriseAudit -->
-  <script src="/js/phase36-enterprise.js" defer></script>
+  <script data-lazy-src="/js/phase36-enterprise.js"></script>
   <!-- Phase A: ONNX Runtime Manager (ModelRegistry, TensorPool, InferenceScheduler) -->
   <!-- /js/onnx-runtime-manager.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase B: WebGPU AI Pipelines (sharpen, denoise, edge, segment, tiled GPU exec) -->
   <!-- /js/webgpu-ai-pipelines.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase C: Multi-Tab Cluster (BroadcastChannel leader election, distributed pages) -->
-  <script src="/js/multi-tab-cluster.js" defer></script>
+  <script data-lazy-src="/js/multi-tab-cluster.js"></script>
   <!-- Phase D: P2P Compute Mesh (WebRTC mesh, encrypted shards — OFF by default) -->
   <!-- /js/p2p-compute-mesh.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase E: OPFS Memory-Mapped Streaming (byte-range parser, giant output streamer) -->
-  <script src="/js/opfs-memory-mapped.js" defer></script>
+  <script data-lazy-src="/js/opfs-memory-mapped.js"></script>
   <!-- Phase F: Differential Processing (page hashes, visual diff, incremental OCR) -->
-  <script src="/js/differential-processing.js" defer></script>
+  <script data-lazy-src="/js/differential-processing.js"></script>
   <!-- Phase G: Advanced Auto-Tuning Engine (HW benchmark, device fingerprint, telemetry) -->
-  <script src="/js/auto-tuning-engine.js" defer></script>
+  <script data-lazy-src="/js/auto-tuning-engine.js"></script>
   <!-- Phase H: Enterprise Recovery V2 (object graph, font/page-tree/image recovery) -->
-  <script src="/js/enterprise-recovery-v2.js" defer></script>
+  <script data-lazy-src="/js/enterprise-recovery-v2.js"></script>
   <!-- Phase I: Job Dashboard (live progress, mem tier, GPU, workers, ETA) -->
   <!-- /js/job-dashboard.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase J: FullNextGenAudit — master audit across all phases 18–37+ -->
@@ -308,19 +259,19 @@
   <!-- Phase 40A: Final Memory Leak Audit (canvas/bitmap/worker/blob/tensor/GPU tracking) -->
   <!-- /js/final-memory-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 40B: Worker Deadlock Monitor (heartbeat, stalled-promise, queue-starvation) -->
-  <script src="/js/deadlock-monitor.js" defer></script>
+  <script data-lazy-src="/js/deadlock-monitor.js"></script>
   <!-- Phase 40C: OPFS Integrity System (CRC32, staged-write, journal, orphan recovery) -->
-  <script src="/js/opfs-integrity.js" defer></script>
+  <script data-lazy-src="/js/opfs-integrity.js"></script>
   <!-- Phase 40E: Browser Compat Layer (Safari/iOS/mobile detect, fallback routing, shims) -->
-  <script src="/js/browser-compat-layer.js" defer></script>
+  <script data-lazy-src="/js/browser-compat-layer.js"></script>
   <!-- Phase 40F: GPU Fallback Validator (capability probe, chain verify, device-lost sim) -->
   <!-- /js/gpu-fallback-validator.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 40G: Resume Integrity Tests (checkpoint verify, page order, OCR continuity) -->
-  <script src="/js/resume-integrity.js" defer></script>
+  <script data-lazy-src="/js/resume-integrity.js"></script>
   <!-- Phase 40H: Distributed Recovery Tests (leader-death, shard integrity, reassignment) -->
-  <script src="/js/distributed-recovery.js" defer></script>
+  <script data-lazy-src="/js/distributed-recovery.js"></script>
   <!-- Phase 40M: Self-Healing Recovery (trigger detect, auto-cleanup, progress preserve) -->
-  <script src="/js/self-healing.js" defer></script>
+  <script data-lazy-src="/js/self-healing.js"></script>
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
   <!-- /js/final-automated-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 41A: Universal Encoding Repair (MojibakeDetector, UtfRepairEngine, UnicodeSanitizer) -->
@@ -330,7 +281,7 @@
   <!-- Phase 41C: Universal OCR Cleanup (SourceClassifier, OcrNoiseCleaner, ScriptDetector, SmartReOcr) -->
   <!-- /js/universal-ocr-cleanup.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41D: Global Multilingual Renderer (BidiLayout, FontManager, PdfTextFlow, GlyphResolver) -->
-  <script src="/js/global-multilingual-renderer.js" defer></script>
+  <script data-lazy-src="/js/global-multilingual-renderer.js"></script>
   <!-- Phase 41E: Universal Translation Validator (CorruptionScanner, QualityAudit, AutoRetry, SafeMerge) -->
   <!-- /js/universal-translation-validator.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase 41F: Universal Translation Pipeline (full P41A-E integration, BrowserTools.process hook) -->
@@ -341,12 +292,12 @@
        Strict order: worker-lifecycle → download-manager → retry-orchestrator →
                      navigation-cancel → adaptive-degradation → cleanup-contracts →
                      phase1c-audit -->
-  <script src="/js/worker-lifecycle.js" defer></script>
-  <script src="/js/download-manager.js" defer></script>
-  <script src="/js/retry-orchestrator.js" defer></script>
-  <script src="/js/navigation-cancel.js" defer></script>
-  <script src="/js/adaptive-degradation.js" defer></script>
-  <script src="/js/cleanup-contracts.js" defer></script>
+  <script data-lazy-src="/js/worker-lifecycle.js"></script>
+  <script data-lazy-src="/js/download-manager.js"></script>
+  <script data-lazy-src="/js/retry-orchestrator.js"></script>
+  <script data-lazy-src="/js/navigation-cancel.js"></script>
+  <script data-lazy-src="/js/adaptive-degradation.js"></script>
+  <script data-lazy-src="/js/cleanup-contracts.js"></script>
   <!-- /js/phase1c-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 2: CentralRuntime — Centralized Browser-Side Processing Runtime
        Strict load order (each depends on all prior):
@@ -354,41 +305,41 @@
          T023 memory → T026 progress → T021 scheduler → T022 workers →
          T024 queue → T027 cleanup → T031 health → T029 adapters →
          T034 streaming → T033 diagnostics → T020 core (CentralRuntime) -->
-  <script src="/js/runtime-event-bus.js" defer></script>
-  <script src="/js/runtime-state.js" defer></script>
+  <script data-lazy-src="/js/runtime-event-bus.js"></script>
+  <script data-lazy-src="/js/runtime-state.js"></script>
   <!-- /js/runtime-telemetry.js is loaded in the post-paint diagnostics stack. -->
-  <script src="/js/runtime-cancellation.js" defer></script>
-  <script src="/js/runtime-memory-controller.js" defer></script>
-  <script src="/js/runtime-progress.js" defer></script>
-  <script src="/js/runtime-task-scheduler.js" defer></script>
-  <script src="/js/runtime-worker-orchestrator.js" defer></script>
-  <script src="/js/runtime-queue-engine.js" defer></script>
-  <script src="/js/runtime-cleanup.js" defer></script>
-  <script src="/js/runtime-health.js" defer></script>
-  <script src="/js/runtime-tool-adapters.js" defer></script>
-  <script src="/js/runtime-streaming-hooks.js" defer></script>
+  <script data-lazy-src="/js/runtime-cancellation.js"></script>
+  <script data-lazy-src="/js/runtime-memory-controller.js"></script>
+  <script data-lazy-src="/js/runtime-progress.js"></script>
+  <script data-lazy-src="/js/runtime-task-scheduler.js"></script>
+  <script data-lazy-src="/js/runtime-worker-orchestrator.js"></script>
+  <script data-lazy-src="/js/runtime-queue-engine.js"></script>
+  <script data-lazy-src="/js/runtime-cleanup.js"></script>
+  <script data-lazy-src="/js/runtime-health.js"></script>
+  <script data-lazy-src="/js/runtime-tool-adapters.js"></script>
+  <script data-lazy-src="/js/runtime-streaming-hooks.js"></script>
   <!-- /js/runtime-diagnostics.js is loaded in the post-paint diagnostics stack. -->
-  <script src="/js/runtime-core.js" defer></script>
+  <script data-lazy-src="/js/runtime-core.js"></script>
   <!-- Phase 5 — Runtime Certification Layer (report functions + RT.debug + RT.simulate) -->
-  <script src="/js/runtime-phase5.js" defer></script>
+  <script data-lazy-src="/js/runtime-phase5.js"></script>
   <!-- Phase 6A+6F — IndexedDB Persistence + Crash Recovery -->
-  <script src="/js/runtime-idb.js" defer></script>
+  <script data-lazy-src="/js/runtime-idb.js"></script>
   <!-- Phase 6B — OPFS Streaming Engine (replaces streaming stubs) -->
   <!-- runtime-streaming-hooks.js is already loaded above; engine is live -->
   <!-- Phase 6C — Advanced Worker Pooling already active via WorkerPool in advanced-engine.js -->
   <!-- Phase 7 — Production-Grade Stream Pipeline, Adaptive Engine, IDB Coalescing, Crash Recovery -->
   <!-- 7E: Adaptive pipeline (load first — bridges use it for chunk sizing) -->
-  <script src="/js/runtime-adaptive-pipeline.js" defer></script>
+  <script data-lazy-src="/js/runtime-adaptive-pipeline.js"></script>
   <!-- 7A: Transferable stream bridge (load before runtime-stream-bridge references) -->
-  <script src="/js/runtime-stream-bridge.js" defer></script>
+  <script data-lazy-src="/js/runtime-stream-bridge.js"></script>
   <!-- 7B: PDF byte-range index (partial OPFS staging for split/organize/compare) -->
-  <script src="/js/pdf-byte-range-index.js" defer></script>
+  <script data-lazy-src="/js/pdf-byte-range-index.js"></script>
   <!-- 7F: IDB write coalescer (load before runtime-idb archiveHealth subscription fires) -->
-  <script src="/js/runtime-idb-coalescer.js" defer></script>
+  <script data-lazy-src="/js/runtime-idb-coalescer.js"></script>
   <!-- 7G: Crash recovery UI (load before tool-page.js DOMContentLoaded) -->
-  <script src="/js/crash-recovery-ui.js" defer></script>
+  <script data-lazy-src="/js/crash-recovery-ui.js"></script>
   <!-- 7I: Production certification (dev + console diagnostics only) -->
-  <script src="/js/runtime-production-certification.js" defer></script>
+  <script data-lazy-src="/js/runtime-production-certification.js"></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 8 — Final Production Platform + Enterprise Hardening         -->
@@ -397,15 +348,15 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
 
   <!-- 8I: Security hardening — worker validation, prompt sanitization, OPFS guards -->
-  <script src="/js/runtime-security.js" defer></script>
+  <script data-lazy-src="/js/runtime-security.js"></script>
   <!-- 8D: Predictive OOM memory defense — must load before stream bridge + AI -->
-  <script src="/js/runtime-memory-defense.js" defer></script>
+  <script data-lazy-src="/js/runtime-memory-defense.js"></script>
   <!-- 8A: Benchmark engine — baseline CPU/IO/WASM benchmarks for adaptive tuning -->
-  <script src="/js/runtime-benchmark-engine.js" defer></script>
+  <script data-lazy-src="/js/runtime-benchmark-engine.js"></script>
   <!-- 8C: Distributed cross-tab scheduler — BroadcastChannel task coordination -->
-  <script src="/js/runtime-distributed-scheduler.js" defer></script>
+  <script data-lazy-src="/js/runtime-distributed-scheduler.js"></script>
   <!-- 8E: Result cache — 3-tier LRU/OPFS/IDB output caching with SHA-256 keying -->
-  <script src="/js/runtime-result-cache.js" defer></script>
+  <script data-lazy-src="/js/runtime-result-cache.js"></script>
   <!-- 8F: AI upgrade — scored provider routing, priority queue, batching, retry -->
   <!-- /js/runtime-ai-upgrade.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 8H: Enterprise telemetry — memory timeline, waterfall, flamegraph, export -->
@@ -430,22 +381,22 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
 
   <!-- 9A: WASM compute engine — SIMD probe, streaming instantiation, JS fallbacks -->
-  <script src="/js/runtime-wasm-engine.js" defer></script>
+  <script data-lazy-src="/js/runtime-wasm-engine.js"></script>
   <!-- 9B: GPU compute engine — WebGPU device, WebGL2/WebGL1/CPU fallback tier -->
   <!-- /js/runtime-gpu-engine.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- /js/webgpu-phase23.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 9G: Browser OS microkernel — single arbitration point for all compute slots -->
-  <script src="/js/runtime-kernel.js" defer></script>
+  <script data-lazy-src="/js/runtime-kernel.js"></script>
   <!-- 9C: SharedWorker cluster — persistent multi-tab brain, priority task queue -->
-  <script src="/js/runtime-shared-cluster.js" defer></script>
+  <script data-lazy-src="/js/runtime-shared-cluster.js"></script>
   <!-- 9D/9I: Sandbox VM — isolated execution, policy engine, OPFS/Worker isolation -->
-  <script src="/js/runtime-sandbox.js" defer></script>
+  <script data-lazy-src="/js/runtime-sandbox.js"></script>
   <!-- 9F: Incremental PDF engine — OPFS staging, xref parsing, incremental write -->
-  <script src="/js/runtime-incremental-pdf.js" defer></script>
+  <script data-lazy-src="/js/runtime-incremental-pdf.js"></script>
   <!-- 9G/9H: Zero-copy pipeline — buffer pool, transferable streams, backpressure -->
-  <script src="/js/runtime-zero-copy.js" defer></script>
+  <script data-lazy-src="/js/runtime-zero-copy.js"></script>
   <!-- 9H: Workspace persistence — OPFS + IDB multi-document workspace manager -->
-  <script src="/js/runtime-workspace.js" defer></script>
+  <script data-lazy-src="/js/runtime-workspace.js"></script>
   <!-- 9E: Local AI engine — ONNX on-device inference, model cache, heuristic chain -->
   <!-- /js/runtime-local-ai.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
@@ -488,7 +439,7 @@
   <!-- runtime-hardening.js stays SYNC — patches global setInterval/RAF  -->
   <!-- before any intervals are created; must run before user interaction. -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="/js/runtime-hardening.js" defer></script>
+  <script data-lazy-src="/js/runtime-hardening.js"></script>
   <!-- PDF→Word Fidelity Pipeline — Phases 1–12 (loaded before browser-tools so modules
        are available when pdfToWord() first runs; all are additive/opt-in IIFE modules
        that register on window.PDFPipeline = window.PDFPipeline || {}) -->
@@ -502,8 +453,8 @@
   <!-- /js/pdf-pipeline/layout-graph.js is loaded on demand for the active tool. -->
   <!-- /js/pdf-pipeline/docx-coordinate-engine.js is loaded on demand for the active tool. -->
   <!-- /js/pdf-pipeline/fidelity-debug.js is loaded on demand for the active tool. -->
-  <script src="/js/browser-tools.js" defer></script>
-  <script src="/js/browser-tool-runtime.js" defer></script>
+  <script data-lazy-src="/js/browser-tools.js"></script>
+  <script data-lazy-src="/js/browser-tool-runtime.js"></script>
   <!-- Phase 3 — Merge PDF Runtime Migration (additive, feature-flagged) -->
   <!-- Phase 2A: deferred — depends only on Phase 1-9 globals (SYNC); all globals       -->
   <!-- available before any defer fires. Document order preserved by defer. User cannot  -->
@@ -558,8 +509,8 @@
          pdf-excel-app    — Isolated pdf-to-excel pipeline + dedicated xlsx worker
          pdf-ppt-app      — Isolated pdf-to-powerpoint pipeline + dedicated pptx worker
          ocr-tool-app     — Isolated OCR pipeline (covers 'ocr') + reuses docx worker -->
-  <script src="/js/shared-core.js" defer></script>
-  <script src="/js/tool-app-manager.js" defer></script>
+  <script data-lazy-src="/js/shared-core.js"></script>
+  <script data-lazy-src="/js/tool-app-manager.js"></script>
   <!-- /js/pdf-word-app.js is loaded on demand for the active tool. -->
   <!-- /js/pdf-excel-app.js is loaded on demand for the active tool. -->
   <!-- /js/pdf-ppt-app.js is loaded on demand for the active tool. -->
@@ -623,7 +574,7 @@
   <!-- /js/resize-image-app.js is loaded on demand for the active tool. -->
   <!-- /js/image-filters-app.js is loaded on demand for the active tool. -->
   <!-- /js/html-pdf-app.js is loaded on demand for the active tool. -->
-  <script src="/js/runtime-inspector.js" defer></script>
+  <script data-lazy-src="/js/runtime-inspector.js"></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 2D — Global WorkerPool Healing + Runtime Self-Recovery       -->
@@ -643,20 +594,20 @@
   <!--  10. health-monitor   — Phase 2D telemetry augmentation on RH     -->
   <!--  11. watchdog         — CTRL+SHIFT+H debug overlay (dev-only)     -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="/js/runtime-timeout-reaper.js" defer></script>
-  <script src="/js/runtime-zombie-cleaner.js" defer></script>
-  <script src="/js/runtime-pdf-cleaner.js" defer></script>
+  <script data-lazy-src="/js/runtime-timeout-reaper.js"></script>
+  <script data-lazy-src="/js/runtime-zombie-cleaner.js"></script>
+  <script data-lazy-src="/js/runtime-pdf-cleaner.js"></script>
   <!-- /js/runtime-tesseract-cleaner.js is loaded only for the matching AI/OCR/translation tool. -->
-  <script src="/js/runtime-canvas-gc.js" defer></script>
-  <script src="/js/runtime-healer.js" defer></script>
-  <script src="/js/runtime-panic-manager.js" defer></script>
-  <script src="/js/runtime-circuit-breakers.js" defer></script>
-  <script src="/js/runtime-soft-reset.js" defer></script>
-  <script src="/js/runtime-health-monitor.js" defer></script>
-  <script src="/js/runtime-watchdog.js" defer></script>
+  <script data-lazy-src="/js/runtime-canvas-gc.js"></script>
+  <script data-lazy-src="/js/runtime-healer.js"></script>
+  <script data-lazy-src="/js/runtime-panic-manager.js"></script>
+  <script data-lazy-src="/js/runtime-circuit-breakers.js"></script>
+  <script data-lazy-src="/js/runtime-soft-reset.js"></script>
+  <script data-lazy-src="/js/runtime-health-monitor.js"></script>
+  <script data-lazy-src="/js/runtime-watchdog.js"></script>
 
-  <script src="/js/pdf-preview.js" defer></script>
-  <script src="/js/runtime-protection.js" defer></script>
+  <script data-lazy-src="/js/pdf-preview.js"></script>
+  <script data-lazy-src="/js/runtime-protection.js"></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- ENTERPRISE RUNTIME SHIELD LAYER — additive hardening               -->
@@ -666,38 +617,38 @@
   <!-- after runtime-security.js (workers wraps its validateWorkerMessage) -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- Task 1,5,6: Window lockdown + Symbol registry + enumeration hiding -->
-  <script src="/js/runtime-shield-core.js" defer></script>
+  <script data-lazy-src="/js/runtime-shield-core.js"></script>
   <!-- Task 3,7,8: Integrity sweeps + honeypots + DevTools degradation    -->
-  <script src="/js/runtime-shield-integrity.js" defer></script>
+  <script data-lazy-src="/js/runtime-shield-integrity.js"></script>
   <!-- Task 2,6: Worker nonce + timestamp + replay protection             -->
-  <script src="/js/runtime-shield-workers.js" defer></script>
+  <script data-lazy-src="/js/runtime-shield-workers.js"></script>
   <!-- Task 4,5,6: Dependency integrity + script injection monitor        -->
-  <script src="/js/runtime-shield-dependency.js" defer></script>
+  <script data-lazy-src="/js/runtime-shield-dependency.js"></script>
   <!-- Phase 2: Trusted Module Manifest + Script Registry + Import Guard -->
-  <script src="/js/runtime-manifest.js" defer></script>
+  <script data-lazy-src="/js/runtime-manifest.js"></script>
   <!-- Phase 2: Centralized Worker Factory + Spawn Hardening             -->
-  <script src="/js/runtime-worker-factory.js" defer></script>
+  <script data-lazy-src="/js/runtime-worker-factory.js"></script>
   <!-- Phase 2: Runtime Chunk Manifest (Task 5 + Task 11 hooks)         -->
-  <script src="/core/runtime-chunk-manifest.js" defer></script>
+  <script data-lazy-src="/core/runtime-chunk-manifest.js"></script>
   <!-- Phase 2 Final: Compatibility validation (all systems + browser)  -->
-  <script src="/js/runtime-compat-validator.js" defer></script>
+  <script data-lazy-src="/js/runtime-compat-validator.js"></script>
   <!-- Phase 2 Final: Rollback safety — snapshot + drift detection      -->
-  <script src="/js/runtime-rollback.js" defer></script>
+  <script data-lazy-src="/js/runtime-rollback.js"></script>
   <!-- Phase 2 Final: Domain binding + deployment integrity             -->
-  <script src="/js/runtime-deployment-bind.js" defer></script>
+  <script data-lazy-src="/js/runtime-deployment-bind.js"></script>
   <!-- Phase 3: Adaptive Security Tiers (central tier authority)       -->
-  <script src="/js/runtime-security-tiers.js" defer></script>
+  <script data-lazy-src="/js/runtime-security-tiers.js"></script>
   <!-- Phase 3: Security Telemetry Center (lightweight event bus)      -->
-  <script src="/js/runtime-security-telemetry.js" defer></script>
+  <script data-lazy-src="/js/runtime-security-telemetry.js"></script>
   <!-- Phase 3: SRI + Hash Enforcement (advisory hash verification)    -->
-  <script src="/js/runtime-sri-engine.js" defer></script>
+  <script data-lazy-src="/js/runtime-sri-engine.js"></script>
   <!-- Phase 3: Worker Bootstrap (heartbeat + graceful restart)        -->
 <!-- Phase 3: WASM Registry (lifecycle + crash recovery)             -->
-  <script src="/js/runtime-wasm-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-wasm-registry.js"></script>
   <!-- Phase 3: Performance Safety (memory + blob + idle cleanup)      -->
-  <script src="/js/runtime-perf-safety.js" defer></script>
+  <script data-lazy-src="/js/runtime-perf-safety.js"></script>
   <!-- Phase 3: Foreign Deploy Protection (soft degradation)           -->
-  <script src="/js/runtime-foreign-deploy.js" defer></script>
+  <script data-lazy-src="/js/runtime-foreign-deploy.js"></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 6: Enterprise Hybrid Execution + WASM Fortress + Edge Runtime-->
@@ -795,7 +746,7 @@
 
   <!-- live-preview.js is loaded only for tools that support rich live previews. -->
   <!-- /js/page-organizer.js is loaded only for the active feature or after first paint. -->
-  <script src="/js/app-router.js" defer></script>
+  <script data-lazy-src="/js/app-router.js"></script>
   <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
   <script src="/js/i18n.js?v=__BUILD_ID__" defer></script>
@@ -823,16 +774,16 @@
   <script src="/js/tool-i18n-bridge.js?v=__BUILD_ID__" defer></script>
 
   <!-- Phase 12: Shared Core Architecture (additive — safe on every page) -->
-  <script src="/core/core-manifest.js" defer></script>
-  <script src="/core/shared-constants.js" defer></script>
-  <script src="/core/runtime-contracts.js" defer></script>
+  <script data-lazy-src="/core/core-manifest.js"></script>
+  <script data-lazy-src="/core/shared-constants.js"></script>
+  <script data-lazy-src="/core/runtime-contracts.js"></script>
 
   <!-- Phase 14: Tool Runtime Federation
        RuntimeFederation + ToolModuleRegistry + RuntimeModuleLoader.
        Upgrades CentralRuntime.getModuleRuntime() to return full scoped runtimes.
        Adds RT.runtime.modules() view.
        Purely additive — zero changes to Phase 1-9 runtime chain. -->
-  <script src="/core/runtime-federation.js" defer></script>
+  <script data-lazy-src="/core/runtime-federation.js"></script>
 
   <!-- Phase 15: AI Layer Isolation
        AIRuntime + AIProviderRegistry + AIInferenceRouter + AIExecutionLayer.
@@ -844,33 +795,33 @@
        RuntimeGovernor + RuntimeOrchestrator + RT.runtime.* extension.
        Adds RT.runtime.status() / health() / modules() / memory() / workers() / ai() / streams().
        Applies mobile resilience limits. Activates production safety guards. -->
-  <script src="/core/runtime-governor.js" defer></script>
+  <script data-lazy-src="/core/runtime-governor.js"></script>
 
   <!-- Phase 18/20: Production mode guard.
        Detects environment, suppresses Phase-tagged console noise in production,
        and blocks public activation of admin-only debug APIs (runtime dashboard
        is now served exclusively at /admin/runtime for authenticated admins). -->
-  <script src="/core/production-mode.js" defer></script>
+  <script data-lazy-src="/core/production-mode.js"></script>
 
   <!-- Phase 25–27: Economy + Analytics runtime -->
-  <script src="/js/runtime-identity.js" defer></script>
-  <script src="/js/runtime-savings.js" defer></script>
+  <script data-lazy-src="/js/runtime-identity.js"></script>
+  <script data-lazy-src="/js/runtime-savings.js"></script>
   <!-- /js/runtime-ads.js is loaded only for the active feature or after first paint. -->
-  <script src="/js/runtime-credits.js" defer></script>
+  <script data-lazy-src="/js/runtime-credits.js"></script>
   <!-- /js/runtime-donation.js is loaded only for the active feature or after first paint. -->
   <!-- /js/runtime-analytics.js is loaded in the post-paint diagnostics stack. -->
-  <script src="/js/runtime-offline.js" defer></script>
-  <script src="/js/runtime-updater.js" defer></script>
+  <script data-lazy-src="/js/runtime-offline.js"></script>
+  <script data-lazy-src="/js/runtime-updater.js"></script>
   <!-- /js/runtime-changelog.js is loaded only for the active feature or after first paint. -->
-  <script src="/js/runtime-recovery.js" defer></script>
+  <script data-lazy-src="/js/runtime-recovery.js"></script>
   <!-- /js/runtime-ai-scheduler.js is loaded only for the matching AI/OCR/translation tool. -->
-  <script src="/js/runtime-perf.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-perf.js"></script>
   <!-- Phase Community: enhanced savings animation + community header widget -->
   <!-- /js/savings-animation.js is loaded only for the active feature or after first paint. -->
   <!-- /js/community-economy.js is loaded only for the active feature or after first paint. -->
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
-  <script src="/js/pwa-register.js" defer></script>
+  <script data-lazy-src="/js/pwa-register.js"></script>
 
   <!-- Arc 2: Production Hardening — Deploy Coherence + Hydration + Observability -->
   <!-- T1: Cross-tab BUILD_ID sync + SW coordination -->
@@ -882,7 +833,7 @@
   <!-- T4: Crash fingerprinting + encrypted ring-buffer + deploy-crash correlation -->
   <!-- /js/runtime-crash-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <!-- T5: Dynamic bundle activation + dependency-aware loading -->
-  <script src="/js/runtime-bundle-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-bundle-registry.js"></script>
   <!-- T6: Transactional offline jobs + processing continuation -->
   <!-- /js/runtime-offline-processor.js is served through the versioned runtime bundle after file selection. -->
   <!-- T7: Worker affinity + thermal scheduling + congestion balancing -->
@@ -894,62 +845,62 @@
 
   <!-- Arc 3: Tool Runtime Isolation Architecture -->
   <!-- Phase A: Tool manifests + loader -->
-  <script src="/js/runtime-tool-manifest-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-manifest-registry.js"></script>
   <script src="/js/runtime-tool-loader.js" defer></script>
   <!-- Phase B: Isolated hydration domains -->
-  <script src="/js/runtime-hydration-domains.js" defer></script>
+  <script data-lazy-src="/js/runtime-hydration-domains.js"></script>
   <!-- Phase C: Worker domain isolation -->
-  <script src="/js/runtime-worker-domain-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-worker-domain-registry.js"></script>
   <!-- Phase D: Per-tool memory islands -->
-  <script src="/js/runtime-memory-islands.js" defer></script>
+  <script data-lazy-src="/js/runtime-memory-islands.js"></script>
   <!-- Phase E: Per-tool analytics domains -->
-  <script src="/js/runtime-analytics-domains.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-analytics-domains.js"></script>
   <!-- Phase F: Per-tool recovery circuit breakers -->
-  <script src="/js/runtime-recovery-domains.js" defer></script>
+  <script data-lazy-src="/js/runtime-recovery-domains.js"></script>
   <!-- Phase G: Tool-aware bundle segmentation -->
-  <script src="/js/runtime-tool-bundle-segments.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-bundle-segments.js"></script>
   <!-- Phase H: Immutable per-tool config locking -->
-  <script src="/js/runtime-tool-config-lock.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-config-lock.js"></script>
 
   <!-- Arc 4: Enterprise Tool Runtime Completion -->
   <!-- Phase A: Per-family worker concurrency + thermal throttling -->
-  <script src="/js/runtime-worker-domain-throttle.js" defer></script>
+  <script data-lazy-src="/js/runtime-worker-domain-throttle.js"></script>
   <!-- Phase B: Per-family isolated offline job queues -->
-  <script src="/js/runtime-offline-domains.js" defer></script>
+  <script data-lazy-src="/js/runtime-offline-domains.js"></script>
   <!-- Phase C: Lazy processor activation registry -->
-  <script src="/js/runtime-processor-registry.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-registry.js"></script>
   <!-- Phase D: Active bundle graph + arc3 registration -->
-  <script src="/js/runtime-bundle-graph.js" defer></script>
+  <script data-lazy-src="/js/runtime-bundle-graph.js"></script>
   <!-- Phase E: Per-tool isolated execution sandboxes -->
-  <script src="/js/runtime-tool-sandbox.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-sandbox.js"></script>
   <!-- Phase F: Dynamic memory arbitration + idle eviction -->
-  <script src="/js/runtime-memory-orchestrator.js" defer></script>
+  <script data-lazy-src="/js/runtime-memory-orchestrator.js"></script>
   <!-- Phase G: Unified runtime health graph + fullDashboard() -->
-  <script src="/js/runtime-health-orchestrator.js" defer></script>
+  <script data-lazy-src="/js/runtime-health-orchestrator.js"></script>
   <!-- Phase H: Runtime seal verification + mutation detection -->
-  <script src="/js/runtime-immutability-guard.js" defer></script>
+  <script data-lazy-src="/js/runtime-immutability-guard.js"></script>
   <!-- Phase I: Thermal-aware hydration + mobile panic mode -->
-  <script src="/js/runtime-mobile-hardening.js" defer></script>
+  <script data-lazy-src="/js/runtime-mobile-hardening.js"></script>
 
   <!-- Arc 5: True Enterprise Tool Isolation (tool-level granularity) -->
   <!-- Phase A: Per-tool worker namespace + heartbeat + crash recovery -->
-  <script src="/js/runtime-tool-worker-mesh.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-worker-mesh.js"></script>
   <!-- Phase B: Per-tool dependency graph + dynamic code loading -->
   <script src="/js/runtime-tool-code-loader.js" defer></script>
   <!-- Phase C: Per-tool hard memory budgets + isolated panic mode -->
-  <script src="/js/runtime-memory-firewalls.js" defer></script>
+  <script data-lazy-src="/js/runtime-memory-firewalls.js"></script>
   <!-- Phase D: Per-tool recovery escalation tree + retry budgets -->
-  <script src="/js/runtime-recovery-firewalls.js" defer></script>
+  <script data-lazy-src="/js/runtime-recovery-firewalls.js"></script>
   <!-- Phase E: Cross-tool event audit + violation telemetry -->
-  <script src="/js/runtime-tool-event-firewall.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-event-firewall.js"></script>
   <!-- Phase F: Independent per-tool config snapshots + drift tracking -->
-  <script src="/js/runtime-tool-config-seal.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-config-seal.js"></script>
   <!-- Phase G: Per-tool health scores + window.getToolHealth() -->
-  <script src="/js/runtime-tool-health-domains.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-health-domains.js"></script>
   <!-- Phase H: Family bundle dependency graph + GC registry -->
-  <script src="/js/runtime-tool-bundle-isolation.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-bundle-isolation.js"></script>
   <!-- Phase I: Per-tool isolated IDB offline queues -->
-  <script src="/js/runtime-tool-offline-firewalls.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-offline-firewalls.js"></script>
 
   <!-- Arc 6: Advanced Engine Full Decomposition -->
   <!-- Phase A: Isolated processor extraction modules (one family per file) -->
@@ -963,39 +914,39 @@
   <!-- watermark processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
   <!-- repair processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
   <!-- Phase B: Dynamic processor activation + dependency graph + dormant eviction -->
-  <script src="/js/runtime-processor-loader.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-loader.js"></script>
   <!-- Phase C: Per-processor heap budget + idle trim + panic isolation -->
-  <script src="/js/runtime-processor-memory.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-memory.js"></script>
   <!-- Phase D: Processor-specific worker pools + thermal throttling + crash recovery -->
-  <script src="/js/runtime-processor-workers.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-workers.js"></script>
   <!-- Phase E: Processor hydration domains + idle cancellation + predictive hints -->
-  <script src="/js/runtime-processor-hydration.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-hydration.js"></script>
   <!-- Phase F: Per-processor bundle tracking + GC + dormant unloading -->
-  <script src="/js/runtime-processor-bundles.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-bundles.js"></script>
   <!-- Phase G: Independent processor health scores + startup metrics + window.getProcessorHealth() -->
-  <script src="/js/runtime-processor-health.js" defer></script>
+  <script data-lazy-src="/js/runtime-processor-health.js"></script>
 
   <!-- Arc 7: Ultra Performance + Streaming Runtime -->
   <!-- Phase A: Viewport-aware streaming hydration + interaction-driven + chunk scheduler -->
-  <script src="/js/runtime-streaming-hydration.js" defer></script>
+  <script data-lazy-src="/js/runtime-streaming-hydration.js"></script>
   <!-- Phase B: Predictive processor loading — hover/nav/history/frequency signals -->
-  <script src="/js/runtime-predictive-loader.js" defer></script>
+  <script data-lazy-src="/js/runtime-predictive-loader.js"></script>
   <!-- Phase C: Chunked worker execution coordinator + micro-batch + tab-suspension continuation -->
-  <script src="/js/runtime-stream-workers.js" defer></script>
+  <script data-lazy-src="/js/runtime-stream-workers.js"></script>
   <!-- Phase D: Enterprise task orchestrator — 5-lane cooperative + worker affinity + thermal -->
-  <script src="/js/runtime-task-orchestrator.js" defer></script>
+  <script data-lazy-src="/js/runtime-task-orchestrator.js"></script>
   <!-- Phase E: Smart cache — LFU-LRU hybrid + hot-runtime preservation + predictive warming -->
-  <script src="/js/runtime-smart-cache.js" defer></script>
+  <script data-lazy-src="/js/runtime-smart-cache.js"></script>
   <!-- Phase F: Streaming telemetry — time-series ring buffers + FPS + latency histograms -->
   <!-- runtime-stream-telemetry.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase G: Self-optimizing runtime — auto-adjust hydration/workers/memory/thermal -->
-  <script src="/js/runtime-self-optimizer.js" defer></script>
+  <script data-lazy-src="/js/runtime-self-optimizer.js"></script>
   <!-- Phase H: Mobile extreme mode — ultra-low-memory + emergency worker trim + battery -->
-  <script src="/js/runtime-mobile-extreme.js" defer></script>
+  <script data-lazy-src="/js/runtime-mobile-extreme.js"></script>
 
   <!-- Arc 8: Enterprise Observability + Live Control Plane -->
   <!-- Phase A: Centralized command bus — live toggles, feature flags, audit trail -->
-  <script src="/js/runtime-control-plane.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-control-plane.js"></script>
   <!-- Phase B: Live floating dashboard — Ctrl+Shift+R, FPS/heap/tasks/incidents -->
   <!-- runtime-live-dashboard.js loads in the idle diagnostics phase, not before upload UI. -->
   <!-- Phase C: Distributed trace engine — span trees, slow-path detection, p99 -->
@@ -1012,17 +963,17 @@
 
   <!-- Arc 9: Autonomous Self-Healing + Distributed Runtime Intelligence -->
   <!-- Phase A: Autonomous healing engine — failure detection, worker resurrection, rollback -->
-  <script src="/js/runtime-autonomous-healing.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-autonomous-healing.js"></script>
   <!-- Phase B: Workload intelligence — thermal/memory migration, starvation prevention -->
-  <script src="/js/runtime-workload-intelligence.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-workload-intelligence.js"></script>
   <!-- Phase C: Session stability — 6hr+ targets, entropy detection, periodic compaction -->
-  <script src="/js/runtime-session-stability.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-session-stability.js"></script>
   <!-- Phase D: Recovery orchestrator — dependency graph, safe-mode, partial restart -->
-  <script src="/js/runtime-recovery-orchestrator.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-recovery-orchestrator.js"></script>
   <!-- Phase E: Adaptive AI — behavior learning, predictive prewarm, thermal prediction -->
   <!-- /js/runtime-adaptive-ai.js is loaded only for the matching AI/OCR/translation tool. -->
   <!-- Phase F: Governance — policy enforcement, protected flags, quarantine, compliance -->
-  <script src="/js/runtime-governance.js" defer fetchpriority="low"></script>
+  <script fetchpriority="low" data-lazy-src="/js/runtime-governance.js"></script>
   <!-- Phase G: Blackbox recorder — 15-min rolling buffer, panic export, replay handoff -->
   <!-- /js/runtime-blackbox.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase H: Adaptive bundles — device-tier plans, dormant detection, predictive preload -->
@@ -1030,6 +981,123 @@
 
   <!-- Phase 2B: Idle group loader — loads analytics, telemetry, AI-helper, and prefetch   -->
   <!-- systems via requestIdleCallback after first paint. Zero impact on upload / process.  -->
-  <script src="/js/runtime-tool-idle-loader.js" defer></script>
+  <script data-lazy-src="/js/runtime-tool-idle-loader.js"></script>
+
+  <!-- UI-first runtime loader: keep the upload shell interactive before downloading processors/infrastructure. -->
+  <script>
+  (function (window, document) {
+    'use strict';
+    if (window.SharedToolRuntimeBoot) return;
+    var state = 'idle';
+    var bootPromise = null;
+    var lazyNodes = Array.prototype.slice.call(document.querySelectorAll('script[data-lazy-src]'));
+    var lazyUrls = lazyNodes.map(function (node) { return node.getAttribute('data-lazy-src'); }).filter(Boolean);
+    var completed = Object.create(null);
+
+    function loadAll() {
+      if (bootPromise) return bootPromise;
+      state = 'loading';
+      // A few legacy runtime modules register DOMContentLoaded callbacks
+      // unconditionally. Because this stack is intentionally loaded after the
+      // first paint, capture only callbacks registered by this lazy stack and
+      // invoke them once after every dependency has executed.
+      var originalAddEventListener = document.addEventListener;
+      var queuedDomReady = [];
+      document.addEventListener = function (type, listener, options) {
+        if (state === 'loading' && String(type).toLowerCase() === 'domcontentloaded' && listener) {
+          queuedDomReady.push(listener);
+          return;
+        }
+        return originalAddEventListener.call(this, type, listener, options);
+      };
+      function restoreAndRunDomReady() {
+        document.addEventListener = originalAddEventListener;
+        var readyEvent = new Event('DOMContentLoaded');
+        queuedDomReady.splice(0).forEach(function (listener) {
+          try {
+            if (typeof listener === 'function') listener.call(document, readyEvent);
+            else if (listener && typeof listener.handleEvent === 'function') listener.handleEvent(readyEvent);
+          } catch (error) {
+            console.error('[SharedToolRuntimeBoot] deferred DOM-ready callback failed', error);
+          }
+        });
+      }
+      // Dynamic classic scripts with async=false fetch concurrently but execute
+      // in document insertion order, preserving the original dependency chain.
+      bootPromise = Promise.all(lazyUrls.map(function (src) {
+        if (completed[src]) return completed[src];
+        var script = document.createElement('script');
+        script.src = src;
+        script.async = false;
+        completed[src] = new Promise(function (resolve) {
+          script.onload = function () { resolve(); };
+          script.onerror = function () {
+            console.error('[SharedToolRuntimeBoot] failed to load', src);
+            resolve(); // one optional module failure must not deadlock upload UI
+          };
+        });
+        document.head.appendChild(script);
+        return completed[src];
+      })).then(function () {
+        restoreAndRunDomReady();
+        state = 'ready';
+        window.dispatchEvent(new CustomEvent('ilovepdf:shared-runtime-ready'));
+        return true;
+      }).catch(function (error) {
+        restoreAndRunDomReady();
+        state = 'failed';
+        console.error('[SharedToolRuntimeBoot] runtime stack error', error);
+        return false;
+      });
+      return bootPromise;
+    }
+
+    window.SharedToolRuntimeBoot = Object.freeze({
+      loadAll: loadAll,
+      getState: function () { return state; },
+      getPendingCount: function () { return lazyUrls.length; }
+    });
+
+    // Warm code while the user chooses a file. If they select/drop immediately,
+    // pause that one file event until the ordered runtime stack is ready.
+    var replaying = false;
+    function isFileInput(target) {
+      return !!(target && target.matches && target.matches('input[type="file"]'));
+    }
+    document.addEventListener('pointerdown', function (event) {
+      if (isFileInput(event.target) || (event.target.closest && event.target.closest('[data-upload-trigger], .upload-area, .upload-zone, #upload-btn, #select-files-btn'))) {
+        loadAll();
+      }
+    }, true);
+    document.addEventListener('change', function (event) {
+      if (replaying || !isFileInput(event.target) || !event.target.files || !event.target.files.length) return;
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      var input = event.target;
+      loadAll().then(function () {
+        replaying = true;
+        try { input.dispatchEvent(new Event('change', { bubbles: true, cancelable: false })); }
+        finally { replaying = false; }
+      });
+    }, true);
+    document.addEventListener('drop', function (event) {
+      if (replaying || !event.dataTransfer || !event.dataTransfer.files || !event.dataTransfer.files.length) return;
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      var target = event.target;
+      var transfer = event.dataTransfer;
+      loadAll().then(function () {
+        replaying = true;
+        try {
+          var replay = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer });
+          target.dispatchEvent(replay);
+        } catch (error) {
+          console.warn('[SharedToolRuntimeBoot] could not replay file drop; use the upload button instead', error);
+        } finally { replaying = false; }
+      });
+    }, true);
+  })(window, document);
+  </script>
+
 </body>
 </html>

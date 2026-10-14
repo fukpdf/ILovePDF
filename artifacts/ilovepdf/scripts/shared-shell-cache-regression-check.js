@@ -29,6 +29,17 @@ for (const file of htmlFiles) {
 assert.ok(chromeUsers.includes('index.html'), 'Homepage must load shared chrome.');
 assert.ok(chromeUsers.includes('tool.html'), 'Tool shell must load shared chrome.');
 
+const toolHtml = fs.readFileSync(path.join(publicDir, 'tool.html'), 'utf8');
+const directScriptCount = [...toolHtml.matchAll(/<script\b[^>]*\ssrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)].length;
+const lazyScriptCount = [...toolHtml.matchAll(/data-lazy-src=["'][^"']+["']/g)].length;
+assert.ok(directScriptCount <= 30, 'Shared upload HTML must keep its critical script path small; found ' + directScriptCount + ' direct external scripts.');
+assert.ok(lazyScriptCount >= 150, 'Runtime/processor support scripts must remain demand-loaded; found ' + lazyScriptCount + ' lazy scripts.');
+assert.match(toolHtml, /SharedToolRuntimeBoot/, 'Shared upload shell must expose its on-demand runtime boot loader.');
+assert.match(toolHtml, /document\.addEventListener\('change',[\s\S]*?isFileInput/, 'File selection must wait for the ordered runtime stack before dispatching the upload change.');
+assert.match(toolHtml, /data-shared-header-css="1"/, 'Shared header CSS must stay in the first-paint HTML.');
+assert.match(toolHtml, /data-shared-footer-css="1"/, 'Shared footer CSS must stay in the first-paint HTML.');
+assert.ok(!toolHtml.includes('data-tool-worker-prefetch'), 'Tool workers must not be prefetched during idle time before user action.');
+
 const chromeSource = fs.readFileSync(path.join(publicDir, 'js/chrome.js'), 'utf8');
 assert.match(
   chromeSource,
