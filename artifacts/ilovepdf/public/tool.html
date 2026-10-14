@@ -1040,15 +1040,15 @@
 
   <!-- Arc 6: Advanced Engine Full Decomposition -->
   <!-- Phase A: Isolated processor extraction modules (one family per file) -->
-  <script src="/js/processors/merge-processor.js" defer></script>
-  <script src="/js/processors/split-processor.js" defer></script>
-  <script src="/js/processors/compress-processor.js" defer></script>
-  <script src="/js/processors/ocr-processor.js" defer></script>
-  <script src="/js/processors/image-processor.js" defer></script>
-  <script src="/js/processors/ai-processor.js" defer></script>
-  <script src="/js/processors/convert-processor.js" defer></script>
-  <script src="/js/processors/watermark-processor.js" defer></script>
-  <script src="/js/processors/repair-processor.js" defer></script>
+  <!-- merge processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- split processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- compress processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- ocr processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- image processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- ai processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- convert processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- watermark processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
+  <!-- repair processor is loaded on demand by RuntimeToolCodeLoader for the active tool. -->
   <!-- Phase B: Dynamic processor activation + dependency graph + dormant eviction -->
   <script src="/js/runtime-processor-loader.js" defer></script>
   <!-- Phase C: Per-processor heap budget + idle trim + panic isolation -->
