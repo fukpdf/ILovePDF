@@ -23,6 +23,7 @@
   // actual moving DOM nodes without collecting user content.
   var _layoutShiftEntries = [];
   var _MAX_LAYOUT_SHIFT_ENTRIES = 25;
+  var _clsSession = { firstTime: null, lastTime: null, value: 0 };
 
   function _describeNode(node) {
     if (!node) return null;
@@ -70,7 +71,21 @@
   });
 
   _observe('layout-shift', function (e) {
-    if (!e.hadRecentInput) _metrics.cls = +(_metrics.cls + (e.value || 0)).toFixed(4);
+    if (!e.hadRecentInput) {
+      var shiftTime = Number(e.startTime || 0);
+      var shiftValue = Number(e.value || 0);
+      // CLS is the largest session window, not the sum of every shift for
+      // the entire page lifetime. A new window starts after a 1s gap or 5s
+      // from the first shift in the current window.
+      if (_clsSession.firstTime === null ||
+          shiftTime - _clsSession.lastTime >= 1000 ||
+          shiftTime - _clsSession.firstTime >= 5000) {
+        _clsSession = { firstTime: shiftTime, lastTime: shiftTime, value: 0 };
+      }
+      _clsSession.value += shiftValue;
+      _clsSession.lastTime = shiftTime;
+      _metrics.cls = +Math.max(_metrics.cls, _clsSession.value).toFixed(4);
+    }
     var sources = [];
     try {
       (e.sources || []).slice(0, 5).forEach(function (source) {
