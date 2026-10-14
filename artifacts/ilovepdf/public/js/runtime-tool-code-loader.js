@@ -205,6 +205,16 @@
 
     _toolLoads[toolId] = { ts: Date.now(), resolved: false };
     return chain.then(function () {
+      // This processor script can arrive after tool:runtime-ready has fired.
+      // Activate its family now so lazy registration is not left dormant.
+      try {
+        var pl = G.RuntimeProcessorLoader;
+        if (pl && typeof pl.activateForTool === 'function') pl.activateForTool(toolId);
+      } catch (_) {}
+      try {
+        var pr = G.RuntimeProcessorRegistry;
+        if (pr && typeof pr.activateForTool === 'function') pr.activateForTool(toolId);
+      } catch (_) {}
       _toolLoads[toolId].resolved = true;
       console.debug(LOG, 'loaded deps for:', toolId, '— family:', family, '— scripts:', scripts.length);
       try {
