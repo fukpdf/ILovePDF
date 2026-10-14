@@ -386,6 +386,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // the upload step automatically.
   hydrateFlowState().finally(() => {
     renderStep();
+    // A restored preview has no fresh file-input change event; request its
+    // tool-specific modules only when persisted files are actually present.
+    if (selectedFiles.length && Flow.step === 'preview') loadSelectedToolBundle();
     // Phase 7G: crash recovery — show banner if an interrupted session exists.
     // Runs after renderStep() so the tool UI is already visible before the banner appears.
     if (window.CrashRecoveryUI && currentTool && Flow.step === 'upload') {
