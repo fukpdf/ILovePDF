@@ -3478,7 +3478,6 @@ body::-webkit-scrollbar {
   position: relative;
   box-sizing: border-box;
   min-width: 0;
-  aspect-ratio: 1 / 1;
   padding: 16px 14px;
   display: flex;
   flex-direction: column;
