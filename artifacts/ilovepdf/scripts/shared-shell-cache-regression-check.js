@@ -78,6 +78,27 @@ const warmupHelper = homepageAssembler.slice(
 );
 assert.ok(warmupHelper && !warmupHelper.includes('tool-page.js'), 'The warmup helper must not inject the tool-page controller or processors.');
 
+const sharedSpecialUploadCssUrl = '/css/special-upload-flow.css?v=20261014-shared-upload-v1';
+const sharedSpecialUploadCss = fs.readFileSync(path.join(publicDir, 'css/special-upload-flow.css'), 'utf8');
+const sharedSpecialUploadJs = fs.readFileSync(path.join(publicDir, 'js/special-upload-flow.js'), 'utf8');
+assert.match(sharedSpecialUploadJs, /function renderSharedDropzones\(\)/, 'Special tools must render their upload area from one shared component.');
+assert.match(sharedSpecialUploadJs, /renderSharedDropzones\(\);[\s\S]*SharedSpecialUpload/, 'Shared upload component must render synchronously before tool-specific event handlers run.');
+assert.match(sharedSpecialUploadCss, /\.ilpdf-special-dropzone\s*\{/, 'Shared upload stylesheet must own the single dropzone style definition.');
+for (const [file, zoneId, inputId, browseId] of [
+  ['image-compressor.html', 'ic-dropzone', 'ic-file-input', 'ic-browse-btn'],
+  ['image-converter.html', 'iconv-dropzone', 'iconv-file-input', 'iconv-browse-btn'],
+  ['zip-builder.html', 'zip-dropzone', 'zip-file-input', 'zip-browse-btn']
+]) {
+  const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
+  assert.ok(source.includes(sharedSpecialUploadCssUrl), file + ' must use the shared upload stylesheet.');
+  assert.ok(source.includes('data-special-upload-mount'), file + ' must mount the shared upload component.');
+  for (const id of [zoneId, inputId, browseId]) {
+    assert.ok(source.includes(id), file + ' must preserve the tool-specific DOM contract for ' + id + '.');
+  }
+  assert.ok(!source.includes('.ilpdf-special-dropzone{'), file + ' must not duplicate shared dropzone CSS inline.');
+  assert.ok(!source.includes('class="ilpdf-special-dropzone"'), file + ' must not duplicate upload-zone markup.');
+}
+
 const swSource = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache version must be rotated with this cache contract.');
 assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must use the explicit cache-first route.');
