@@ -627,6 +627,43 @@ function ensureSharedShell() {
     motionCss.dataset.toolIconMotionCss = '1';
     document.head.appendChild(motionCss);
   }
+
+  /* The homepage renderer supplies data-icon directly; annotate upload-page
+     Popular Tools stickers from their actual icon metadata or tool slug. */
+  const decoratePopularToolIcons = (root = document) => {
+    const cards = [];
+    if (root.matches && root.matches('.popular-card')) cards.push(root);
+    if (root.querySelectorAll) cards.push(...root.querySelectorAll('.popular-card'));
+    cards.forEach(card => {
+      const sticker = card.querySelector('.tool-name-sticker');
+      if (!sticker || sticker.dataset.icon) return;
+      const lucideNode = sticker.querySelector('[data-lucide]');
+      let icon = lucideNode && lucideNode.getAttribute('data-lucide');
+      if (!icon) {
+        const slugClass = [...card.classList].find(name => name.startsWith('popular-card--'));
+        const slug = slugClass ? slugClass.slice('popular-card--'.length) : '';
+        for (const group of (window.TOOL_GROUPS || [])) {
+          const match = (group.items || []).find(item => item.slug === slug);
+          if (match && match.icon) { icon = match.icon; break; }
+        }
+      }
+      if (!icon) {
+        const svg = sticker.querySelector('svg');
+        const iconClass = svg && [...svg.classList].find(name => name.startsWith('lucide-'));
+        if (iconClass) icon = iconClass.slice('lucide-'.length);
+      }
+      if (icon) sticker.dataset.icon = icon;
+    });
+  };
+  decoratePopularToolIcons();
+  if (!window.__ilpdfPopularIconMotionObserver && document.documentElement) {
+    window.__ilpdfPopularIconMotionObserver = new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if (node.nodeType === 1) decoratePopularToolIcons(node);
+      }));
+    });
+    window.__ilpdfPopularIconMotionObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
   /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
