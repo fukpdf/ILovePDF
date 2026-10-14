@@ -169,6 +169,54 @@
     'zip-builder': [],
   };
 
+  // Tool-specific runtime/UI modules stay out of the shared upload shell.
+  var TOOL_FEATURE_SCRIPTS = {
+    'merge': ['/js/merge-runtime.js', '/js/merge-pdf-app.js'],
+    'split': ['/js/split-runtime.js', '/js/split-pdf-app.js'],
+    'rotate': ['/js/rotate-runtime.js', '/js/rotate-pdf-app.js'],
+    'crop': ['/js/organize-runtime.js', '/js/crop-pdf-app.js'],
+    'organize': ['/js/organize-runtime.js', '/js/organize-app.js'],
+    'page-numbers': ['/js/page-numbers-runtime.js', '/js/page-numbers-app.js'],
+    'redact': ['/js/redact-runtime.js', '/js/redact-pdf-app.js'],
+    'compress': ['/js/compress-runtime.js', '/js/compress-pdf-app.js'],
+    'pdf-to-word': ['/js/pdf-word-app.js', '/js/pdf-pipeline/font-mapper.js', '/js/pdf-pipeline/column-engine.js', '/js/pdf-pipeline/form-reconstruction.js', '/js/pdf-pipeline/fidelity-validator.js', '/js/pdf-pipeline/visual-reconstruction.js', '/js/pdf-pipeline/ocr-zoning.js', '/js/pdf-pipeline/image-anchor-engine.js', '/js/pdf-pipeline/layout-graph.js', '/js/pdf-pipeline/docx-coordinate-engine.js', '/js/pdf-pipeline/fidelity-debug.js'],
+    'pdf-to-excel': ['/js/pdf-excel-app.js'],
+    'pdf-to-powerpoint': ['/js/pdf-ppt-app.js'],
+    'word-to-pdf': ['/js/pdf-word-app.js'],
+    'excel-to-pdf': ['/js/pdf-excel-app.js'],
+    'powerpoint-to-pdf': ['/js/pdf-ppt-app.js'],
+    'word-to-excel': ['/js/pdf-excel-app.js'],
+    'pdf-to-jpg': ['/js/image-pdf-app.js'],
+    'jpg-to-pdf': ['/js/image-pdf-app.js'],
+    'html-to-pdf': ['/js/html-pdf-app.js'],
+    'scan-to-pdf': ['/js/scan-pdf-app.js'],
+    'edit': ['/js/edit-runtime.js', '/js/edit-pdf-app.js'],
+    'watermark': ['/js/watermark-runtime.js', '/js/watermark-pdf-app.js'],
+    'sign': ['/js/sign-runtime.js', '/js/sign-app.js'],
+    'protect': ['/js/protect-runtime.js', '/js/protect-pdf-app.js'],
+    'unlock': ['/js/unlock-runtime.js', '/js/unlock-pdf-app.js'],
+    'repair': ['/js/repair-runtime.js', '/js/repair-pdf-app.js'],
+    'repair-pdf': ['/js/repair-runtime.js', '/js/repair-pdf-app.js'],
+    'compare': ['/js/compare-runtime.js', '/js/compare-pdf-app.js'],
+    'ocr': ['/js/ocr-runtime.js', '/js/ocr-tool-app.js'],
+    'ocr-pdf': ['/js/ocr-runtime.js', '/js/ocr-tool-app.js'],
+    'ai-summarize': ['/js/advanced-engine.js', '/js/ai-summarizer-app.js'],
+    'ai-summarizer': ['/js/advanced-engine.js', '/js/ai-summarizer-app.js'],
+    'translate': ['/js/translate-runtime.js', '/js/translate-pdf-app.js'],
+    'translate-pdf': ['/js/translate-runtime.js', '/js/translate-pdf-app.js'],
+    'workflow': ['/js/workflow-runtime.js'],
+    'background-remover': ['/js/remove-background-app.js'],
+    'remove-background': ['/js/remove-background-app.js'],
+    'crop-image': ['/js/crop-image-app.js'],
+    'resize-image': ['/js/resize-image-app.js'],
+    'image-filters': ['/js/image-filters-app.js'],
+    'image-compressor': ['/js/image-pdf-app.js'],
+    'image-converter': ['/js/image-pdf-app.js'],
+    'qr-code-generator': [],
+    'barcode-generator': [],
+    'zip-builder': [],
+  };
+
   // ── Tool → family ─────────────────────────────────────────────────────────
   var TOOL_FAMILY = {
     'merge':'organize','split':'organize','rotate':'organize','crop':'organize',
@@ -243,7 +291,8 @@
     } catch (_) {}
 
     // Load only the active tool's processor entry point, then its worker dependency.
-    var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || [])
+    var scripts = (TOOL_FEATURE_SCRIPTS[toolId] || [])
+      .concat(TOOL_PROCESSOR_SCRIPTS[toolId] || [])
       .concat(TOOL_ADAPTER_SCRIPTS[toolId] || [])
       .concat(TOOL_SCRIPTS[toolId] || []);
     var orderedUniqueScripts = [];
