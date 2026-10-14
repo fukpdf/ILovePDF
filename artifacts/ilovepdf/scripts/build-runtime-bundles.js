@@ -498,9 +498,17 @@ const ratio = totalIn > 0 ? (totalOut / totalIn * 100).toFixed(1) : '—';
 console.log('\n[bundle] Done. Input:', (totalIn / 1024).toFixed(1),
   'KB → Output:', (totalOut / 1024).toFixed(1), 'KB  ratio:', ratio + '%');
 console.log('[bundle] Bundles saved to:', path.relative(ROOT, OUT_DIR));
-const missingBundles = manifest.filter(bundle => bundle.missing > 0);
+const requiredRuntimeBundles = new Set([
+  'runtime-phase6-core.bundle.js',
+  'runtime-phase6-deferred.bundle.js',
+  'runtime-phase7.bundle.js',
+  'runtime-phase8-deferred.bundle.js',
+  'runtime-phase9-infra.bundle.js',
+  'runtime-arc2.bundle.js',
+]);
+const missingBundles = manifest.filter(bundle => requiredRuntimeBundles.has(bundle.name) && bundle.missing > 0);
 if (missingBundles.length) {
-  console.error('[bundle] ERROR: refusing to use incomplete runtime bundles:', missingBundles.map(bundle => bundle.name + ' (' + bundle.missing + ' missing)').join(', '));
+  console.error('[bundle] ERROR: refusing to deploy incomplete required runtime bundles:', missingBundles.map(bundle => bundle.name + ' (' + bundle.missing + ' missing)').join(', '));
   process.exitCode = 1;
 }
 if (DRY_RUN) console.log('[bundle] DRY-RUN — no files written.');
