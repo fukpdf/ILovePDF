@@ -129,6 +129,12 @@
     '/js/runtime-health-analytics.js',
     '/js/runtime-incident-center.js',
     '/js/runtime-blackbox.js',
+    // Non-critical monetization and release-note UI is intentionally post-paint.
+    '/js/runtime-ads.js',
+    '/js/runtime-donation.js',
+    '/js/savings-animation.js',
+    '/js/community-economy.js',
+    '/js/runtime-changelog.js',
   ];
 
   var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
