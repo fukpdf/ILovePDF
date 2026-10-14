@@ -1,0 +1,99 @@
+/* Premium operation-specific tool-logo motion. CSS/SVG only; no external assets. */
+.tool-name-sticker[data-icon] {
+  --logo-a:#6366f1; --logo-b:#06b6d4; --logo-glow:rgba(99,102,241,.30);
+  color:#fff; background:linear-gradient(145deg,var(--logo-a),var(--logo-b))!important;
+  box-shadow:0 9px 22px var(--logo-glow),inset 0 1px 0 rgba(255,255,255,.52);
+  isolation:isolate;
+}
+.tool-name-sticker[data-icon]::after { border-color:var(--logo-b); box-shadow:0 0 18px var(--logo-glow); }
+.tool-name-sticker[data-icon] svg { overflow:visible; transform-box:fill-box; transform-origin:center; }
+.tool-name-sticker[data-icon="layers"] {--logo-a:#7c3aed;--logo-b:#2563eb;--logo-glow:rgba(124,58,237,.34)}
+.tool-name-sticker[data-icon="scissors"] {--logo-a:#0891b2;--logo-b:#6366f1;--logo-glow:rgba(8,145,178,.32)}
+.tool-name-sticker[data-icon="archive"] {--logo-a:#2563eb;--logo-b:#0d9488;--logo-glow:rgba(37,99,235,.34)}
+.tool-name-sticker[data-icon="list-ordered"],.tool-name-sticker[data-icon="workflow"] {--logo-a:#4f46e5;--logo-b:#0891b2;--logo-glow:rgba(79,70,229,.3)}
+.tool-name-sticker[data-icon="rotate-cw"],.tool-name-sticker[data-icon="refresh-cw"] {--logo-a:#0f766e;--logo-b:#2563eb;--logo-glow:rgba(15,118,110,.32)}
+.tool-name-sticker[data-icon="package"] {--logo-a:#7c3aed;--logo-b:#db2777;--logo-glow:rgba(124,58,237,.3)}
+.tool-name-sticker[data-icon="lock"] {--logo-a:#4338ca;--logo-b:#0891b2;--logo-glow:rgba(67,56,202,.3)}
+.tool-name-sticker[data-icon="unlock"] {--logo-a:#0f766e;--logo-b:#06b6d4;--logo-glow:rgba(15,118,110,.3)}
+.tool-name-sticker[data-icon="crop"],.tool-name-sticker[data-icon="maximize"] {--logo-a:#7c3aed;--logo-b:#2563eb;--logo-glow:rgba(124,58,237,.3)}
+.tool-name-sticker[data-icon="sliders"],.tool-name-sticker[data-icon="wrench"] {--logo-a:#db2777;--logo-b:#7c3aed;--logo-glow:rgba(219,39,119,.28)}
+.tool-name-sticker[data-icon="image"],.tool-name-sticker[data-icon="image-off"],.tool-name-sticker[data-icon="droplet"] {--logo-a:#db2777;--logo-b:#2563eb;--logo-glow:rgba(219,39,119,.3)}
+.tool-name-sticker[data-icon="edit-3"],.tool-name-sticker[data-icon="pen-tool"] {--logo-a:#7c3aed;--logo-b:#db2777;--logo-glow:rgba(124,58,237,.3)}
+.tool-name-sticker[data-icon="scan-line"] {--logo-a:#0891b2;--logo-b:#4f46e5;--logo-glow:rgba(8,145,178,.3)}
+.tool-name-sticker[data-icon="hash"],.tool-name-sticker[data-icon="qr-code"] {--logo-a:#4f46e5;--logo-b:#0891b2;--logo-glow:rgba(79,70,229,.3)}
+.tool-name-sticker[data-icon="calculator"],.tool-name-sticker[data-icon="bar-chart-2"] {--logo-a:#2563eb;--logo-b:#0d9488;--logo-glow:rgba(37,99,235,.3)}
+.tool-name-sticker[data-icon="file-text"],.tool-name-sticker[data-icon="presentation"],.tool-name-sticker[data-icon="sheet"],.tool-name-sticker[data-icon="table"] {--logo-a:#2563eb;--logo-b:#6366f1;--logo-glow:rgba(37,99,235,.3)}
+.tool-name-sticker[data-icon="code"] {--logo-a:#0f766e;--logo-b:#4f46e5;--logo-glow:rgba(15,118,110,.3)}
+.tool-name-sticker[data-icon="type"],.tool-name-sticker[data-icon="languages"] {--logo-a:#7c3aed;--logo-b:#0891b2;--logo-glow:rgba(124,58,237,.3)}
+.tool-name-sticker[data-icon="git-compare"] {--logo-a:#db2777;--logo-b:#2563eb;--logo-glow:rgba(219,39,119,.3)}
+.tool-name-sticker[data-icon="sparkles"] {--logo-a:#7c3aed;--logo-b:#db2777;--logo-glow:rgba(124,58,237,.3)}
+.tool-name-sticker[data-icon="eye-off"] {--logo-a:#475569;--logo-b:#7c3aed;--logo-glow:rgba(71,85,105,.3)}
+.tool-name-sticker[data-icon="dollar-sign"] {--logo-a:#059669;--logo-b:#0e7490;--logo-glow:rgba(5,150,105,.3)}
+
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .tool:hover .tool-name-sticker[data-icon] svg,.tool:focus-visible .tool-name-sticker[data-icon] svg,
+  .popular-card:hover .tool-name-sticker[data-icon] svg,.popular-card:focus-visible .tool-name-sticker[data-icon] svg {
+    animation-duration:.78s; animation-timing-function:cubic-bezier(.2,.8,.2,1);
+  }
+  .tool:hover .tool-name-sticker[data-icon],.tool:focus-visible .tool-name-sticker[data-icon],
+  .popular-card:hover .tool-name-sticker[data-icon],.popular-card:focus-visible .tool-name-sticker[data-icon] {
+    box-shadow:0 13px 28px var(--logo-glow),inset 0 1px 0 rgba(255,255,255,.68); filter:saturate(1.12);
+  }
+  .tool:hover .tool-name-sticker[data-icon="layers"] svg,.tool:focus-visible .tool-name-sticker[data-icon="layers"] svg,.popular-card:hover .tool-name-sticker[data-icon="layers"] svg {animation:logoMerge .82s both}
+  .tool:hover .tool-name-sticker[data-icon="scissors"] svg,.tool:focus-visible .tool-name-sticker[data-icon="scissors"] svg,.popular-card:hover .tool-name-sticker[data-icon="scissors"] svg {animation:logoSplit .78s both}
+  .tool:hover .tool-name-sticker[data-icon="archive"] svg,.tool:focus-visible .tool-name-sticker[data-icon="archive"] svg,.popular-card:hover .tool-name-sticker[data-icon="archive"] svg {animation:logoCompress .72s both}
+  .tool:hover .tool-name-sticker[data-icon="rotate-cw"] svg,.tool:focus-visible .tool-name-sticker[data-icon="rotate-cw"] svg,.popular-card:hover .tool-name-sticker[data-icon="rotate-cw"] svg,
+  .tool:hover .tool-name-sticker[data-icon="refresh-cw"] svg,.tool:focus-visible .tool-name-sticker[data-icon="refresh-cw"] svg,.popular-card:hover .tool-name-sticker[data-icon="refresh-cw"] svg {animation:logoRotate .85s both}
+  .tool:hover .tool-name-sticker[data-icon="list-ordered"] svg,.tool:focus-visible .tool-name-sticker[data-icon="list-ordered"] svg,.popular-card:hover .tool-name-sticker[data-icon="list-ordered"] svg,
+  .tool:hover .tool-name-sticker[data-icon="workflow"] svg,.tool:focus-visible .tool-name-sticker[data-icon="workflow"] svg,.popular-card:hover .tool-name-sticker[data-icon="workflow"] svg {animation:logoArrange .78s both}
+  .tool:hover .tool-name-sticker[data-icon="lock"] svg,.tool:focus-visible .tool-name-sticker[data-icon="lock"] svg,.popular-card:hover .tool-name-sticker[data-icon="lock"] svg {animation:logoLock .7s both}
+  .tool:hover .tool-name-sticker[data-icon="unlock"] svg,.tool:focus-visible .tool-name-sticker[data-icon="unlock"] svg,.popular-card:hover .tool-name-sticker[data-icon="unlock"] svg {animation:logoUnlock .7s both}
+  .tool:hover .tool-name-sticker[data-icon="crop"] svg,.tool:focus-visible .tool-name-sticker[data-icon="crop"] svg,.popular-card:hover .tool-name-sticker[data-icon="crop"] svg,
+  .tool:hover .tool-name-sticker[data-icon="maximize"] svg,.tool:focus-visible .tool-name-sticker[data-icon="maximize"] svg,.popular-card:hover .tool-name-sticker[data-icon="maximize"] svg {animation:logoCrop .76s both}
+  .tool:hover .tool-name-sticker[data-icon="edit-3"] svg,.tool:focus-visible .tool-name-sticker[data-icon="edit-3"] svg,.popular-card:hover .tool-name-sticker[data-icon="edit-3"] svg,
+  .tool:hover .tool-name-sticker[data-icon="pen-tool"] svg,.tool:focus-visible .tool-name-sticker[data-icon="pen-tool"] svg,.popular-card:hover .tool-name-sticker[data-icon="pen-tool"] svg {animation:logoEdit .75s both}
+  .tool:hover .tool-name-sticker[data-icon="scan-line"] svg,.tool:focus-visible .tool-name-sticker[data-icon="scan-line"] svg,.popular-card:hover .tool-name-sticker[data-icon="scan-line"] svg {animation:logoScan .8s both}
+  .tool:hover .tool-name-sticker[data-icon="qr-code"] svg,.tool:focus-visible .tool-name-sticker[data-icon="qr-code"] svg,.popular-card:hover .tool-name-sticker[data-icon="qr-code"] svg {animation:logoQr .72s both}
+  .tool:hover .tool-name-sticker[data-icon="image"] svg,.tool:focus-visible .tool-name-sticker[data-icon="image"] svg,.popular-card:hover .tool-name-sticker[data-icon="image"] svg,
+  .tool:hover .tool-name-sticker[data-icon="image-off"] svg,.tool:focus-visible .tool-name-sticker[data-icon="image-off"] svg,.popular-card:hover .tool-name-sticker[data-icon="image-off"] svg {animation:logoImage .78s both}
+  .tool:hover .tool-name-sticker[data-icon="sliders"] svg,.tool:focus-visible .tool-name-sticker[data-icon="sliders"] svg,.popular-card:hover .tool-name-sticker[data-icon="sliders"] svg {animation:logoAdjust .75s both}
+  .tool:hover .tool-name-sticker[data-icon="sparkles"] svg,.tool:focus-visible .tool-name-sticker[data-icon="sparkles"] svg,.popular-card:hover .tool-name-sticker[data-icon="sparkles"] svg {animation:logoSparkle .8s both}
+  .tool:hover .tool-name-sticker[data-icon="git-compare"] svg,.tool:focus-visible .tool-name-sticker[data-icon="git-compare"] svg,.popular-card:hover .tool-name-sticker[data-icon="git-compare"] svg {animation:logoCompare .76s both}
+  .tool:hover .tool-name-sticker[data-icon="calculator"] svg,.tool:focus-visible .tool-name-sticker[data-icon="calculator"] svg,.popular-card:hover .tool-name-sticker[data-icon="calculator"] svg,
+  .tool:hover .tool-name-sticker[data-icon="bar-chart-2"] svg,.tool:focus-visible .tool-name-sticker[data-icon="bar-chart-2"] svg,.popular-card:hover .tool-name-sticker[data-icon="bar-chart-2"] svg {animation:logoUtility .72s both}
+  .tool:hover .tool-name-sticker[data-icon="file-text"] svg,.tool:focus-visible .tool-name-sticker[data-icon="file-text"] svg,.popular-card:hover .tool-name-sticker[data-icon="file-text"] svg,
+  .tool:hover .tool-name-sticker[data-icon="presentation"] svg,.tool:focus-visible .tool-name-sticker[data-icon="presentation"] svg,.popular-card:hover .tool-name-sticker[data-icon="presentation"] svg,
+  .tool:hover .tool-name-sticker[data-icon="sheet"] svg,.tool:focus-visible .tool-name-sticker[data-icon="sheet"] svg,.popular-card:hover .tool-name-sticker[data-icon="sheet"] svg,
+  .tool:hover .tool-name-sticker[data-icon="table"] svg,.tool:focus-visible .tool-name-sticker[data-icon="table"] svg,.popular-card:hover .tool-name-sticker[data-icon="table"] svg {animation:logoDocument .72s both}
+  .tool:hover .tool-name-sticker[data-icon="type"] svg,.tool:focus-visible .tool-name-sticker[data-icon="type"] svg,.popular-card:hover .tool-name-sticker[data-icon="type"] svg,
+  .tool:hover .tool-name-sticker[data-icon="languages"] svg,.tool:focus-visible .tool-name-sticker[data-icon="languages"] svg,.popular-card:hover .tool-name-sticker[data-icon="languages"] svg {animation:logoType .72s both}
+  .tool:hover .tool-name-sticker[data-icon="code"] svg,.tool:focus-visible .tool-name-sticker[data-icon="code"] svg,.popular-card:hover .tool-name-sticker[data-icon="code"] svg {animation:logoCode .72s both}
+  .tool:hover .tool-name-sticker[data-icon="droplet"] svg,.tool:focus-visible .tool-name-sticker[data-icon="droplet"] svg,.popular-card:hover .tool-name-sticker[data-icon="droplet"] svg {animation:logoDroplet .72s both}
+}
+@keyframes logoMerge {0%,100%{transform:translateX(0) scale(1)}28%{transform:translateX(-3px) scale(1.04)}58%{transform:translateX(3px) scale(1.08)}80%{transform:scale(1.02)}}
+@keyframes logoSplit {0%,100%{transform:scale(1)}32%{transform:translateX(-2px) scale(1.04)}64%{transform:translateX(2px) scale(1.06)}}
+@keyframes logoCompress {0%,100%{transform:scale(1)}35%{transform:scale(.8)}65%{transform:scale(1.08)}82%{transform:scale(.97)}}
+@keyframes logoRotate {0%{transform:rotate(0) scale(1)}65%{transform:rotate(250deg) scale(1.08)}100%{transform:rotate(360deg) scale(1)}}
+@keyframes logoArrange {0%,100%{transform:translateY(0) scale(1)}28%{transform:translateY(-3px) scale(1.05)}58%{transform:translateY(2px) scale(.98)}}
+@keyframes logoLock {0%,100%{transform:rotate(0) scale(1)}40%{transform:rotate(-7deg) scale(1.06)}70%{transform:rotate(3deg) scale(1.02)}}
+@keyframes logoUnlock {0%,100%{transform:rotate(0) scale(1)}38%{transform:rotate(8deg) scale(1.06)}70%{transform:rotate(-3deg) scale(1.02)}}
+@keyframes logoCrop {0%,100%{transform:scale(1)}35%{transform:scale(.86)}68%{transform:scale(1.08)}}
+@keyframes logoEdit {0%,100%{transform:translate(0,0) rotate(0)}35%{transform:translate(2px,-2px) rotate(7deg)}68%{transform:translate(-1px,1px) rotate(-3deg)}}
+@keyframes logoScan {0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-2px) scale(1.05)}72%{transform:translateY(2px) scale(1.02)}}
+@keyframes logoQr {0%,100%{transform:scale(1)}25%{transform:scale(1.06)}50%{transform:scale(.96)}75%{transform:scale(1.04)}}
+@keyframes logoImage {0%,100%{transform:rotate(0) scale(1)}35%{transform:rotate(-4deg) scale(1.06)}68%{transform:rotate(3deg) scale(1.02)}}
+@keyframes logoAdjust {0%,100%{transform:translateX(0) scale(1)}30%{transform:translateX(-2px) scale(1.04)}65%{transform:translateX(2px) scale(1.06)}}
+@keyframes logoSparkle {0%,100%{transform:rotate(0) scale(1)}42%{transform:rotate(18deg) scale(1.14)}72%{transform:rotate(-8deg) scale(1.04)}}
+@keyframes logoCompare {0%,100%{transform:translateX(0) scale(1)}35%{transform:translateX(-2px) scale(1.04)}68%{transform:translateX(2px) scale(1.04)}}
+@keyframes logoUtility {0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-3px) scale(1.07)}68%{transform:translateY(1px) scale(.98)}}
+@keyframes logoDocument {0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-3px) scale(1.05)}70%{transform:translateY(1px) scale(1.02)}}
+@keyframes logoType {0%,100%{transform:translateX(0) scale(1)}30%{transform:translateX(-2px) scale(1.04)}65%{transform:translateX(2px) scale(1.06)}}
+@keyframes logoCode {0%,100%{transform:translateX(0) scale(1)}32%{transform:translateX(-3px) scale(1.04)}66%{transform:translateX(3px) scale(1.04)}}
+@keyframes logoDroplet {0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-3px) scale(1.08)}72%{transform:translateY(1px) scale(.98)}}
+@media (prefers-reduced-motion:reduce) {
+ .tool-name-sticker[data-icon]::after {animation:none!important}
+ .tool:hover .tool-name-sticker[data-icon],.tool:focus-visible .tool-name-sticker[data-icon],
+ .popular-card:hover .tool-name-sticker[data-icon],.popular-card:focus-visible .tool-name-sticker[data-icon] {filter:none}
+ .tool:hover .tool-name-sticker[data-icon] svg,.tool:focus-visible .tool-name-sticker[data-icon] svg,
+ .popular-card:hover .tool-name-sticker[data-icon] svg,.popular-card:focus-visible .tool-name-sticker[data-icon] svg {animation:none!important}
+}
