@@ -881,7 +881,7 @@
   <script src="/js/runtime-memory-vault.js" defer></script>
 
   <script src="/js/live-preview.js" defer></script>
-  <script src="/js/page-organizer.js" defer></script>
+  <!-- /js/page-organizer.js is loaded only for the active feature or after first paint. -->
   <script src="/js/app-router.js" defer></script>
   <script integrity="sha384-wkxmY9HYHJVzx0oZ7k8stpLQ7g7ogSqBha75ozCZmxFadwtaIw5dzXKVWWfi9I36" crossorigin="anonymous" src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js" defer></script>
   <script type="module" src="/js/firebase-init.js"></script>
@@ -892,8 +892,8 @@
   <script src="/js/chrome-shim.js" defer></script>
   <!-- AI Background Removal Engine (ONNX Runtime Web — u2netp / RMBG-1.4) -->
   <!-- /js/bg-ai-engine.js is loaded only for the matching AI/OCR/translation tool. -->
-  <script src="/js/bg-remover-pro.js" defer></script>
-  <script src="/js/edit-pdf-pro.js" defer></script>
+  <!-- /js/bg-remover-pro.js is loaded only for the active feature or after first paint. -->
+  <!-- /js/edit-pdf-pro.js is loaded only for the active feature or after first paint. -->
   <script src="/js/tools-config.js?v=20261003-second-section-v2" defer></script>
   <!-- Phase 4 Unit 2: authoritative browser tool registry (identity/execution metadata) -->
   <script src="/js/tool-registry-runtime.js" defer></script>
@@ -942,19 +942,19 @@
   <!-- Phase 25–27: Economy + Analytics runtime -->
   <script src="/js/runtime-identity.js" defer></script>
   <script src="/js/runtime-savings.js" defer></script>
-  <script src="/js/runtime-ads.js" defer></script>
+  <!-- /js/runtime-ads.js is loaded only for the active feature or after first paint. -->
   <script src="/js/runtime-credits.js" defer></script>
-  <script src="/js/runtime-donation.js" defer></script>
+  <!-- /js/runtime-donation.js is loaded only for the active feature or after first paint. -->
   <!-- /js/runtime-analytics.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/runtime-offline.js" defer></script>
   <script src="/js/runtime-updater.js" defer></script>
-  <script src="/js/runtime-changelog.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-changelog.js is loaded only for the active feature or after first paint. -->
   <script src="/js/runtime-recovery.js" defer></script>
   <!-- /js/runtime-ai-scheduler.js is loaded only for the matching AI/OCR/translation tool. -->
   <script src="/js/runtime-perf.js" defer fetchpriority="low"></script>
   <!-- Phase Community: enhanced savings animation + community header widget -->
-  <script src="/js/savings-animation.js" defer fetchpriority="low"></script>
-  <script src="/js/community-economy.js" defer fetchpriority="low"></script>
+  <!-- /js/savings-animation.js is loaded only for the active feature or after first paint. -->
+  <!-- /js/community-economy.js is loaded only for the active feature or after first paint. -->
 
   <!-- Phase 22: PWA Service Worker registration — extracted (Phase 2 nonce hardening) -->
   <script src="/js/pwa-register.js" defer></script>
