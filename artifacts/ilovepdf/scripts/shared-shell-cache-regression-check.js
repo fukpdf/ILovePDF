@@ -60,6 +60,20 @@ for (const file of ['index.html', 'tool.html']) {
     file + ' must load the cache-busted shared stylesheet that hides nested scrollbars.'
   );
 }
+
+const homeCss = fs.readFileSync(path.resolve(process.cwd(), 'public/css/home.css'), 'utf8');
+const activeHomeCss = homeCss.replace(/\/\*[\s\S]*?\*\//g, '');
+assert.doesNotMatch(
+  activeHomeCss,
+  /(?:^|[,\s])\.(?:drawer(?:-back|-panel|-close|-top|-sec(?:-title)?|-auth)?|header-cta|hamburger)(?=[\s.:#[,{]|$)/m,
+  'Homepage CSS must not retain legacy drawer/header-CTA/hamburger selectors that the canonical shared chrome no longer renders.'
+);
+assert.doesNotMatch(
+  homeCss,
+  /@keyframes\s+slideIn\s*\{/,
+  'Homepage CSS must not retain the unused legacy drawer slide animation.'
+);
+
 const chromeJs = fs.readFileSync(path.join(publicDir, 'js/chrome.js'), 'utf8');
 assert.ok(
   chromeJs.includes(sharedHeaderUrl),

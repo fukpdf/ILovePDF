@@ -453,32 +453,6 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   .footer-bottom{flex-direction:column;align-items:flex-start;text-align:left}
 }
 
-/* Mobile menu drawer */
-.drawer{
-  position:fixed;inset:0;z-index:calc(var(--z-modal) + 200);
-  display:none;
-}
-.drawer.open{display:block}
-.drawer-back{
-  position:absolute;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);
-}
-.drawer-panel{
-  position:absolute;top:0;right:0;height:100%;width:min(320px,86vw);
-  background:#fff;box-shadow:-10px 0 40px rgba(0,0,0,.18);
-  padding:22px 18px;display:flex;flex-direction:column;gap:6px;
-  animation:slideIn .22s ease;
-}
-@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
-.drawer-close{
-  align-self:flex-end;width:36px;height:36px;border-radius:8px;
-  display:grid;place-items:center;background:var(--surface-2);
-}
-.drawer a{
-  padding:12px 14px;border-radius:10px;font-weight:600;color:var(--text);
-}
-.drawer a:hover{background:var(--surface-2);color:var(--primary)}
-.drawer .btn-primary{margin-top:12px;justify-content:center}
-.drawer .btn-ghost{justify-content:center}
 
 /* ============================================================
    FINAL REPAIR OVERRIDES
@@ -556,17 +530,6 @@ body:has(#tool-content) .app-layout{display:block !important}
   box-sizing:border-box;
 }
 .tool-page > *{max-width:100%}
-
-/* Drawer sectioned look */
-.drawer-panel{overflow-y:auto}
-.drawer-top{font-weight:700;color:var(--text)}
-.drawer-sec{padding:10px 0;border-top:1px solid var(--border)}
-.drawer-sec-title{
-  font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--text-mute);padding:0 12px;margin:6px 0;
-}
-.drawer-sec a{padding:8px 12px;font-size:.88rem;border-radius:8px}
-.drawer-auth{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 
 /* Auth modal */
 .auth-modal{position:fixed;inset:0;z-index:var(--z-modal);display:none;align-items:center;justify-content:center;padding:20px}
@@ -765,20 +728,10 @@ img, canvas, video, iframe { max-width: 100%; }
 
 /* Mobile header tightening so 5 items (Logo + Brand + Login + Signup + Hamburger) fit */
 @media (max-width: 1024px) {
-  .header-cta { display: flex; align-items: center; gap: 6px; }
-  .header-cta .btn-ghost,
-  .header-cta .btn-primary { padding: 7px 11px; font-size: .8rem; }
-  .header-cta .btn-ghost svg,
-  .header-cta .btn-primary svg { width: 13px; height: 13px; }
 }
 @media (max-width: 480px) {
   .header-inner { padding: 0 12px; gap: 6px; }
   .brand-name { font-size: .95rem; }
-  .header-cta .btn-ghost,
-  .header-cta .btn-primary { padding: 6px 9px; font-size: .74rem; }
-  .header-cta .btn-ghost span,
-  .header-cta .btn-primary span { display: none; }
-  .hamburger { width: 36px; height: 36px; }
 }
 
 /* ── Download "Swell" pulsing button ──────────────────────────────────────
@@ -860,15 +813,6 @@ img, canvas, video, iframe { max-width: 100%; }
   .dl-pulse > .btn, .dl-pulse > a.btn { animation: none !important; }
   .burst-particle { animation-duration: 1ms !important; }
 }
-
-/* ── Smart header: signed-in state ─────────────────────────────────────────
-   When the user is logged in we hide the Login + Sign-up buttons and
-   re-balance the header so the logo / brand visually centres in the space
-   they vacated. Hamburger stays pinned to the far right. */
-.site-header.is-signed-in .header-cta .btn-ghost,
-.site-header.is-signed-in .header-cta .btn-primary {
-  display: none !important;
-}
 .site-header.is-signed-in .header-inner {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -880,14 +824,6 @@ img, canvas, video, iframe { max-width: 100%; }
 }
 .site-header.is-signed-in .nav {
   display: none;
-}
-.site-header.is-signed-in .header-cta {
-  grid-column: 3;
-  justify-self: end;
-}
-/* Hamburger always reachable on signed-in mode (incl. desktop). */
-.site-header.is-signed-in .hamburger {
-  display: inline-flex !important;
 }
 
 /* ── Compress single-page preview ─────────────────────────────────────── */
@@ -1229,9 +1165,6 @@ img, canvas, video, iframe { max-width: 100%; }
 
 /* Mobile drawer — bigger tap targets per WCAG (min 44px) */
 @media (max-width:1024px){
-  .drawer a{min-height:44px;display:flex;align-items:center;font-size:.95rem}
-  .drawer-sec a{min-height:42px;padding:8px 12px}
-  .drawer .btn{min-height:46px;padding:12px 16px;font-size:.92rem}
 }
 
 /* Slightly smoother nav-item dropdown bridge — keeps menu open while
@@ -1299,15 +1232,6 @@ img, canvas, video, iframe { max-width: 100%; }
 .site-header .nav{
   flex:1;display:flex;align-items:center;justify-content:flex-end;
   gap:14px;min-width:0;
-}
-
-/* Hide legacy header elements no longer used in the minimal-chrome header. */
-.site-header .header-cta,
-.site-header .hamburger,
-.drawer,
-.drawer-back,
-.drawer-panel{
-  display:none !important;
 }
 
 /* Header layout — search centered, All Tools right */
