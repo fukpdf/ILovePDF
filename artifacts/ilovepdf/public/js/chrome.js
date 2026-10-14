@@ -709,7 +709,7 @@ function ensureSharedShell() {
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/css/home-header-v2.css?v=20260924';
+    link.href = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
     link.dataset.sharedHeaderCss = '1';
     document.head.appendChild(link);
   }
