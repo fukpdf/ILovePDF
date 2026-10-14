@@ -59,6 +59,7 @@ try {
 
 const chrome = read('public/js/chrome.js');
 const homeSource = read('public/js/home.js');
+const homeCss = read('public/css/home.css');
 const config = read('public/js/tools-config.js');
 const assembler = read('scripts/assemble-homepage-index.js');
 const serverSource = read('server.js');
@@ -117,6 +118,9 @@ const staticChecks = [
   ['Firebase Hosting assembles the static homepage before deployment', String(firebaseConfig.hosting?.predeploy || '').includes('npm run build')],
   ['homepage assembler is available as an explicit npm build target', typeof packageConfig.scripts?.['build:homepage'] === 'string' && packageConfig.scripts['build:homepage'].includes('assemble-homepage-index.js')],
   ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
+  ['homepage stylesheet cache key matches the audited layout revision in both artifact and assembler', html.includes('/css/home.css?v=20261014-title-flow-deep-audit-v2') && assembler.includes('/css/home.css?v=20261014-title-flow-deep-audit-v2')],
+  ['legacy absolute-position icon/title rule has been removed from homepage CSS', !homeCss.includes('/* Reserve the icon slot before deferred card repair') && !/a\\.tool \\.tool-name\\s*\\{\\s*position:\\s*relative;\\s*padding-left:\\s*50px/s.test(homeCss)],
+  ['homepage tool title uses vertical normal flow beneath the icon', homeCss.includes('.home-cat-section .tools-grid > a.tool .tool-name > .tool-name-sticker') && homeCss.includes('position: relative !important') && homeCss.includes('.home-cat-section .tools-grid > a.tool .tool-name > .tool-name-label') && homeCss.includes('display: block !important')],
   ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)],
   ['homepage navigation preservation is enabled before paint or immediately after first render', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*!!\(/.test(chrome)],
   ['assembler includes first-render layout stabilization', assembler.includes('stabilizeHomepageFirstRender')],
