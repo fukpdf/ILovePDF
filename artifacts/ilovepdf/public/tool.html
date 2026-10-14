@@ -994,51 +994,25 @@
     var lazyUrls = lazyNodes.map(function (node) { return node.getAttribute('data-lazy-src'); }).filter(Boolean);
     var completed = Object.create(null);
 
-    function loadOne(src) {
-      if (completed[src]) return completed[src];
-      completed[src] = new Promise(function (resolve) {
-        var existing = Array.prototype.slice.call(document.scripts).find(function (node) {
-          return node.src && new URL(node.src, location.href).href === new URL(src, location.href).href;
-        });
-        if (existing && !existing.hasAttribute('data-lazy-src')) { resolve(); return; }
-        var script = document.createElement('script');
-        script.src = src;
-        script.async = false;
-        script.onload = function () { resolve(); };
-        script.onerror = function () {
-          console.error('[SharedToolRuntimeBoot] failed to load', src);
-          resolve(); // one optional module failure must not deadlock upload UI
-        };
-        document.head.appendChild(script);
-      });
-      return completed[src];
-    }
-
     function loadAll() {
       if (bootPromise) return bootPromise;
       state = 'loading';
-      // Append all in source order with async=false: browsers can fetch concurrently
-      // while preserving classic-script execution order for dependent runtime modules.
+      // Dynamic classic scripts with async=false fetch concurrently but execute
+      // in document insertion order, preserving the original dependency chain.
       bootPromise = Promise.all(lazyUrls.map(function (src) {
-        return new Promise(function (resolve) {
-          if (completed[src]) { completed[src].then(resolve); return; }
-          var script = document.createElement('script');
-          script.src = src;
-          script.async = false;
-          completed[src] = new Promise(function (done) {
-            script.onload = done;
-            script.onerror = function () {
-              console.error('[SharedToolRuntimeBoot] failed to load', src);
-              done();
-            };
-          });
-          script.onload = function () { completed[src](); resolve(); };
+        if (completed[src]) return completed[src];
+        var script = document.createElement('script');
+        script.src = src;
+        script.async = false;
+        completed[src] = new Promise(function (resolve) {
+          script.onload = function () { resolve(); };
           script.onerror = function () {
             console.error('[SharedToolRuntimeBoot] failed to load', src);
-            completed[src](); resolve();
+            resolve(); // one optional module failure must not deadlock upload UI
           };
-          document.head.appendChild(script);
         });
+        document.head.appendChild(script);
+        return completed[src];
       })).then(function () {
         state = 'ready';
         window.dispatchEvent(new CustomEvent('ilovepdf:shared-runtime-ready'));
