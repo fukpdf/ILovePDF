@@ -388,9 +388,3 @@ button{font-family:inherit;cursor:pointer;border:0;background:none}
   background:#fff;color:var(--primary);font-weight:700;font-size:.8rem !important;
   display:inline-flex;align-items:center;gap:6px;text-decoration:none;
 }
-
-/* Defer offscreen tool catalogues without collapsing their reserved layout size. */
-.cat-block {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 520px;
-}
