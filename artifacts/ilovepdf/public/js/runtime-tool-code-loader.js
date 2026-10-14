@@ -217,6 +217,21 @@
     'zip-builder': [],
   };
 
+  // Expensive AI/OCR/translation engines are opt-in by tool family.
+  var TOOL_ENHANCEMENT_SCRIPTS = {
+    'ai-summarize': ['/js/onnx-runtime-manager.js', '/js/webgpu-ai-pipelines.js', '/js/p2p-compute-mesh.js', '/js/runtime-ai-upgrade.js', '/js/runtime-gpu-engine.js', '/js/webgpu-phase23.js', '/js/runtime-local-ai.js', '/js/bg-ai-engine.js', '/core/ai-runtime.js', '/js/runtime-ai-scheduler.js', '/js/runtime-adaptive-ai.js'],
+    'ai-summarizer': ['/js/onnx-runtime-manager.js', '/js/webgpu-ai-pipelines.js', '/js/p2p-compute-mesh.js', '/js/runtime-ai-upgrade.js', '/js/runtime-gpu-engine.js', '/js/webgpu-phase23.js', '/js/runtime-local-ai.js', '/js/bg-ai-engine.js', '/core/ai-runtime.js', '/js/runtime-ai-scheduler.js', '/js/runtime-adaptive-ai.js'],
+    'ocr': ['/js/phase34-table-ocr.js', '/js/universal-ocr-cleanup.js', '/js/runtime-tesseract-cleaner.js', '/js/gpu-fallback-validator.js'],
+    'ocr-pdf': ['/js/phase34-table-ocr.js', '/js/universal-ocr-cleanup.js', '/js/runtime-tesseract-cleaner.js', '/js/gpu-fallback-validator.js'],
+    'pdf-to-word': ['/js/universal-encoding-repair.js', '/js/universal-ocr-cleanup.js', '/js/phase34-table-ocr.js'],
+    'translate': ['/js/universal-translation-chunker.js', '/js/universal-translation-validator.js', '/js/universal-translation-pipeline.js'],
+    'translate-pdf': ['/js/universal-translation-chunker.js', '/js/universal-translation-validator.js', '/js/universal-translation-pipeline.js'],
+    'background-remover': ['/js/bg-ai-engine.js', '/js/gpu-fallback-validator.js'],
+    'crop-image': ['/js/gpu-fallback-validator.js'],
+    'resize-image': ['/js/gpu-fallback-validator.js'],
+    'image-filters': ['/js/gpu-fallback-validator.js'],
+  };
+
   // ── Tool → family ─────────────────────────────────────────────────────────
   var TOOL_FAMILY = {
     'merge':'organize','split':'organize','rotate':'organize','crop':'organize',
@@ -296,6 +311,7 @@
     var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || [])
       .concat(TOOL_ADAPTER_SCRIPTS[toolId] || [])
       .concat(TOOL_FEATURE_SCRIPTS[toolId] || [])
+      .concat(TOOL_ENHANCEMENT_SCRIPTS[toolId] || [])
       .concat(TOOL_SCRIPTS[toolId] || []);
     var orderedUniqueScripts = [];
     scripts.forEach(function (src) { if (orderedUniqueScripts.indexOf(src) === -1) orderedUniqueScripts.push(src); });
