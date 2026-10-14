@@ -44,12 +44,12 @@ assert.match(
 const sharedHeaderCss = fs.readFileSync(path.join(publicDir, 'css/home-header-v2.css'), 'utf8');
 assert.match(
   sharedHeaderCss,
-  /body \\* \\{[\\s\\S]*?scrollbar-width:\\s*none\\s*!important;/,
+  /body \* \{[\s\S]*?scrollbar-width:\s*none\s*!important;/,
   'Shared shell stylesheet must suppress visible scrollbars on nested page containers, not only html/body.'
 );
 assert.match(
   sharedHeaderCss,
-  /body \\*::-webkit-scrollbar \\{[\\s\\S]*?display:\\s*none\\s*!important;/,
+  /body \*::-webkit-scrollbar \{[\s\S]*?display:\s*none\s*!important;/,
   'Shared shell stylesheet must suppress WebKit scrollbars on nested containers.'
 );
 
