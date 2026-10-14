@@ -67,7 +67,7 @@ const previewPreparationEnd = toolPageSource.indexOf('function renderStandardPre
 const previewPreparationSource = toolPageSource.slice(previewPreparationStart, previewPreparationEnd);
 assert.ok(previewPreparationSource.includes('await Promise.all([previewWarmSafe, minimumVisibleTime]);'), 'Preview preparation should wait only for preview readiness and its brief minimum display time.');
 assert.ok(!previewPreparationSource.includes('await Promise.all([engineWarm, previewWarm]);'), 'Processing-engine warmup must not block the preview screen.');
-assert.match(previewPreparationSource, /renderStandardPreviewStep\\(tool\\);\\s*scheduleToolEngineWarmup\\(tool\\);/, 'Tool engine warmup must be scheduled after the preview UI is rendered.');
+assert.match(previewPreparationSource, /renderStandardPreviewStep\(tool\);\s*scheduleToolEngineWarmup\(tool\);/, 'Tool engine warmup must be scheduled after the preview UI is rendered.');
 
 const chromeSource = fs.readFileSync(path.join(publicDir, 'js/chrome.js'), 'utf8');
 assert.match(
