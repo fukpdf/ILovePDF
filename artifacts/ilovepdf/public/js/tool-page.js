@@ -342,7 +342,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // a delayed diagnostic cannot leave the upload button without its own modules.
   try {
     if (currentTool && window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
-      window.RuntimeToolCodeLoader.load(currentTool.id).catch(function (error) {
+      window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
+        // File selection can happen before an on-demand page editor finishes loading.
+        if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+      }).catch(function (error) {
         console.warn('[ToolCodeLoader] active tool bundle did not fully load:', currentTool.id, error);
       });
     }
@@ -3579,7 +3582,9 @@ window.loadToolPage = function loadToolPage(path) {
   // SPA tool switches must request the new tool's own modules as well.
   try {
     if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
-      window.RuntimeToolCodeLoader.load(currentTool.id).catch(function (error) {
+      window.RuntimeToolCodeLoader.load(currentTool.id).then(function () {
+        if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+      }).catch(function (error) {
         console.warn('[ToolCodeLoader] switched tool bundle did not fully load:', currentTool.id, error);
       });
     }
