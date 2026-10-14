@@ -17,7 +17,7 @@ export function normalizeHtml(source) {
   const fallbacks = [];
   let html = source.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, block => {
     const marker = '__ILOVE_NOSCRIPT_FONT_FALLBACK_' + fallbacks.length + '__';
-    fallbacks.push(block);
+    fallbacks.push(block.replace(/([?&]display=)swap\\b/gi, '$1optional'));
     return marker;
   });
   let changed = 0;
