@@ -36,6 +36,32 @@ export function normalizeHtml(source) {
       '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n' +
       '<noscript><link rel="stylesheet" href="' + stableHref + '"></noscript>';
   });
+  // Shared chrome must be styled before first paint. Some legacy pages ship
+  // the header markup (or load chrome.js) but rely on chrome.js to append this
+  // stylesheet after parsing, which can briefly render an in-flow, unstyled
+  // header and then move the page when the header becomes fixed.
+  const needsSharedHeader = /<script\b[^>]*\bsrc=["'][^"']*\/js\/chrome\.js(?:[?#][^"']*)?["'][^>]*>/i.test(source) ||
+    /<header\b[^>]*class=["'][^"']*\bsite-header\b/i.test(source);
+  const headerCssUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+  const headerCssTag = '<link rel="stylesheet" href="' + headerCssUrl + '" data-shared-header-css="1">';
+  const headClose = html.search(/<\/head\s*>/i);
+  if (needsSharedHeader && headClose >= 0) {
+    let head = html.slice(0, headClose);
+    let hasHeaderCss = false;
+    head = head.replace(/<link\b[^>]*>/gi, tag => {
+      const href = attr(tag, 'href');
+      if (!/\/css\/home-header-v2\.css(?:[?#]|$)/i.test(href)) return tag;
+      hasHeaderCss = true;
+      if (tag !== headerCssTag) changed += 1;
+      return headerCssTag;
+    });
+    if (!hasHeaderCss) {
+      head += '\n  ' + headerCssTag + '\n';
+      changed += 1;
+    }
+    html = head + html.slice(headClose);
+  }
+
   html = html.replace(/__ILOVE_NOSCRIPT_FONT_FALLBACK_(\d+)__/g, (_, index) => fallbacks[Number(index)] || '');
   return { html, changed };
 }
@@ -63,7 +89,7 @@ export function normalizePublicHtml() {
     changedLinks += result.changed;
     console.log('[font-stability] normalized ' + path.relative(PUBLIC, file) + ' (' + result.changed + ' stylesheet(s))');
   }
-  console.log('[font-stability] scanned ' + files.length + ' HTML files; normalized ' + changedLinks + ' stylesheet(s) in ' + changedFiles + ' file(s)');
+  console.log('[font-stability] scanned ' + files.length + ' HTML files; applied ' + changedLinks + ' layout-stability change(s) in ' + changedFiles + ' file(s)');
   return { files: files.length, changedFiles, changedLinks };
 }
 
