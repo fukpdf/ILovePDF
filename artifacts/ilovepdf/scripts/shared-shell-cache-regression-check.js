@@ -30,7 +30,7 @@ assert.ok(chromeUsers.includes('index.html'), 'Homepage must load shared chrome.
 assert.ok(chromeUsers.includes('tool.html'), 'Tool shell must load shared chrome.');
 
 const toolHtml = fs.readFileSync(path.join(publicDir, 'tool.html'), 'utf8');
-const directScriptCount = [...toolHtml.matchAll(/<script\\b[^>]*\\bsrc=["'][^"']+["'][^>]*>\\s*<\\/script>/gi)].length;
+const directScriptCount = [...toolHtml.matchAll(/<script\b[^>]*\ssrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)].length;
 const lazyScriptCount = [...toolHtml.matchAll(/data-lazy-src=["'][^"']+["']/g)].length;
 assert.ok(directScriptCount <= 30, 'Shared upload HTML must keep its critical script path small; found ' + directScriptCount + ' direct external scripts.');
 assert.ok(lazyScriptCount >= 150, 'Runtime/processor support scripts must remain demand-loaded; found ' + lazyScriptCount + ' lazy scripts.');
