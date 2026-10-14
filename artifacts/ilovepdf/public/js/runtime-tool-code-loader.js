@@ -82,6 +82,7 @@
     'organize': ['/js/processors/merge-processor.js'],
     'page-numbers': ['/js/processors/watermark-processor.js'],
     'redact': ['/js/processors/watermark-processor.js'],
+    'compare': ['/js/processors/watermark-processor.js'],
     'compress': ['/js/processors/compress-processor.js'],
     'pdf-to-word': ['/js/processors/convert-processor.js'],
     'pdf-to-excel': ['/js/processors/convert-processor.js'],
