@@ -323,7 +323,7 @@
   </script>
 
   <script src="/js/config.js" defer></script>
-  <script src="/js/debug-trace.js" defer></script>
+  <!-- /js/debug-trace.js is loaded in the post-paint diagnostics stack. -->
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
   <script src="/js/timer-registry.js" defer></script>
   <!-- Phase 1 Stabilization Bridge: ObjectURL normalization, safe ResizeObserver,
@@ -336,13 +336,13 @@
   <script src="/js/stream-helpers.js" defer></script>
   <script src="/js/memory-pressure-monitor.js" defer></script>
   <!-- Final Stabilization: Observability + Adaptive Runtime (after MemPressure, before TaskScheduler) -->
-  <script src="/js/stability-metrics.js" defer></script>
+  <!-- /js/stability-metrics.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/runtime-failed-log.js" defer></script>
   <script src="/js/object-url-registry.js" defer></script>
   <!-- Phase 3 Unit 4: scoped browser URL/buffer/worker lifecycle bridge -->
   <script src="/js/browser-resource-lifecycle.js" defer></script>
   <script src="/js/worker-leak-detector.js" defer></script>
-  <script src="/js/memory-telemetry.js" defer fetchpriority="low"></script>
+  <!-- /js/memory-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/adaptive-runtime.js" defer></script>
   <script src="/js/runtime-device-lite.js" defer></script>
   <!-- G/H/I: Canvas pool + task scheduler + lifecycle manager (after MemPressure) -->
@@ -355,7 +355,7 @@
   <script src="/js/virtual-page-manager.js" defer></script>
   <script src="/js/rolling-processor.js" defer></script>
   <script src="/js/giant-file-routing.js" defer></script>
-  <script src="/js/giant-file-telemetry.js" defer fetchpriority="low"></script>
+  <!-- /js/giant-file-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 26: Per-Tool Deep Enhancement + Giant File Stabilization -->
   <script src="/js/phase26-enhancements.js" defer></script>
   <!-- Phase 27–30: Tool Validation, Resume System, Debug Hooks, Production Hardening -->
@@ -389,11 +389,11 @@
   <!-- Phase H: Enterprise Recovery V2 (object graph, font/page-tree/image recovery) -->
   <script src="/js/enterprise-recovery-v2.js" defer></script>
   <!-- Phase I: Job Dashboard (live progress, mem tier, GPU, workers, ETA) -->
-  <script src="/js/job-dashboard.js" defer></script>
+  <!-- /js/job-dashboard.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase J: FullNextGenAudit — master audit across all phases 18–37+ -->
-  <script src="/js/full-nextgen-audit.js" defer></script>
+  <!-- /js/full-nextgen-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 40A: Final Memory Leak Audit (canvas/bitmap/worker/blob/tensor/GPU tracking) -->
-  <script src="/js/final-memory-audit.js" defer></script>
+  <!-- /js/final-memory-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 40B: Worker Deadlock Monitor (heartbeat, stalled-promise, queue-starvation) -->
   <script src="/js/deadlock-monitor.js" defer></script>
   <!-- Phase 40C: OPFS Integrity System (CRC32, staged-write, journal, orphan recovery) -->
@@ -409,7 +409,7 @@
   <!-- Phase 40M: Self-Healing Recovery (trigger detect, auto-cleanup, progress preserve) -->
   <script src="/js/self-healing.js" defer></script>
   <!-- Phase 40L: Final Automated Audit Engine — RunFullEnterpriseStabilityAudit() -->
-  <script src="/js/final-automated-audit.js" defer></script>
+  <!-- /js/final-automated-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 41A: Universal Encoding Repair (MojibakeDetector, UtfRepairEngine, UnicodeSanitizer) -->
   <script src="/js/universal-encoding-repair.js" defer></script>
   <!-- Phase 41B: Universal Smart Chunk Engine (LanguageAwareChunker, AdaptiveChunkSizer, StreamingQueue) -->
@@ -434,7 +434,7 @@
   <script src="/js/navigation-cancel.js" defer></script>
   <script src="/js/adaptive-degradation.js" defer></script>
   <script src="/js/cleanup-contracts.js" defer></script>
-  <script src="/js/phase1c-audit.js" defer></script>
+  <!-- /js/phase1c-audit.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase 2: CentralRuntime — Centralized Browser-Side Processing Runtime
        Strict load order (each depends on all prior):
          T032 event-bus → T030 state → T028 telemetry → T025 cancellation →
@@ -443,7 +443,7 @@
          T034 streaming → T033 diagnostics → T020 core (CentralRuntime) -->
   <script src="/js/runtime-event-bus.js" defer></script>
   <script src="/js/runtime-state.js" defer></script>
-  <script src="/js/runtime-telemetry.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/runtime-cancellation.js" defer></script>
   <script src="/js/runtime-memory-controller.js" defer></script>
   <script src="/js/runtime-progress.js" defer></script>
@@ -454,7 +454,7 @@
   <script src="/js/runtime-health.js" defer></script>
   <script src="/js/runtime-tool-adapters.js" defer></script>
   <script src="/js/runtime-streaming-hooks.js" defer></script>
-  <script src="/js/runtime-diagnostics.js" defer></script>
+  <!-- /js/runtime-diagnostics.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/runtime-core.js" defer></script>
   <!-- Phase 5 — Runtime Certification Layer (report functions + RT.debug + RT.simulate) -->
   <script src="/js/runtime-phase5.js" defer></script>
@@ -554,7 +554,7 @@
   <!-- 9M: Lazy engine loader — deduplicates and defers heavy engine loads -->
   <script src="/js/runtime-lazy-engine-loader.js?v=__BUILD_ID__" defer></script>
   <!-- 9N: Performance monitor — Web Vitals (LCP/FID/CLS), tool timing, memory -->
-  <script src="/js/runtime-performance-monitor.js?v=__BUILD_ID__" defer></script>
+  <!-- /js/runtime-performance-monitor.js is loaded in the post-paint diagnostics stack. -->
   <!-- 9O: Stream pipeline — composable backpressure pipeline, uses RuntimeNetworkState -->
   <script src="/js/runtime-stream-pipeline.js?v=__BUILD_ID__" defer></script>
   <!-- 9P: Worker prewarm — idle/drop-triggered WorkerPool prewarming -->
@@ -945,7 +945,7 @@
   <script src="/js/runtime-ads.js" defer></script>
   <script src="/js/runtime-credits.js" defer></script>
   <script src="/js/runtime-donation.js" defer></script>
-  <script src="/js/runtime-analytics.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-analytics.js is loaded in the post-paint diagnostics stack. -->
   <script src="/js/runtime-offline.js" defer></script>
   <script src="/js/runtime-updater.js" defer></script>
   <script src="/js/runtime-changelog.js" defer fetchpriority="low"></script>
@@ -967,7 +967,7 @@
   <!-- T3: Tier-based hydration scheduler (P0/P1/P2) -->
   <script src="/js/runtime-hydration-scheduler.js" defer></script>
   <!-- T4: Crash fingerprinting + encrypted ring-buffer + deploy-crash correlation -->
-  <script src="/js/runtime-crash-telemetry.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-crash-telemetry.js is loaded in the post-paint diagnostics stack. -->
   <!-- T5: Dynamic bundle activation + dependency-aware loading -->
   <script src="/js/runtime-bundle-registry.js" defer></script>
   <!-- T6: Transactional offline jobs + processing continuation -->
@@ -977,7 +977,7 @@
   <!-- T8: Geo-aware resource hints + BUILD_ID edge validation -->
   <script src="/js/runtime-edge-hints.js" defer></script>
   <!-- T9: Unified health score + AdvancedEngine.audit() dashboard panels -->
-  <script src="/js/runtime-health-analytics.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-health-analytics.js is loaded in the post-paint diagnostics stack. -->
 
   <!-- Arc 3: Tool Runtime Isolation Architecture -->
   <!-- Phase A: Tool manifests + loader -->
@@ -1091,7 +1091,7 @@
   <!-- Phase E: Performance profiler — longtask sampling, bottleneck analysis -->
   <!-- runtime-performance-profiler.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase F: Incident center — unified registry, P0-P3, dedup, escalation -->
-  <script src="/js/runtime-incident-center.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-incident-center.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase G: State snapshots — full capture, diff, checksum, rollback -->
   <!-- runtime-state-snapshots.js loads in the idle diagnostics phase, not before upload UI. -->
   <!-- Phase H: Replay engine — event scrubber, play/pause/step, export -->
@@ -1111,7 +1111,7 @@
   <!-- Phase F: Governance — policy enforcement, protected flags, quarantine, compliance -->
   <script src="/js/runtime-governance.js" defer fetchpriority="low"></script>
   <!-- Phase G: Blackbox recorder — 15-min rolling buffer, panic export, replay handoff -->
-  <script src="/js/runtime-blackbox.js" defer fetchpriority="low"></script>
+  <!-- /js/runtime-blackbox.js is loaded in the post-paint diagnostics stack. -->
   <!-- Phase H: Adaptive bundles — device-tier plans, dormant detection, predictive preload -->
   <!-- Adaptive bundle prediction is non-critical and starts after the upload UI settles. -->
 
