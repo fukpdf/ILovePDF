@@ -476,3 +476,23 @@ body:has(.site-header){
   color: #fff;
 }
 .site-header .mega-col > h5 { color: var(--ilpdf-header-soft); }
+
+
+/* Site-wide scrollbar suppression (2026-10-14).
+   Hide visible scrollbars in every page and nested layout while preserving
+   normal wheel, touch, keyboard, and programmatic scrolling. This prevents
+   inner app panels from showing a second scrollbar beside the document bar. */
+html,
+body,
+body * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+body *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
