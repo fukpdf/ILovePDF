@@ -87,6 +87,9 @@ jobs:
           node --check public/js/runtime-tool-bundle-segments.js
           node --check public/js/runtime-bundle-registry.js
           node --check scripts/build-runtime-bundles.js
+          find public/js/bundles -maxdepth 1 -type f -name '*.bundle.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
           node --check scripts/compress-hybrid-regression-check.js
           node scripts/compress-hybrid-regression-check.js
           node --check public/script.js || true
