@@ -52,14 +52,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="/css/economy.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/economy.css"></noscript>
-  <link rel="stylesheet" href="/css/community-economy.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/community-economy.css"></noscript>
   <link rel="stylesheet" href="/css/rtl.css">
   <!-- Keep font CSS off the render-blocking path. -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
+  <noscript></noscript>
   <!-- Worker scripts are not prefetched on idle; selected-tool runtime loads them only after user interaction. -->
   <link rel="stylesheet" href="/css/home.css?v=20261014-root-scrollbar-fix-v1">
 
@@ -67,20 +67,20 @@
 
   <link rel="stylesheet" href="/css/styles.css?v=20261014-root-scrollbar-fix-v1">
   <!-- Download-step-only styling is non-blocking on the initial upload route. -->
-  <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1"></noscript>
   <!-- Blog-only CSS is excluded from the shared tool shell to avoid an unused render-blocking request. -->
   <!-- FAQ/SEO-section styling is below the primary tool workspace; load it without blocking first paint. -->
-  <link rel="stylesheet" href="/css/seo-extended.css" media="print" onload="this.onload=null;this.media='all'">
+  
   <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/ads.css"></noscript>
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/responsive-ads.css"></noscript>
   <!-- Preview/editor workspace styles are fetched early but do not block upload first paint. -->
-  <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2" media="print" onload="this.onload=null;this.media='all'" fetchpriority="low">
+  
   <noscript><link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2"></noscript>
   <!-- Canonical homepage shell styles load last so tool-specific legacy CSS cannot override them. -->
   <link rel="stylesheet" href="/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2" data-shared-header-css="1">

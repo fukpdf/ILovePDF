@@ -140,3 +140,17 @@ assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must
 assert.match(swSource, /await cache\.put\(request, response\.clone\(\)\)/, 'Asset cache write must complete before the first response returns.');
 
 console.log(`[shared-shell] PASS — ${chromeUsers.length} HTML pages use the canonical chrome URL; shared shell and cache guards are present.`);
+
+
+// Tool shell performance regression guard: one active stylesheet per URL.
+// Duplicate print/onload + regular links cause the same CSS to be parsed/applied twice.
+const toolStyles = [...toolHtml.matchAll(/<link\b[^>]*>/gi)]
+  .map(match => match[0])
+  .filter(tag => /\srel=[\"'](?:stylesheet|preload)[\"']/i.test(tag) &&
+    (/\srel=[\"']stylesheet[\"']/i.test(tag) || /\srel=[\"']preload[\"'][^>]*as=[\"']style[\"']/i.test(tag)))
+  .map(tag => (tag.match(/\bhref=[\"']([^\"']+)[\"']/i) || [])[1])
+  .filter(Boolean);
+assert.equal(new Set(toolStyles).size, toolStyles.length,
+  'Tool shell must not apply/preload the same stylesheet URL more than once.');
+assert.ok(toolStyles.includes('/css/styles.css?v=20261014-root-scrollbar-fix-v1'), 'Tool shell must retain the primary styles.css.');
+assert.ok(toolStyles.includes('/css/home.css?v=20261014-root-scrollbar-fix-v1'), 'Tool shell must retain home.css.');
