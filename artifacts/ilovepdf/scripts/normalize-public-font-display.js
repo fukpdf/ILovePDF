@@ -7,7 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 
 function attr(tag, name) {
-  const match = tag.match(new RegExp('\\\\b' + name + '=["\\']([^"\\']*)["\\']', 'i'));
+  const match = tag.match(new RegExp('\\b' + name + '=["\']([^"\']*)["\']', 'i'));
   return match ? match[1] : '';
 }
 
@@ -15,28 +15,28 @@ export function normalizeHtml(source) {
   // Preserve noscript fallbacks as opaque blocks so the active-link rewrite
   // cannot accidentally nest or rewrite their fallback markup.
   const fallbacks = [];
-  let html = source.replace(/<noscript\\b[^>]*>[\\s\\S]*?<\\/noscript>/gi, block => {
+  let html = source.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, block => {
     const marker = '__ILOVE_NOSCRIPT_FONT_FALLBACK_' + fallbacks.length + '__';
     fallbacks.push(block);
     return marker;
   });
   let changed = 0;
-  html = html.replace(/<link\\b[^>]*>/gi, tag => {
+  html = html.replace(/<link\b[^>]*>/gi, tag => {
     const href = attr(tag, 'href');
-    const rel = attr(tag, 'rel').toLowerCase().split(/\\s+/);
-    if (!/https?:\\/\\/fonts\\.googleapis\\.com\\/css2?\\?/i.test(href) ||
+    const rel = attr(tag, 'rel').toLowerCase().split(/\s+/);
+    if (!/https?:\/\/fonts\.googleapis\.com\/css2?\?/i.test(href) ||
         !rel.includes('stylesheet')) return tag;
 
-    let stableHref = href.replace(/([?&]display=)swap\\b/i, '$1optional');
+    let stableHref = href.replace(/([?&]display=)swap\b/i, '$1optional');
     if (!/[?&]display=/i.test(stableHref)) {
       stableHref += (stableHref.includes('?') ? '&' : '?') + 'display=optional';
     }
     changed += 1;
     return '<link rel="preload" as="style" href="' + stableHref +
-      '" fetchpriority="low" onload="this.onload=null;this.rel=\\'stylesheet\\'">\\n' +
+      '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n' +
       '<noscript><link rel="stylesheet" href="' + stableHref + '"></noscript>';
   });
-  html = html.replace(/__ILOVE_NOSCRIPT_FONT_FALLBACK_(\\d+)__/g, (_, index) => fallbacks[Number(index)] || '');
+  html = html.replace(/__ILOVE_NOSCRIPT_FONT_FALLBACK_(\d+)__/g, (_, index) => fallbacks[Number(index)] || '');
   return { html, changed };
 }
 
