@@ -3452,5 +3452,5 @@ body::-webkit-scrollbar {
 /* The fixed header does not animate its own transform. Avoid reserving a
    permanent compositor layer on every page just for this static positioning. */
 .site-header {
-  will-change: auto;
+  will-change: auto !important;
 }
