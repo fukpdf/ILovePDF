@@ -122,27 +122,36 @@ const TOOL_ONLY_HOMEPAGE_SCRIPTS = new Set([
 ]);
 
 function dedupeLocalStylesheets(html) {
-  const localPath = href => {
+  const identity = href => {
     try {
       const parsed = new URL(href, 'https://homepage.invalid');
-      return parsed.origin === 'https://homepage.invalid' && parsed.pathname.startsWith('/css/')
-        ? parsed.pathname : null;
-    } catch (_) { return null; }
+      if (parsed.origin === 'https://homepage.invalid' && parsed.pathname.startsWith('/css/')) {
+        return parsed.pathname;
+      }
+      return href;
+    } catch (_) { return href; }
   };
-  const tags = [...html.matchAll(/<link\b[^>]*>/gi)].filter(match =>
-    /\brel=["'][^"']*\bstylesheet\b[^"']*["']/i.test(match[0]) &&
-    localPath(match[0].match(/\bhref=["']([^"']+)["']/i)?.[1] || '')
+  const attr = (tag, name) => {
+    const match = tag.match(new RegExp("\\s" + name + "=[\"']([^\"']+)[\"']", 'i'));
+    return match ? match[1] : '';
+  };
+  const links = [...html.matchAll(/<link\b[^>]*>/gi)];
+  const preloadedStyles = new Set(links
+    .filter(match => attr(match[0], 'rel').toLowerCase() === 'preload' &&
+      attr(match[0], 'as').toLowerCase() === 'style')
+    .map(match => identity(attr(match[0], 'href')))
+    .filter(Boolean));
+  const stylesheets = links.filter(match =>
+    attr(match[0], 'rel').toLowerCase().split(/\s+/).includes('stylesheet')
   );
-  const lastByPath = new Map();
-  for (const match of tags) {
-    const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
-    const pathname = href ? localPath(href) : null;
-    if (pathname) lastByPath.set(pathname, match.index);
+  const lastByIdentity = new Map();
+  for (const match of stylesheets) {
+    const key = identity(attr(match[0], 'href'));
+    if (key && !preloadedStyles.has(key)) lastByIdentity.set(key, match.index);
   }
-  const duplicates = tags.filter(match => {
-    const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1];
-    const pathname = href ? localPath(href) : null;
-    return pathname && lastByPath.get(pathname) !== match.index;
+  const duplicates = stylesheets.filter(match => {
+    const key = identity(attr(match[0], 'href'));
+    return key && (preloadedStyles.has(key) || lastByIdentity.get(key) !== match.index);
   }).sort((left, right) => right.index - left.index);
   for (const match of duplicates) {
     html = html.slice(0, match.index) + html.slice(match.index + match[0].length);
@@ -494,7 +503,7 @@ export function assembleHomepageIndex() {
     console.log('[assemble-index] deferred ' + adsCleanup.count + ' AdSense script(s) until a slot approaches view or post-load fallback');
   }
 
-  // Repeated local CSS paths with different query strings still download the same stylesheet.
+  // De-duplicate active stylesheets against async style preloads and each other.
   const stylesheetCleanup = dedupeLocalStylesheets(html);
   html = stylesheetCleanup.html;
   if (stylesheetCleanup.removed) {
@@ -519,6 +528,28 @@ export function assembleHomepageIndex() {
   }
   if (firstRender.nonCriticalStylesheetsDeferred) {
     console.log('[assemble-index] made ' + firstRender.nonCriticalStylesheetsDeferred + ' below-fold/ads stylesheets non-blocking');
+  }
+
+  // Catch duplicate stylesheet application after asynchronous first-render transforms.
+  const activeStyleHtml = html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  const activeStyleLinks = [...activeStyleHtml.matchAll(/<link\b[^>]*>/gi)]
+    .filter(match => {
+      const tag = match[0];
+      const rel = (tag.match(/\srel=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+      const as = (tag.match(/\sas=["']([^"']+)["']/i)?.[1] || '').toLowerCase();
+      return rel.split(/\s+/).includes('stylesheet') || (rel === 'preload' && as === 'style');
+    })
+    .map(match => {
+      const href = match[0].match(/\bhref=["']([^"']+)["']/i)?.[1] || '';
+      try {
+        const url = new URL(href, 'https://homepage.invalid');
+        return url.origin === 'https://homepage.invalid' && url.pathname.startsWith('/css/')
+          ? url.pathname : href;
+      } catch (_) { return href; }
+    }).filter(Boolean);
+  if (new Set(activeStyleLinks).size !== activeStyleLinks.length) {
+    fail('homepage contains duplicate active stylesheet/preload URLs after optimization');
+    return false;
   }
 
   // chrome.js owns TOOL_GROUPS; execute it before home.js to avoid an empty-registry render.

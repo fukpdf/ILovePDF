@@ -139,6 +139,25 @@ assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache vers
 assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must use the explicit cache-first route.');
 assert.match(swSource, /await cache\.put\(request, response\.clone\(\)\)/, 'Asset cache write must complete before the first response returns.');
 
+// All root HTML pages must avoid applying/preloading the same stylesheet URL twice.
+// Ignore noscript fallbacks: only those links are active when JavaScript is disabled.
+for (const file of htmlFiles) {
+  const source = fs.readFileSync(path.join(publicDir, file), 'utf8')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  const styleUrls = [...source.matchAll(/<link\b[^>]*>/gi)]
+    .map(match => match[0])
+    .filter(tag => {
+      const rel = (tag.match(/\srel=["']([^"']+)["']/i) || [])[1] || '';
+      const as = (tag.match(/\sas=["']([^"']+)["']/i) || [])[1] || '';
+      return rel.toLowerCase().split(/\s+/).includes('stylesheet') ||
+        (rel.toLowerCase() === 'preload' && as.toLowerCase() === 'style');
+    })
+    .map(tag => (tag.match(/\bhref=["']([^"']+)["']/i) || [])[1])
+    .filter(Boolean);
+  assert.equal(new Set(styleUrls).size, styleUrls.length,
+    file + ' must not apply/preload the same stylesheet URL more than once.');
+}
+
 console.log(`[shared-shell] PASS — ${chromeUsers.length} HTML pages use the canonical chrome URL; shared shell and cache guards are present.`);
 
 
