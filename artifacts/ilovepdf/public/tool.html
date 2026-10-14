@@ -500,7 +500,6 @@
   <!-- 8B: DevTools dashboard — live overlay (Alt+Shift+D), zero-overhead idle -->
   <!-- DevTools overlay is loaded after first paint by the idle runtime loader. -->
   <!-- 8J: Enterprise certification — 14-category audit + Phase 9 recommendation -->
-  <script src="/js/runtime-enterprise-certification.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 9 — Distributed Browser Operating System + GPU Compute       -->
@@ -537,7 +536,6 @@
   <!-- 9E: Local AI engine — ONNX on-device inference, model cache, heuristic chain -->
   <script src="/js/runtime-local-ai.js" defer></script>
   <!-- 9J: Browser OS Certification — 15-category full-platform audit (deferred) -->
-  <script src="/js/runtime-browser-os-certification.js" defer></script>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- PHASE 9 CONTINUATION — Runtime Infrastructure Layer                 -->
@@ -1088,7 +1086,6 @@
   <!-- Phase B: Live floating dashboard — Ctrl+Shift+R, FPS/heap/tasks/incidents -->
   <!-- runtime-live-dashboard.js loads in the idle diagnostics phase, not before upload UI. -->
   <!-- Phase C: Distributed trace engine — span trees, slow-path detection, p99 -->
-  <script src="/js/runtime-trace-engine.js" defer fetchpriority="low"></script>
   <!-- Phase D: Centralized event timeline — searchable ring buffer, grouped views -->
   <!-- runtime-event-timeline.js is loaded after the upload UI reaches its idle phase. -->
   <!-- Phase E: Performance profiler — longtask sampling, bottleneck analysis -->
