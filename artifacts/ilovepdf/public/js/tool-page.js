@@ -1792,9 +1792,7 @@ function cropJourneySetStage(stage, title, detail, percent, determinate) {
 function ensureToolRuntimeAndBundle(toolId) {
   const runtime = window.RuntimeToolLoader;
   const boot = runtime && typeof runtime.boot === 'function'
-    ? Promise.resolve().then(function () {
-        return runtime.isBooted && runtime.isBooted() ? true : runtime.boot();
-      })
+    ? Promise.resolve().then(function () { return runtime.boot(toolId); })
     : Promise.resolve(true);
   return boot.then(function (ready) {
     if (ready === false) throw new Error('The shared security/runtime stack did not become ready.');
