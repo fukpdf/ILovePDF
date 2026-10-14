@@ -67,6 +67,7 @@ assert.match(
   'Shared shell stylesheet must suppress WebKit scrollbars on nested containers.'
 );
 
+const homepageAssembler = fs.readFileSync(path.resolve(process.cwd(), 'scripts/assemble-homepage-index.js'), 'utf8');
 assert.match(
   homepageAssembler,
   /function normalizeSharedShellAssetUrls\(html\)/,
@@ -77,7 +78,6 @@ assert.match(
   /html = normalizeSharedShellAssetUrls\(html\)/,
   'Homepage asset normalization must run before the assembled HTML is validated and written.'
 );
-const homepageAssembler = fs.readFileSync(path.resolve(process.cwd(), 'scripts/assemble-homepage-index.js'), 'utf8');
 for (const marker of ['data-shared-upload-prefetch="document"', 'data-shared-upload-prefetch="styles"', 'data-shared-upload-prefetch="editor"', 'data-shared-upload-prefetch="download"']) {
   assert.ok(homepageAssembler.includes(marker), 'Homepage assembler must warm the shared upload shell resource: ' + marker);
 }
