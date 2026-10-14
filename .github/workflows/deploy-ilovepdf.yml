@@ -96,6 +96,10 @@ jobs:
           node --check public/sw.js || true
           node --check scripts/assemble-homepage-index.js
 
+      - name: Conservative dead-code and asset-reference audit
+        shell: bash
+        run: node ../../scripts/dead-code-audit.mjs
+
       - name: Deploy to Firebase Hosting
         shell: bash
         env:
