@@ -359,13 +359,8 @@
     return out;
   }
 
-  // ── Listen for tool runtime ready ─────────────────────────────────────────
-  G.addEventListener('tool:runtime-ready', function (evt) {
-    try {
-      var toolId = evt && evt.detail && evt.detail.toolId;
-      if (toolId) load(toolId);
-    } catch (_) {}
-  });
+  // Tool bundles are requested by file selection and guarded processing,
+  // not by the shared runtime-ready event; this keeps untouched tools unloaded.
 
   G.RuntimeToolCodeLoader = Object.freeze({
     VERSION:          VERSION,
