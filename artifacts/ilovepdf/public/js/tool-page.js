@@ -337,6 +337,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? window.ToolRegistry.mergeLegacy(legacyTool)
     : legacyTool;
 
+  // Start the active tool's feature bundle immediately after route resolution.
+  // This is independent of optional runtime certification/boot diagnostics, so
+  // a delayed diagnostic cannot leave the upload button without its own modules.
+  try {
+    if (currentTool && window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
+      window.RuntimeToolCodeLoader.load(currentTool.id).catch(function (error) {
+        console.warn('[ToolCodeLoader] active tool bundle did not fully load:', currentTool.id, error);
+      });
+    }
+  } catch (_) {}
+
   // Tool has a dedicated standalone page (e.g. numbers-to-words → /n2w.html)
   if (currentTool && currentTool.url) {
     if (safeRedirect(currentTool.url)) return;
