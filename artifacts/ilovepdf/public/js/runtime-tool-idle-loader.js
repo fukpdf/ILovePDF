@@ -107,6 +107,10 @@
     '/js/runtime-devtools-dashboard.js',
     // Adaptive preloading is advisory; keep its timers and prediction hooks off first paint.
     '/js/runtime-adaptive-bundles.js',
+    // Certification and trace visualization are diagnostics, not upload prerequisites.
+    '/js/runtime-enterprise-certification.js',
+    '/js/runtime-browser-os-certification.js',
+    '/js/runtime-trace-engine.js',
   ];
 
   var IDLE_STACK_COUNT = IDLE_ROOT_STACK.length + IDLE_DEPENDENT_STACK.length + IDLE_LATE_STACK.length;
