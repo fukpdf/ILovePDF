@@ -167,6 +167,9 @@
     'qr-code-generator': [],
     'barcode-generator': [],
     'zip-builder': [],
+    // These utilities redirect to standalone pages and intentionally have no tool-page bundle.
+    'numbers-to-words': [],
+    'currency-converter': [],
   };
 
   // Tool-specific runtime/UI modules stay out of the shared upload shell.
