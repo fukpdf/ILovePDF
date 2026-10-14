@@ -6,10 +6,8 @@
  *
  * STRATEGY:
  *   • Crawler detected → skip all idle scripts (no parse cost for bots)
- *   • Normal user → load on the first requestIdleCallback opportunity,
- *                   with a 4 s requestIdleCallback timeout
- *   • Browsers without requestIdleCallback → 5 s fallback timer
- *   • File/drop input interaction → accelerate immediately
+ *   • Normal user → keep the secondary stack dormant until file/drop interaction
+ *   • File/drop input interaction → start the secondary stack after a short delay
  *   • Upload UI / chrome.js / tool-page.js remain completely unaffected
  *
  * TARGET SYSTEMS (all purely additive, use _s() / window.X guards):
