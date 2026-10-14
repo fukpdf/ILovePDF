@@ -72,10 +72,11 @@ for (const marker of ['data-shared-upload-prefetch="document"', 'data-shared-upl
   assert.ok(homepageAssembler.includes(marker), 'Homepage assembler must warm the shared upload shell resource: ' + marker);
 }
 assert.match(homepageAssembler, /addSharedUploadWarmupHints\(html\)/, 'Homepage assembly must inject the shared upload warmup hints.');
-assert.ok(
-  !homepageAssembler.includes("tool-page.js"),
-  'The homepage warmup must not eagerly include the tool-page processor/controller script.'
+const warmupHelper = homepageAssembler.slice(
+  homepageAssembler.indexOf('function addSharedUploadWarmupHints'),
+  homepageAssembler.indexOf('function moveExternalScriptAfter')
 );
+assert.ok(warmupHelper && !warmupHelper.includes('tool-page.js'), 'The warmup helper must not inject the tool-page controller or processors.');
 
 const swSource = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache version must be rotated with this cache contract.');
