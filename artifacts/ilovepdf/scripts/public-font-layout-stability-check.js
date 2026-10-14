@@ -18,7 +18,8 @@ assert.equal(normalized.changed, 1, 'one active Google Fonts stylesheet should b
 assert.match(normalized.html, /rel="preload" as="style"/, 'font CSS should leave the render-blocking stylesheet path');
 assert.match(normalized.html, /display=optional/, 'late font swaps should be discouraged');
 assert.match(normalized.html, /onload="this\.onload=null;this\.rel='stylesheet'"/, 'font stylesheet should apply asynchronously');
-assert.match(normalized.html, /<noscript><link href="https:\/\/fonts\.googleapis\.com\/css2[^"]*display=swap[^"]*" rel="stylesheet"><\/noscript>/, 'original noscript fallback should remain intact');
+assert.match(normalized.html, /<noscript><link href="https:\/\/fonts\.googleapis\.com\/css2[^"]*display=optional[^"]*" rel="stylesheet"><\/noscript>/, 'noscript fallback should use the stable optional font policy');
+assert.doesNotMatch(normalized.html, /display=swap/i, 'normalized markup should not retain swap policy even in noscript fallbacks');
 assert.equal(normalizeHtml(normalized.html).changed, 0, 'normalization must be idempotent');
 
 function walk(directory) {
