@@ -30,6 +30,20 @@ Changes:
 
 This avoids waiting for the shared-shell script to append critical header CSS after page parsing. It is a source-level mitigation; its effect on actual CLS still needs a browser trace.
 
+### Header space reservation, asynchronous credits, and responsive navigation
+
+A second header-related shift risk remained even when the canonical stylesheet was linked in the head: the old `body:has(.site-header)` offset only activated after `chrome.js` injected the header element. The first layout could therefore be calculated without the header offset and then move when the element appeared.
+
+Changes:
+- The canonical header CSS now reserves the header offset using the head's `data-shared-header-css` link, which exists before the shared-shell runtime injects the header. The mobile header height is reserved as 64px from the same first style calculation.
+- The existing mobile and desktop community-economy widgets (credits/savings) are absolutely positioned within the header. Their asynchronous insertion and counter updates no longer participate in flex sizing and cannot push the brand or nav.
+- Mobile/tablet brand positioning uses the viewport center rather than the remaining flex space. The existing credits widget remains on the right; on very narrow phones only the secondary savings pill is hidden to prevent overlap with the centered brand.
+- Desktop primary navigation is now ordered **Merge PDF → Split PDF → Compress PDF → Organize PDF → All Tools**. Obsolete Organize/Convert dropdown wiring was removed; the All Tools mega-menu remains.
+- The shared header stylesheet cache key was bumped, and both the homepage assembler and public-HTML normalizer now emit the canonical key.
+- The shared-shell regression check asserts the desktop nav order, removal of legacy dropdown code, first-paint space reservation, absolute credits widgets, and centered mobile/tablet brand. The build/test/audit scripts now syntax-check `public/js/chrome.js`.
+
+These are source-level fixes and regression guards. They reduce known causes of header-related layout shifts, but actual device/browser CLS still requires runtime traces.
+ 
 ### Preview transition and processing-engine warmup
 
 The tool preview preparation path contained a fixed 2,200 ms minimum wait and awaited `BrowserTools.prewarm(tool.id)` before the preview UI could appear. That delayed the transition even when the preview renderer was ready and coupled processing-engine warmup to preview visibility.
@@ -57,7 +71,7 @@ Node text and page content are deliberately not collected. The CLS aggregate con
 - `scripts/public-font-layout-stability-check.js` exercises the font normalizer against a fixture and every HTML file under `public` without writing files.
 - `npm test` includes the shared-shell, CLS-attribution, and public-font stability checks.
 - `npm run audit:layout-shift` runs both regression checks and JavaScript syntax checks.
-- `npm run build` assembles the homepage, normalizes all public HTML, runs the shared-shell/CLS/font regression checks, and syntax-checks the tool page, monitor, and normalizer before Firebase Hosting deploys it.
+- `npm run build` assembles the homepage, normalizes all public HTML, runs the shared-shell/CLS/font regression checks, and syntax-checks shared chrome, the tool page, the monitor, and the normalizer before Firebase Hosting deploys it.
 
 ## Verification status and remaining limitation
 
