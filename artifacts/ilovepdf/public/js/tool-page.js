@@ -1372,9 +1372,10 @@ function renderStandardPreviewStep(tool) {
 
   if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
-    if (lpHost) {
+    if (lpHost && lpHost.dataset.livePreviewMounted !== '1') {
+      lpHost.dataset.livePreviewMounted = '1';
       window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
-        .catch(function () {});
+        .catch(function () { delete lpHost.dataset.livePreviewMounted; });
     }
   }
 }
@@ -1785,6 +1786,25 @@ function cropJourneySetStage(stage, title, detail, percent, determinate) {
   }
 }
 
+function loadSelectedToolBundle() {
+  if (!currentTool || !window.RuntimeToolCodeLoader || typeof window.RuntimeToolCodeLoader.load !== 'function') return;
+  const requestedToolId = currentTool.id;
+  window.RuntimeToolCodeLoader.load(requestedToolId).then(function () {
+    if (!currentTool || currentTool.id !== requestedToolId || !selectedFiles.length || Flow.step !== 'preview' || _processingInFlight) return;
+    if (typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
+    if (window.LivePreview && typeof window.LivePreview.supported === 'function' && window.LivePreview.supported(requestedToolId)) {
+      const host = document.getElementById('live-preview-host');
+      if (host && host.dataset.livePreviewMounted !== '1') {
+        host.dataset.livePreviewMounted = '1';
+        window.LivePreview.mount(requestedToolId, selectedFiles.map(function (entry) { return entry.file; }), host)
+          .catch(function () { delete host.dataset.livePreviewMounted; });
+      }
+    }
+  }).catch(function (error) {
+    console.warn('[ToolCodeLoader] selected tool bundle did not fully load:', requestedToolId, error);
+  });
+}
+
 async function handleFiles(fileList) {
   if (!fileList || fileList.length === 0) return;
 
@@ -1826,9 +1846,11 @@ async function handleFiles(fileList) {
     // All standard tools now share the same upload → preparation → preview
     // transition. The preparation panel is not an upload-speed indicator.
     Flow.navTo('preview');
+    loadSelectedToolBundle();
   } else {
     renderFileList();
     maybeOpenPageOrganizer();
+    loadSelectedToolBundle();
   }
 }
 
