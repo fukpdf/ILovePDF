@@ -188,19 +188,23 @@
   // Do not warm even shared background runtimes merely because the page became
   // idle. Start this secondary stack only after a real file/drop interaction.
 
-  /* ── Accelerate after file interaction and verified runtime boot ─────────── */
-  function _startAfterRuntimeReady() {
+  /* ── Accelerate after file interaction and selected bundle completion ───── */
+  function _startAfterToolBundleReady() {
     var runtime = G.RuntimeToolLoader;
-    if (runtime && typeof runtime.isBooted === 'function' && runtime.isBooted()) {
+    var codeLoader = G.RuntimeToolCodeLoader;
+    var activeToolId = runtime && typeof runtime.getToolId === 'function' ? runtime.getToolId() : null;
+    if (activeToolId && codeLoader && typeof codeLoader.isLoaded === 'function' && codeLoader.isLoaded(activeToolId)) {
       setTimeout(triggerLoad, 1000);
       return;
     }
-    var onReady = function () {
-      G.removeEventListener('tool:runtime-ready', onReady);
-      // Keep background work behind the selected tool's security/runtime chain.
+    var onLoaded = function (evt) {
+      var loadedToolId = evt && evt.detail && evt.detail.toolId;
+      if (activeToolId && loadedToolId && loadedToolId !== activeToolId) return;
+      G.removeEventListener('code-loader:loaded', onLoaded);
+      // Keep shared background work behind the selected tool's own modules.
       setTimeout(triggerLoad, 1000);
     };
-    G.addEventListener('tool:runtime-ready', onReady);
+    G.addEventListener('code-loader:loaded', onLoaded);
   }
 
   function _onFirstInteraction() {
@@ -208,7 +212,7 @@
     document.removeEventListener('change', _onFirstInteraction, true);
     // The selected-tool bundle and its worker prewarm take priority over
     // shared analytics/idle modules.
-    _startAfterRuntimeReady();
+    _startAfterToolBundleReady();
   }
 
   document.addEventListener('dragenter', _onFirstInteraction, true);
