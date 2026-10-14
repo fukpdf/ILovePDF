@@ -73,6 +73,53 @@
     'image-converter': ['/workers/image-pipeline-worker.js'],
   };
 
+  // Selected processor family is loaded only after the active tool is resolved.
+  var TOOL_PROCESSOR_SCRIPTS = {
+    'merge': ['/js/processors/merge-processor.js'],
+    'split': ['/js/processors/split-processor.js'],
+    'rotate': ['/js/processors/merge-processor.js'],
+    'crop': ['/js/processors/merge-processor.js'],
+    'organize': ['/js/processors/merge-processor.js'],
+    'page-numbers': ['/js/processors/watermark-processor.js'],
+    'redact': ['/js/processors/watermark-processor.js'],
+    'compress': ['/js/processors/compress-processor.js'],
+    'pdf-to-word': ['/js/processors/convert-processor.js'],
+    'pdf-to-excel': ['/js/processors/convert-processor.js'],
+    'pdf-to-powerpoint': ['/js/processors/convert-processor.js'],
+    'pdf-to-jpg': ['/js/processors/convert-processor.js'],
+    'word-to-pdf': ['/js/processors/convert-processor.js'],
+    'excel-to-pdf': ['/js/processors/convert-processor.js'],
+    'powerpoint-to-pdf': ['/js/processors/convert-processor.js'],
+    'word-to-excel': ['/js/processors/convert-processor.js'],
+    'jpg-to-pdf': ['/js/processors/convert-processor.js'],
+    'html-to-pdf': ['/js/processors/convert-processor.js'],
+    'scan-to-pdf': ['/js/processors/convert-processor.js'],
+    'edit': ['/js/processors/watermark-processor.js'],
+    'watermark': ['/js/processors/watermark-processor.js'],
+    'sign': ['/js/processors/watermark-processor.js'],
+    'protect': ['/js/processors/watermark-processor.js'],
+    'unlock': ['/js/processors/watermark-processor.js'],
+    'repair': ['/js/processors/repair-processor.js'],
+    'repair-pdf': ['/js/processors/repair-processor.js'],
+    'ocr': ['/js/processors/ocr-processor.js'],
+    'ocr-pdf': ['/js/processors/ocr-processor.js'],
+    'ai-summarize': ['/js/processors/ai-processor.js'],
+    'ai-summarizer': ['/js/processors/ai-processor.js'],
+    'translate': ['/js/processors/ai-processor.js'],
+    'translate-pdf': ['/js/processors/ai-processor.js'],
+    'workflow': ['/js/processors/ai-processor.js'],
+    'background-remover': ['/js/processors/image-processor.js'],
+    'remove-background': ['/js/processors/image-processor.js'],
+    'crop-image': ['/js/processors/image-processor.js'],
+    'resize-image': ['/js/processors/image-processor.js'],
+    'image-filters': ['/js/processors/image-processor.js'],
+    'image-compressor': ['/js/processors/image-processor.js'],
+    'image-converter': ['/js/processors/image-processor.js'],
+    'qr-code-generator': ['/js/processors/image-processor.js'],
+    'barcode-generator': ['/js/processors/image-processor.js'],
+    'zip-builder': ['/js/processors/image-processor.js'],
+  };
+
   // ── Tool → family ─────────────────────────────────────────────────────────
   var TOOL_FAMILY = {
     'merge':'organize','split':'organize','rotate':'organize','crop':'organize',
@@ -146,11 +193,13 @@
       if (mesh) mesh.activate(toolId);
     } catch (_) {}
 
-    // Inject any required extra scripts
-    var scripts = TOOL_SCRIPTS[toolId] || [];
-    // Crucially: tools in one family NEVER load scripts for another family
+    // Load only the active tool's processor entry point, then its worker dependency.
+    var scripts = (TOOL_PROCESSOR_SCRIPTS[toolId] || []).concat(TOOL_SCRIPTS[toolId] || []);
+    var orderedUniqueScripts = [];
+    scripts.forEach(function (src) { if (orderedUniqueScripts.indexOf(src) === -1) orderedUniqueScripts.push(src); });
+    // Crucially: tools in one family NEVER load scripts for another family.
     var chain = Promise.resolve();
-    scripts.forEach(function (src) {
+    orderedUniqueScripts.forEach(function (src) {
       chain = chain.then(function () { return _injectScript(src); });
     });
 
