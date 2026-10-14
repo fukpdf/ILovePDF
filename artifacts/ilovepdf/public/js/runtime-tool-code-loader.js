@@ -285,6 +285,9 @@
       el.onload  = function () { _loaded[src] = true; delete _loading[src]; resolve(); };
       el.onerror = function () {
         delete _loading[src];
+        // Remove failed tags so a later file/process interaction can retry;
+        // otherwise _isLoaded() would mistake the failed tag for a loaded module.
+        try { if (el.parentNode) el.parentNode.removeChild(el); } catch (_) {}
         console.debug(LOG, 'inject failed (non-fatal):', src);
         resolve(); // non-fatal: worker may already be loaded inline
       };
