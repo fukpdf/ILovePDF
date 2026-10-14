@@ -67,6 +67,17 @@ assert.match(
   'Shared shell stylesheet must suppress WebKit scrollbars on nested containers.'
 );
 
+const homepageAssembler = fs.readFileSync(path.resolve(process.cwd(), 'scripts/assemble-homepage-index.js'), 'utf8');
+for (const marker of ['data-shared-upload-prefetch="document"', 'data-shared-upload-prefetch="styles"', 'data-shared-upload-prefetch="editor"', 'data-shared-upload-prefetch="download"']) {
+  assert.ok(homepageAssembler.includes(marker), 'Homepage assembler must warm the shared upload shell resource: ' + marker);
+}
+assert.match(homepageAssembler, /addSharedUploadWarmupHints\(html\)/, 'Homepage assembly must inject the shared upload warmup hints.');
+const warmupHelper = homepageAssembler.slice(
+  homepageAssembler.indexOf('function addSharedUploadWarmupHints'),
+  homepageAssembler.indexOf('function moveExternalScriptAfter')
+);
+assert.ok(warmupHelper && !warmupHelper.includes('tool-page.js'), 'The warmup helper must not inject the tool-page controller or processors.');
+
 const swSource = fs.readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 assert.match(swSource, /const CACHE_VERSION = 'v8';/, 'Service-worker cache version must be rotated with this cache contract.');
 assert.match(swSource, /if \(path === '\/js\/chrome\.js'\)/, 'Shared chrome must use the explicit cache-first route.');

@@ -44,6 +44,27 @@ function optimizeHomepageResourceHints(html) {
   return html;
 }
 
+/**
+ * Warm the single shared tool/upload document from the homepage without
+ * applying tool-only CSS or evaluating tool processors on the homepage.
+ * The real tool route still serves SEO-specific metadata from buildHtml().
+ */
+function addSharedUploadWarmupHints(html) {
+  const hints = [
+    '<link rel="prefetch" href="/tool.html" as="document" fetchpriority="low" data-shared-upload-prefetch="document">',
+    '<link rel="prefetch" href="/css/styles.css?v=20261014-root-scrollbar-fix-v1" as="style" fetchpriority="low" data-shared-upload-prefetch="styles">',
+    '<link rel="prefetch" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2" as="style" fetchpriority="low" data-shared-upload-prefetch="editor">',
+    '<link rel="prefetch" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1" as="style" fetchpriority="low" data-shared-upload-prefetch="download">'
+  ];
+  if (!/<\/head\s*>/i.test(html)) throw new Error('homepage head closing tag not found for shared upload warmup');
+  for (const hint of hints) {
+    const marker = hint.match(/data-shared-upload-prefetch="([^"]+)"/)[1];
+    if (html.includes('data-shared-upload-prefetch="' + marker + '"')) continue;
+    html = html.replace(/<\/head\s*>/i, '  ' + hint + '\n</head>');
+  }
+  return html;
+}
+
 function moveExternalScriptAfter(html, targetPattern, anchorPattern) {
   const tags = [...html.matchAll(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>\s*<\/script>/gi)];
   const target = tags.find(match => targetPattern.test(match[0]));
@@ -520,6 +541,8 @@ export function assembleHomepageIndex() {
 
   try {
     html = optimizeHomepageResourceHints(html);
+    html = addSharedUploadWarmupHints(html);
+    console.log('[assemble-index] warmed the shared upload document and tool-only styles at low priority; processors remain out of the homepage path');
     console.log('[assemble-index] added non-blocking external-origin hints and lowered non-critical script fetch priority');
   } catch (error) {
     fail('homepage resource-hint optimization failed: ' + error.message);
