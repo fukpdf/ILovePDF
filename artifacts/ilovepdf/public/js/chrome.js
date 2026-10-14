@@ -761,19 +761,31 @@ function ensureSharedShell() {
     else document.body.insertBefore(canonicalHeader, document.body.firstChild);
   }
 
-  /* Replace every page footer with the canonical homepage footer. */
+  /* Keep an already-rendered canonical footer mounted. The homepage ships
+     this shell in HTML for first paint; replacing it here caused avoidable DOM
+     teardown/rebuild and re-bound UI on initialization. */
   const currentFooters = [...document.querySelectorAll('footer.footer')];
-  const holder = document.createElement('div');
-  holder.innerHTML = SHARED_FOOTER_HTML.trim();
-  const canonicalFooter = holder.firstElementChild;
-  currentFooters.forEach(footer => footer.remove());
-  // Keep the shared footer directly after the tool workspace in the document
-  // flow; modal overlays and scripts must not become its layout ancestors.
-  const toolMain = document.querySelector('main#tool-content');
-  if (toolMain && toolMain.parentNode === document.body) {
-    toolMain.insertAdjacentElement('afterend', canonicalFooter);
-  } else {
-    document.body.appendChild(canonicalFooter);
+  const existingCanonicalFooter = currentFooters.length === 1 &&
+    currentFooters[0].querySelector('.footer-inner') &&
+    currentFooters[0].querySelector('.footer-bottom') &&
+    currentFooters[0].querySelector('#footer-lang-sel') &&
+    currentFooters[0].querySelector('#footer-lang-btn')
+      ? currentFooters[0]
+      : null;
+  let canonicalFooter = existingCanonicalFooter;
+  if (!canonicalFooter) {
+    const holder = document.createElement('div');
+    holder.innerHTML = SHARED_FOOTER_HTML.trim();
+    canonicalFooter = holder.firstElementChild;
+    currentFooters.forEach(footer => footer.remove());
+    // Keep the shared footer directly after the tool workspace in the document
+    // flow; modal overlays and scripts must not become its layout ancestors.
+    const toolMain = document.querySelector('main#tool-content');
+    if (toolMain && toolMain.parentNode === document.body) {
+      toolMain.insertAdjacentElement('afterend', canonicalFooter);
+    } else {
+      document.body.appendChild(canonicalFooter);
+    }
   }
 
   window.__ILOVE_SHARED_SHELL_READY = true;
