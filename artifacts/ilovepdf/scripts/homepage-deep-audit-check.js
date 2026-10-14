@@ -270,6 +270,10 @@ const missingCardIcons = cardObjects.map(source => ({ name: readField(source, 'n
   .filter(item => item.icon && !availableIcons.has(item.icon));
 if (missingCardIcons.length) missingCardIcons.forEach(item => fail(item.name + ': icon has no inline SVG (' + item.icon + ')'));
 else pass('all ' + cardObjects.length + ' homepage card icons resolve to real inline SVGs');
+const usedCardIcons = new Set(cardObjects.map(source => readField(source, 'icon')).filter(Boolean));
+const unusedInlineIcons = [...availableIcons].filter(icon => !usedCardIcons.has(icon));
+if (unusedInlineIcons.length) unusedInlineIcons.forEach(icon => fail('unused inline homepage SVG icon: ' + icon));
+else pass('all ' + availableIcons.size + ' inline homepage SVG icons are used by the current tool registry');
 
 const iconsByTool = new Map();
 for (const source of cardObjects) {
