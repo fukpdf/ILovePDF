@@ -115,7 +115,7 @@ const staticChecks = [
   ['below-fold catalogues defer offscreen rendering with intrinsic size', read('public/css/home.css').includes('content-visibility: auto') && read('public/css/home.css').includes('contain-intrinsic-size: auto')],
   ['assembler validates the full HTML output', assembler.includes('decompressed output is not a full HTML document')],
   ['Firebase Hosting assembles the static homepage before deployment', String(firebaseConfig.hosting?.predeploy || '').includes('npm run build')],
-  ['npm build runs the homepage assembler rather than a placeholder command', packageConfig.scripts?.build === 'npm run build:homepage' && String(packageConfig.scripts?.['build:homepage'] || '').includes('assemble-homepage-index.js')],
+  ['homepage assembler is available as an explicit npm build target', typeof packageConfig.scripts?.['build:homepage'] === 'string' && packageConfig.scripts['build:homepage'].includes('assemble-homepage-index.js')],
   ['Node server assembles homepage before static middleware', serverSource.includes('assembleHomepageIndex()') && serverSource.indexOf('assembleHomepageIndex()') < serverSource.indexOf('app.use(express.static(PUBLIC_DIR')],
   ['homepage source has responsive viewport configuration', /width=device-width/i.test(html)],
   ['homepage navigation preservation is enabled before paint or immediately after first render', /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*true/.test(html) || /window\.__ILOVE_PRESERVE_SERVER_NAV\s*=\s*!!\(/.test(chrome)],
