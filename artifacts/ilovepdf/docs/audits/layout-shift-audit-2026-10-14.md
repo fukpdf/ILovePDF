@@ -43,7 +43,7 @@ Changes:
 
 ## CLS diagnostics
 
-The performance monitor previously kept only the aggregate CLS score. It now also keeps a bounded ring buffer of the latest 25 layout-shift entries with:
+The performance monitor previously summed every layout shift across the page lifetime, which is not the CLS session-window algorithm. It now calculates CLS as the largest session window (new window after a 1-second gap or 5 seconds from the first shift), excluding shifts with recent user input. It also keeps a bounded ring buffer of the latest 25 layout-shift entries with:
 - route pathname;
 - shift value, timestamp, and whether recent user input caused it;
 - up to five source nodes per entry, identified by tag, id, class, and role;
