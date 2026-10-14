@@ -11,6 +11,7 @@
   var LOG = '[ToolLoader]';
   var VERSION = '1.5';
   var _toolId = null;
+  var _requestedToolId = null;
   var _manifest = null;
   var _booted = false;
   var _bootPromise = null;
@@ -169,7 +170,7 @@
     if (_bootPromise) return _bootPromise;
     _bootPromise = (async function () {
       var registry = await _awaitRegistry();
-      _toolId = _resolveToolId();
+      _toolId = _requestedToolId || _resolveToolId();
       _manifest = null;
 
       if (_toolId && !registry) {
@@ -246,7 +247,15 @@
 
   // Explicit boot: the upload shell must render before the shared security/runtime
   // bundle chain is fetched. The selected-tool loader calls boot before processing.
-  function boot() {
+  function boot(requestedToolId) {
+    // SPA navigation can switch tools without a full document reload. Re-run
+    // manifest/config activation for the new tool while reusing loaded bundles.
+    if (requestedToolId && requestedToolId !== _toolId) {
+      _requestedToolId = requestedToolId;
+      _booted = false;
+      _bootPromise = null;
+      _manifest = null;
+    }
     return _boot().then(function (ready) {
       if (!ready) _bootPromise = null; // allow a later interaction to retry a transient failure
       return ready;
