@@ -5,7 +5,7 @@
 // v2: Phase 9 cache rotation — staleWhileRevalidate for JS/CSS/images;
 // cacheFirst retained only for truly-immutable font files.
 // Bumping this version clears all v1 caches on next SW activation.
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v8';
 const CACHE_STATIC  = `iplv-static-${CACHE_VERSION}`;
 const CACHE_PAGES   = `iplv-pages-${CACHE_VERSION}`;
 const CACHE_LOCALE  = `iplv-locale-${CACHE_VERSION}`;
@@ -107,6 +107,15 @@ self.addEventListener('fetch', event => {
     event.respondWith(cacheFirst(request, CACHE_STATIC));
     return;
   }
+  // The shared chrome module owns the canonical site Header/Footer markup.
+  // Cache it first after the initial successful fetch so navigation between
+  // public pages does not repeatedly request/re-download the same shell code.
+  // CACHE_VERSION is bumped whenever the service-worker cache contract changes.
+  if (path === '/js/chrome.js') {
+    event.respondWith(cacheFirst(request, CACHE_STATIC));
+    return;
+  }
+
   // Explicitly versioned JS / CSS / images: cache-first.
   // Their query token is the cache-busting contract, so a changed asset gets
   // a new cache key and repeat visits can skip the network round trip.
@@ -152,7 +161,9 @@ async function cacheFirst(request, cacheName) {
     const response = await fetch(request);
     if (response.ok) {
       const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
+      // Finish the write before returning: an immediate page navigation should
+      // not race an unfinished cache.put() for the shared chrome asset.
+      await cache.put(request, response.clone());
     }
     return response;
   } catch {
