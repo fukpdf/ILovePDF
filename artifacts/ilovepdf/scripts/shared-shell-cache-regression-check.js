@@ -100,6 +100,39 @@ for (const file of ['index.html', 'tool.html']) {
 }
 
 const homeCss = fs.readFileSync(path.resolve(process.cwd(), 'public/css/home.css'), 'utf8');
+const homepageHtml = fs.readFileSync(path.resolve(process.cwd(), 'public/index.html'), 'utf8');
+const toolsPageHtml = fs.readFileSync(path.resolve(process.cwd(), 'public/tools.html'), 'utf8');
+assert.match(
+  homeCss,
+  /\.home-cat-section \.tools-grid > \.tool[\s\S]*?aspect-ratio:\s*1\s*\/\s*1/,
+  'Homepage tool cards must preserve the existing grid tracks and use square card proportions.'
+);
+assert.match(
+  homeCss,
+  /\.home-cat-section \.tool \.tool-name-sticker[\s\S]*?width:\s*44px[\s\S]*?height:\s*44px/,
+  'Homepage tool cards must use consistent logo sizing.'
+);
+assert.match(
+  homeCss,
+  /\.popular-grid \.popular-card \{[^}]*padding:\s*16px 14px;/,
+  'Popular Tools remains the reference card and must not be forced to square dimensions.'
+);
+assert.doesNotMatch(
+  homeCss,
+  /\.popular-grid \.popular-card \{[^}]*aspect-ratio:\s*1\s*\/\s*1/,
+  'Square sizing is required for homepage cards, not the Popular Tools reference cards.'
+);
+assert.ok(
+  toolsPageHtml.includes('Standardized tool-card hierarchy: icon') &&
+    toolsPageHtml.includes('.tp-tool-top') &&
+    toolsPageHtml.includes('.tp-tool-name') &&
+    toolsPageHtml.includes('.tp-tool-desc'),
+  'All Tools cards must preserve the icon → title → description structure.'
+);
+assert.ok(
+  homepageHtml.includes('/css/home.css?v=20261014-tool-card-standard-v1'),
+  'Homepage must load the current tool-card stylesheet cache key.'
+);
 const activeHomeCss = homeCss.replace(/\/\*[\s\S]*?\*\//g, '');
 assert.doesNotMatch(
   activeHomeCss,
