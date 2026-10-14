@@ -1242,7 +1242,23 @@ function renderToolPreviewPreparation(tool) {
   if (window.lucide) lucide.createIcons();
   const runId = ++_cropUploadRun;
   const startedAt = Date.now();
-  runToolPreviewPreparation(tool, runId, startedAt, 2200);
+  runToolPreviewPreparation(tool, runId, startedAt, 250);
+}
+
+function scheduleToolEngineWarmup(tool) {
+  const warm = function () {
+    if (!window.BrowserTools || typeof window.BrowserTools.prewarm !== 'function') return;
+    Promise.resolve()
+      .then(function () { return window.BrowserTools.prewarm(tool.id); })
+      .catch(function (error) {
+        console.debug('[ToolPreview] deferred engine warmup skipped:', tool.id, error);
+      });
+  };
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(warm, { timeout: 900 });
+  } else {
+    window.setTimeout(warm, 0);
+  }
 }
 
 async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
@@ -1251,9 +1267,8 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
-  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm(tool.id)
-    : Promise.resolve({ warmed: false });
+  // Only wait for the preview renderer here. Tool processing warmup must not
+  // hold the preview screen hostage; it starts in idle time after the UI exists.
   const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
     ? window.PdfPreview.loadPdfJs()
     : Promise.resolve();
@@ -1271,25 +1286,34 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     cropJourneySetStage(current.stage, current.title, current.detail, value, true);
   };
   updateVisual(0);
-  const start = performance.now();
-  await new Promise(resolve => {
-    const tick = now => {
+
+  const previewWarmSafe = Promise.resolve(previewWarm).catch(function (error) {
+    // A preview-engine failure should not strand the user on a preparation
+    // screen. The standard preview shell can still show the selected file and
+    // surface a tool-specific fallback/error if rendering is unavailable.
+    console.warn('[ToolPreview] preview renderer warmup failed:', tool.id, error);
+  }).then(function () {
+    updateVisual(86);
+  });
+  const minimumVisibleTime = new Promise(resolve => {
+    const tick = () => {
       if (runId !== _cropUploadRun) return resolve();
-      const elapsed = now - start;
-      updateVisual(Math.min(92, (elapsed / minimumMs) * 92));
-      if (elapsed < minimumMs) requestAnimationFrame(tick); else resolve();
+      if (Date.now() - startedAt < minimumMs) {
+        requestAnimationFrame(tick);
+      } else {
+        resolve();
+      }
     };
     requestAnimationFrame(tick);
   });
-  if (runId !== _cropUploadRun) return;
-  await Promise.all([engineWarm, previewWarm]);
-  const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
-  if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
+
+  await Promise.all([previewWarmSafe, minimumVisibleTime]);
   if (runId !== _cropUploadRun) return;
   cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
-  await new Promise(resolve => setTimeout(resolve, 220));
+  await new Promise(resolve => requestAnimationFrame(resolve));
   if (runId !== _cropUploadRun) return;
   renderStandardPreviewStep(tool);
+  scheduleToolEngineWarmup(tool);
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
