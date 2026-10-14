@@ -53,12 +53,21 @@ assert.match(
 );
 
 const sharedHeaderUrl = '/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2';
+const sharedFooterUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
 for (const file of ['index.html', 'tool.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
   assert.ok(
     source.includes(sharedHeaderUrl),
     file + ' must load the cache-busted shared stylesheet that hides nested scrollbars.'
   );
+}
+
+for (const file of ['index.html', 'tool.html']) {
+  const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
+  assert.ok(source.includes(sharedFooterUrl), file + ' must use the canonical cache-busted shared footer stylesheet URL.');
+  const activeSource = source.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  assert.doesNotMatch(activeSource, /href=["'][^"']*\/css\/home-footer-v2\.css["']/i,
+    file + ' must not leave the shared footer stylesheet unversioned.');
 }
 
 const homeCss = fs.readFileSync(path.resolve(process.cwd(), 'public/css/home.css'), 'utf8');
@@ -79,6 +88,7 @@ assert.ok(
   chromeJs.includes(sharedHeaderUrl),
   'Pages that inject the shared header stylesheet must use the same cache-busted URL.'
 );
+assert.ok(chromeJs.includes(sharedFooterUrl), 'Pages that inject the shared footer stylesheet must use the canonical cache-busted URL.');
 
 const sharedHeaderCss = fs.readFileSync(path.join(publicDir, 'css/home-header-v2.css'), 'utf8');
 assert.match(
@@ -97,6 +107,11 @@ assert.match(
   homepageAssembler,
   /function normalizeSharedShellAssetUrls\(html\)/,
   'Homepage assembly must normalize stale cache-busting URLs embedded in compressed source chunks.'
+);
+assert.match(
+  homepageAssembler,
+  /canonicalFooterCssUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1'/, 
+  'Homepage assembly must normalize the shared footer stylesheet to the cache-busted URL.'
 );
 assert.match(
   homepageAssembler,
