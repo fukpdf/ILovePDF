@@ -3422,3 +3422,35 @@ body::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* UI responsiveness pass (2026-10-14).
+   Defer layout/paint work for non-interactive informational sections below the
+   tool grid. The first-screen hero and tool cards remain fully rendered.
+   Intrinsic sizes keep the document from collapsing while sections are skipped. */
+@supports (content-visibility: auto) {
+  .hls-founder-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 420px;
+  }
+
+  .ce-impact-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 300px;
+  }
+
+  .hls-support-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+  }
+
+  .hls-blog-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 520px;
+  }
+}
+
+/* The fixed header does not animate its own transform. Avoid reserving a
+   permanent compositor layer on every page just for this static positioning. */
+.site-header {
+  will-change: auto;
+}
