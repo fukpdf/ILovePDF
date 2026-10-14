@@ -12541,3 +12541,18 @@ body:has(.ilpdf-download-page) .ilpdf-download-page .download-result .dl-burst-t
   .ilpdf-continue-card .continue-tool-card:hover { transform: none !important; }
   .ilpdf-continue-card .continue-tool-card:hover .popular-card-arrow { transform: none !important; }
 }
+
+/* Site-wide root scrollbar policy (2026-10-14).
+   Keep normal document scrolling, but do not render a second/visible page-level
+   scrollbar. Deliberately do not hide scrollbars inside editors, menus, or panels. */
+html,
+body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
