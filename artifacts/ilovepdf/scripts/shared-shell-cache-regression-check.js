@@ -100,6 +100,38 @@ for (const file of ['index.html', 'tool.html']) {
 }
 
 const homeCss = fs.readFileSync(path.resolve(process.cwd(), 'public/css/home.css'), 'utf8');
+
+const homepageHtml = fs.readFileSync(path.resolve(process.cwd(), 'public/index.html'), 'utf8');
+assert.match(
+  activeHomeCss,
+  /\.home-cat-section \.tools-grid[\s\S]*?grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/,
+  'Homepage tool cards must use the reference seven-column desktop grid.'
+);
+assert.match(
+  activeHomeCss,
+  /\.home-cat-section \.tools-grid > \.tool[\s\S]*?aspect-ratio:\s*1\.05\s*\/\s*1/,
+  'Homepage cards must use landscape rounded-card proportions, not square tiles.'
+);
+assert.match(
+  activeHomeCss,
+  /\.home-cat-section \.tools-grid > \.tool:nth-child\(8n \+ 3\)[\s\S]*?linear-gradient\(145deg, #ff922e 0%, #f0780b 100%\)/,
+  'Homepage card palette must preserve the reference orange card treatment.'
+);
+assert.match(
+  activeHomeCss,
+  /\.home-cat-section \.tool \.tool-name-sticker[\s\S]*?width:\s*48px[\s\S]*?height:\s*48px/,
+  'Homepage tool icons must use consistent reference-scale sizing.'
+);
+assert.match(
+  activeHomeCss,
+  /@media \(max-width:\s*760px\)[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+  'Homepage card grid must adapt to two columns on mobile.'
+);
+assert.ok(
+  homepageHtml.includes('/css/home.css?v=20261014-reference-color-cards-v2'),
+  'Assembled homepage must load the current reference-card stylesheet cache key.'
+);
+
 const activeHomeCss = homeCss.replace(/\/\*[\s\S]*?\*\//g, '');
 assert.doesNotMatch(
   activeHomeCss,
