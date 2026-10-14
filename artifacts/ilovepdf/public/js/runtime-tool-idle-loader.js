@@ -97,6 +97,9 @@
 
   // Optional observability UI: load in-order only after core idle modules settle.
   var IDLE_LATE_STACK = [
+    '/js/runtime-event-timeline.js',
+    '/js/runtime-performance-profiler.js',
+    '/js/runtime-stream-telemetry.js',
     '/js/runtime-telemetry-enterprise.js',
     '/js/runtime-devtools-dashboard.js',
   ];
