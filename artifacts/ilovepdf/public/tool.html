@@ -595,44 +595,44 @@
   <!-- Phase 2A: deferred — depends only on Phase 1-9 globals (SYNC); all globals       -->
   <!-- available before any defer fires. Document order preserved by defer. User cannot  -->
   <!-- interact before DOMContentLoaded (which fires after all defer scripts). Safe.     -->
-  <script src="/js/merge-worker-adapter.js" defer></script>
+  <!-- merge worker adapter loads only when its tool is active. -->
   <script src="/js/merge-runtime.js" defer></script>
   <!-- Phase 3 — Rotate PDF Runtime Migration (canonical WorkerPool path) -->
-  <script src="/js/rotate-worker-adapter.js" defer></script>
+  <!-- rotate worker adapter loads only when its tool is active. -->
   <script src="/js/rotate-runtime.js" defer></script>
   <!-- Phase 3 — Bulk PDF Runtime Migration (registry + factory + per-tool runtimes) -->
   <!-- Load order: registry (patches BrowserTools.process once, after merge+rotate chain) -->
   <!--             factory (shared createPdfToolRuntime function, no side effects)       -->
   <!--             per-tool runtimes (each registers with registry, sets feature flag)   -->
   <!-- scheduler-only tools (main-thread pdf-lib, wrapped in RuntimeScheduler slot) -->
-  <script src="/js/split-worker-adapter.js" defer></script>
+  <!-- split worker adapter loads only when its tool is active. -->
   <script src="/js/split-runtime.js" defer></script>
-  <script src="/js/organize-worker-adapter.js" defer></script>
+  <!-- organize worker adapter loads only when its tool is active. -->
   <script src="/js/organize-runtime.js" defer></script>
-  <script src="/js/protect-worker-adapter.js" defer></script>
+  <!-- protect worker adapter loads only when its tool is active. -->
   <script src="/js/protect-runtime.js" defer></script>
-  <script src="/js/unlock-worker-adapter.js" defer></script>
+  <!-- unlock worker adapter loads only when its tool is active. -->
   <script src="/js/unlock-runtime.js" defer></script>
   <!-- worker-dispatch tools (pdf-worker.js OPS table, full RuntimeWorkers orchestration) -->
-  <script src="/js/page-numbers-worker-adapter.js" defer></script>
+  <!-- page-numbers worker adapter loads only when its tool is active. -->
   <script src="/js/page-numbers-runtime.js" defer></script>
-  <script src="/js/watermark-worker-adapter.js" defer></script>
+  <!-- watermark worker adapter loads only when its tool is active. -->
   <script src="/js/watermark-runtime.js" defer></script>
-  <script src="/js/compress-worker-adapter.js" defer></script>
-  <script src="/js/edit-worker-adapter.js" defer></script>
+  <!-- compress worker adapter loads only when its tool is active. -->
+  <!-- edit worker adapter loads only when its tool is active. -->
   <!-- Phase 3 continued — worker-dispatch tools with existing OPS entries -->
   <script src="/js/compress-runtime.js" defer></script>
-  <script src="/js/repair-worker-adapter.js" defer></script>
+  <!-- repair worker adapter loads only when its tool is active. -->
   <script src="/js/repair-runtime.js" defer></script>
   <script src="/js/edit-runtime.js" defer></script>
-  <script src="/js/sign-worker-adapter.js" defer></script>
+  <!-- sign worker adapter loads only when its tool is active. -->
   <script src="/js/sign-runtime.js" defer></script>
-  <script src="/js/redact-worker-adapter.js" defer></script>
+  <!-- redact worker adapter loads only when its tool is active. -->
   <script src="/js/redact-runtime.js" defer></script>
-  <script src="/js/workflow-worker-adapter.js" defer></script>
+  <!-- workflow worker adapter loads only when its tool is active. -->
   <script src="/js/workflow-runtime.js" defer></script>
   <!-- Phase 3 continued — scheduler-only tools (no OPS entry; main-thread or server-side) -->
-  <script src="/js/compare-worker-adapter.js" defer></script>
+  <!-- compare worker adapter loads only when its tool is active. -->
   <script src="/js/compare-runtime.js" defer></script>
   <script src="/js/translate-runtime.js" defer></script>
   <script src="/js/advanced-engine.js" defer></script>
@@ -665,10 +665,10 @@
   <script src="/js/repair-pdf-app.js" defer></script>
   <script src="/js/compare-pdf-app.js" defer></script>
   <script src="/js/ai-summarizer-app.js" defer></script>
-  <script src="/js/translate-worker-adapter.js" defer></script>
+  <!-- translate worker adapter loads only when its tool is active. -->
   <script src="/js/translate-pdf-app.js" defer></script>
   <!-- Phase 5: OCR canonical runtime boundary — Tesseract/Canvas engine remains isolated -->
-  <script src="/js/ocr-worker-adapter.js" defer></script>
+  <!-- ocr worker adapter loads only when its tool is active. -->
   <script src="/js/ocr-runtime.js" defer></script>
   <script src="/js/remove-background-app.js" defer></script>
   <script src="/js/scan-pdf-app.js" defer></script>
