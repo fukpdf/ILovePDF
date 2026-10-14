@@ -3381,96 +3381,202 @@ body::-webkit-scrollbar {
 
 
 /* ============================================================
-   TOOL CARD DESIGN STANDARD — Popular Tools reference
-   Homepage card widths and existing grid breakpoints are preserved.
-   Homepage cards become square; shared visual hierarchy is:
-   icon/logo → title → description.
+   HOMEPAGE TOOL CARDS — supplied visual reference
+   Rounded landscape cards, colorful backgrounds, icon above title,
+   description beneath. Scoped to homepage catalogue only.
    ============================================================ */
 .home-cat-section .tools-grid,
 #recent-use-section .tools-grid {
-  align-items: start;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
 }
 .home-cat-section .tools-grid > .tool,
 #recent-use-section .tools-grid > .tool {
-  align-self: start;
-  width: 100%;
-  min-width: 0;
-  min-height: 0 !important;
-  height: auto;
-  aspect-ratio: 1 / 1;
-  box-sizing: border-box;
-  padding: 22px 18px 18px;
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 184px;
+  height: auto;
+  aspect-ratio: 1.05 / 1;
+  box-sizing: border-box;
+  gap: 0;
+  padding: 18px 15px 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(145deg, #22c55e 0%, #16a765 100%);
+  box-shadow: 0 3px 8px rgba(15,23,42,.12), 0 1px 2px rgba(15,23,42,.08);
+  transition: box-shadow .18s ease, filter .18s ease;
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 2),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 2) {
+  background: linear-gradient(145deg, #65c84f 0%, #35ad42 100%);
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 3),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 3) {
+  background: linear-gradient(145deg, #ff922e 0%, #f0780b 100%);
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 4),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 4) {
+  background: linear-gradient(145deg, #b04bd4 0%, #8c35b8 100%);
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 5),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 5) {
+  background: linear-gradient(145deg, #3298e7 0%, #2466c4 100%);
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 6),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 6) {
+  background: linear-gradient(145deg, #ffe45b 0%, #f4c92b 100%);
+  color: #252525;
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n),
+#recent-use-section .tools-grid > .tool:nth-child(7n) {
+  background: linear-gradient(145deg, #f35c5c 0%, #df343b 100%);
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 8),
+#recent-use-section .tools-grid > .tool:nth-child(7n + 8) {
+  background: linear-gradient(145deg, #e9f2fb 0%, #d5e4f4 100%);
+  color: #172033;
+}
+.home-cat-section .tools-grid > .tool:hover,
+#recent-use-section .tools-grid > .tool:hover {
+  transform: none;
+  filter: brightness(1.035);
+  box-shadow: 0 5px 12px rgba(15,23,42,.17);
+  border-color: rgba(255,255,255,.55);
+}
+.home-cat-section .tools-grid > .tool::before,
+#recent-use-section .tools-grid > .tool::before {
+  content: none;
 }
 .home-cat-section .tool > .tool-text,
 #recent-use-section .tool > .tool-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  text-align: center;
+  gap: 8px;
 }
 .home-cat-section .tool .tool-name,
 #recent-use-section .tool .tool-name {
-  width: 100%;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
   margin: 0;
-  text-align: center;
-  font-size: 1rem;
-  line-height: 1.25;
+  gap: 11px;
+  color: inherit;
+  text-align: left;
+  font-size: .98rem;
+  font-weight: 750;
+  line-height: 1.2;
 }
 .home-cat-section .tool .tool-name-sticker,
 #recent-use-section .tool .tool-name-sticker {
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
+  display: grid !important;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
   margin: 0;
-  border-radius: 12px;
+  border-radius: 11px;
+  place-items: center;
+  color: #fff;
+  background: rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.26);
 }
 .home-cat-section .tool .tool-name-sticker svg,
 #recent-use-section .tool .tool-name-sticker svg {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
+  stroke: currentColor !important;
+}
+.home-cat-section .tools-grid > .tool:nth-child(7n + 6) .tool-name-sticker,
+#recent-use-section .tools-grid > .tool:nth-child(7n + 6) .tool-name-sticker,
+.home-cat-section .tools-grid > .tool:nth-child(7n + 8) .tool-name-sticker,
+#recent-use-section .tools-grid > .tool:nth-child(7n + 8) .tool-name-sticker {
+  color: #263238;
+  background: rgba(255,255,255,.58);
 }
 .home-cat-section .tool .tool-name-label,
 #recent-use-section .tool .tool-name-label {
-  min-width: 0;
+  display: block;
   width: 100%;
-  text-align: center;
+  min-width: 0;
+  color: inherit;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 .home-cat-section .tool .tool-text p,
 #recent-use-section .tool .tool-text p {
+  display: -webkit-box;
   width: 100%;
   min-width: 0;
-  min-height: 0;
   margin: 0;
-  font-size: .82rem;
-  line-height: 1.45;
-  text-align: center;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  color: inherit;
+  font-size: .78rem !important;
+  line-height: 1.35;
+  opacity: .94;
   overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
-.home-cat-section .tool:focus-visible,
-#recent-use-section .tool:focus-visible {
-  outline: 3px solid rgba(79, 70, 229, .42);
+.home-cat-section .tools-grid > .tool:nth-child(7n + 6) .tool-text p,
+#recent-use-section .tools-grid > .tool:nth-child(7n + 6) .tool-text p,
+.home-cat-section .tools-grid > .tool:nth-child(7n + 8) .tool-text p,
+#recent-use-section .tools-grid > .tool:nth-child(7n + 8) .tool-text p {
+  color: #263238;
+}
+.home-cat-section .tools-grid > .tool:focus-visible,
+#recent-use-section .tools-grid > .tool:focus-visible {
+  outline: 3px solid #4f46e5;
   outline-offset: 3px;
+}
+@media (max-width: 1400px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+}
+@media (max-width: 1050px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool { min-height: 170px; padding: 16px 13px 14px; }
+}
+@media (max-width: 760px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool { min-height: 164px; padding: 15px 13px 13px; aspect-ratio: auto; }
+  .home-cat-section .tool .tool-name-sticker,
+  #recent-use-section .tool .tool-name-sticker { flex-basis: 42px; width: 42px; height: 42px; }
+  .home-cat-section .tool .tool-name-sticker svg,
+  #recent-use-section .tool .tool-name-sticker svg { width: 26px; height: 26px; }
+}
+@media (max-width: 360px) {
+  .home-cat-section .tools-grid,
+  #recent-use-section .tools-grid { gap: 9px; }
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool { padding: 12px 10px; min-height: 154px; }
+  .home-cat-section .tool .tool-name,
+  #recent-use-section .tool .tool-name { font-size: .9rem; }
+  .home-cat-section .tool .tool-text p,
+  #recent-use-section .tool .tool-text p { font-size: .73rem !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-cat-section .tools-grid > .tool,
+  #recent-use-section .tools-grid > .tool { transition: none; }
 }
 
 /* Upload-page Popular Tools cards are the master visual reference. */
