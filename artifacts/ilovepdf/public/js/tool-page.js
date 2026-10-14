@@ -350,7 +350,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // without delaying or replacing the user's current step.
   if (!registryReady && window.ToolRegistryReady && typeof window.ToolRegistryReady.then === 'function') {
     window.ToolRegistryReady.then(function () {
-      if (!currentTool || !window.ToolRegistry || !window.ToolRegistry.isReady()) return;
+      if (!window.ToolRegistry || !window.ToolRegistry.isReady()) return;
+      // A newly registered slug may not exist in the legacy map yet. If the
+      // fast fallback showed "not found", retry routing once with the ready registry.
+      if (!currentTool) {
+        clearTimeout(window.__aeNotFoundTimer);
+        if (typeof window.loadToolPage === 'function') window.loadToolPage(window.location.pathname);
+        return;
+      }
       const legacy = TOOLS.find(function (item) { return item.id === currentTool.id; });
       const enriched = window.ToolRegistry.mergeLegacy(legacy);
       if (enriched && enriched.id === currentTool.id) {
