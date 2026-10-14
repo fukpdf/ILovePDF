@@ -100,6 +100,7 @@ for (const file of ['index.html', 'tool.html']) {
 }
 
 const homeCss = fs.readFileSync(path.resolve(process.cwd(), 'public/css/home.css'), 'utf8');
+const activeHomeCss = homeCss.replace(/\/\*[\s\S]*?\*\//g, '');
 
 const homepageHtml = fs.readFileSync(path.resolve(process.cwd(), 'public/index.html'), 'utf8');
 assert.match(
@@ -132,7 +133,7 @@ assert.ok(
   'Assembled homepage must load the current reference-card stylesheet cache key.'
 );
 
-const activeHomeCss = homeCss.replace(/\/\*[\s\S]*?\*\//g, '');
+
 assert.doesNotMatch(
   activeHomeCss,
   /(?:^|[,\s])\.(?:drawer(?:-back|-panel|-close|-top|-sec(?:-title)?|-auth)?|header-cta|hamburger)(?=[\s.:#[,{]|$)/m,
