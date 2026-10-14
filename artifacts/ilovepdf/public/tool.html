@@ -997,6 +997,31 @@
     function loadAll() {
       if (bootPromise) return bootPromise;
       state = 'loading';
+      // A few legacy runtime modules register DOMContentLoaded callbacks
+      // unconditionally. Because this stack is intentionally loaded after the
+      // first paint, capture only callbacks registered by this lazy stack and
+      // invoke them once after every dependency has executed.
+      var originalAddEventListener = document.addEventListener;
+      var queuedDomReady = [];
+      document.addEventListener = function (type, listener, options) {
+        if (state === 'loading' && String(type).toLowerCase() === 'domcontentloaded' && listener) {
+          queuedDomReady.push(listener);
+          return;
+        }
+        return originalAddEventListener.call(this, type, listener, options);
+      };
+      function restoreAndRunDomReady() {
+        document.addEventListener = originalAddEventListener;
+        var readyEvent = new Event('DOMContentLoaded');
+        queuedDomReady.splice(0).forEach(function (listener) {
+          try {
+            if (typeof listener === 'function') listener.call(document, readyEvent);
+            else if (listener && typeof listener.handleEvent === 'function') listener.handleEvent(readyEvent);
+          } catch (error) {
+            console.error('[SharedToolRuntimeBoot] deferred DOM-ready callback failed', error);
+          }
+        });
+      }
       // Dynamic classic scripts with async=false fetch concurrently but execute
       // in document insertion order, preserving the original dependency chain.
       bootPromise = Promise.all(lazyUrls.map(function (src) {
@@ -1014,10 +1039,12 @@
         document.head.appendChild(script);
         return completed[src];
       })).then(function () {
+        restoreAndRunDomReady();
         state = 'ready';
         window.dispatchEvent(new CustomEvent('ilovepdf:shared-runtime-ready'));
         return true;
       }).catch(function (error) {
+        restoreAndRunDomReady();
         state = 'failed';
         console.error('[SharedToolRuntimeBoot] runtime stack error', error);
         return false;
