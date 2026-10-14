@@ -18,6 +18,18 @@ Changes:
 
 The homepage assembler already had a first-render stabilization pass for the server-rendered nav and optional Google Fonts policy; the tool shell already used an optional font stylesheet. The new normalizer extends that protection to all public HTML pages handled by the build.
 
+### Shared header stylesheet applied after parsing
+
+About, Tools, Blog, Privacy, and Terms were confirmed to load `chrome.js` without linking the canonical shared-header stylesheet in their initial HTML head. The shared-shell runtime appends that stylesheet later. On those pages, the header can first participate in normal flow and then become fixed when the stylesheet arrives; this is a source-level layout-shift risk, particularly on cold-cache and mobile visits.
+
+Changes:
+- The public HTML normalizer now detects pages that use `chrome.js` or contain the shared `.site-header` markup and ensures exactly one canonical `/css/home-header-v2.css?v=20261014-hide-all-scrollbars-v2` stylesheet is present in the document head.
+- The Firebase predeploy build runs this normalization across all public HTML files.
+- The known static pages listed above were updated directly in `main`.
+- The font/layout regression check now asserts that each shared-shell HTML page has one canonical first-paint header stylesheet in its head.
+
+This avoids waiting for the shared-shell script to append critical header CSS after page parsing. It is a source-level mitigation; its effect on actual CLS still needs a browser trace.
+
 ## CLS diagnostics
 
 The performance monitor previously kept only the aggregate CLS score. It now also keeps a bounded ring buffer of the latest 25 layout-shift entries with:
