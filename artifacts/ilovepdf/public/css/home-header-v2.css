@@ -20,7 +20,7 @@
   --ilpdf-header-dropdown-z: 1300;
 }
 
-body:has(.site-header){
+html:has(head link[data-shared-header-css]) body{
   padding-top: var(--ilpdf-header-h);
 }
 
@@ -318,7 +318,7 @@ body:has(.site-header){
   .site-header{
     height:64px;
   }
-  body:has(.site-header){
+  html:has(head link[data-shared-header-css]) body{
     padding-top:64px;
   }
   .site-header .header-inner{
@@ -495,4 +495,104 @@ body *::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
+}
+
+
+/* CLS-safe header reservation: the head link is present before chrome.js injects the header. */
+html:has(head link[data-shared-header-css]) body {
+  padding-top: var(--ilpdf-header-h);
+}
+@media (max-width: 640px) {
+  html:has(head link[data-shared-header-css]) body { padding-top: 64px; }
+}
+
+/* Async credits widgets must not participate in header flex layout. */
+.site-header .header-inner { position: relative !important; }
+.site-header .header-inner > .ce-widget-desktop {
+  position: absolute !important;
+  inset-inline-end: clamp(12px, 2vw, 28px) !important;
+  inset-inline-start: auto !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  z-index: 2;
+}
+.site-header .header-inner > .ce-widget-mobile {
+  position: absolute !important;
+  inset-inline-end: 12px !important;
+  inset-inline-start: auto !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  z-index: 2;
+}
+
+/* Desktop: primary actions stay left; existing credits/savings widget stays right. */
+@media (min-width: 1024px) {
+  .site-header .header-inner {
+    padding-inline-start: clamp(14px, 2vw, 28px) !important;
+    padding-inline-end: clamp(230px, 25vw, 292px) !important;
+    gap: clamp(8px, 1vw, 16px) !important;
+  }
+  .site-header .brand { flex: 0 0 auto !important; margin: 0 !important; }
+  .site-header .nav {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    min-width: 0 !important;
+    gap: clamp(0px, .3vw, 5px) !important;
+    margin: 0 !important;
+  }
+  .site-header .nav > .nav-direct,
+  .site-header .nav > .nav-item.has-mega {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+  }
+  .site-header .nav > .nav-direct,
+  .site-header .nav > .nav-item > .nav-btn {
+    min-height: 38px !important;
+    padding: 7px clamp(5px, .65vw, 10px) !important;
+    font-size: clamp(.76rem, .82vw, .9rem) !important;
+    gap: 4px !important;
+  }
+  .site-header .nav .all-tools { white-space: nowrap !important; }
+}
+
+/* Tablet/mobile: brand is centered against the viewport, not remaining flex space. */
+@media (max-width: 1023.98px) {
+  .site-header .header-inner {
+    justify-content: center !important;
+    position: relative !important;
+    padding-inline: 12px !important;
+    gap: 0 !important;
+  }
+  .site-header .brand {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+    max-width: calc(100% - 112px) !important;
+    gap: 7px !important;
+    font-size: clamp(.96rem, 2.4vw, 1.12rem) !important;
+    z-index: 1;
+  }
+  .site-header .brand-name { overflow: visible; white-space: nowrap; }
+  .site-header .nav { display: none !important; }
+  .site-header .header-inner > .ce-widget-desktop,
+  .site-header .header-inner > .ce-widget-mobile {
+    inset-inline-end: 12px !important;
+    max-width: calc(50% - 24px) !important;
+  }
+}
+
+/* Preserve the credits pill on narrow phones without allowing the secondary savings pill to collide with the brand. */
+@media (max-width: 420px) {
+  .site-header .header-inner > .ce-widget-mobile .ce-pill-savings { display: none !important; }
+}
+@media (min-width: 640px) and (max-width: 700px) {
+  .site-header .header-inner > .ce-widget-desktop .ce-stat:nth-child(n + 3) { display: none !important; }
 }
