@@ -1790,11 +1790,20 @@ function cropJourneySetStage(stage, title, detail, percent, determinate) {
 }
 
 function ensureToolRuntimeAndBundle(toolId) {
-  const runtime = window.RuntimeToolLoader;
-  const boot = runtime && typeof runtime.boot === 'function'
-    ? Promise.resolve().then(function () { return runtime.boot(toolId); })
+  // The upload shell and its shared chrome are the critical path. Heavy runtime
+  // infrastructure is fetched only after a file interaction, then the selected
+  // tool manifest and its dedicated code are activated in dependency order.
+  const sharedBoot = window.SharedToolRuntimeBoot && typeof window.SharedToolRuntimeBoot.loadAll === 'function'
+    ? window.SharedToolRuntimeBoot.loadAll()
     : Promise.resolve(true);
-  return boot.then(function (ready) {
+  return Promise.resolve(sharedBoot).then(function (loaded) {
+    if (loaded === false) throw new Error('The shared runtime modules could not be loaded.');
+    const runtime = window.RuntimeToolLoader;
+    const boot = runtime && typeof runtime.boot === 'function'
+      ? Promise.resolve().then(function () { return runtime.boot(toolId); })
+      : Promise.resolve(true);
+    return boot;
+  }).then(function (ready) {
     if (ready === false) throw new Error('The shared security/runtime stack did not become ready.');
     if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function') {
       return window.RuntimeToolCodeLoader.load(toolId);
