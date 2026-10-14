@@ -75,7 +75,7 @@ Node text and page content are deliberately not collected. The CLS aggregate con
 
 ## Verification status and remaining limitation
 
-The changes have been committed to `main` and the final source has been re-fetched for static verification. The connected GitHub session reported no commit status checks and no workflow runs for the inspected commit. A local checkout, Node execution, real-browser trace, Lighthouse run, and live-production before/after CLS measurement were not available in this execution context.
+The changes have been committed to `main` and the latest source files were re-fetched. Source-level assertions were checked against the current committed contents: desktop navigation order, removal of obsolete dropdown code, canonical stylesheet references in the key entry points/build scripts, CSS brace balance, first-paint body offset reservation, absolute credit widgets, and viewport-centered mobile/tablet branding. A repository-backed `npm test` / `npm run build` execution, real-browser trace, Lighthouse run, and live-production before/after CLS measurement were not available in this execution context.
 
 Therefore:
 - **Source-level mitigation implemented:** yes — font swap risk is normalized in the build path and diagnostic attribution is available.
