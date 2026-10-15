@@ -1410,13 +1410,14 @@ function renderStandardPreviewStep(tool) {
       <div class="ew-preview-workspace">
         <div class="ew-preview-main">
           <div id="live-preview-host"></div>
+          ${hasPrimaryLivePreview ? '' : `
           <section class="preview-step upload-section ew-file-section" aria-label="Selected files">
             <span class="upload-label">
               <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
               Selected ${tool.multipleFiles ? 'files' : 'file'}
             </span>
             <div class="upload-files-list" id="files-list"></div>
-          </section>
+          </section>`}
         </div>
 
         <aside class="ew-preview-aside">
