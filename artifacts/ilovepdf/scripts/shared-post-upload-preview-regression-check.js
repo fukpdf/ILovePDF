@@ -56,6 +56,10 @@ assert.ok(toolPage.includes("${hasPrimaryLivePreview ? '' : `") && toolPage.incl
   'legacy selected-files card must be conditionally rendered, not duplicated with shared preview');
 assert.match(toolPage, /if \(hasPrimaryLivePreview && window\.LivePreview && window\.LivePreview\.supported\(tool\.id\)/,
   'preview mount must be gated to avoid duplicating specialized editors');
+assert.match(toolPage, /if \(sharedHost\) sharedHost\.appendChild\(host\)/,
+  'PageOrganizer and Compress dedicated previews must mount inside the shared preview workspace');
+assert.match(toolPage, /if \(section\) section\.style\.display = 'none'/,
+  'dedicated editor paths must hide the duplicate legacy file section while active');
 assert.ok(styles.includes('/* Shared post-upload preview fallback'),
   'responsive shared-preview styles must be present');
 
