@@ -1407,7 +1407,7 @@ function renderStandardPreviewStep(tool) {
     : `${selectedFiles.length} files selected`;
   // One shared selected-file preview is the sole file-preview surface for all
   // upload-enabled tools. Functional page-editing controls mount separately.
-  const hasPrimaryLivePreview = !!(tool.acceptedFiles && selectedFiles.length > 0);
+  const hasPrimaryLivePreview = selectedFiles.length > 0;
   const previewPageClass = hasPrimaryLivePreview
     ? 'ew-preview-page ew-preview-page--live-primary'
     : 'ew-preview-page';
