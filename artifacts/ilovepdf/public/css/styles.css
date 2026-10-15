@@ -12557,6 +12557,14 @@ body::-webkit-scrollbar {
   height: 0 !important;
 }
 
+
+/* The rich preview is the primary surface for eligible single-file tools.
+   Keep the legacy selected-file card in the DOM for shared helpers, but remove
+   its duplicate visual preview when PageOrganizer is not using that section. */
+.ew-preview-page--live-primary .ew-file-section {
+  display: none !important;
+}
+
 /* ============================================================
    POST-UPLOAD PREVIEW UI/UX RECOVERY
    Scoped to the preview workspace. Keep upload and result screens unchanged.
