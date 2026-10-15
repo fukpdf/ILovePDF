@@ -61,7 +61,9 @@ These routes are outside the shared `tool.html` workflow and retain their specia
 - Multi-file remove actions route through the existing `window.removeFile(index)` flow so the selected-file state remains authoritative.
 - PageOrganizer, Rotate controls, and PRO editors are functional editing surfaces, not alternate generic file-preview renderers. They mount separately so they cannot overwrite the shared file-preview host.
 - Compression settings remain wired, but the obsolete dedicated compression thumbnail renderer and its host were removed.
-- Upload/dropzone behavior, processing engines, result/download behavior, homepage, header/footer, and logos are outside this preview cleanup.
+- The shared site header remains active on tool workspaces; the marketing footer and its stylesheet are intentionally omitted from upload/preview tool routes. Homepage and other public content pages retain their footer.
+- The preview panel is sticky beneath the fixed shared header. The selected-document list is the only independently scrollable region inside that panel; filenames wrap and cards shrink to avoid viewport overflow.
+- Upload/dropzone behavior, processing engines, result/download behavior, homepage branding, and logos remain outside this preview cleanup.
 
 ## Validation
 
@@ -74,4 +76,4 @@ node --check public/js/tool-page.js
 node --check scripts/shared-post-upload-preview-regression-check.js
 ```
 
-The source regression check validates inventory parity, old-renderer removal, shared host wiring, and standalone route contracts. It is not a substitute for browser testing. Browser tests for Merge, all other upload-enabled tools, corrupt/large files, file removal during rendering, and mobile/tablet/desktop layout are still required before calling the work fully validated.
+The source regression checks validate inventory parity, old-renderer removal, shared host wiring, sticky panel/document-list scrolling, footer-free tool workspaces, shared-header cache version parity, and standalone route contracts. It is not a substitute for browser testing. Browser tests for Merge, all other upload-enabled tools, corrupt/large files, file removal during rendering, and mobile/tablet/desktop layout are still required before calling the work fully validated.
