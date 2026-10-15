@@ -12900,7 +12900,7 @@ body::-webkit-scrollbar {
 
 
 /* Shared post-upload preview fallback — used by every upload-enabled tool without a dedicated renderer */
-.ew-preview-page--live-primary .lp-shared-preview{width:100%;min-width:0;padding:clamp(16px,2.4vw,28px);border:1px solid var(--border-color,#e5e7eb);border-radius:18px;background:var(--surface,#fff);box-shadow:0 12px 36px rgba(15,23,42,.06)}
+.lp-shared-preview{width:100%;min-width:0;padding:clamp(16px,2.4vw,28px);border:1px solid var(--border-color,#e5e7eb);border-radius:18px;background:var(--surface,#fff);box-shadow:0 12px 36px rgba(15,23,42,.06)}
 .lp-shared-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
 .lp-shared-kicker{display:block;margin-bottom:7px;color:#635bdb;font-size:11px;font-weight:800;letter-spacing:.12em}
 .lp-shared-preview-head h2{margin:0;color:var(--text-primary,#171923);font-size:clamp(20px,2.2vw,27px);line-height:1.2}
@@ -12925,4 +12925,4 @@ body::-webkit-scrollbar {
 .lp-shared-remove:hover{border-color:#fda29b;background:#fff5f5}
 .lp-shared-remove:focus-visible{outline:2px solid #635bdb;outline-offset:2px}
 .lp-shared-preview-note{margin:16px 0 0;padding:11px 13px;border-radius:9px;background:var(--surface-muted,#f8fafc);color:var(--text-secondary,#64748b);font-size:12px;line-height:1.5}
-@media(max-width:560px){.ew-preview-page--live-primary .lp-shared-preview{padding:14px;border-radius:14px}.lp-shared-preview-head{gap:8px}.lp-shared-preview-head p{font-size:12px}.lp-shared-file-card{gap:8px;padding:9px}.lp-shared-index{flex-basis:23px;width:23px;height:23px}.lp-shared-image-wrap,.lp-shared-file-art{flex-basis:43px;width:43px;height:52px}.lp-shared-file-lines{left:12px;width:20px}.lp-shared-remove{width:28px;height:29px}}
+@media(max-width:560px){.lp-shared-preview{padding:14px;border-radius:14px}.lp-shared-preview-head{gap:8px}.lp-shared-preview-head p{font-size:12px}.lp-shared-file-card{gap:8px;padding:9px}.lp-shared-index{flex-basis:23px;width:23px;height:23px}.lp-shared-image-wrap,.lp-shared-file-art{flex-basis:43px;width:43px;height:52px}.lp-shared-file-lines{left:12px;width:20px}.lp-shared-remove{width:28px;height:29px}}
