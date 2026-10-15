@@ -1329,21 +1329,16 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
-  // Load the small shared file-card renderer only after a file is selected.
-  // PDF.js remains conditional on a PDF input; no processing engine is needed
-  // just to show the selected-file card.
-  const isPdfInput = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-  const previewModuleWarm = window.RuntimeToolCodeLoader &&
+  // Load only the small shared file-card renderer after a file is selected.
+  // PDF.js and the processing engine stay out of this initial UI-ready path;
+  // the shared renderer attempts PDF thumbnails asynchronously when available.
+  const previewWarm = window.RuntimeToolCodeLoader &&
     typeof window.RuntimeToolCodeLoader.loadPreview === 'function'
       ? window.RuntimeToolCodeLoader.loadPreview().then(function (loaded) {
           if (!loaded && !window.LivePreview) throw new Error('Shared preview module did not become ready.');
           return true;
         })
       : (window.LivePreview ? Promise.resolve(true) : Promise.reject(new Error('Shared preview loader is unavailable.')));
-  const pdfPreviewWarm = (isPdfInput && window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
-    ? window.PdfPreview.loadPdfJs()
-    : Promise.resolve();
-  const previewWarm = Promise.all([previewModuleWarm, pdfPreviewWarm]);
   const stages = [
     { at: 0, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
     { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing your workspace.' }
