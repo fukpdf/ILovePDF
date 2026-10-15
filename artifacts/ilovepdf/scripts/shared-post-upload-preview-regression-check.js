@@ -33,7 +33,7 @@ const inventoryMatch = livePreview.match(/var UPLOAD_TOOL_IDS = new Set\(\[([\s\
 assert.ok(inventoryMatch, 'shared preview must declare upload-enabled tool inventory');
 const declaredIds = [...inventoryMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
 const declaredSet = new Set(declaredIds);
-assert.deepEqual(uploadTools.filter((tool) => !declaredSet.has(tool.id).map((tool) => tool.id), [],
+assert.deepEqual(uploadTools.filter((tool) => !declaredSet.has(tool.id)).map((tool) => tool.id), [],
   'every acceptedFiles tool must use the shared preview');
 assert.deepEqual(declaredIds.filter((id) => !uploadTools.some((tool) => tool.id === id)), [],
   'shared preview inventory must not include non-upload tools');
