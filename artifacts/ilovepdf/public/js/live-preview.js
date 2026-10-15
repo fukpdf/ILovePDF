@@ -3131,7 +3131,7 @@
     if (!SUPPORTED.has(toolId)) {
       host.setAttribute('aria-busy', 'true');
       try { cleanupHost(host); await mountSharedFilePreview(toolId, files, host); }
-      catch (err) { host.innerHTML = errorHtml('The preview could not be displayed. Your selected files are still available.'); }
+      catch (err) { cleanupHost(host); host.innerHTML = errorHtml('The preview could not be displayed. Your selected files are still available.'); }
       finally { if (host.isConnected) host.setAttribute('aria-busy', 'false'); }
       return;
     }
