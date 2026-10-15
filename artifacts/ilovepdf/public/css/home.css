@@ -3847,47 +3847,16 @@ body::-webkit-scrollbar {
 }
 
 
-/* Homepage tool-logo color pass (2026-10-15).
-   Color-only overrides: keep existing sticker dimensions, card layout and motion intact.
-   Each operation family keeps a recognizable color identity, inspired by the footer sticker palette. */
-.tool .tool-name-sticker[data-icon] {
-  border-color: rgba(255,255,255,.58);
-  box-shadow: 0 6px 14px rgba(79,70,229,.20), inset 0 1px 0 rgba(255,255,255,.38);
+/* Homepage tool logo stickers — use the same colorful gradient language as footer stickers.
+   Color-only styling: preserve current icon dimensions, card layout, SVG paths and motion. */
+.tool .tool-name-sticker {
+  color: #fff;
+  border: 1px solid rgba(199,210,254,.55);
+  box-shadow: 0 5px 14px rgba(79,70,229,.32), inset 0 1px 0 rgba(255,255,255,.3);
+  background: linear-gradient(145deg, #818cf8, #4f46e5);
 }
-.tool .tool-name-sticker[data-icon="layers"] { background:linear-gradient(145deg,#8b5cf6,#4f46e5)!important; }
-.tool .tool-name-sticker[data-icon="scissors"] { background:linear-gradient(145deg,#06b6d4,#2563eb)!important; }
-.tool .tool-name-sticker[data-icon="rotate-cw"],
-.tool .tool-name-sticker[data-icon="refresh-cw"] { background:linear-gradient(145deg,#14b8a6,#0e7490)!important; }
-.tool .tool-name-sticker[data-icon="crop"],
-.tool .tool-name-sticker[data-icon="maximize"],
-.tool .tool-name-sticker[data-icon="minimize-2"] { background:linear-gradient(145deg,#a78bfa,#6d28d9)!important; }
-.tool .tool-name-sticker[data-icon="list-ordered"],
-.tool .tool-name-sticker[data-icon="workflow"] { background:linear-gradient(145deg,#6366f1,#0891b2)!important; }
-.tool .tool-name-sticker[data-icon="archive"],
-.tool .tool-name-sticker[data-icon="package"] { background:linear-gradient(145deg,#3b82f6,#0f766e)!important; }
-.tool .tool-name-sticker[data-icon="lock"] { background:linear-gradient(145deg,#6366f1,#4338ca)!important; }
-.tool .tool-name-sticker[data-icon="unlock"] { background:linear-gradient(145deg,#2dd4bf,#0f766e)!important; }
-.tool .tool-name-sticker[data-icon="sliders"],
-.tool .tool-name-sticker[data-icon="wrench"] { background:linear-gradient(145deg,#f472b6,#9333ea)!important; }
-.tool .tool-name-sticker[data-icon="image"],
-.tool .tool-name-sticker[data-icon="image-off"],
-.tool .tool-name-sticker[data-icon="droplet"] { background:linear-gradient(145deg,#f472b6,#2563eb)!important; }
-.tool .tool-name-sticker[data-icon="edit-3"],
-.tool .tool-name-sticker[data-icon="pen-tool"] { background:linear-gradient(145deg,#c084fc,#db2777)!important; }
-.tool .tool-name-sticker[data-icon="scan-line"],
-.tool .tool-name-sticker[data-icon="cloud"] { background:linear-gradient(145deg,#22d3ee,#4f46e5)!important; }
-.tool .tool-name-sticker[data-icon="hash"],
-.tool .tool-name-sticker[data-icon="qr-code"] { background:linear-gradient(145deg,#818cf8,#0891b2)!important; }
-.tool .tool-name-sticker[data-icon="calculator"],
-.tool .tool-name-sticker[data-icon="bar-chart-2"] { background:linear-gradient(145deg,#60a5fa,#059669)!important; }
-.tool .tool-name-sticker[data-icon="file-text"],
-.tool .tool-name-sticker[data-icon="presentation"],
-.tool .tool-name-sticker[data-icon="sheet"],
-.tool .tool-name-sticker[data-icon="table"] { background:linear-gradient(145deg,#60a5fa,#6366f1)!important; }
-.tool .tool-name-sticker[data-icon="code"] { background:linear-gradient(145deg,#2dd4bf,#4f46e5)!important; }
-.tool .tool-name-sticker[data-icon="type"],
-.tool .tool-name-sticker[data-icon="languages"] { background:linear-gradient(145deg,#a78bfa,#0891b2)!important; }
-.tool .tool-name-sticker[data-icon="git-compare"] { background:linear-gradient(145deg,#f472b6,#2563eb)!important; }
-.tool .tool-name-sticker[data-icon="sparkles"] { background:linear-gradient(145deg,#c084fc,#db2777)!important; }
-.tool .tool-name-sticker[data-icon="eye-off"] { background:linear-gradient(145deg,#64748b,#7c3aed)!important; }
-.tool .tool-name-sticker[data-icon="dollar-sign"] { background:linear-gradient(145deg,#34d399,#0e7490)!important; }
+.tool:nth-child(3n) .tool-name-sticker { background: linear-gradient(145deg, #34d399, #059669); }
+.tool:nth-child(3n+2) .tool-name-sticker { background: linear-gradient(145deg, #38bdf8, #2563eb); }
+.tool:nth-child(4n) .tool-name-sticker { background: linear-gradient(145deg, #fbbf24, #f97316); }
+.tool:nth-child(5n) .tool-name-sticker { background: linear-gradient(145deg, #fb7185, #e11d48); }
+.tool:nth-child(6n) .tool-name-sticker { background: linear-gradient(145deg, #a78bfa, #7c3aed); }
