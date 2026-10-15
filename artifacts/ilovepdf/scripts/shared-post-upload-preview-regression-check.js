@@ -79,6 +79,12 @@ assert.match(livePreview, /data-shared-move/,
   'Merge must retain ordering controls inside the shared preview');
 assert.ok(toolPage.includes('window.moveMergePreviewFile = moveMergePreviewFile'),
   'shared Merge ordering controls must route through existing selected-file state');
+assert.match(toolPage, /function refreshSharedPreview\(\)/,
+  'file add/remove/reorder must refresh only the shared preview instead of replaying preparation');
+assert.match(livePreview, /var hostMountTokens = new WeakMap\(\)/,
+  'stale async preview mounts must be guarded');
+assert.match(livePreview, /window\.addEventListener\('ilpdf:step'/,
+  'preview object URLs must be cleaned up when leaving the preview step');
 assert.match(toolPage, /wireCompressOptions\(\)/, 'compression options must remain wired after removing its old preview');
 assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, \[file\], sharedPreviewHost\)/,
   'PRO editor tools must also mount the shared selected-file preview');
