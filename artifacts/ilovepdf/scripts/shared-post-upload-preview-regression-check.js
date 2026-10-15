@@ -135,6 +135,10 @@ const specialUploadPages = [
 for (const page of specialUploadPages) {
   const html = read(page.file);
   assert.ok(html.includes('/js/special-upload-flow.js'), page.file + ' must use the shared special upload flow');
+  assert.ok(html.includes('<main id="tool-content"'), page.file + ' must be recognized as a footer-free shared tool workspace');
+  assert.ok(html.includes('home-header-v2.css'), page.file + ' must retain the shared site header stylesheet');
+  assert.ok(!html.includes('home-footer-v2.css'), page.file + ' must not load the marketing footer stylesheet');
+  assert.ok(html.includes('chrome.js?v=20261016-sticky-preview-no-tool-footer-v1'), page.file + ' must use the canonical shared-shell cache key');
   for (const marker of page.markers) assert.ok(html.includes(marker), page.file + ' missing ' + marker);
   const inlineScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
   for (const script of inlineScripts) {
