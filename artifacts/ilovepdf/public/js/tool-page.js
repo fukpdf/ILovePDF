@@ -1377,13 +1377,14 @@ function renderStandardPreviewStep(tool) {
   // Use the rich live preview as the primary visual surface when it supports
   // this single-file tool. Keep the legacy file list for multi-file tools and
   // tools that need PageOrganizer, because those controls depend on its host.
+  const isMergeLivePreview = tool.id === 'merge' && selectedFiles.length > 0;
   const hasPrimaryLivePreview = !!(
     window.LivePreview &&
     window.LivePreview.supported(tool.id) &&
-    selectedFiles.length === 1 &&
-    !(window.PageOrganizer && window.PageOrganizer.shouldHandle(
-      tool.id, selectedFiles.map(function (entry) { return entry.file; })
-    ))
+    (isMergeLivePreview || (selectedFiles.length === 1 &&
+      !(window.PageOrganizer && window.PageOrganizer.shouldHandle(
+        tool.id, selectedFiles.map(function (entry) { return entry.file; })
+      ))))
   );
   const previewPageClass = hasPrimaryLivePreview
     ? 'ew-preview-page ew-preview-page--live-primary'
@@ -2228,7 +2229,21 @@ function removeFile(index) {
     closePageOrganizer();
     if (typeof clearAllBursts === 'function') clearAllBursts();
   }
+  if (!document.getElementById('files-list') && Flow.step === 'preview') {
+    if (selectedFiles.length) renderStep();
+    else Flow.navTo('upload');
+  }
 }
+
+function moveMergePreviewFile(fromIndex, toIndex) {
+  if (currentTool && currentTool.id !== 'merge') return;
+  if (fromIndex < 0 || fromIndex >= selectedFiles.length || toIndex < 0 || toIndex >= selectedFiles.length || fromIndex === toIndex) return;
+  const moved = selectedFiles.splice(fromIndex, 1)[0];
+  selectedFiles.splice(toIndex, 0, moved);
+  persistFlowState();
+  renderStep();
+}
+window.moveMergePreviewFile = moveMergePreviewFile;
 
 function clearAll() {
   selectedFiles.forEach(function (e) { if (e._thumbUrl) { try { URL.revokeObjectURL(e._thumbUrl); } catch (_) {} } });
