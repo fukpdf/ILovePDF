@@ -56,10 +56,13 @@
     return extension;
   }
 
+  var activePreviewHost = null;
+
   function cleanupHost(host) {
     if (!host) return;
     host.querySelectorAll('[data-obj-url]').forEach(function (element) {
       try { URL.revokeObjectURL(element.getAttribute('data-obj-url')); } catch (_) {}
+      element.removeAttribute('data-obj-url');
     });
     host.querySelectorAll('canvas').forEach(function (canvas) {
       try {
@@ -115,6 +118,12 @@
           escapeHtml(formatBytes(file.size)) + ' <span aria-hidden="true">·</span> ' +
           escapeHtml(label) + '</small><span class="lp-shared-ready"><span aria-hidden="true"></span>' +
           ' Ready to process</span></span>' +
+          (toolId === 'merge' && items.length > 1
+            ? '<span class="lp-shared-reorder" aria-label="Reorder files">' +
+              (index > 0 ? '<button type="button" data-shared-move="up" data-shared-index="' + index + '" aria-label="Move ' + escapeAttr(name) + ' up" title="Move up">↑</button>' : '') +
+              (index < items.length - 1 ? '<button type="button" data-shared-move="down" data-shared-index="' + index + '" aria-label="Move ' + escapeAttr(name) + ' down" title="Move down">↓</button>' : '') +
+              '</span>'
+            : '') +
           (items.length > 1 ? '<button class="lp-shared-remove" type="button" data-shared-remove="' +
           index + '" aria-label="Remove ' + escapeAttr(name) + '" title="Remove file">×</button>' : '') +
           '</li>';
@@ -126,6 +135,15 @@
         var index = Number(button.getAttribute('data-shared-remove'));
         cleanupHost(host);
         if (typeof window.removeFile === 'function') window.removeFile(index);
+      });
+    });
+    host.querySelectorAll('[data-shared-move]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-shared-index'));
+        var delta = button.getAttribute('data-shared-move') === 'up' ? -1 : 1;
+        if (typeof window.moveMergePreviewFile === 'function') {
+          window.moveMergePreviewFile(index, index + delta);
+        }
       });
     });
 
@@ -169,6 +187,8 @@
 
   async function mount(toolId, files, host) {
     if (!host || !UPLOAD_TOOL_IDS.has(toolId)) return;
+    if (activePreviewHost && activePreviewHost !== host) cleanupHost(activePreviewHost);
+    activePreviewHost = host;
     host.setAttribute('aria-busy', 'true');
     try {
       await mountSharedFilePreview(toolId, files, host);
@@ -184,6 +204,16 @@
       if (host.isConnected) host.setAttribute('aria-busy', 'false');
     }
   }
+
+  window.addEventListener('ilpdf:step', function (event) {
+    if (event && event.detail && event.detail.step === 'preview') return;
+    if (activePreviewHost) cleanupHost(activePreviewHost);
+    activePreviewHost = null;
+  });
+  window.addEventListener('pagehide', function () {
+    if (activePreviewHost) cleanupHost(activePreviewHost);
+    activePreviewHost = null;
+  });
 
   window.LivePreview = {
     mount: mount,
