@@ -48,6 +48,16 @@ assert.match(livePreview, /data-obj-url/,
   'shared image previews must mark object URLs for cleanup');
 assert.match(livePreview, /PdfPreview\.renderPage\(pdfDocument, 1, 180, 0\)/,
   'shared PDF preview should attempt a real first-page thumbnail without loading the engine eagerly');
+assert.match(livePreview, /renderSharedPdfThumbnails\(items, host\)/,
+  'PDF thumbnail work must be dispatched asynchronously after the file cards render');
+assert.ok(!/await\s+renderSharedPdfThumbnails/.test(livePreview),
+  'PDF thumbnail rendering must not block the Process button');
+assert.ok(!toolPage.includes('pdfPreviewWarm'),
+  'the preview-ready transition must not wait for PDF.js before showing selected-file cards');
+assert.ok(toolPage.includes('lp-shared-preview--loading'),
+  'a stable preview placeholder must reserve layout space while the shared renderer initializes');
+assert.ok(!/\.lp-(?!shared-)[a-zA-Z0-9_-]+/.test(styles),
+  'CSS for the deleted legacy rich-preview renderers must be removed');
 for (const obsolete of [
   'mountMergePreview', 'mountWordToPdf', 'mountExcelToPdf', 'mountPdfWordPreview',
   'mountPdfExcelPreview', 'mountBgRemover', 'mountTranslatePreview',
