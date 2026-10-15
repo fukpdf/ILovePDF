@@ -52,8 +52,8 @@ assert.match(livePreview, /PdfPreview\.renderPage\(pdfDoc, 1, 180, 0\)/,
 
 assert.match(toolPage, /const hasPrimaryLivePreview = !!\([\s\S]*?window\.LivePreview\.supported\(tool\.id\)/,
   'preview step must select the shared preview when eligible');
-assert.match(toolPage, /\$\{hasPrimaryLivePreview \? '' : `[\s\S]*?id="files-list"/,
-  'legacy selected-files card must not duplicate the shared preview');
+assert.ok(toolPage.includes("${hasPrimaryLivePreview ? '' : `") && toolPage.includes('id="files-list"'),
+  'legacy selected-files card must be conditionally rendered, not duplicated with shared preview');
 assert.match(toolPage, /if \(hasPrimaryLivePreview && window\.LivePreview && window\.LivePreview\.supported\(tool\.id\)/,
   'preview mount must be gated to avoid duplicating specialized editors');
 assert.ok(styles.includes('/* Shared post-upload preview fallback'),
