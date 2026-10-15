@@ -56,8 +56,8 @@ for (const obsolete of [
   assert.ok(!livePreview.includes(obsolete), 'legacy per-tool renderer remains: ' + obsolete);
 }
 
-assert.match(toolPage, /const hasPrimaryLivePreview = !!\(tool\.acceptedFiles && selectedFiles\.length > 0\)/,
-  'every acceptedFiles tool must reserve the shared preview host before mounting');
+assert.match(toolPage, /const hasPrimaryLivePreview = selectedFiles\.length > 0/,
+  'every selected-file preview step must reserve the shared preview host before mounting');
 assert.match(runtimeLoader, /function loadPreview\(\)/,
   'the shared renderer must have a lazy loader separate from processing bundles');
 assert.match(runtimeLoader, /loadPreview:\s+loadPreview/,
