@@ -19,7 +19,7 @@ function _tp(key, fallback) {
 }
 
 let currentTool = null;
-let selectedFiles = [];   // array of { file, rotation, id, _thumbUrl? }
+let selectedFiles = [];   // array of { file, rotation, id }
 let dragSrcIndex = null;
 let pageOrganizer = null; // active PageOrganizer controller (single-PDF page-level UI)
 // Tracks the currently mounted pro-editor module (BgRemoverPro / EditPdfPro)
