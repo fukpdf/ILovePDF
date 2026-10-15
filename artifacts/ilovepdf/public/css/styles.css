@@ -11650,7 +11650,7 @@ body::-webkit-scrollbar {
 
 
 /* Shared post-upload preview fallback — used by every upload-enabled tool without a dedicated renderer */
-.lp-shared-preview{width:100%;min-width:0;padding:clamp(16px,2.4vw,28px);border:1px solid var(--border-color,#e5e7eb);border-radius:18px;background:var(--surface,#fff);box-shadow:0 12px 36px rgba(15,23,42,.06)}
+.lp-shared-preview--loading{min-height:150px;display:flex;flex-direction:column;justify-content:center}.lp-shared-preview{width:100%;min-width:0;padding:clamp(16px,2.4vw,28px);border:1px solid var(--border-color,#e5e7eb);border-radius:18px;background:var(--surface,#fff);box-shadow:0 12px 36px rgba(15,23,42,.06)}
 .lp-shared-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
 .lp-shared-kicker{display:block;margin-bottom:7px;color:#635bdb;font-size:11px;font-weight:800;letter-spacing:.12em}
 .lp-shared-preview-head h2{margin:0;color:var(--text-primary,#171923);font-size:clamp(20px,2.2vw,27px);line-height:1.2}
