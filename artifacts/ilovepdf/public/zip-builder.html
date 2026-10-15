@@ -87,7 +87,7 @@
                 <span id="zip-file-count" style="font-weight:700;font-size:.95rem"></span>
                 <button type="button" id="zip-clear-btn" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.85rem;font-weight:600">Clear all</button>
               </div>
-              <ul id="zip-files-ul" style="list-style:none;padding:0;margin:0;max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px"></ul>
+              <ul id="zip-files-ul" class="lp-shared-file-list" style="max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px"></ul>
               <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:flex-end">
                 <div style="flex:2;min-width:160px">
                   <label class="calc-label" for="zip-name">Archive name</label>
@@ -196,16 +196,18 @@
       var ul = document.getElementById('zip-files-ul');
       var cnt = document.getElementById('zip-file-count');
       var listWrap = document.getElementById('zip-file-list');
-      if (!files.length){ listWrap.style.display='none'; return; }
+      if (!files.length){ ul.innerHTML=''; listWrap.style.display='none'; return; }
       listWrap.style.display='';
       cnt.textContent = files.length + ' file' + (files.length===1?'':'s') + ' selected';
       ul.innerHTML = files.map(function(f, i){
-        return '<li style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:.88rem">' +
-          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:10px"><i data-lucide="file" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;color:#6b7280"></i>' +
-          escHtml(f.name) + '</span>' +
-          '<span style="color:#9ca3af;flex-shrink:0;margin-right:10px">' + fmtSize(f.size) + '</span>' +
-          '<button type="button" onclick="zipRemove(' + i + ')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0">×</button>' +
-          '</li>';
+        var name = String(f.name || 'File ' + (i+1));
+        var ext = (name.split('.').pop() || 'FILE').toUpperCase().slice(0,5);
+        var kind = /^(PDF)$/.test(ext) ? 'PDF' : /^(DOC|DOCX|RTF|TXT|HTML|HTM)$/.test(ext) ? 'DOC' : /^(XLS|XLSX|CSV)$/.test(ext) ? 'XLS' : /^(PPT|PPTX)$/.test(ext) ? 'PPT' : ext;
+        return '<li class="lp-shared-file-card"><span class="lp-shared-index">' + (i+1) + '</span>' +
+          '<span class="lp-shared-file-art lp-shared-file-art--' + kind.toLowerCase() + '" aria-hidden="true"><span class="lp-shared-file-fold"></span><span class="lp-shared-file-lines"></span><b>' + escHtml(kind) + '</b></span>' +
+          '<span class="lp-shared-file-info"><strong title="' + escHtml(name).replace(/"/g,'&quot;') + '">' + escHtml(name) + '</strong>' +
+          '<small>' + fmtSize(f.size) + ' · ' + escHtml(kind) + '</small><span class="lp-shared-ready"><span aria-hidden="true"></span> Ready to archive</span></span>' +
+          '<button type="button" class="lp-shared-remove" aria-label="Remove ' + escHtml(name).replace(/"/g,'&quot;') + '" title="Remove file" onclick="zipRemove(' + i + ')">×</button></li>';
       }).join('');
       if (window.lucide) lucide.createIcons();
     }
