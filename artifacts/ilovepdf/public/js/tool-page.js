@@ -1396,53 +1396,16 @@ function renderStandardPreviewStep(tool) {
 
   if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
-    if (lpHost) {
-      // This retry lifecycle belongs only to the post-upload preview host.
-      // It never changes upload selection, the process contract, or download rendering.
-      let previewAttempt = 0;
-      const mountLivePreview = function () {
-        const attempt = ++previewAttempt;
-        lpHost.dataset.livePreviewMounted = '1';
-        lpHost.setAttribute('aria-live', 'polite');
-        lpHost.setAttribute('aria-busy', 'true');
-        return Promise.resolve()
-          .then(function () {
-            return window.LivePreview.mount(
-              tool.id,
-              selectedFiles.map(function (w) { return w.file; }),
-              lpHost
-            );
-          })
-          .then(function () {
-            if (attempt !== previewAttempt || !lpHost.isConnected) return;
-            lpHost.setAttribute('aria-busy', 'false');
-          })
-          .catch(function () {
-            // Ignore stale failures from an earlier preview instance.
-            if (attempt !== previewAttempt || !lpHost.isConnected) return;
-            lpHost.setAttribute('aria-busy', 'false');
-            lpHost.dataset.livePreviewMounted = '0';
-            lpHost.replaceChildren();
-
-            const state = document.createElement('div');
-            state.className = 'lp-error-state';
-            state.setAttribute('role', 'status');
-            const message = document.createElement('div');
-            message.className = 'lp-error-msg';
-            message.textContent = 'Preview could not be loaded. Check your connection and try again.';
-            const retry = document.createElement('button');
-            retry.type = 'button';
-            retry.className = 'lp-retry-btn';
-            retry.textContent = 'Try again';
-            retry.addEventListener('click', function () {
-              if (!lpHost.isConnected || Flow.step !== 'preview') return;
-              mountLivePreview();
-            });
-            state.append(message, retry);
-            lpHost.appendChild(state);
-          });
-      };
-      if (lpHost.dataset.livePreviewMounted !== '1') mountLivePreview();
+    if (lpHost && lpHost.dataset.livePreviewMounted !== '1') {
+      // LivePreview owns loading, error and retry state for its preview host.
+      // Keep this mount idempotent so the on-demand bundle callback cannot
+      // start a second renderer for the same preview instance.
+      lpHost.dataset.livePreviewMounted = '1';
+      lpHost.setAttribute('aria-live', 'polite');
+      window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
+        .catch(function () {
+          if (lpHost.isConnected) delete lpHost.dataset.livePreviewMounted;
+        });
     }
   }
 }
