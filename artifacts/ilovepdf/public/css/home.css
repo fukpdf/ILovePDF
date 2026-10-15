@@ -3845,3 +3845,61 @@ body::-webkit-scrollbar {
     font-size: .63rem !important;
   }
 }
+
+
+/* HOMEPAGE LOGO COLOR FIX v2 — main branch, 2026-10-15.
+   Intentionally color-only. Existing animation/keyframes, SVG strokes, logo dimensions,
+   card geometry and spacing remain untouched. High-specificity selectors ensure this
+   palette wins over legacy nth-child sticker backgrounds. */
+.tools-grid .tool .tool-name-sticker[data-icon],
+.popular-grid .popular-card .tool-name-sticker[data-icon],
+.home-cat-section .tool-name-sticker[data-icon],
+#recent-use-section .tool-name-sticker[data-icon] {
+  --logo-a: #6366f1;
+  --logo-b: #06b6d4;
+  --logo-glow: rgba(99,102,241,.30);
+  color: #fff;
+  background: linear-gradient(145deg,var(--logo-a),var(--logo-b)) !important;
+  border-color: rgba(255,255,255,.58) !important;
+  box-shadow: 0 9px 22px var(--logo-glow), inset 0 1px 0 rgba(255,255,255,.48) !important;
+}
+.tool-name-sticker[data-icon="layers"] { --logo-a:#7c3aed; --logo-b:#2563eb; --logo-glow:rgba(124,58,237,.34); }
+.tool-name-sticker[data-icon="scissors"] { --logo-a:#0891b2; --logo-b:#6366f1; --logo-glow:rgba(8,145,178,.32); }
+.tool-name-sticker[data-icon="archive"],
+.tool-name-sticker[data-icon="file-archive"] { --logo-a:#2563eb; --logo-b:#0d9488; --logo-glow:rgba(37,99,235,.34); }
+.tool-name-sticker[data-icon="list-ordered"],
+.tool-name-sticker[data-icon="workflow"] { --logo-a:#4f46e5; --logo-b:#0891b2; --logo-glow:rgba(79,70,229,.30); }
+.tool-name-sticker[data-icon="rotate-cw"],
+.tool-name-sticker[data-icon="refresh-cw"] { --logo-a:#0f766e; --logo-b:#2563eb; --logo-glow:rgba(15,118,110,.32); }
+.tool-name-sticker[data-icon="package"] { --logo-a:#7c3aed; --logo-b:#db2777; --logo-glow:rgba(124,58,237,.30); }
+.tool-name-sticker[data-icon="lock"] { --logo-a:#4338ca; --logo-b:#0891b2; --logo-glow:rgba(67,56,202,.30); }
+.tool-name-sticker[data-icon="unlock"] { --logo-a:#0f766e; --logo-b:#06b6d4; --logo-glow:rgba(15,118,110,.30); }
+.tool-name-sticker[data-icon="crop"],
+.tool-name-sticker[data-icon="maximize"],
+.tool-name-sticker[data-icon="minimize-2"] { --logo-a:#7c3aed; --logo-b:#2563eb; --logo-glow:rgba(124,58,237,.30); }
+.tool-name-sticker[data-icon="sliders"],
+.tool-name-sticker[data-icon="wrench"] { --logo-a:#db2777; --logo-b:#7c3aed; --logo-glow:rgba(219,39,119,.30); }
+.tool-name-sticker[data-icon="image"],
+.tool-name-sticker[data-icon="image-off"],
+.tool-name-sticker[data-icon="droplet"] { --logo-a:#ec4899; --logo-b:#2563eb; --logo-glow:rgba(236,72,153,.30); }
+.tool-name-sticker[data-icon="edit-3"],
+.tool-name-sticker[data-icon="pen-tool"],
+.tool-name-sticker[data-icon="pencil"] { --logo-a:#c084fc; --logo-b:#db2777; --logo-glow:rgba(192,132,252,.30); }
+.tool-name-sticker[data-icon="scan-line"],
+.tool-name-sticker[data-icon="cloud"] { --logo-a:#22d3ee; --logo-b:#4f46e5; --logo-glow:rgba(34,211,238,.30); }
+.tool-name-sticker[data-icon="hash"],
+.tool-name-sticker[data-icon="qr-code"] { --logo-a:#818cf8; --logo-b:#0891b2; --logo-glow:rgba(129,140,248,.30); }
+.tool-name-sticker[data-icon="calculator"],
+.tool-name-sticker[data-icon="bar-chart-2"] { --logo-a:#60a5fa; --logo-b:#059669; --logo-glow:rgba(96,165,250,.30); }
+.tool-name-sticker[data-icon="file-text"],
+.tool-name-sticker[data-icon="file"],
+.tool-name-sticker[data-icon="presentation"],
+.tool-name-sticker[data-icon="sheet"],
+.tool-name-sticker[data-icon="table"] { --logo-a:#60a5fa; --logo-b:#6366f1; --logo-glow:rgba(96,165,250,.30); }
+.tool-name-sticker[data-icon="code"] { --logo-a:#2dd4bf; --logo-b:#4f46e5; --logo-glow:rgba(45,212,191,.30); }
+.tool-name-sticker[data-icon="type"],
+.tool-name-sticker[data-icon="languages"] { --logo-a:#a78bfa; --logo-b:#0891b2; --logo-glow:rgba(167,139,250,.30); }
+.tool-name-sticker[data-icon="git-compare"] { --logo-a:#f472b6; --logo-b:#2563eb; --logo-glow:rgba(244,114,182,.30); }
+.tool-name-sticker[data-icon="sparkles"] { --logo-a:#c084fc; --logo-b:#db2777; --logo-glow:rgba(192,132,252,.30); }
+.tool-name-sticker[data-icon="eye-off"] { --logo-a:#64748b; --logo-b:#7c3aed; --logo-glow:rgba(100,116,139,.30); }
+.tool-name-sticker[data-icon="dollar-sign"] { --logo-a:#34d399; --logo-b:#0e7490; --logo-glow:rgba(52,211,153,.30); }
