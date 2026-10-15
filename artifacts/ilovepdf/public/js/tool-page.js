@@ -1374,9 +1374,23 @@ function renderStandardPreviewStep(tool) {
   const _ctxFile = selectedFiles.length === 1
     ? selectedFiles[0].file.name
     : `${selectedFiles.length} files selected`;
+  // Use the rich live preview as the primary visual surface when it supports
+  // this single-file tool. Keep the legacy file list for multi-file tools and
+  // tools that need PageOrganizer, because those controls depend on its host.
+  const hasPrimaryLivePreview = !!(
+    window.LivePreview &&
+    window.LivePreview.supported(tool.id) &&
+    selectedFiles.length === 1 &&
+    !(window.PageOrganizer && window.PageOrganizer.shouldHandle(
+      tool.id, selectedFiles.map(function (entry) { return entry.file; })
+    ))
+  );
+  const previewPageClass = hasPrimaryLivePreview
+    ? 'ew-preview-page ew-preview-page--live-primary'
+    : 'ew-preview-page';
 
   container.innerHTML = `
-    <div class="tool-page ew-preview-page">
+    <div class="tool-page ${previewPageClass}">
       ${toolHeaderBlock(tool, {
         heading: `Preview & Process — ${tool.name}`,
         desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
@@ -1390,7 +1404,7 @@ function renderStandardPreviewStep(tool) {
         <div class="ew-context-icon"><i data-lucide="${tool.icon || 'file'}"></i></div>
         <span class="ew-context-label">${tool.name}</span>
         <span class="ew-context-file">— ${_ctxFile}</span>
-        <span class="ew-context-chip">Preview Ready</span>
+        <span class="ew-context-chip">Preview</span>
       </div>
 
       <div class="ew-preview-workspace">
