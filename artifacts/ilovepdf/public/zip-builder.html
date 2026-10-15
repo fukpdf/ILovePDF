@@ -201,7 +201,9 @@
       cnt.textContent = files.length + ' file' + (files.length===1?'':'s') + ' selected';
       ul.innerHTML = files.map(function(f, i){
         var name = String(f.name || 'File ' + (i+1));
-        var ext = (name.split('.').pop() || 'FILE').toUpperCase().slice(0,5);
+        var dot = name.lastIndexOf('.');
+        var ext = dot >= 0 ? name.slice(dot + 1).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,5) : 'FILE';
+        if (!ext) ext = 'FILE';
         var kind = /^(PDF)$/.test(ext) ? 'PDF' : /^(DOC|DOCX|RTF|TXT|HTML|HTM)$/.test(ext) ? 'DOC' : /^(XLS|XLSX|CSV)$/.test(ext) ? 'XLS' : /^(PPT|PPTX)$/.test(ext) ? 'PPT' : ext;
         return '<li class="lp-shared-file-card"><span class="lp-shared-index">' + (i+1) + '</span>' +
           '<span class="lp-shared-file-art lp-shared-file-art--' + kind.toLowerCase() + '" aria-hidden="true"><span class="lp-shared-file-fold"></span><span class="lp-shared-file-lines"></span><b>' + escHtml(kind) + '</b></span>' +
