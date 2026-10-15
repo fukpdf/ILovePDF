@@ -3032,7 +3032,7 @@
   }
 
   // ── SHARED FALLBACK PREVIEW — every upload-enabled tool ────────────────────
-  function mountSharedFilePreview(toolId, files, host) {
+  async function mountSharedFilePreview(toolId, files, host) {
     var items = (Array.isArray(files) ? files : [files]).filter(Boolean);
     if (!items.length) { host.innerHTML = errorHtml('Select a file to preview.'); return; }
     function escAttr(value) { return esc(String(value == null ? '' : value)).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -3057,6 +3057,7 @@
         return '<div class="lp-shared-image-wrap"><img class="lp-shared-image" src="' + url + '" data-obj-url="' + url + '" alt="Preview of ' + escAttr(file.name) + '" loading="lazy"></div>';
       }
       var kind = ext === 'PDF' ? 'PDF' : /^(DOC|DOCX|RTF|TXT|HTML|HTM)$/.test(ext) ? 'DOC' : /^(XLS|XLSX|CSV)$/.test(ext) ? 'XLS' : /^(PPT|PPTX)$/.test(ext) ? 'PPT' : ext;
+      if (kind === 'PDF') return '<div class="lp-shared-file-art lp-shared-file-art--pdf" data-shared-pdf-index="' + items.indexOf(file) + '" aria-label="PDF page preview placeholder"><span class="lp-shared-file-fold"></span><span class="lp-shared-file-lines"></span><b>PDF</b></div>';
       return '<div class="lp-shared-file-art lp-shared-file-art--' + kind.toLowerCase() + '" aria-hidden="true"><span class="lp-shared-file-fold"></span><span class="lp-shared-file-lines"></span><b>' + esc(kind) + '</b></div>';
     }
     host.innerHTML = '<section class="lp-shared-preview" aria-label="Selected file preview">' +
@@ -3084,6 +3085,35 @@
         if (typeof window.removeFile === 'function') window.removeFile(index);
       });
     });
+
+    // Reuse the already-on-demand PDF preview renderer for real first-page thumbnails.
+    // Keep the file card usable if PDF rendering fails; processing remains available.
+    if (window.PdfPreview && typeof window.PdfPreview.loadDocument === 'function' &&
+        typeof window.PdfPreview.renderPage === 'function') {
+      for (var i = 0; i < items.length; i++) {
+        var pdfFile = items[i];
+        var isPdf = pdfFile && (pdfFile.type === 'application/pdf' || /\\.pdf$/i.test(pdfFile.name || ''));
+        if (!isPdf || !host.isConnected) continue;
+        var placeholder = host.querySelector('[data-shared-pdf-index="' + i + '"]');
+        if (!placeholder) continue;
+        var pdfDoc = null;
+        try {
+          pdfDoc = await window.PdfPreview.loadDocument(pdfFile);
+          var canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 180, 0);
+          if (!host.isConnected || !placeholder.isConnected || !canvas) continue;
+          var thumb = document.createElement('img');
+          thumb.className = 'lp-shared-image lp-shared-pdf-thumb';
+          thumb.alt = 'First page preview of ' + String(pdfFile.name || 'PDF file');
+          thumb.src = canvas.toDataURL('image/jpeg', 0.82);
+          placeholder.replaceWith(thumb);
+          try { var ctx = canvas.getContext('2d'); if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); } catch (_) {}
+        } catch (err) {
+          // The file metadata card remains as a safe fallback.
+        } finally {
+          try { if (pdfDoc && window.PdfPreview.unloadDocument) window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
+        }
+      }
+    }
   }
 
   // MOUNT DISPATCHER
@@ -3099,7 +3129,7 @@
     }
     if (!SUPPORTED.has(toolId)) {
       host.setAttribute('aria-busy', 'true');
-      try { cleanupHost(host); mountSharedFilePreview(toolId, files, host); }
+      try { cleanupHost(host); await mountSharedFilePreview(toolId, files, host); }
       catch (err) { host.innerHTML = errorHtml('The preview could not be displayed. Your selected files are still available.'); }
       finally { if (host.isConnected) host.setAttribute('aria-busy', 'false'); }
       return;
