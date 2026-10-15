@@ -38,6 +38,7 @@ jobs:
         run: |
           node --check public/js/live-preview.js
           node --check public/js/tool-page.js
+          node --check public/js/runtime-tool-code-loader.js
           node --check scripts/shared-post-upload-preview-regression-check.js
       - name: Run shared preview coverage regression
         working-directory: artifacts/ilovepdf
