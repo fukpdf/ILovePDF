@@ -23,6 +23,7 @@
   var JSZIP_URL   = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 
   var SUPPORTED = new Set([
+    'merge',
     'word-to-pdf', 'excel-to-pdf',
     'pdf-to-word', 'pdf-to-excel',
     'background-remover',
@@ -2973,10 +2974,68 @@
   }
 
   // ======================================================================
+  // ── MERGE PDF — multi-file visual review ───────────────────────────────────
+  function mountMergePreview(files, host) {
+    var items = (Array.isArray(files) ? files : [files]).filter(Boolean);
+    if (!items.length) { host.innerHTML = errorHtml('Add at least one PDF to preview.'); return; }
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+    }
+    function bytes(value) {
+      if (!Number.isFinite(value) || value < 0) return '';
+      if (value < 1024) return value + ' B';
+      var units = ['KB', 'MB', 'GB'];
+      var n = value / 1024, i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return n.toFixed(n >= 10 ? 0 : 1) + ' ' + units[i];
+    }
+    host.innerHTML = '<section class="lp-merge-preview" aria-label="Merge PDF preview">' +
+      '<header class="lp-merge-heading"><div><span class="lp-merge-eyebrow">MERGE WORKSPACE</span>' +
+      '<h2>Arrange your PDFs</h2><p>Review the files and set the order for the merged document.</p></div>' +
+      '<span class="lp-merge-count">' + items.length + ' file' + (items.length === 1 ? '' : 's') + '</span></header>' +
+      '<ol class="lp-merge-list">' + items.map(function (file, index) {
+        var name = file.name || ('PDF file ' + (index + 1));
+        var ext = (name.split('.').pop() || 'PDF').toUpperCase();
+        return '<li class="lp-merge-card" data-merge-index="' + index + '">' +
+          '<span class="lp-merge-order">' + (index + 1) + '</span>' +
+          '<span class="lp-merge-paper" aria-hidden="true"><span></span><span></span><span></span><b>' + esc(ext.slice(0, 4)) + '</b></span>' +
+          '<span class="lp-merge-file-meta"><strong title="' + esc(name) + '">' + esc(name) + '</strong>' +
+          '<small>' + esc(bytes(file.size)) + ' · PDF ' + (index + 1) + '</small></span>' +
+          '<span class="lp-merge-actions">' +
+          '<button type="button" data-merge-move="up" data-index="' + index + '" aria-label="Move ' + esc(name) + ' up" title="Move up"' + (index === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button type="button" data-merge-move="down" data-index="' + index + '" aria-label="Move ' + esc(name) + ' down" title="Move down"' + (index === items.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<button type="button" data-merge-remove="' + index + '" aria-label="Remove ' + esc(name) + '" title="Remove file">×</button>' +
+          '</span></li>';
+      }).join('') + '</ol>' +
+      '<p class="lp-merge-hint">The order shown here is the order used in the merged PDF.</p></section>';
+    host.querySelectorAll('[data-merge-move]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.dataset.index);
+        var next = index + (button.dataset.mergeMove === 'up' ? -1 : 1);
+        if (typeof window.moveMergePreviewFile === 'function') window.moveMergePreviewFile(index, next);
+      });
+    });
+    host.querySelectorAll('[data-merge-remove]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.dataset.mergeRemove);
+        if (typeof window.removeFile === 'function') window.removeFile(index);
+      });
+    });
+  }
+
   // MOUNT DISPATCHER
   // ======================================================================
   async function mount(toolId, files, host) {
     if (!host || !SUPPORTED.has(toolId)) return;
+    if (toolId === 'merge') {
+      host.setAttribute('aria-busy', 'true');
+      try { cleanupHost(host); mountMergePreview(files, host); }
+      catch (err) { host.innerHTML = errorHtml('The merge preview could not be displayed. Your selected files are still available.'); }
+      finally { if (host.isConnected) host.setAttribute('aria-busy', 'false'); }
+      return;
+    }
     var file = Array.isArray(files) ? files[0] : files;
     if (!file) return;
 
