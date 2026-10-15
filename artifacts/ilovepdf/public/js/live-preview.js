@@ -93,6 +93,46 @@
       '<span class="lp-shared-file-lines"></span><b>' + escapeHtml(kind) + '</b></span>';
   }
 
+  function renderSharedPdfThumbnails(items, host) {
+    if (!window.PdfPreview ||
+        typeof window.PdfPreview.loadDocument !== 'function' ||
+        typeof window.PdfPreview.renderPage !== 'function') return;
+    (async function () {
+      for (var i = 0; i < items.length; i++) {
+        var file = items[i];
+        var isPdf = file && (file.type === 'application/pdf' || /\\.pdf$/i.test(file.name || ''));
+        if (!isPdf || !host.isConnected) continue;
+        var placeholder = host.querySelector('[data-shared-pdf-index="' + i + '"]');
+        if (!placeholder) continue;
+        var pdfDocument = null;
+        try {
+          pdfDocument = await window.PdfPreview.loadDocument(file);
+          var canvas = await window.PdfPreview.renderPage(pdfDocument, 1, 180, 0);
+          if (!host.isConnected || !placeholder.isConnected || !canvas) continue;
+          var image = document.createElement('img');
+          image.className = 'lp-shared-image lp-shared-pdf-thumb';
+          image.alt = 'First page preview of ' + String(file.name || 'PDF file');
+          image.src = canvas.toDataURL('image/jpeg', 0.82);
+          placeholder.replaceWith(image);
+          try {
+            var context = canvas.getContext('2d');
+            if (context) context.clearRect(0, 0, canvas.width, canvas.height);
+          } catch (_) {}
+        } catch (_) {
+          // Metadata preview remains usable if thumbnail rendering fails.
+        } finally {
+          try {
+            if (pdfDocument && window.PdfPreview.unloadDocument) {
+              window.PdfPreview.unloadDocument(pdfDocument);
+            }
+          } catch (_) {}
+        }
+      }
+    })().catch(function () {
+      // Background thumbnail failure must never affect file selection or processing.
+    });
+  }
+
   async function mountSharedFilePreview(toolId, files, host) {
     var items = (Array.isArray(files) ? files : [files]).filter(Boolean);
     cleanupHost(host);
@@ -147,42 +187,9 @@
       });
     });
 
-    // Reuse the existing PDF renderer only when already available; never load
-    // a PDF engine just to draw the initial selected-file card.
-    if (window.PdfPreview &&
-        typeof window.PdfPreview.loadDocument === 'function' &&
-        typeof window.PdfPreview.renderPage === 'function') {
-      for (var i = 0; i < items.length; i++) {
-        var file = items[i];
-        var isPdf = file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''));
-        if (!isPdf || !host.isConnected) continue;
-        var placeholder = host.querySelector('[data-shared-pdf-index="' + i + '"]');
-        if (!placeholder) continue;
-        var pdfDocument = null;
-        try {
-          pdfDocument = await window.PdfPreview.loadDocument(file);
-          var canvas = await window.PdfPreview.renderPage(pdfDocument, 1, 180, 0);
-          if (!host.isConnected || !placeholder.isConnected || !canvas) continue;
-          var image = document.createElement('img');
-          image.className = 'lp-shared-image lp-shared-pdf-thumb';
-          image.alt = 'First page preview of ' + String(file.name || 'PDF file');
-          image.src = canvas.toDataURL('image/jpeg', 0.82);
-          placeholder.replaceWith(image);
-          try {
-            var context = canvas.getContext('2d');
-            if (context) context.clearRect(0, 0, canvas.width, canvas.height);
-          } catch (_) {}
-        } catch (_) {
-          // Metadata preview remains usable if thumbnail rendering fails.
-        } finally {
-          try {
-            if (pdfDocument && window.PdfPreview.unloadDocument) {
-              window.PdfPreview.unloadDocument(pdfDocument);
-            }
-          } catch (_) {}
-        }
-      }
-    }
+    // Render PDF thumbnails in the background. The shared file cards and
+    // Process button must not wait for PDF.js parsing or page rasterization.
+    renderSharedPdfThumbnails(items, host);
   }
 
   var mountSequence = 0;
