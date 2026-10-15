@@ -1374,18 +1374,12 @@ function renderStandardPreviewStep(tool) {
   const _ctxFile = selectedFiles.length === 1
     ? selectedFiles[0].file.name
     : `${selectedFiles.length} files selected`;
-  // Use the rich live preview as the primary visual surface when it supports
-  // this single-file tool. Keep the legacy file list for multi-file tools and
-  // tools that need PageOrganizer, because those controls depend on its host.
-  const isMergeLivePreview = tool.id === 'merge' && selectedFiles.length > 0;
-  const previewFiles = selectedFiles.map(function (entry) { return entry.file; });
-  const hasDedicatedPreview = tool.id === 'compress' ||
-    (!!(window.PageOrganizer && window.PageOrganizer.shouldHandle(tool.id, previewFiles)) && !isMergeLivePreview);
+  // One shared selected-file preview is the sole file-preview surface for all
+  // upload-enabled tools. Functional page-editing controls mount separately.
   const hasPrimaryLivePreview = !!(
     window.LivePreview &&
     window.LivePreview.supported(tool.id) &&
-    selectedFiles.length > 0 &&
-    (isMergeLivePreview || !hasDedicatedPreview)
+    selectedFiles.length > 0
   );
   const previewPageClass = hasPrimaryLivePreview
     ? 'ew-preview-page ew-preview-page--live-primary'
@@ -1412,6 +1406,7 @@ function renderStandardPreviewStep(tool) {
       <div class="ew-preview-workspace">
         <div class="ew-preview-main">
           <div id="live-preview-host"></div>
+          <div id="page-organizer-host"></div>
           ${hasPrimaryLivePreview ? '' : `
           <section class="preview-step upload-section ew-file-section" aria-label="Selected files">
             <span class="upload-label">
@@ -1982,12 +1977,11 @@ async function handleFiles(fileList) {
 // When the current tool operates on a single PDF and PageOrganizer wants it,
 // we hide the plain file row and mount the thumbnail grid.
 function maybeOpenPageOrganizer() {
-  // Compress and PageOrganizer use dedicated visual editors inside the shared
-  // preview host. Keep their specialized controls, but don't leave the old
-  // selected-file card visible underneath them.
+  // Compression mode controls are part of the operation form, not a separate
+  // preview renderer. The selected-file surface is owned by LivePreview.
   if (currentTool && currentTool.id === 'compress') {
     closePageOrganizer();
-    renderCompressPreview();
+    wireCompressOptions();
     return;
   }
   if (!window.PageOrganizer) return;
@@ -1997,18 +1991,18 @@ function maybeOpenPageOrganizer() {
     return;
   }
   const list = document.getElementById('files-list');
-  if (!list) return;
-  const section = list.closest('.ew-file-section');
-  const sharedHost = document.getElementById('live-preview-host');
+  const section = list && list.closest('.ew-file-section');
+  const organizerHost = document.getElementById('page-organizer-host');
   let host = document.getElementById('page-organizer');
   if (!host) {
     host = document.createElement('div');
     host.id = 'page-organizer';
     host.className = 'page-organizer';
-    if (sharedHost) sharedHost.appendChild(host);
-    else list.parentNode.insertBefore(host, list);
+    if (organizerHost) organizerHost.appendChild(host);
+    else if (list && list.parentNode) list.parentNode.insertBefore(host, list);
+    else return;
   }
-  list.style.display = 'none';
+  if (list) list.style.display = 'none';
   if (section) section.style.display = 'none';
 
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
@@ -2019,7 +2013,7 @@ function maybeOpenPageOrganizer() {
     })
     .catch(() => {
       // Fall back to the plain file row so the user is never stuck.
-      list.style.display = '';
+      if (list) list.style.display = '';
       if (section) section.style.display = '';
       host.remove();
     });
@@ -2029,8 +2023,6 @@ function closePageOrganizer() {
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   const host = document.getElementById('page-organizer');
   if (host) host.remove();
-  const cmpHost = document.getElementById('compress-preview-host');
-  if (cmpHost) cmpHost.remove();
   const list = document.getElementById('files-list');
   if (list) list.style.display = '';
   const section = list && list.closest('.ew-file-section');
@@ -3588,64 +3580,6 @@ function wireCompressOptions() {
   if (targetInput) targetInput.addEventListener('input', paint);
   if (unitSelect) unitSelect.addEventListener('change', paint);
   paint();
-}
-
-// Render a single-page thumbnail preview for the uploaded compress PDF.
-async function renderCompressPreview() {
-  const list = document.getElementById('files-list');
-  if (!list) return;
-  const entry = selectedFiles[0];
-  if (!entry) return;
-
-  // Mount the dedicated compression preview inside the shared preview
-  // workspace and hide the duplicate legacy selected-file section.
-  let host = document.getElementById('compress-preview-host');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'compress-preview-host';
-    const sharedHost = document.getElementById('live-preview-host');
-    if (sharedHost) sharedHost.appendChild(host);
-    else list.parentNode.insertBefore(host, list);
-  }
-  const section = list.closest('.ew-file-section');
-  if (section) section.style.display = 'none';
-  host.innerHTML = `
-    <div class="compress-preview">
-      <div class="po-spinner" style="width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#E5322E;border-radius:50%;animation:spin 1s linear infinite;"></div>
-      <div class="compress-preview-meta">Reading <strong>${escapeHtml(entry.file.name)}</strong>…</div>
-    </div>`;
-
-  // Wire mode-dependent estimate/custom controls regardless of preview success.
-  wireCompressOptions();
-
-  if (!window.PdfPreview) return;
-  let pdfDoc;
-  try {
-    pdfDoc = await window.PdfPreview.loadDocument(entry.file);
-    const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 280, 0);
-    canvas.classList.add('compress-preview-canvas');
-    host.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'compress-preview';
-    wrap.appendChild(canvas);
-    const meta = document.createElement('div');
-    meta.className = 'compress-preview-meta';
-    meta.innerHTML = `
-      <strong>${escapeHtml(entry.file.name)}</strong><br>
-      ${formatBytes(entry.file.size)} · ${pdfDoc.pageCount} page${pdfDoc.pageCount === 1 ? '' : 's'} · Showing page 1
-    `;
-    wrap.appendChild(meta);
-    host.appendChild(wrap);
-  } catch (err) {
-    host.innerHTML = `
-      <div class="compress-preview">
-        <div class="compress-preview-meta" style="color:#b91c1c">
-          Couldn't render a preview. Your file will still be compressed.
-        </div>
-      </div>`;
-  } finally {
-    try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
-  }
 }
 
 function readCompressTargetBytes(selectedMode) {
