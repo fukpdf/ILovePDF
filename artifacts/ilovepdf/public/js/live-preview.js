@@ -2513,7 +2513,11 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
     } catch (_) {
-      host.innerHTML = errorHtml('Could not render PDF page.', function () { mountOcrPreview(file, host); });
+      host.innerHTML = errorHtml('Could not render PDF page.', function () {
+        // Retry through the shared mount lifecycle so loading state and cleanup
+        // stay consistent with every other live-preview tool.
+        return mount('ocr', [file], host);
+      });
       await pdf.destroy();
       return;
     }
