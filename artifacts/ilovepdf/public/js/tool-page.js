@@ -1293,6 +1293,11 @@ function mountLivePreviewForStep(toolId, files, host) {
   host.dataset.livePreviewMounted = '1';
   host.setAttribute('aria-live', 'polite');
   if (processBtn) processBtn.disabled = true;
+  if (!host.firstElementChild) {
+    host.innerHTML = '<section class="lp-shared-preview lp-shared-preview--loading" role="status" aria-label="Selected file preview">' +
+      '<span class="lp-shared-kicker">PREVIEW WORKSPACE</span>' +
+      '<p class="lp-shared-preview-note">Preparing your file preview…</p></section>';
+  }
 
   return Promise.resolve()
     .then(function () {
