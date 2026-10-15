@@ -1310,7 +1310,7 @@ function mountLivePreviewForStep(toolId, files, host) {
     });
 }
 
-async // Refresh only the shared selected-file surface when the user adds,
+// Refresh only the shared selected-file surface when the user adds,
 // removes, or reorders files. Avoid replaying the preparation screen or
 // rebuilding tool options for a simple list change.
 function refreshSharedPreview() {
@@ -1323,7 +1323,7 @@ function refreshSharedPreview() {
   return true;
 }
 
-function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
+async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const journey = document.getElementById('crop-upload-journey');
   if (!journey) return;
   const file = selectedFiles[0] && selectedFiles[0].file;
