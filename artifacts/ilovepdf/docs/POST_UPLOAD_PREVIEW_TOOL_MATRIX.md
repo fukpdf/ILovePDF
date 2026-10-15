@@ -1,68 +1,67 @@
 # Shared Post-Upload Preview — Tool Inventory & Validation Contract
 
-This work standardizes the **post-upload Preview step** across the shared `tool.html` workflow. It does not replace upload/dropzone UI, the processing engines, result/download pages, homepage, shared shell, or tool-specific editing controls.
+The shared selected-file preview is the only generic file-preview renderer for upload-enabled tools. Legacy per-tool rich preview renderers have been removed from `public/js/live-preview.js`; tool processing modules and functional editors remain separate.
 
 ## Coverage inventory
 
 The authoritative shared-shell inventory is `public/js/tools-config.js`. Every entry declaring `acceptedFiles` must also be listed in `UPLOAD_TOOL_IDS` in `public/js/live-preview.js`. The regression script fails if the lists drift.
 
-| Tool | Accepted files | Multi-file | Preview path |
-|---|---|---:|---|
-| Merge PDF (`merge`) | `.pdf` | Yes | Rich merge preview; reorder/remove controls |
-| Split PDF (`split`) | `.pdf` | No | PageOrganizer for a valid single PDF; shared fallback otherwise |
-| Rotate PDF (`rotate`) | `.pdf` | No | Dedicated Rotate editor and page controls |
-| Crop PDF (`crop`) | `.pdf` | No | PageOrganizer for a valid single PDF; shared fallback otherwise |
-| Organize PDF (`organize`) | `.pdf` | No | PageOrganizer for a valid single PDF; shared fallback otherwise |
-| Compress PDF (`compress`) | `.pdf` | No | Dedicated compression preview; existing mode/size options preserved |
-| PDF to Word (`pdf-to-word`) | `.pdf` | No | Dedicated rich preview |
-| PDF to PowerPoint (`pdf-to-powerpoint`) | `.pdf` | No | Dedicated rich preview |
-| PDF to Excel (`pdf-to-excel`) | `.pdf` | No | Dedicated rich preview |
-| PDF to JPG (`pdf-to-jpg`) | `.pdf` | No | Shared preview fallback with PDF first-page thumbnail |
-| Word to PDF (`word-to-pdf`) | `.doc,.docx` | No | Dedicated rich preview |
-| PowerPoint to PDF (`powerpoint-to-pdf`) | `.ppt,.pptx` | No | Dedicated rich preview |
-| Excel to PDF (`excel-to-pdf`) | `.xls,.xlsx` | No | Dedicated rich preview |
-| Word to Excel (`word-to-excel`) | `.docx` | No | Dedicated rich preview |
-| JPG to PDF (`jpg-to-pdf`) | `.jpg,.jpeg,.png` | Yes | Shared preview fallback with image thumbnails and remove controls |
-| HTML to PDF (`html-to-pdf`) | `.html,.htm` | No | Dedicated rich preview |
-| Edit PDF (`edit`) | `.pdf` | No | Existing PRO editor or PageOrganizer/editor fallback |
-| Watermark PDF (`watermark`) | `.pdf` | No | PageOrganizer for a valid single PDF; existing options preserved |
-| Sign PDF (`sign`) | `.pdf` | No | PageOrganizer for a valid single PDF; existing options preserved |
-| Add Page Numbers (`page-numbers`) | `.pdf` | No | PageOrganizer for a valid single PDF; existing options preserved |
-| Redact PDF (`redact`) | `.pdf` | No | PageOrganizer for a valid single PDF; existing options preserved |
-| Protect PDF (`protect`) | `.pdf` | No | Shared preview fallback with PDF first-page thumbnail |
-| Unlock PDF (`unlock`) | `.pdf` | No | Shared preview fallback with PDF first-page thumbnail |
-| Repair PDF (`repair`) | `.pdf` | No | PageOrganizer for a valid single PDF; shared fallback if unavailable |
-| Scan to PDF (`scan-to-pdf`) | `.jpg,.jpeg,.png` | Yes | Dedicated rich preview |
-| OCR (`ocr`) | `.pdf` | No | PageOrganizer for a valid single PDF; rich preview fallback otherwise |
-| Compare PDF (`compare`) | `.pdf` | Yes | Shared multi-file preview with PDF thumbnails and remove controls |
-| AI Summarizer (`ai-summarize`) | `.pdf` | No | PageOrganizer for a valid single PDF; rich preview fallback otherwise |
-| Translate PDF (`translate`) | `.pdf` | No | PageOrganizer for a valid single PDF; rich preview fallback otherwise |
-| Workflow Builder (`workflow`) | `.pdf` | No | Shared preview fallback with PDF first-page thumbnail |
-| Background Remover (`background-remover`) | `.jpg,.jpeg,.png,.webp` | No | Existing PRO editor or dedicated rich preview |
-| Crop Image (`crop-image`) | `.jpg,.jpeg,.png,.webp` | No | Shared preview fallback with image thumbnail |
-| Resize Image (`resize-image`) | `.jpg,.jpeg,.png,.webp` | No | Shared preview fallback with image thumbnail |
-| Image Filters (`image-filters`) | `.jpg,.jpeg,.png,.webp` | No | Shared preview fallback with image thumbnail |
+| Tool | ID | Selected-file preview | Preserved tool-specific UI |
+|---|---|---|---|
+| Merge PDF | `merge` | Shared file cards and PDF thumbnails; multi-file remove actions | Existing merge processing and file selection state |
+| Split PDF | `split` | Shared file card and PDF thumbnail | Existing split options; PageOrganizer when applicable |
+| Rotate PDF | `rotate` | Shared file card and PDF thumbnail | Existing Rotate editor, page rotation controls, PageOrganizer |
+| Crop PDF | `crop` | Shared file card and PDF thumbnail | Existing crop options and PageOrganizer when applicable |
+| Organize PDF | `organize` | Shared file card and PDF thumbnail | Existing PageOrganizer |
+| Compress PDF | `compress` | Shared file card and PDF thumbnail | Existing compression mode and target-size options |
+| PDF to Word | `pdf-to-word` | Shared file card and PDF thumbnail | Existing processing flow |
+| PDF to PowerPoint | `pdf-to-powerpoint` | Shared file card and PDF thumbnail | Existing processing flow |
+| PDF to Excel | `pdf-to-excel` | Shared file card and PDF thumbnail | Existing processing flow |
+| PDF to JPG | `pdf-to-jpg` | Shared file card and PDF thumbnail | Existing processing flow |
+| Word to PDF | `word-to-pdf` | Shared file card | Existing processing flow |
+| PowerPoint to PDF | `powerpoint-to-pdf` | Shared file card | Existing processing flow |
+| Excel to PDF | `excel-to-pdf` | Shared file card | Existing processing flow |
+| Word to Excel | `word-to-excel` | Shared file card | Existing processing flow |
+| JPG to PDF | `jpg-to-pdf` | Shared image thumbnail cards and multi-file remove actions | Existing processing flow |
+| HTML to PDF | `html-to-pdf` | Shared file card | Existing processing flow |
+| Edit PDF | `edit` | Shared file card and PDF thumbnail | Existing PRO editor / editing controls |
+| Watermark PDF | `watermark` | Shared file card and PDF thumbnail | Existing watermark options and PageOrganizer when applicable |
+| Sign PDF | `sign` | Shared file card and PDF thumbnail | Existing signing options and PageOrganizer when applicable |
+| Add Page Numbers | `page-numbers` | Shared file card and PDF thumbnail | Existing page-number options and PageOrganizer when applicable |
+| Redact PDF | `redact` | Shared file card and PDF thumbnail | Existing redaction options and PageOrganizer when applicable |
+| Protect PDF | `protect` | Shared file card and PDF thumbnail | Existing protection options |
+| Unlock PDF | `unlock` | Shared file card and PDF thumbnail | Existing unlock options |
+| Repair PDF | `repair` | Shared file card and PDF thumbnail | Existing repair flow and PageOrganizer when applicable |
+| Scan to PDF | `scan-to-pdf` | Shared image thumbnail cards and multi-file remove actions | Existing scan-to-PDF processing flow |
+| OCR | `ocr` | Shared file card and PDF thumbnail | Existing OCR options and PageOrganizer when applicable |
+| Compare PDF | `compare` | Shared multi-file cards and PDF thumbnails; remove actions | Existing comparison processing flow |
+| AI Summarizer | `ai-summarize` | Shared file card and PDF thumbnail | Existing summarization options |
+| Translate PDF | `translate` | Shared file card and PDF thumbnail | Existing translation options |
+| Workflow Builder | `workflow` | Shared file card and PDF thumbnail | Existing workflow options |
+| Background Remover | `background-remover` | Shared image thumbnail | Existing PRO editor when available |
+| Crop Image | `crop-image` | Shared image thumbnail | Existing crop options |
+| Resize Image | `resize-image` | Shared image thumbnail | Existing resize options |
+| Image Filters | `image-filters` | Shared image thumbnail | Existing filter options |
 
-**Shared-shell upload-enabled tools: 34.** Utilities without file-upload input are intentionally excluded.
+**Shared-shell upload-enabled tools: 34.** Tools without file-upload input are intentionally excluded.
 
 ## Standalone upload routes
 
-These pages are outside the shared three-step `tool.html` workflow and keep their specialized preview/result behavior:
+These routes are outside the shared `tool.html` workflow and retain their specialized processing/result flows while using the same preview-card visual system:
 
-- `/image-compressor.html` — original/compressed image comparison.
-- `/image-converter.html` — multi-image queue and conversion settings.
-- `/zip-builder.html` — multi-file list and ZIP creation.
+- `/image-compressor.html` — selected-image card before compression; original/compressed comparison remains a post-processing result.
+- `/image-converter.html` — image thumbnail queue, conversion settings, and object-URL cleanup.
+- `/zip-builder.html` — file-card/type-badge list and existing ZIP creation workflow.
 
-They use `special-upload-flow.js` for their shared dropzone/preparation behavior and now share the preview card visual system too: Image Compressor shows a selected-image card before compression, Image Converter uses thumbnail cards with safe object-URL cleanup, and ZIP Builder uses the same file-card/type-badge design. Their specialized processing/result behavior remains intact.
+## Preview and lifecycle rules
 
-## Implementation and safety rules
-
-- The shared fallback is used for upload-enabled tools without a dedicated rich renderer.
-- PDF fallback cards attempt to render the first page through the existing `PdfPreview` API; a failed thumbnail leaves a usable file card.
-- Image thumbnails use object URLs marked for cleanup. Remove actions clean up thumbnails and then re-render the current preview.
-- Merge retains its multi-file ordering controls.
-- PageOrganizer and Compress keep their dedicated controls inside the shared preview host, with the duplicate legacy file section hidden while active and restored as a fallback. Rotate and PRO editor flows remain dedicated.
-- The upload page, processing engine, and download/result page remain outside this change.
+- `LivePreview.mount()` uses one shared renderer for every ID in `UPLOAD_TOOL_IDS`; no per-tool rich preview dispatcher remains.
+- Image thumbnails use object URLs and revoke them when the preview is replaced or an item is removed.
+- PDF first-page thumbnails are attempted only when the existing `PdfPreview` API is already available; a failed thumbnail leaves the metadata card usable. The selected-file card itself does not eagerly download PDF.js.
+- Multi-file remove actions route through the existing `window.removeFile(index)` flow so the selected-file state remains authoritative.
+- PageOrganizer, Rotate controls, and PRO editors are functional editing surfaces, not alternate generic file-preview renderers. They mount separately so they cannot overwrite the shared file-preview host.
+- Compression settings remain wired, but the obsolete dedicated compression thumbnail renderer and its host were removed.
+- Upload/dropzone behavior, processing engines, result/download behavior, homepage, header/footer, and logos are outside this preview cleanup.
 
 ## Validation
 
@@ -75,4 +74,4 @@ node --check public/js/tool-page.js
 node --check scripts/shared-post-upload-preview-regression-check.js
 ```
 
-The source regression check validates inventory parity and preview wiring. It is not a substitute for browser tests. Runtime visual checks still need to exercise single/multi-file uploads, remove/clear, PageOrganizer, Merge reorder, image/PDF thumbnail failures, mobile widths, and Process-to-download regression.
+The source regression check validates inventory parity, old-renderer removal, shared host wiring, and standalone route contracts. It is not a substitute for browser testing. Browser tests for Merge, all other upload-enabled tools, corrupt/large files, file removal during rendering, and mobile/tablet/desktop layout are still required before calling the work fully validated.
