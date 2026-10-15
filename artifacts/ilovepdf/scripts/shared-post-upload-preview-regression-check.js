@@ -68,10 +68,10 @@ for (const page of specialUploadPages) {
   const html = read(page.file);
   assert.ok(html.includes('/js/special-upload-flow.js'), page.file + ' must use the shared special upload flow');
   for (const marker of page.markers) assert.ok(html.includes(marker), page.file + ' missing ' + marker);
-  const inlineScripts = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)];
+  const inlineScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
   for (const script of inlineScripts) {
     const attrs = script[1], source = script[2];
-    if (/\\bsrc\\s*=/.test(attrs) || /application\\/ld\\+json/i.test(attrs) || /\\btype=[\"']module[\"']/i.test(attrs) || !source.trim()) continue;
+    if (/\bsrc\s*=/.test(attrs) || /application\/ld\+json/i.test(attrs) || /\btype=["']module["']/i.test(attrs) || !source.trim()) continue;
     assert.doesNotThrow(() => new Function(source), page.file + ' contains invalid inline JavaScript');
   }
 }
