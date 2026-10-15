@@ -1220,8 +1220,8 @@ function renderRotatePreviewStep(tool) {
 
 // ── STEP 2 — PREVIEW + PROCESS ────────────────────────────────────────────
 // Shows the selected file(s), the tool's options, and a single Process CTA.
-// Reuses every existing helper (renderFileList, maybeOpenPageOrganizer,
-// processFile) — only the surrounding chrome changes.
+// Reuses the existing navigation, PageOrganizer, and processFile helpers;
+// the shared selected-file preview owns file-card rendering.
 function renderPreviewStep(tool) {
   if (tool) {
     renderToolPreviewPreparation(tool);
@@ -1271,7 +1271,7 @@ function scheduleToolEngineWarmup(tool) {
   }
 }
 
-// Rich preview rendering is part of the post-upload ready state. Keep the
+// Shared selected-file preview rendering is part of the post-upload ready state. Keep the
 // existing Process button unavailable until the preview renderer has either
 // produced its UI or surfaced its own recoverable error state.
 function mountLivePreviewForStep(toolId, files, host) {
@@ -1463,7 +1463,7 @@ function renderStandardPreviewStep(tool) {
 
   if (window.lucide) lucide.createIcons();
   // The shared preview owns selected-file presentation; keep the existing
-  // Clear action visible even though the legacy file-list DOM is gone.
+  // Clear action visible because the shared preview replaces the old file list.
   if (hasPrimaryLivePreview) {
     const clearBtn = document.getElementById('clear-btn');
     if (clearBtn) clearBtn.style.display = selectedFiles.length ? 'inline-flex' : 'none';
