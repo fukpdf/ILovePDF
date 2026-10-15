@@ -3906,3 +3906,38 @@ body::-webkit-scrollbar {
 .tool-name-sticker[data-icon="sparkles"] { --logo-a:#c084fc; --logo-b:#db2777; --logo-glow:rgba(192,132,252,.30); }
 .tool-name-sticker[data-icon="eye-off"] { --logo-a:#64748b; --logo-b:#7c3aed; --logo-glow:rgba(100,116,139,.30); }
 .tool-name-sticker[data-icon="dollar-sign"] { --logo-a:#34d399; --logo-b:#0e7490; --logo-glow:rgba(52,211,153,.30); }
+
+
+/* HOMEPAGE TOOL STICKER PALETTE — robust fallback for rendered markup.
+   Root cause of the previous no-op: the color rules depended on data-icon,
+   but the homepage's rendered stickers do not reliably expose that attribute.
+   These selectors target the actual sticker class and deliberately win the legacy
+   background rules. Only color/shadow changes; no dimensions or animation changes. */
+.tools-grid .tool .tool-name-sticker {
+  color: #fff !important;
+  border: 1px solid rgba(199,210,254,.58) !important;
+  box-shadow: 0 5px 14px rgba(79,70,229,.32), inset 0 1px 0 rgba(255,255,255,.3) !important;
+  background: linear-gradient(145deg, #818cf8, #4f46e5) !important;
+}
+.tools-grid .tool:nth-child(6n + 1) .tool-name-sticker {
+  background: linear-gradient(145deg, #818cf8, #4f46e5) !important;
+}
+.tools-grid .tool:nth-child(6n + 2) .tool-name-sticker {
+  background: linear-gradient(145deg, #38bdf8, #2563eb) !important;
+}
+.tools-grid .tool:nth-child(6n + 3) .tool-name-sticker {
+  background: linear-gradient(145deg, #34d399, #059669) !important;
+}
+.tools-grid .tool:nth-child(6n + 4) .tool-name-sticker {
+  background: linear-gradient(145deg, #fbbf24, #f97316) !important;
+}
+.tools-grid .tool:nth-child(6n + 5) .tool-name-sticker {
+  background: linear-gradient(145deg, #a78bfa, #7c3aed) !important;
+}
+.tools-grid .tool:nth-child(6n) .tool-name-sticker {
+  background: linear-gradient(145deg, #fb7185, #e11d48) !important;
+}
+.tools-grid .tool .tool-name-sticker svg {
+  color: #fff !important;
+  stroke: currentColor !important;
+}
