@@ -185,23 +185,32 @@
     }
   }
 
+  var mountSequence = 0;
+  var hostMountTokens = new WeakMap();
+
   async function mount(toolId, files, host) {
     if (!host || !UPLOAD_TOOL_IDS.has(toolId)) return;
     if (activePreviewHost && activePreviewHost !== host) cleanupHost(activePreviewHost);
     activePreviewHost = host;
+    var token = ++mountSequence;
+    hostMountTokens.set(host, token);
     host.setAttribute('aria-busy', 'true');
     try {
       await mountSharedFilePreview(toolId, files, host);
     } catch (error) {
-      cleanupHost(host);
-      host.innerHTML = '<section class="lp-shared-preview" role="status" aria-label="Selected file preview">' +
-        '<h2>File selected</h2><p class="lp-shared-preview-note">The preview could not be rendered, ' +
-        'but your selected file is still available for processing.</p></section>';
-      if (window.DebugTrace) {
-        try { window.DebugTrace.error('shared-file-preview', { toolId: toolId, message: error && error.message }); } catch (_) {}
+      if (hostMountTokens.get(host) === token) {
+        cleanupHost(host);
+        host.innerHTML = '<section class="lp-shared-preview" role="status" aria-label="Selected file preview">' +
+          '<h2>File selected</h2><p class="lp-shared-preview-note">The preview could not be rendered, ' +
+          'but your selected file is still available for processing.</p></section>';
+        if (window.DebugTrace) {
+          try { window.DebugTrace.error('shared-file-preview', { toolId: toolId, message: error && error.message }); } catch (_) {}
+        }
       }
     } finally {
-      if (host.isConnected) host.setAttribute('aria-busy', 'false');
+      if (host.isConnected && hostMountTokens.get(host) === token) {
+        host.setAttribute('aria-busy', 'false');
+      }
     }
   }
 
