@@ -3092,7 +3092,7 @@
         typeof window.PdfPreview.renderPage === 'function') {
       for (var i = 0; i < items.length; i++) {
         var pdfFile = items[i];
-        var isPdf = pdfFile && (pdfFile.type === 'application/pdf' || /\\.pdf$/i.test(pdfFile.name || ''));
+        var isPdf = pdfFile && (pdfFile.type === 'application/pdf' || /\.pdf$/i.test(pdfFile.name || ''));
         if (!isPdf || !host.isConnected) continue;
         var placeholder = host.querySelector('[data-shared-pdf-index="' + i + '"]');
         if (!placeholder) continue;
