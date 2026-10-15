@@ -197,6 +197,7 @@
   <script>
   (function(){
     var imageFiles = [];
+    var imagePreviewUrls = [];
 
     function fmtSize(b){
       if (b < 1024) return b + ' B';
@@ -204,6 +205,7 @@
       return (b/1048576).toFixed(1) + ' MB';
     }
     function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escAttr(s){ return escHtml(s).replace(/\"/g,'&quot;').replace(/'/g,'&#39;'); }
 
     function getExt(mime){ return { 'image/jpeg':'jpg','image/png':'png','image/webp':'webp' }[mime] || 'jpg'; }
 
@@ -211,19 +213,26 @@
       var q = document.getElementById('iconv-queue');
       var cnt = document.getElementById('iconv-count');
       var ctrls = document.getElementById('iconv-controls-wrap');
-      if (!imageFiles.length){ ctrls.style.display='none'; return; }
+      imagePreviewUrls.forEach(function(url){ try { URL.revokeObjectURL(url); } catch (_) {} });
+      imagePreviewUrls = [];
+      if (!imageFiles.length){ q.innerHTML=''; ctrls.style.display='none'; return; }
       ctrls.style.display='';
       cnt.textContent = imageFiles.length + ' image' + (imageFiles.length===1?'':'s');
       q.innerHTML = imageFiles.map(function(f,i){
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:.88rem">' +
-          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:10px"><i data-lucide="image" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;color:#6b7280"></i>' +
-          escHtml(f.name) + '</span>' +
-          '<span style="color:#9ca3af;flex-shrink:0;margin-right:10px">' + fmtSize(f.size) + '</span>' +
-          '<button type="button" onclick="iconvRemove(' + i + ')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;line-height:1;padding:0">×</button>' +
-          '</div>';
+        var url = URL.createObjectURL(f);
+        imagePreviewUrls.push(url);
+        return '<div class="lp-shared-file-card"><span class="lp-shared-index">' + (i+1) + '</span>' +
+          '<span class="lp-shared-image-wrap"><img class="lp-shared-image" src="' + url + '" alt=""></span>' +
+          '<span class="lp-shared-file-info"><strong title="' + escAttr(f.name) + '">' + escHtml(f.name) + '</strong>' +
+          '<small>' + fmtSize(f.size) + ' · IMAGE</small><span class="lp-shared-ready"><span aria-hidden="true"></span> Ready to convert</span></span>' +
+          '<button type="button" class="lp-shared-remove" aria-label="Remove ' + escAttr(f.name) + '" title="Remove image" onclick="iconvRemove(' + i + ')">×</button></div>';
       }).join('');
       if (window.lucide) lucide.createIcons();
     }
+    window.addEventListener('pagehide', function(){
+      imagePreviewUrls.forEach(function(url){ try { URL.revokeObjectURL(url); } catch (_) {} });
+      imagePreviewUrls = [];
+    });
 
     window.iconvRemove = function(i){ imageFiles.splice(i,1); renderQueue(); };
 
