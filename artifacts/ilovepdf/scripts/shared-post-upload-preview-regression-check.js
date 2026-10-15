@@ -60,9 +60,9 @@ assert.ok(styles.includes('/* Shared post-upload preview fallback'),
   'responsive shared-preview styles must be present');
 
 const specialUploadPages = [
-  { file: 'public/image-compressor.html', markers: ['ic-dropzone', 'ic-preview-wrap'] },
-  { file: 'public/image-converter.html', markers: ['iconv-dropzone'] },
-  { file: 'public/zip-builder.html', markers: ['zip-dropzone', 'zip-file-list'] },
+  { file: 'public/image-compressor.html', markers: ['ic-dropzone', 'ic-preview-wrap', 'lp-shared-preview', 'renderSelectedImagePreview'] },
+  { file: 'public/image-converter.html', markers: ['iconv-dropzone', 'lp-shared-file-card', 'lp-shared-image', 'imagePreviewUrls'] },
+  { file: 'public/zip-builder.html', markers: ['zip-dropzone', 'zip-file-list', 'lp-shared-file-card', 'lp-shared-file-art'] },
 ];
 for (const page of specialUploadPages) {
   const html = read(page.file);
@@ -73,5 +73,5 @@ for (const page of specialUploadPages) {
 console.log('PASS: shared post-upload preview source regression checks');
 console.log('PASS: ' + uploadTools.length + ' upload-enabled tool definitions covered (' + declaredSet.size + ' registered)');
 console.log('PASS: shared generic fallback, PDF thumbnail path, object-URL cleanup, legacy-card gating, and responsive styles');
-console.log('PASS: 3 standalone upload pages retain their specialized preview/result workflows');
+console.log('PASS: 3 standalone upload pages use shared preview styling while retaining their specialized workflows');
 console.log('Upload tools: ' + uploadTools.map((tool) => tool.id).join(', '));
