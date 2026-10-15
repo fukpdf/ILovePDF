@@ -1271,7 +1271,12 @@ function mountLivePreviewForStep(toolId, files, host) {
 
   const processBtn = document.getElementById('process-btn');
   if (host.dataset.livePreviewMounted === '1') {
-    if (host.getAttribute('aria-busy') === 'true' && processBtn) processBtn.disabled = true;
+    if (host.getAttribute('aria-busy') === 'true') {
+      if (processBtn) processBtn.disabled = true;
+    } else if (processBtn && !_processingInFlight) {
+      // The same preview may be revisited after its renderer has already settled.
+      processBtn.disabled = false;
+    }
     return Promise.resolve(false);
   }
 
@@ -1870,6 +1875,9 @@ function ensureToolRuntimeAndBundle(toolId) {
 function loadSelectedToolBundle() {
   if (!currentTool || !window.RuntimeToolCodeLoader || typeof window.RuntimeToolCodeLoader.load !== 'function') return;
   const requestedToolId = currentTool.id;
+  const pendingProcessBtn = document.getElementById('process-btn');
+  if (pendingProcessBtn && Flow.step === 'preview') pendingProcessBtn.disabled = true;
+
   ensureToolRuntimeAndBundle(requestedToolId).then(function () {
     if (!currentTool || currentTool.id !== requestedToolId || !selectedFiles.length || Flow.step !== 'preview' || _processingInFlight) return;
     // Pro editors are selected by renderStandardPreviewStep; rerender once if
@@ -1886,10 +1894,15 @@ function loadSelectedToolBundle() {
       const host = document.getElementById('live-preview-host');
       if (host) {
         mountLivePreviewForStep(requestedToolId, selectedFiles.map(function (entry) { return entry.file; }), host);
+        return; // the shared preview lifecycle owns Process-button re-enabling
       }
     }
+    const readyProcessBtn = document.getElementById('process-btn');
+    if (readyProcessBtn && !_processingInFlight) readyProcessBtn.disabled = false;
   }).catch(function (error) {
     console.warn('[ToolCodeLoader] selected tool bundle did not fully load:', requestedToolId, error);
+    const retryProcessBtn = document.getElementById('process-btn');
+    if (retryProcessBtn && Flow.step === 'preview' && !_processingInFlight) retryProcessBtn.disabled = false;
   });
 }
 
