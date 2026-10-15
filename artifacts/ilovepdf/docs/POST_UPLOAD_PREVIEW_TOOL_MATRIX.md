@@ -61,7 +61,7 @@ They use `special-upload-flow.js` for their shared dropzone/preparation behavior
 - PDF fallback cards attempt to render the first page through the existing `PdfPreview` API; a failed thumbnail leaves a usable file card.
 - Image thumbnails use object URLs marked for cleanup. Remove actions clean up thumbnails and then re-render the current preview.
 - Merge retains its multi-file ordering controls.
-- PageOrganizer, Rotate, Compress, and PRO editor paths are retained where they own interactive editing controls; the legacy file list is not removed from those flows.
+- PageOrganizer and Compress keep their dedicated controls inside the shared preview host, with the duplicate legacy file section hidden while active and restored as a fallback. Rotate and PRO editor flows remain dedicated.
 - The upload page, processing engine, and download/result page remain outside this change.
 
 ## Validation
