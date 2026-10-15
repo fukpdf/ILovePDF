@@ -63,6 +63,22 @@ assert.ok(!toolPage.includes('renderCompressPreview'), 'legacy compression thumb
 assert.ok(!toolPage.includes('compress-preview-host'), 'legacy compression preview host references must be removed');
 assert.ok(!toolPage.includes('isMergeLivePreview') && !toolPage.includes('hasDedicatedPreview'),
   'per-tool preview eligibility branches must be removed');
+for (const obsolete of [
+  'renderFileList(', 'renderPdfThumbnails(', 'attachDragHandlers(', 'rotateFile(',
+  '_thumbUrl', 'upload-file-item'
+]) {
+  assert.ok(!toolPage.includes(obsolete), 'legacy selected-file list implementation remains: ' + obsolete);
+}
+for (const obsoleteClass of [
+  'upload-file-item', 'file-thumb-wrap', 'file-drag-handle', 'upload-file-name',
+  'upload-file-size', 'file-rotate-btn', 'upload-file-remove'
+]) {
+  assert.ok(!styles.includes(obsoleteClass), 'legacy selected-file list CSS remains: ' + obsoleteClass);
+}
+assert.match(livePreview, /data-shared-move/,
+  'Merge must retain ordering controls inside the shared preview');
+assert.ok(toolPage.includes('window.moveMergePreviewFile = moveMergePreviewFile'),
+  'shared Merge ordering controls must route through existing selected-file state');
 assert.match(toolPage, /wireCompressOptions\(\)/, 'compression options must remain wired after removing its old preview');
 assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, \[file\], sharedPreviewHost\)/,
   'PRO editor tools must also mount the shared selected-file preview');
