@@ -12869,3 +12869,31 @@ body::-webkit-scrollbar {
   }
 }
 
+
+
+/* Merge PDF rich post-upload preview */
+.ew-preview-page--live-primary .lp-merge-preview{width:100%;min-width:0;padding:clamp(16px,2.4vw,28px);border:1px solid var(--border-color, #e5e7eb);border-radius:18px;background:var(--surface, #fff);box-shadow:0 12px 36px rgba(15,23,42,.06)}
+.lp-merge-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.lp-merge-eyebrow{display:block;margin-bottom:7px;font-size:11px;font-weight:800;letter-spacing:.12em;color:#635bdb}
+.lp-merge-heading h2{margin:0;font-size:clamp(20px,2.2vw,27px);line-height:1.2;color:var(--text-primary, #171923)}
+.lp-merge-heading p{margin:8px 0 0;color:var(--text-secondary, #64748b);font-size:14px;line-height:1.5}
+.lp-merge-count{flex-shrink:0;border-radius:999px;padding:7px 11px;background:#f0efff;color:#5146c7;font-size:12px;font-weight:750}
+.lp-merge-list{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+.lp-merge-card{display:flex;align-items:center;gap:12px;min-width:0;padding:12px;border:1px solid var(--border-color, #e5e7eb);border-radius:13px;background:var(--surface-raised, #fff);transition:border-color .16s ease,box-shadow .16s ease}
+.lp-merge-card:hover{border-color:#b7b3fa;box-shadow:0 5px 18px rgba(79,70,229,.07)}
+.lp-merge-order{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border-radius:8px;background:#f1f0ff;color:#5146c7;font-size:12px;font-weight:800}
+.lp-merge-paper{position:relative;display:flex;flex:0 0 46px;flex-direction:column;justify-content:center;gap:4px;width:46px;height:56px;padding:10px 7px;border:1px solid #d8d7ef;border-radius:7px;background:linear-gradient(145deg,#fff,#f3f2ff);overflow:hidden}
+.lp-merge-paper span{display:block;height:3px;border-radius:4px;background:#c7c5e9}
+.lp-merge-paper span:nth-child(2){width:78%}.lp-merge-paper span:nth-child(3){width:58%}
+.lp-merge-paper b{position:absolute;right:0;bottom:0;padding:3px 4px;border-radius:4px 0 0 0;background:#6158d9;color:white;font-size:8px;letter-spacing:.02em}
+.lp-merge-file-meta{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
+.lp-merge-file-meta strong{overflow:hidden;color:var(--text-primary, #171923);font-size:13px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.lp-merge-file-meta small{color:var(--text-secondary, #64748b);font-size:12px}
+.lp-merge-actions{display:flex;flex-shrink:0;gap:5px}
+.lp-merge-actions button{display:grid;place-items:center;width:31px;height:31px;border:1px solid var(--border-color, #e5e7eb);border-radius:8px;background:var(--surface, #fff);color:var(--text-primary, #171923);font-size:17px;line-height:1;cursor:pointer}
+.lp-merge-actions button:hover:not(:disabled){border-color:#8c85ee;background:#f4f3ff;color:#5146c7}
+.lp-merge-actions button:last-child{font-size:21px;color:#b42318}
+.lp-merge-actions button:disabled{opacity:.35;cursor:not-allowed}
+.lp-merge-actions button:focus-visible{outline:2px solid #635bdb;outline-offset:2px}
+.lp-merge-hint{margin:16px 0 0;padding:11px 13px;border-radius:9px;background:var(--surface-muted, #f8fafc);color:var(--text-secondary, #64748b);font-size:12px;line-height:1.5}
+@media(max-width:560px){.ew-preview-page--live-primary .lp-merge-preview{padding:14px;border-radius:14px}.lp-merge-heading{gap:8px}.lp-merge-heading p{font-size:12px}.lp-merge-card{gap:8px;padding:9px}.lp-merge-order{flex-basis:23px;width:23px;height:23px}.lp-merge-paper{flex-basis:38px;width:38px;height:49px;padding:8px 6px}.lp-merge-actions{gap:3px}.lp-merge-actions button{width:28px;height:29px}}
