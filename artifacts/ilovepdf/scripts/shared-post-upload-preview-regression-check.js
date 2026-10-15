@@ -55,8 +55,8 @@ for (const obsolete of [
   assert.ok(!livePreview.includes(obsolete), 'legacy per-tool renderer remains: ' + obsolete);
 }
 
-assert.match(toolPage, /const hasPrimaryLivePreview = !!\([\s\S]*?window\.LivePreview\.supported\(tool\.id\)/,
-  'standard preview step must use the shared preview for upload-enabled tools');
+assert.match(toolPage, /const hasPrimaryLivePreview = !!\(tool\.acceptedFiles && selectedFiles\.length > 0\)/,
+  'every acceptedFiles tool must reserve the shared preview host before mounting');
 assert.ok(toolPage.includes('id="live-preview-host"'), 'standard/editor layouts must provide shared preview host');
 assert.ok(toolPage.includes('id="page-organizer-host"'), 'page editor controls must mount separately from the shared preview');
 assert.ok(!toolPage.includes('renderCompressPreview'), 'legacy compression thumbnail renderer must be removed');
