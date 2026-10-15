@@ -102,6 +102,8 @@
                 </div>
               </div>
 
+              <div id="ic-selected-preview" class="lp-shared-preview" hidden aria-label="Selected image preview"></div>
+
               <!-- Before / After preview -->
               <div id="ic-preview-wrap" style="display:none;margin-top:20px">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -212,6 +214,61 @@
       return { 'image/jpeg':'jpg','image/png':'png','image/webp':'webp' }[mime] || 'jpg';
     }
 
+    function renderSelectedImagePreview(file, dataUrl){
+      var host = document.getElementById('ic-selected-preview');
+      if (!host) return;
+      host.innerHTML = '';
+      host.hidden = false;
+      var header = document.createElement('header');
+      header.className = 'lp-shared-preview-head';
+      var copy = document.createElement('div');
+      var kicker = document.createElement('span');
+      kicker.className = 'lp-shared-kicker';
+      kicker.textContent = 'PREVIEW WORKSPACE';
+      var title = document.createElement('h2');
+      title.textContent = 'Review your image';
+      var description = document.createElement('p');
+      description.textContent = 'Check the original image before compression.';
+      copy.append(kicker, title, description);
+      var count = document.createElement('span');
+      count.className = 'lp-shared-count';
+      count.textContent = '1 image';
+      header.append(copy, count);
+      var list = document.createElement('ul');
+      list.className = 'lp-shared-file-list';
+      var card = document.createElement('li');
+      card.className = 'lp-shared-file-card';
+      var index = document.createElement('span');
+      index.className = 'lp-shared-index';
+      index.textContent = '1';
+      var imageWrap = document.createElement('span');
+      imageWrap.className = 'lp-shared-image-wrap';
+      var image = document.createElement('img');
+      image.className = 'lp-shared-image';
+      image.src = dataUrl;
+      image.alt = 'Preview of ' + String(file.name || 'selected image');
+      imageWrap.appendChild(image);
+      var info = document.createElement('span');
+      info.className = 'lp-shared-file-info';
+      var name = document.createElement('strong');
+      name.textContent = file.name || 'Selected image';
+      name.title = file.name || '';
+      var meta = document.createElement('small');
+      meta.textContent = fmtSize(file.size) + ' · ' + ((file.type || 'image').split('/').pop().toUpperCase());
+      var ready = document.createElement('span');
+      ready.className = 'lp-shared-ready';
+      var dot = document.createElement('span');
+      dot.setAttribute('aria-hidden', 'true');
+      ready.append(dot, document.createTextNode(' Ready to compress'));
+      info.append(name, meta, ready);
+      card.append(index, imageWrap, info);
+      list.appendChild(card);
+      var note = document.createElement('p');
+      note.className = 'lp-shared-preview-note';
+      note.textContent = 'The original image stays unchanged. Compression starts when you press Compress.';
+      host.append(header, list, note);
+    }
+
     function loadFile(file){
       originalFile = file;
       var reader = new FileReader();
@@ -220,6 +277,7 @@
         document.getElementById('ic-before-size').textContent = 'Size: ' + fmtSize(file.size);
         document.getElementById('ic-controls-wrap').style.display = '';
         document.getElementById('ic-preview-wrap').style.display = 'none';
+        renderSelectedImagePreview(file, e.target.result);
         if (window.lucide) lucide.createIcons();
       };
       reader.readAsDataURL(file);
@@ -257,6 +315,8 @@
             savingsEl.textContent = 'Output is larger than original — try a lower quality or different format.';
           }
           document.getElementById('ic-preview-wrap').style.display = '';
+          var selectedPreview = document.getElementById('ic-selected-preview');
+          if (selectedPreview) selectedPreview.hidden = true;
           if (window.lucide) lucide.createIcons();
         }, mime, quality);
       };
