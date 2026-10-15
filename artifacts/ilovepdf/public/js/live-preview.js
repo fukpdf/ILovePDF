@@ -111,16 +111,34 @@
   }
 
   // ── Error recovery ────────────────────────────────────────────────────────
+  var _retrySequence = 0;
   function errorHtml(msg, retryFn) {
-    var id = 'lp-retry-' + Date.now();
+    var id = 'lp-retry-' + (++_retrySequence);
     setTimeout(function () {
       var btn = document.getElementById(id);
-      if (btn && retryFn) btn.addEventListener('click', retryFn);
-    }, 50);
-    return '<div class="lp-error-state">' +
-      '<div class="lp-error-icon">⚠</div>' +
+      if (!btn || !retryFn) return;
+      btn.addEventListener('click', function () {
+        // Prevent rapid double-clicks from starting concurrent preview mounts.
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        Promise.resolve()
+          .then(retryFn)
+          .catch(function () {})
+          .finally(function () {
+            // A successful retry replaces this button; only restore a button
+            // that is still visible (for example, if retry failed synchronously).
+            if (btn.isConnected) {
+              btn.disabled = false;
+              btn.removeAttribute('aria-busy');
+            }
+          });
+      });
+    }, 0);
+    return '<div class="lp-error-state" role="status">' +
+      '<div class="lp-error-icon" aria-hidden="true">⚠</div>' +
       '<div class="lp-error-msg">' + esc(msg || 'Preview unavailable') + '</div>' +
-      (retryFn ? '<button id="' + id + '" class="lp-retry-btn">Try again</button>' : '') +
+      (retryFn ? '<button id="' + id + '" type="button" class="lp-retry-btn">Try again</button>' : '') +
     '</div>';
   }
 
@@ -2958,9 +2976,9 @@
     var file = Array.isArray(files) ? files[0] : files;
     if (!file) return;
 
-    cleanupHost(host);
-
+    host.setAttribute('aria-busy', 'true');
     try {
+      cleanupHost(host);
       if      (toolId === 'word-to-pdf')         await mountWordToPdf(file, host);
       else if (toolId === 'excel-to-pdf')        await mountExcelToPdf(file, host);
       else if (toolId === 'pdf-to-word')         await mountPdfWordPreview(file, host);
@@ -2980,11 +2998,15 @@
       // Never blank-screen — show recovery UI
       host.innerHTML = errorHtml(
         'Preview could not load for this file. The tool will still work normally.',
-        function () { mount(toolId, files, host); }
+        function () { return mount(toolId, files, host); }
       );
       if (window.DebugTrace) {
         window.DebugTrace.error('live-preview', { toolId: toolId, msg: err && err.message });
       }
+    } finally {
+      // This also runs on the engine's own errorHtml fallback path, where
+      // individual preview builders handle failures without throwing.
+      if (host.isConnected) host.setAttribute('aria-busy', 'false');
     }
   }
 
