@@ -1982,8 +1982,9 @@ async function handleFiles(fileList) {
 // When the current tool operates on a single PDF and PageOrganizer wants it,
 // we hide the plain file row and mount the thumbnail grid.
 function maybeOpenPageOrganizer() {
-  // Compress gets its own dedicated single-page preview — bypass the
-  // multi-page organizer grid entirely.
+  // Compress and PageOrganizer use dedicated visual editors inside the shared
+  // preview host. Keep their specialized controls, but don't leave the old
+  // selected-file card visible underneath them.
   if (currentTool && currentTool.id === 'compress') {
     closePageOrganizer();
     renderCompressPreview();
@@ -1997,15 +1998,18 @@ function maybeOpenPageOrganizer() {
   }
   const list = document.getElementById('files-list');
   if (!list) return;
-  // Hide the plain row and mount the organizer right above it.
+  const section = list.closest('.ew-file-section');
+  const sharedHost = document.getElementById('live-preview-host');
   let host = document.getElementById('page-organizer');
   if (!host) {
     host = document.createElement('div');
     host.id = 'page-organizer';
     host.className = 'page-organizer';
-    list.parentNode.insertBefore(host, list);
+    if (sharedHost) sharedHost.appendChild(host);
+    else list.parentNode.insertBefore(host, list);
   }
   list.style.display = 'none';
+  if (section) section.style.display = 'none';
 
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   window.PageOrganizer.open(host, files[0], { onChange: () => {}, allowStructuralEdits: !(currentTool && currentTool.id === 'rotate') })
@@ -2016,6 +2020,7 @@ function maybeOpenPageOrganizer() {
     .catch(() => {
       // Fall back to the plain file row so the user is never stuck.
       list.style.display = '';
+      if (section) section.style.display = '';
       host.remove();
     });
 }
@@ -2028,6 +2033,8 @@ function closePageOrganizer() {
   if (cmpHost) cmpHost.remove();
   const list = document.getElementById('files-list');
   if (list) list.style.display = '';
+  const section = list && list.closest('.ew-file-section');
+  if (section) section.style.display = '';
 }
 
 function cryptoId() {
@@ -3590,13 +3597,18 @@ async function renderCompressPreview() {
   const entry = selectedFiles[0];
   if (!entry) return;
 
-  // Mount/reuse the host element above the plain file row.
+  // Mount the dedicated compression preview inside the shared preview
+  // workspace and hide the duplicate legacy selected-file section.
   let host = document.getElementById('compress-preview-host');
   if (!host) {
     host = document.createElement('div');
     host.id = 'compress-preview-host';
-    list.parentNode.insertBefore(host, list);
+    const sharedHost = document.getElementById('live-preview-host');
+    if (sharedHost) sharedHost.appendChild(host);
+    else list.parentNode.insertBefore(host, list);
   }
+  const section = list.closest('.ew-file-section');
+  if (section) section.style.display = 'none';
   host.innerHTML = `
     <div class="compress-preview">
       <div class="po-spinner" style="width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#E5322E;border-radius:50%;animation:spin 1s linear infinite;"></div>
