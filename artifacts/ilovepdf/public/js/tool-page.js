@@ -1310,7 +1310,20 @@ function mountLivePreviewForStep(toolId, files, host) {
     });
 }
 
-async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
+async // Refresh only the shared selected-file surface when the user adds,
+// removes, or reorders files. Avoid replaying the preparation screen or
+// rebuilding tool options for a simple list change.
+function refreshSharedPreview() {
+  const host = document.getElementById('live-preview-host');
+  if (!host || !currentTool || !window.LivePreview ||
+      typeof window.LivePreview.supported !== 'function' ||
+      !window.LivePreview.supported(currentTool.id)) return false;
+  delete host.dataset.livePreviewMounted;
+  mountLivePreviewForStep(currentTool.id, selectedFiles.map(function (entry) { return entry.file; }), host);
+  return true;
+}
+
+function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const journey = document.getElementById('crop-upload-journey');
   if (!journey) return;
   const file = selectedFiles[0] && selectedFiles[0].file;
@@ -1976,9 +1989,9 @@ async function handleFiles(fileList) {
     Flow.navTo('preview');
     loadSelectedToolBundle();
   } else {
-    // A file added while already in Preview must rebuild the shared preview
-    // from the authoritative selectedFiles array.
-    renderStep();
+    // A file added while already in Preview updates the shared cards without
+    // rebuilding options or replaying the preparation screen.
+    if (!refreshSharedPreview()) renderStep();
     loadSelectedToolBundle();
   }
 }
@@ -2053,7 +2066,7 @@ function removeFile(index) {
     if (Flow.step === 'preview') Flow.navTo('upload');
     return;
   }
-  if (Flow.step === 'preview') renderStep();
+  if (Flow.step === 'preview' && !refreshSharedPreview()) renderStep();
 }
 
 function moveMergePreviewFile(fromIndex, toIndex) {
@@ -2062,7 +2075,7 @@ function moveMergePreviewFile(fromIndex, toIndex) {
   const moved = selectedFiles.splice(fromIndex, 1)[0];
   selectedFiles.splice(toIndex, 0, moved);
   persistFlowState();
-  renderStep();
+  if (!refreshSharedPreview()) renderStep();
 }
 window.moveMergePreviewFile = moveMergePreviewFile;
 
