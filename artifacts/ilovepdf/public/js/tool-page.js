@@ -1378,13 +1378,14 @@ function renderStandardPreviewStep(tool) {
   // this single-file tool. Keep the legacy file list for multi-file tools and
   // tools that need PageOrganizer, because those controls depend on its host.
   const isMergeLivePreview = tool.id === 'merge' && selectedFiles.length > 0;
+  const previewFiles = selectedFiles.map(function (entry) { return entry.file; });
+  const hasDedicatedPreview = tool.id === 'compress' ||
+    (!!(window.PageOrganizer && window.PageOrganizer.shouldHandle(tool.id, previewFiles)) && !isMergeLivePreview);
   const hasPrimaryLivePreview = !!(
     window.LivePreview &&
     window.LivePreview.supported(tool.id) &&
-    (isMergeLivePreview || (selectedFiles.length === 1 &&
-      !(window.PageOrganizer && window.PageOrganizer.shouldHandle(
-        tool.id, selectedFiles.map(function (entry) { return entry.file; })
-      ))))
+    selectedFiles.length > 0 &&
+    (isMergeLivePreview || !hasDedicatedPreview)
   );
   const previewPageClass = hasPrimaryLivePreview
     ? 'ew-preview-page ew-preview-page--live-primary'
@@ -1457,7 +1458,7 @@ function renderStandardPreviewStep(tool) {
     }
   } catch (_) {}
 
-  if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
+  if (hasPrimaryLivePreview && window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
     if (lpHost) {
       mountLivePreviewForStep(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost);
