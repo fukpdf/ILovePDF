@@ -44,3 +44,6 @@ jobs:
       - name: Run shared preview coverage regression
         working-directory: artifacts/ilovepdf
         run: npm run test:shared-preview
+      - name: Run existing project regression suite
+        working-directory: artifacts/ilovepdf
+        run: npm test
