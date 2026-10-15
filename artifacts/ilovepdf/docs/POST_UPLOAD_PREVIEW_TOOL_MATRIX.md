@@ -72,6 +72,7 @@ Run from `artifacts/ilovepdf`:
 npm run test:shared-preview
 node --check public/js/live-preview.js
 node --check public/js/tool-page.js
+node --check scripts/shared-post-upload-preview-regression-check.js
 ```
 
 The source regression check validates inventory parity and preview wiring. It is not a substitute for browser tests. Runtime visual checks still need to exercise single/multi-file uploads, remove/clear, PageOrganizer, Merge reorder, image/PDF thumbnail failures, mobile widths, and Process-to-download regression.
