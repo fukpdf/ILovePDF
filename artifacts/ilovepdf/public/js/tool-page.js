@@ -1261,6 +1261,40 @@ function scheduleToolEngineWarmup(tool) {
   }
 }
 
+// Rich preview rendering is part of the post-upload ready state. Keep the
+// existing Process button unavailable until the preview renderer has either
+// produced its UI or surfaced its own recoverable error state.
+function mountLivePreviewForStep(toolId, files, host) {
+  if (!host || !window.LivePreview || typeof window.LivePreview.mount !== 'function') {
+    return Promise.resolve(false);
+  }
+
+  const processBtn = document.getElementById('process-btn');
+  if (host.dataset.livePreviewMounted === '1') {
+    if (host.getAttribute('aria-busy') === 'true' && processBtn) processBtn.disabled = true;
+    return Promise.resolve(false);
+  }
+
+  host.dataset.livePreviewMounted = '1';
+  host.setAttribute('aria-live', 'polite');
+  if (processBtn) processBtn.disabled = true;
+
+  return Promise.resolve()
+    .then(function () {
+      return window.LivePreview.mount(toolId, files, host);
+    })
+    .catch(function (error) {
+      if (host.isConnected) delete host.dataset.livePreviewMounted;
+      console.warn('[ToolPreview] live preview mount failed:', toolId, error);
+    })
+    .finally(function () {
+      // Never re-enable a detached preview's button or override active processing.
+      if (!host.isConnected || Flow.step !== 'preview') return;
+      const activeProcessBtn = document.getElementById('process-btn');
+      if (activeProcessBtn && !_processingInFlight) activeProcessBtn.disabled = false;
+    });
+}
+
 async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const journey = document.getElementById('crop-upload-journey');
   if (!journey) return;
@@ -1398,16 +1432,8 @@ function renderStandardPreviewStep(tool) {
 
   if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
     const lpHost = document.getElementById('live-preview-host');
-    if (lpHost && lpHost.dataset.livePreviewMounted !== '1') {
-      // LivePreview owns loading, error and retry state for its preview host.
-      // Keep this mount idempotent so the on-demand bundle callback cannot
-      // start a second renderer for the same preview instance.
-      lpHost.dataset.livePreviewMounted = '1';
-      lpHost.setAttribute('aria-live', 'polite');
-      window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
-        .catch(function () {
-          if (lpHost.isConnected) delete lpHost.dataset.livePreviewMounted;
-        });
+    if (lpHost) {
+      mountLivePreviewForStep(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost);
     }
   }
 }
@@ -1858,10 +1884,8 @@ function loadSelectedToolBundle() {
     if (requestedToolId !== 'compress' && typeof maybeOpenPageOrganizer === 'function') maybeOpenPageOrganizer();
     if (window.LivePreview && typeof window.LivePreview.supported === 'function' && window.LivePreview.supported(requestedToolId)) {
       const host = document.getElementById('live-preview-host');
-      if (host && host.dataset.livePreviewMounted !== '1') {
-        host.dataset.livePreviewMounted = '1';
-        window.LivePreview.mount(requestedToolId, selectedFiles.map(function (entry) { return entry.file; }), host)
-          .catch(function () { delete host.dataset.livePreviewMounted; });
+      if (host) {
+        mountLivePreviewForStep(requestedToolId, selectedFiles.map(function (entry) { return entry.file; }), host);
       }
     }
   }).catch(function (error) {
