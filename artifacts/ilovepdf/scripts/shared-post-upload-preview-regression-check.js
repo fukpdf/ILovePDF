@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const config = read('public/js/tools-config.js');
 const livePreview = read('public/js/live-preview.js');
 const toolPage = read('public/js/tool-page.js');
+const runtimeLoader = read('public/js/runtime-tool-code-loader.js');
 const styles = read('public/css/styles.css');
 
 const toolsStart = config.indexOf('const TOOLS = [');
@@ -57,6 +58,12 @@ for (const obsolete of [
 
 assert.match(toolPage, /const hasPrimaryLivePreview = !!\(tool\.acceptedFiles && selectedFiles\.length > 0\)/,
   'every acceptedFiles tool must reserve the shared preview host before mounting');
+assert.match(runtimeLoader, /function loadPreview\(\)/,
+  'the shared renderer must have a lazy loader separate from processing bundles');
+assert.match(runtimeLoader, /loadPreview:\s+loadPreview/,
+  'the runtime loader must expose lazy shared-preview loading');
+assert.match(toolPage, /RuntimeToolCodeLoader\.loadPreview\(\)/,
+  'the preview stage must await the lazy shared renderer after file selection');
 assert.ok(toolPage.includes('id="live-preview-host"'), 'standard/editor layouts must provide shared preview host');
 assert.ok(toolPage.includes('id="page-organizer-host"'), 'page editor controls must mount separately from the shared preview');
 assert.ok(!toolPage.includes('renderCompressPreview'), 'legacy compression thumbnail renderer must be removed');
