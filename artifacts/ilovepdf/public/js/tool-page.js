@@ -1267,9 +1267,11 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const file = selectedFiles[0] && selectedFiles[0].file;
   if (!file) { renderStandardPreviewStep(tool); return; }
 
-  // Only wait for the preview renderer here. Tool processing warmup must not
-  // hold the preview screen hostage; it starts in idle time after the UI exists.
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
+  // Warm PDF.js only when the selected input is actually a PDF. Loading it
+  // for DOCX/XLSX/PPTX or image inputs adds network and parse work before those
+  // tools can show their own preview, without helping their renderer.
+  const isPdfInput = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+  const previewWarm = (isPdfInput && window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function')
     ? window.PdfPreview.loadPdfJs()
     : Promise.resolve();
   const stages = [
