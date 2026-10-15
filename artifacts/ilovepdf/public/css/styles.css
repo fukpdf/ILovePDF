@@ -1575,13 +1575,9 @@ a{ color:var(--brand-text); }
   font-size: .72rem; color: #a16207; line-height: 1.45;
 }
 
-/* ── LIVE PREVIEW PANEL v5.5 ─────────────────────────────────────────────── */
+/* Shared selected-file preview workspace */
 #live-preview-host { margin: 0 0 20px; }
 #live-preview-host:empty { display: none; }
-@keyframes lp-spin { to { transform: rotate(360deg); } }
-#lp-xlsx-table  { border-collapse: collapse; font-size: .78rem; }
-#lp-xlsx-table td, #lp-xlsx-table th { border: 1px solid #cbd5e1; padding: 3px 8px; }
-#lp-xlsx-table tr:first-child td { background: #f1f5f9; font-weight: 700; }
 
 /* ============================================================
    BG REMOVER PRO MAX  (bg-remover-pro.js)
@@ -2070,10 +2066,10 @@ a{ color:var(--brand-text); }
 #pro-editor-mount { flex:1; min-height:500px; }
 @keyframes lp-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ── Mobile: live-preview controls wrap ──────────────────────── */
 
 
-/* ── Scan / Repair mobile breakpoint ─────────────────────────────────────── */
+
+
 
 
 /* ══════════════════════════════════════════════════════════════════════
