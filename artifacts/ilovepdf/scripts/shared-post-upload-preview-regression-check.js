@@ -11,6 +11,8 @@ const livePreview = read('public/js/live-preview.js');
 const toolPage = read('public/js/tool-page.js');
 const runtimeLoader = read('public/js/runtime-tool-code-loader.js');
 const styles = read('public/css/styles.css');
+const chrome = read('public/js/chrome.js');
+const toolHtml = read('public/tool.html');
 
 const toolsStart = config.indexOf('const TOOLS = [');
 assert.notEqual(toolsStart, -1, 'tools-config.js must define TOOLS');
@@ -107,9 +109,23 @@ assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, \[file\], sharedPrevi
   'PRO editor tools must also mount the shared selected-file preview');
 assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, selectedFiles\.map\(function \(entry\) \{ return entry\.file; \}\), rotatePreviewHost\)/,
   'Rotate PDF must mount the shared selected-file preview alongside its page editor');
-assert.ok(styles.includes('/* Shared post-upload preview fallback'), 'shared-preview styles must be present');
-assert.match(styles, /\.lp-shared-preview\{width:100%;min-width:0;/,
-  'shared preview surface styles must apply outside the standard tool shell');
+assert.ok(styles.includes('/* Shared post-upload preview workspace'), 'shared-preview styles must be present');
+assert.match(styles, /\.lp-shared-preview\{position:sticky;top:/,
+  'the shared preview panel must remain sticky below the fixed shared header');
+assert.match(styles, /\.lp-shared-file-list\{[^}]*overflow-y:auto/s,
+  'only the selected-document list must scroll inside the sticky preview');
+assert.match(styles, /\.lp-shared-preview\{[^}]*max-width:100%;min-width:0/s,
+  'the shared preview must shrink within its available parent width');
+assert.match(styles, /overflow-wrap:anywhere/,
+  'long filenames must not force horizontal overflow');
+assert.match(chrome, /const isToolWorkspace = !!document\.querySelector\('#tool-content'\)/,
+  'tool workspaces must be detected before shared shell footer injection');
+assert.match(chrome, /if \(!isToolWorkspace && !document\.querySelector\('link\[data-shared-footer-css\]'\)/,
+  'the marketing footer stylesheet must not be loaded for tool workspaces');
+assert.match(chrome, /if \(isToolWorkspace\) \{[\s\S]*currentFooters\.forEach\(footer => footer\.remove\(\)\)/,
+  'the shared header must be retained while the footer is omitted on tool pages');
+assert.ok(!toolHtml.includes('home-footer-v2.css'), 'tool.html must not request footer CSS');
+assert.ok(toolHtml.includes('home-header-v2.css'), 'tool.html must retain the shared header stylesheet');
 
 const specialUploadPages = [
   { file: 'public/image-compressor.html', markers: ['ic-dropzone', 'ic-preview-wrap', 'lp-shared-preview', 'renderSelectedImagePreview'] },
