@@ -3047,7 +3047,8 @@
     function extension(file) {
       var name = String(file && file.name || 'file');
       var dot = name.lastIndexOf('.');
-      return dot > -1 ? name.slice(dot + 1).toUpperCase().slice(0, 5) : 'FILE';
+      var ext = dot > -1 ? name.slice(dot + 1).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : 'FILE';
+      return ext || 'FILE';
     }
     function visual(file) {
       var type = String(file.type || '').toLowerCase();
