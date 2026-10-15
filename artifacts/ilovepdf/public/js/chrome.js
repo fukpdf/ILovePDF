@@ -619,6 +619,9 @@ const SHARED_FOOTER_HTML = `<footer class="footer">
   </footer>`;
 
 function ensureSharedShell() {
+  // Tool workspaces use the shared site header but intentionally omit the marketing footer.
+  const isToolWorkspace = !!document.querySelector('#tool-content');
+
   /* Load lightweight operation-specific icon motion on homepage and tool pages. */
   if (!document.querySelector('link[data-tool-icon-motion-css]')) {
     const motionCss = document.createElement('link');
@@ -693,7 +696,7 @@ function ensureSharedShell() {
     try { return new URL(link.href, document.baseURI).pathname === '/css/home-footer-v2.css'; }
     catch (_) { return false; }
   });
-  if (!document.querySelector('link[data-shared-footer-css]') && !footerCssAlreadyLinked) {
+  if (!isToolWorkspace && !document.querySelector('link[data-shared-footer-css]') && !footerCssAlreadyLinked) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
@@ -741,27 +744,33 @@ function ensureSharedShell() {
      this shell in HTML for first paint; replacing it here caused avoidable DOM
      teardown/rebuild and re-bound UI on initialization. */
   const currentFooters = [...document.querySelectorAll('footer.footer')];
-  const existingCanonicalFooter = isHomepage &&
-    currentFooters.length === 1 &&
-    currentFooters[0].querySelector('.footer-inner') &&
-    currentFooters[0].querySelector('.footer-bottom') &&
-    currentFooters[0].querySelector('#footer-lang-sel') &&
-    currentFooters[0].querySelector('#footer-lang-btn')
-      ? currentFooters[0]
-      : null;
-  let canonicalFooter = existingCanonicalFooter;
-  if (!canonicalFooter) {
-    const holder = document.createElement('div');
-    holder.innerHTML = SHARED_FOOTER_HTML.trim();
-    canonicalFooter = holder.firstElementChild;
+  let canonicalFooter = null;
+
+  if (isToolWorkspace) {
+    // Upload/preview workspaces are focused applications: keep shared navigation, but omit marketing footer.
     currentFooters.forEach(footer => footer.remove());
-    // Keep the shared footer directly after the tool workspace in the document
-    // flow; modal overlays and scripts must not become its layout ancestors.
-    const toolMain = document.querySelector('main#tool-content');
-    if (toolMain && toolMain.parentNode === document.body) {
-      toolMain.insertAdjacentElement('afterend', canonicalFooter);
-    } else {
-      document.body.appendChild(canonicalFooter);
+  } else {
+    const existingCanonicalFooter = isHomepage &&
+      currentFooters.length === 1 &&
+      currentFooters[0].querySelector('.footer-inner') &&
+      currentFooters[0].querySelector('.footer-bottom') &&
+      currentFooters[0].querySelector('#footer-lang-sel') &&
+      currentFooters[0].querySelector('#footer-lang-btn')
+        ? currentFooters[0]
+        : null;
+    canonicalFooter = existingCanonicalFooter;
+    if (!canonicalFooter) {
+      const holder = document.createElement('div');
+      holder.innerHTML = SHARED_FOOTER_HTML.trim();
+      canonicalFooter = holder.firstElementChild;
+      currentFooters.forEach(footer => footer.remove());
+      // Keep the shared footer directly after public content, never inside the tool workspace.
+      const toolMain = document.querySelector('main#tool-content');
+      if (toolMain && toolMain.parentNode === document.body) {
+        toolMain.insertAdjacentElement('afterend', canonicalFooter);
+      } else {
+        document.body.appendChild(canonicalFooter);
+      }
     }
   }
 
