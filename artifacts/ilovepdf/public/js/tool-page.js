@@ -962,6 +962,7 @@ function renderProPreviewStep(tool) {
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
+      <div id="live-preview-host" class="pro-selected-file-preview"></div>
       <div id="pro-editor-mount" style="margin-top:12px;flex:1;${isBgRemover ? '' : 'min-height:520px;'}"></div>
       <div id="result-area" style="margin-top:12px;padding:0 24px;"></div>
     </div>`;
@@ -972,6 +973,10 @@ function renderProPreviewStep(tool) {
   const mount = document.getElementById('pro-editor-mount');
   const file  = selectedFiles[0] && selectedFiles[0].file;
   if (!file || !mount) { Flow.navTo('upload'); return; }
+  const sharedPreviewHost = document.getElementById('live-preview-host');
+  if (sharedPreviewHost && window.LivePreview && window.LivePreview.supported(tool.id)) {
+    mountLivePreviewForStep(tool.id, [file], sharedPreviewHost);
+  }
 
   // onResult: used by EditPdfPro — shows the Download button for manual save.
   function onResult(blob, filename, mime) {
@@ -1066,6 +1071,7 @@ function renderRotatePreviewStep(tool) {
               <span>PDF preview</span>
               <span class="ilpdf-rotate-page-note">Rotate pages before processing</span>
             </div>
+            <div id="live-preview-host" class="rotate-selected-file-preview"></div>
             <div id="page-organizer" class="page-organizer ilpdf-rotate-organizer"></div>
             <div id="files-list" style="display:none" aria-hidden="true"></div>
           </main>
@@ -1139,9 +1145,13 @@ function renderRotatePreviewStep(tool) {
 
   wireStepNav();
 
-  // Mount the existing page renderer/editor. Its getEditedPdf() remains the
-  // single source of truth for the output PDF.
+  // Mount the shared selected-file preview and the existing page editor as
+  // separate surfaces; the editor remains the source of truth for output.
   maybeOpenPageOrganizer();
+  const rotatePreviewHost = document.getElementById('live-preview-host');
+  if (rotatePreviewHost && window.LivePreview && window.LivePreview.supported(tool.id)) {
+    mountLivePreviewForStep(tool.id, selectedFiles.map(function (entry) { return entry.file; }), rotatePreviewHost);
+  }
 
   const readyWaitStart = Date.now();
   function getOrganizer() {
