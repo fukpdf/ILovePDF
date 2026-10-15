@@ -356,6 +356,15 @@
     });
   }
 
+  // Load only the small shared selected-file renderer after a user has
+  // selected a file. This is intentionally separate from processor bundles so
+  // the preview can appear without waiting for heavy tool-specific scripts.
+  function loadPreview() {
+    return _injectScript('/js/live-preview.js').then(function () {
+      return !!G.LivePreview;
+    });
+  }
+
   // ── Dormant family detection ──────────────────────────────────────────────
   function getDormantFamilies() {
     var now = Date.now();
@@ -373,6 +382,7 @@
   G.RuntimeToolCodeLoader = Object.freeze({
     VERSION:          VERSION,
     load:             load,
+    loadPreview:      loadPreview,
     getDormantFamilies: getDormantFamilies,
     getLoadStats:     function () {
       return {
