@@ -7,6 +7,7 @@ on:
       - 'artifacts/ilovepdf/public/js/live-preview.js'
       - 'artifacts/ilovepdf/public/js/tool-page.js'
       - 'artifacts/ilovepdf/public/js/runtime-tool-code-loader.js'
+      - 'artifacts/ilovepdf/public/tool.html'
       - 'artifacts/ilovepdf/public/css/styles.css'
       - 'artifacts/ilovepdf/public/js/tools-config.js'
       - 'artifacts/ilovepdf/public/image-compressor.html'
