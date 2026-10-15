@@ -1407,11 +1407,7 @@ function renderStandardPreviewStep(tool) {
     : `${selectedFiles.length} files selected`;
   // One shared selected-file preview is the sole file-preview surface for all
   // upload-enabled tools. Functional page-editing controls mount separately.
-  const hasPrimaryLivePreview = !!(
-    window.LivePreview &&
-    window.LivePreview.supported(tool.id) &&
-    selectedFiles.length > 0
-  );
+  const hasPrimaryLivePreview = !!(tool.acceptedFiles && selectedFiles.length > 0);
   const previewPageClass = hasPrimaryLivePreview
     ? 'ew-preview-page ew-preview-page--live-primary'
     : 'ew-preview-page';
@@ -1483,10 +1479,14 @@ function renderStandardPreviewStep(tool) {
     }
   } catch (_) {}
 
-  if (hasPrimaryLivePreview && window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
+  if (hasPrimaryLivePreview) {
     const lpHost = document.getElementById('live-preview-host');
-    if (lpHost) {
+    if (lpHost && window.LivePreview && window.LivePreview.supported(tool.id)) {
       mountLivePreviewForStep(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost);
+    } else if (lpHost) {
+      lpHost.innerHTML = '<section class="lp-shared-preview" role="status" aria-label="Selected file preview">' +
+        '<h2>File selected</h2><p class="lp-shared-preview-note">The preview renderer is temporarily unavailable. ' +
+        'Your selected file remains available for processing.</p></section>';
     }
   }
 }
