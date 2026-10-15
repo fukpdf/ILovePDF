@@ -53,7 +53,7 @@ These pages are outside the shared three-step `tool.html` workflow and keep thei
 - `/image-converter.html` — multi-image queue and conversion settings.
 - `/zip-builder.html` — multi-file list and ZIP creation.
 
-They use `special-upload-flow.js` for their shared dropzone/preparation behavior. They are not rewritten into the shared-shell preview because that would alter their separate processing and result workflows.
+They use `special-upload-flow.js` for their shared dropzone/preparation behavior and now share the preview card visual system too: Image Compressor shows a selected-image card before compression, Image Converter uses thumbnail cards with safe object-URL cleanup, and ZIP Builder uses the same file-card/type-badge design. Their specialized processing/result behavior remains intact.
 
 ## Implementation and safety rules
 
