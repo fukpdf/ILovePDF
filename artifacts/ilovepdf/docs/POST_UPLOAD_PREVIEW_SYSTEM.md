@@ -1,70 +1,40 @@
-# Post-Upload Preview System — Controlled Implementation Plan
+# Shared Post-Upload Preview — Implementation & Validation Plan
 
-## Scope lock (must not be violated)
+## Scope
 
-Repository: `fukpdf/ILovePDF`
-Application root: `artifacts/ilovepdf/`
+Repository: `fukpdf/ILovePDF`  
+Application root: `artifacts/ilovepdf/`  
 Working branch: `feat/post-upload-preview-controlled`
 
-This work is limited to the **post-upload preview experience** and its directly owned preview-rendering/interaction modules.
+Use one shared selected-file preview for all 34 upload-enabled shared-shell tools. Remove the previous per-tool preview renderer implementations and references from the shared preview module, while preserving actual processing engines and functional editing controls.
 
-**Do not modify**:
-- Any upload page or upload/dropzone UI, markup, styling, event handlers, or upload selection behavior.
-- Any download/result page, markup, styling, download link behavior, persistence behavior, or route behavior.
-- Homepage, header, footer, logos, navigation, shared shell, global CSS/tokens, unrelated tools, or unrelated performance code.
-- Existing processing engines unless an audited, proven defect makes a narrowly scoped integration change unavoidable. If such a change is required, document the exact dependency and impact before editing it.
+Out of scope: upload/dropzone behavior, processing engine implementation, result/download pages, homepage, header/footer, logos, unrelated performance code, and deployment.
 
-Do not rename, delete, move, or broadly refactor existing files as part of this work. Do not remove code merely because it appears unused; prove references and runtime loading paths first.
+## Architecture contract
 
-## Intended post-upload sequence
+- `public/js/live-preview.js` contains only the shared selected-file preview and its small helpers.
+- `LivePreview.supported(toolId)` is derived from the authoritative upload-tool ID inventory and returns true for every tool declaring `acceptedFiles`.
+- Shared preview cards display file name, type, size, ready state, and image thumbnails where appropriate. PDFs use a first-page thumbnail only if the existing `PdfPreview` API is already available; the card must remain usable if thumbnail rendering fails.
+- Object URLs must be revoked when previews are replaced or files removed.
+- Multi-file removal must call the existing selected-file state handler rather than maintain a second file list.
+- Merge must not call a separate `mountMergePreview` implementation.
+- Compression must not use a separate `renderCompressPreview` implementation or `compress-preview-host`.
+- PageOrganizer, Rotate controls, and PRO editors are functional editing surfaces. They must mount separately from the shared file-preview host and must not overwrite it.
+- Processing remains behind the existing explicit Process action. Keep the current processing and download/result workflows intact.
+- Standalone Image Compressor, Image Converter, and ZIP Builder retain their specialized processing/result experiences but use the shared preview-card visual language for selected files.
 
-1. **Preview rendering** — after files are already selected and handed to the existing preview stage, load only the preview dependencies required for those file types/tools. Render real content; reserve stable dimensions; show accessible loading/error/retry states; cancel stale work when the preview input changes.
-2. **Options and interaction** — once a usable preview exists, enable only the interactions supported by that tool. Selection, reorder, remove, rotation, zoom, page ranges, or presets must update the actual processing inputs/options where applicable. Preserve the current product UI and existing tool-specific semantics.
-3. **Processing hand-off** — processing begins only on the user's existing explicit process action. Reuse the current processing runtime. Do not add an alternate/fake processor, duplicate engine, or premature processing. Keep truthful progress/error/retry/cancel behavior within the existing experience.
+## Required source checks
 
-These stages must integrate with existing application state and lifecycle rather than introducing a competing router or a parallel state store.
+1. Inventory parity: every tool with `acceptedFiles` is registered once; no non-upload tool is registered.
+2. Old renderer removal: legacy per-tool preview functions and the old compression preview function/host must not remain referenced.
+3. Shared-host wiring: standard tools, Rotate, and PRO editor tools all mount the shared selected-file preview.
+4. Editing controls: PageOrganizer, Rotate, compression options, and PRO editors remain wired separately.
+5. Lifecycle: object URLs are cleaned up; PDF thumbnail failure does not remove the metadata card; stale async completion must not replace a detached preview.
+6. Responsive styles apply to shared previews in the standard, Rotate, and PRO editor layouts.
+7. Inline JavaScript and changed source files parse successfully.
 
-## State/lifecycle contract
+## Runtime validation still required
 
-Use the existing state/lifecycle APIs wherever present. The conceptual states are:
+Run `npm run test:shared-preview` and syntax checks from `artifacts/ilovepdf`. Then use browser tests on desktop, tablet, and mobile to check Merge, single-file PDF, image, office-document, multi-file, PageOrganizer, Rotate, Compress, and PRO-editor paths. Test valid/corrupt/large files, removing/replacing files while thumbnails are rendering, repeated file selection, clear/restart, processing, and download/result navigation.
 
-`FILE_SELECTED → PREVIEW_RENDERING → PREVIEW_READY → PROCESSING → RESULT_READY`
-
-Supported recoverable branches:
-- `PREVIEW_RENDERING → PREVIEW_ERROR → PREVIEW_RENDERING` (retry)
-- `PREVIEW_RENDERING → FILE_SELECTED` (input replaced/removed)
-- `PREVIEW_READY → FILE_SELECTED` (input replaced/removed)
-- `PROCESSING → PREVIEW_READY` (cancel/failure only if the existing runtime safely supports retry)
-- stale async completion must never overwrite the newest input's preview or state.
-
-Do not change the existing download route or result-page behavior to implement these conceptual states.
-
-## Implementation controls
-
-- Work in small, reviewable commits on this feature branch; do not commit directly to `main`.
-- Before each code change, identify exact callers, script inclusion points, CSS ownership, state owners, and existing tests.
-- Change only preview-owned code and narrowly scoped integration points necessary to activate the preview stage.
-- Avoid changing upload/download files. If a shared file appears unavoidable, stop and document why; do not edit it without confirming that its diff is isolated to preview behavior and does not alter upload/download paths.
-- Do not change the existing design, text, colors, spacing, responsive layout, upload interface, or download interface.
-- Keep PDF.js and other heavy libraries lazy and shared. Never create duplicate loaders or load processing-only dependencies merely to display a preview.
-- Preserve real processing behavior, file privacy, output correctness, object URL cleanup, worker cancellation, and existing accessibility.
-- No fake preview, mock result, fabricated progress, or success state without real output.
-- No dead-code deletion in this phase.
-
-## Required verification after each implementation step
-
-1. Review the Git diff and confirm the changed-file list contains no upload-page or download-page files.
-2. Run relevant existing checks available in `artifacts/ilovepdf/package.json`, plus syntax checks for changed JavaScript.
-3. Test preview loading, valid and corrupt/unsupported files, large files, replacing/removing files during rendering, repeated interactions, retry/failure, cancellation/stale-result handling, and mobile/tablet/desktop layout.
-4. Confirm the upload experience and download/result experience remain unchanged. If they cannot be browser-tested in the current environment, state that limitation explicitly rather than claiming success.
-5. Record test commands/results and remaining risks.
-
-## Stop conditions
-
-Stop before editing if:
-- The only proposed implementation requires changing upload/download page code or shared routing/state in a way that could affect them.
-- Existing call paths or tool-specific behavior cannot be established from repository evidence.
-- The implementation would duplicate the preview engine or bypass the existing processing runtime.
-- A required test cannot be run and the change would risk regressions without an appropriate alternative check.
-
-Do not merge or deploy automatically. Keep the work isolated on the feature branch until the diff and regression evidence are reviewed.
+Do not claim full completion based only on static checks. If browser tests or CI cannot run in the current environment, record that limitation. Keep changes on the feature branch and do not merge or deploy automatically.
