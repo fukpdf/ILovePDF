@@ -2068,7 +2068,6 @@ window.moveMergePreviewFile = moveMergePreviewFile;
 
 function clearAll() {
   selectedFiles = [];
-  persistFlowState();
   closePageOrganizer();
   const r = document.getElementById('result-area');
   if (r) r.innerHTML = '';
