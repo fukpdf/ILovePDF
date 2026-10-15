@@ -85,7 +85,7 @@ assert.match(
 
 const sharedHeaderUrl = '/css/home-header-v2.css?v=20261014-header-centered-nav-v3';
 const sharedFooterUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
-for (const file of ['index.html']) {
+for (const file of ['index.html', 'tool.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
   assert.ok(
     source.includes(sharedHeaderUrl),
@@ -93,10 +93,9 @@ for (const file of ['index.html']) {
   );
 }
 
-for (const file of ['index.html', 'tool.html']) {
+for (const file of ['index.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
   assert.ok(source.includes(sharedFooterUrl), file + ' must use the canonical cache-busted shared footer stylesheet URL.');
-  assert.ok(!source.includes('data-shared-footer-css="1"') || file === 'index.html', file + ' must not mark footer CSS on a tool workspace.');
   const activeSource = source.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
   assert.doesNotMatch(activeSource, /href=["'][^"']*\/css\/home-footer-v2\.css["']/i,
     file + ' must not leave the shared footer stylesheet unversioned.');
