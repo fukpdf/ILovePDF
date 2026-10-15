@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const publicDir = path.resolve(process.cwd(), 'public');
-const canonicalChromeUrl = '/js/chrome.js?v=20261014-shared-shell-v2';
+const canonicalChromeUrl = '/js/chrome.js?v=20261016-sticky-preview-no-tool-footer-v1';
 const htmlFiles = fs.readdirSync(publicDir, { withFileTypes: true })
   .filter(entry => entry.isFile() && entry.name.endsWith('.html'))
   .map(entry => entry.name);
@@ -51,7 +51,7 @@ assert.equal(new Set(initialScriptUrls).size, initialScriptUrls.length, 'Initial
 assert.match(toolHtml, /SharedToolRuntimeBoot/, 'Shared upload shell must expose its on-demand runtime boot loader.');
 assert.match(toolHtml, /document\.addEventListener\('change',[\s\S]*?isFileInput/, 'File selection must wait for the ordered runtime stack before dispatching the upload change.');
 assert.match(toolHtml, /data-shared-header-css="1"/, 'Shared header CSS must stay in the first-paint HTML.');
-assert.match(toolHtml, /data-shared-footer-css="1"/, 'Shared footer CSS must stay in the first-paint HTML.');
+assert.doesNotMatch(toolHtml, /home-footer-v2\.css/, 'Tool workspace must not request the marketing footer stylesheet.');
 assert.ok(!toolHtml.includes('data-tool-worker-prefetch'), 'Tool workers must not be prefetched during idle time before user action.');
 const toolPageSource = fs.readFileSync(path.join(publicDir, 'js/tool-page.js'), 'utf8');
 assert.ok(
@@ -70,10 +70,12 @@ assert.ok(!previewPreparationSource.includes('await Promise.all([engineWarm, pre
 assert.match(previewPreparationSource, /renderStandardPreviewStep\(tool\);\s*scheduleToolEngineWarmup\(tool\);/, 'Tool engine warmup must be scheduled after the preview UI is rendered.');
 
 const chromeSource = fs.readFileSync(path.join(publicDir, 'js/chrome.js'), 'utf8');
+assert.match(chromeSource, /const isToolWorkspace = !!document\.querySelector\('#tool-content'\)/, 'Shared shell must identify tool workspaces before footer loading.');
+assert.match(chromeSource, /if \(isToolWorkspace\) \{[\s\S]*currentFooters\.forEach\(footer => footer\.remove\(\)\)/, 'Tool workspaces must keep the shared header but remove marketing footers.');
 assert.match(
   chromeSource,
   /const existingCanonicalFooter = isHomepage &&/,
-  'Only the homepage may preserve its server-rendered footer; other pages must normalize to the canonical footer.'
+  'Only the homepage may preserve its server-rendered footer; tool workspaces must omit the footer entirely.'
 );
 assert.match(
   chromeSource,
@@ -83,7 +85,7 @@ assert.match(
 
 const sharedHeaderUrl = '/css/home-header-v2.css?v=20261014-header-centered-nav-v3';
 const sharedFooterUrl = '/css/home-footer-v2.css?v=20261014-shared-footer-v1';
-for (const file of ['index.html', 'tool.html']) {
+for (const file of ['index.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
   assert.ok(
     source.includes(sharedHeaderUrl),
@@ -94,6 +96,7 @@ for (const file of ['index.html', 'tool.html']) {
 for (const file of ['index.html', 'tool.html']) {
   const source = fs.readFileSync(path.join(publicDir, file), 'utf8');
   assert.ok(source.includes(sharedFooterUrl), file + ' must use the canonical cache-busted shared footer stylesheet URL.');
+  assert.ok(!source.includes('data-shared-footer-css="1"') || file === 'index.html', file + ' must not mark footer CSS on a tool workspace.');
   const activeSource = source.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, '');
   assert.doesNotMatch(activeSource, /href=["'][^"']*\/css\/home-footer-v2\.css["']/i,
     file + ' must not leave the shared footer stylesheet unversioned.');
