@@ -1439,6 +1439,12 @@ function renderStandardPreviewStep(tool) {
 
   if (window.lucide) lucide.createIcons();
   renderFileList();
+  // The rich-preview-only layout omits the legacy file-list container, so
+  // preserve the normal visible state of the existing Clear action explicitly.
+  if (hasPrimaryLivePreview) {
+    const clearBtn = document.getElementById('clear-btn');
+    if (clearBtn) clearBtn.style.display = selectedFiles.length ? 'inline-flex' : 'none';
+  }
   maybeOpenPageOrganizer();
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
