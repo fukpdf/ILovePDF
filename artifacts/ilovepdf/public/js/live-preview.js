@@ -35,6 +35,12 @@
     'word-to-excel',
   ]);
 
+  // Keep this list in sync with every TOOLS entry that declares acceptedFiles in tools-config.js.
+  var UPLOAD_TOOL_IDS = new Set([
+    'merge', 'split', 'rotate', 'crop', 'organize', 'compress', 'pdf-to-word', 'pdf-to-powerpoint', 'pdf-to-excel', 'pdf-to-jpg', 'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'word-to-excel', 'jpg-to-pdf', 'html-to-pdf', 'edit', 'watermark', 'sign', 'page-numbers', 'redact', 'protect', 'unlock', 'repair', 'scan-to-pdf', 'ocr', 'compare', 'ai-summarize', 'translate', 'workflow', 'background-remover', 'crop-image', 'resize-image', 'image-filters'
+  ]);
+
+
   // ── JSZip loader ─────────────────────────────────────────────────────────
   function loadJsZip() { return loadScript(JSZIP_URL, 'JSZip'); }
 
@@ -3025,14 +3031,76 @@
     });
   }
 
+  // ── SHARED FALLBACK PREVIEW — every upload-enabled tool ────────────────────
+  function mountSharedFilePreview(toolId, files, host) {
+    var items = (Array.isArray(files) ? files : [files]).filter(Boolean);
+    if (!items.length) { host.innerHTML = errorHtml('Select a file to preview.'); return; }
+    function escAttr(value) { return esc(String(value == null ? '' : value)).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function prettyBytes(value) {
+      if (!Number.isFinite(value) || value < 0) return 'File';
+      if (value < 1024) return value + ' B';
+      var units = ['KB', 'MB', 'GB', 'TB'];
+      var n = value / 1024, i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return n.toFixed(n >= 10 ? 0 : 1) + ' ' + units[i];
+    }
+    function extension(file) {
+      var name = String(file && file.name || 'file');
+      var dot = name.lastIndexOf('.');
+      return dot > -1 ? name.slice(dot + 1).toUpperCase().slice(0, 5) : 'FILE';
+    }
+    function visual(file) {
+      var type = String(file.type || '').toLowerCase();
+      var ext = extension(file);
+      if (type.indexOf('image/') === 0 || /^(JPG|JPEG|PNG|WEBP|GIF|BMP|SVG|AVIF)$/.test(ext)) {
+        var url = URL.createObjectURL(file);
+        return '<div class="lp-shared-image-wrap"><img class="lp-shared-image" src="' + url + '" data-obj-url="' + url + '" alt="Preview of ' + escAttr(file.name) + '" loading="lazy"></div>';
+      }
+      var kind = ext === 'PDF' ? 'PDF' : /^(DOC|DOCX|RTF|TXT|HTML|HTM)$/.test(ext) ? 'DOC' : /^(XLS|XLSX|CSV)$/.test(ext) ? 'XLS' : /^(PPT|PPTX)$/.test(ext) ? 'PPT' : ext;
+      return '<div class="lp-shared-file-art lp-shared-file-art--' + kind.toLowerCase() + '" aria-hidden="true"><span class="lp-shared-file-fold"></span><span class="lp-shared-file-lines"></span><b>' + esc(kind) + '</b></div>';
+    }
+    host.innerHTML = '<section class="lp-shared-preview" aria-label="Selected file preview">' +
+      '<header class="lp-shared-preview-head"><div><span class="lp-shared-kicker">PREVIEW WORKSPACE</span><h2>' +
+      (items.length > 1 ? 'Review your files' : 'Review your file') + '</h2><p>Check the selected file' + (items.length > 1 ? 's' : '') + ' before processing.</p></div>' +
+      '<span class="lp-shared-count">' + items.length + ' file' + (items.length === 1 ? '' : 's') + '</span></header>' +
+      '<ul class="lp-shared-file-list">' + items.map(function (file, index) {
+        var name = file.name || ('File ' + (index + 1));
+        var ext = extension(file);
+        var mime = String(file.type || '').split('/').pop().replace(/[^a-z0-9.+-]/gi, '').toUpperCase();
+        var label = mime || ext || 'FILE';
+        return '<li class="lp-shared-file-card"><span class="lp-shared-index">' + (index + 1) + '</span>' +
+          visual(file) + '<span class="lp-shared-file-info"><strong title="' + escAttr(name) + '">' + esc(name) + '</strong>' +
+          '<small>' + esc(prettyBytes(file.size)) + ' <span aria-hidden="true">·</span> ' + esc(label) + '</small>' +
+          '<span class="lp-shared-ready"><span aria-hidden="true"></span> Ready to process</span></span>' +
+          (items.length > 1 ? '<button class="lp-shared-remove" type="button" data-shared-remove="' + index + '" aria-label="Remove ' + escAttr(name) + '" title="Remove file">×</button>' : '') +
+          '</li>';
+      }).join('') + '</ul>' +
+      '<p class="lp-shared-preview-note">Your original file stays unchanged. Processing starts only when you press the Process button.</p>' +
+      '</section>';
+    host.querySelectorAll('[data-shared-remove]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-shared-remove'));
+        cleanupHost(host);
+        if (typeof window.removeFile === 'function') window.removeFile(index);
+      });
+    });
+  }
+
   // MOUNT DISPATCHER
   // ======================================================================
   async function mount(toolId, files, host) {
-    if (!host || !SUPPORTED.has(toolId)) return;
+    if (!host || (!SUPPORTED.has(toolId) && !UPLOAD_TOOL_IDS.has(toolId))) return;
     if (toolId === 'merge') {
       host.setAttribute('aria-busy', 'true');
       try { cleanupHost(host); mountMergePreview(files, host); }
       catch (err) { host.innerHTML = errorHtml('The merge preview could not be displayed. Your selected files are still available.'); }
+      finally { if (host.isConnected) host.setAttribute('aria-busy', 'false'); }
+      return;
+    }
+    if (!SUPPORTED.has(toolId)) {
+      host.setAttribute('aria-busy', 'true');
+      try { cleanupHost(host); mountSharedFilePreview(toolId, files, host); }
+      catch (err) { host.innerHTML = errorHtml('The preview could not be displayed. Your selected files are still available.'); }
       finally { if (host.isConnected) host.setAttribute('aria-busy', 'false'); }
       return;
     }
@@ -3075,6 +3143,6 @@
 
   window.LivePreview = {
     mount:     mount,
-    supported: function (toolId) { return SUPPORTED.has(toolId); },
+    supported: function (toolId) { return SUPPORTED.has(toolId) || UPLOAD_TOOL_IDS.has(toolId); },
   };
 }());
