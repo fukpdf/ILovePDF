@@ -29,39 +29,48 @@ const uploadTools = entries.map((match) => {
   };
 }).filter((tool) => tool.acceptedFiles);
 
-const uploadSetMatch = livePreview.match(/var UPLOAD_TOOL_IDS = new Set\(\[([\s\S]*?)\]\);/);
-assert.ok(uploadSetMatch, 'LivePreview must declare the upload-enabled tool inventory');
-const declaredIds = [...uploadSetMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+const inventoryMatch = livePreview.match(/var UPLOAD_TOOL_IDS = new Set\(\[([\s\S]*?)\]\);/);
+assert.ok(inventoryMatch, 'shared preview must declare upload-enabled tool inventory');
+const declaredIds = [...inventoryMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
 const declaredSet = new Set(declaredIds);
-const missing = uploadTools.filter((tool) => !declaredSet.has(tool.id)).map((tool) => tool.id);
-const unexpected = declaredIds.filter((id) => !uploadTools.some((tool) => tool.id === id));
-assert.deepEqual(missing, [], 'every acceptedFiles tool must be registered for shared preview eligibility');
-assert.deepEqual(unexpected, [], 'preview inventory must not include non-upload tools');
-assert.equal(declaredSet.size, declaredIds.length, 'preview inventory must not contain duplicate IDs');
+assert.deepEqual(uploadTools.filter((tool) => !declaredSet.has(tool.id).map((tool) => tool.id), [],
+  'every acceptedFiles tool must use the shared preview');
+assert.deepEqual(declaredIds.filter((id) => !uploadTools.some((tool) => tool.id === id)), [],
+  'shared preview inventory must not include non-upload tools');
+assert.equal(declaredSet.size, declaredIds.length, 'shared preview inventory must not contain duplicate IDs');
 
-assert.match(livePreview, /supported:\s*function\s*\(toolId\)\s*\{\s*return\s+SUPPORTED\.has\(toolId\)\s*\|\|\s*UPLOAD_TOOL_IDS\.has\(toolId\);/,
-  'LivePreview.supported() must include every upload-enabled tool');
 assert.match(livePreview, /async function mountSharedFilePreview\(toolId, files, host\)/,
-  'a generic shared preview fallback must exist');
-assert.match(livePreview, /if\s*\(!SUPPORTED\.has\(toolId\)\)\s*\{[\s\S]*?await mountSharedFilePreview\(toolId, files, host\)/,
-  'tools without a dedicated rich renderer must use the shared fallback');
+  'the shared renderer must be the only selected-file renderer');
+assert.match(livePreview, /supported:\s*function\s*\(toolId\)\s*\{\s*return UPLOAD_TOOL_IDS\.has\(toolId\);/,
+  'LivePreview.supported() must be true for every upload-enabled tool');
 assert.match(livePreview, /data-obj-url/,
   'shared image previews must mark object URLs for cleanup');
-assert.match(livePreview, /PdfPreview\.renderPage\(pdfDoc, 1, 180, 0\)/,
-  'shared PDF preview should attempt a real first-page thumbnail');
+assert.match(livePreview, /PdfPreview\.renderPage\(pdfDocument, 1, 180, 0\)/,
+  'shared PDF preview should attempt a real first-page thumbnail without loading the engine eagerly');
+for (const obsolete of [
+  'mountMergePreview', 'mountWordToPdf', 'mountExcelToPdf', 'mountPdfWordPreview',
+  'mountPdfExcelPreview', 'mountBgRemover', 'mountTranslatePreview',
+  'mountSummarizePreview', 'mountEditPdfPreview', 'SUPPORTED = new Set'
+]) {
+  assert.ok(!livePreview.includes(obsolete), 'legacy per-tool renderer remains: ' + obsolete);
+}
 
 assert.match(toolPage, /const hasPrimaryLivePreview = !!\([\s\S]*?window\.LivePreview\.supported\(tool\.id\)/,
-  'preview step must select the shared preview when eligible');
-assert.ok(toolPage.includes("${hasPrimaryLivePreview ? '' : `") && toolPage.includes('id="files-list"'),
-  'legacy selected-files card must be conditionally rendered, not duplicated with shared preview');
-assert.match(toolPage, /if \(hasPrimaryLivePreview && window\.LivePreview && window\.LivePreview\.supported\(tool\.id\)/,
-  'preview mount must be gated to avoid duplicating specialized editors');
-assert.match(toolPage, /if \(sharedHost\) sharedHost\.appendChild\(host\)/,
-  'PageOrganizer and Compress dedicated previews must mount inside the shared preview workspace');
-assert.match(toolPage, /if \(section\) section\.style\.display = 'none'/,
-  'dedicated editor paths must hide the duplicate legacy file section while active');
-assert.ok(styles.includes('/* Shared post-upload preview fallback'),
-  'responsive shared-preview styles must be present');
+  'standard preview step must use the shared preview for upload-enabled tools');
+assert.ok(toolPage.includes('id="live-preview-host"'), 'standard/editor layouts must provide shared preview host');
+assert.ok(toolPage.includes('id="page-organizer-host"'), 'page editor controls must mount separately from the shared preview');
+assert.ok(!toolPage.includes('renderCompressPreview'), 'legacy compression thumbnail renderer must be removed');
+assert.ok(!toolPage.includes('compress-preview-host'), 'legacy compression preview host references must be removed');
+assert.ok(!toolPage.includes('isMergeLivePreview') && !toolPage.includes('hasDedicatedPreview'),
+  'per-tool preview eligibility branches must be removed');
+assert.match(toolPage, /wireCompressOptions\(\)/, 'compression options must remain wired after removing its old preview');
+assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, \[file\], sharedPreviewHost\)/,
+  'PRO editor tools must also mount the shared selected-file preview');
+assert.match(toolPage, /mountLivePreviewForStep\(tool\.id, selectedFiles\.map\(function \(entry\) \{ return entry\.file; \}\), rotatePreviewHost\)/,
+  'Rotate PDF must mount the shared selected-file preview alongside its page editor');
+assert.ok(styles.includes('/* Shared post-upload preview fallback'), 'shared-preview styles must be present');
+assert.match(styles, /\.lp-shared-preview\{width:100%;min-width:0;/,
+  'shared preview surface styles must apply outside the standard tool shell');
 
 const specialUploadPages = [
   { file: 'public/image-compressor.html', markers: ['ic-dropzone', 'ic-preview-wrap', 'lp-shared-preview', 'renderSelectedImagePreview'] },
@@ -80,8 +89,9 @@ for (const page of specialUploadPages) {
   }
 }
 
-console.log('PASS: shared post-upload preview source regression checks');
+console.log('PASS: shared-only post-upload preview source regression checks');
 console.log('PASS: ' + uploadTools.length + ' upload-enabled tool definitions covered (' + declaredSet.size + ' registered)');
-console.log('PASS: shared generic fallback, PDF thumbnail path, object-URL cleanup, legacy-card gating, and responsive styles');
-console.log('PASS: 3 standalone upload pages use shared preview styling while retaining their specialized workflows');
+console.log('PASS: old rich per-tool preview dispatchers and compression thumbnail code removed');
+console.log('PASS: shared preview, PDF thumbnail fallback, object-URL cleanup, editor separation, and responsive styling');
+console.log('PASS: 3 standalone upload pages retain their specialized processing/result workflows');
 console.log('Upload tools: ' + uploadTools.map((tool) => tool.id).join(', '));
