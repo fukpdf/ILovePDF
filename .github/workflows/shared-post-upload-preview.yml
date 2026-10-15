@@ -1,0 +1,44 @@
+name: Shared post-upload preview validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'artifacts/ilovepdf/public/js/live-preview.js'
+      - 'artifacts/ilovepdf/public/js/tool-page.js'
+      - 'artifacts/ilovepdf/public/css/styles.css'
+      - 'artifacts/ilovepdf/public/js/tools-config.js'
+      - 'artifacts/ilovepdf/public/image-compressor.html'
+      - 'artifacts/ilovepdf/public/image-converter.html'
+      - 'artifacts/ilovepdf/public/zip-builder.html'
+      - 'artifacts/ilovepdf/scripts/shared-post-upload-preview-regression-check.js'
+      - 'artifacts/ilovepdf/docs/POST_UPLOAD_PREVIEW_TOOL_MATRIX.md'
+      - 'artifacts/ilovepdf/package.json'
+      - '.github/workflows/shared-post-upload-preview.yml'
+  push:
+    branches:
+      - feat/post-upload-preview-controlled
+    paths:
+      - 'artifacts/ilovepdf/**'
+      - '.github/workflows/shared-post-upload-preview.yml'
+
+jobs:
+  preview-regression:
+    name: Preview inventory and syntax checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax-check shared preview sources
+        working-directory: artifacts/ilovepdf
+        run: |
+          node --check public/js/live-preview.js
+          node --check public/js/tool-page.js
+          node --check scripts/shared-post-upload-preview-regression-check.js
+      - name: Run shared preview coverage regression
+        working-directory: artifacts/ilovepdf
+        run: npm run test:shared-preview
