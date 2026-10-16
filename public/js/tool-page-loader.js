@@ -129,44 +129,14 @@
   }
 
   // Only the active tool's processor/preview/editor dependencies are eligible.
-  function relatedScripts(toolId) {
-    var pdfPreviewTools = [
-      'merge','split','rotate','crop','organize','page-numbers','watermark',
-      'sign','redact','protect','unlock','repair','compare','pdf-to-word',
-      'pdf-to-powerpoint','pdf-to-excel','pdf-to-jpg','word-to-pdf',
-      'powerpoint-to-pdf','excel-to-pdf','html-to-pdf','scan-to-pdf','ocr',
-      'ai-summarize','translate','edit','jpg-to-pdf'
-    ];
-
-    var pageOrganizerTools = [
-      'split','rotate','organize','crop','page-numbers','watermark','sign',
-      'redact','ocr','ai-summarize','translate','repair','edit'
-    ];
-
-    var livePreviewTools = [
-      'word-to-pdf','excel-to-pdf','pdf-to-word','pdf-to-excel',
-      'background-remover','translate','ai-summarize','edit',
-      'pdf-to-powerpoint','powerpoint-to-pdf','html-to-pdf','ocr',
-      'scan-to-pdf','repair','word-to-excel'
-    ];
-
-    var scripts = [
-      '/js/runtime-tool-code-loader.js'
-    ];
-
-    if (isIn(pdfPreviewTools, toolId)) scripts.push('/js/pdf-preview.js');
-    if (isIn(pageOrganizerTools, toolId)) scripts.push('/js/page-organizer.js');
-    if (isIn(livePreviewTools, toolId)) scripts.push('/js/live-preview.js');
-
-    if (toolId === 'background-remover') scripts.push('/js/bg-remover-pro.js');
-    if (toolId === 'edit') scripts.push('/js/edit-pdf-pro.js');
-
-    return unique(scripts);
+  // The first paint loads only the small runtime loader. File preview,
+  // PDF thumbnail, organizer and editor helpers are fetched after selection.
+  function relatedScripts() {
+    return ['/js/runtime-tool-code-loader.js'];
   }
 
   // Keep authentication/language/PWA helpers out of the upload critical path.
   var POST_LOAD_SHARED = [
-    '/js/browser-tools.js',
     'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
     '/js/auth-ui.js?v=__BUILD_ID__',
     '/js/pwa-register.js'
