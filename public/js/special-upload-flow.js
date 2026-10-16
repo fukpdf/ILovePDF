@@ -26,6 +26,7 @@ function mountPreview(toolId,files,host,options){
   if(!list.length){
     if(G.SharedFilePreview)G.SharedFilePreview.mount(toolId,[],host,options||{});
     host.innerHTML='';
+    G.document.body.classList.remove('has-shared-file-preview');
     return Promise.resolve(true);
   }
   function mount(){
