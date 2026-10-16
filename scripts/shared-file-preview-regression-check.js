@@ -23,6 +23,9 @@ assert.match(toolPage, /loadSharedFilePreviewModule\(\)/, 'the shared preview mu
 assert.match(toolPage, /id="shared-file-preview-host"/, 'preview workspace must provide a shared mount host');
 assert.match(toolPage, /function refreshSharedFilePreview\(\)/, 'selected file changes must refresh the shared cards');
 assert.match(toolPage, /function moveMergePreviewFile\(/, 'Merge must preserve actual file order');
+assert.match(toolPage, /_processPreparing = true/, 'Process must guard dependency preparation against duplicate taps');
+assert.match(toolPage, /await window\.RuntimeToolCodeLoader\.load\(requestedToolId\)/, 'active processor runtime must load only after Process is clicked');
+assert.match(toolPage, /function toolUiGlobalReady\(src\)/, 'dependency loading must handle already-loaded scripts without hanging');
 assert.ok(!/window\.LivePreview\.mount\(tool\.id/.test(toolPage), 'legacy per-tool preview must not overwrite the shared preview');
 assert.match(loader, /function relatedScripts\(\)\s*\{\s*return \['\/js\/runtime-tool-code-loader\.js'\];/s,
   'page-open loader must not fetch tool preview/processor modules');
