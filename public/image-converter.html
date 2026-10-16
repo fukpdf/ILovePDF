@@ -95,6 +95,8 @@
               <input id="iconv-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
             </div>
 
+            <div id="iconv-shared-preview-host" class="shared-file-preview-host ilpdf-special-shared-preview-host" aria-live="polite"></div>
+
             <!-- Controls -->
             <div id="iconv-controls-wrap" style="display:none;margin-top:20px">
               <!-- Format + quality -->
@@ -221,11 +223,22 @@
 
     function getExt(mime){ return { 'image/jpeg':'jpg','image/png':'png','image/webp':'webp' }[mime] || 'jpg'; }
 
+    function mountIconvSharedPreview(){
+      var host = document.getElementById('iconv-shared-preview-host');
+      if (!host || !window.SharedSpecialUpload) return;
+      window.SharedSpecialUpload.mountPreview('image-converter', imageFiles, host, {
+        multiple: true,
+        accept: 'image/jpeg,image/png,image/webp',
+        onRemove: function(index){ window.iconvRemove(index); },
+        onAdd: function(){ document.getElementById('iconv-file-input').click(); }
+      });
+    }
+
     function renderQueue(){
       var q = document.getElementById('iconv-queue');
       var cnt = document.getElementById('iconv-count');
       var ctrls = document.getElementById('iconv-controls-wrap');
-      if (!imageFiles.length){ ctrls.style.display='none'; return; }
+      if (!imageFiles.length){ ctrls.style.display='none'; mountIconvSharedPreview(); return; }
       ctrls.style.display='';
       cnt.textContent = imageFiles.length + ' image' + (imageFiles.length===1?'':'s');
       q.innerHTML = imageFiles.map(function(f,i){
@@ -237,6 +250,7 @@
           '</div>';
       }).join('');
       if (window.lucide) lucide.createIcons();
+      mountIconvSharedPreview();
     }
 
     window.iconvRemove = function(i){ imageFiles.splice(i,1); renderQueue(); };
