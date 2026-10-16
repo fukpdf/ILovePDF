@@ -9539,8 +9539,8 @@ i[data-lucide] {
   flex-direction: column;
   align-self: stretch;
   min-width: 0;
-  min-height: calc(100vh - var(--header-height, 64px) - 36px);
-  min-height: calc(100dvh - var(--header-height, 64px) - 36px);
+  min-height: calc(100vh - var(--header-height, 72px) - 36px);
+  min-height: calc(100dvh - var(--header-height, 72px) - 36px);
   gap: 16px;
 }
 .ew-preview-page .ew-preview-aside {
@@ -9549,7 +9549,7 @@ i[data-lucide] {
 }
 .shared-file-preview-host {
   position: sticky;
-  top: calc(var(--header-height, 64px) + 12px);
+  top: calc(var(--header-height, 72px) + 12px);
   z-index: 5;
   width: 100%;
   max-width: 100%;
@@ -9562,8 +9562,8 @@ i[data-lucide] {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: calc(100vh - var(--header-height, 64px) - 24px);
-  max-height: calc(100dvh - var(--header-height, 64px) - 24px);
+  max-height: calc(100vh - var(--header-height, 72px) - 24px);
+  max-height: calc(100dvh - var(--header-height, 72px) - 24px);
   padding: clamp(13px, 1.8vw, 22px);
   box-sizing: border-box;
   overflow: hidden;
@@ -9855,9 +9855,9 @@ i[data-lucide] {
   .ew-preview-page .ew-preview-aside { width: 100%; }
 }
 @media (max-width: 560px) {
-  .shared-file-preview-host { top: calc(var(--header-height, 56px) + 6px); }
+  .shared-file-preview-host { top: calc(var(--header-height, 64px) + 6px); }
   .lp-shared-preview {
-    max-height: calc(100dvh - var(--header-height, 56px) - 12px);
+    max-height: calc(100dvh - var(--header-height, 64px) - 12px);
     padding: 12px;
     border-radius: 14px;
   }
