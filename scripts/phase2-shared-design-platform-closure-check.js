@@ -44,7 +44,7 @@ const contracts = [
   ['homepage uses canonical header CSS', index.includes('home-header-v2.css')],
   ['homepage uses canonical footer CSS', index.includes('home-footer-v2.css')],
   ['tool shell uses canonical header CSS', tool.includes('home-header-v2.css')],
-  ['tool shell uses canonical footer CSS', tool.includes('home-footer-v2.css')],
+  ['tool workspace intentionally omits marketing footer CSS', !tool.includes('home-footer-v2.css')],
   ['universal chrome defines canonical header shell', chrome.includes('SHARED_HEADER_HTML')],
   ['universal chrome defines canonical footer shell', chrome.includes('SHARED_FOOTER_HTML')],
   ['universal chrome injects canonical header CSS', chrome.includes('/css/home-header-v2.css')],
@@ -58,9 +58,9 @@ const contracts = [
   ['canonical footer contains sticker system', footerCss.includes('.footer-sticker') && footerCss.includes('.footer-section-sticker')],
   ['accessibility layer exists and is non-empty', a11yCss.trim().length > 200],
   ['tool shell exposes shared header marker', tool.includes('class="site-header"')],
-  ['tool shell exposes shared footer marker', tool.includes('<footer class="footer">')],
-  ['tool shell contains footer language control', tool.includes('id="footer-lang-btn"') && tool.includes('id="footer-lang-panel"')],
-  ['tool shell contains footer donation control', tool.includes('footer-donate-btn')]
+  ['tool workspace omits marketing footer markup', !tool.includes('<footer class="footer">')],
+  ['tool workspace omits footer language controls', !tool.includes('id="footer-lang-btn"') && !tool.includes('id="footer-lang-panel"')],
+  ['tool workspace omits footer donation control', !tool.includes('footer-donate-btn')]
 ];
 for (const [name, ok] of contracts) ok ? pass(name) : fail(name);
 
@@ -76,7 +76,10 @@ let missingChrome = 0;
 for (const file of publicShellPages) {
   const rel = path.relative(ROOT, file).replaceAll(path.sep, '/');
   const html = fs.readFileSync(file, 'utf8');
-  if (!html.includes('/js/chrome.js')) {
+  const loaderSource = fs.readFileSync(path.join(ROOT, 'public/js/tool-page-loader.js'), 'utf8');
+  const usesLazySharedChrome = rel === 'public/tool.html' &&
+    html.includes('/js/tool-page-loader.js') && loaderSource.includes("'/js/chrome.js'");
+  if (!html.includes('/js/chrome.js') && !usesLazySharedChrome) {
     fail(rel + ': missing universal shared chrome loader');
     missingChrome++;
   }
