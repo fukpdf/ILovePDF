@@ -1324,6 +1324,8 @@ function syncLegacyPreviewSection() {
   legacySection.hidden = !(organizerHost || compressHost);
   legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
   legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
+  var previewMain = legacySection.closest('.ew-preview-main');
+  if (previewMain) previewMain.classList.toggle('has-page-organizer', !!organizerHost);
 }
 function ensureSharedFilePreviewLoaded() {
   if (window.SharedFilePreview) return Promise.resolve(true);
@@ -1794,11 +1796,11 @@ async function handleFiles(fileList) {
 // When the current tool operates on a single PDF and PageOrganizer wants it,
 // we hide the plain file row and mount the thumbnail grid.
 function maybeOpenPageOrganizer() {
-  // Compress gets its own dedicated single-page preview — bypass the
-  // multi-page organizer grid entirely.
+  // Compression uses the shared file card; keep its quality controls but
+  // do not mount the obsolete dedicated preview panel.
   if (currentTool && currentTool.id === 'compress') {
     closePageOrganizer();
-    renderCompressPreview();
+    wireCompressSlider();
     return;
   }
   if (!window.PageOrganizer) return;
