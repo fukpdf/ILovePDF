@@ -866,7 +866,11 @@ function ensureSharedAccessibility() {
 }
 
 function ensureSharedShell() {
-  /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
+  // Tool workspaces intentionally keep the canonical shared header but omit
+  // the marketing footer so the file-preview workspace owns the available
+  // viewport. Detect the real tool shell by its stable main landmark.
+  const isToolWorkspace = !!document.querySelector('main#tool-content.tool-page');
+
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -874,12 +878,19 @@ function ensureSharedShell() {
     link.dataset.sharedHeaderCss = '1';
     document.head.appendChild(link);
   }
-  if (!document.querySelector('link[data-shared-footer-css]')) {
+
+  if (!isToolWorkspace && !document.querySelector('link[data-shared-footer-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-footer-v2.css?v=20260924';
     link.dataset.sharedFooterCss = '1';
     document.head.appendChild(link);
+  }
+
+  if (isToolWorkspace) {
+    // Remove any footer left by a cached/older tool.html or another script.
+    document.querySelectorAll('footer.footer').forEach(function (footer) { footer.remove(); });
+    document.querySelectorAll('link[data-shared-footer-css], link[href*="home-footer-v2.css"]').forEach(function (link) { link.remove(); });
   }
 
   /* Replace every page header with the exact canonical homepage header. */
@@ -898,15 +909,19 @@ function ensureSharedShell() {
     else document.body.insertBefore(canonicalHeader, document.body.firstChild);
   }
 
-  /* Replace every page footer with the canonical homepage footer. */
-  const currentFooter = document.querySelector('footer.footer');
-  const holder = document.createElement('div');
-  holder.innerHTML = SHARED_FOOTER_HTML.trim();
-  const canonicalFooter = holder.firstElementChild;
-  if (currentFooter) currentFooter.replaceWith(canonicalFooter);
-  else document.body.appendChild(canonicalFooter);
+  let canonicalFooter = null;
+  if (!isToolWorkspace) {
+    /* Marketing/footer chrome remains canonical on non-tool pages. */
+    const currentFooter = document.querySelector('footer.footer');
+    const holder = document.createElement('div');
+    holder.innerHTML = SHARED_FOOTER_HTML.trim();
+    canonicalFooter = holder.firstElementChild;
+    if (currentFooter) currentFooter.replaceWith(canonicalFooter);
+    else document.body.appendChild(canonicalFooter);
+  }
 
   window.__ILOVE_SHARED_SHELL_READY = true;
+  window.__ILOVE_SHARED_FOOTER_SUPPRESSED = isToolWorkspace;
   return canonicalFooter;
 }
 
