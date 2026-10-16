@@ -869,7 +869,7 @@ function ensureSharedShell() {
   // Tool workspaces intentionally keep the canonical shared header but omit
   // the marketing footer so the file-preview workspace owns the available
   // viewport. Detect the real tool shell by its stable main landmark.
-  const isToolWorkspace = !!document.querySelector('main#tool-content.tool-page');
+  const isToolWorkspace = !!document.querySelector('main#tool-content.tool-page, .ilpdf-special-dropzone');
 
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
