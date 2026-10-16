@@ -35,6 +35,7 @@ assert.ok(tool.includes('mountSharedFilePreview(tool);'), 'preview renderer must
 assert.ok(tool.includes('ew-file-section--legacy'), 'legacy selected-file UI must be gated');
 assert.ok(tool.includes('window.LivePreview.mount'), 'existing specialized preview renderers must remain available');
 assert.ok(tool.includes('function removeFile(index)'), 'file removal workflow must remain present');
+assert.ok(tool.includes("ilovepdf:tool-critical-ready") && tool.includes('function bootToolPage()'), 'tool page must initialize even if its lazy script graph finishes after DOMContentLoaded');
 
 assert.ok(loader.includes('tool-page.js?v=20261016-shared-preview-v1'), 'tool page script cache key must be refreshed');
 assert.ok(loader.includes('/js/tool-i18n-bridge.js'), 'tool i18n bridge must be included in the lazy shell sequence');
@@ -42,6 +43,7 @@ assert.ok(!loader.includes('home-footer-v2.css'), 'tool workspace must not downl
 assert.ok(html.includes('class="site-header"'), 'shared site header must remain on tool pages');
 assert.ok(chrome.includes('main#tool-content.tool-page, .ilpdf-special-dropzone'), 'shared chrome must detect standard and standalone upload workspaces');
 assert.ok(chrome.includes('window.__ILOVE_SHARED_FOOTER_SUPPRESSED = isToolWorkspace'), 'shared chrome must suppress the footer on tool pages');
+assert.ok(chrome.includes('function startSharedChrome()') && chrome.includes("document.readyState === 'loading'"), 'shared chrome must boot whether loaded before or after DOMContentLoaded');
 assert.ok(!html.includes('<footer class="footer">'), 'marketing footer markup must be absent from tool workspaces');
 assert.ok(specialFlow.includes('mountPreview:mountPreview'), 'standalone upload pages must be able to lazy-load the shared preview');
 assert.ok(imageCompressor.includes('id="ic-shared-preview-host"') && imageCompressor.includes("mountPreview('image-compressor'"), 'Image Compressor must use shared preview cards');
