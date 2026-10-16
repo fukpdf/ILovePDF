@@ -26,6 +26,7 @@
     '/js/session-persist.js',
     '/js/i18n.js?v=__BUILD_ID__',
     '/js/i18n-ext.js?v=__BUILD_ID__',
+    '/js/tool-i18n-bridge.js',
     '/js/chrome.js',
     '/js/tool-page.js?v=20261016-shared-preview-v1',
     '/js/shared.js?v=__BUILD_ID__'
