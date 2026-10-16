@@ -1211,7 +1211,7 @@ function renderToolPreviewPreparation(tool) {
   runToolPreviewPreparation(tool, runId, startedAt, 2200);
 }
 
-async function runToolPreviewPreparation(tool, runId) {
+async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   // The selected-file workspace is the first useful post-upload UI. Do not
   // hold it behind PDF.js startup or processor prewarming.
   if (runId !== _cropUploadRun) return;
