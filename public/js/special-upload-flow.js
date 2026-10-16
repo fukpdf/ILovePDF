@@ -19,5 +19,39 @@ function prepare(files,done){
     if(p>=100){clearInterval(timer);setTimeout(function(){box.remove();if(done)done();},120);}
   },30);
 }
-G.SharedSpecialUpload=Object.freeze({prepare:prepare});
+var previewLoadPromise=null;
+function mountPreview(toolId,files,host,options){
+  if(!host)return Promise.resolve(false);
+  var list=(files||[]).filter(Boolean);
+  if(!list.length){
+    if(G.SharedFilePreview)G.SharedFilePreview.mount(toolId,[],host,options||{});
+    host.innerHTML='';
+    return Promise.resolve(true);
+  }
+  function mount(){
+    if(!G.SharedFilePreview)return false;
+    G.document.body.classList.add('has-shared-file-preview');
+    return G.SharedFilePreview.mount(toolId,list,host,options||{});
+  }
+  if(G.SharedFilePreview)return Promise.resolve(mount());
+  if(!previewLoadPromise){
+    previewLoadPromise=new Promise(function(resolve){
+      var existing=G.document.querySelector('script[data-shared-file-preview]');
+      if(existing){
+        if(existing.dataset.sharedLoaded==='1'){resolve(!!G.SharedFilePreview);return;}
+        existing.addEventListener('load',function(){resolve(!!G.SharedFilePreview);},{once:true});
+        existing.addEventListener('error',function(){resolve(false);},{once:true});
+        return;
+      }
+      var script=G.document.createElement('script');
+      script.src='/js/shared-file-preview.js?v=20261016-shared-preview-v1';
+      script.async=true;script.dataset.sharedFilePreview='1';
+      script.onload=function(){script.dataset.sharedLoaded='1';resolve(!!G.SharedFilePreview);};
+      script.onerror=function(){previewLoadPromise=null;resolve(false);};
+      G.document.head.appendChild(script);
+    });
+  }
+  return previewLoadPromise.then(function(ready){return ready?mount():false;});
+}
+G.SharedSpecialUpload=Object.freeze({prepare:prepare,mountPreview:mountPreview});
 })();
