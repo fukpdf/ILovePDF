@@ -37,6 +37,7 @@ assert.ok(tool.includes('window.LivePreview.mount'), 'existing specialized previ
 assert.ok(tool.includes('function removeFile(index)'), 'file removal workflow must remain present');
 
 assert.ok(loader.includes('tool-page.js?v=20261016-shared-preview-v1'), 'tool page script cache key must be refreshed');
+assert.ok(loader.includes('/js/tool-i18n-bridge.js'), 'tool i18n bridge must be included in the lazy shell sequence');
 assert.ok(!loader.includes('home-footer-v2.css'), 'tool workspace must not download marketing footer CSS');
 assert.ok(html.includes('class="site-header"'), 'shared site header must remain on tool pages');
 assert.ok(chrome.includes('main#tool-content.tool-page, .ilpdf-special-dropzone'), 'shared chrome must detect standard and standalone upload workspaces');
@@ -56,6 +57,7 @@ assert.ok(css.includes('min-width: 0'), 'grid/flex children must be allowed to s
 assert.ok(css.includes('@media (max-width: 900px)'), 'tablet layout breakpoint must exist');
 assert.ok(css.includes('@media (max-width: 560px)'), 'mobile layout breakpoint must exist');
 assert.ok(css.includes('.ew-file-section--legacy.ew-file-section--organizer-active'), 'PageOrganizer compatibility must remain visible');
+assert.ok(css.includes('body.has-shared-file-preview #iconv-queue') && css.includes('body.has-shared-file-preview #zip-files-ul'), 'standalone routes must hide their legacy duplicate file lists');
 assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length, 'CSS braces must be balanced');
 
 console.log('Shared post-upload preview regression checks passed.');
