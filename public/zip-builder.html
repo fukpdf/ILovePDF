@@ -95,6 +95,8 @@
               <input id="zip-file-input" type="file" multiple style="display:none">
             </div>
 
+            <div id="zip-shared-preview-host" class="shared-file-preview-host ilpdf-special-shared-preview-host" aria-live="polite"></div>
+
             <!-- File list -->
             <div id="zip-file-list" style="display:none;margin-top:16px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -206,11 +208,22 @@
       return (b/1048576).toFixed(1) + ' MB';
     }
 
+    function mountZipSharedPreview(){
+      var host = document.getElementById('zip-shared-preview-host');
+      if (!host || !window.SharedSpecialUpload) return;
+      window.SharedSpecialUpload.mountPreview('zip-builder', files, host, {
+        multiple: true,
+        accept: '*/*',
+        onRemove: function(index){ window.zipRemove(index); },
+        onAdd: function(){ document.getElementById('zip-file-input').click(); }
+      });
+    }
+
     function renderList(){
       var ul = document.getElementById('zip-files-ul');
       var cnt = document.getElementById('zip-file-count');
       var listWrap = document.getElementById('zip-file-list');
-      if (!files.length){ listWrap.style.display='none'; return; }
+      if (!files.length){ listWrap.style.display='none'; mountZipSharedPreview(); return; }
       listWrap.style.display='';
       cnt.textContent = files.length + ' file' + (files.length===1?'':'s') + ' selected';
       ul.innerHTML = files.map(function(f, i){
@@ -222,6 +235,7 @@
           '</li>';
       }).join('');
       if (window.lucide) lucide.createIcons();
+      mountZipSharedPreview();
     }
 
     function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
