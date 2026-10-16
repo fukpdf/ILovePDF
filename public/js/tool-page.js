@@ -1234,7 +1234,7 @@ function ensureSharedFilePreviewLoaded() {
     script.src = '/js/shared-file-preview.js?v=20261016-shared-file-preview-v1';
     script.async = true;
     script.dataset.sharedFilePreview = '1';
-    script.onload = function () { resolve(!!window.SharedFilePreview); };
+    script.onload = function () { script.dataset.sharedLoaded = '1'; resolve(!!window.SharedFilePreview); };
     script.onerror = function () { _sharedFilePreviewPromise = null; resolve(false); };
     document.head.appendChild(script);
   });
