@@ -9,6 +9,15 @@
   var mountTokens = new WeakMap();
   var activeHosts = new Set();
   var sequence = 0;
+  var TOOL_IDS = new Set([
+    'merge','split','rotate','crop','organize','compress',
+    'pdf-to-word','pdf-to-powerpoint','pdf-to-excel','pdf-to-jpg',
+    'word-to-pdf','powerpoint-to-pdf','excel-to-pdf','word-to-excel',
+    'jpg-to-pdf','html-to-pdf','edit','watermark','sign','page-numbers',
+    'redact','protect','unlock','repair','scan-to-pdf','ocr','compare',
+    'ai-summarize','translate','workflow','background-remover',
+    'crop-image','resize-image','image-filters'
+  ]);
 
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -109,9 +118,13 @@
     if (window.PdfPreview && typeof window.PdfPreview.loadDocument === 'function') return Promise.resolve(true);
     if (window.__sharedPdfPreviewPromise) return window.__sharedPdfPreviewPromise;
     window.__sharedPdfPreviewPromise = new Promise(function (resolve) {
-      var existing = document.querySelector('script[data-shared-pdf-preview]');
+      var existing = Array.prototype.find.call(document.querySelectorAll('script[src]'), function (node) {
+        return node.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0] === '/js/pdf-preview.js';
+      });
       if (existing) {
-        if (existing.dataset.sharedLoaded === '1') { resolve(!!window.PdfPreview); return; }
+        if (window.PdfPreview || existing.dataset.sharedLoaded === '1' || existing.dataset.ilpdfLoaded === '1') {
+          resolve(!!window.PdfPreview); return;
+        }
         existing.addEventListener('load', function () { resolve(!!window.PdfPreview); }, { once: true });
         existing.addEventListener('error', function () { resolve(false); }, { once: true });
         return;
@@ -253,6 +266,7 @@
     mount: mount,
     unmount: unmount,
     cleanupAll: cleanupAll,
-    supported: function () { return true; }
+    supported: function (toolId) { return TOOL_IDS.has(toolId); },
+    toolIds: Array.from(TOOL_IDS)
   };
 }());
