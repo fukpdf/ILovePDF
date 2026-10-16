@@ -998,7 +998,7 @@ window.__ILOVE_SHARED_FOOTER_LANG_WIRED = true;
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function bootSharedChrome() {
   ensureSharedShell();
   await ensureI18nAssets();
   renderHeader();
@@ -1028,7 +1028,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   tryIcons();
   setTimeout(tryIcons, 150);
   setTimeout(tryIcons, 700);
-});
+}
+
+function startSharedChrome() {
+  bootSharedChrome().catch(function (error) { console.error('[SharedChrome] boot failed:', error); });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startSharedChrome, { once: true });
+} else {
+  startSharedChrome();
+}
 
 // Global SPA click interceptor — catches tool link clicks on tool pages
 // (any page that has #tool-content in the DOM) and navigates without reload.
