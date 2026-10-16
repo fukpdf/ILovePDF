@@ -1422,7 +1422,6 @@ function renderStandardPreviewStep(tool) {
       <div class="ew-preview-workspace">
         <div class="ew-preview-main">
           <div id="shared-file-preview-host" class="shared-file-preview-host" aria-live="polite"></div>
-          <div id="live-preview-host" class="tool-rich-preview-host"></div>
           <section class="preview-step upload-section ew-file-section ew-file-section--legacy" aria-label="Legacy selected-file controls">
             <span class="upload-label">
               <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
@@ -1458,14 +1457,7 @@ function renderStandardPreviewStep(tool) {
     if (legacyList) legacyList.innerHTML = '';
   }
   maybeOpenPageOrganizer();
-  const legacySection = document.querySelector('.ew-file-section--legacy');
-  if (legacySection) {
-    const organizerHost = legacySection.querySelector('#page-organizer');
-    const compressHost = legacySection.querySelector('#compress-preview-host');
-    legacySection.hidden = !(organizerHost || compressHost);
-    legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
-    legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
-  }
+  syncLegacyPreviewSection();
   mountSharedFilePreview(tool);
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
@@ -1477,13 +1469,6 @@ function renderStandardPreviewStep(tool) {
     }
   } catch (_) {}
 
-  if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
-    const lpHost = document.getElementById('live-preview-host');
-    if (lpHost) {
-      window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
-        .catch(function () {});
-    }
-  }
 }
 
 // ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────
@@ -1798,14 +1783,7 @@ async function handleFiles(fileList) {
     }
     maybeOpenPageOrganizer();
     refreshSharedFilePreview();
-    const legacySection = document.querySelector('.ew-file-section--legacy');
-    if (legacySection) {
-      const organizerHost = legacySection.querySelector('#page-organizer');
-      const compressHost = legacySection.querySelector('#compress-preview-host');
-      legacySection.hidden = !(organizerHost || compressHost);
-      legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
-      legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
-    }
+    syncLegacyPreviewSection();
   }
 }
 
@@ -1828,6 +1806,13 @@ function maybeOpenPageOrganizer() {
   }
   const list = document.getElementById('files-list');
   if (!list) return;
+  const legacySection = list.closest('.ew-file-section--legacy');
+  if (legacySection) {
+    legacySection.hidden = false;
+    legacySection.classList.add('ew-file-section--organizer-active');
+  }
+  const previewMain = list.closest('.ew-preview-main');
+  if (previewMain) previewMain.classList.add('has-page-organizer');
   // Hide the plain row and mount the organizer right above it.
   let host = document.getElementById('page-organizer');
   if (!host) {
@@ -1845,9 +1830,14 @@ function maybeOpenPageOrganizer() {
       try { window.dispatchEvent(new CustomEvent('ilpdf:rotate-organizer-ready')); } catch (_) {}
     })
     .catch(() => {
-      // Fall back to the plain file row so the user is never stuck.
+      // Fall back to the shared file card so the user is never stuck.
       list.style.display = '';
       host.remove();
+      if (legacySection) {
+        legacySection.classList.remove('ew-file-section--organizer-active');
+        legacySection.hidden = true;
+      }
+      if (previewMain) previewMain.classList.remove('has-page-organizer');
     });
 }
 
