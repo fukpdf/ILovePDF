@@ -24,7 +24,7 @@ assert.match(toolPage, /id="shared-file-preview-host"/, 'preview workspace must 
 assert.match(toolPage, /function refreshSharedFilePreview\(\)/, 'selected file changes must refresh the shared cards');
 assert.match(toolPage, /function moveMergePreviewFile\(/, 'Merge must preserve actual file order');
 assert.match(toolPage, /_processPreparing = true/, 'Process must guard dependency preparation against duplicate taps');
-assert.match(toolPage, /await window\.RuntimeToolCodeLoader\.load\(requestedToolId\)/, 'active processor runtime must load only after Process is clicked');
+assert.match(toolPage, /await window\.RuntimeToolCodeLoader\.load\(currentTool\.id\)/, 'active processor runtime must load only after Process is clicked');
 assert.match(toolPage, /function toolUiGlobalReady\(src\)/, 'dependency loading must handle already-loaded scripts without hanging');
 assert.match(toolPage, /if \(!window\.BrowserTools\) await loadToolUiScript\('\/js\/browser-tools\.js'\)/, 'validation helper must load on Process only if needed');
 assert.ok(toolPage.indexOf('_processingInFlight = true;') < toolPage.indexOf('await window.RuntimeToolCodeLoader.load(currentTool.id)'), 'processor runtime must load only after input validation and process guard activation');
