@@ -15,6 +15,7 @@ assert.ok(preview.includes('window.removeFile'), 'removal must synchronize with 
 assert.ok(preview.includes('window.moveSharedPreviewFile'), 'Merge ordering must synchronize with the tool state');
 assert.ok(preview.includes('data-shared-add-input'), 'multi-file tools must expose an add-files input');
 assert.ok(preview.includes('renderPdfThumbnails(items, host, token)'), 'PDF thumbnails must render asynchronously');
+assert.ok(preview.includes("wrap.className = 'lp-shared-image-wrap'"), 'PDF thumbnails must remain constrained inside the fixed thumbnail wrapper');
 assert.ok(preview.includes('/\\.pdf$/i'), 'PDF extension detection must match a normal .pdf filename');
 assert.ok(preview.includes('Your files are ready'), 'shared preview heading must be present');
 assert.ok(preview.includes('Ready to process'), 'file readiness status must be present');
@@ -33,6 +34,9 @@ assert.ok(tool.includes('function removeFile(index)'), 'file removal workflow mu
 assert.ok(loader.includes('tool-page.js?v=20261016-shared-preview-v1'), 'tool page script cache key must be refreshed');
 assert.ok(!loader.includes('home-footer-v2.css'), 'tool workspace must not download marketing footer CSS');
 assert.ok(html.includes('class="site-header"'), 'shared site header must remain on tool pages');
+const chrome = read('public/js/chrome.js');
+assert.ok(chrome.includes("document.querySelector('main#tool-content.tool-page')"), 'shared chrome must detect the tool workspace');
+assert.ok(chrome.includes('window.__ILOVE_SHARED_FOOTER_SUPPRESSED = isToolWorkspace'), 'shared chrome must suppress the footer on tool pages');
 assert.ok(!html.includes('<footer class="footer">'), 'marketing footer markup must be absent from tool workspaces');
 assert.ok(html.includes('styles.css?v=20261016-shared-preview-v1'), 'shared preview CSS cache key must be refreshed');
 
