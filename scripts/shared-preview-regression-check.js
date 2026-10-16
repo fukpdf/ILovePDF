@@ -14,6 +14,7 @@ const imageConverter = read('public/image-converter.html');
 const zipBuilder = read('public/zip-builder.html');
 
 assert.ok(preview.includes('window.SharedFilePreview'), 'shared file preview module must export its API');
+assert.ok(preview.includes('cleanupDetachedHosts') && preview.includes('cleanupAll: cleanupAll') && preview.includes('unmount: unmount'), 'shared preview must clean up detached hosts and object URLs');
 assert.ok(preview.includes('supported: function () { return true; }'), 'shared preview must be reusable by every standard-shell tool');
 assert.ok(preview.includes('data-shared-remove'), 'shared preview must expose per-file removal');
 assert.ok(preview.includes('window.removeFile'), 'removal must synchronize with the tool state');
