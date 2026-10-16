@@ -29,6 +29,7 @@ let _activeMountedModule = null;
 // launching two concurrent processing runs.  Set to true the moment we commit
 // to processing; cleared in the try/finally regardless of exit path.
 let _processingInFlight = false;
+let _processPreparing = false;
 let _cropUploadRun = 0;
 
 // ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
@@ -2136,10 +2137,9 @@ async function tryWithRetry(toolId, files, opts) {
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
-  // Re-entrancy guard: a rapid double-click must never launch two concurrent
-  // processing runs.  All downstream validation is synchronous so this guard
-  // fires before any async work begins.
-  if (_processingInFlight) return;
+  // Guard both dependency preparation and processing; rapid taps must never
+  // launch duplicate script loads or duplicate operations.
+  if (_processingInFlight || _processPreparing) return;
   if (!currentTool) return;
   if (selectedFiles.length === 0) {
     showStatus('error', _tp('status.no_file', 'No file selected'), _tp('status.no_file_msg', 'Please upload a file before processing.'));
@@ -2154,6 +2154,41 @@ async function processFile() {
   if (window.UsageLimit && !window.UsageLimit.canUse()) {
     window.UsageLimit.showLimitModal();
     return;
+  }
+
+  // BrowserTools is a validation/UI helper, not a processor engine. Load it
+  // only when a user asks to process, unless the post-upload warmup already did.
+  _processPreparing = true;
+  const requestedToolId = currentTool.id;
+  const prepButton = document.getElementById('process-btn');
+  const prepButtonHtml = prepButton ? prepButton.innerHTML : '';
+  if (prepButton) {
+    prepButton.disabled = true;
+    prepButton.setAttribute('aria-busy', 'true');
+    prepButton.innerHTML = '<span>Preparing tool…</span>';
+  }
+  try {
+    const browserToolsReady = await loadToolUiScript('/js/browser-tools.js');
+    const runtimeLoaderReady = await loadToolUiScript('/js/runtime-tool-code-loader.js');
+    if (!browserToolsReady || !runtimeLoaderReady) {
+      showStatus('error', _tp('tool.load_failed', 'Tool could not start'),
+        _tp('tool.load_failed_msg', 'A required helper could not load. Please reload the page and try again.'));
+      return;
+    }
+    if (!currentTool || currentTool.id !== requestedToolId) return;
+  } catch (dependencyError) {
+    console.warn('[ToolProcess] dependency preparation failed:', dependencyError);
+    showStatus('error', _tp('tool.load_failed', 'Tool could not start'),
+      _tp('tool.load_failed_msg', 'A required helper could not load. Please reload the page and try again.'));
+    return;
+  } finally {
+    _processPreparing = false;
+    if (prepButton && prepButton.isConnected && !_processingInFlight) {
+      prepButton.disabled = false;
+      prepButton.removeAttribute('aria-busy');
+      prepButton.innerHTML = prepButtonHtml;
+      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+    }
   }
 
   // Shared execution-boundary input validation. The selected tool's
