@@ -1219,14 +1219,110 @@ function renderToolPreviewPreparation(tool) {
 }
 
 async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
-  // The selected-file workspace is the first useful post-upload UI. Do not
-  // hold it behind PDF.js startup or processor prewarming.
+  // Fetch only the small shared card renderer after the user has selected a
+  // file. Do not wait for PDF.js, the organizer, or the processor engine.
   if (runId !== _cropUploadRun) return;
+  await ensureSharedFilePreviewLoaded();
+  if (runId !== _cropUploadRun) return;
+
   renderStandardPreviewStep(tool);
-  scheduleToolEngineWarmup(tool);
+
+  // Optional UI helpers are background work after the shared file cards are
+  // visible. Interactive editors replace the shell only when their own UI
+  // module is ready; all other tools keep the shared cards immediately usable.
+  loadToolPreviewDependencies(tool).then(function () {
+    if (runId !== _cropUploadRun || Flow.step !== 'preview' || !currentTool || currentTool.id !== tool.id) return;
+    if (tool.id === 'background-remover' || tool.id === 'edit') {
+      renderStandardPreviewStep(tool);
+      return;
+    }
+    maybeOpenPageOrganizer();
+    syncLegacyPreviewSection();
+    scheduleToolEngineWarmup(tool);
+  }).catch(function (error) {
+    console.debug('[ToolPreview] optional preview dependencies skipped:', tool.id, error);
+  });
 }
 
 var _sharedFilePreviewPromise = null;
+var _toolUiScriptPromises = Object.create(null);
+
+function toolUiGlobalReady(src) {
+  if (src.indexOf('shared-file-preview.js') !== -1) return !!window.SharedFilePreview;
+  if (src.indexOf('browser-tools.js') !== -1) return !!window.BrowserTools;
+  if (src.indexOf('runtime-tool-code-loader.js') !== -1) return !!window.RuntimeToolCodeLoader;
+  if (src.indexOf('pdf-preview.js') !== -1) return !!window.PdfPreview;
+  if (src.indexOf('page-organizer.js') !== -1) return !!window.PageOrganizer;
+  if (src.indexOf('bg-remover-pro.js') !== -1) return !!window.BgRemoverPro;
+  if (src.indexOf('edit-pdf-pro.js') !== -1) return !!window.EditPdfPro;
+  return false;
+}
+
+function loadToolUiScript(src) {
+  if (_toolUiScriptPromises[src]) return _toolUiScriptPromises[src];
+  if (toolUiGlobalReady(src)) return Promise.resolve(true);
+  var cleanSrc = src.split('?')[0];
+  var existing = Array.prototype.find.call(document.querySelectorAll('script[src]'), function (node) {
+    return node.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0] === cleanSrc;
+  });
+  if (existing && existing.dataset.ilpdfLoaded === '1') return Promise.resolve(toolUiGlobalReady(src));
+  _toolUiScriptPromises[src] = new Promise(function (resolve) {
+    var script = existing || document.createElement('script');
+    var timer = setTimeout(function () { finish(toolUiGlobalReady(src)); }, 10000);
+    function finish(ready) {
+      clearTimeout(timer);
+      if (ready && script) script.dataset.ilpdfLoaded = '1';
+      resolve(!!ready);
+    }
+    script.addEventListener('load', function () { finish(toolUiGlobalReady(src)); }, { once: true });
+    script.addEventListener('error', function () { finish(false); }, { once: true });
+    if (!existing) {
+      script.src = src;
+      script.async = true;
+      script.dataset.ilpdfPreviewDependency = '1';
+      script.dataset.ilpdfLoading = '1';
+      document.head.appendChild(script);
+    }
+  }).then(function (ready) {
+    if (!ready) delete _toolUiScriptPromises[src];
+    return ready;
+  });
+  return _toolUiScriptPromises[src];
+}
+
+function getToolPreviewDependencyUrls(tool) {
+  var urls = ['/js/browser-tools.js'];
+  var pdfTools = [
+    'merge','split','rotate','crop','organize','page-numbers','watermark','sign',
+    'redact','protect','unlock','repair','compare','pdf-to-word','pdf-to-powerpoint',
+    'pdf-to-excel','pdf-to-jpg','ai-summarize','translate','ocr','scan-to-pdf','edit','workflow'
+  ];
+  var organizerTools = [
+    'split','rotate','organize','crop','page-numbers','watermark','sign',
+    'redact','ocr','ai-summarize','translate','repair','edit'
+  ];
+  if (tool && (pdfTools.indexOf(tool.id) !== -1 || String(tool.acceptedFiles || '').toLowerCase().indexOf('.pdf') !== -1)) {
+    urls.push('/js/pdf-preview.js');
+  }
+  if (tool && organizerTools.indexOf(tool.id) !== -1) urls.push('/js/page-organizer.js');
+  if (tool && tool.id === 'background-remover') urls.push('/js/bg-remover-pro.js');
+  if (tool && tool.id === 'edit') urls.push('/js/edit-pdf-pro.js');
+  return urls.filter(function (src, index, all) { return all.indexOf(src) === index; });
+}
+
+function loadToolPreviewDependencies(tool) {
+  return Promise.all(getToolPreviewDependencyUrls(tool).map(loadToolUiScript));
+}
+
+function syncLegacyPreviewSection() {
+  var legacySection = document.querySelector('.ew-file-section--legacy');
+  if (!legacySection) return;
+  var organizerHost = legacySection.querySelector('#page-organizer');
+  var compressHost = legacySection.querySelector('#compress-preview-host');
+  legacySection.hidden = !(organizerHost || compressHost);
+  legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
+  legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
+}
 function ensureSharedFilePreviewLoaded() {
   if (window.SharedFilePreview) return Promise.resolve(true);
   if (_sharedFilePreviewPromise) return _sharedFilePreviewPromise;
