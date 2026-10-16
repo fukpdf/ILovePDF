@@ -27,7 +27,7 @@
     '/js/i18n.js?v=__BUILD_ID__',
     '/js/i18n-ext.js?v=__BUILD_ID__',
     '/js/chrome.js',
-    '/js/tool-page.js?v=20261003-cloud-layout-v4',
+    '/js/tool-page.js?v=20261016-shared-preview-v1',
     '/js/shared.js?v=__BUILD_ID__'
   ];
 
@@ -40,7 +40,6 @@
     '/css/seo-extended.css',
     '/css/ads.css',
     '/css/responsive-ads.css',
-    '/css/home-footer-v2.css?v=20260924',
     '/css/rtl.css',
     '/css/editor-workspace.css',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
