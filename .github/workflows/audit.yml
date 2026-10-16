@@ -81,6 +81,9 @@ jobs:
       - name: Enterprise source gate
         run: npm test
 
+      - name: Shared post-upload preview regression audit
+        run: npm run audit:shared-preview
+
       - name: Security regression audit
         run: npm run audit:security
 
