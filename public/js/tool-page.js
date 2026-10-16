@@ -1235,6 +1235,7 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
     if (runId !== _cropUploadRun || Flow.step !== 'preview' || !currentTool || currentTool.id !== tool.id) return;
     if (tool.id === 'background-remover' || tool.id === 'edit') {
       renderStandardPreviewStep(tool);
+      scheduleToolEngineWarmup(tool);
       return;
     }
     maybeOpenPageOrganizer();
@@ -1330,6 +1331,7 @@ function ensureSharedFilePreviewLoaded() {
   _sharedFilePreviewPromise = new Promise(function (resolve) {
     var existing = document.querySelector('script[data-shared-file-preview]');
     if (existing) {
+      if (existing.dataset.sharedLoaded === '1') { resolve(!!window.SharedFilePreview); return; }
       existing.addEventListener('load', function () { resolve(!!window.SharedFilePreview); }, { once: true });
       existing.addEventListener('error', function () { resolve(false); }, { once: true });
       return;
