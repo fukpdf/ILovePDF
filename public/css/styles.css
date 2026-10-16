@@ -9884,3 +9884,36 @@ i[data-lucide] {
 @media (prefers-reduced-motion: reduce) {
   .lp-shared-preview, .lp-shared-file-card { scroll-behavior: auto; transition: none; }
 }
+
+
+
+/* Standalone upload tools use the same file cards while retaining their own
+   processing controls and before/after or archive settings. */
+.ilpdf-special-shared-preview-host {
+  position: relative;
+  top: auto;
+  z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 14px 0;
+}
+body.has-shared-file-preview #iconv-queue,
+body.has-shared-file-preview #iconv-count,
+body.has-shared-file-preview #zip-files-ul,
+body.has-shared-file-preview #zip-file-count {
+  display: none !important;
+}
+body.has-shared-file-preview #iconv-controls-wrap,
+body.has-shared-file-preview #zip-file-list {
+  min-width: 0;
+  max-width: 100%;
+}
+body.has-shared-file-preview #zip-file-list > div:first-child {
+  justify-content: flex-end !important;
+}
+@media (max-width: 560px) {
+  .ilpdf-special-shared-preview-host .lp-shared-preview {
+    max-height: calc(100dvh - 24px);
+  }
+}
