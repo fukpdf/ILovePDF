@@ -7,6 +7,7 @@
   if (window.SharedFilePreview) return;
 
   var mountTokens = new WeakMap();
+  var activeHosts = new Set();
   var sequence = 0;
 
   function escapeHtml(value) {
@@ -56,6 +57,29 @@
       try { var ctx = canvas.getContext('2d'); if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); } catch (_) {}
     });
   }
+
+  function cleanupDetachedHosts() {
+    activeHosts.forEach(function (host) {
+      if (!host.isConnected) {
+        cleanup(host);
+        activeHosts.delete(host);
+      }
+    });
+  }
+
+  function unmount(host) {
+    if (!host) return;
+    cleanup(host);
+    activeHosts.delete(host);
+    host.innerHTML = '';
+  }
+
+  function cleanupAll() {
+    activeHosts.forEach(function (host) { cleanup(host); });
+    activeHosts.clear();
+  }
+
+  window.addEventListener('pagehide', cleanupAll);
 
   function visual(entry, index, host) {
     var file = entry.file;
@@ -142,15 +166,18 @@
   function mount(toolId, entries, host, options) {
     if (!host) return Promise.resolve(false);
     options = options || {};
+    cleanupDetachedHosts();
     var items = normalized(entries);
     var token = ++sequence;
     mountTokens.set(host, token);
     cleanup(host);
 
     if (!items.length) {
+      activeHosts.delete(host);
       host.innerHTML = '';
       return Promise.resolve(true);
     }
+    activeHosts.add(host);
 
     var totalBytes = items.reduce(function (sum, entry) {
       return sum + (Number.isFinite(entry.file.size) ? entry.file.size : 0);
@@ -221,6 +248,8 @@
 
   window.SharedFilePreview = {
     mount: mount,
+    unmount: unmount,
+    cleanupAll: cleanupAll,
     supported: function () { return true; }
   };
 }());
