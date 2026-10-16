@@ -1,0 +1,63 @@
+name: Shared File Preview Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "public/js/shared-file-preview.js"
+      - "public/js/tool-page.js"
+      - "public/js/tool-page-loader.js"
+      - "public/js/chrome.js"
+      - "public/tool.html"
+      - "public/css/styles.css"
+      - "public/js/tools-config.js"
+      - "scripts/shared-file-preview-regression-check.js"
+      - "package.json"
+      - ".github/workflows/shared-file-preview.yml"
+  push:
+    branches:
+      - main
+      - fix/live-shared-preview-workspace-20261016
+    paths:
+      - "public/js/shared-file-preview.js"
+      - "public/js/tool-page.js"
+      - "public/js/tool-page-loader.js"
+      - "public/js/chrome.js"
+      - "public/tool.html"
+      - "public/css/styles.css"
+      - "public/js/tools-config.js"
+      - "scripts/shared-file-preview-regression-check.js"
+      - "package.json"
+      - ".github/workflows/shared-file-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shared-preview:
+    name: shared-preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            public/js/shared-file-preview.js \
+            public/js/tool-page.js \
+            public/js/tool-page-loader.js \
+            public/js/chrome.js \
+            scripts/shared-file-preview-regression-check.js
+          do
+            node --check "$file"
+          done
+      - name: Validate package manifest
+        run: node -e "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))"
+      - name: Run shared preview regression checks
+        run: npm run test:shared-preview
