@@ -9917,3 +9917,10 @@ body.has-shared-file-preview #zip-file-list > div:first-child {
     max-height: calc(100dvh - 24px);
   }
 }
+
+
+.ew-preview-main.has-page-organizer > .shared-file-preview-host,
+.shared-file-preview-host--rotate {
+  position: relative;
+  top: auto;
+}
