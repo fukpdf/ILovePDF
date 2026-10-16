@@ -1320,10 +1320,8 @@ function syncLegacyPreviewSection() {
   var legacySection = document.querySelector('.ew-file-section--legacy');
   if (!legacySection) return;
   var organizerHost = legacySection.querySelector('#page-organizer');
-  var compressHost = legacySection.querySelector('#compress-preview-host');
-  legacySection.hidden = !(organizerHost || compressHost);
+  legacySection.hidden = !organizerHost;
   legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
-  legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
   var previewMain = legacySection.closest('.ew-preview-main');
   if (previewMain) previewMain.classList.toggle('has-page-organizer', !!organizerHost);
 }
@@ -1850,8 +1848,6 @@ function closePageOrganizer() {
   if (pageOrganizer) { try { pageOrganizer.destroy(); } catch {} pageOrganizer = null; }
   const host = document.getElementById('page-organizer');
   if (host) host.remove();
-  const cmpHost = document.getElementById('compress-preview-host');
-  if (cmpHost) cmpHost.remove();
   const list = document.getElementById('files-list');
   if (list) list.style.display = '';
 }
@@ -3267,58 +3263,6 @@ function wireCompressSlider() {
 }
 
 // Render a single-page thumbnail preview for the uploaded compress PDF.
-async function renderCompressPreview() {
-  const list = document.getElementById('files-list');
-  if (!list) return;
-  const entry = selectedFiles[0];
-  if (!entry) return;
-
-  // Mount/reuse the host element above the plain file row.
-  let host = document.getElementById('compress-preview-host');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'compress-preview-host';
-    list.parentNode.insertBefore(host, list);
-  }
-  host.innerHTML = `
-    <div class="compress-preview">
-      <div class="po-spinner" style="width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#E5322E;border-radius:50%;animation:spin 1s linear infinite;"></div>
-      <div class="compress-preview-meta">Reading <strong>${escapeHtml(entry.file.name)}</strong>…</div>
-    </div>`;
-
-  // Wire the slider regardless of preview success.
-  wireCompressSlider();
-
-  if (!window.PdfPreview) return;
-  let pdfDoc;
-  try {
-    pdfDoc = await window.PdfPreview.loadDocument(entry.file);
-    const canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 280, 0);
-    canvas.classList.add('compress-preview-canvas');
-    host.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'compress-preview';
-    wrap.appendChild(canvas);
-    const meta = document.createElement('div');
-    meta.className = 'compress-preview-meta';
-    meta.innerHTML = `
-      <strong>${escapeHtml(entry.file.name)}</strong><br>
-      ${formatBytes(entry.file.size)} · ${pdfDoc.pageCount} page${pdfDoc.pageCount === 1 ? '' : 's'} · Showing page 1
-    `;
-    wrap.appendChild(meta);
-    host.appendChild(wrap);
-  } catch (err) {
-    host.innerHTML = `
-      <div class="compress-preview">
-        <div class="compress-preview-meta" style="color:#b91c1c">
-          Couldn't render a preview. Your file will still be compressed.
-        </div>
-      </div>`;
-  } finally {
-    try { pdfDoc && window.PdfPreview.unloadDocument(pdfDoc); } catch (_) {}
-  }
-}
-
 // Convert the slider value (0/1/2) into the level string the Express
 // /api/compress route forwards to the upstream processor.
 function readCompressLevel() {
