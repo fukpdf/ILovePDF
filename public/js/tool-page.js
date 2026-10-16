@@ -1216,16 +1216,25 @@ var _sharedFilePreviewPromise = null;
 var _toolUiScriptPromises = Object.create(null);
 var SHARED_FILE_PREVIEW_URL = '/js/shared-file-preview.js?v=20261016-shared-preview-v1';
 
+function toolUiGlobalReady(src) {
+  if (src.indexOf('shared-file-preview.js') !== -1) return !!window.SharedFilePreview;
+  if (src.indexOf('browser-tools.js') !== -1) return !!window.BrowserTools;
+  if (src.indexOf('runtime-tool-code-loader.js') !== -1) return !!window.RuntimeToolCodeLoader;
+  if (src.indexOf('pdf-preview.js') !== -1) return !!window.PdfPreview;
+  if (src.indexOf('page-organizer.js') !== -1) return !!window.PageOrganizer;
+  if (src.indexOf('bg-remover-pro.js') !== -1) return !!window.BgRemoverPro;
+  if (src.indexOf('edit-pdf-pro.js') !== -1) return !!window.EditPdfPro;
+  return false;
+}
+
 function loadToolUiScript(src) {
   if (_toolUiScriptPromises[src]) return _toolUiScriptPromises[src];
-  if (src.indexOf('shared-file-preview.js') !== -1 && window.SharedFilePreview) return Promise.resolve(true);
+  if (toolUiGlobalReady(src)) return Promise.resolve(true);
   var cleanSrc = src.split('?')[0];
   var existing = Array.prototype.find.call(document.querySelectorAll('script[src]'), function (node) {
     return node.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0] === cleanSrc;
   });
-  // A script already present outside this loader belongs to the existing page
-  // boot graph. Scripts inserted here share the cached promise below.
-  if (existing && existing.dataset.ilpdfPreviewDependency !== '1') return Promise.resolve(true);
+  if (existing && existing.dataset.ilpdfLoaded === '1') return Promise.resolve(toolUiGlobalReady(src));
   _toolUiScriptPromises[src] = new Promise(function (resolve) {
     var script = existing || document.createElement('script');
     if (!existing) {
@@ -1235,21 +1244,25 @@ function loadToolUiScript(src) {
       script.dataset.ilpdfLoading = '1';
     }
     var settled = false;
+    var timer = null;
     function finish(ok) {
       if (settled) return;
       settled = true;
+      if (timer) clearTimeout(timer);
       if (ok) script.dataset.ilpdfLoaded = '1';
       delete script.dataset.ilpdfLoading;
       resolve(!!ok);
     }
-    script.addEventListener('load', function () { finish(true); }, { once: true });
+    script.addEventListener('load', function () { finish(toolUiGlobalReady(src)); }, { once: true });
     script.addEventListener('error', function () { finish(false); }, { once: true });
+    // Existing scripts can already have fired their load event before this
+    // helper is called. Check their global immediately, then fail gracefully
+    // after a bounded wait instead of hanging Process forever.
+    timer = setTimeout(function () { finish(toolUiGlobalReady(src)); }, 10000);
     if (!existing) document.head.appendChild(script);
-    else if (existing.dataset.ilpdfLoaded === '1') finish(true);
   });
   return _toolUiScriptPromises[src];
 }
-
 function loadSharedFilePreviewModule() {
   if (window.SharedFilePreview) return Promise.resolve(true);
   if (!_sharedFilePreviewPromise) {
