@@ -1250,6 +1250,10 @@ function loadToolUiScript(src) {
       settled = true;
       if (timer) clearTimeout(timer);
       if (ok) script.dataset.ilpdfLoaded = '1';
+      else {
+        delete _toolUiScriptPromises[src];
+        if (script.dataset.ilpdfPreviewDependency === '1' && script.parentNode) script.parentNode.removeChild(script);
+      }
       delete script.dataset.ilpdfLoading;
       resolve(!!ok);
     }
@@ -2120,13 +2124,8 @@ async function processFile() {
     preparationButton.innerHTML = '<span>Preparing tool…</span>';
   }
   try {
-    if (typeof loadToolUiScript === 'function') await loadToolUiScript('/js/browser-tools.js');
+    if (!window.BrowserTools) await loadToolUiScript('/js/browser-tools.js');
     if (!window.RuntimeToolCodeLoader) await loadToolUiScript('/js/runtime-tool-code-loader.js');
-    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function' &&
-        (typeof window.RuntimeToolCodeLoader.isLoaded !== 'function' ||
-         !window.RuntimeToolCodeLoader.isLoaded(requestedToolId))) {
-      await window.RuntimeToolCodeLoader.load(requestedToolId);
-    }
   } catch (dependencyError) {
     console.warn('[ToolProcess] active-tool dependency preparation failed; continuing with available runtime:', dependencyError);
   } finally {
@@ -2205,6 +2204,17 @@ async function processFile() {
     }
   } catch (_) {}
   try {
+    // Processing engines are loaded only after input validation and after the
+    // processing guard is active. The visible overlay explains the brief wait.
+    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function' &&
+        (typeof window.RuntimeToolCodeLoader.isLoaded !== 'function' ||
+         !window.RuntimeToolCodeLoader.isLoaded(currentTool.id))) {
+      if (processBtn) processBtn.disabled = true;
+      showProcessing('Preparing tool…', 'Loading the selected tool engine.');
+      await window.RuntimeToolCodeLoader.load(currentTool.id);
+      hideProcessing();
+    }
+
     // ── Page-organizer integration ──────────────────────────────────────────
     // Rotate PDF is worker-owned: keep the original bytes intact and pass the
     // page rotation/order plan to RotateRuntime instead of baking a new PDF on
