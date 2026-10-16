@@ -79,7 +79,10 @@
     activeHosts.clear();
   }
 
-  window.addEventListener('pagehide', cleanupAll);
+  window.addEventListener('pagehide', function (event) {
+    // Keep object URLs intact when the browser places the page in BFCache.
+    if (!event.persisted) cleanupAll();
+  });
 
   function visual(entry, index, host) {
     var file = entry.file;
