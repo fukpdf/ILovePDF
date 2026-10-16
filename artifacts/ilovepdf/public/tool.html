@@ -52,9 +52,40 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="/css/economy.css">
-  <link rel="stylesheet" href="/css/community-economy.css">
-  <link rel="stylesheet" href="/css/rtl.css">
+  <style id="tool-first-paint-css">
+    :root{color-scheme:light;--tp-ink:#1a1f36;--tp-muted:#687187;--tp-border:#e5e8f0;--tp-primary:#4f46e5}
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;width:100%;max-width:100%;overflow-x:hidden}
+    body{font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--tp-ink);background:#fff;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    button,input{font:inherit}
+    .site-header{position:sticky;top:0;z-index:1000;height:64px;background:#fff;border-bottom:1px solid var(--tp-border)}
+    .site-header .header-inner{height:64px;padding:0 clamp(16px,3vw,40px);display:flex;align-items:center;gap:24px}
+    .site-header .brand{display:flex;align-items:center;gap:10px;white-space:nowrap;color:var(--tp-ink);font-size:1.15rem;font-weight:800}
+    .site-header .brand-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#9333ea);color:#fff}
+    .site-header .brand-name span{color:#7c3aed}
+    .site-header .nav{margin-left:auto;display:flex;align-items:center;gap:8px}
+    .sk-nav-pill{height:10px;border-radius:99px;background:#eef0f6;display:block}
+    .tool-page{width:100%;max-width:1100px;margin:0 auto;padding:28px clamp(16px,3vw,40px) 56px}
+    .tool-firstpaint{max-width:780px;margin:0 auto;min-height:62vh}
+    .tool-firstpaint h1{margin:0 0 6px;font-size:clamp(1.5rem,4vw,2rem);line-height:1.2;letter-spacing:-.025em}
+    .tool-firstpaint p{margin:0;color:var(--tp-muted)}
+    .tool-firstpaint-upload{position:relative;min-height:230px;margin:24px 0 16px;padding:30px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;border:2px dashed #dfe3ee;border-radius:18px;background:linear-gradient(180deg,#fff,#f8f8fc)}
+    .tool-firstpaint-upload:focus-within{outline:3px solid #c7d2fe;outline-offset:3px}
+    .tool-firstpaint-icon{width:56px;height:56px;display:grid;place-items:center;border-radius:50%;background:#eef2ff;color:var(--tp-primary);font-size:1.65rem;font-weight:800}
+    .tool-firstpaint-button{position:relative;z-index:2;padding:12px 24px;border:0;border-radius:10px;background:#e5322e;color:#fff;font-weight:700;cursor:pointer}
+    .tool-firstpaint-button:focus-visible{outline:3px solid #fca5a5;outline-offset:3px}
+    .tool-firstpaint-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+    .tool-firstpaint-drop{font-size:.9rem;color:#4b5563}
+    .tool-firstpaint-note{font-size:.78rem;color:#8a92a6}
+    @media(max-width:640px){.site-header .header-inner{height:60px}.site-header{height:60px}.site-header .nav{gap:5px}.sk-nav-pill{height:8px}.tool-page{padding-top:20px}.tool-firstpaint-upload{min-height:210px;margin-top:20px}}
+  </style>
+  <link rel="preload" as="style" href="/css/economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/economy.css"></noscript>
+  <link rel="preload" as="style" href="/css/community-economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/community-economy.css"></noscript>
+  <link rel="preload" as="style" href="/css/rtl.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/rtl.css"></noscript>
   <!-- Worker prefetch remains; Google Fonts is loaded non-blocking below. -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
@@ -66,18 +97,28 @@
   <link rel="prefetch" href="/workers/compress-worker.js?v=__BUILD_ID__" as="worker">
   <link rel="prefetch" href="/workers/advanced-worker.js?v=__BUILD_ID__" as="worker">
   <link rel="prefetch" href="/workers/workerPool.js?v=__BUILD_ID__" as="worker">
-  <link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2">
-  <link rel="stylesheet" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2" data-shared-header-css="1">
-  <link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924">
-  <link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1">
-  <link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1">
-  <link rel="stylesheet" href="/css/blog.css">
-  <link rel="stylesheet" href="/css/seo-extended.css">
+  <link rel="preload" as="style" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/home.css?v=20261010-hide-header-all-tools-mobile-v2"></noscript>
+  <link rel="preload" as="style" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'" data-shared-header-css="1">
+  <noscript><link rel="stylesheet" href="/css/home-header-v2.css?v=20261010-hide-header-all-tools-mobile-v2"></noscript>
+  <link rel="preload" as="style" href="/css/home-footer-v2.css?v=20260924" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/home-footer-v2.css?v=20260924"></noscript>
+  <link rel="preload" as="style" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=20261010-continue-cards-match-popular-v1"></noscript>
+  <link rel="preload" as="style" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/download-page.css?v=20261010-continue-cards-match-popular-v1"></noscript>
+  <link rel="preload" as="style" href="/css/blog.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/blog.css"></noscript>
+  <link rel="preload" as="style" href="/css/seo-extended.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="stylesheet" href="/css/ads.css">
+  <link rel="preload" as="style" href="/css/ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/ads.css"></noscript>
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="stylesheet" href="/css/responsive-ads.css">
-  <link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2">
+  <link rel="preload" as="style" href="/css/responsive-ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/responsive-ads.css"></noscript>
+  <link rel="preload" as="style" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/editor-workspace.css?v=20261009-custom-feedback-v2"></noscript>
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script>
   (function () {
@@ -135,14 +176,47 @@
 
   <!-- ───────────── Tool content (centered, full-width, NO sidebar) ───────────── -->
   <main id="tool-content" class="tool-page">
-    <!-- sk: upload / preview / download skeleton — replaced by tool-page.js renderStep() -->
-    <div class="sk-upload-wrap" aria-hidden="true">
-      <div class="sk-upload-icon"></div>
-      <div class="sk-upload-btn"></div>
-      <div class="sk-upload-line sk-upload-line--wide"></div>
-      <div class="sk-upload-line sk-upload-line--narrow"></div>
-    </div>
+    <section class="tool-firstpaint" aria-labelledby="tool-firstpaint-title">
+      <h1 id="tool-firstpaint-title">Your PDF tool is opening</h1>
+      <p>Choose a file to get started. Your file stays on your device.</p>
+      <div class="tool-firstpaint-upload" id="tool-firstpaint-upload">
+        <div class="tool-firstpaint-icon" aria-hidden="true">PDF</div>
+        <button type="button" class="tool-firstpaint-button" id="tool-firstpaint-button">Choose a file</button>
+        <input class="tool-firstpaint-input" id="tool-firstpaint-input" type="file" accept=".pdf,application/pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple aria-label="Choose a PDF or image file">
+        <div class="tool-firstpaint-drop">or drop your file here</div>
+        <div class="tool-firstpaint-note">The tool controls will be ready in a moment.</div>
+      </div>
+    </section>
   </main>
+
+  <script>
+    (function () {
+      var slug = (location.pathname || '/').replace(/^\/+|\/+$/g, '').replace(/\/(preview|download)$/i, '').toLowerCase();
+      var title = slug.split('-').filter(Boolean).map(function (part) {
+        var upper = { pdf: 'PDF', jpg: 'JPG', jpeg: 'JPEG', ocr: 'OCR', ai: 'AI', qr: 'QR' };
+        return upper[part] || part.charAt(0).toUpperCase() + part.slice(1);
+      }).join(' ') || 'PDF tools';
+      var titleNode = document.getElementById('tool-firstpaint-title');
+      var input = document.getElementById('tool-firstpaint-input');
+      var button = document.getElementById('tool-firstpaint-button');
+      var area = document.getElementById('tool-firstpaint-upload');
+      if (titleNode) titleNode.textContent = title;
+      var files = function (list) {
+        if (list && list.length) window.__ILOVE_EARLY_UPLOAD_FILES = Array.from(list);
+      };
+      if (button && input) button.addEventListener('click', function () { input.click(); });
+      if (input) input.addEventListener('change', function () { files(input.files); });
+      if (area) {
+        area.addEventListener('dragover', function (event) { event.preventDefault(); area.style.borderColor = '#4f46e5'; });
+        area.addEventListener('dragleave', function () { area.style.borderColor = ''; });
+        area.addEventListener('drop', function (event) {
+          event.preventDefault();
+          area.style.borderColor = '';
+          files(event.dataTransfer && event.dataTransfer.files);
+        });
+      }
+    })();
+  </script>
 
   <!-- ───────────── Shared Footer ───────────── -->
   <footer class="footer">
@@ -268,6 +342,7 @@
     } catch (_) {}
   </script>
 
+  <template id="ilove-tool-script-template">
   <script src="/js/config.js"></script>
   <script src="/js/debug-trace.js"></script>
   <!-- G/H/I runtime hardening: timer registry must load first (no deps) -->
@@ -1067,5 +1142,139 @@
   <!-- Phase 2B: Idle group loader — loads analytics, telemetry, AI-helper, and prefetch   -->
   <!-- systems via requestIdleCallback after first paint. Zero impact on upload / process.  -->
   <script src="/js/runtime-tool-idle-loader.js" defer></script>
+  </template>
+  <script>
+    (function () {
+      var template = document.getElementById('ilove-tool-script-template');
+      if (!template || window.__ILOVE_TOOL_SCRIPTS_STARTED) return;
+      var loaderNonce = document.currentScript && document.currentScript.nonce || '';
+      var slug = (location.pathname || '/').replace(/^\/+|\/+$/g, '').replace(/\/(preview|download)$/i, '').toLowerCase();
+      var routeAliases = {
+        'merge-pdf':['merge'], 'split-pdf':['split'], 'compress-pdf':['compress'], 'rotate-pdf':['rotate'],
+        'organize-pdf':['organize'], 'protect-pdf':['protect'], 'unlock-pdf':['unlock'],
+        'add-page-numbers':['page-numbers'], 'page-numbers-pdf':['page-numbers'], 'watermark-pdf':['watermark'],
+        'edit-pdf':['edit'], 'repair-pdf':['repair'], 'sign-pdf':['sign'], 'redact-pdf':['redact'],
+        'compare-pdf':['compare'], 'translate-pdf':['translate'], 'pdf-to-word':['pdf-to-word','pdf-word'],
+        'word-to-pdf':['word-to-pdf','word-pdf'], 'pdf-to-excel':['pdf-to-excel','pdf-excel'],
+        'excel-to-pdf':['excel-to-pdf','excel-pdf'], 'pdf-to-powerpoint':['pdf-to-powerpoint','pdf-ppt'],
+        'powerpoint-to-pdf':['powerpoint-to-pdf','ppt-pdf'], 'ocr-pdf':['ocr-pdf','ocr'],
+        'remove-background':['background-remover','remove-background'], 'scan-to-pdf':['scan-to-pdf','scan'],
+        'jpg-to-pdf':['jpg-to-pdf','image-pdf'], 'pdf-to-jpg':['pdf-to-jpg','image-pdf'],
+        'crop-image':['crop-image','image-crop'], 'resize-image':['resize-image','image-resize'],
+        'image-filters':['image-filters'], 'image-compressor':['image-compressor'],
+        'image-converter':['image-converter'], 'crop-pdf':['crop-pdf','crop'],
+        'html-to-pdf':['html-to-pdf'], 'ai-summarizer':['ai-summarizer','ai-summarize']
+      };
+      var activeIds = new Set();
+      var injectedId = String(window.__TOOL_ID || new URLSearchParams(location.search).get('id') || '').toLowerCase();
+      if (injectedId) activeIds.add(injectedId);
+      if (slug) activeIds.add(slug);
+      (routeAliases[slug] || []).forEach(function (id) { activeIds.add(id); });
+      var knownRoute = !!injectedId || Object.prototype.hasOwnProperty.call(routeAliases, slug);
+      var toolFamilies = [
+        { ids:['merge'], re:/^(?:merge|pdf-merge)-/ },
+        { ids:['split'], re:/^split-/ },
+        { ids:['compress'], re:/^(?:compress|compression)-/ },
+        { ids:['rotate'], re:/^rotate-/ },
+        { ids:['organize'], re:/^organize-/ },
+        { ids:['protect'], re:/^protect-/ },
+        { ids:['unlock'], re:/^unlock-/ },
+        { ids:['page-numbers'], re:/^page-numbers-/ },
+        { ids:['watermark'], re:/^watermark-/ },
+        { ids:['edit'], re:/^edit-/ },
+        { ids:['repair'], re:/^repair-/ },
+        { ids:['sign'], re:/^sign-/ },
+        { ids:['redact'], re:/^redact-/ },
+        { ids:['workflow'], re:/^workflow-/ },
+        { ids:['compare'], re:/^compare-/ },
+        { ids:['translate','translate-pdf'], re:/^translate-/ },
+        { ids:['pdf-to-word','pdf-word','word-to-pdf','word-pdf','pdf-to-excel','pdf-excel','excel-to-pdf','excel-pdf','pdf-to-powerpoint','pdf-ppt','powerpoint-to-pdf','ppt-pdf'], re:/^(?:pdf-word|word-pdf|pdf-excel|excel-pdf|pdf-ppt|ppt-pdf)-/ },
+        { ids:['ocr','ocr-pdf'], re:/^ocr-/ },
+        { ids:['background-remover','remove-background'], re:/^(?:remove-background|background-remover)-/ },
+        { ids:['scan-to-pdf','scan'], re:/^scan-pdf-/ },
+        { ids:['jpg-to-pdf','pdf-to-jpg','image-pdf'], re:/^image-pdf-/ },
+        { ids:['crop-image','image-crop'], re:/^crop-image-/ },
+        { ids:['resize-image','image-resize'], re:/^resize-image-/ },
+        { ids:['image-filters'], re:/^image-filters-/ },
+        { ids:['html-to-pdf'], re:/^html-pdf-/ },
+        { ids:['ai-summarizer'], re:/^ai-summarizer-/ },
+        { ids:['crop-pdf','crop'], re:/^crop-pdf-/ },
+        { ids:['image-compressor'], re:/^image-compressor-/ },
+        { ids:['image-converter'], re:/^image-converter-/ }
+      ];
+      function ownerFor(script) {
+        var src = script.getAttribute('src') || '';
+        var path = src.split(/[?#]/, 1)[0];
+        var basename = path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+        if (path.indexOf('/js/pdf-pipeline/') !== -1) return ['pdf-to-word','pdf-word','pdf-to-excel','pdf-excel','pdf-to-powerpoint','pdf-ppt'];
+        for (var i = 0; i < toolFamilies.length; i++) {
+          if (toolFamilies[i].re.test(basename)) return toolFamilies[i].ids;
+        }
+        return null;
+      }
+      function esc(value) {
+        return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      }
+      var selected = Array.from(template.content.querySelectorAll('script[src]')).filter(function (source) {
+        var owners = ownerFor(source);
+        if (!owners || !knownRoute) return true;
+        return owners.some(function (owner) { return activeIds.has(owner); });
+      });
+      if (!selected.length) return;
+      var started = false;
+      function replayLifecycleEvents() {
+        window.__ILOVE_TOOL_RUNTIME_READY = true;
+        try { document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true })); } catch (_) {}
+        try { window.dispatchEvent(new Event('load')); } catch (_) {}
+      }
+      function startRuntime() {
+        if (started) return;
+        started = true;
+        window.__ILOVE_TOOL_SCRIPTS_STARTED = true;
+        var jobs = selected.map(function (source) {
+          return new Promise(function (resolve) {
+            var script = document.createElement('script');
+            script.async = false;
+            Array.from(source.attributes).forEach(function (attr) {
+              if (['async','defer','src'].includes(attr.name.toLowerCase())) return;
+              script.setAttribute(attr.name, attr.value);
+            });
+            if (!script.nonce && loaderNonce) script.nonce = loaderNonce;
+            script.onload = resolve;
+            script.onerror = function () {
+              console.warn('[tool-loader] runtime script failed:', source.getAttribute('src'));
+              resolve();
+            };
+            script.src = source.getAttribute('src');
+            document.head.appendChild(script);
+          });
+        });
+        Promise.all(jobs).then(replayLifecycleEvents);
+      }
+      function startAfterFirstPaint() {
+        if (performance.getEntriesByName('first-contentful-paint').length) {
+          startRuntime();
+          return;
+        }
+        var observer;
+        if (window.PerformanceObserver) {
+          try {
+            observer = new PerformanceObserver(function (list) {
+              if (list.getEntries().some(function (entry) { return entry.name === 'first-contentful-paint'; })) {
+                observer.disconnect();
+                startRuntime();
+              }
+            });
+            observer.observe({ type: 'paint', buffered: true });
+          } catch (_) {}
+        }
+        window.setTimeout(function () {
+          if (observer) observer.disconnect();
+          startRuntime();
+        }, 1500);
+      }
+      startAfterFirstPaint();
+    })();
+  </script>
 </body>
 </html>

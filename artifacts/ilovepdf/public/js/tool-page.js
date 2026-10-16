@@ -360,6 +360,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // the upload step automatically.
   hydrateFlowState().finally(() => {
     renderStep();
+    // If a visitor picked or dropped a file while the static first-paint shell
+    // was visible, hand that File object to the normal upload flow after the
+    // tool-specific page has mounted.
+    const earlyFiles = window.__ILOVE_EARLY_UPLOAD_FILES;
+    if (Array.isArray(earlyFiles) && earlyFiles.length) {
+      window.__ILOVE_EARLY_UPLOAD_FILES = null;
+      handleFiles(earlyFiles).catch(function (error) {
+        console.warn('[tool-page] queued first-paint upload could not start', error);
+      });
+    }
     // Phase 7G: crash recovery — show banner if an interrupted session exists.
     // Runs after renderStep() so the tool UI is already visible before the banner appears.
     if (window.CrashRecoveryUI && currentTool && Flow.step === 'upload') {
