@@ -7,6 +7,11 @@ const preview = read('public/js/shared-file-preview.js');
 const loader = read('public/js/tool-page-loader.js');
 const css = read('public/css/styles.css');
 const html = read('public/tool.html');
+const chrome = read('public/js/chrome.js');
+const specialFlow = read('public/js/special-upload-flow.js');
+const imageCompressor = read('public/image-compressor.html');
+const imageConverter = read('public/image-converter.html');
+const zipBuilder = read('public/zip-builder.html');
 
 assert.ok(preview.includes('window.SharedFilePreview'), 'shared file preview module must export its API');
 assert.ok(preview.includes('supported: function () { return true; }'), 'shared preview must be reusable by every standard-shell tool');
@@ -34,10 +39,13 @@ assert.ok(tool.includes('function removeFile(index)'), 'file removal workflow mu
 assert.ok(loader.includes('tool-page.js?v=20261016-shared-preview-v1'), 'tool page script cache key must be refreshed');
 assert.ok(!loader.includes('home-footer-v2.css'), 'tool workspace must not download marketing footer CSS');
 assert.ok(html.includes('class="site-header"'), 'shared site header must remain on tool pages');
-const chrome = read('public/js/chrome.js');
-assert.ok(chrome.includes("document.querySelector('main#tool-content.tool-page')"), 'shared chrome must detect the tool workspace');
+assert.ok(chrome.includes('main#tool-content.tool-page, .ilpdf-special-dropzone'), 'shared chrome must detect standard and standalone upload workspaces');
 assert.ok(chrome.includes('window.__ILOVE_SHARED_FOOTER_SUPPRESSED = isToolWorkspace'), 'shared chrome must suppress the footer on tool pages');
 assert.ok(!html.includes('<footer class="footer">'), 'marketing footer markup must be absent from tool workspaces');
+assert.ok(specialFlow.includes('mountPreview:mountPreview'), 'standalone upload pages must be able to lazy-load the shared preview');
+assert.ok(imageCompressor.includes('id="ic-shared-preview-host"') && imageCompressor.includes("mountPreview('image-compressor'"), 'Image Compressor must use shared preview cards');
+assert.ok(imageConverter.includes('id="iconv-shared-preview-host"') && imageConverter.includes("mountPreview('image-converter'"), 'Image Converter must use shared preview cards');
+assert.ok(zipBuilder.includes('id="zip-shared-preview-host"') && zipBuilder.includes("mountPreview('zip-builder'"), 'ZIP Builder must use shared preview cards');
 assert.ok(html.includes('styles.css?v=20261016-shared-preview-v1'), 'shared preview CSS cache key must be refreshed');
 
 assert.ok(css.includes('.shared-file-preview-host') && css.includes('position: sticky'), 'shared preview host must be sticky on larger screens');
