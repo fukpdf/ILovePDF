@@ -29,6 +29,7 @@ let _activeMountedModule = null;
 // launching two concurrent processing runs.  Set to true the moment we commit
 // to processing; cleared in the try/finally regardless of exit path.
 let _processingInFlight = false;
+let _processPreparing = false;
 let _cropUploadRun = 0;
 
 // ── 3-STEP FLOW (Upload → Preview → Download) ─────────────────────────────
@@ -1217,30 +1218,34 @@ var SHARED_FILE_PREVIEW_URL = '/js/shared-file-preview.js?v=20261016-shared-prev
 
 function loadToolUiScript(src) {
   if (_toolUiScriptPromises[src]) return _toolUiScriptPromises[src];
+  if (src.indexOf('shared-file-preview.js') !== -1 && window.SharedFilePreview) return Promise.resolve(true);
+  var cleanSrc = src.split('?')[0];
   var existing = Array.prototype.find.call(document.querySelectorAll('script[src]'), function (node) {
-    return node.src.replace(/^https?:\/\/[^/]+/, '') === src.split('?')[0];
+    return node.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0] === cleanSrc;
   });
-  if (existing && (existing.dataset.ilpdfLoaded === '1' || window.SharedFilePreview && src.indexOf('shared-file-preview.js') !== -1)) {
-    return Promise.resolve(true);
-  }
+  // A script already present outside this loader belongs to the existing page
+  // boot graph. Scripts inserted here share the cached promise below.
+  if (existing && existing.dataset.ilpdfPreviewDependency !== '1') return Promise.resolve(true);
   _toolUiScriptPromises[src] = new Promise(function (resolve) {
     var script = existing || document.createElement('script');
     if (!existing) {
       script.src = src;
       script.async = true;
       script.dataset.ilpdfPreviewDependency = '1';
+      script.dataset.ilpdfLoading = '1';
     }
     var settled = false;
     function finish(ok) {
       if (settled) return;
       settled = true;
       if (ok) script.dataset.ilpdfLoaded = '1';
+      delete script.dataset.ilpdfLoading;
       resolve(!!ok);
     }
     script.addEventListener('load', function () { finish(true); }, { once: true });
     script.addEventListener('error', function () { finish(false); }, { once: true });
     if (!existing) document.head.appendChild(script);
-    else if (src.indexOf('shared-file-preview.js') !== -1 && window.SharedFilePreview) finish(true);
+    else if (existing.dataset.ilpdfLoaded === '1') finish(true);
   });
   return _toolUiScriptPromises[src];
 }
@@ -2071,10 +2076,9 @@ async function tryWithRetry(toolId, files, opts) {
 // ── PROCESS FILE ───────────────────────────────────────────────────────────
 
 async function processFile() {
-  // Re-entrancy guard: a rapid double-click must never launch two concurrent
-  // processing runs.  All downstream validation is synchronous so this guard
-  // fires before any async work begins.
-  if (_processingInFlight) return;
+  // Guard both dependency preparation and the actual operation so repeated
+  // taps cannot trigger duplicate runtime loads or duplicate processing.
+  if (_processingInFlight || _processPreparing) return;
   if (!currentTool) return;
   if (selectedFiles.length === 0) {
     showStatus('error', _tp('status.no_file', 'No file selected'), _tp('status.no_file_msg', 'Please upload a file before processing.'));
@@ -2090,6 +2094,38 @@ async function processFile() {
     window.UsageLimit.showLimitModal();
     return;
   }
+
+  // Runtime and input-validation helpers are fetched only after the user
+  // presses Process. The preview itself never waits for these dependencies.
+  _processPreparing = true;
+  const preparationButton = document.getElementById('process-btn');
+  const preparationButtonHtml = preparationButton ? preparationButton.innerHTML : '';
+  const requestedToolId = currentTool.id;
+  if (preparationButton) {
+    preparationButton.disabled = true;
+    preparationButton.setAttribute('aria-busy', 'true');
+    preparationButton.innerHTML = '<span>Preparing tool…</span>';
+  }
+  try {
+    if (typeof loadToolUiScript === 'function') await loadToolUiScript('/js/browser-tools.js');
+    if (!window.RuntimeToolCodeLoader) await loadToolUiScript('/js/runtime-tool-code-loader.js');
+    if (window.RuntimeToolCodeLoader && typeof window.RuntimeToolCodeLoader.load === 'function' &&
+        (typeof window.RuntimeToolCodeLoader.isLoaded !== 'function' ||
+         !window.RuntimeToolCodeLoader.isLoaded(requestedToolId))) {
+      await window.RuntimeToolCodeLoader.load(requestedToolId);
+    }
+  } catch (dependencyError) {
+    console.warn('[ToolProcess] active-tool dependency preparation failed; continuing with available runtime:', dependencyError);
+  } finally {
+    _processPreparing = false;
+    if (preparationButton && preparationButton.isConnected && !_processingInFlight) {
+      preparationButton.disabled = false;
+      preparationButton.removeAttribute('aria-busy');
+      preparationButton.innerHTML = preparationButtonHtml;
+      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+    }
+  }
+  if (!currentTool || currentTool.id !== requestedToolId) return;
 
   // Shared execution-boundary input validation. The selected tool's
   // accepted file contract is checked before any processor/worker is invoked.

@@ -9569,10 +9569,16 @@ i[data-lucide] {
 .ilpdf-rotate-shared-preview { margin:12px 0; }
 .pro-shared-file-preview { margin:12px 24px; }
 @media (max-width:900px) {
-  .ew-preview-page .ew-preview-workspace { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "aside"; gap:14px; }
+  .ew-preview-page .ew-preview-workspace { grid-template-columns:minmax(0,1fr) minmax(220px,260px); gap:14px; overflow:visible; }
   .ew-preview-page .ew-preview-main { top:calc(var(--header-height,60px) + 8px); max-height:calc(100dvh - var(--header-height,60px) - 16px); }
   .ew-preview-page .ew-preview-aside { position:relative; top:auto; max-height:none; overflow:visible; padding:0 0 12px; }
   .lp-shared-file-list { max-height:min(40vh,360px); }
+}
+@media (max-width:640px) {
+  .ew-preview-page .ew-preview-workspace { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "aside"; gap:12px; }
+  .ew-preview-page .ew-preview-main { position:relative; top:auto; max-height:none; }
+  .ew-preview-page .ew-preview-aside { position:relative; top:auto; max-height:none; overflow:visible; }
+  .lp-shared-file-list { max-height:min(38vh,300px); }
 }
 @media (max-width:560px) {
   .ew-preview-page { padding:12px 10px 104px; }

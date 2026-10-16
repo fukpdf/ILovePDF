@@ -18,7 +18,7 @@ assert.match(preview, /function hydratePdfThumbnails/, 'PDF thumbnails must hydr
 assert.match(preview, /window\.handleFiles\(input\.files\)/, 'Add more files must use the existing file-state pipeline');
 assert.match(preview, /window\.removeFile\(index\)/, 'file removal must use the existing file-state pipeline');
 assert.match(preview, /window\.moveMergePreviewFile/, 'Merge ordering controls must use the real selected-file state');
-assert.match(preview, /\/\\.pdf\$/i, 'PDF detection must use a valid extension expression');
+assert.ok(preview.includes('/\\.pdf$/i'), 'PDF detection must use a valid extension expression');
 assert.match(toolPage, /loadSharedFilePreviewModule\(\)/, 'the shared preview must load after file selection');
 assert.match(toolPage, /id="shared-file-preview-host"/, 'preview workspace must provide a shared mount host');
 assert.match(toolPage, /function refreshSharedFilePreview\(\)/, 'selected file changes must refresh the shared cards');
