@@ -84,6 +84,7 @@
     window.__sharedPdfPreviewPromise = new Promise(function (resolve) {
       var existing = document.querySelector('script[data-shared-pdf-preview]');
       if (existing) {
+        if (existing.dataset.sharedLoaded === '1') { resolve(!!window.PdfPreview); return; }
         existing.addEventListener('load', function () { resolve(!!window.PdfPreview); }, { once: true });
         existing.addEventListener('error', function () { resolve(false); }, { once: true });
         return;
@@ -92,7 +93,7 @@
       script.src = '/js/pdf-preview.js?v=20261016-shared-file-preview-v1';
       script.async = true;
       script.dataset.sharedPdfPreview = '1';
-      script.onload = function () { resolve(!!window.PdfPreview); };
+      script.onload = function () { script.dataset.sharedLoaded = '1'; resolve(!!window.PdfPreview); };
       script.onerror = function () { resolve(false); };
       document.head.appendChild(script);
     }).then(function (ready) {
@@ -121,11 +122,14 @@
         pdfDoc = await window.PdfPreview.loadDocument(item.file);
         canvas = await window.PdfPreview.renderPage(pdfDoc, 1, 160, 0);
         if (!canvas || canvas._isErrorCanvas || !host.isConnected || mountTokens.get(host) !== token || !placeholder.isConnected) continue;
+        var wrap = document.createElement('span');
+        wrap.className = 'lp-shared-image-wrap';
         var image = document.createElement('img');
         image.className = 'lp-shared-image lp-shared-pdf-thumb';
         image.alt = 'First page preview of ' + String(item.file.name || 'PDF');
         image.src = canvas.toDataURL('image/jpeg', 0.82);
-        placeholder.replaceWith(image);
+        wrap.appendChild(image);
+        placeholder.replaceWith(wrap);
       } catch (_) {
         // Keep the file card and PDF badge usable if thumbnail rendering fails.
       } finally {
