@@ -186,7 +186,9 @@
 
     host.querySelectorAll('[data-shared-remove]').forEach(function (button) {
       button.addEventListener('click', function () {
-        if (typeof window.removeFile === 'function') window.removeFile(Number(button.getAttribute('data-shared-remove')));
+        var index = Number(button.getAttribute('data-shared-remove'));
+        if (typeof options.onRemove === 'function') options.onRemove(index);
+        else if (typeof window.removeFile === 'function') window.removeFile(index);
       });
     });
     host.querySelectorAll('[data-shared-move]').forEach(function (button) {
@@ -200,7 +202,10 @@
     var addButton = host.querySelector('[data-shared-add]');
     var addInput = host.querySelector('[data-shared-add-input]');
     if (addButton && addInput) {
-      addButton.addEventListener('click', function () { addInput.click(); });
+      addButton.addEventListener('click', function () {
+        if (typeof options.onAdd === 'function') options.onAdd();
+        else addInput.click();
+      });
       addInput.addEventListener('change', function () {
         if (addInput.files && addInput.files.length && typeof window.handleFiles === 'function') {
           window.handleFiles(addInput.files);
