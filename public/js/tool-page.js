@@ -1328,7 +1328,7 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   }
 
   cropJourneySetStage('preview', 'Preparing your preview', 'Displaying your selected file first.', 70, true);
-  const previewReady = await loadSharedFilePreviewModule();
+  await loadSharedFilePreviewModule();
   if (runId !== _cropUploadRun) return;
 
   // Only interactive editors that cannot render without their own module wait
@@ -1437,7 +1437,6 @@ function renderStandardPreviewStep(tool) {
     const clearBtn = document.getElementById('clear-btn');
     if (clearBtn) clearBtn.style.display = 'inline-flex';
   }
-  refreshSharedFilePreview();
 }
 
 // ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────
@@ -2017,6 +2016,7 @@ function removeFile(index) {
   const _rem = selectedFiles[index];
   if (_rem && _rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
   selectedFiles.splice(index, 1);
+  persistFlowState();
   renderFileList();
   if (selectedFiles.length === 0) {
     closePageOrganizer();
