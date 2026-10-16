@@ -95,6 +95,8 @@
               <input id="ic-file-input" type="file" accept="image/jpeg,image/png,image/webp" style="display:none">
             </div>
 
+            <div id="ic-shared-preview-host" class="shared-file-preview-host ilpdf-special-shared-preview-host" aria-live="polite"></div>
+
             <!-- Controls + preview (shown after file selected) -->
             <div id="ic-controls-wrap" style="display:none;margin-top:20px">
               <div class="fx-row" style="flex-wrap:wrap;align-items:flex-end">
@@ -226,8 +228,26 @@
       return { 'image/jpeg':'jpg','image/png':'png','image/webp':'webp' }[mime] || 'jpg';
     }
 
+    function mountSharedImagePreview(file){
+      var host = document.getElementById('ic-shared-preview-host');
+      if (!host || !window.SharedSpecialUpload) return;
+      window.SharedSpecialUpload.mountPreview('image-compressor', file ? [file] : [], host, {
+        multiple: false,
+        accept: 'image/jpeg,image/png,image/webp',
+        onRemove: function(){
+          originalFile = null;
+          compressedBlob = null;
+          document.getElementById('ic-controls-wrap').style.display = 'none';
+          document.getElementById('ic-preview-wrap').style.display = 'none';
+          document.getElementById('ic-file-input').value = '';
+          mountSharedImagePreview(null);
+        }
+      });
+    }
+
     function loadFile(file){
       originalFile = file;
+      mountSharedImagePreview(file);
       var reader = new FileReader();
       reader.onload = function(e){
         document.getElementById('ic-before-img').src = e.target.result;
