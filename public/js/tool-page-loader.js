@@ -168,9 +168,7 @@
   var POST_LOAD_SHARED = [
     '/js/browser-tools.js',
     'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
-    '/js/tool-i18n-bridge.js?v=__BUILD_ID__',
     '/js/auth-ui.js?v=__BUILD_ID__',
-    '/js/footer-lang.js',
     '/js/pwa-register.js'
   ];
 
