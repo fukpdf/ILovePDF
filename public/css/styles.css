@@ -9578,7 +9578,7 @@ i[data-lucide] {
   .ew-preview-page .ew-preview-workspace { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "aside"; gap:12px; }
   .ew-preview-page .ew-preview-main { position:relative; top:auto; max-height:none; }
   .ew-preview-page .ew-preview-aside { position:relative; top:auto; max-height:none; overflow:visible; }
-  .lp-shared-file-list { max-height:min(38vh,300px); }
+  .lp-shared-file-list { max-height:min(38vh, calc(100dvh - 240px), 300px); }
 }
 @media (max-width:560px) {
   .ew-preview-page { padding:12px 10px 104px; }
