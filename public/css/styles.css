@@ -9523,3 +9523,82 @@ i[data-lucide] {
     min-width:0!important;
   }
 }
+
+
+/* Shared post-upload file preview workspace (Firebase public/ runtime). */
+.ew-preview-page { width:100%; max-width:1320px; min-width:0; margin:0 auto; padding:18px clamp(12px,2.4vw,30px) 40px; }
+.ew-preview-page *, .ew-preview-page *::before, .ew-preview-page *::after { box-sizing:border-box; }
+.ew-preview-page .ew-preview-workspace { display:grid; grid-template-columns:minmax(0,1fr) minmax(250px,320px); align-items:start; gap:clamp(14px,2vw,24px); width:100%; min-width:0; overflow:visible; }
+.ew-preview-page .ew-preview-main { position:sticky; top:calc(var(--header-height,64px) + 12px); align-self:start; z-index:8; width:100%; max-width:100%; min-width:0; max-height:calc(100dvh - var(--header-height,64px) - 24px); overflow:visible; }
+.ew-preview-page .ew-preview-aside { position:relative; top:auto; max-height:none; min-width:0; overflow:visible; }
+.ew-preview-page .ew-preview-aside > *, .ew-preview-page .ew-process-panel, .ew-preview-page .options-section, .ew-preview-page .compress-options-section { min-width:0; max-width:100%; }
+#shared-file-preview-host { width:100%; max-width:100%; min-width:0; }
+#shared-file-preview-host:empty { display:none; }
+.lp-shared-preview { position:relative; display:flex; flex-direction:column; gap:0; width:100%; max-width:100%; min-width:0; max-height:calc(100dvh - var(--header-height,64px) - 24px); padding:clamp(12px,1.8vw,22px); border:1px solid #e4e2f5; border-radius:18px; background:#fff; box-shadow:0 12px 34px rgba(45,39,112,.09); }
+.lp-shared-preview-head { display:flex; flex:0 0 auto; align-items:flex-start; justify-content:space-between; gap:10px; min-width:0; margin:0 0 14px; }
+.lp-shared-preview-head > div { flex:1 1 auto; min-width:0; }
+.lp-shared-kicker { display:block; margin-bottom:6px; color:#6258d8; font-size:10px; font-weight:800; letter-spacing:.13em; }
+.lp-shared-preview-head h2 { margin:0; color:#171923; font-size:clamp(18px,1.8vw,24px); line-height:1.2; overflow-wrap:anywhere; }
+.lp-shared-preview-head p { margin:6px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
+.lp-shared-count { flex:0 0 auto; max-width:40%; padding:6px 9px; border-radius:999px; background:#f0efff; color:#5146c7; font-size:11px; font-weight:750; white-space:normal; text-align:center; }
+.lp-shared-file-list { display:flex; flex:1 1 auto; flex-direction:column; gap:9px; min-width:0; min-height:0; max-height:min(44vh,430px); margin:0; padding:0 3px 0 0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#c8c5ef transparent; list-style:none; }
+.lp-shared-file-card { display:flex; align-items:center; gap:9px; min-width:0; max-width:100%; padding:9px; border:1px solid #e8e7f2; border-radius:12px; background:#fff; }
+.lp-shared-index { display:grid; place-items:center; flex:0 0 25px; width:25px; height:25px; border-radius:8px; background:#f1f0ff; color:#5146c7; font-size:11px; font-weight:800; }
+.lp-shared-image-wrap, .lp-shared-file-art { position:relative; display:grid; place-items:center; flex:0 0 50px; width:50px; height:62px; min-width:0; overflow:hidden; border:1px solid #dedcf2; border-radius:8px; background:linear-gradient(145deg,#fff,#f3f2ff); }
+.lp-shared-image { display:block; width:100%; height:100%; max-width:100%; object-fit:contain; background:#fff; }
+.lp-shared-file-art:before { content:""; position:absolute; inset:9px 8px 11px; border:1px solid #d8d7ef; border-radius:3px; background:#fff; }
+.lp-shared-file-fold { position:absolute; top:9px; right:8px; width:11px; height:11px; border-left:1px solid #d8d7ef; border-bottom:1px solid #d8d7ef; background:#eeedff; }
+.lp-shared-file-lines { position:absolute; top:27px; left:14px; width:23px; height:3px; border-radius:3px; background:#c7c5e9; box-shadow:0 7px 0 #c7c5e9,0 14px 0 #deddf3; }
+.lp-shared-file-art b { position:absolute; right:0; bottom:0; padding:3px 4px; border-radius:4px 0 0 0; background:#6258d8; color:#fff; font-size:8px; letter-spacing:.02em; }
+.lp-shared-file-art--pdf b { background:#d92d20; } .lp-shared-file-art--doc b { background:#2563eb; } .lp-shared-file-art--xls b { background:#16803d; } .lp-shared-file-art--ppt b { background:#c2410c; }
+.lp-shared-file-info { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-width:0; }
+.lp-shared-file-info strong { display:block; max-width:100%; color:#171923; font-size:12px; font-weight:700; line-height:1.35; overflow-wrap:anywhere; word-break:break-word; }
+.lp-shared-file-info small { color:#64748b; font-size:11px; line-height:1.35; overflow-wrap:anywhere; }
+.lp-shared-ready { display:flex; align-items:center; gap:6px; color:#64748b; font-size:10px; line-height:1.3; }
+.lp-shared-ready span { flex:0 0 6px; width:6px; height:6px; border-radius:50%; background:#16a34a; }
+.lp-shared-remove { display:grid; place-items:center; flex:0 0 30px; width:30px; height:30px; padding:0; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#b42318; font-size:20px; line-height:1; cursor:pointer; }
+.lp-shared-remove:hover { border-color:#fda29b; background:#fff5f5; }
+.lp-shared-reorder { display:flex; flex:0 0 auto; flex-direction:column; gap:4px; }
+.lp-shared-reorder button { width:30px; height:30px; padding:0; border:1px solid #d1d5db; border-radius:7px; background:#fff; color:#374151; cursor:pointer; font-weight:700; line-height:1; }
+.lp-shared-preview-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:12px; color:#64748b; font-size:11px; }
+.lp-shared-add { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:34px; padding:7px 10px; border:1px solid #d9d5ff; border-radius:9px; background:#f8f7ff; color:#5146c7; font-size:12px; font-weight:700; cursor:pointer; }
+.lp-shared-add:hover { background:#efedff; }
+.lp-shared-preview-note { flex:0 0 auto; margin:11px 0 0; padding:9px 11px; border-radius:9px; background:#f8f8ff; color:#64748b; font-size:11px; line-height:1.45; }
+.lp-shared-preview--empty { min-height:150px; }
+.lp-shared-file-card button:focus-visible, .lp-shared-add:focus-visible { outline:3px solid rgba(99,91,219,.35); outline-offset:2px; }
+.ilpdf-rotate-shared-preview { margin:12px 0; }
+.pro-shared-file-preview { margin:12px 24px; }
+@media (max-width:900px) {
+  .ew-preview-page .ew-preview-workspace { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "aside"; gap:14px; }
+  .ew-preview-page .ew-preview-main { top:calc(var(--header-height,60px) + 8px); max-height:calc(100dvh - var(--header-height,60px) - 16px); }
+  .ew-preview-page .ew-preview-aside { position:relative; top:auto; max-height:none; overflow:visible; padding:0 0 12px; }
+  .lp-shared-file-list { max-height:min(40vh,360px); }
+}
+@media (max-width:560px) {
+  .ew-preview-page { padding:12px 10px 104px; }
+  .ew-preview-page .ew-preview-workspace { gap:12px; }
+  .ew-preview-page .ew-preview-main { top:calc(var(--header-height,56px) + 6px); max-height:calc(100dvh - var(--header-height,56px) - 12px); }
+  .lp-shared-preview { padding:11px; border-radius:14px; }
+  .lp-shared-preview-head { gap:7px; margin-bottom:10px; }
+  .lp-shared-preview-head p { font-size:11px; }
+  .lp-shared-count { max-width:35%; padding:5px 7px; font-size:10px; }
+  .lp-shared-file-list { max-height:min(38vh,300px); gap:7px; }
+  .lp-shared-file-card { gap:6px; padding:7px; }
+  .lp-shared-index { flex-basis:21px; width:21px; height:21px; font-size:10px; }
+  .lp-shared-image-wrap, .lp-shared-file-art { flex-basis:40px; width:40px; height:50px; }
+  .lp-shared-file-lines { left:11px; width:18px; }
+  .lp-shared-remove { flex-basis:27px; width:27px; height:28px; }
+  .lp-shared-reorder button { width:27px; height:27px; }
+  .lp-shared-preview-note { margin-top:9px; padding:8px 9px; font-size:10px; }
+  .pro-shared-file-preview { margin:10px 12px; }
+}
+@media (max-width:360px) {
+  .lp-shared-preview { padding:9px; }
+  .lp-shared-file-card { gap:5px; padding:6px; }
+  .lp-shared-image-wrap, .lp-shared-file-art { flex-basis:34px; width:34px; height:44px; }
+  .lp-shared-file-lines { left:9px; width:16px; }
+  .lp-shared-reorder button { width:25px; height:25px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .lp-shared-preview *, .lp-shared-preview *::before, .lp-shared-preview *::after { animation:none !important; transition:none !important; }
+}

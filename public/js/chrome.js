@@ -866,15 +866,22 @@ function ensureSharedAccessibility() {
 }
 
 function ensureSharedShell() {
-  /* Load the exact homepage header + footer stylesheets on pages that did not include them. */
+  const isToolWorkspace = !!document.getElementById('tool-content');
+
+  /* The canonical header is shared across public pages and tool workspaces. */
   if (!document.querySelector('link[data-shared-header-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/css/home-header-v2.css?v=20260924';
+    link.href = '/css/home-header-v2.css?v=20261016-shared-preview-no-footer-v1';
     link.dataset.sharedHeaderCss = '1';
     document.head.appendChild(link);
   }
-  if (!document.querySelector('link[data-shared-footer-css]')) {
+
+  if (isToolWorkspace) {
+    document.querySelectorAll('footer.footer, link[data-shared-footer-css]').forEach(function (node) {
+      node.remove();
+    });
+  } else if (!document.querySelector('link[data-shared-footer-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = '/css/home-footer-v2.css?v=20260924';
@@ -898,7 +905,14 @@ function ensureSharedShell() {
     else document.body.insertBefore(canonicalHeader, document.body.firstChild);
   }
 
-  /* Replace every page footer with the canonical homepage footer. */
+  if (isToolWorkspace) {
+    // Tool pages use the shared header but intentionally have no marketing footer.
+    document.querySelectorAll('footer.footer').forEach(function (footer) { footer.remove(); });
+    window.__ILOVE_SHARED_SHELL_READY = true;
+    return null;
+  }
+
+  /* Public content pages retain the canonical homepage footer. */
   const currentFooter = document.querySelector('footer.footer');
   const holder = document.createElement('div');
   holder.innerHTML = SHARED_FOOTER_HTML.trim();

@@ -26,8 +26,8 @@
     '/js/session-persist.js',
     '/js/i18n.js?v=__BUILD_ID__',
     '/js/i18n-ext.js?v=__BUILD_ID__',
-    '/js/chrome.js',
-    '/js/tool-page.js?v=20261003-cloud-layout-v4',
+    '/js/chrome.js?v=20261016-shared-preview-no-footer-v1',
+    '/js/tool-page.js?v=20261016-shared-preview-workspace-v1',
     '/js/shared.js?v=__BUILD_ID__'
   ];
 
@@ -40,7 +40,6 @@
     '/css/seo-extended.css',
     '/css/ads.css',
     '/css/responsive-ads.css',
-    '/css/home-footer-v2.css?v=20260924',
     '/css/rtl.css',
     '/css/editor-workspace.css',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
@@ -128,49 +127,17 @@
     return out;
   }
 
-  // Only the active tool's processor/preview/editor dependencies are eligible.
-  function relatedScripts(toolId) {
-    var pdfPreviewTools = [
-      'merge','split','rotate','crop','organize','page-numbers','watermark',
-      'sign','redact','protect','unlock','repair','compare','pdf-to-word',
-      'pdf-to-powerpoint','pdf-to-excel','pdf-to-jpg','word-to-pdf',
-      'powerpoint-to-pdf','excel-to-pdf','html-to-pdf','scan-to-pdf','ocr',
-      'ai-summarize','translate','edit','jpg-to-pdf'
-    ];
-
-    var pageOrganizerTools = [
-      'split','rotate','organize','crop','page-numbers','watermark','sign',
-      'redact','ocr','ai-summarize','translate','repair','edit'
-    ];
-
-    var livePreviewTools = [
-      'word-to-pdf','excel-to-pdf','pdf-to-word','pdf-to-excel',
-      'background-remover','translate','ai-summarize','edit',
-      'pdf-to-powerpoint','powerpoint-to-pdf','html-to-pdf','ocr',
-      'scan-to-pdf','repair','word-to-excel'
-    ];
-
-    var scripts = [
-      '/js/runtime-tool-code-loader.js'
-    ];
-
-    if (isIn(pdfPreviewTools, toolId)) scripts.push('/js/pdf-preview.js');
-    if (isIn(pageOrganizerTools, toolId)) scripts.push('/js/page-organizer.js');
-    if (isIn(livePreviewTools, toolId)) scripts.push('/js/live-preview.js');
-
-    if (toolId === 'background-remover') scripts.push('/js/bg-remover-pro.js');
-    if (toolId === 'edit') scripts.push('/js/edit-pdf-pro.js');
-
-    return unique(scripts);
+  // Keep the initial tool page lightweight. Preview and tool-specific UI
+  // dependencies are loaded by tool-page.js only after the user selects files.
+  function relatedScripts() {
+    return ['/js/runtime-tool-code-loader.js'];
   }
 
   // Keep authentication/language/PWA helpers out of the upload critical path.
   var POST_LOAD_SHARED = [
-    '/js/browser-tools.js',
     'https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js',
     '/js/tool-i18n-bridge.js?v=__BUILD_ID__',
     '/js/auth-ui.js?v=__BUILD_ID__',
-    '/js/footer-lang.js',
     '/js/pwa-register.js'
   ];
 
@@ -198,17 +165,8 @@
     await Promise.all(deps.map(loadScript));
     await Promise.all(LAZY_CSS.map(loadStylesheet));
 
-    // The existing per-tool graph loads only workers/extras belonging to the
-    // active tool. No other tool's processor bundle is fetched.
-    try {
-      if (G.RuntimeToolCodeLoader && typeof G.RuntimeToolCodeLoader.load === 'function') {
-        await G.RuntimeToolCodeLoader.load(toolId);
-      }
-    } catch (_) {}
-
-    // Small shared helpers are non-critical; fetch them together after the
-    // active tool runtime so they cannot delay the upload screen.
-    await Promise.all(POST_LOAD_SHARED.map(loadScript));
+    // Do not warm or download processors on page open. The selected tool loads
+    // its optional UI dependencies after file selection and its engine on Process.
 
     try {
       G.dispatchEvent(new CustomEvent('ilovepdf:tool-lazy-ready', {

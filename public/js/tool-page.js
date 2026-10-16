@@ -924,12 +924,14 @@ function renderProPreviewStep(tool) {
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
+      <div id="shared-file-preview-host" class="pro-shared-file-preview"></div>
       <div id="pro-editor-mount" style="margin-top:12px;flex:1;${isBgRemover ? '' : 'min-height:520px;'}"></div>
       <div id="result-area" style="margin-top:12px;padding:0 24px;"></div>
     </div>`;
 
   if (window.lucide) lucide.createIcons();
   wireStepNav();
+  refreshSharedFilePreview();
 
   const mount = document.getElementById('pro-editor-mount');
   const file  = selectedFiles[0] && selectedFiles[0].file;
@@ -1021,6 +1023,7 @@ function renderRotatePreviewStep(tool) {
             <i data-lucide="rotate-ccw"></i> Reset all
           </button>
         </header>
+        <div id="shared-file-preview-host" class="ilpdf-rotate-shared-preview"></div>
 
         <div class="ilpdf-rotate-editor-body">
           <main class="ilpdf-rotate-pages" aria-label="PDF page previews">
@@ -1083,6 +1086,7 @@ function renderRotatePreviewStep(tool) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+  refreshSharedFilePreview();
 
   // Bind the CTA directly as well as retaining the existing processFile()
   // entry point. This avoids relying on inline-handler scope in deployments
@@ -1207,51 +1211,129 @@ function renderToolPreviewPreparation(tool) {
   runToolPreviewPreparation(tool, runId, startedAt, 2200);
 }
 
+var _sharedFilePreviewPromise = null;
+var _toolUiScriptPromises = Object.create(null);
+var SHARED_FILE_PREVIEW_URL = '/js/shared-file-preview.js?v=20261016-shared-preview-v1';
+
+function loadToolUiScript(src) {
+  if (_toolUiScriptPromises[src]) return _toolUiScriptPromises[src];
+  var existing = Array.prototype.find.call(document.querySelectorAll('script[src]'), function (node) {
+    return node.src.replace(/^https?:\/\/[^/]+/, '') === src.split('?')[0];
+  });
+  if (existing && (existing.dataset.ilpdfLoaded === '1' || window.SharedFilePreview && src.indexOf('shared-file-preview.js') !== -1)) {
+    return Promise.resolve(true);
+  }
+  _toolUiScriptPromises[src] = new Promise(function (resolve) {
+    var script = existing || document.createElement('script');
+    if (!existing) {
+      script.src = src;
+      script.async = true;
+      script.dataset.ilpdfPreviewDependency = '1';
+    }
+    var settled = false;
+    function finish(ok) {
+      if (settled) return;
+      settled = true;
+      if (ok) script.dataset.ilpdfLoaded = '1';
+      resolve(!!ok);
+    }
+    script.addEventListener('load', function () { finish(true); }, { once: true });
+    script.addEventListener('error', function () { finish(false); }, { once: true });
+    if (!existing) document.head.appendChild(script);
+    else if (src.indexOf('shared-file-preview.js') !== -1 && window.SharedFilePreview) finish(true);
+  });
+  return _toolUiScriptPromises[src];
+}
+
+function loadSharedFilePreviewModule() {
+  if (window.SharedFilePreview) return Promise.resolve(true);
+  if (!_sharedFilePreviewPromise) {
+    _sharedFilePreviewPromise = loadToolUiScript(SHARED_FILE_PREVIEW_URL).then(function (ok) {
+      return !!ok && !!window.SharedFilePreview;
+    }).catch(function () { return false; });
+  }
+  return _sharedFilePreviewPromise;
+}
+
+function getToolPreviewDependencyUrls(tool) {
+  var urls = ['/js/browser-tools.js'];
+  var pdfTools = [
+    'merge','split','rotate','crop','organize','page-numbers','watermark','sign',
+    'redact','protect','unlock','repair','compare','pdf-to-word','pdf-to-powerpoint',
+    'pdf-to-excel','pdf-to-jpg','ai-summarize','translate','ocr','scan-to-pdf','edit','workflow'
+  ];
+  var organizerTools = [
+    'split','rotate','organize','crop','page-numbers','watermark','sign',
+    'redact','ocr','ai-summarize','translate','repair','edit'
+  ];
+  if (tool && (pdfTools.indexOf(tool.id) !== -1 || String(tool.acceptedFiles || '').toLowerCase().indexOf('.pdf') !== -1)) {
+    urls.push('/js/pdf-preview.js');
+  }
+  if (tool && organizerTools.indexOf(tool.id) !== -1) urls.push('/js/page-organizer.js');
+  if (tool && tool.id === 'background-remover') urls.push('/js/bg-remover-pro.js');
+  if (tool && tool.id === 'edit') urls.push('/js/edit-pdf-pro.js');
+  return urls.filter(function (src, index, all) { return all.indexOf(src) === index; });
+}
+
+function loadToolPreviewDependencies(tool) {
+  return Promise.all(getToolPreviewDependencyUrls(tool).map(loadToolUiScript));
+}
+
+function refreshSharedFilePreview() {
+  var host = document.getElementById('shared-file-preview-host');
+  if (!host || !currentTool || !window.SharedFilePreview ||
+      !window.SharedFilePreview.supported(currentTool.id)) return false;
+  window.SharedFilePreview.mount(currentTool.id, selectedFiles.map(function (entry) { return entry.file; }), host, {
+    multipleFiles: !!currentTool.multipleFiles,
+    acceptedFiles: currentTool.acceptedFiles || ''
+  }).catch(function () {});
+  return true;
+}
+
+window.refreshSharedFilePreview = refreshSharedFilePreview;
+
 async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const journey = document.getElementById('crop-upload-journey');
   if (!journey) return;
-  const file = selectedFiles[0] && selectedFiles[0].file;
-  if (!file) { renderStandardPreviewStep(tool); return; }
+  if (!selectedFiles[0] || !selectedFiles[0].file) {
+    renderStandardPreviewStep(tool);
+    return;
+  }
 
-  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm(tool.id)
-    : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
-    ? window.PdfPreview.loadPdfJs()
-    : Promise.resolve();
-  const isImage = tool.group === 'image';
-  const stages = [
-    { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
-    { at: 28, stage: 'engine', title: 'Preparing ' + tool.name, detail: 'Getting the ' + tool.name + ' workspace ready.' },
-    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
-    { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing your workspace.' }
-  ];
-  const updateVisual = value => {
+  cropJourneySetStage('preview', 'Preparing your preview', 'Displaying your selected file first.', 70, true);
+  const previewReady = await loadSharedFilePreviewModule();
+  if (runId !== _cropUploadRun) return;
+
+  // Specialized editor controls are loaded only after a file is selected.
+  // The ordinary shared file cards never wait for the processor engine or PDF.js.
+  const needsEditorBeforeRender = tool.id === 'rotate' ||
+    tool.id === 'background-remover' || tool.id === 'edit';
+  if (needsEditorBeforeRender) {
+    await loadToolPreviewDependencies(tool);
     if (runId !== _cropUploadRun) return;
-    let current = stages[0];
-    stages.forEach(item => { if (value >= item.at) current = item; });
-    cropJourneySetStage(current.stage, current.title, current.detail, value, true);
-  };
-  updateVisual(0);
-  const start = performance.now();
-  await new Promise(resolve => {
-    const tick = now => {
-      if (runId !== _cropUploadRun) return resolve();
-      const elapsed = now - start;
-      updateVisual(Math.min(92, (elapsed / minimumMs) * 92));
-      if (elapsed < minimumMs) requestAnimationFrame(tick); else resolve();
-    };
-    requestAnimationFrame(tick);
-  });
-  if (runId !== _cropUploadRun) return;
-  await Promise.all([engineWarm, previewWarm]);
-  const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
-  if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
-  if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
-  await new Promise(resolve => setTimeout(resolve, 220));
-  if (runId !== _cropUploadRun) return;
+  }
+
+  cropJourneySetStage('ready', tool.name + ' is ready', 'Your files are ready to review.', 100, true);
   renderStandardPreviewStep(tool);
+
+  // Load the active tool's optional UI helpers and processor warm-up after
+  // the shared preview is visible. Failures do not block selection or processing.
+  if (!needsEditorBeforeRender) {
+    loadToolPreviewDependencies(tool).then(function () {
+      if (runId !== _cropUploadRun || Flow.step !== 'preview' || !currentTool || currentTool.id !== tool.id) return;
+      if (window.SharedFilePreview && window.SharedFilePreview.hydratePdfThumbnails) {
+        var host = document.getElementById('shared-file-preview-host');
+        if (host) window.SharedFilePreview.hydratePdfThumbnails(selectedFiles.map(function (entry) { return entry.file; }), host);
+      }
+      maybeOpenPageOrganizer();
+      if (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function') {
+        Promise.resolve().then(function () { return window.BrowserTools.prewarm(tool.id); })
+          .catch(function (error) { console.debug('[ToolPreview] deferred engine warmup skipped:', tool.id, error); });
+      }
+    }).catch(function (error) {
+      console.debug('[ToolPreview] optional preview dependencies skipped:', tool.id, error);
+    });
+  }
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
@@ -1263,85 +1345,71 @@ function renderStandardPreviewStep(tool) {
     renderProPreviewStep(tool);
     return;
   }
-
   if (tool.id === 'rotate') {
     renderRotatePreviewStep(tool);
     return;
   }
 
   const optionsHtml = buildOptionsHtml(tool);
-
   const _ctxFile = selectedFiles.length === 1
     ? selectedFiles[0].file.name
-    : `${selectedFiles.length} files selected`;
+    : selectedFiles.length + ' files selected';
+  const hasSharedPreview = !!(window.SharedFilePreview &&
+    window.SharedFilePreview.supported(tool.id));
 
-  container.innerHTML = `
-    <div class="tool-page ew-preview-page">
-      ${toolHeaderBlock(tool, {
-        heading: `Preview & Process — ${tool.name}`,
-        desc: `Review your ${tool.multipleFiles ? 'files' : 'file'} below, then click Process.`,
-        icon: 'eye',
-        hideStatus: true,
-        back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
-      })}
-      ${stepIndicatorHtml('preview')}
-
-      <div class="ew-context-banner">
-        <div class="ew-context-icon"><i data-lucide="${tool.icon || 'file'}"></i></div>
-        <span class="ew-context-label">${tool.name}</span>
-        <span class="ew-context-file">— ${_ctxFile}</span>
-        <span class="ew-context-chip">Preview Ready</span>
-      </div>
-
-      <div class="ew-preview-workspace">
-        <div class="ew-preview-main">
-          <div id="live-preview-host"></div>
-          <section class="preview-step upload-section ew-file-section" aria-label="Selected files">
-            <span class="upload-label">
-              <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
-              Selected ${tool.multipleFiles ? 'files' : 'file'}
-            </span>
-            <div class="upload-files-list" id="files-list"></div>
-          </section>
-        </div>
-
-        <aside class="ew-preview-aside">
-          ${optionsHtml}
-          <div class="ew-process-panel">
-            <button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">
-              <i data-lucide="zap"></i> Process ${tool.multipleFiles ? 'Files' : 'File'}
-            </button>
-            <button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">
-              <i data-lucide="x"></i> Clear &amp; restart
-            </button>
-          </div>
-          ${trustStripHtml()}
-        </aside>
-      </div>
-
-      <div id="result-area"></div>
-    </div>`;
+  container.innerHTML = '<div class="tool-page ew-preview-page">' +
+    toolHeaderBlock(tool, {
+      heading: 'Preview &amp; Process — ' + tool.name,
+      desc: 'Review your ' + (tool.multipleFiles ? 'files' : 'file') + ' below, then click Process.',
+      icon: 'eye',
+      hideStatus: true,
+      back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') }
+    }) +
+    stepIndicatorHtml('preview') +
+    '<div class="ew-context-banner">' +
+      '<div class="ew-context-icon"><i data-lucide="' + (tool.icon || 'file') + '"></i></div>' +
+      '<span class="ew-context-label">' + escapeHtml(tool.name) + '</span>' +
+      '<span class="ew-context-file">— ' + escapeHtml(_ctxFile) + '</span>' +
+      '<span class="ew-context-chip">Preview ready</span>' +
+    '</div>' +
+    '<div class="ew-preview-workspace">' +
+      '<div class="ew-preview-main">' +
+        '<div id="shared-file-preview-host"></div>' +
+        (hasSharedPreview
+          ? '<div id="files-list" hidden aria-hidden="true"></div>'
+          : '<section class="preview-step upload-section ew-file-section" aria-label="Selected files">' +
+            '<span class="upload-label">Selected ' + (tool.multipleFiles ? 'files' : 'file') + '</span>' +
+            '<div class="upload-files-list" id="files-list"></div></section>') +
+      '</div>' +
+      '<aside class="ew-preview-aside">' + optionsHtml +
+        '<div class="ew-process-panel">' +
+          '<button type="button" class="btn btn-primary btn-lg" id="process-btn" onclick="processFile()">' +
+            '<i data-lucide="zap"></i> Process ' + (tool.multipleFiles ? 'Files' : 'File') +
+          '</button>' +
+          '<button type="button" class="btn btn-outline" id="clear-btn" data-go-step="upload">' +
+            '<i data-lucide="x"></i> Clear &amp; restart' +
+          '</button>' +
+        '</div>' + trustStripHtml() +
+      '</aside>' +
+    '</div><div id="result-area"></div></div>';
 
   if (window.lucide) lucide.createIcons();
   renderFileList();
+  if (tool.id === 'compress') wireCompressSlider();
   maybeOpenPageOrganizer();
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
-
   try {
     if (window.SessionPersist && tool) {
-      const _savedOpts = window.SessionPersist.loadOptions(Flow.baseSlug());
-      if (_savedOpts) window.SessionPersist.applyDomOptions(tool, _savedOpts);
+      const savedOptions = window.SessionPersist.loadOptions(Flow.baseSlug());
+      if (savedOptions) window.SessionPersist.applyDomOptions(tool, savedOptions);
     }
   } catch (_) {}
-
-  if (window.LivePreview && window.LivePreview.supported(tool.id) && selectedFiles.length) {
-    const lpHost = document.getElementById('live-preview-host');
-    if (lpHost) {
-      window.LivePreview.mount(tool.id, selectedFiles.map(function (w) { return w.file; }), lpHost)
-        .catch(function () {});
-    }
+  if (selectedFiles.length) {
+    const clearBtn = document.getElementById('clear-btn');
+    if (clearBtn) clearBtn.style.display = 'inline-flex';
   }
+  refreshSharedFilePreview();
 }
 
 // ── STEP 3 — DOWNLOAD ─────────────────────────────────────────────────────
@@ -1658,11 +1726,11 @@ async function handleFiles(fileList) {
 // When the current tool operates on a single PDF and PageOrganizer wants it,
 // we hide the plain file row and mount the thumbnail grid.
 function maybeOpenPageOrganizer() {
-  // Compress gets its own dedicated single-page preview — bypass the
-  // multi-page organizer grid entirely.
+  // Compression uses the shared file card; keep its settings slider but do not
+  // mount the obsolete dedicated preview panel.
   if (currentTool && currentTool.id === 'compress') {
     closePageOrganizer();
-    renderCompressPreview();
+    wireCompressSlider();
     return;
   }
   if (!window.PageOrganizer) return;
@@ -1711,6 +1779,14 @@ function cryptoId() {
 }
 
 function renderFileList() {
+  const sharedHost = document.getElementById('shared-file-preview-host');
+  if (sharedHost && currentTool && window.SharedFilePreview &&
+      window.SharedFilePreview.supported(currentTool.id)) {
+    refreshSharedFilePreview();
+    const sharedClearBtn = document.getElementById('clear-btn');
+    if (sharedClearBtn) sharedClearBtn.style.display = selectedFiles.length ? 'inline-flex' : 'none';
+    return;
+  }
   const list     = document.getElementById('files-list');
   const clearBtn = document.getElementById('clear-btn');
   if (!list) return;
@@ -1897,6 +1973,18 @@ function rotateFile(index) {
   renderFileList();
 }
 
+function moveMergePreviewFile(fromIndex, toIndex) {
+  if (!currentTool || currentTool.id !== 'merge' ||
+      fromIndex < 0 || toIndex < 0 ||
+      fromIndex >= selectedFiles.length || toIndex >= selectedFiles.length ||
+      fromIndex === toIndex) return;
+  const entry = selectedFiles.splice(fromIndex, 1)[0];
+  selectedFiles.splice(toIndex, 0, entry);
+  persistFlowState();
+  renderFileList();
+}
+window.moveMergePreviewFile = moveMergePreviewFile;
+
 function removeFile(index) {
   const _rem = selectedFiles[index];
   if (_rem && _rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
@@ -1904,7 +1992,9 @@ function removeFile(index) {
   renderFileList();
   if (selectedFiles.length === 0) {
     closePageOrganizer();
+    if (_activeMountedModule) { try { _activeMountedModule.destroy(); } catch (_) {} _activeMountedModule = null; }
     if (typeof clearAllBursts === 'function') clearAllBursts();
+    if (Flow.step === 'preview') Flow.navTo('upload');
   }
 }
 
