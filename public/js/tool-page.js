@@ -1271,8 +1271,13 @@ function loadSharedFilePreviewModule() {
   if (window.SharedFilePreview) return Promise.resolve(true);
   if (!_sharedFilePreviewPromise) {
     _sharedFilePreviewPromise = loadToolUiScript(SHARED_FILE_PREVIEW_URL).then(function (ok) {
-      return !!ok && !!window.SharedFilePreview;
-    }).catch(function () { return false; });
+      var ready = !!ok && !!window.SharedFilePreview;
+      if (!ready) _sharedFilePreviewPromise = null;
+      return ready;
+    }).catch(function () {
+      _sharedFilePreviewPromise = null;
+      return false;
+    });
   }
   return _sharedFilePreviewPromise;
 }
