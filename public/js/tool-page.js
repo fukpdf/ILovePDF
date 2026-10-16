@@ -448,6 +448,13 @@ function renderNotFound(toolId, slug) {
 
 function renderStep() {
   if (!currentTool) return;
+  // Releasing the preview host before leaving the preview step prevents image
+  // object URLs and canvas resources from surviving a tool-step transition.
+  const previousSharedHost = document.getElementById('shared-file-preview-host');
+  if (previousSharedHost && Flow.step !== 'preview' && window.SharedFilePreview &&
+      typeof window.SharedFilePreview.unmount === 'function') {
+    window.SharedFilePreview.unmount(previousSharedHost);
+  }
   setMeta('keywords', `${currentTool.name.toLowerCase()}, ${currentTool.name.toLowerCase()} online, ${currentTool.name.toLowerCase()} free, ilovepdf, pdf tools online`);
 
   // Guard: preview needs files; download needs a captured result.
