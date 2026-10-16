@@ -1331,36 +1331,37 @@ async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
   const previewReady = await loadSharedFilePreviewModule();
   if (runId !== _cropUploadRun) return;
 
-  // Specialized editor controls are loaded only after a file is selected.
-  // The ordinary shared file cards never wait for the processor engine or PDF.js.
-  const needsEditorBeforeRender = tool.id === 'rotate' ||
-    tool.id === 'background-remover' || tool.id === 'edit';
+  // Only interactive editors that cannot render without their own module wait
+  // for that small UI module. Rotate can show its shared file card immediately;
+  // its page-organizer grid attaches when the PDF helpers finish in background.
+  const needsEditorBeforeRender = tool.id === 'background-remover' || tool.id === 'edit';
   if (needsEditorBeforeRender) {
-    await loadToolPreviewDependencies(tool);
+    const editorUrls = tool.id === 'background-remover'
+      ? ['/js/bg-remover-pro.js']
+      : ['/js/pdf-preview.js', '/js/edit-pdf-pro.js'];
+    await Promise.all(editorUrls.map(loadToolUiScript));
     if (runId !== _cropUploadRun) return;
   }
 
   cropJourneySetStage('ready', tool.name + ' is ready', 'Your files are ready to review.', 100, true);
   renderStandardPreviewStep(tool);
 
-  // Load the active tool's optional UI helpers and processor warm-up after
-  // the shared preview is visible. Failures do not block selection or processing.
-  if (!needsEditorBeforeRender) {
-    loadToolPreviewDependencies(tool).then(function () {
-      if (runId !== _cropUploadRun || Flow.step !== 'preview' || !currentTool || currentTool.id !== tool.id) return;
-      if (window.SharedFilePreview && window.SharedFilePreview.hydratePdfThumbnails) {
-        var host = document.getElementById('shared-file-preview-host');
-        if (host) window.SharedFilePreview.hydratePdfThumbnails(selectedFiles.map(function (entry) { return entry.file; }), host);
-      }
-      maybeOpenPageOrganizer();
-      if (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function') {
-        Promise.resolve().then(function () { return window.BrowserTools.prewarm(tool.id); })
-          .catch(function (error) { console.debug('[ToolPreview] deferred engine warmup skipped:', tool.id, error); });
-      }
-    }).catch(function (error) {
-      console.debug('[ToolPreview] optional preview dependencies skipped:', tool.id, error);
-    });
-  }
+  // Load optional UI helpers and processor prewarm only after the shared preview
+  // is visible. Thumbnail/editor failures never block file selection.
+  loadToolPreviewDependencies(tool).then(function () {
+    if (runId !== _cropUploadRun || Flow.step !== 'preview' || !currentTool || currentTool.id !== tool.id) return;
+    if (window.SharedFilePreview && window.SharedFilePreview.hydratePdfThumbnails) {
+      var host = document.getElementById('shared-file-preview-host');
+      if (host) window.SharedFilePreview.hydratePdfThumbnails(selectedFiles.map(function (entry) { return entry.file; }), host);
+    }
+    maybeOpenPageOrganizer();
+    if (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function') {
+      Promise.resolve().then(function () { return window.BrowserTools.prewarm(tool.id); })
+        .catch(function (error) { console.debug('[ToolPreview] deferred engine warmup skipped:', tool.id, error); });
+    }
+  }).catch(function (error) {
+    console.debug('[ToolPreview] optional preview dependencies skipped:', tool.id, error);
+  });
 }
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
