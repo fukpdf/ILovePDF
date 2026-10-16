@@ -924,11 +924,13 @@ function renderProPreviewStep(tool) {
         back: { href: '#step:upload', label: _tp('tool.back_to_upload', 'Back to upload') },
       })}
       ${stepIndicatorHtml('preview')}
+      <div id="shared-file-preview-host" class="shared-file-preview-host" aria-live="polite"></div>
       <div id="pro-editor-mount" style="margin-top:12px;flex:1;${isBgRemover ? '' : 'min-height:520px;'}"></div>
       <div id="result-area" style="margin-top:12px;padding:0 24px;"></div>
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+  mountSharedFilePreview(tool);
   wireStepNav();
 
   const mount = document.getElementById('pro-editor-mount');
@@ -1022,6 +1024,7 @@ function renderRotatePreviewStep(tool) {
           </button>
         </header>
 
+        <div id="shared-file-preview-host" class="shared-file-preview-host shared-file-preview-host--rotate" aria-live="polite"></div>
         <div class="ilpdf-rotate-editor-body">
           <main class="ilpdf-rotate-pages" aria-label="PDF page previews">
             <div class="ilpdf-rotate-pages-head">
@@ -1083,6 +1086,7 @@ function renderRotatePreviewStep(tool) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+  mountSharedFilePreview(tool);
 
   // Bind the CTA directly as well as retaining the existing processFile()
   // entry point. This avoids relying on inline-handler scope in deployments
@@ -1207,52 +1211,71 @@ function renderToolPreviewPreparation(tool) {
   runToolPreviewPreparation(tool, runId, startedAt, 2200);
 }
 
-async function runToolPreviewPreparation(tool, runId, startedAt, minimumMs) {
-  const journey = document.getElementById('crop-upload-journey');
-  if (!journey) return;
-  const file = selectedFiles[0] && selectedFiles[0].file;
-  if (!file) { renderStandardPreviewStep(tool); return; }
-
-  const engineWarm = (window.BrowserTools && typeof window.BrowserTools.prewarm === 'function')
-    ? window.BrowserTools.prewarm(tool.id)
-    : Promise.resolve({ warmed: false });
-  const previewWarm = (window.PdfPreview && typeof window.PdfPreview.loadPdfJs === 'function' && tool.group !== 'image')
-    ? window.PdfPreview.loadPdfJs()
-    : Promise.resolve();
-  const isImage = tool.group === 'image';
-  const stages = [
-    { at: 0, stage: 'read', title: 'Reading your ' + (isImage ? 'image' : 'file'), detail: 'Checking the selected file before the preview opens.' },
-    { at: 28, stage: 'engine', title: 'Preparing ' + tool.name, detail: 'Getting the ' + tool.name + ' workspace ready.' },
-    { at: 58, stage: 'preview', title: 'Preparing preview', detail: 'Getting the preview renderer ready.' },
-    { at: 86, stage: 'preview', title: 'Finishing preview setup', detail: 'Almost ready — preparing your workspace.' }
-  ];
-  const updateVisual = value => {
-    if (runId !== _cropUploadRun) return;
-    let current = stages[0];
-    stages.forEach(item => { if (value >= item.at) current = item; });
-    cropJourneySetStage(current.stage, current.title, current.detail, value, true);
-  };
-  updateVisual(0);
-  const start = performance.now();
-  await new Promise(resolve => {
-    const tick = now => {
-      if (runId !== _cropUploadRun) return resolve();
-      const elapsed = now - start;
-      updateVisual(Math.min(92, (elapsed / minimumMs) * 92));
-      if (elapsed < minimumMs) requestAnimationFrame(tick); else resolve();
-    };
-    requestAnimationFrame(tick);
-  });
-  if (runId !== _cropUploadRun) return;
-  await Promise.all([engineWarm, previewWarm]);
-  const remaining = Math.max(0, minimumMs - (Date.now() - startedAt));
-  if (remaining) await new Promise(resolve => setTimeout(resolve, remaining));
-  if (runId !== _cropUploadRun) return;
-  cropJourneySetStage('ready', tool.name + ' is ready', 'Opening your preview workspace.', 100, true);
-  await new Promise(resolve => setTimeout(resolve, 220));
+async function runToolPreviewPreparation(tool, runId) {
+  // The selected-file workspace is the first useful post-upload UI. Do not
+  // hold it behind PDF.js startup or processor prewarming.
   if (runId !== _cropUploadRun) return;
   renderStandardPreviewStep(tool);
+  scheduleToolEngineWarmup(tool);
 }
+
+var _sharedFilePreviewPromise = null;
+function ensureSharedFilePreviewLoaded() {
+  if (window.SharedFilePreview) return Promise.resolve(true);
+  if (_sharedFilePreviewPromise) return _sharedFilePreviewPromise;
+  _sharedFilePreviewPromise = new Promise(function (resolve) {
+    var existing = document.querySelector('script[data-shared-file-preview]');
+    if (existing) {
+      existing.addEventListener('load', function () { resolve(!!window.SharedFilePreview); }, { once: true });
+      existing.addEventListener('error', function () { resolve(false); }, { once: true });
+      return;
+    }
+    var script = document.createElement('script');
+    script.src = '/js/shared-file-preview.js?v=20261016-shared-file-preview-v1';
+    script.async = true;
+    script.dataset.sharedFilePreview = '1';
+    script.onload = function () { resolve(!!window.SharedFilePreview); };
+    script.onerror = function () { _sharedFilePreviewPromise = null; resolve(false); };
+    document.head.appendChild(script);
+  });
+  return _sharedFilePreviewPromise;
+}
+
+function mountSharedFilePreview(tool) {
+  var host = document.getElementById('shared-file-preview-host');
+  if (!host || !tool || !selectedFiles.length) return Promise.resolve(false);
+  return ensureSharedFilePreviewLoaded().then(function (ready) {
+    if (!ready || !host.isConnected || !window.SharedFilePreview) {
+      if (host.isConnected) host.innerHTML = '<section class="lp-shared-preview lp-shared-preview--fallback" role="status"><h2>Selected files</h2><p>Your files are selected and remain ready to process. Reload the page if the preview does not appear.</p></section>';
+      return false;
+    }
+    return window.SharedFilePreview.mount(tool.id, selectedFiles, host, {
+      accept: tool.acceptedFiles || '',
+      multiple: !!tool.multipleFiles
+    });
+  }).catch(function (error) {
+    console.warn('[SharedFilePreview] could not mount file cards:', error);
+    if (host.isConnected) host.innerHTML = '<section class="lp-shared-preview lp-shared-preview--fallback" role="status"><h2>Selected files</h2><p>Your files remain selected and can still be processed.</p></section>';
+    return false;
+  });
+}
+
+function refreshSharedFilePreview() {
+  var host = document.getElementById('shared-file-preview-host');
+  if (!host || !currentTool) return false;
+  mountSharedFilePreview(currentTool);
+  return true;
+}
+
+function moveSharedPreviewFile(fromIndex, toIndex) {
+  if (!selectedFiles[fromIndex] || toIndex < 0 || toIndex >= selectedFiles.length || fromIndex === toIndex) return;
+  var moved = selectedFiles.splice(fromIndex, 1)[0];
+  selectedFiles.splice(toIndex, 0, moved);
+  persistFlowState();
+  refreshSharedFilePreview();
+  if (currentTool && currentTool.id === 'compress') renderFileList();
+}
+window.moveSharedPreviewFile = moveSharedPreviewFile;
 function renderStandardPreviewStep(tool) {
   const container = document.getElementById('tool-content');
   if (!container) return;
@@ -1295,8 +1318,9 @@ function renderStandardPreviewStep(tool) {
 
       <div class="ew-preview-workspace">
         <div class="ew-preview-main">
-          <div id="live-preview-host"></div>
-          <section class="preview-step upload-section ew-file-section" aria-label="Selected files">
+          <div id="shared-file-preview-host" class="shared-file-preview-host" aria-live="polite"></div>
+          <div id="live-preview-host" class="tool-rich-preview-host"></div>
+          <section class="preview-step upload-section ew-file-section ew-file-section--legacy" aria-label="Legacy selected-file controls">
             <span class="upload-label">
               <i data-lucide="file" style="display:inline-block;width:13px;height:13px;vertical-align:middle;margin-right:5px;"></i>
               Selected ${tool.multipleFiles ? 'files' : 'file'}
@@ -1323,8 +1347,23 @@ function renderStandardPreviewStep(tool) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
-  renderFileList();
+  // The shared file cards replace the legacy list visually. Keep the old
+  // list node only as a compatibility anchor for PageOrganizer/Compress.
+  if (tool.id === 'compress') renderFileList();
+  else {
+    const legacyList = document.getElementById('files-list');
+    if (legacyList) legacyList.innerHTML = '';
+  }
   maybeOpenPageOrganizer();
+  const legacySection = document.querySelector('.ew-file-section--legacy');
+  if (legacySection) {
+    const organizerHost = legacySection.querySelector('#page-organizer');
+    const compressHost = legacySection.querySelector('#compress-preview-host');
+    legacySection.hidden = !(organizerHost || compressHost);
+    legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
+    legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
+  }
+  mountSharedFilePreview(tool);
   wireStepNav();
   try { window.dispatchEvent(new CustomEvent('ilpdf:step', { detail: { step: 'preview' } })); } catch (_) {}
 
@@ -1649,8 +1688,21 @@ async function handleFiles(fileList) {
     // transition. The preparation panel is not an upload-speed indicator.
     Flow.navTo('preview');
   } else {
-    renderFileList();
+    if (currentTool && currentTool.id === 'compress') renderFileList();
+    else {
+      const legacyList = document.getElementById('files-list');
+      if (legacyList) legacyList.innerHTML = '';
+    }
     maybeOpenPageOrganizer();
+    refreshSharedFilePreview();
+    const legacySection = document.querySelector('.ew-file-section--legacy');
+    if (legacySection) {
+      const organizerHost = legacySection.querySelector('#page-organizer');
+      const compressHost = legacySection.querySelector('#compress-preview-host');
+      legacySection.hidden = !(organizerHost || compressHost);
+      legacySection.classList.toggle('ew-file-section--organizer-active', !!organizerHost);
+      legacySection.classList.toggle('ew-file-section--compress-active', !!compressHost);
+    }
   }
 }
 
@@ -1899,13 +1951,23 @@ function rotateFile(index) {
 
 function removeFile(index) {
   const _rem = selectedFiles[index];
-  if (_rem && _rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
+  if (!_rem) return;
+  if (_rem._thumbUrl) { try { URL.revokeObjectURL(_rem._thumbUrl); } catch (_) {} }
   selectedFiles.splice(index, 1);
-  renderFileList();
+  if (currentTool && currentTool.id === 'compress') renderFileList();
+  else {
+    const legacyList = document.getElementById('files-list');
+    if (legacyList) legacyList.innerHTML = '';
+  }
   if (selectedFiles.length === 0) {
     closePageOrganizer();
     if (typeof clearAllBursts === 'function') clearAllBursts();
+    if (Flow.step === 'preview') { Flow.navTo('upload'); return; }
+  } else {
+    refreshSharedFilePreview();
+    if (currentTool && currentTool.id === 'organize') maybeOpenPageOrganizer();
   }
+  persistFlowState();
 }
 
 function clearAll() {
