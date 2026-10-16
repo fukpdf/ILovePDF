@@ -9832,13 +9832,8 @@ i[data-lucide] {
 .lp-shared-preview--fallback { max-height: none; }
 .tool-rich-preview-host:empty { display: none; }
 .ew-preview-page .ew-file-section--legacy { display: none !important; }
-.ew-preview-page .ew-file-section--legacy.ew-file-section--organizer-active,
-.ew-preview-page .ew-file-section--legacy.ew-file-section--compress-active {
+.ew-preview-page .ew-file-section--legacy.ew-file-section--organizer-active {
   display: block !important;
-}
-.ew-preview-page .ew-file-section--legacy.ew-file-section--compress-active .upload-label,
-.ew-preview-page .ew-file-section--legacy.ew-file-section--compress-active #files-list {
-  display: none !important;
 }
 .tool-page--pro > .shared-file-preview-host {
   margin: 12px auto 0;
