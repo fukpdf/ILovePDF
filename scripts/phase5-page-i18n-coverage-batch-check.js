@@ -56,21 +56,25 @@ for (const rel of htmlFiles) {
   const source = read(rel);
   const isAdmin = rel.startsWith('public/admin/');
   const isOffline = rel === 'public/offline.html';
-  const hasChrome = /\/js\/chrome\.js/.test(source) || /\/js\/chrome-shim\.js/.test(source);
-  const hasI18n = /\/js\/i18n\.js/.test(source);
+  // tool.html loads its shared runtime through the lightweight deferred loader.
+  const runtimeSource = rel === 'public/tool.html'
+    ? source + '\n' + read('public/js/tool-page-loader.js')
+    : source;
+  const hasChrome = /\/js\/chrome\.js/.test(runtimeSource) || /\/js\/chrome-shim\.js/.test(runtimeSource);
+  const hasI18n = /\/js\/i18n\.js/.test(runtimeSource);
   if (!hasChrome && !isAdmin && !isOffline) fail.push('75 shared chrome missing: ' + rel);
   if (!hasI18n) fail.push('75 RuntimeI18n loader missing: ' + rel);
 
-  const i18nPos = source.search(/\/js\/i18n\.js/);
-  const chromePos = source.search(/\/js\/chrome(?:-shim)?\.js/);
+  const i18nPos = runtimeSource.search(/\/js\/i18n\.js/);
+  const chromePos = runtimeSource.search(/\/js\/chrome(?:-shim)?\.js/);
   if (hasChrome && hasI18n && i18nPos >= 0 && chromePos >= 0 && i18nPos > chromePos) {
     fail.push('76 i18n.js is loaded after shared chrome: ' + rel);
   }
 
-  const runtimeRefs = (source.match(/\/js\/i18n\.js/g) || []).length;
+  const runtimeRefs = (runtimeSource.match(/\/js\/i18n\.js/g) || []).length;
   if (runtimeRefs > 1) fail.push('77 duplicate i18n.js script reference: ' + rel);
 
-  const chromeRefs = (source.match(/\/js\/chrome\.js/g) || []).length;
+  const chromeRefs = (runtimeSource.match(/\/js\/chrome\.js/g) || []).length;
   if (chromeRefs > 1) fail.push('77 duplicate chrome.js script reference: ' + rel);
 }
 
