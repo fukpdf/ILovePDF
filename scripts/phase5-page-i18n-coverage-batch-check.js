@@ -89,7 +89,7 @@ for (const rel of expectedSpecial) {
 const toolPage = read('public/tool.html');
 const home = read('public/index.html');
 
-if (!/tool-i18n-bridge\.js/.test(toolPage)) fail.push('79 tool.html is missing the tool i18n bridge.');
+if (!/tool-i18n-bridge\.js/.test(toolPage) && !/tool-i18n-bridge\.js/.test(read('public/js/tool-page-loader.js'))) fail.push('79 tool.html is missing the tool i18n bridge from its shell or lazy loader.');
 else pass.push('79 tool.html loads the tool i18n bridge.');
 
 if (!/tool-i18n-bridge\.js/.test(home)) fail.push('80 homepage is missing the tool i18n bridge.');
