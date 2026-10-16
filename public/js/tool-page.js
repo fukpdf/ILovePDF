@@ -259,7 +259,7 @@ window.addEventListener('popstate', () => {
 window.Flow = Flow; // exposed for queue-client and any future hookups
 window.renderStep = renderStep; // exposed for i18n bridge re-render on language switch
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function bootToolPage() {
   // Category hub pages (/pdf-tools, /convert-pdf, etc.) use the same shell but
   // have no tool to render — bail out so we don't show a "Tool not found" card.
   if (window.__CATEGORY_PAGE === true) return;
@@ -395,7 +395,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (_) {}
     }, 1800);
   });
-});
+}
 
 function renderNotFound(toolId, slug) {
   const c = document.getElementById('tool-content');
@@ -3270,3 +3270,26 @@ window.loadToolPage = function loadToolPage(path) {
   try { window.scrollTo(0, 0); } catch (_) {}
   if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
 };
+
+// The shell is loaded dynamically by tool-page-loader.js. Its network chain can
+// finish after DOMContentLoaded, so use the loader's explicit readiness event
+// and keep a guarded fallback for direct/manual script loading.
+var _toolPageBootStarted = false;
+function startToolPageBoot() {
+  if (_toolPageBootStarted) return;
+  _toolPageBootStarted = true;
+  bootToolPage().catch(function (error) {
+    console.error('[ToolPage] initial boot failed:', error);
+    var content = document.getElementById('tool-content');
+    if (content) content.innerHTML = '<div class="status-card status-error" role="alert"><strong>Tool could not start.</strong><p>Please reload the page and try again. Your selected files have not been uploaded.</p></div>';
+  });
+}
+window.addEventListener('ilovepdf:tool-critical-ready', startToolPageBoot, { once: true });
+if (!window.__ILOVE_TOOL_PAGE_LOADER__) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startToolPageBoot, { once: true });
+  } else {
+    startToolPageBoot();
+  }
+}
+
