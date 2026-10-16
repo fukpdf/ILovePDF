@@ -59,8 +59,12 @@ let directI18nPages = 0;
 for (const file of htmlFiles) {
   const rel = path.relative(ROOT, file).replaceAll(path.sep, '/');
   const src = fs.readFileSync(file, 'utf8');
-  const hasChrome = /<script[^>]+src=["'][^"']*\/js\/chrome\.js(?:\?[^"']*)?["']/i.test(src);
-  const hasI18n = /<script[^>]+src=["'][^"']*\/js\/i18n\.js(?:\?[^"']*)?["']/i.test(src);
+  const toolLoader = rel === 'public/tool.html' && /\/js\/tool-page-loader\.js/.test(src);
+  const lazyRuntime = toolLoader ? fs.readFileSync(path.join(publicDir, 'js/tool-page-loader.js'), 'utf8') : '';
+  const hasChrome = /<script[^>]+src=["'][^"']*\/js\/chrome\.js(?:\?[^"']*)?["']/i.test(src) ||
+    (toolLoader && /['"]\/js\/chrome\.js['"]/.test(lazyRuntime));
+  const hasI18n = /<script[^>]+src=["'][^"']*\/js\/i18n\.js(?:\?[^"']*)?["']/i.test(src) ||
+    (toolLoader && /['"]\/js\/i18n\.js[^'"]*['"]/.test(lazyRuntime));
   if (hasChrome) chromePages++;
   if (hasI18n) directI18nPages++;
   if (!hasChrome && !hasI18n) fail(rel + ' loads neither the shared chrome nor RuntimeI18n directly.');
