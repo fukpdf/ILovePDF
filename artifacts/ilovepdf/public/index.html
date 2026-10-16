@@ -79,28 +79,28 @@
   <meta name="apple-mobile-web-app-title" content="ILovePDF">
   <meta name="mobile-web-app-capable" content="yes">
   
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=optional"></noscript>
-  <link rel="preload" as="style" href="/css/home.css?v=20261009-header-fit-100-view-v1" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/home.css?v=20261009-header-fit-100-view-v1" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/home.css?v=20261009-header-fit-100-view-v1"></noscript>
   <!-- Lightweight, reusable homepage announcement UI -->
-  <link rel="preload" as="style" href="/css/home-header-v2.css?v=20261009-header-fit-100-view-v1" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/home-header-v2.css?v=20261009-header-fit-100-view-v1" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/home-header-v2.css?v=20261009-header-fit-100-view-v1"></noscript>
-  <link rel="preload" as="style" href="/css/economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/economy.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/economy.css"></noscript>
-  <link rel="preload" as="style" href="/css/community-economy.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/community-economy.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/community-economy.css"></noscript>
-  <link rel="preload" as="style" href="/css/rtl.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/rtl.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/rtl.css"></noscript>
-  <link rel="preload" as="style" href="/css/seo-extended.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/seo-extended.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/seo-extended.css"></noscript>
-  <link rel="preload" as="style" href="/css/home-footer-v2.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/home-footer-v2.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/home-footer-v2.css"></noscript>
   <!-- Phase 4: Ad slot styles — CLS-safe reserved dimensions, session-length components -->
-  <link rel="preload" as="style" href="/css/ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/ads.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/ads.css"></noscript>
   <!-- Phase 5: Responsive multi-stage ad orchestration (tablet breakpoints, upload/preview slots, safe-area) -->
-  <link rel="preload" as="style" href="/css/responsive-ads.css" fetchpriority="low" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="/css/responsive-ads.css" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">
 <noscript><link rel="stylesheet" href="/css/responsive-ads.css"></noscript>
   <!-- Google AdSense — base script only (no ad units yet, awaiting approval) -->
   <script>(function(){var src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3242156405919556";var loaded=false;function load(){if(loaded)return;loaded=true;var s=document.createElement("script");s.async=true;s.src=src;s.crossOrigin="anonymous";s.onload=function(){if(window.AdManager&&typeof window.AdManager.activateAll==="function")window.AdManager.activateAll();};document.head.appendChild(s);}function watchSlots(){var slots=document.querySelectorAll("[data-ad-slot],.ad-slot,ins.adsbygoogle");if("IntersectionObserver" in window&&slots.length){var observer=new IntersectionObserver(function(entries){if(entries.some(function(e){return e.isIntersecting;})){observer.disconnect();load();}},{rootMargin:"0px"});slots.forEach(function(slot){if(slot.getBoundingClientRect().top>=window.innerHeight)observer.observe(slot);});}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watchSlots,{once:true});else watchSlots();window.addEventListener("load",function(){setTimeout(load,4500);},{once:true});window.addEventListener("scroll",load,{once:true,passive:true});})();</script>
@@ -782,10 +782,22 @@
             try { document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true })); } catch (_) {}
             try { window.dispatchEvent(new Event('load')); } catch (_) {}
           }
+          function applyPreloadedStyles() {
+            Array.from(document.querySelectorAll('link[rel="preload"][as="style"]')).forEach(function (link) {
+              var enableStylesheet = function () {
+                if (link.dataset.stylesheetApplied === 'true') return;
+                link.dataset.stylesheetApplied = 'true';
+                link.rel = 'stylesheet';
+              };
+              if (link.dataset.preloaded === 'true') enableStylesheet();
+              else link.addEventListener('load', enableStylesheet, { once: true });
+            });
+          }
           function startRuntime() {
             if (started) return;
             started = true;
             window.__ILOVE_HOME_SCRIPTS_STARTED = true;
+            applyPreloadedStyles();
             var jobs = Array.from(template.content.querySelectorAll('script[src]')).map(function (source) {
               return new Promise(function (resolve) {
                 var script = document.createElement('script');

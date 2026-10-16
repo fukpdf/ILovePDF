@@ -187,12 +187,12 @@ function stabilizeHomepageFirstRender(html) {
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:https?:)?\/\/fonts\.googleapis\.com\/css2?\?/i.test(href)) {
       fontStylesheetDeferred = true;
-      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
     if (rel.split(/\s+/).includes('stylesheet') &&
         /(?:^|\/)css\/(?:seo-extended|home-footer-v2|ads|responsive-ads|home|home-header-v2|economy|community-economy|rtl)\.css(?:[?#]|$)/i.test(href)) {
       nonCriticalStylesheetsDeferred += 1;
-      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.rel=\'stylesheet\'">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+      return '<link rel="preload" as="style" href="' + href + '" fetchpriority="low" onload="this.onload=null;this.dataset.preloaded=true">\n<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
     }
     return tag;
   });
@@ -220,10 +220,22 @@ function stabilizeHomepageFirstRender(html) {
             try { document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true })); } catch (_) {}
             try { window.dispatchEvent(new Event('load')); } catch (_) {}
           }
+          function applyPreloadedStyles() {
+            Array.from(document.querySelectorAll('link[rel="preload"][as="style"]')).forEach(function (link) {
+              var enableStylesheet = function () {
+                if (link.dataset.stylesheetApplied === 'true') return;
+                link.dataset.stylesheetApplied = 'true';
+                link.rel = 'stylesheet';
+              };
+              if (link.dataset.preloaded === 'true') enableStylesheet();
+              else link.addEventListener('load', enableStylesheet, { once: true });
+            });
+          }
           function startRuntime() {
             if (started) return;
             started = true;
             window.__ILOVE_HOME_SCRIPTS_STARTED = true;
+            applyPreloadedStyles();
             var jobs = Array.from(template.content.querySelectorAll('script[src]')).map(function (source) {
               return new Promise(function (resolve) {
                 var script = document.createElement('script');
